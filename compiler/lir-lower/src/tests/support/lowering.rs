@@ -3,7 +3,7 @@
 use super::*;
 
 pub(in crate::tests) fn lower_test_input(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let (provider_input, provider, _, _) = crate::tests::exact_callable_abi::fixture();
     let target = provider.module().meta.target_profile;

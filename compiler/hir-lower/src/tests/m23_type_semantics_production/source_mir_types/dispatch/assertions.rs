@@ -3,7 +3,7 @@ use scoop_mir::{MirClassVtableSchemaV1, MirDispatchImplementationV1 as Implement
 
 pub(super) fn object_overrides(
     output: &hir::DependencyHirOutput,
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     types: &CanonicalParamFreeMirTypeExportsV1,
     authority: MirDispatchSchemaAuthority<'_>,
     schemas: &CanonicalMirDispatchSchemasV1,
@@ -35,7 +35,10 @@ pub(super) fn object_overrides(
                 .callable_roots()
                 .iter()
                 .find(|root| {
-                    root.implementation() == entry.implementation().target().callable_owner()
+                    root.subject()
+                        == scoop_mir::CallableSignatureSubject::Strong(
+                            entry.implementation().target().callable_owner(),
+                        )
                 })
                 .unwrap();
             input.module().functions[root.function()].name.as_str()
@@ -45,7 +48,7 @@ pub(super) fn object_overrides(
 }
 
 pub(super) fn actual(
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     types: &CanonicalParamFreeMirTypeExportsV1,
     authority: MirDispatchSchemaAuthority<'_>,
@@ -101,7 +104,10 @@ pub(super) fn actual(
             let target = entry.implementation().target();
             let root = roots
                 .iter()
-                .find(|root| root.implementation() == target.callable_owner())
+                .find(|root| {
+                    root.subject()
+                        == scoop_mir::CallableSignatureSubject::Strong(target.callable_owner())
+                })
                 .unwrap();
             let binding = authority.callables.get(target).unwrap();
             assert_eq!(
@@ -121,7 +127,7 @@ pub(super) fn actual(
 
 pub(super) fn dump(
     output: &hir::DependencyHirOutput,
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     types: &CanonicalParamFreeMirTypeExportsV1,
     schemas: &CanonicalMirDispatchSchemasV1,
 ) -> String {
@@ -138,11 +144,14 @@ pub(super) fn dump(
         .materialization()
         .callable_roots()
         .iter()
-        .map(|root| {
-            (
-                root.implementation(),
+        .filter_map(|root| {
+            let scoop_mir::CallableSignatureSubject::Strong(owner) = root.subject() else {
+                return None;
+            };
+            Some((
+                owner,
                 input.module().functions[root.function()].name.as_str(),
-            )
+            ))
         })
         .collect();
     let mut blocks = Vec::new();

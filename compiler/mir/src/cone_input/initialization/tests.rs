@@ -17,10 +17,7 @@ fn sealer_retains_exact_roles_from_hir_owned_source_materializations() {
     assert_eq!(root.identity(), identity);
     assert_eq!(root.ensure().function(), ensure);
     assert_eq!(root.initializer().function(), initializer);
-    assert_ne!(
-        root.ensure().implementation(),
-        root.initializer().implementation()
-    );
+    assert_ne!(root.ensure().subject(), root.initializer().subject());
     assert_eq!(
         input.materialization().initialization_units(),
         &[root.unit()]
@@ -39,7 +36,7 @@ fn swapped_roles_or_an_ordinary_function_cannot_supply_an_ensure() {
         module.initialization_units[unit_id()].ensure = wrong;
         assert!(matches!(
             seal(module),
-            Err(SingleConeStrongMirInputError::Initialization(
+            Err(ConeMirInputError::Initialization(
                 StrongInitializationUnitError::WrongRole {
                     role: InitializationCallableRole::Ensure,
                     ..
@@ -55,7 +52,7 @@ fn unit_identity_is_part_of_the_generated_callable_contract() {
     module.initialization_units[unit_id()].identity = unit_identity("other");
     assert!(matches!(
         seal(module),
-        Err(SingleConeStrongMirInputError::Initialization(
+        Err(ConeMirInputError::Initialization(
             StrongInitializationUnitError::WrongRole {
                 role: InitializationCallableRole::Initializer,
                 ..
@@ -70,7 +67,7 @@ fn each_role_must_be_an_emitted_body_not_only_a_foundation_signature() {
     let ensure = module.initialization_units[unit_id()].ensure;
     module.top_level.retain(|function| *function != ensure);
     assert!(
-        matches!(seal(module), Err(SingleConeStrongMirInputError::Initialization(
+        matches!(seal(module), Err(ConeMirInputError::Initialization(
         StrongInitializationUnitError::MissingBody { function, .. }
     )) if function == ensure)
     );
@@ -100,7 +97,7 @@ fn physical_gc_parameters_and_result_are_checked_before_sealing() {
             _ => unreachable!(),
         }
         assert!(
-            matches!(seal(module), Err(SingleConeStrongMirInputError::Initialization(
+            matches!(seal(module), Err(ConeMirInputError::Initialization(
             StrongInitializationUnitError::Signature { function, .. }
         )) if function == ensure)
         );
@@ -150,7 +147,7 @@ fn logical_signature_checks_execution_receiver_parameters_and_unit_result() {
                 .unwrap();
         replace_source(&mut module, changed);
         assert!(
-            matches!(seal(module), Err(SingleConeStrongMirInputError::Initialization(
+            matches!(seal(module), Err(ConeMirInputError::Initialization(
             StrongInitializationUnitError::Signature { function, .. }
         )) if function == ensure)
         );
@@ -175,7 +172,7 @@ fn duplicate_unit_identity_is_rejected_before_building_a_second_root() {
     module.initialization_units.alloc(duplicate);
     assert!(matches!(
         seal(module),
-        Err(SingleConeStrongMirInputError::Initialization(
+        Err(ConeMirInputError::Initialization(
             StrongInitializationUnitError::DuplicateUnit { .. }
         ))
     ));
@@ -216,7 +213,7 @@ fn generic_unit_cannot_claim_strong_eligibility_with_ordinary_role_functions() {
     .unwrap();
     assert!(matches!(
         seal(module),
-        Err(SingleConeStrongMirInputError::Initialization(
+        Err(ConeMirInputError::Initialization(
             StrongInitializationUnitError::GenericUnit { .. }
         ))
     ));

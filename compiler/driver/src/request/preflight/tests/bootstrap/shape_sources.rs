@@ -4,7 +4,7 @@ use scoop_identity::{
     PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_mir::SingleConeStrongMirInputError as Error;
+use scoop_mir::ConeMirInputError as Error;
 
 #[test]
 fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy() {
@@ -112,7 +112,7 @@ fn declaration(provider: ConeIdentity, parameters: u32) -> SourceDeclarationKey 
 fn seal(
     hir: &crate::request::preflight::current_hir::CurrentConeHirArtifacts,
     sources: Vec<SourceDeclarationKey>,
-) -> Result<scoop_mir::SingleConeStrongMirInput, Error> {
+) -> Result<scoop_mir::ConeMirInput, Error> {
     let module = scoop_mir_lower::lower(&hir.hir.output().local).unwrap();
     let selected = scoop_mir::SelectedExternalMirSet::empty(module.cone);
     let output = scoop_mir::DependencyMirOutput::try_new(module, selected).unwrap();
@@ -123,5 +123,5 @@ fn seal(
         &foundation,
     )
     .unwrap();
-    scoop_mir::SingleConeStrongMirInput::try_new(output, foundation, production, sources)
+    scoop_mir::ConeMirInput::try_new(output, production, sources)
 }

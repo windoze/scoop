@@ -2,7 +2,7 @@ use super::*;
 use scoop_lir_lower::StrongLirLoweringError as Error;
 
 pub(super) fn check(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     callables: &lir::SelectedExternalLirSet,
     diagnostics: &ExactTypeDiagnosticCatalog<'_>,
     selected: &lir::StrongProductionDependencySelectionV2<'_>,

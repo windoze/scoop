@@ -7,7 +7,7 @@ pub(super) struct LoweredModule {
 }
 
 pub(super) fn lower_graph(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     external_descriptors: &[lir::ExternalTypeDescriptor],
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
@@ -119,7 +119,7 @@ pub(super) fn lower_graph(
         .materialization()
         .callable_roots()
         .iter()
-        .map(|root| (root.function(), root.implementation()))
+        .map(|root| (root.function(), root.subject()))
         .collect::<HashMap<_, _>>();
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
@@ -128,7 +128,7 @@ pub(super) fn lower_graph(
         .map(|&id| {
             assert!(
                 callable_owners.contains_key(&id),
-                "every emitted function is selected by the sealed strong plan"
+                "every emitted function is selected by the MIR materialization plan"
             );
             let reference = match module.functions[id].gc_effect {
                 mir::GcEffect::Managed => {
@@ -310,7 +310,7 @@ pub(super) fn lower_graph(
 }
 
 fn materialized_exact_types(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     external: &std::collections::HashSet<scoop_identity::PersistentExactTypeId>,
 ) -> Vec<
     scoop_identity::CborIdentityRecord<
@@ -353,14 +353,23 @@ fn materialized_exact_types(
     records
 }
 
-pub(super) fn callable_body_identity(owner: mir::CallableOwner) -> lir::CallableBodyIdentity {
+pub(super) fn callable_body_identity(
+    subject: mir::CallableSignatureSubject,
+) -> lir::CallableBodyIdentity {
+    let owner = match subject {
+        mir::CallableSignatureSubject::Strong(owner) => owner,
+        mir::CallableSignatureSubject::Odr(member) => {
+            return lir::CallableBodyIdentity::for_odr_member(member)
+                .expect("validated callable ODR members have canonical runtime identities");
+        }
+    };
     let identity = match owner {
         mir::CallableOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
         mir::CallableOwner::Constructor(id) => lir::CallableBodyIdentity::for_constructor(id),
         mir::CallableOwner::Accessor(id) => lir::CallableBodyIdentity::for_property_accessor(id),
         mir::CallableOwner::Generated(id) => lir::CallableBodyIdentity::for_generated_callable(id),
         mir::CallableOwner::GenericTemplate(_) | mir::CallableOwner::Application(_) => {
-            unreachable!("the sealed strong plan excludes non-defining callable owners")
+            unreachable!("a callable signature subject has a defining owner")
         }
     };
     identity.expect("validated callable-body subjects have canonical runtime identities")

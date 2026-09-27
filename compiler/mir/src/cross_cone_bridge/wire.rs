@@ -5,7 +5,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
-use crate::OdrFreeMirFoundation;
+use crate::CanonicalMirFoundation;
 
 use super::encode_array;
 use super::errors::{
@@ -150,7 +150,7 @@ impl DecodedCrossConeMirBridgeSectionV1 {
         self,
         artifact: ConeIdentity,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &OdrFreeMirFoundation,
+        foundation: &CanonicalMirFoundation,
     ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError> {
         let mut exports = reserve_table(self.exports.len(), 1)?;
         for (index, decoded) in self.exports.into_iter().enumerate() {

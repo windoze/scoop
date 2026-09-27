@@ -48,7 +48,7 @@ fn finite_helper_source_keeps_the_actual_provider() {
         );
         assert!(
             matches!(source_owner(&SourceExactTypeIdentities::default(), location, exact),
-            Err(SingleConeStrongMirInputError::MissingGeneratedSourceExact {
+            Err(ConeMirInputError::MissingGeneratedSourceExact {
                 location: found_location, exact: found_exact,
             }) if found_location == location && found_exact == exact)
         );
@@ -72,7 +72,7 @@ fn structural_payload_cannot_claim_a_finite_nominal_helper() {
     let sources = SourceExactTypeIdentities::checked(vec![nominal, identity]).unwrap();
     let location = GeneratedExactTypeLocation::Enum(crate::EnumId::from_raw(0_u32.into()));
     assert!(matches!(source_owner(&sources, location, exact),
-        Err(SingleConeStrongMirInputError::InvalidGeneratedSourceOwner {
+        Err(ConeMirInputError::InvalidGeneratedSourceOwner {
             location: found_location, exact: found_exact,
         }) if found_location == location && found_exact == exact));
 }

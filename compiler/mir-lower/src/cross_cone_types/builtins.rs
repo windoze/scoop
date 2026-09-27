@@ -6,7 +6,7 @@ use super::*;
 
 pub(super) fn project(
     hir: &hir::CrossConeTypeSemanticsSectionV1,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
     identity: &mir::SourceExactTypeIdentity,
     nominal: PersistentTypeId,

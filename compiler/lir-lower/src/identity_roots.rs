@@ -7,11 +7,11 @@ use scoop_mir as mir;
 /// materialization plan. Generic and structural exact types remain available
 /// to physical shape calculation but cannot acquire a persistent LIR entity.
 pub(crate) struct IdentityRoots<'input> {
-    input: &'input mir::SingleConeStrongMirInput,
+    input: &'input mir::ConeMirInput,
 }
 
 impl<'input> IdentityRoots<'input> {
-    pub(crate) const fn new(input: &'input mir::SingleConeStrongMirInput) -> Self {
+    pub(crate) const fn new(input: &'input mir::ConeMirInput) -> Self {
         Self { input }
     }
 

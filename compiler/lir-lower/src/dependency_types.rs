@@ -28,7 +28,7 @@ impl DependencyTypeDescriptors {
 }
 
 pub(super) fn lower(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     target: lir::LirTargetProfile,
     selected: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
     external: &mut Arena<lir::ExternalTypeDescriptor>,

@@ -42,8 +42,8 @@ pub(super) fn validate(
     sources: Vec<SourceDeclarationKey>,
     module: &Module,
     shapes: &[StrongSourceNominalShapeRoot],
-) -> Result<Vec<StrongSourceShapeSupportRoot>, SingleConeStrongMirInputError> {
-    use SingleConeStrongMirInputError as Error;
+) -> Result<Vec<StrongSourceShapeSupportRoot>, ConeMirInputError> {
+    use ConeMirInputError as Error;
 
     let mut previous = None;
     let mut roots = Vec::with_capacity(sources.len());

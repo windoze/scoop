@@ -304,7 +304,7 @@ impl MirCallableBridgeAuthority<'_> {
         implementation: StrongCallableDefinitionOwner,
     ) -> Result<&ExactCallableSignature, MirCallableBridgeError> {
         let subject = crate::CallableSignatureSubject::strong(implementation.callable_owner());
-        let entries = self.foundation.as_canonical().callable_signatures();
+        let entries = self.foundation.callable_signatures();
         entries
             .binary_search_by(|entry| entry.subject().compare_sort_key(subject))
             .ok()

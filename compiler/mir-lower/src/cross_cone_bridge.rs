@@ -7,7 +7,7 @@ use scoop_hir::{
     NominalExactLeafClassifierV1,
 };
 use scoop_mir::{
-    CrossConeMirBridgeBuildError, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
+    CanonicalMirFoundation, CrossConeMirBridgeBuildError, CrossConeMirBridgeSectionV1,
     ParamFreeMirCallableBuildError, ParamFreeMirCallableExportV1, SelectedExternalMirSet,
 };
 
@@ -25,7 +25,7 @@ pub fn lower_cross_cone_bridge_section(
     artifact: ConeIdentity,
     hir: &CrossConeHirInterfaceSectionV1,
     classifier: &NominalExactLeafClassifierV1,
-    foundation: &OdrFreeMirFoundation,
+    foundation: &CanonicalMirFoundation,
     selected: &SelectedExternalMirSet,
 ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeLoweringError> {
     if selected.consumer() != artifact {
@@ -56,7 +56,7 @@ fn clone_selected(
 
 fn derive_exports(
     hir: &CrossConeHirInterfaceSectionV1,
-    foundation: &OdrFreeMirFoundation,
+    foundation: &CanonicalMirFoundation,
     classifier: &NominalExactLeafClassifierV1,
 ) -> Result<Vec<ParamFreeMirCallableExportV1>, CrossConeMirBridgeLoweringError> {
     let mut exports = Vec::new();
@@ -76,7 +76,6 @@ fn derive_exports(
         };
         let implementation = classified.implementation().callable_owner();
         if foundation
-            .as_canonical()
             .callable_signature(scoop_mir::CallableSignatureSubject::Strong(implementation))
             .is_none()
         {

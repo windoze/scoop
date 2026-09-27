@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) fn select<'a>(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     dependencies: &[&'a slib::PhysicalImportsReplayedCrossConeLayoutSections],
     target: lir::LirTargetProfile,

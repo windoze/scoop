@@ -6,10 +6,10 @@ use scoop_identity::{
 };
 use scoop_wire::HashError;
 
-use crate::{FunctionId, GeneratedExactTypeLocation};
+use crate::{CallableSignatureSubject, FunctionId, GeneratedExactTypeLocation};
 
 #[derive(Debug)]
-pub enum SingleConeStrongMirInputError {
+pub enum ConeMirInputError {
     ForeignExternalCallableSelection {
         expected: ConeIdentity,
         actual: ConeIdentity,
@@ -29,7 +29,6 @@ pub enum SingleConeStrongMirInputError {
     },
     Initialization(super::StrongInitializationUnitError),
     Production(crate::MirProductionBuildError),
-    FoundationMismatch,
     StrongCallableSurfaceMismatch,
     NonCanonicalShapeSupportSource {
         index: usize,
@@ -48,7 +47,6 @@ pub enum SingleConeStrongMirInputError {
         error: HashError,
     },
     MissingCallableSubject(FunctionId),
-    OdrCallableSubject(FunctionId),
     OdrGeneratedNominalShape(GeneratedExactTypeLocation),
     ForeignGeneratedHelperCallable(GeneratedExactTypeLocation),
     MissingGeneratedSourceExact {
@@ -66,28 +64,21 @@ pub enum SingleConeStrongMirInputError {
     MissingBoxedValue(PersistentExactTypeId),
     MissingCoroutineStep(PersistentExactTypeId),
     MissingCoroutineSlot(PersistentExactTypeId),
-    MissingStrongCallableBridge {
-        index: usize,
-        implementation: CallableOwner,
-    },
     OutputMismatch,
     MissingEntryRoot(FunctionId),
     EntryImplementationMismatch {
         expected: CallableOwner,
-        actual: CallableOwner,
+        actual: CallableSignatureSubject,
     },
 }
 
-impl fmt::Display for SingleConeStrongMirInputError {
+impl fmt::Display for ConeMirInputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot seal single-Cone strong MIR input: {self:?}"
-        )
+        write!(formatter, "cannot construct Cone MIR input: {self:?}")
     }
 }
 
-impl std::error::Error for SingleConeStrongMirInputError {
+impl std::error::Error for ConeMirInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Initialization(source) => Some(source),
@@ -99,12 +90,10 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::ForeignExternalCallable { .. }
             | Self::UnreferencedExternalCallable { .. }
             | Self::DuplicateExternalImplementation { .. }
-            | Self::FoundationMismatch
             | Self::StrongCallableSurfaceMismatch
             | Self::NonCanonicalShapeSupportSource { .. }
             | Self::InvalidShapeSupportSource { .. }
             | Self::MissingCallableSubject(_)
-            | Self::OdrCallableSubject(_)
             | Self::OdrGeneratedNominalShape(_)
             | Self::ForeignGeneratedHelperCallable(_)
             | Self::MissingGeneratedSourceExact { .. }
@@ -113,7 +102,6 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::MissingBoxedValue(_)
             | Self::MissingCoroutineStep(_)
             | Self::MissingCoroutineSlot(_)
-            | Self::MissingStrongCallableBridge { .. }
             | Self::OutputMismatch
             | Self::MissingEntryRoot(_)
             | Self::EntryImplementationMismatch { .. } => None,

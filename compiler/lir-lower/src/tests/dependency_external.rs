@@ -183,12 +183,12 @@ fn cross_cone_lir_bridge_rejects_a_mir_selection_not_owned_by_the_input() {
 }
 
 fn dependency_mir_bridge(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     include_selected: bool,
 ) -> mir::CrossConeMirBridgeSectionV1 {
     let local = input.materialization().callable_roots()[0];
-    let implementation = match local.implementation() {
-        scoop_identity::CallableOwner::Function(id) => {
+    let implementation = match local.subject() {
+        mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Function(id)) => {
             scoop_identity::StrongCallableDefinitionOwner::Function(id)
         }
         other => panic!("test caller must be a source function, found {other:?}"),
@@ -204,7 +204,7 @@ fn dependency_mir_bridge(
         .strong_callable_bridges()
         .bridges()
         .iter()
-        .find(|bridge| bridge.implementation() == local.implementation())
+        .find(|bridge| bridge.subject() == local.subject())
         .unwrap()
         .signature()
         .clone();
@@ -255,7 +255,7 @@ fn dependency_input(
     lir_effect: mir::GcEffect,
     has_receiver: bool,
 ) -> (
-    mir::SingleConeStrongMirInput,
+    mir::ConeMirInput,
     lir::SelectedExternalLirSet,
     scoop_identity::StrongCallableDefinitionOwner,
 ) {
@@ -334,12 +334,10 @@ fn dependency_input(
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
         mir::EntryMirBridgeBranchV1::Library,
-        mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
+        mir::StrongCallableBridgeSurfaceV1::from_foundation(&foundation),
     )
     .unwrap();
-    let input =
-        mir::SingleConeStrongMirInput::try_new(mir_output, foundation, production, Vec::new())
-            .unwrap();
+    let input = mir::ConeMirInput::try_new(mir_output, production, Vec::new()).unwrap();
 
     let canonical_effect = match lir_effect {
         mir::GcEffect::Managed => scoop_identity::GcEffect::Managed,

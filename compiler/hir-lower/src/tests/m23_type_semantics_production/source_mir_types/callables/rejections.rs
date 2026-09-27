@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn traps(
     output: &hir::DependencyHirOutput,
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
     unit: &CanonicalParamFreeMirTypeExportsV1,
@@ -70,7 +70,7 @@ pub(super) fn traps(
 pub(super) fn check(
     output: &hir::DependencyHirOutput,
     source: &hir::CrossConeTypeSemanticsSectionV1,
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
 ) {

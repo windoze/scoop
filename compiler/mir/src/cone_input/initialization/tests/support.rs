@@ -164,9 +164,7 @@ pub(super) fn replace_source(module: &mut Module, replacement: SourceCallableMat
     .unwrap();
 }
 
-pub(super) fn seal(
-    module: Module,
-) -> Result<SingleConeStrongMirInput, SingleConeStrongMirInputError> {
+pub(super) fn seal(module: Module) -> Result<ConeMirInput, ConeMirInputError> {
     let selected = crate::SelectedExternalMirSet::empty(module.cone);
     let output = crate::DependencyMirOutput::try_new(module, selected).unwrap();
     let module = output.module();
@@ -174,8 +172,8 @@ pub(super) fn seal(
     let production = CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
         EntryMirBridgeBranchV1::Library,
-        StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
+        StrongCallableBridgeSurfaceV1::from_foundation(&foundation),
     )
     .unwrap();
-    SingleConeStrongMirInput::try_new(output, foundation, production, Vec::new())
+    ConeMirInput::try_new(output, production, Vec::new())
 }

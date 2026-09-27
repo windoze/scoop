@@ -5,7 +5,7 @@ use scoop_identity::{CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph}
 
 /// Lowers the existing strong profile with its source display diagnostics.
 pub fn lower(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     external_descriptors: &[lir::ExternalTypeDescriptor],
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
@@ -25,7 +25,7 @@ pub fn lower(
 /// Layout-profile descriptors use persistent graph spelling before their
 /// registration plans, object atoms or export inventories can be produced.
 pub fn lower_with_diagnostics(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     external_descriptors: &[lir::ExternalTypeDescriptor],
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
@@ -60,7 +60,7 @@ fn canonicalize(
 /// Uses the same closed layout selection for actual dependency descriptors
 /// and Strong V2 production; imported helpers never become local definitions.
 pub fn lower_with_layout_dependencies(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     selected_layout: &lir::StrongProductionDependencySelectionV2<'_>,
@@ -78,7 +78,7 @@ pub fn lower_with_layout_dependencies(
 }
 
 fn seal(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     lowered: lowering::LoweredModule,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     lir::SingleConeStrongLirOutput::try_new(

@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::{Effect, GeneratedCallableKey};
 
-pub(super) fn actual(input: &SingleConeStrongMirInput, bindings: &CanonicalMirCallableBindingsV1) {
+pub(super) fn actual(input: &ConeMirInput, bindings: &CanonicalMirCallableBindingsV1) {
     for binding in bindings.entries() {
         let scoop_mir::MirCallableLoweringRoleV1::DerivedEquality { owner } =
             *binding.lowering_role()
@@ -25,7 +25,12 @@ pub(super) fn actual(input: &SingleConeStrongMirInput, bindings: &CanonicalMirCa
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| root.implementation() == binding.implementation().callable_owner())
+            .find(|root| {
+                root.subject()
+                    == scoop_mir::CallableSignatureSubject::Strong(
+                        binding.implementation().callable_owner(),
+                    )
+            })
             .unwrap();
         let function = &input.module().functions[root.function()];
         assert_eq!(function.gc_effect, binding.lowered_signature().gc_effect());
@@ -36,17 +41,19 @@ pub(super) fn actual(input: &SingleConeStrongMirInput, bindings: &CanonicalMirCa
     }
 }
 
-pub(super) fn dump(
-    input: &SingleConeStrongMirInput,
-    bindings: &CanonicalMirCallableBindingsV1,
-) -> String {
+pub(super) fn dump(input: &ConeMirInput, bindings: &CanonicalMirCallableBindingsV1) -> String {
     let mut lines = Vec::new();
     for binding in bindings.entries() {
         let root = input
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| root.implementation() == binding.implementation().callable_owner())
+            .find(|root| {
+                root.subject()
+                    == scoop_mir::CallableSignatureSubject::Strong(
+                        binding.implementation().callable_owner(),
+                    )
+            })
             .unwrap();
         let function = &input.module().functions[root.function()];
         let calls: Vec<_> = function

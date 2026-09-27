@@ -25,7 +25,7 @@ fn with_production<R>(
     source: &str,
     run: impl FnOnce(
         &hir::DependencyHirOutput,
-        &scoop_mir::SingleConeStrongMirInput,
+        &scoop_mir::ConeMirInput,
         &hir::CrossConeTypeSemanticsSectionV1,
         &mut scoop_identity::ValidatedIdentityGraph,
         &CanonicalParamFreeMirTypeExportsV1,
@@ -59,13 +59,10 @@ fn with_production<R>(
             .iter()
             .map(|root| root.declaration().clone())
             .collect();
-        let strong = scoop_mir::SingleConeStrongMirInput::try_new(
-            mir_output, foundation, production, shapes,
-        )
-        .unwrap();
+        let strong = scoop_mir::ConeMirInput::try_new(mir_output, production, shapes).unwrap();
         let local_hir: hir::DecodedHirFoundation =
             decoded(&hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap());
-        let mir: scoop_mir::DecodedMirFoundation = decoded(strong.foundation().as_canonical());
+        let mir: scoop_mir::DecodedMirFoundation = decoded(strong.foundation());
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(local.cone).unwrap();
         pending.register_authority(ConeIdentity::CORE).unwrap();

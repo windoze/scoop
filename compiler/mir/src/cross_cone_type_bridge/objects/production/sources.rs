@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn project(
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     types: &CanonicalParamFreeMirTypeExportsV1,
 ) -> Result<Vec<ObjectSource>, MirObjectProductionError> {
     let expected = types

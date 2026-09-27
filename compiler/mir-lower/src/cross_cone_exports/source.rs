@@ -12,7 +12,7 @@ pub fn lower_type_bridge_dependencies(
 }
 
 pub fn lower_type_bridge_initialization_units(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
 ) -> Result<Vec<mir::MirTypeBridgeInitializationUnitV1>, MirTypeBridgeUseLoweringError> {
     use MirTypeBridgeUseLoweringError as Error;
     let mut units = Vec::new();
@@ -22,16 +22,20 @@ pub fn lower_type_bridge_initialization_units(
         &WirePath::root(),
     )?;
     for root in input.materialization().initialization_roots() {
-        let CallableOwner::Generated(initializer) = root.initializer().implementation() else {
+        let mir::CallableSignatureSubject::Strong(CallableOwner::Generated(initializer)) =
+            root.initializer().subject()
+        else {
             return Err(Error::InitializationDefinition(root.identity()));
         };
-        let CallableOwner::Generated(ensure) = root.ensure().implementation() else {
+        let mir::CallableSignatureSubject::Strong(CallableOwner::Generated(ensure)) =
+            root.ensure().subject()
+        else {
             return Err(Error::InitializationDefinition(root.identity()));
         };
         let definition = input
             .production()
             .strong_callable_bridges()
-            .get(root.ensure().implementation())
+            .get(CallableOwner::Generated(ensure))
             .ok_or(Error::InitializationDefinition(root.identity()))?;
         units.push(mir::MirTypeBridgeInitializationUnitV1::new(
             root.identity(),

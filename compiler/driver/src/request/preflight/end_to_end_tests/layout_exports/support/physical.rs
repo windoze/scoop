@@ -9,7 +9,7 @@ pub(in super::super) struct Source {
 
 impl Source {
     pub(in super::super) fn from_mir(
-        input: &scoop_mir::SingleConeStrongMirInput,
+        input: &scoop_mir::ConeMirInput,
         layout: &LayoutAbiExportConstituentsV1,
     ) -> Self {
         let mut roots = Vec::new();
@@ -81,7 +81,7 @@ impl Source {
 }
 
 pub(super) fn select<'a>(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     layout: &'a LayoutAbiExportConstituentsV1,
     provider: &ShapeLinkProviderV1<'a>,
 ) -> StrongProductionDependencySelectionV2<'a> {

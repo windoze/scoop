@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    BoxingAdjust, CallableOwner, CallableSignatureSubject, FunctionId, SingleConeStrongMirInput,
-};
+use crate::{BoxingAdjust, CallableOwner, CallableSignatureSubject, ConeMirInput, FunctionId};
 use std::collections::BTreeMap;
 
 mod binding;
@@ -9,7 +7,7 @@ mod binding;
 impl CanonicalMirCallableBindingsV1 {
     /// Projects actual boxed-value dispatch bodies for locally exported payloads.
     pub fn from_boxing_adjusts(
-        input: &SingleConeStrongMirInput,
+        input: &ConeMirInput,
         local_types: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
@@ -17,7 +15,9 @@ impl CanonicalMirCallableBindingsV1 {
     ) -> Result<Self, MirBoxingCallableProductionError> {
         let mut roots = BTreeMap::new();
         for root in input.materialization().callable_roots() {
-            roots.insert(root.function(), root.implementation());
+            if let CallableSignatureSubject::Strong(owner) = root.subject() {
+                roots.insert(root.function(), owner);
+            }
         }
         let adjusts = &input.module().meta.boxing_adjusts;
         let mut records = Vec::new();

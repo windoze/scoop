@@ -45,7 +45,7 @@ impl DecodedCanonicalParamFreeMirTypeExportsV1 {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &crate::OdrFreeMirFoundation,
+        foundation: &crate::CanonicalMirFoundation,
     ) -> Result<CanonicalParamFreeMirTypeExportsV1, MirTypeBridgeError> {
         let mut records = Vec::new();
         let path = WirePath::root();

@@ -145,7 +145,7 @@ fn both_publication_roles_reject_physical_gc_and_argument_drift() {
 }
 
 fn mir_bridge(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     target: StrongCallableDefinitionOwner,
     signature: &ExactCallableSignature,
 ) -> mir::CrossConeMirBridgeSectionV1 {
@@ -160,7 +160,10 @@ fn mir_bridge(
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| root.implementation() == target.callable_owner())
+            .find(|root| {
+                root.subject()
+                    == scoop_mir::CallableSignatureSubject::Strong(target.callable_owner())
+            })
             .unwrap()
             .function()]
         .gc_effect,

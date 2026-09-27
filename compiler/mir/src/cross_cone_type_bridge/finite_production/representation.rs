@@ -8,7 +8,7 @@ type Projection = (
 );
 
 pub(super) fn project(
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     source: &ParamFreeMirTypeExportV1,
     location: GeneratedExactTypeLocation,
     role: &GeneratedNominalKey,

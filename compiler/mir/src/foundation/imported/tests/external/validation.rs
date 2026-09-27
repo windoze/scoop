@@ -1,6 +1,6 @@
 use super::*;
 
-fn check(module: Module, selected: SelectedExternalMirSet) -> SingleConeStrongMirInputError {
+fn check(module: Module, selected: SelectedExternalMirSet) -> ConeMirInputError {
     match DependencyMirOutput::try_new(module, selected) {
         Err(DependencyMirOutputError::ExternalCallables(error)) => error,
         _ => panic!("invalid external selection must be rejected"),
@@ -14,7 +14,7 @@ fn output_requires_complete_selection_coverage_and_consumer() {
     let empty = SelectedExternalMirSet::empty(ConeIdentity::SINGLE_FILE);
     assert!(matches!(
         check(module, empty),
-        SingleConeStrongMirInputError::ExternalCallableCountMismatch {
+        ConeMirInputError::ExternalCallableCountMismatch {
             module: 2,
             selected: 0
         }
@@ -23,7 +23,7 @@ fn output_requires_complete_selection_coverage_and_consumer() {
     let foreign = SelectedExternalMirSet::empty(ConeIdentity::CORE);
     assert!(matches!(
         check(module, foreign),
-        SingleConeStrongMirInputError::ForeignExternalCallableSelection { .. }
+        ConeMirInputError::ForeignExternalCallableSelection { .. }
     ));
 }
 
@@ -77,6 +77,6 @@ fn output_rejects_duplicate_implementations_across_providers() {
         *value = selected.callable_use(id, effect).unwrap();
     }
     assert!(
-        matches!(check(module, selected), SingleConeStrongMirInputError::DuplicateExternalImplementation { implementation } if implementation == record.implementation())
+        matches!(check(module, selected), ConeMirInputError::DuplicateExternalImplementation { implementation } if implementation == record.implementation())
     );
 }

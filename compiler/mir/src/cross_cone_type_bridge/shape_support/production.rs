@@ -1,11 +1,11 @@
 use super::*;
-use crate::{SingleConeStrongMirInput, StrongBoxedShapeSupportRoot};
+use crate::{ConeMirInput, StrongBoxedShapeSupportRoot};
 
 impl CanonicalMirShapeSupportsV1 {
     /// Produces the semantic support families from the same complete bindings
     /// used to export actual MIR helper types. No helper is reconstructed.
     pub fn from_strong_input(
-        input: &SingleConeStrongMirInput,
+        input: &ConeMirInput,
         identities: &ValidatedIdentityGraph,
         types: &CanonicalParamFreeMirTypeExportsV1,
     ) -> Result<Self, MirShapeSupportError> {

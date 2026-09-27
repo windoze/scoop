@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{SingleConeStrongMirInputError as Error, StrongExternalCallableRoot};
+use super::{ConeMirInputError as Error, StrongExternalCallableRoot};
 use crate::{Module, SelectedExternalMirSet};
 
 /// Resolves every MIR use through one complete selection before projecting the

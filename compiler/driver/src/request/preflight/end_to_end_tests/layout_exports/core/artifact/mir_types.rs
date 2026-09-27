@@ -12,7 +12,7 @@ pub(super) fn check(
     name: &str,
     source: hir::CheckedSharedTypeFoundationV1<'_>,
     core: &hir::CoreBootstrapInterfaceSectionV1,
-    foundation: &mir::OdrFreeMirFoundation,
+    foundation: &mir::CanonicalMirFoundation,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
     source
@@ -42,7 +42,7 @@ pub(super) fn check(
 struct Replay<'s, 'g> {
     source: hir::CheckedSharedTypeFoundationV1<'s>,
     core: &'s hir::CoreBootstrapInterfaceSectionV1,
-    foundation: &'s mir::OdrFreeMirFoundation,
+    foundation: &'s mir::CanonicalMirFoundation,
     section: &'s mir::CrossConeMirTypeBridgeSectionV1<'s>,
     graph: &'g hir::CheckedNominalInheritanceGraphV1<'g>,
 }

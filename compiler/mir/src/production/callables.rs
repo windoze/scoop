@@ -83,16 +83,18 @@ pub struct StrongCallableBridgeSurfaceV1 {
 }
 
 impl StrongCallableBridgeSurfaceV1 {
-    pub fn from_odr_free_foundation(foundation: &OdrFreeMirFoundation) -> Self {
+    pub fn from_foundation(foundation: &CanonicalMirFoundation) -> Self {
         let mut bridges = foundation
-            .as_canonical()
             .callable_signatures()
             .iter()
-            .map(|record| {
+            .filter_map(|record| {
                 let CallableSignatureSubject::Strong(implementation) = record.subject() else {
-                    unreachable!("OdrFreeMirFoundation excludes ODR signature subjects")
+                    return None;
                 };
-                StrongCallableBridgeV1::new(implementation, record.signature().clone())
+                Some(StrongCallableBridgeV1::new(
+                    implementation,
+                    record.signature().clone(),
+                ))
             })
             .collect::<Vec<_>>();
         bridges.sort_unstable_by_key(StrongCallableBridgeV1::implementation);
@@ -139,12 +141,15 @@ impl StrongCallableBridgeSurfaceV1 {
             .find(|bridge| bridge.role == crate::CallableRole::InitializationCycle)
     }
 
-    pub fn matches_foundation(&self, foundation: &OdrFreeMirFoundation) -> bool {
-        let signatures = foundation.as_canonical().callable_signatures();
-        self.bridges.len() == signatures.len()
+    pub fn matches_foundation(&self, foundation: &CanonicalMirFoundation) -> bool {
+        let signatures = foundation.callable_signatures();
+        self.bridges.len()
+            == signatures
+                .iter()
+                .filter(|record| matches!(record.subject(), CallableSignatureSubject::Strong(_)))
+                .count()
             && self.bridges.iter().all(|actual| {
                 foundation
-                    .as_canonical()
                     .callable_signature(actual.subject())
                     .is_some_and(|expected| actual.signature() == expected.signature())
             })
@@ -183,9 +188,14 @@ impl DecodedStrongCallableBridgeSurfaceV1 {
         identities: &mut ValidatedIdentityGraph,
         foundation: &CanonicalMirFoundation,
     ) -> Result<StrongCallableBridgeSurfaceV1, MirProductionValidationError> {
-        if self.bridges.len() != foundation.callable_signatures().len() {
+        let strong_count = foundation
+            .callable_signatures()
+            .iter()
+            .filter(|record| matches!(record.subject(), CallableSignatureSubject::Strong(_)))
+            .count();
+        if self.bridges.len() != strong_count {
             return Err(MirProductionValidationError::StrongCallableCoverage {
-                expected: foundation.callable_signatures().len(),
+                expected: strong_count,
                 actual: self.bridges.len(),
             });
         }
@@ -203,13 +213,6 @@ impl DecodedStrongCallableBridgeSurfaceV1 {
             }
             bridges.push(bridge);
         }
-        if foundation
-            .callable_signatures()
-            .iter()
-            .any(|record| matches!(record.subject(), CallableSignatureSubject::Odr(_)))
-        {
-            return Err(MirProductionValidationError::FoundationOdrSubject);
-        }
         for (index, bridge) in bridges.iter().enumerate() {
             let subject = bridge.subject();
             let Ok(expected_index) = foundation
@@ -221,7 +224,7 @@ impl DecodedStrongCallableBridgeSurfaceV1 {
             let expected = &foundation.callable_signatures()[expected_index];
             let CallableSignatureSubject::Strong(expected_implementation) = expected.subject()
             else {
-                return Err(MirProductionValidationError::FoundationOdrSubject);
+                return Err(MirProductionValidationError::StrongCallableMismatch { index });
             };
             if bridge.implementation != expected_implementation
                 || bridge.signature != *expected.signature()

@@ -26,7 +26,7 @@ type Result<T> = std::result::Result<T, ExactLayoutLoweringError>;
 /// Publishes layouts and descriptors for the current materialization roots,
 /// querying complete representations from actual dependencies where needed.
 pub fn lower_exact_layout_exports(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     output: &lir::SingleConeStrongLirOutput,
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
     identities: &ValidatedIdentityGraph,

@@ -15,7 +15,7 @@ type Error = SourceMirEqualityProductionError;
 
 pub fn lower_derived_equality_bindings(
     output: &hir::DependencyHirOutput,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     local_types: &mir::CanonicalParamFreeMirTypeExportsV1,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,

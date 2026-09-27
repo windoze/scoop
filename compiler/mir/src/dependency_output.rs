@@ -24,7 +24,7 @@ impl DependencyMirOutput {
         let foundation = CanonicalMirFoundation::from_module(&module)
             .map_err(DependencyMirOutputError::Foundation)?;
         let external_callable_roots =
-            crate::strong_input::validate_external_callables(&module, &selected_callables)
+            crate::cone_input::validate_external_callables(&module, &selected_callables)
                 .map_err(DependencyMirOutputError::ExternalCallables)?;
 
         Ok(Self {
@@ -41,6 +41,10 @@ impl DependencyMirOutput {
 
     pub const fn selected_callables(&self) -> &SelectedExternalMirSet {
         &self.selected_callables
+    }
+
+    pub fn foundation(&self) -> &CanonicalMirFoundation {
+        &self.foundation
     }
 
     pub fn strong_foundation(&self) -> Result<OdrFreeMirFoundation, OdrFreeMirFoundationError> {
@@ -67,7 +71,7 @@ impl DependencyMirOutput {
 #[derive(Debug)]
 pub enum DependencyMirOutputError {
     Foundation(MirFoundationBuildError),
-    ExternalCallables(crate::SingleConeStrongMirInputError),
+    ExternalCallables(crate::ConeMirInputError),
 }
 
 impl fmt::Display for DependencyMirOutputError {

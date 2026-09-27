@@ -1,7 +1,7 @@
 //! Object values and their actual initialization callable implementations.
 
 use super::*;
-use crate::{SingleConeStrongMirInput, StrongInitializationUnitMaterializationRoot};
+use crate::{ConeMirInput, StrongInitializationUnitMaterializationRoot};
 
 mod callables;
 mod sources;
@@ -15,7 +15,7 @@ impl MirObjectValueProductionV1 {
     /// Selects only local object type exports and binds their real singleton
     /// roots. Dependency records remain borrowed through the shared index.
     pub fn from_strong_input(
-        input: &SingleConeStrongMirInput,
+        input: &ConeMirInput,
         local_types: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
@@ -81,7 +81,7 @@ pub enum MirObjectProductionError {
         actual: usize,
     },
     InitializationRole {
-        implementation: crate::CallableOwner,
+        implementation: crate::CallableSignatureSubject,
     },
     MissingSignature {
         implementation: crate::CallableOwner,

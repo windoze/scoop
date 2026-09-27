@@ -17,7 +17,7 @@ pub fn lower_source_callable_bindings(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
     source: &hir::CrossConeTypeSemanticsSectionV1,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
     ordinary: &[mir::ParamFreeMirCallableExportV1],

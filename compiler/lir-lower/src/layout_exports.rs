@@ -20,7 +20,7 @@ pub use source::{LayoutAbiDependencyLoweringError, lower_layout_abi_dependencies
 
 #[derive(Clone, Copy)]
 pub struct LayoutAbiExportInputV1<'a> {
-    pub mir: &'a mir::SingleConeStrongMirInput,
+    pub mir: &'a mir::ConeMirInput,
     pub lir: &'a lir::SingleConeStrongLirOutput,
     pub bridge: &'a mir::MirTypeBridgeExportConstituentsV1,
     pub ordinary: &'a lir::CrossConeLirBridgeSectionV1,

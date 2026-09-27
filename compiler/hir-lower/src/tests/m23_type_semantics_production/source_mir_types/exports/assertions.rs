@@ -22,7 +22,12 @@ pub(super) fn actual(
     for record in exports.callables().entries() {
         let root = roots
             .iter()
-            .find(|root| root.implementation() == record.implementation().callable_owner())
+            .find(|root| {
+                root.subject()
+                    == scoop_mir::CallableSignatureSubject::Strong(
+                        record.implementation().callable_owner(),
+                    )
+            })
             .unwrap();
         assert_eq!(
             record.lowered_signature().exact(),
@@ -31,7 +36,7 @@ pub(super) fn actual(
                 .module()
                 .meta
                 .callable_signatures
-                .get(mir::CallableSignatureSubject::Strong(root.implementation()))
+                .get(root.subject())
                 .unwrap()
                 .signature(),
         );
@@ -161,7 +166,12 @@ pub(super) fn dump(
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| root.implementation() == record.implementation().callable_owner())
+            .find(|root| {
+                root.subject()
+                    == scoop_mir::CallableSignatureSubject::Strong(
+                        record.implementation().callable_owner(),
+                    )
+            })
             .unwrap();
         let name = &input.mir.module().functions[root.function()].name;
         let role = match record.lowering_role() {

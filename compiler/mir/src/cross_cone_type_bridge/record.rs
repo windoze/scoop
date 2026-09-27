@@ -51,5 +51,5 @@ impl ParamFreeMirTypeExportV1 {
 #[derive(Clone, Copy)]
 pub struct MirTypeBridgeAuthority<'a> {
     pub identities: &'a ValidatedIdentityGraph,
-    pub foundation: &'a crate::OdrFreeMirFoundation,
+    pub foundation: &'a crate::CanonicalMirFoundation,
 }

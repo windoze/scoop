@@ -7,7 +7,7 @@ mod representation;
 use representation::representation;
 
 pub(super) struct Fixture {
-    pub input: mir::SingleConeStrongMirInput,
+    pub input: mir::ConeMirInput,
     pub output: lir::SingleConeStrongLirOutput,
     pub graph: ValidatedIdentityGraph,
     pub types: mir::CanonicalParamFreeMirTypeExportsV1,

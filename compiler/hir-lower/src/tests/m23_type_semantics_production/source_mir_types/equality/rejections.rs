@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check(
     output: &hir::DependencyHirOutput,
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
 ) {

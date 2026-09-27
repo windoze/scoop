@@ -11,7 +11,7 @@ mod mutations;
 pub(super) fn check(
     name: &str,
     source: hir::CheckedSharedTypeFoundationV1<'_>,
-    foundation: &mir::OdrFreeMirFoundation,
+    foundation: &mir::CanonicalMirFoundation,
     strong: &mir::StrongCallableBridgeSurfaceV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
@@ -33,7 +33,7 @@ pub(super) fn check(
 
 struct Replay<'a> {
     source: hir::CheckedSharedTypeFoundationV1<'a>,
-    foundation: &'a mir::OdrFreeMirFoundation,
+    foundation: &'a mir::CanonicalMirFoundation,
     strong: &'a mir::StrongCallableBridgeSurfaceV1,
     section: &'a mir::CrossConeMirTypeBridgeSectionV1<'a>,
 }

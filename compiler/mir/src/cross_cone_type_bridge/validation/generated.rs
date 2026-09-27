@@ -20,7 +20,7 @@ impl MirTypeBridgeAuthority<'_> {
         // Object backing identities originate in HIR and are retained by MIR.
         // The three finite MIR shape helpers must also belong to this foundation.
         if !matches!(role, GeneratedNominalKey::ObjectBackingClass { .. })
-            && self.foundation.as_canonical().generated_type_key(nominal) != Some(role)
+            && self.foundation.generated_type_key(nominal) != Some(role)
         {
             return Err(MirTypeBridgeError::MissingGeneratedFoundation { nominal });
         }

@@ -15,7 +15,7 @@ pub struct CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
 impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
     pub fn resolve_callables<'a>(
         self,
-        foundation: &crate::OdrFreeMirFoundation,
+        foundation: &crate::CanonicalMirFoundation,
         direct_callables: &[&crate::CrossConeMirBridgeSectionV1],
         dependencies: impl ExactSizeIterator<
             Item = (

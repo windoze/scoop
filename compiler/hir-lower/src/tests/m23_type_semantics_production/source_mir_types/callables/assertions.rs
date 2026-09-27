@@ -3,20 +3,25 @@ use scoop_identity::{CallableTemplateOwner, StrongCallableDefinitionOwner};
 use scoop_mir::MirCallableLoweringRoleV1 as Role;
 
 fn root(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     binding: &scoop_mir::ParamFreeMirCallableBindingV1,
-) -> scoop_mir::StrongCallableMaterializationRoot {
+) -> scoop_mir::CallableMaterializationRoot {
     *input
         .materialization()
         .callable_roots()
         .iter()
-        .find(|root| root.implementation() == binding.implementation().callable_owner())
+        .find(|root| {
+            root.subject()
+                == scoop_mir::CallableSignatureSubject::Strong(
+                    binding.implementation().callable_owner(),
+                )
+        })
         .unwrap()
 }
 
 pub(super) fn actual(
     output: &hir::DependencyHirOutput,
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     bindings: &CanonicalMirCallableBindingsV1,
 ) {
     let local = output.output().local.module();
@@ -90,7 +95,7 @@ pub(super) fn actual(
 }
 
 pub(super) fn dump(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     bindings: &CanonicalMirCallableBindingsV1,
 ) -> String {
     let mut lines = Vec::new();
@@ -117,7 +122,7 @@ pub(super) fn dump(
 }
 
 pub(super) fn combined(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     bindings: &CanonicalMirCallableBindingsV1,
     dump: &str,
 ) {

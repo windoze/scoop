@@ -1,7 +1,5 @@
 use super::*;
-use scoop_mir::{
-    CanonicalMirCallableBindingsV1, MirTypeBridgeTypeIndexV1, SingleConeStrongMirInput,
-};
+use scoop_mir::{CanonicalMirCallableBindingsV1, ConeMirInput, MirTypeBridgeTypeIndexV1};
 use scoop_mir_lower::{SourceMirEqualityProductionError as Error, lower_derived_equality_bindings};
 
 mod assertions;

@@ -2,22 +2,20 @@ use std::fmt;
 
 use scoop_hir::CoreBootstrapInterfaceSectionV1;
 use scoop_mir::{
-    CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, MirProductionBuildError,
-    OdrFreeMirFoundation, StrongCallableBridgeSurfaceV1,
+    CallableOwner, CanonicalMirFoundation, ConeIdentity, CoreBootstrapBridgeSectionV1,
+    MirProductionBuildError, StrongCallableBridgeSurfaceV1,
 };
 
-/// Projects one checked HIR production section and the complete strong MIR
-/// foundation into the mandatory MIR production section.
+/// Projects the Strong callable subset of the complete MIR foundation.
 ///
-/// Entry contracts and compiler protocols use the same complete strong MIR
-/// foundation.
+/// Entry contracts and compiler protocols use this same foundation; ODR
+/// signatures remain in its canonical signature and member tables.
 pub fn lower_production_section(
     artifact: ConeIdentity,
     hir: &CoreBootstrapInterfaceSectionV1,
-    foundation: &OdrFreeMirFoundation,
+    foundation: &CanonicalMirFoundation,
 ) -> Result<CoreBootstrapBridgeSectionV1, MirProductionLoweringError> {
-    let strong_callable_bridges =
-        StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation);
+    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_foundation(foundation);
     let strong_callable_bridges = lower_callable_roles(hir, strong_callable_bridges)?;
     let entry_bridge = lower_entry_bridge(hir.output_contract())
         .map_err(MirProductionLoweringError::Production)?;

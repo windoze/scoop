@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn project(
     local: &hir::concrete::Module,
     source: hir::concrete::FunctionId,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     callable: PersistentGeneratedCallableId,
     key: &GeneratedCallableKey,
     identities: &ValidatedIdentityGraph,
@@ -15,7 +15,10 @@ pub(super) fn project(
     let signatures = &input.module().meta.callable_signatures;
 
     let position = roots
-        .binary_search_by_key(&implementation, |root| root.implementation())
+        .binary_search_by(|root| {
+            root.subject()
+                .compare_sort_key(mir::CallableSignatureSubject::Strong(implementation))
+        })
         .map_err(|_| Error::MissingMirMaterialization(callable))?;
     let actual = signatures
         .get(mir::CallableSignatureSubject::Strong(implementation))

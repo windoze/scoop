@@ -14,7 +14,7 @@ mod signatures;
 pub(super) fn check(
     name: &str,
     source: hir::CheckedSharedTypeFoundationV1<'_>,
-    foundation: &mir::OdrFreeMirFoundation,
+    foundation: &mir::CanonicalMirFoundation,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
@@ -60,7 +60,7 @@ pub(super) fn check(
 
 struct Replay<'s, 'g> {
     source: hir::CheckedSharedTypeFoundationV1<'s>,
-    foundation: &'s mir::OdrFreeMirFoundation,
+    foundation: &'s mir::CanonicalMirFoundation,
     ordinary: &'s mir::CrossConeMirBridgeSectionV1,
     section: &'s mir::CrossConeMirTypeBridgeSectionV1<'s>,
     graph: &'g hir::CheckedNominalInheritanceGraphV1<'g>,
@@ -77,7 +77,7 @@ impl Replay<'_, '_> {
             &[],
             self.graph,
             ordinary,
-            &mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(self.foundation),
+            &mir::StrongCallableBridgeSurfaceV1::from_foundation(self.foundation),
             bindings,
         )
     }

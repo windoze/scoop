@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) struct Context<'a> {
     pub source: &'a hir::CrossConeTypeSemanticsSectionV1,
-    pub input: &'a mir::SingleConeStrongMirInput,
+    pub input: &'a mir::ConeMirInput,
     pub authority: mir::MirDispatchSchemaAuthority<'a>,
     pub physical: BTreeMap<PersistentExactTypeId, &'a mir::Type>,
     roots: BTreeMap<mir::FunctionId, CallableOwner>,
@@ -10,7 +10,7 @@ pub(super) struct Context<'a> {
 impl<'a> Context<'a> {
     pub fn new(
         source: &'a hir::CrossConeTypeSemanticsSectionV1,
-        input: &'a mir::SingleConeStrongMirInput,
+        input: &'a mir::ConeMirInput,
         authority: mir::MirDispatchSchemaAuthority<'a>,
     ) -> Result<Self, Error> {
         let mut physical = BTreeMap::new();
@@ -19,7 +19,9 @@ impl<'a> Context<'a> {
         }
         let mut roots = BTreeMap::new();
         for root in input.materialization().callable_roots() {
-            roots.insert(root.function(), root.implementation());
+            if let mir::CallableSignatureSubject::Strong(owner) = root.subject() {
+                roots.insert(root.function(), owner);
+            }
         }
         Ok(Self {
             source,

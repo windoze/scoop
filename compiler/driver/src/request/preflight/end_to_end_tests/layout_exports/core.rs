@@ -352,11 +352,11 @@ fn check_core_layout_exports(names: &[&str]) {
 
 fn identity_graph(
     hir: &hir::DependencyHirOutput,
-    mir: &mir::SingleConeStrongMirInput,
+    mir: &mir::ConeMirInput,
     lir: Option<&lir::SingleConeStrongLirOutput>,
 ) -> ValidatedIdentityGraph {
     let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();
-    let mir = mir.foundation().as_canonical();
+    let mir = mir.foundation();
     let lir = lir.map(|lir| lir.foundation().as_canonical());
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();

@@ -1,7 +1,7 @@
 use super::*;
 use scoop_mir::{
-    CanonicalMirCallableBindingsV1, CanonicalMirDispatchSchemasV1, MirDispatchSchemaAuthority,
-    MirTypeBridgeCallableIndexV1, MirTypeBridgeTypeIndexV1, SingleConeStrongMirInput,
+    CanonicalMirCallableBindingsV1, CanonicalMirDispatchSchemasV1, ConeMirInput,
+    MirDispatchSchemaAuthority, MirTypeBridgeCallableIndexV1, MirTypeBridgeTypeIndexV1,
 };
 use scoop_mir_lower::{SourceMirDispatchProductionError as Error, lower_dispatch_schemas};
 
@@ -18,7 +18,7 @@ fn with_dispatch<R>(
     source: &str,
     run: impl FnOnce(
         &hir::DependencyHirOutput,
-        &SingleConeStrongMirInput,
+        &ConeMirInput,
         &hir::CrossConeTypeSemanticsSectionV1,
         &CanonicalParamFreeMirTypeExportsV1,
         MirDispatchSchemaAuthority<'_>,

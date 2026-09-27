@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    SelectedDependencyMirCallableV1, SelectedExternalMirSet, SingleConeStrongMirInputError,
-};
+use crate::{ConeMirInputError, SelectedDependencyMirCallableV1, SelectedExternalMirSet};
 use scoop_identity::DependencyCallableDeclarationId;
 
 mod fixture;
@@ -73,7 +71,7 @@ fn output_rejects_an_unreferenced_entry_from_either_selection() {
             _ => panic!("the output must reject the unreferenced external use"),
         };
         assert!(matches!(error,
-            SingleConeStrongMirInputError::UnreferencedExternalCallable { index: found }
+            ConeMirInputError::UnreferencedExternalCallable { index: found }
             if found == index as u32));
     }
 }

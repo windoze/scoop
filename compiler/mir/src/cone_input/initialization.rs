@@ -12,8 +12,8 @@ use super::*;
 pub struct StrongInitializationUnitMaterializationRoot {
     unit: InitializationUnitId,
     identity: PersistentInitializationUnitId,
-    initializer: StrongCallableMaterializationRoot,
-    ensure: StrongCallableMaterializationRoot,
+    initializer: CallableMaterializationRoot,
+    ensure: CallableMaterializationRoot,
 }
 impl StrongInitializationUnitMaterializationRoot {
     pub const fn unit(self) -> InitializationUnitId {
@@ -22,10 +22,10 @@ impl StrongInitializationUnitMaterializationRoot {
     pub const fn identity(self) -> PersistentInitializationUnitId {
         self.identity
     }
-    pub const fn initializer(self) -> StrongCallableMaterializationRoot {
+    pub const fn initializer(self) -> CallableMaterializationRoot {
         self.initializer
     }
-    pub const fn ensure(self) -> StrongCallableMaterializationRoot {
+    pub const fn ensure(self) -> CallableMaterializationRoot {
         self.ensure
     }
 }
@@ -53,7 +53,7 @@ pub enum StrongInitializationUnitError {
         role: InitializationCallableRole,
         function: FunctionId,
         expected: PersistentGeneratedCallableId,
-        actual: CallableOwner,
+        actual: CallableSignatureSubject,
     },
     Signature {
         unit: PersistentInitializationUnitId,
@@ -77,7 +77,7 @@ impl std::error::Error for StrongInitializationUnitError {
 
 pub(super) fn validate(
     module: &Module,
-    callable_roots: &[StrongCallableMaterializationRoot],
+    callable_roots: &[CallableMaterializationRoot],
 ) -> Result<Vec<StrongInitializationUnitMaterializationRoot>, StrongInitializationUnitError> {
     let roots: HashMap<_, _> = callable_roots
         .iter()
@@ -122,11 +122,11 @@ pub(super) fn validate(
 
 fn role(
     module: &Module,
-    roots: &HashMap<FunctionId, StrongCallableMaterializationRoot>,
+    roots: &HashMap<FunctionId, CallableMaterializationRoot>,
     unit: PersistentInitializationUnitId,
     function: FunctionId,
     role: InitializationCallableRole,
-) -> Result<StrongCallableMaterializationRoot, StrongInitializationUnitError> {
+) -> Result<CallableMaterializationRoot, StrongInitializationUnitError> {
     let expected = PersistentGeneratedCallableId::from_key(&GeneratedCallableKey::Initialization {
         unit,
         role,
@@ -139,13 +139,13 @@ fn role(
             role,
             function,
         })?;
-    if root.implementation() != CallableOwner::Generated(expected) {
+    if root.subject() != CallableSignatureSubject::Strong(CallableOwner::Generated(expected)) {
         return Err(StrongInitializationUnitError::WrongRole {
             unit,
             role,
             function,
             expected,
-            actual: root.implementation(),
+            actual: root.subject(),
         });
     }
     if function.into_raw().into_u32() as usize >= module.functions.len() {
@@ -156,10 +156,7 @@ fn role(
         });
     }
     let body = &module.functions[function];
-    let signature = module
-        .meta
-        .callable_signatures
-        .get(CallableSignatureSubject::Strong(root.implementation()));
+    let signature = module.meta.callable_signatures.get(root.subject());
     let unit_exact = module
         .meta
         .source_exact_types

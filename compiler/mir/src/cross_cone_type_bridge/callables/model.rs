@@ -49,7 +49,7 @@ impl ParamFreeMirCallableBindingV1 {
 #[derive(Clone, Copy)]
 pub struct MirCallableBridgeAuthority<'a> {
     pub identities: &'a ValidatedIdentityGraph,
-    pub foundation: &'a crate::OdrFreeMirFoundation,
+    pub foundation: &'a crate::CanonicalMirFoundation,
     pub types: &'a dyn MirTypeBridgeTypeLookupV1,
 }
 

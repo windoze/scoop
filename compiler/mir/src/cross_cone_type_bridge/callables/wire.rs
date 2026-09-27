@@ -12,7 +12,7 @@ impl DecodedParamFreeMirCallableBindingV1 {
     pub fn validate(
         self,
         graph: &mut ValidatedIdentityGraph,
-        foundation: &crate::OdrFreeMirFoundation,
+        foundation: &crate::CanonicalMirFoundation,
         types: &dyn MirTypeBridgeTypeLookupV1,
     ) -> Result<ParamFreeMirCallableBindingV1, MirCallableBridgeError> {
         let origin = self.origin.resolve(graph)?;
@@ -77,7 +77,7 @@ impl DecodedCanonicalMirCallableBindingsV1 {
     pub fn validate(
         self,
         graph: &mut ValidatedIdentityGraph,
-        foundation: &crate::OdrFreeMirFoundation,
+        foundation: &crate::CanonicalMirFoundation,
         types: &dyn MirTypeBridgeTypeLookupV1,
     ) -> Result<CanonicalMirCallableBindingsV1, MirCallableBridgeError> {
         let path = WirePath::root();

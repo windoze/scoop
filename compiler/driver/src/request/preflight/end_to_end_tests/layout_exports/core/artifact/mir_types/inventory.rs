@@ -54,7 +54,7 @@ pub(super) fn check(replay: &Replay<'_, '_>) {
 
 fn extra_type(
     provider: ConeIdentity,
-    foundation: &mir::OdrFreeMirFoundation,
+    foundation: &mir::CanonicalMirFoundation,
 ) -> mir::ParamFreeMirTypeExportV1 {
     let source: CborIdentityRecord<PersistentTypeId, _> =
         CborIdentityRecord::from_key(SourceDeclarationKey::nominal(

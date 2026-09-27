@@ -3,7 +3,7 @@ use super::*;
 // Unit is a language builtin. This dependency fixture retains the actual
 // imported identity present in MIR; it does not mint a local source type.
 pub(super) fn unit(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
 ) -> CanonicalParamFreeMirTypeExportsV1 {
     use scoop_mir::*;
@@ -34,7 +34,7 @@ pub(super) fn unit(
 }
 
 pub(super) fn boolean(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
 ) -> CanonicalParamFreeMirTypeExportsV1 {
     use scoop_mir::*;

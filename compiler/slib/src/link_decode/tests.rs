@@ -671,7 +671,7 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
         let mir_production = scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
             cone().identity(),
             scoop_mir::EntryMirBridgeBranchV1::Library,
-            scoop_mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&mir_proof),
+            scoop_mir::StrongCallableBridgeSurfaceV1::from_foundation(&mir_proof),
         )
         .unwrap();
         return crate::AssembledSingleConeStrongArtifactV1::write(

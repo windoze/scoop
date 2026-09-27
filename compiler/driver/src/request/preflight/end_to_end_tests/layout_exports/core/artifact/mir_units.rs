@@ -6,7 +6,7 @@ mod mutations;
 pub(super) fn check(
     name: &str,
     source: hir::CheckedSharedTypeFoundationV1<'_>,
-    foundation: &mir::OdrFreeMirFoundation,
+    foundation: &mir::CanonicalMirFoundation,
     strong: &mir::StrongCallableBridgeSurfaceV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) -> Vec<mir::MirTypeBridgeInitializationUnitV1> {
@@ -70,7 +70,7 @@ pub(super) fn check(
 
 struct Replay<'a> {
     metadata: hir::SharedTypeMetadataV1<'a>,
-    foundation: &'a mir::OdrFreeMirFoundation,
+    foundation: &'a mir::CanonicalMirFoundation,
     strong: &'a mir::StrongCallableBridgeSurfaceV1,
     unit_result: scoop_identity::PersistentExactTypeId,
 }

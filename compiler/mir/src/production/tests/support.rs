@@ -109,9 +109,7 @@ fn fixture_named(provider: ConeIdentity, name: &str) -> Fixture {
         ),
     ])
     .unwrap();
-    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-        &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
-    );
+    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_foundation(&mir);
     let section = CoreBootstrapBridgeSectionV1::try_new(
         provider,
         EntryMirBridgeBranchV1::Library,

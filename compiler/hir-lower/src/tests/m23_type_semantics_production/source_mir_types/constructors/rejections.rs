@@ -5,7 +5,7 @@ use scoop_mir::{
 };
 
 pub(super) fn primary_effects(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
     bindings: &CanonicalMirCallableBindingsV1,
@@ -56,7 +56,7 @@ pub(super) fn primary_effects(
 }
 
 pub(super) fn secondary_is_not_field_assembly(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
     bindings: &CanonicalMirCallableBindingsV1,
@@ -98,7 +98,7 @@ pub(super) fn secondary_is_not_field_assembly(
 pub(super) fn check(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
     unit: &CanonicalParamFreeMirTypeExportsV1,

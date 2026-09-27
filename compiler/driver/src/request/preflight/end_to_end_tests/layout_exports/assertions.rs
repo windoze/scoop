@@ -121,7 +121,9 @@ pub(super) fn callable_name(
         .materialization()
         .callable_roots()
         .iter()
-        .find(|root| root.implementation() == target.callable_owner())
+        .find(|root| {
+            root.subject() == scoop_mir::CallableSignatureSubject::Strong(target.callable_owner())
+        })
         .unwrap();
     &input.mir.module().functions[root.function()].name
 }

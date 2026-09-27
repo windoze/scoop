@@ -1,15 +1,17 @@
-//! Complete MIR and production data for the single-Cone strong lowering path.
+//! Complete MIR and materialization data for the shared lowering path.
+
+use std::rc::Rc;
 
 use scoop_identity::{
-    CallableOwner, ConeIdentity, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId,
-    PersistentTypeId, SourceDeclarationKey, StrongCallableDefinitionOwner,
+    ConeIdentity, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId, PersistentTypeId,
+    SourceDeclarationKey, StrongCallableDefinitionOwner,
 };
 
 use crate::{
-    CallableSignatureSubject, CoreBootstrapBridgeSectionV1, DependencyMirOutput,
-    EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId, FunctionId,
-    GeneratedExactTypeLocation, GlobalId, InitializationUnitId, MirOutput, Module, ObjectId,
-    OdrFreeMirFoundation, SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
+    CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
+    DependencyMirOutput, EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId,
+    FunctionId, GeneratedExactTypeLocation, GlobalId, InitializationUnitId, MirOutput, Module,
+    ObjectId, SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
 };
 
 mod errors;
@@ -25,20 +27,20 @@ mod shape_support;
 pub(crate) use external::validate_external_callables;
 pub use shape_support::{StrongBoxedShapeSupportRoot, StrongSourceShapeSupportRoot};
 
-/// One local function selected as a mandatory strong materialization root.
+/// One local function with its complete persistent signature subject.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct StrongCallableMaterializationRoot {
+pub struct CallableMaterializationRoot {
     function: FunctionId,
-    implementation: CallableOwner,
+    subject: CallableSignatureSubject,
 }
 
-impl StrongCallableMaterializationRoot {
+impl CallableMaterializationRoot {
     pub const fn function(self) -> FunctionId {
         self.function
     }
 
-    pub const fn implementation(self) -> CallableOwner {
-        self.implementation
+    pub const fn subject(self) -> CallableSignatureSubject {
+        self.subject
     }
 }
 
@@ -121,12 +123,12 @@ impl StrongGeneratedNominalShapeRoot {
     }
 }
 
-/// Complete root projection consumed by strong-profile LIR lowering.
+/// Complete root projection consumed by LIR lowering.
 ///
 /// The vectors contain local typed ids only after their persistent subjects
 /// have been checked against the exact MIR foundation and production section.
-pub struct SingleConeStrongMaterializationPlan {
-    callable_roots: Vec<StrongCallableMaterializationRoot>,
+pub struct ConeMirMaterializationPlan {
+    callable_roots: Vec<CallableMaterializationRoot>,
     external_callable_roots: Vec<StrongExternalCallableRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
@@ -140,8 +142,8 @@ pub struct SingleConeStrongMaterializationPlan {
     strings: Vec<StringConstId>,
 }
 
-impl SingleConeStrongMaterializationPlan {
-    pub fn callable_roots(&self) -> &[StrongCallableMaterializationRoot] {
+impl ConeMirMaterializationPlan {
+    pub fn callable_roots(&self) -> &[CallableMaterializationRoot] {
         &self.callable_roots
     }
 
@@ -208,43 +210,37 @@ impl SingleConeStrongMaterializationPlan {
     }
 }
 
-/// MIR graph, identity records, dependencies, and the strong materialization plan.
-pub struct SingleConeStrongMirInput {
+/// MIR graph, identity records, dependencies, and the complete callable plan.
+pub struct ConeMirInput {
     module: Module,
-    foundation: OdrFreeMirFoundation,
+    foundation: Rc<CanonicalMirFoundation>,
     selected_callables: SelectedExternalMirSet,
     production: CoreBootstrapBridgeSectionV1,
-    materialization: SingleConeStrongMaterializationPlan,
+    materialization: ConeMirMaterializationPlan,
 }
 
-impl SingleConeStrongMirInput {
+impl ConeMirInput {
     pub fn try_new(
         output: DependencyMirOutput,
-        foundation: OdrFreeMirFoundation,
         production: CoreBootstrapBridgeSectionV1,
         shape_support_sources: Vec<SourceDeclarationKey>,
-    ) -> Result<Self, SingleConeStrongMirInputError> {
-        let (module, source_foundation, selected_callables, external_callable_roots) =
-            output.into_parts();
-        if foundation.shared() != &source_foundation {
-            return Err(SingleConeStrongMirInputError::FoundationMismatch);
-        }
+    ) -> Result<Self, ConeMirInputError> {
+        let (module, foundation, selected_callables, external_callable_roots) = output.into_parts();
 
         if !production
             .strong_callable_bridges()
             .matches_foundation(&foundation)
         {
-            return Err(SingleConeStrongMirInputError::StrongCallableSurfaceMismatch);
+            return Err(ConeMirInputError::StrongCallableSurfaceMismatch);
         }
 
         production
             .validate_for_artifact(module.cone)
-            .map_err(SingleConeStrongMirInputError::Production)?;
+            .map_err(ConeMirInputError::Production)?;
         let callable_roots = callable_roots(&module)?;
-        validate_callable_roots(&callable_roots, production.strong_callable_bridges())?;
         validate_output(&module, &production, &callable_roots)?;
         let initialization_roots = initialization::validate(&module, &callable_roots)
-            .map_err(SingleConeStrongMirInputError::Initialization)?;
+            .map_err(ConeMirInputError::Initialization)?;
 
         let mut source_nominal_shapes = module
             .meta
@@ -272,7 +268,7 @@ impl SingleConeStrongMirInput {
 
         let shape_support =
             shape_support::validate(shape_support_sources, &module, &source_nominal_shapes)?;
-        let materialization = SingleConeStrongMaterializationPlan {
+        let materialization = ConeMirMaterializationPlan {
             callable_roots,
             external_callable_roots,
             source_nominal_shapes,
@@ -302,7 +298,7 @@ impl SingleConeStrongMirInput {
         &self.module
     }
 
-    pub const fn foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn foundation(&self) -> &CanonicalMirFoundation {
         &self.foundation
     }
 
@@ -314,74 +310,48 @@ impl SingleConeStrongMirInput {
         &self.production
     }
 
-    pub const fn materialization(&self) -> &SingleConeStrongMaterializationPlan {
+    pub const fn materialization(&self) -> &ConeMirMaterializationPlan {
         &self.materialization
     }
 }
 
-fn callable_roots(
-    module: &Module,
-) -> Result<Vec<StrongCallableMaterializationRoot>, SingleConeStrongMirInputError> {
+fn callable_roots(module: &Module) -> Result<Vec<CallableMaterializationRoot>, ConeMirInputError> {
     let mut roots = Vec::with_capacity(module.top_level.len());
     for &function in &module.top_level {
-        let subject = module.meta.callable_signature_subject(function).ok_or(
-            SingleConeStrongMirInputError::MissingCallableSubject(function),
-        )?;
-        let CallableSignatureSubject::Strong(implementation) = subject else {
-            return Err(SingleConeStrongMirInputError::OdrCallableSubject(function));
-        };
-        roots.push(StrongCallableMaterializationRoot {
-            function,
-            implementation,
-        });
+        let subject = module
+            .meta
+            .callable_signature_subject(function)
+            .ok_or(ConeMirInputError::MissingCallableSubject(function))?;
+        roots.push(CallableMaterializationRoot { function, subject });
     }
-    roots.sort_unstable_by_key(|root| root.implementation);
+    roots.sort_unstable_by(|left, right| left.subject.compare_sort_key(right.subject));
     Ok(roots)
-}
-
-fn validate_callable_roots(
-    roots: &[StrongCallableMaterializationRoot],
-    bridges: &crate::StrongCallableBridgeSurfaceV1,
-) -> Result<(), SingleConeStrongMirInputError> {
-    for (index, root) in roots.iter().enumerate() {
-        if !bridges
-            .bridges()
-            .iter()
-            .any(|bridge| bridge.implementation() == root.implementation)
-        {
-            return Err(SingleConeStrongMirInputError::MissingStrongCallableBridge {
-                index,
-                implementation: root.implementation,
-            });
-        }
-    }
-    Ok(())
 }
 
 fn validate_output(
     module: &Module,
     production: &CoreBootstrapBridgeSectionV1,
-    callable_roots: &[StrongCallableMaterializationRoot],
-) -> Result<(), SingleConeStrongMirInputError> {
+    callable_roots: &[CallableMaterializationRoot],
+) -> Result<(), ConeMirInputError> {
     match (module.output, production.entry_bridge()) {
         (MirOutput::Library, EntryMirBridgeBranchV1::Library) => Ok(()),
         (MirOutput::Executable { entry }, EntryMirBridgeBranchV1::Executable(bridge)) => {
             let implementation = callable_roots
                 .iter()
                 .find(|root| root.function == entry)
-                .map(|root| root.implementation)
-                .ok_or(SingleConeStrongMirInputError::MissingEntryRoot(entry))?;
-            if implementation != bridge.implementation() {
-                return Err(SingleConeStrongMirInputError::EntryImplementationMismatch {
-                    expected: implementation,
-                    actual: bridge.implementation(),
+                .map(|root| root.subject)
+                .ok_or(ConeMirInputError::MissingEntryRoot(entry))?;
+            if implementation != CallableSignatureSubject::Strong(bridge.implementation()) {
+                return Err(ConeMirInputError::EntryImplementationMismatch {
+                    expected: bridge.implementation(),
+                    actual: implementation,
                 });
             }
             Ok(())
         }
         (MirOutput::Library, EntryMirBridgeBranchV1::Executable(_))
         | (MirOutput::Executable { .. }, EntryMirBridgeBranchV1::Library) => {
-            Err(SingleConeStrongMirInputError::OutputMismatch)
+            Err(ConeMirInputError::OutputMismatch)
         }
     }
 }

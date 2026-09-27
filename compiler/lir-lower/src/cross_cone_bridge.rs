@@ -13,7 +13,7 @@ use scoop_mir as mir;
 /// typed dependency-external arena retained by LIR. Neither side is inferred
 /// from symbol text.
 pub fn lower_cross_cone_bridge_section(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     mir_bridge: &mir::CrossConeMirBridgeSectionV1,
     output: &lir::SingleConeStrongLirOutput,
 ) -> Result<lir::CrossConeLirBridgeSectionV1, CrossConeLirBridgeLoweringError> {
@@ -26,7 +26,7 @@ pub fn lower_cross_cone_bridge_section(
 }
 
 fn validate_providers(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     bridge: &mir::CrossConeMirBridgeSectionV1,
     output: &lir::SingleConeStrongLirOutput,
 ) -> Result<(), CrossConeLirBridgeLoweringError> {
@@ -47,7 +47,7 @@ fn validate_providers(
 }
 
 fn validate_mir_selections(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     bridge: &mir::CrossConeMirBridgeSectionV1,
 ) -> Result<(), CrossConeLirBridgeLoweringError> {
     let roots = input.materialization().external_callable_roots();
@@ -67,7 +67,7 @@ fn validate_mir_selections(
 }
 
 fn lower_exports(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     bridge: &mir::CrossConeMirBridgeSectionV1,
     output: &lir::SingleConeStrongLirOutput,
 ) -> Result<Vec<lir::ParamFreeLirCallableExportV1>, CrossConeLirBridgeLoweringError> {
@@ -84,7 +84,7 @@ fn lower_exports(
 }
 
 fn lower_export(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     output: &lir::SingleConeStrongLirOutput,
     export: &mir::ParamFreeMirCallableExportV1,
 ) -> Result<lir::ParamFreeLirCallableExportV1, CrossConeLirBridgeLoweringError> {

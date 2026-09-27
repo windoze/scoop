@@ -1,7 +1,7 @@
 use super::*;
 use scoop_mir::{
-    CanonicalMirCallableBindingsV1, MirBoxingCallableProductionError as Error,
-    MirTypeBridgeTypeIndexV1, SingleConeStrongMirInput,
+    CanonicalMirCallableBindingsV1, ConeMirInput, MirBoxingCallableProductionError as Error,
+    MirTypeBridgeTypeIndexV1,
 };
 
 mod assertions;
@@ -17,7 +17,7 @@ fn fixture(name: &str) -> (std::path::PathBuf, String) {
 fn sources(
     output: &hir::DependencyHirOutput,
     hir: &hir::CrossConeTypeSemanticsSectionV1,
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &dyn scoop_mir::MirTypeBridgeTypeLookupV1,
 ) -> CanonicalMirCallableBindingsV1 {

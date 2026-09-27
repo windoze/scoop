@@ -11,7 +11,7 @@ pub(super) struct CurrentConeMachineHir<'a> {
 }
 
 pub(super) struct CurrentConeMirArtifacts {
-    pub strong: scoop_mir::SingleConeStrongMirInput,
+    pub strong: scoop_mir::ConeMirInput,
     pub public: scoop_mir::CrossConeMirBridgeSectionV1,
 }
 
@@ -22,20 +22,18 @@ impl CurrentConeMachineHir<'_> {
     ) -> Result<CurrentConeMirArtifacts, CurrentConeMirStageError> {
         let mir = scoop_mir_lower::lower_current_cone(self.output, selected_callables)
             .map_err(CurrentConeMirStageError::Lowering)?;
-        let foundation = mir
-            .strong_foundation()
-            .map_err(CurrentConeMirStageError::Foundation)?;
+        let foundation = mir.foundation();
         let production = scoop_mir_lower::lower_production_section(
             mir.module().cone,
             self.production,
-            &foundation,
+            foundation,
         )
         .map_err(CurrentConeMirStageError::ProductionSection)?;
         let public = scoop_mir_lower::lower_cross_cone_bridge_section(
             mir.module().cone,
             self.public,
             self.classifier,
-            &foundation,
+            foundation,
             mir.selected_callables(),
         )
         .map_err(CurrentConeMirStageError::CrossConeBridge)?;
@@ -48,15 +46,14 @@ impl CurrentConeMachineHir<'_> {
             .iter()
             .map(|root| root.declaration().clone())
             .collect();
-        let strong =
-            scoop_mir::SingleConeStrongMirInput::try_new(mir, foundation, production, shapes)
-                .map_err(CurrentConeMirStageError::Sealing)?;
+        let strong = scoop_mir::ConeMirInput::try_new(mir, production, shapes)
+            .map_err(CurrentConeMirStageError::Sealing)?;
         Ok(CurrentConeMirArtifacts { strong, public })
     }
 }
 
 pub(super) fn lower_selected_lir(
-    strong: &scoop_mir::SingleConeStrongMirInput,
+    strong: &scoop_mir::ConeMirInput,
     public: &scoop_mir::CrossConeMirBridgeSectionV1,
     selected_callables: &scoop_lir::SelectedExternalLirSet,
     target: scoop_lir::LirTargetProfile,

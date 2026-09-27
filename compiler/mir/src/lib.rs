@@ -36,8 +36,8 @@ pub use exact_owner::*;
 
 mod source_exact_types;
 pub use source_exact_types::*;
-mod strong_input;
-pub use strong_input::*;
+mod cone_input;
+pub use cone_input::*;
 
 mod dependency_output;
 pub use dependency_output::*;

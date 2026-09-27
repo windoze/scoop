@@ -45,8 +45,8 @@ pub(super) struct Partition {
     pub dependencies: Vec<StrongDependencyGeneratedNominalShapeRoot>,
 }
 
-pub(super) fn partition(module: &Module) -> Result<Partition, SingleConeStrongMirInputError> {
-    use SingleConeStrongMirInputError as Error;
+pub(super) fn partition(module: &Module) -> Result<Partition, ConeMirInputError> {
+    use ConeMirInputError as Error;
     let mut local = Vec::new();
     let mut dependencies = Vec::new();
     for identity in module.meta.generated_exact_types.iter() {
@@ -106,8 +106,8 @@ fn source_owner(
     sources: &crate::SourceExactTypeIdentities,
     location: GeneratedExactTypeLocation,
     exact: PersistentExactTypeId,
-) -> Result<(PersistentTypeId, ConeIdentity), SingleConeStrongMirInputError> {
-    use SingleConeStrongMirInputError as Error;
+) -> Result<(PersistentTypeId, ConeIdentity), ConeMirInputError> {
+    use ConeMirInputError as Error;
     let source = sources
         .get_by_identity(exact)
         .ok_or(Error::MissingGeneratedSourceExact { location, exact })?;

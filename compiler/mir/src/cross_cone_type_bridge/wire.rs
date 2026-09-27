@@ -45,7 +45,7 @@ impl DecodedParamFreeMirTypeExportV1 {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &crate::OdrFreeMirFoundation,
+        foundation: &crate::CanonicalMirFoundation,
     ) -> Result<ParamFreeMirTypeExportV1, MirTypeBridgeError> {
         let exact = identities.resolve(self.exact)?;
         let origin = self.origin.resolve(identities)?;

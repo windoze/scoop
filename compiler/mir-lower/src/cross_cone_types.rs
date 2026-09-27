@@ -15,7 +15,7 @@ use resources::reserve;
 /// Combines actual source representations and the sealed finite shape plan.
 pub fn lower_type_exports(
     hir: &hir::CrossConeTypeSemanticsSectionV1,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
     let source = lower_source_type_exports(hir, input, identities)?;
@@ -33,7 +33,7 @@ pub fn lower_type_exports(
 /// The complete section still requires callable, dispatch and shape products.
 pub fn lower_source_type_exports(
     hir: &hir::CrossConeTypeSemanticsSectionV1,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
     let module = input.module();

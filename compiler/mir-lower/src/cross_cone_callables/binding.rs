@@ -2,7 +2,7 @@ use super::*;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn project(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
     declaration: Declaration,
@@ -15,13 +15,16 @@ pub(super) fn project(
     let signatures = &input.module().meta.callable_signatures;
 
     let index = roots
-        .binary_search_by_key(&implementation.callable_owner(), |root| {
-            root.implementation()
+        .binary_search_by(|root| {
+            root.subject()
+                .compare_sort_key(mir::CallableSignatureSubject::Strong(
+                    implementation.callable_owner(),
+                ))
         })
         .map_err(|_| Error::MissingMirMaterialization(declaration))?;
     let root = roots[index];
     let actual = signatures
-        .get(mir::CallableSignatureSubject::Strong(root.implementation()))
+        .get(root.subject())
         .ok_or(Error::MissingSignature(declaration))?;
     if actual.signature() != &expected || expected.effect() != source.execution {
         return Err(Error::SourceSignatureMismatch(declaration));

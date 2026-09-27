@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 
 pub(super) struct Producer<'a> {
     source: BTreeMap<PersistentConstructorId, &'a hir::CallableDeclarationRecordV1>,
-    input: &'a mir::SingleConeStrongMirInput,
+    input: &'a mir::ConeMirInput,
     authority: mir::MirCallableBridgeAuthority<'a>,
     records: Vec<mir::ParamFreeMirCallableBindingV1>,
 }
 impl<'a> Producer<'a> {
     pub(super) fn new(
         public: &'a hir::CrossConeHirInterfaceSectionV1,
-        input: &'a mir::SingleConeStrongMirInput,
+        input: &'a mir::ConeMirInput,
         identities: &'a ValidatedIdentityGraph,
         types: &'a dyn mir::MirTypeBridgeTypeLookupV1,
     ) -> Result<Self, Error> {
@@ -92,13 +92,16 @@ impl<'a> Producer<'a> {
 
         let implementation = origin.implementation();
         let index = roots
-            .binary_search_by_key(&implementation.callable_owner(), |root| {
-                root.implementation()
+            .binary_search_by(|root| {
+                root.subject()
+                    .compare_sort_key(mir::CallableSignatureSubject::Strong(
+                        implementation.callable_owner(),
+                    ))
             })
             .map_err(|_| Error::MissingMaterialization(declaration))?;
         let root = roots[index];
         let actual = signatures
-            .get(mir::CallableSignatureSubject::Strong(root.implementation()))
+            .get(root.subject())
             .ok_or(Error::MissingSignature(declaration))?;
         if actual.signature() != &lowered {
             return Err(Error::SourceSignatureMismatch(declaration));

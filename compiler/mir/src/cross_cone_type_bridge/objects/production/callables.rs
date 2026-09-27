@@ -1,8 +1,8 @@
 use super::*;
-use crate::{CallableOwner, CallableSignatureSubject, StrongCallableMaterializationRoot};
+use crate::{CallableMaterializationRoot, CallableOwner, CallableSignatureSubject};
 
 pub(super) fn project(
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     sources: &[ObjectSource],
     identities: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
@@ -38,9 +38,9 @@ pub(super) fn project(
             let signatures = &input.module().meta.callable_signatures;
 
             let signature = signatures
-                .get(CallableSignatureSubject::Strong(root.implementation()))
+                .get(root.subject())
                 .ok_or(MirObjectProductionError::MissingSignature {
-                    implementation: root.implementation(),
+                    implementation: target.callable_owner(),
                 })?
                 .signature();
 
@@ -70,10 +70,10 @@ pub(super) fn project(
 }
 
 pub(super) fn implementation(
-    root: StrongCallableMaterializationRoot,
+    root: CallableMaterializationRoot,
 ) -> Result<StrongCallableDefinitionOwner, MirObjectProductionError> {
-    match root.implementation() {
-        CallableOwner::Generated(callable) => {
+    match root.subject() {
+        CallableSignatureSubject::Strong(CallableOwner::Generated(callable)) => {
             Ok(StrongCallableDefinitionOwner::GeneratedCallable(callable))
         }
         implementation => Err(MirObjectProductionError::InitializationRole { implementation }),

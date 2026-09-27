@@ -209,6 +209,8 @@ LIR 继续使用 M23-6 的完整 value storage、scan、TypeDescriptor、dispatc
 
 当前 `OdrFree*Foundation` 只能用于历史 Strong 输入的限制检查，不再包围正式 generic 输出。正式生产持有原 canonical foundation、完整定义、实际依赖和 registration；删除被替代且无生产调用的 Strong 专用装配分支，不引入 Pending/Verified/Authorized 等资格状态机。
 
+MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 canonical foundation，不要求调用方再提供另一份 foundation。每个函数物化根保留既有 `CallableSignatureSubject` 的 Strong/ODR 分支；参数自由导出、entry 和 compiler protocol 查询仍选择各自的 Strong 目标，不因同模块还有 ODR 函数而失败。旧 core bootstrap bridge 的 bytes 合同不变，其 Strong callable 表只覆盖 canonical foundation 中的 Strong 子集；ODR 函数继续使用原完整 signature、application 和 member 表。历史 Strong 产物读取与写入仍在各自产物边界拒绝 ODR。
+
 ## 7. 对象发射与可复现性
 
 扩展现有 `EmittedStrongObjectSetV2` 所在的对象集合实现，并按其新用途整理命名。每个 `ObjectDefinitionPlan` 只绑定到一个实际 `SlibMemberId`；一个对象可以含多个 plan，一个 group 可以跨对象。目录逻辑 key 仍由排序后的真实 unit set 形成。

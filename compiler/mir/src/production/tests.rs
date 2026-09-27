@@ -121,9 +121,7 @@ fn validation_rejects_noncanonical_strong_callable_order() {
         ),
     ])
     .unwrap();
-    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-        &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
-    );
+    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_foundation(&mir);
     let section = CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         EntryMirBridgeBranchV1::Library,
@@ -171,9 +169,7 @@ fn validation_joins_mixed_callable_owner_variants_by_subject() {
         CallableSignatureSubject::Strong(CallableOwner::Generated(_))
     ));
 
-    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-        &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
-    );
+    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_foundation(&mir);
     assert!(matches!(
         strong_callable_bridges.bridges()[0].implementation(),
         CallableOwner::Function(_)
@@ -198,9 +194,7 @@ fn validation_joins_mixed_callable_owner_variants_by_subject() {
 fn builder_closes_callable_roles_and_entry_implementations() {
     let fixture = fixture();
     let entry = CborIdentityRecord::from_key(source_function("main")).unwrap();
-    let unmarked = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-        &OdrFreeMirFoundation::try_new(fixture.mir.clone()).unwrap(),
-    );
+    let unmarked = StrongCallableBridgeSurfaceV1::from_foundation(&fixture.mir);
     assert_eq!(
         unmarked
             .clone()
@@ -271,9 +265,7 @@ fn executable_entry_bridge_round_trips_the_complete_hir_proof() {
         signature,
     )])
     .unwrap();
-    let bridges = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-        &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
-    );
+    let bridges = StrongCallableBridgeSurfaceV1::from_foundation(&mir);
     let section = CoreBootstrapBridgeSectionV1::try_new(
         artifact,
         EntryMirBridgeBranchV1::Executable(Box::new(

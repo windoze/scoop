@@ -7,7 +7,7 @@ use scoop_mir::MirCallableLoweringRoleV1;
 pub(super) fn actual(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     bindings: &CanonicalMirCallableBindingsV1,
 ) {
     let constructors = hir::select_param_free_source_constructors(

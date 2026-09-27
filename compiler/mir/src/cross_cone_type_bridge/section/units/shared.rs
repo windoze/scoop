@@ -16,7 +16,7 @@ type Error = MirTypeBridgeSectionError;
 pub fn replay_source_initialization_units(
     provider: ConeIdentity,
     source_units: &[CborIdentityRecord<PersistentInitializationUnitId, InitializationUnitKey>],
-    foundation: &crate::OdrFreeMirFoundation,
+    foundation: &crate::CanonicalMirFoundation,
     strong: &crate::StrongCallableBridgeSurfaceV1,
     graph: &ValidatedIdentityGraph,
     unit_result: PersistentExactTypeId,
@@ -119,7 +119,7 @@ fn role(
     unit: PersistentInitializationUnitId,
     role: InitializationCallableRole,
     expected: &ExactCallableSignature,
-    foundation: &crate::OdrFreeMirFoundation,
+    foundation: &crate::CanonicalMirFoundation,
     strong: &crate::StrongCallableBridgeSurfaceV1,
     graph: &ValidatedIdentityGraph,
 ) -> Result<StrongCallableDefinitionOwner, Error> {
@@ -149,7 +149,7 @@ fn role(
             problem: Problem::DefinitionRole,
         });
     }
-    let signatures = foundation.as_canonical().callable_signatures();
+    let signatures = foundation.callable_signatures();
 
     let actual = signatures
         .binary_search_by(|record| record.subject().compare_sort_key(definition.subject()))

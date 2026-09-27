@@ -51,7 +51,12 @@ pub(super) fn check(
                 .materialization()
                 .callable_roots()
                 .iter()
-                .find(|root| root.implementation() == implementation.callable_owner())
+                .find(|root| {
+                    root.subject()
+                        == scoop_mir::CallableSignatureSubject::Strong(
+                            implementation.callable_owner(),
+                        )
+                })
                 .unwrap();
             input.mir.module().functions[root.function()].name.as_str()
         })

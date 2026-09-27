@@ -36,6 +36,9 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<slib::AssembledCrossConeLayoutStrongArtifactV1, Error> {
+        let mir_foundation =
+            scoop_mir::OdrFreeMirFoundation::try_new(self.ordinary.mir_foundation.clone())
+                .map_err(Error::MirProfile)?;
         let prepared = objects::prepare(emitted, generated)?;
         let strong = prepared.patch_sites.builtins().strong_relocations().clone();
         let defined =
@@ -84,7 +87,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
                 self.ordinary.hir_core,
                 self.ordinary.hir_cross_cone,
                 self.hir_types,
-                self.ordinary.mir_foundation,
+                &mir_foundation,
                 self.ordinary.mir_core,
                 self.ordinary.mir_cross_cone,
                 self.mir_types,

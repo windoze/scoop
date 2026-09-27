@@ -10,7 +10,7 @@ use crate::{LoweringContext, StrongLirLoweringError as Error, abi};
 
 pub(super) fn lower_external_callables(
     context: &LoweringContext,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     selected: &lir::SelectedExternalLirSet,
     layouts: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
     structs: &lir::StructDefs,

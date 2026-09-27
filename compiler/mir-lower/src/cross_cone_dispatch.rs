@@ -16,7 +16,7 @@ use context::*;
 
 pub fn lower_dispatch_schemas(
     source: &hir::CrossConeTypeSemanticsSectionV1,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     local_types: &mir::CanonicalParamFreeMirTypeExportsV1,
     authority: mir::MirDispatchSchemaAuthority<'_>,
     dependencies: &[&mir::CanonicalMirDispatchSchemasV1],

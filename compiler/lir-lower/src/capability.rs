@@ -48,7 +48,7 @@ impl fmt::Display for StrongLirCapabilityError {
 impl std::error::Error for StrongLirCapabilityError {}
 
 pub(crate) fn validate_strong_materialization(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     roots: &IdentityRoots<'_>,
     dependencies: &DependencyTypeDescriptors,
 ) -> Result<(), StrongLirCapabilityError> {

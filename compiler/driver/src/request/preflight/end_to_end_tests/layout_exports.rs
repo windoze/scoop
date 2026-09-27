@@ -62,7 +62,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                                 .collect::<Vec<_>>();
                             let callable = match &error {
                                 scoop_lir_lower::LayoutAbiExportLoweringError::Callable { target, .. } => input.mir.materialization().callable_roots().iter()
-                                    .find(|root| root.implementation() == target.callable_owner())
+                                    .find(|root| root.subject() == scoop_mir::CallableSignatureSubject::Strong(target.callable_owner()))
                                     .map(|root| &input.mir.module().functions[root.function()].name),
                                 _ => None,
                             };

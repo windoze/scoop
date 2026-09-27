@@ -2,10 +2,7 @@ use super::*;
 use scoop_mir::{GeneratedExactTypeLocation, StrongBoxedShapeSupportRoot};
 use std::fmt::Write;
 
-pub(super) fn bindings(
-    input: &scoop_mir::SingleConeStrongMirInput,
-    families: &CanonicalMirShapeSupportsV1,
-) {
+pub(super) fn bindings(input: &scoop_mir::ConeMirInput, families: &CanonicalMirShapeSupportsV1) {
     let module = input.module();
     let roots = input.materialization().shape_support();
     assert_eq!(families.records().len(), roots.len());
@@ -104,10 +101,7 @@ pub(super) fn projection(
     text
 }
 
-pub(super) fn hidden_box(
-    input: &scoop_mir::SingleConeStrongMirInput,
-    families: &CanonicalMirShapeSupportsV1,
-) {
+pub(super) fn hidden_box(input: &scoop_mir::ConeMirInput, families: &CanonicalMirShapeSupportsV1) {
     let module = input.module();
     let hidden = module.meta.boxed_types.iter().find(|boxed| matches!(boxed.payload(), scoop_mir::Type::Struct(id) if module.structs[*id].name == "Hidden")).unwrap();
     let exact = module

@@ -106,16 +106,14 @@ impl Fixture {
     }
 }
 
-pub(super) fn seal(
-    output: DependencyMirOutput,
-) -> Result<SingleConeStrongMirInput, SingleConeStrongMirInputError> {
+pub(super) fn seal(output: DependencyMirOutput) -> Result<ConeMirInput, ConeMirInputError> {
     let module = output.module();
     let foundation = output.strong_foundation().unwrap();
     let production = CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
         EntryMirBridgeBranchV1::Library,
-        StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
+        StrongCallableBridgeSurfaceV1::from_foundation(&foundation),
     )
     .unwrap();
-    SingleConeStrongMirInput::try_new(output, foundation, production, Vec::new())
+    ConeMirInput::try_new(output, production, Vec::new())
 }

@@ -28,8 +28,8 @@ impl Replay<'_, '_> {
         implementation: scoop_identity::StrongCallableDefinitionOwner,
         signature: &ExactCallableSignature,
     ) -> mir::OdrFreeMirFoundation {
-        let surface = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(self.foundation);
-        let mut foundation = self.foundation.clone().into_canonical();
+        let surface = mir::StrongCallableBridgeSurfaceV1::from_foundation(self.foundation);
+        let mut foundation = self.foundation.clone();
         foundation
             .set_callable_signatures(
                 surface

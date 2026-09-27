@@ -74,7 +74,7 @@ pub(super) fn mir_sections(
     let production = CoreBootstrapBridgeSectionV1::try_new(
         provider,
         EntryMirBridgeBranchV1::Library,
-        StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
+        StrongCallableBridgeSurfaceV1::from_foundation(&foundation),
     )
     .unwrap();
     (foundation, production, ordinary)

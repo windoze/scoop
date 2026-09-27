@@ -103,8 +103,8 @@ impl Replay<'_> {
         lowered: Signature,
         role: Role,
     ) -> mir::ParamFreeMirCallableBindingV1 {
-        let surface = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(self.foundation);
-        let mut foundation = self.foundation.clone().into_canonical();
+        let surface = mir::StrongCallableBridgeSurfaceV1::from_foundation(self.foundation);
+        let mut foundation = self.foundation.clone();
         foundation
             .set_callable_signatures(
                 surface

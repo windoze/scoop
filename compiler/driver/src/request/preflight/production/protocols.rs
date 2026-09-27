@@ -37,10 +37,7 @@ pub(super) fn type_identities(
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending.register_authority(hir.hir.output().export.cone)?;
     hir.foundation.register_identities(&mut pending)?;
-    mir.strong
-        .foundation()
-        .as_canonical()
-        .register_identities(&mut pending)?;
+    mir.strong.foundation().register_identities(&mut pending)?;
     let mut coordinates = vec![coordinate.clone()];
     for (coordinate, identities) in dependencies.identity_inputs() {
         pending.register_external_graph_authorities(identities)?;

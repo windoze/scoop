@@ -13,7 +13,7 @@ fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
 fn with_production<R>(
     source: &str,
     run: impl FnOnce(
-        &scoop_mir::SingleConeStrongMirInput,
+        &scoop_mir::ConeMirInput,
         &mut scoop_identity::ValidatedIdentityGraph,
         &CanonicalParamFreeMirTypeExportsV1,
         &CanonicalParamFreeMirTypeExportsV1,
@@ -39,8 +39,7 @@ fn with_production<R>(
     let mir = input
         .lower_selected_mir(scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::CORE))
         .unwrap();
-    let mir_foundation: scoop_mir::DecodedMirFoundation =
-        decoded(mir.strong.foundation().as_canonical());
+    let mir_foundation: scoop_mir::DecodedMirFoundation = decoded(mir.strong.foundation());
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     hir_foundation.register_identities(&mut pending).unwrap();

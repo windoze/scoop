@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 
 pub(super) fn materializations(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     records: &CanonicalParamFreeMirTypeExportsV1,
 ) {
     let module = input.module();
@@ -97,7 +97,7 @@ pub(super) fn materializations(
 }
 
 pub(super) fn projection(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     records: &CanonicalParamFreeMirTypeExportsV1,
     count: usize,
 ) -> String {
@@ -142,7 +142,7 @@ pub(super) fn projection(
 }
 
 pub(super) fn hidden_box(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     records: &CanonicalParamFreeMirTypeExportsV1,
 ) {
     let module = input.module();

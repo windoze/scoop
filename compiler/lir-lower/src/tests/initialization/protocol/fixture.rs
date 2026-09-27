@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) struct ImportedInitialization {
-    pub(super) input: mir::SingleConeStrongMirInput,
+    pub(super) input: mir::ConeMirInput,
     pub(super) runtime_string: lir::ExternalTypeDescriptor,
     pub(super) callable: lir::SelectedDependencyLirCallableV1,
 }
@@ -43,7 +43,7 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     )
     .unwrap();
     let core_foundation = core_output.strong_foundation().unwrap();
-    let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&core_foundation);
+    let strong = mir::StrongCallableBridgeSurfaceV1::from_foundation(&core_foundation);
     let exact = strong
         .bridges()
         .iter()
@@ -57,13 +57,7 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
         strong.with_initialization_cycle(definition).unwrap(),
     )
     .unwrap();
-    let core_input = mir::SingleConeStrongMirInput::try_new(
-        core_output,
-        core_foundation,
-        core_production,
-        Vec::new(),
-    )
-    .unwrap();
+    let core_input = mir::ConeMirInput::try_new(core_output, core_production, Vec::new()).unwrap();
     let core_lir = crate::lower(
         &core_input,
         &[],
@@ -147,16 +141,11 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     let ordinary_production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::SINGLE_FILE,
         mir::EntryMirBridgeBranchV1::Library,
-        mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&ordinary_foundation),
+        mir::StrongCallableBridgeSurfaceV1::from_foundation(&ordinary_foundation),
     )
     .unwrap();
-    let ordinary_input = mir::SingleConeStrongMirInput::try_new(
-        ordinary_output,
-        ordinary_foundation,
-        ordinary_production,
-        Vec::new(),
-    )
-    .unwrap();
+    let ordinary_input =
+        mir::ConeMirInput::try_new(ordinary_output, ordinary_production, Vec::new()).unwrap();
 
     let string_exact = core_input
         .module()

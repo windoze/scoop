@@ -12,9 +12,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
-use crate::{
-    CallableSignatureSubject, CanonicalMirFoundation, OdrFreeMirFoundation, ValidatedMirFoundation,
-};
+use crate::{CallableSignatureSubject, CanonicalMirFoundation, ValidatedMirFoundation};
 
 /// Fixed exact identity of core `Unit`, shared by bridge projections without
 /// exposing identity-construction details to a lowering implementation.
@@ -201,16 +199,7 @@ impl DecodedCoreBootstrapBridgeSectionV1 {
         self.validate_against(artifact, identities, foundation.canonical())
     }
 
-    pub fn validate_against_strong_foundation(
-        self,
-        artifact: scoop_identity::ConeIdentity,
-        identities: &mut ValidatedIdentityGraph,
-        foundation: &OdrFreeMirFoundation,
-    ) -> Result<CoreBootstrapBridgeSectionV1, MirProductionValidationError> {
-        self.validate_against(artifact, identities, foundation.as_canonical())
-    }
-
-    fn validate_against(
+    pub fn validate_against(
         self,
         artifact: scoop_identity::ConeIdentity,
         identities: &mut ValidatedIdentityGraph,
@@ -370,7 +359,6 @@ pub enum MirProductionValidationError {
         expected: usize,
         actual: usize,
     },
-    FoundationOdrSubject,
     DuplicateStrongCallable(CallableOwner),
     NonCanonicalStrongCallableOrder {
         index: usize,

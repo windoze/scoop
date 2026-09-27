@@ -6,7 +6,7 @@ use scoop_mir as mir;
 use super::LayoutProductionError as Error;
 
 pub(in crate::request::preflight) fn collect_mir_references(
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     dependencies: &[&lir::LayoutAbiExportConstituentsV1],
     roots: &mut Vec<lir::LayoutAbiDependencyV1>,
     physical: &mut Vec<(

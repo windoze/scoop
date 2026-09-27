@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn check(
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
     source: &CanonicalMirCallableBindingsV1,

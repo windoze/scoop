@@ -4,7 +4,7 @@ use std::fmt::Write;
 
 pub(super) fn actual(
     output: &hir::DependencyHirOutput,
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     product: &Production,
 ) {
     let export = output.output().export.module();
@@ -60,7 +60,10 @@ pub(super) fn actual(
                 },
             ),
         ] {
-            let scoop_mir::CallableOwner::Generated(id) = actual.implementation() else {
+            let scoop_mir::CallableSignatureSubject::Strong(scoop_mir::CallableOwner::Generated(
+                id,
+            )) = actual.subject()
+            else {
                 panic!("generated initialization")
             };
             let owner = scoop_identity::StrongCallableDefinitionOwner::GeneratedCallable(id);
@@ -76,9 +79,7 @@ pub(super) fn actual(
                 module
                     .meta
                     .callable_signatures
-                    .get(scoop_mir::CallableSignatureSubject::Strong(
-                        actual.implementation()
-                    ))
+                    .get(actual.subject())
                     .unwrap()
                     .signature()
             );
@@ -94,7 +95,7 @@ pub(super) fn actual(
 }
 
 pub(super) fn wire(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &mut scoop_identity::ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
     product: &Production,
@@ -140,10 +141,7 @@ pub(super) fn projection(output: &hir::DependencyHirOutput, product: &Production
     text
 }
 
-pub(super) fn private_and_property(
-    input: &scoop_mir::SingleConeStrongMirInput,
-    product: &Production,
-) {
+pub(super) fn private_and_property(input: &scoop_mir::ConeMirInput, product: &Production) {
     let module = input.module();
     let (_, hidden) = module
         .objects

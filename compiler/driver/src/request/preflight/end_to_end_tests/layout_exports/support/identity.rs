@@ -2,7 +2,7 @@ use super::*;
 
 pub(in super::super) fn identities(
     hir: &hir::DependencyHirOutput,
-    mir: &mir::SingleConeStrongMirInput,
+    mir: &mir::ConeMirInput,
     lir: Option<&lir::SingleConeStrongLirOutput>,
     core: &scoop_slib::PhysicalImportsReplayedCrossConeLayoutSections,
 ) -> (
@@ -12,7 +12,7 @@ pub(in super::super) fn identities(
 ) {
     let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();
     let provider = mir.module().cone;
-    let mir = mir.foundation().as_canonical();
+    let mir = mir.foundation();
     let lir_foundation = lir.map(|lir| lir.foundation().as_canonical());
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(provider).unwrap();

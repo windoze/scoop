@@ -1,1 +1,1 @@
-SCOOPC_CAPABILITY_ODR_UNAVAILABLE: MIR ODR group 59fc984cddf3b74ccd4026f1369eadc58a88cb06da5890ac3bb62a2b8606e503 is forbidden by the SingleConeStrong profile
+cannot construct Cone MIR input: OdrGeneratedNominalShape(Class(Idx::<ClassDef>(0)))

@@ -61,7 +61,6 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         .unwrap();
     mir.strong
         .foundation()
-        .as_canonical()
         .register_identities(&mut pending)
         .unwrap();
     let identities = pending.finish().unwrap();

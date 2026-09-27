@@ -66,7 +66,7 @@ pub(super) fn validate_strong_profile_local_production(
         .validate_against_strong_foundation(artifact, hir_foundation)
         .map_err(StrongProfileLocalProductionError::Hir)?;
     let mir = mir
-        .validate_against_strong_foundation(artifact, identities, mir_foundation)
+        .validate_against(artifact, identities, mir_foundation)
         .map_err(StrongProfileLocalProductionError::Mir)?;
     Ok(StrongProfileLocalProductionSet { hir, mir })
 }

@@ -2,7 +2,7 @@ use super::*;
 use scoop_mir::{MirObjectProductionError as Error, MirTypeRepresentationV1 as Repr};
 
 pub(super) fn check(
-    input: &scoop_mir::SingleConeStrongMirInput,
+    input: &scoop_mir::ConeMirInput,
     graph: &mut scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
     unit: &CanonicalParamFreeMirTypeExportsV1,

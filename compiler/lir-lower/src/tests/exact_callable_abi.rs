@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::StrongCallableDefinitionOwner;
 
 pub(super) fn fixture() -> (
-    mir::SingleConeStrongMirInput,
+    mir::ConeMirInput,
     lir::SingleConeStrongLirOutput,
     StrongCallableDefinitionOwner,
     mir::MirBridgeCallableSignatureV1,
@@ -31,7 +31,7 @@ pub(super) fn fixture() -> (
     let mir_output = mir::DependencyMirOutput::try_new(module, selected).unwrap();
     let module = mir_output.module();
     let foundation = mir_output.strong_foundation().unwrap();
-    let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
+    let strong = mir::StrongCallableBridgeSurfaceV1::from_foundation(&foundation);
     let signature = mir::MirBridgeCallableSignatureV1::new(
         strong
             .bridges()
@@ -48,9 +48,7 @@ pub(super) fn fixture() -> (
         strong.with_initialization_cycle(cycle_owner).unwrap(),
     )
     .unwrap();
-    let input =
-        mir::SingleConeStrongMirInput::try_new(mir_output, foundation, production, Vec::new())
-            .unwrap();
+    let input = mir::ConeMirInput::try_new(mir_output, production, Vec::new()).unwrap();
     let output = crate::lower(
         &input,
         &[],

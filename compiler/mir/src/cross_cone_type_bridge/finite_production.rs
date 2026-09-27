@@ -1,7 +1,7 @@
 //! Actual MIR projection of the finite source shape-support materializations.
 
 use super::*;
-use crate::{GeneratedExactTypeLocation, SingleConeStrongMirInput, StrongBoxedShapeSupportRoot};
+use crate::{ConeMirInput, GeneratedExactTypeLocation, StrongBoxedShapeSupportRoot};
 
 mod representation;
 
@@ -10,7 +10,7 @@ impl CanonicalParamFreeMirTypeExportsV1 {
     /// The sealed source plan determines membership; unrelated execution
     /// environments are not part of this export surface.
     pub fn from_finite_shape_support(
-        input: &SingleConeStrongMirInput,
+        input: &ConeMirInput,
         sources: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
     ) -> Result<Self, MirTypeBridgeError> {

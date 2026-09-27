@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::{CallableOwner, GeneratedCallableKey, StrongCallableDefinitionOwner};
 
 pub(super) fn actual(
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     types: &CanonicalParamFreeMirTypeExportsV1,
     source: &CanonicalMirCallableBindingsV1,
     bindings: &CanonicalMirCallableBindingsV1,
@@ -31,7 +31,10 @@ pub(super) fn actual(
             .iter()
             .find(|root| scoop_mir::BoxingAdjustTarget::Local(root.function()) == adjust.target())
             .unwrap();
-        assert_eq!(root.implementation(), target.callable_owner());
+        assert_eq!(
+            root.subject(),
+            scoop_mir::CallableSignatureSubject::Strong(target.callable_owner())
+        );
         let calls: Vec<_> = input.module().functions[adjust.function()]
             .body
             .blocks
@@ -67,8 +70,10 @@ pub(super) fn actual(
                 .callable_roots()
                 .iter()
                 .any(|root| root.function() == adjust.function()
-                    && root.implementation()
-                        == CallableOwner::Generated(adjust.identity().callable_record().id()))
+                    && root.subject()
+                        == scoop_mir::CallableSignatureSubject::Strong(CallableOwner::Generated(
+                            adjust.identity().callable_record().id()
+                        )))
         );
         assert!(
             matches!(input.module().classes[adjust.boxed()].itables.iter().find(|table| table.interface == adjust.interface()).unwrap().slots[adjust.slot() as usize], scoop_mir::TableSlot::Function(function) if function == adjust.function())
@@ -76,10 +81,7 @@ pub(super) fn actual(
     }
 }
 
-pub(super) fn dump(
-    input: &SingleConeStrongMirInput,
-    bindings: &CanonicalMirCallableBindingsV1,
-) -> String {
+pub(super) fn dump(input: &ConeMirInput, bindings: &CanonicalMirCallableBindingsV1) -> String {
     let mut lines = Vec::new();
     for adjust in &input.module().meta.boxing_adjusts {
         let id = StrongCallableDefinitionOwner::GeneratedCallable(

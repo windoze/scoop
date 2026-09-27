@@ -12,7 +12,8 @@ fn strong_callable_owner_becomes_the_exact_cone_body_identity() {
         panic!("sealed strong input excludes ODR callable subjects")
     };
 
-    let body = crate::lowering::callable_body_identity(owner);
+    let body =
+        crate::lowering::callable_body_identity(mir::CallableSignatureSubject::Strong(owner));
     assert_eq!(body, expected_callable_body(subject));
     assert_eq!(
         body.symbol_request().linkage(),

@@ -2,7 +2,7 @@ use super::*;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn project(
-    input: &SingleConeStrongMirInput,
+    input: &ConeMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
     source: &dyn MirTypeBridgeCallableLookupV1,

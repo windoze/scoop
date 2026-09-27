@@ -83,7 +83,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
         } = self;
         let provider = graph.identity();
         let mir_core = mir_core_production
-            .validate_against_strong_foundation(provider, &mut identities, &foundations.mir)
+            .validate_against(provider, &mut identities, &foundations.mir)
             .map_err(CrossConeLayoutMirFrontValidationError::CoreProduction)?;
         validate_strong_profile_relations(
             provider,

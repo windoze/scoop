@@ -4,7 +4,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Encoder, WireEncode};
 
-use crate::OdrFreeMirFoundation;
+use crate::CanonicalMirFoundation;
 
 use super::encode_array;
 use super::errors::{CrossConeMirBridgeBuildError, ParamFreeMirCallableBuildError};
@@ -145,7 +145,7 @@ pub struct CrossConeMirBridgeSectionV1 {
 impl CrossConeMirBridgeSectionV1 {
     pub fn try_new(
         artifact: ConeIdentity,
-        foundation: &OdrFreeMirFoundation,
+        foundation: &CanonicalMirFoundation,
         mut exports: Vec<ParamFreeMirCallableExportV1>,
         mut selected: Vec<SelectedDependencyMirCallableV1>,
     ) -> Result<Self, CrossConeMirBridgeBuildError> {

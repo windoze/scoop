@@ -11,7 +11,7 @@ pub(super) fn check(
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
     hir_core: &hir::CoreBootstrapInterfaceSectionV1,
-    mir_foundation: &mir::OdrFreeMirFoundation,
+    mir_foundation: &mir::CanonicalMirFoundation,
     strong: &mir::StrongCallableBridgeSurfaceV1,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
 ) {

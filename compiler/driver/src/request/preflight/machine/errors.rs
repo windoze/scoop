@@ -40,10 +40,9 @@ impl std::error::Error for CurrentConeLirStageError {
 pub enum CurrentConeMirStageError {
     DependencyProjection(scoop_slib::CrossConeMirSelectionProjectionError),
     Lowering(scoop_mir_lower::CurrentConeMirLoweringError),
-    Foundation(scoop_mir::OdrFreeMirFoundationError),
     ProductionSection(scoop_mir_lower::MirProductionLoweringError),
     CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),
-    Sealing(scoop_mir::SingleConeStrongMirInputError),
+    Sealing(scoop_mir::ConeMirInputError),
 }
 
 impl fmt::Display for CurrentConeMirStageError {
@@ -51,7 +50,6 @@ impl fmt::Display for CurrentConeMirStageError {
         match self {
             Self::DependencyProjection(source) => source.fmt(formatter),
             Self::Lowering(source) => source.fmt(formatter),
-            Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
             Self::CrossConeBridge(source) => source.fmt(formatter),
             Self::Sealing(source) => source.fmt(formatter),
@@ -64,7 +62,6 @@ impl std::error::Error for CurrentConeMirStageError {
         Some(match self {
             Self::DependencyProjection(source) => source,
             Self::Lowering(source) => source,
-            Self::Foundation(source) => source,
             Self::ProductionSection(source) => source,
             Self::CrossConeBridge(source) => source,
             Self::Sealing(source) => source,

@@ -67,10 +67,6 @@ impl OdrFreeMirFoundation {
         &self.0
     }
 
-    pub(crate) fn shared(&self) -> &Rc<CanonicalMirFoundation> {
-        &self.0
-    }
-
     #[doc(hidden)]
     pub fn callback_application_records(&self) -> &[crate::CallbackApplicationRecord] {
         &self.0.callback_application_records
@@ -90,6 +86,14 @@ impl TryFrom<CanonicalMirFoundation> for OdrFreeMirFoundation {
 
     fn try_from(foundation: CanonicalMirFoundation) -> Result<Self, Self::Error> {
         Self::try_new(foundation)
+    }
+}
+
+impl std::ops::Deref for OdrFreeMirFoundation {
+    type Target = CanonicalMirFoundation;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

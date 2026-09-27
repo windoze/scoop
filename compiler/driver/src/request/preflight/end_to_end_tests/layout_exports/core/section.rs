@@ -69,12 +69,12 @@ pub(super) fn check<'a>(
         let mir = input.mir.module();
         assert_eq!(unit.unit(), root.identity());
         assert_eq!(
-            unit.initializer().callable_owner(),
-            root.initializer().implementation()
+            mir::CallableSignatureSubject::Strong(unit.initializer().callable_owner()),
+            root.initializer().subject()
         );
         assert_eq!(
-            unit.ensure().callable_owner(),
-            root.ensure().implementation()
+            mir::CallableSignatureSubject::Strong(unit.ensure().callable_owner()),
+            root.ensure().subject()
         );
         units.push(format!(
             "unit {}: {:?} {:?}\n",

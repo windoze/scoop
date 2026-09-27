@@ -41,7 +41,7 @@ pub(super) fn fixture() -> Fixture {
     let production = crate::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         crate::EntryMirBridgeBranchV1::Library,
-        crate::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&types.foundation)
+        crate::StrongCallableBridgeSurfaceV1::from_foundation(&types.foundation)
             .with_initialization_cycle(cycle)
             .unwrap(),
     )

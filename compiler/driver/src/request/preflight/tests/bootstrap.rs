@@ -69,7 +69,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         decoded
             .validate_against_strong_foundation(
                 scoop_identity::ConeIdentity::CORE,
-                &odr_free_foundation,
+                &odr_free_foundation
             )
             .unwrap(),
         output.production_section.clone()
@@ -269,7 +269,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     real_mir
         .strong
         .foundation()
-        .as_canonical()
         .register_identities(&mut pending)
         .unwrap();
     let identities = pending.finish().unwrap();

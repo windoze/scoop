@@ -549,8 +549,8 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         if *case == "primitive-variance" {
             assert!(matches!(
                 error.cause(),
-                CurrentConeProductionFailure::Mir(CurrentConeMirStageError::Foundation(
-                    scoop_mir::OdrFreeMirFoundationError::CallableSignatureSubject(_)
+                CurrentConeProductionFailure::Mir(CurrentConeMirStageError::Sealing(
+                    scoop_mir::ConeMirInputError::OdrGeneratedNominalShape(_)
                 ))
             ));
             snapshot(

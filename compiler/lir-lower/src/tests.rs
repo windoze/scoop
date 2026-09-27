@@ -145,7 +145,7 @@ fn test_source_native_data_contract(
     .unwrap()
 }
 
-fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
+fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
     if let mir::MirOutput::Executable { entry } = module.output
         && (!module.functions[entry].params.is_empty()
             || module.functions[entry].return_ty != mir::Type::Unit)
@@ -163,8 +163,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
     let mir_output = mir::DependencyMirOutput::try_new(module, selected).unwrap();
     let module = mir_output.module();
     let foundation = mir_output.strong_foundation().unwrap();
-    let strong_callable_bridges =
-        mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
+    let strong_callable_bridges = mir::StrongCallableBridgeSurfaceV1::from_foundation(&foundation);
     let entry_bridge = match module.output {
         mir::MirOutput::Library => mir::EntryMirBridgeBranchV1::Library,
         mir::MirOutput::Executable { entry } => {
@@ -213,7 +212,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
         strong_callable_bridges,
     )
     .unwrap();
-    mir::SingleConeStrongMirInput::try_new(mir_output, foundation, production, Vec::new()).unwrap()
+    mir::ConeMirInput::try_new(mir_output, production, Vec::new()).unwrap()
 }
 
 fn try_lower(
@@ -223,9 +222,7 @@ fn try_lower(
     lower_test_input(&input)
 }
 
-fn test_external_descriptors(
-    input: &mir::SingleConeStrongMirInput,
-) -> Vec<lir::ExternalTypeDescriptor> {
+fn test_external_descriptors(input: &mir::ConeMirInput) -> Vec<lir::ExternalTypeDescriptor> {
     let string = input
         .module()
         .meta
@@ -348,7 +345,7 @@ fn expected_callable_body(subject: mir::CallableSignatureSubject) -> lir::Callab
     let mir::CallableSignatureSubject::Strong(owner) = subject else {
         panic!("strong test subject cannot use ODR ownership")
     };
-    crate::lowering::callable_body_identity(owner)
+    crate::lowering::callable_body_identity(mir::CallableSignatureSubject::Strong(owner))
 }
 
 fn callback_application()

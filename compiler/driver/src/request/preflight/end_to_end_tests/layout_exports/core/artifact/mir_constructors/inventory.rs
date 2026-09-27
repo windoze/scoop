@@ -19,7 +19,7 @@ pub(super) fn check(replay: &Replay<'_>, combined: bool) {
     if !combined {
         return;
     }
-    let surface = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(replay.foundation);
+    let surface = mir::StrongCallableBridgeSurfaceV1::from_foundation(replay.foundation);
     let mut extras = 0;
     for source in replay
         .source

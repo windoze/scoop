@@ -72,7 +72,7 @@ pub(super) fn dump(
 }
 
 pub(super) fn rejections(
-    strong: &scoop_mir::SingleConeStrongMirInput,
+    strong: &scoop_mir::ConeMirInput,
     source: &hir::CrossConeTypeSemanticsSectionV1,
     graph: &scoop_identity::ValidatedIdentityGraph,
     table: &CanonicalParamFreeMirTypeExportsV1,

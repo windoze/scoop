@@ -16,7 +16,7 @@ impl DecodedCrossConeMirTypeBridgeSectionV1 {
     pub fn resolve_types<'a>(
         self,
         provider: ConeIdentity,
-        foundation: &crate::OdrFreeMirFoundation,
+        foundation: &crate::CanonicalMirFoundation,
         dependencies: impl ExactSizeIterator<Item = &'a CanonicalParamFreeMirTypeExportsV1>,
         graph: &mut ValidatedIdentityGraph,
     ) -> Result<TypeResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError> {

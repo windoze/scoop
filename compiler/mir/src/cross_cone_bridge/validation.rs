@@ -3,7 +3,7 @@ use scoop_identity::{
     StrongCallableDefinitionOwner,
 };
 
-use crate::{CallableSignatureSubject, OdrFreeMirFoundation};
+use crate::{CallableSignatureSubject, CanonicalMirFoundation};
 
 use super::errors::{
     CrossConeMirBridgeRelationError, CrossConeMirBridgeValidationError,
@@ -32,13 +32,13 @@ pub(super) fn validate_callable_shape(
 
 pub(super) fn validate_section_relations(
     artifact: ConeIdentity,
-    foundation: &OdrFreeMirFoundation,
+    foundation: &CanonicalMirFoundation,
     exports: &[ParamFreeMirCallableExportV1],
     selected: &[SelectedDependencyMirCallableV1],
 ) -> Result<(), CrossConeMirBridgeRelationError> {
     for (index, export) in exports.iter().enumerate() {
         let subject = CallableSignatureSubject::Strong(export.implementation.callable_owner());
-        let Some(expected) = foundation.as_canonical().callable_signature(subject) else {
+        let Some(expected) = foundation.callable_signature(subject) else {
             return Err(
                 CrossConeMirBridgeRelationError::MissingExportImplementation {
                     index,

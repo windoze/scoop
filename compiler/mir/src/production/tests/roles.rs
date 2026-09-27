@@ -70,9 +70,7 @@ fn builder_and_reader_require_a_source_function_for_initialization() {
         ExactCallableSignature::new(Effect::Ordinary, None, vec![], fixture.exact_unit),
     ));
     fixture.mir.set_callable_signatures(signatures).unwrap();
-    let mut strong = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-        &OdrFreeMirFoundation::try_new(fixture.mir.clone()).unwrap(),
-    );
+    let mut strong = StrongCallableBridgeSurfaceV1::from_foundation(&fixture.mir);
     strong
         .bridges
         .iter_mut()
@@ -103,9 +101,7 @@ fn role_presence_is_independent_of_provider_coordinates_and_output_kinds() {
         .unwrap();
     for provider in [ConeIdentity::CORE, ordinary] {
         let fixture = fixture_at(provider);
-        let unmarked = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-            &OdrFreeMirFoundation::try_new(fixture.mir.clone()).unwrap(),
-        );
+        let unmarked = StrongCallableBridgeSurfaceV1::from_foundation(&fixture.mir);
         let executable = EntryMirBridgeBranchV1::Executable(Box::new(
             EntryMirBridgeV1::new(
                 entry_source(&fixture.function, fixture.exact_unit),

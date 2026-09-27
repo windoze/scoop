@@ -6,7 +6,7 @@ pub struct MirTypeBridgeExportInputV1<'a> {
     pub hir: &'a hir::DependencyHirOutput,
     pub public: &'a hir::CrossConeHirInterfaceSectionV1,
     pub source: &'a hir::CrossConeTypeSemanticsSectionV1,
-    pub mir: &'a mir::SingleConeStrongMirInput,
+    pub mir: &'a mir::ConeMirInput,
     pub ordinary: &'a mir::CrossConeMirBridgeSectionV1,
     pub dependency_objects: &'a [mir::ParamFreeMirObjectValueV1],
     pub identities: &'a ValidatedIdentityGraph,

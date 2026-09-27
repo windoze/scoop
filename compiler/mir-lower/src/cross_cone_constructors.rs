@@ -16,7 +16,7 @@ use binding::Producer;
 pub fn lower_constructor_bindings(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    input: &mir::SingleConeStrongMirInput,
+    input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirConstructorProductionError> {

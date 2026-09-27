@@ -20,7 +20,7 @@ pub(crate) struct LocalCallableMaterialization<'a> {
 
 impl<'a> LocalCallableMaterialization<'a> {
     pub(crate) fn resolve(
-        input: &'a mir::SingleConeStrongMirInput,
+        input: &'a mir::ConeMirInput,
         functions: &'a [lir::Function],
         target: StrongCallableDefinitionOwner,
         signature: &ExactCallableSignature,
@@ -38,7 +38,7 @@ impl<'a> LocalCallableMaterialization<'a> {
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| root.implementation() == owner)
+            .find(|root| root.subject() == mir::CallableSignatureSubject::Strong(owner))
             .ok_or(CallableAbiProjectionError::MissingMirBody(target))?;
         let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))
             .map_err(CallableAbiProjectionError::Identity)?;
