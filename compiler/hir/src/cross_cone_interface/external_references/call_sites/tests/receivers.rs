@@ -29,14 +29,20 @@ fn source_call_receiver_round_trips_and_is_required_on_the_wire() {
             site
         );
         let mut missing = bytes;
-        missing.truncate(missing.len() - 1 - encode(&site.receiver()).unwrap().len());
+        missing.truncate(
+            missing.len()
+                - 1
+                - encode(&site.receiver()).unwrap().len()
+                - 1
+                - encode(&site.instantiation()).unwrap().len(),
+        );
         assert!(decode_canonical::<DecodedHirDependencyCallSiteV1>(&missing).is_err());
         missing[0] = 0xa6;
         let error = decode_canonical::<DecodedHirDependencyCallSiteV1>(&missing).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
-                expected: 7,
+                expected: 8,
                 actual: 6
             }
         );
@@ -49,8 +55,15 @@ fn source_call_receiver_rejects_unknown_tags_and_inexact_payloads() {
     let site = fixture.site(0, vec![0]).unwrap();
     for malformed in [vec![0xa1, 0, 3], vec![0xa1, 0, 2], vec![0xa2, 0, 1, 1, 0]] {
         let mut bytes = encode(&site).unwrap();
-        bytes.truncate(bytes.len() - encode(&site.receiver()).unwrap().len());
+        bytes.truncate(
+            bytes.len()
+                - encode(&site.receiver()).unwrap().len()
+                - 1
+                - encode(&site.instantiation()).unwrap().len(),
+        );
         bytes.extend(malformed);
+        bytes.push(8);
+        bytes.extend(encode(&site.instantiation()).unwrap());
         let error = decode_canonical::<DecodedHirDependencyCallSiteV1>(&bytes).unwrap_err();
         assert_eq!(error.path(), &WirePath::root().field(7));
     }

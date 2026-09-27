@@ -7,6 +7,7 @@ use crate::{
     SharedTypeMetadataV1, SourceNominalId,
 };
 
+mod applications;
 mod errors;
 
 pub use errors::HirDependencyCallSignatureError;
@@ -14,17 +15,19 @@ pub use errors::HirDependencyCallSignatureError;
 impl HirDependencyCallSiteV1 {
     /// Joins this actual call with the provider's already checked declaration.
     /// Source access, execution roles and MIR implementation selection remain
-    /// independent checks. The returned declaration has this call's complete
-    /// logical signature, including every zero-sized argument.
+    /// independent checks. The returned source declaration is joined with
+    /// this call's complete substitution and every zero-sized argument.
     pub fn validate_source_signature<'a>(
         &self,
         target: ExternalHirTargetV1,
         metadata: SharedTypeMetadataV1<'a>,
+        identities: &'a scoop_identity::ValidatedIdentityGraph,
     ) -> Result<&'a CallableDeclarationRecordV1, HirDependencyCallSignatureError> {
         use HirDependencyCallSignatureError as Error;
 
         let ExternalHirTargetV1::Callable(
             declaration @ (CallableTemplateOrigin::Function(_)
+            | CallableTemplateOrigin::GenericFunction(_)
             | CallableTemplateOrigin::Accessor(_)
             | CallableTemplateOrigin::Constructor(_)
             | CallableTemplateOrigin::VariantConstructor(_)),
@@ -37,9 +40,10 @@ impl HirDependencyCallSiteV1 {
         let source = callables
             .declaration(declaration)
             .ok_or(Error::Declaration(declaration))?;
-        if !source.type_parameters().is_empty() {
-            return Err(Error::GenericDeclaration(declaration));
-        }
+        let bindings = applications::bindings(self.instantiation(), source, metadata, identities)?;
+        let exact = |ty: &SignatureTypeKey| {
+            metadata.signature_exact_type_with_bindings(ty, &bindings, identities)
+        };
         let construction = matches!(
             declaration,
             CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_)
@@ -47,15 +51,27 @@ impl HirDependencyCallSiteV1 {
         let receiver = match source.owner().nominal_owner() {
             Some(SourceNominalId::Concrete(_)) if construction => None,
             Some(SourceNominalId::Concrete(owner)) => {
-                Some(metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner))?)
+                Some(exact(&SignatureTypeKey::Nominal(owner))?)
             }
-            Some(SourceNominalId::GenericTemplate(_)) => {
-                return Err(Error::GenericDeclaration(declaration));
+            Some(SourceNominalId::GenericTemplate(_)) if construction => None,
+            Some(SourceNominalId::GenericTemplate(owner)) => {
+                let depth = usize::from(!source.type_parameters().is_empty());
+                let arguments = &bindings[depth];
+                let signature = SignatureTypeKey::NominalApplication {
+                    origin: owner,
+                    arguments: scoop_identity::NonEmptyVec::new(
+                        (0..arguments.len())
+                            .map(|index| SignatureTypeKey::Binder {
+                                depth: depth as u32,
+                                index: index as u32,
+                            })
+                            .collect(),
+                    )
+                    .map_err(|_| Error::GenericDeclaration(declaration))?,
+                };
+                Some(exact(&signature)?)
             }
-            None => source
-                .receiver()
-                .map(|ty| metadata.signature_exact_type(ty))
-                .transpose()?,
+            None => source.receiver().map(exact).transpose()?,
         };
         let parameters = source.parameters().parameters();
 
@@ -80,10 +96,10 @@ impl HirDependencyCallSiteV1 {
         }
         let offset = usize::from(receiver.is_some());
         for (index, parameter) in parameters.iter().enumerate() {
-            let expected = metadata.signature_exact_type(parameter.value_type())?;
+            let expected = exact(parameter.value_type())?;
             argument(index + offset, self.arguments()[index + offset], expected)?;
         }
-        let expected = metadata.signature_exact_type(source.result())?;
+        let expected = exact(source.result())?;
 
         if self.result() != expected {
             return Err(Error::Result {

@@ -11,8 +11,10 @@ pub(super) fn collect(
     let mut uses = Vec::new();
     occurrences::visit(output, selected, |call| {
         call.validate_origin(output.export.module())?;
-        executable.push(call.callee());
-        let target = ExternalHirTargetV1::Callable(call.callable().interface().declaration());
+        if let crate::CommittedDependencyCallTarget::Direct { callee, .. } = call.target() {
+            executable.push(callee);
+        }
+        let target = ExternalHirTargetV1::Callable(call.declaration());
         if let Some(binding) = call.binding() {
             append(&mut uses, target, binding)?;
         }

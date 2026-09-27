@@ -165,7 +165,7 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
             .committed_dependency_call_occurrences()
             .map_err(Error::CallOccurrences)?
         {
-            let target = ExternalHirTargetV1::Callable(call.callable().interface().declaration());
+            let target = ExternalHirTargetV1::Callable(call.declaration());
             let projected = super::calls::project(output, call)?;
             let pending = self
                 .observe_pending(target, role)?

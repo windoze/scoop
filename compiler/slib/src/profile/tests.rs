@@ -60,7 +60,7 @@ fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint(
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "612d28cab98713a185ee8c41719961831487c5b3e7288d66c8c38e5078348858"
+        "3357b251bb6f8dead32a1b8dc41a65230b1622cc38e143c624125c25face43fc"
     );
 
     assert_eq!(

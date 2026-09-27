@@ -37,9 +37,7 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                         .unwrap();
                     assert_eq!(
                         reference.target(),
-                        hir::ExternalHirTargetV1::Callable(
-                            actual.callable().interface().declaration()
-                        )
+                        hir::ExternalHirTargetV1::Callable(actual.declaration())
                     );
                     assert_eq!(site.arguments().len(), actual.arguments().len());
                     let mut routes = actual

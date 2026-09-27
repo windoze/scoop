@@ -5,6 +5,8 @@ use super::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core}
 use super::m23_ordinary_dependencies::support::{empty_alias_expansions, project_dependency_text};
 use crate::{CurrentConeSources, lower_current_cone};
 
+mod metadata;
+
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-generic-body-consumption/provider.scoop"
@@ -19,11 +21,24 @@ const BAD_KIND: &str = include_str!(concat!(
 ));
 
 fn lower_consumer(source: &str) -> Result<hir::DependencyHirOutput, Vec<crate::Diagnostic>> {
+    with_consumer(source, |output, _, _, _, _| output)
+}
+
+fn with_consumer<T>(
+    source: &str,
+    verify: impl FnOnce(
+        hir::DependencyHirOutput,
+        &hir::ImportedSemanticWorld,
+        &hir::CanonicalHirFoundation,
+        &hir::CrossConeHirInterfaceSectionV1,
+        &super::m23_ordinary_core_only::support::TrustedCoreFixture,
+    ) -> T,
+) -> Result<T, Vec<crate::Diagnostic>> {
     let mut core = trusted_core();
     let coordinate = ConeCoordinate::new("test", "generic-provider", "1.0.0").unwrap();
     let (foundation, interface) =
         project_dependency_text(&core, &coordinate, PROVIDER, &["Boolean"]);
-    let foundation = core.import_dependency_foundation(&coordinate, &foundation, 73);
+    let imported = core.import_dependency_foundation(&coordinate, &foundation, 73);
     let aliases = empty_alias_expansions();
     let consumer = parsed_ordinary_text(source);
     let world = hir::ImportedSemanticWorld::from_dependencies(
@@ -31,7 +46,7 @@ fn lower_consumer(source: &str) -> Result<hir::DependencyHirOutput, Vec<crate::D
         vec![
             core.provider(),
             hir::ImportedProviderInput {
-                foundation: &foundation,
+                foundation: &imported,
                 interface: &interface,
                 alias_expansions: &aliases,
             },
@@ -45,7 +60,8 @@ fn lower_consumer(source: &str) -> Result<hir::DependencyHirOutput, Vec<crate::D
         &world,
     )
     .unwrap();
-    lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)?;
+    Ok(verify(output, &world, &foundation, &interface, &core))
 }
 
 #[test]

@@ -10,11 +10,19 @@ use crate::{
 use concrete::{ExecutableExpressionOccurrence, ExecutableExpressionPosition};
 
 #[derive(Clone, Copy, Debug)]
+pub enum CommittedDependencyCallTarget<'a> {
+    Direct {
+        callee: concrete::ImportedDependencyCallableUseId,
+        callable: &'a SelectedImportedDependencyCallable,
+    },
+    Application(&'a concrete::CallableApplicationRecord),
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct CommittedDependencyCallOccurrence<'a> {
     occurrence: ExecutableExpressionOccurrence<'a>,
-    callee: concrete::ImportedDependencyCallableUseId,
+    target: CommittedDependencyCallTarget<'a>,
     binding: Option<&'a DirectImportedTargetBinding>,
-    callable: &'a SelectedImportedDependencyCallable,
     arguments: &'a [concrete::Expr],
     receiver: crate::SourceCallReceiver<concrete::TypeId>,
 }
@@ -27,8 +35,28 @@ impl<'a> CommittedDependencyCallOccurrence<'a> {
         validate_origins(export, self.occurrence)
     }
 
-    pub const fn callee(self) -> concrete::ImportedDependencyCallableUseId {
-        self.callee
+    pub const fn target(self) -> CommittedDependencyCallTarget<'a> {
+        self.target
+    }
+
+    pub fn declaration(self) -> scoop_identity::CallableTemplateOrigin {
+        match self.target {
+            CommittedDependencyCallTarget::Direct { callable, .. } => {
+                callable.interface().declaration()
+            }
+            CommittedDependencyCallTarget::Application(application) => application.key().origin(),
+        }
+    }
+
+    pub fn instantiation(self) -> crate::HirDependencyCallInstantiationV1 {
+        match self.target {
+            CommittedDependencyCallTarget::Direct { .. } => {
+                crate::HirDependencyCallInstantiationV1::Direct
+            }
+            CommittedDependencyCallTarget::Application(application) => {
+                crate::HirDependencyCallInstantiationV1::Application(application.id())
+            }
+        }
     }
 
     pub const fn position(self) -> ExecutableExpressionPosition {
@@ -39,9 +67,6 @@ impl<'a> CommittedDependencyCallOccurrence<'a> {
     }
     pub const fn binding(self) -> Option<&'a DirectImportedTargetBinding> {
         self.binding
-    }
-    pub const fn callable(self) -> &'a SelectedImportedDependencyCallable {
-        self.callable
     }
     pub const fn arguments(self) -> &'a [concrete::Expr] {
         self.arguments
@@ -81,29 +106,70 @@ pub(super) fn visit<'a>(
     let local = output.local.module();
     local
         .visit_executable_expressions(|occurrence| {
-            let concrete::ExprKind::ImportedDependencyCall {
-                callee,
-                binding,
-                args,
-                receiver,
-            } = &occurrence.expression.kind
-            else {
-                return Ok(());
-            };
             let position = occurrence.position;
-            if callee.into_raw().into_u32() as usize >= local.imported_dependency_callables.len() {
-                return Err(DependencyCallOccurrenceError::MissingUse(position));
-            }
-            let reference = local.imported_dependency_callables[*callee].reference();
-
-            let callable = selected
-                .resolve_callable(reference)
-                .ok_or(DependencyCallOccurrenceError::UnselectedUse(position))?;
+            let (target, binding, args, receiver) = match &occurrence.expression.kind {
+                concrete::ExprKind::ImportedDependencyCall {
+                    callee,
+                    binding,
+                    args,
+                    receiver,
+                } => {
+                    if callee.into_raw().into_u32() as usize
+                        >= local.imported_dependency_callables.len()
+                    {
+                        return Err(DependencyCallOccurrenceError::MissingUse(position));
+                    }
+                    let reference = local.imported_dependency_callables[*callee].reference();
+                    let callable = selected
+                        .resolve_callable(reference)
+                        .ok_or(DependencyCallOccurrenceError::UnselectedUse(position))?;
+                    (
+                        CommittedDependencyCallTarget::Direct {
+                            callee: *callee,
+                            callable,
+                        },
+                        binding,
+                        args,
+                        receiver,
+                    )
+                }
+                concrete::ExprKind::ImportedGenericCall {
+                    callee,
+                    binding,
+                    args,
+                    receiver,
+                } => {
+                    if callee.into_raw().into_u32() as usize >= local.functions.len() {
+                        return Err(DependencyCallOccurrenceError::MissingUse(position));
+                    }
+                    let materialization = local.functions[*callee].materialization;
+                    let scoop_identity::CallableMaterializationContext::Application(id) =
+                        materialization.context()
+                    else {
+                        return Err(DependencyCallOccurrenceError::InvalidApplication(position));
+                    };
+                    let application = local
+                        .callable_applications
+                        .get(id)
+                        .ok_or(DependencyCallOccurrenceError::InvalidApplication(position))?;
+                    if !matches!((materialization.template(), application.key().origin()),
+                        (scoop_identity::CallableTemplateOwner::GenericFunction(expected),
+                         scoop_identity::CallableTemplateOrigin::GenericFunction(actual)) if expected == actual) {
+                        return Err(DependencyCallOccurrenceError::InvalidApplication(position));
+                    }
+                    (
+                        CommittedDependencyCallTarget::Application(application),
+                        binding,
+                        args,
+                        receiver,
+                    )
+                }
+                _ => return Ok(()),
+            };
             visitor(CommittedDependencyCallOccurrence {
                 occurrence,
-                callee: *callee,
+                target,
                 binding: binding.as_deref(),
-                callable,
                 arguments: args,
                 receiver: *receiver,
             })
@@ -142,9 +208,22 @@ fn validate_origins(
         if side == DependencyCallOrigin::Evaluation
             && projected.origin().source().cone() != export.cone
         {
-            return Err(DependencyCallOccurrenceError::ForeignEvaluation(
-                occurrence.position,
-            ));
+            let template = match occurrence.position.root.template() {
+                scoop_identity::CallableTemplateOwner::GenericFunction(identity) => export
+                    .imported_generic_templates
+                    .iter()
+                    .map(|(_, template)| template)
+                    .find(|template| template.declaration == identity),
+                _ => None,
+            };
+            if template.is_none_or(|template| {
+                export.source_files[template.origin.file as usize].identity
+                    != *projected.origin().source()
+            }) {
+                return Err(DependencyCallOccurrenceError::ForeignEvaluation(
+                    occurrence.position,
+                ));
+            }
         }
     }
     Ok(())
@@ -162,6 +241,7 @@ pub enum DependencyCallOccurrenceError {
     Structure(concrete::ExecutableExpressionStructureError),
     MissingUse(ExecutableExpressionPosition),
     UnselectedUse(ExecutableExpressionPosition),
+    InvalidApplication(ExecutableExpressionPosition),
     ForeignEvaluation(ExecutableExpressionPosition),
     Origin {
         position: ExecutableExpressionPosition,

@@ -7,6 +7,7 @@ use crate::concrete::ExecutableExpressionPosition;
 
 mod decode;
 mod errors;
+mod instantiation;
 mod reason;
 mod source;
 mod table;
@@ -14,6 +15,7 @@ mod table;
 mod tests;
 pub use decode::{DecodedHirDependencyCallSiteV1, HirDependencyCallSiteResolver};
 pub use errors::{HirDependencyCallSiteBuildError, HirDependencyCallSiteResolutionError};
+pub use instantiation::HirDependencyCallInstantiationV1;
 pub use reason::HirDependencyCallReasonV1;
 pub use source::HirDependencyCallSignatureError;
 pub use table::{CanonicalHirDependencyCallSitesV1, DecodedCanonicalHirDependencyCallSitesV1};
@@ -28,6 +30,7 @@ pub struct HirDependencyCallSiteV1 {
     result: PersistentExactTypeId,
     reason: HirDependencyCallReasonV1,
     receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
+    instantiation: HirDependencyCallInstantiationV1,
 }
 
 impl HirDependencyCallSiteV1 {
@@ -57,6 +60,26 @@ impl HirDependencyCallSiteV1 {
         reason: HirDependencyCallReasonV1,
         receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
     ) -> Result<Self, HirDependencyCallSiteBuildError> {
+        Self::try_new_with_instantiation(
+            position,
+            origin,
+            arguments,
+            result,
+            reason,
+            receiver,
+            HirDependencyCallInstantiationV1::Direct,
+        )
+    }
+
+    pub fn try_new_with_instantiation(
+        position: ExecutableExpressionPosition,
+        origin: ConcreteExpressionOrigin,
+        arguments: Vec<PersistentExactTypeId>,
+        result: PersistentExactTypeId,
+        reason: HirDependencyCallReasonV1,
+        receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
+        instantiation: HirDependencyCallInstantiationV1,
+    ) -> Result<Self, HirDependencyCallSiteBuildError> {
         if receiver.has_receiver() && arguments.is_empty() {
             return Err(HirDependencyCallSiteBuildError::MissingReceiverArgument);
         }
@@ -71,6 +94,7 @@ impl HirDependencyCallSiteV1 {
             result,
             reason,
             receiver,
+            instantiation,
         })
     }
 
@@ -104,11 +128,15 @@ impl HirDependencyCallSiteV1 {
     pub const fn reason(&self) -> &HirDependencyCallReasonV1 {
         &self.reason
     }
+
+    pub const fn instantiation(&self) -> HirDependencyCallInstantiationV1 {
+        self.instantiation
+    }
 }
 
 impl WireEncode for HirDependencyCallSiteV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.position.root.encode(encoder)?;
         encoder.field(2)?;
@@ -125,7 +153,9 @@ impl WireEncode for HirDependencyCallSiteV1 {
         encoder.field(6)?;
         self.reason.encode(encoder)?;
         encoder.field(7)?;
-        self.receiver.encode(encoder)
+        self.receiver.encode(encoder)?;
+        encoder.field(8)?;
+        self.instantiation.encode(encoder)
     }
 }
 

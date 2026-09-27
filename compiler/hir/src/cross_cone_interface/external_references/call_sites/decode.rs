@@ -49,6 +49,8 @@ pub struct DecodedHirDependencyCallSiteV1 {
     result: DecodedPersistentId<PersistentExactTypeId>,
     reason: HirDependencyCallReasonV1,
     receiver: crate::SourceCallReceiver<DecodedPersistentId<PersistentExactTypeId>>,
+    instantiation:
+        HirDependencyCallInstantiationV1<DecodedPersistentId<PersistentCallableApplicationId>>,
 }
 
 impl DecodedHirDependencyCallSiteV1 {
@@ -76,13 +78,18 @@ impl DecodedHirDependencyCallSiteV1 {
             .receiver
             .try_map(|ty| resolver.resolve(ty))
             .map_err(Error::Identity)?;
-        HirDependencyCallSiteV1::try_new_with_reason(
+        let instantiation = self
+            .instantiation
+            .try_map(|id| resolver.resolve(id))
+            .map_err(Error::Identity)?;
+        HirDependencyCallSiteV1::try_new_with_instantiation(
             position,
             origin,
             arguments,
             result,
             self.reason,
             receiver,
+            instantiation,
         )
         .map_err(Error::Shape)
     }
@@ -90,7 +97,7 @@ impl DecodedHirDependencyCallSiteV1 {
 
 impl WireEncode for DecodedHirDependencyCallSiteV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.root.encode(encoder)?;
         encoder.field(2)?;
@@ -107,13 +114,15 @@ impl WireEncode for DecodedHirDependencyCallSiteV1 {
         encoder.field(6)?;
         self.reason.encode(encoder)?;
         encoder.field(7)?;
-        self.receiver.encode(encoder)
+        self.receiver.encode(encoder)?;
+        encoder.field(8)?;
+        self.instantiation.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedHirDependencyCallSiteV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(7)?;
+        decoder.expect_map(8)?;
         Ok(Self {
             root: decoder.field(1, DecodedCallableMaterialization::decode)?,
             expression_index: decoder.field(2, Decoder::u32)?,
@@ -123,6 +132,7 @@ impl WireDecode for DecodedHirDependencyCallSiteV1 {
             result: decoder.field(5, DecodedPersistentId::decode)?,
             reason: decoder.field(6, HirDependencyCallReasonV1::decode)?,
             receiver: decoder.field(7, crate::SourceCallReceiver::decode)?,
+            instantiation: decoder.field(8, HirDependencyCallInstantiationV1::decode)?,
         })
     }
 }

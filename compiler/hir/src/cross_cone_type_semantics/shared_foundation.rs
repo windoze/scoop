@@ -57,6 +57,19 @@ impl<'a> SharedTypeMetadataV1<'a> {
         }
         .exact(signature)
     }
+
+    pub fn signature_exact_type_with_bindings(
+        self,
+        signature: &scoop_identity::SignatureTypeKey,
+        bindings: &[Vec<PersistentExactTypeId>],
+        identities: &'a ValidatedIdentityGraph,
+    ) -> Result<PersistentExactTypeId, SharedTypeMetadataError> {
+        MetadataTypes {
+            current: Self { identities, ..self },
+            dependencies: &[],
+        }
+        .exact_with_bindings(signature, bindings)
+    }
 }
 
 /// Complete fact and representation inventories agree with the shared

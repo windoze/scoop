@@ -12,11 +12,15 @@ pub(super) mod support;
 use support::Fixture;
 
 #[test]
-fn seven_field_call_sites_round_trip_without_erasing_repeated_unit_arguments() {
+fn eight_field_call_sites_round_trip_without_erasing_repeated_unit_arguments() {
     let fixture = Fixture::new();
     let site = fixture.site(7, vec![0, 3]).unwrap();
     let bytes = encode(&site).unwrap();
-    assert_eq!(bytes[0], 0xa7);
+    assert_eq!(bytes[0], 0xa8);
+    assert_eq!(
+        site.instantiation(),
+        HirDependencyCallInstantiationV1::Direct
+    );
     assert_eq!(site.arguments(), &[fixture.unit, fixture.unit]);
     assert_eq!(site.witness_indices(), &[0, 3]);
     let decoded: DecodedHirDependencyCallSiteV1 = decode_canonical(&bytes).unwrap();
@@ -48,15 +52,45 @@ fn call_routes_are_nonempty_ordered_and_unique_on_both_sides_of_the_codec() {
     for suffix in [vec![0x80], vec![0x82, 1, 0], vec![0x82, 0, 0]] {
         let mut bytes = encode(&site).unwrap();
         let receiver = encode(&site.receiver()).unwrap();
-        bytes.truncate(bytes.len() - 3 - 1 - receiver.len());
+        let instantiation = encode(&site.instantiation()).unwrap();
+        bytes.truncate(bytes.len() - 3 - 1 - receiver.len() - 1 - instantiation.len());
         bytes.extend(suffix);
         bytes.push(7);
         bytes.extend(receiver);
+        bytes.push(8);
+        bytes.extend(instantiation);
         let decoded: DecodedHirDependencyCallSiteV1 = decode_canonical(&bytes).unwrap();
         assert!(matches!(
             decoded.resolve(&mut fixture.graph(), &WirePath::root()),
             Err(HirDependencyCallSiteResolutionError::Shape(_))
         ));
+    }
+}
+
+#[test]
+fn call_instantiation_is_required_and_rejects_unknown_tags() {
+    let fixture = Fixture::new();
+    let site = fixture.site(0, vec![0]).unwrap();
+    let mut bytes = encode(&site).unwrap();
+    bytes.truncate(bytes.len() - 1 - encode(&site.instantiation()).unwrap().len());
+    bytes[0] = 0xa7;
+    assert!(matches!(
+        decode_canonical::<DecodedHirDependencyCallSiteV1>(&bytes)
+            .unwrap_err()
+            .kind(),
+        WireErrorKind::InvalidLength {
+            expected: 8,
+            actual: 7
+        }
+    ));
+    bytes[0] = 0xa8;
+    for malformed in [vec![0xa1, 0, 3], vec![0xa1, 0, 2], vec![0xa2, 0, 1, 1, 0]] {
+        let mut malformed_record = bytes.clone();
+        malformed_record.push(8);
+        malformed_record.extend(malformed);
+        let error =
+            decode_canonical::<DecodedHirDependencyCallSiteV1>(&malformed_record).unwrap_err();
+        assert_eq!(error.path(), &WirePath::root().field(8));
     }
 }
 

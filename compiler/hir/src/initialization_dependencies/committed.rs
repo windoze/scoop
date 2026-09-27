@@ -21,7 +21,10 @@ impl crate::DependencyHirOutput {
             .committed_dependency_call_occurrences()
             .map_err(|error| Error::Calls(Box::new(error)))?
         {
-            let callable = occurrence.callable();
+            let crate::CommittedDependencyCallTarget::Direct { callable, .. } = occurrence.target()
+            else {
+                continue;
+            };
             let Some(dependency_unit) = callable.initialization_unit() else {
                 continue;
             };

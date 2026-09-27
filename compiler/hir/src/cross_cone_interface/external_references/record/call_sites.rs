@@ -12,6 +12,7 @@ pub(super) fn validate_call_sites(
             target,
             ExternalHirTargetV1::Callable(
                 CallableTemplateOrigin::Function(_)
+                    | CallableTemplateOrigin::GenericFunction(_)
                     | CallableTemplateOrigin::Accessor(_)
                     | CallableTemplateOrigin::Constructor(_)
                     | CallableTemplateOrigin::VariantConstructor(_)

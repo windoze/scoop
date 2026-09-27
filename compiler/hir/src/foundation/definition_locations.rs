@@ -4,7 +4,7 @@ use scoop_identity::{
     ConeIdentity, DefinitionOrigin, PersistentSourceContextId, SourceIdentity, SourceSpan,
 };
 
-use super::OdrFreeHirFoundation;
+use super::{CanonicalHirFoundation, OdrFreeHirFoundation};
 use crate::ExportDefinitionSourceV1;
 
 impl OdrFreeHirFoundation {
@@ -33,6 +33,19 @@ impl OdrFreeHirFoundation {
         span: SourceSpan,
         context_id: PersistentSourceContextId,
     ) -> Result<(), DefinitionSourceLocationValidationError> {
+        self.as_canonical()
+            .validate_source_location(provider, source, span, context_id)
+    }
+}
+
+impl CanonicalHirFoundation {
+    pub(super) fn validate_source_location(
+        &self,
+        provider: ConeIdentity,
+        source: &SourceIdentity,
+        span: SourceSpan,
+        context_id: PersistentSourceContextId,
+    ) -> Result<(), DefinitionSourceLocationValidationError> {
         use DefinitionSourceLocationValidationError as Error;
 
         if source.cone() != provider {
@@ -42,7 +55,10 @@ impl OdrFreeHirFoundation {
             });
         }
         let context = self
-            .source_context_key(context_id)
+            .source_contexts
+            .binary_search_by_key(&context_id, |record| record.id())
+            .ok()
+            .map(|index| self.source_contexts[index].key())
             .ok_or(Error::MissingSourceContext {
                 context: context_id,
             })?;
@@ -52,7 +68,10 @@ impl OdrFreeHirFoundation {
             });
         }
         let record = self
-            .source_record(source)
+            .sources
+            .binary_search_by(|record| record.identity().cmp(source))
+            .ok()
+            .map(|index| &self.sources[index])
             .ok_or(Error::MissingSourceRecord {
                 context: context_id,
             })?;

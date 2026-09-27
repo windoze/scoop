@@ -28,14 +28,18 @@ impl Graph<'_> {
                     .ok_or(Error::MissingProvider(reference.origin()))?;
                 let metadata = provider.metadata;
                 let source = call
-                    .validate_source_signature(reference.target(), metadata)
+                    .validate_source_signature(
+                        reference.target(),
+                        metadata,
+                        self.current.identities,
+                    )
                     .map_err(|source| Error::CallSignature {
                         position: call.position(),
                         source: Box::new(source),
                     })?;
                 self.source_receiver(call.receiver())?;
-                self.call_signature(source)?;
-                self.source_extension(source, metadata, call, &path)?;
+                self.call_signature(call)?;
+                self.source_extension(source, call, &path)?;
                 self.source_construction(source)?;
                 self.source_member(source, metadata, call, &path)?;
             }

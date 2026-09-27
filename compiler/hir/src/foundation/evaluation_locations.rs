@@ -5,7 +5,9 @@ use scoop_identity::{
     EvaluationOrigin, PersistentSourceContextId,
 };
 
-use super::{DefinitionSourceLocationValidationError, OdrFreeHirFoundation};
+use super::{
+    CanonicalHirFoundation, DefinitionSourceLocationValidationError, OdrFreeHirFoundation,
+};
 
 mod contexts;
 
@@ -16,14 +18,25 @@ impl OdrFreeHirFoundation {
         root: CallableMaterialization,
         origin: &EvaluationOrigin,
     ) -> Result<(), ExecutableEvaluationValidationError> {
+        self.as_canonical()
+            .validate_executable_evaluation_origin(current, root, origin)
+    }
+}
+
+impl CanonicalHirFoundation {
+    pub fn validate_executable_evaluation_origin(
+        &self,
+        provider: ConeIdentity,
+        root: CallableMaterialization,
+        origin: &EvaluationOrigin,
+    ) -> Result<(), ExecutableEvaluationValidationError> {
         use ExecutableEvaluationValidationError as Error;
-        self.validate_source_location(current, origin.source(), origin.span(), origin.context())
+        self.validate_source_location(provider, origin.source(), origin.span(), origin.context())
             .map_err(Error::Location)?;
-        if root.context() != CallableMaterializationContext::NoSubstitution
-            || matches!(
-                root.template(),
-                CallableTemplateOwner::GenericFunction(_)
-                    | CallableTemplateOwner::VariantConstructor(_)
+        if matches!(root.template(), CallableTemplateOwner::GenericFunction(_))
+            && !matches!(
+                root.context(),
+                CallableMaterializationContext::Application(_)
             )
         {
             return Err(Error::Materialization(root));
@@ -33,11 +46,14 @@ impl OdrFreeHirFoundation {
             context: origin.context(),
         };
         let context = self
-            .source_context_key(origin.context())
+            .source_contexts
+            .binary_search_by_key(&origin.context(), |record| record.id())
+            .ok()
+            .map(|index| self.source_contexts[index].key())
             .ok_or_else(context_error)?;
         // Generated lexical and initialization bodies use their canonical source anchor.
-        let subject = contexts::source_subject(self.as_canonical(), root.template(), context)
-            .ok_or_else(context_error)?;
+        let subject =
+            contexts::source_subject(self, root.template(), context).ok_or_else(context_error)?;
 
         let definition = self
             .definition_origin(subject)
@@ -66,7 +82,7 @@ impl std::fmt::Display for ExecutableEvaluationValidationError {
         match self {
             Self::Location(error) => error.fmt(f),
             Self::Materialization(root) => {
-                write!(f, "call root {root:?} is not an ODR-free executable")
+                write!(f, "call root {root:?} has an invalid instantiation context")
             }
             Self::MissingRootOrigin(root) => {
                 write!(f, "call root {root:?} has no source definition")

@@ -1,7 +1,7 @@
 use scoop_identity::{
-    CallableMaterializationContext, CallableOwner, CallableTemplateOwner, CborIdentityRecord,
-    DefinitionOriginSubject, DefinitionOwnerAtom, GeneratedCallableKey, InitializationUnitKey,
-    NominalDeclarationOwner, PersistentId, PropertyOwner, SourceContextKey, SourceDeclarationKey,
+    CallableOwner, CallableTemplateOwner, CborIdentityRecord, DefinitionOriginSubject,
+    DefinitionOwnerAtom, GeneratedCallableKey, InitializationUnitKey, NominalDeclarationOwner,
+    PersistentId, PropertyOwner, SourceContextKey, SourceDeclarationKey,
 };
 
 use super::super::CanonicalHirFoundation;
@@ -17,6 +17,9 @@ pub(super) fn source_subject(
         match root {
             CallableTemplateOwner::Function(id) => {
                 return matched.then_some(DefinitionOriginSubject::Function(id));
+            }
+            CallableTemplateOwner::GenericFunction(id) => {
+                return matched.then_some(DefinitionOriginSubject::GenericFunction(id));
             }
             CallableTemplateOwner::Constructor(id) => {
                 let key = key(&foundation.constructors, id)?;
@@ -51,9 +54,6 @@ pub(super) fn source_subject(
                         ..
                     }
                     | GeneratedCallableKey::DispatchAdjust { target: source, .. } => {
-                        if source.context() != CallableMaterializationContext::NoSubstitution {
-                            return None;
-                        }
                         root = source.template();
                     }
                     GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
@@ -69,8 +69,7 @@ pub(super) fn source_subject(
                     | GeneratedCallableKey::BoxingAdjust { .. } => return None,
                 }
             }
-            CallableTemplateOwner::GenericFunction(_)
-            | CallableTemplateOwner::VariantConstructor(_) => return None,
+            CallableTemplateOwner::VariantConstructor(_) => return None,
         }
     }
 }
@@ -78,6 +77,7 @@ pub(super) fn source_subject(
 fn same_callable(template: CallableTemplateOwner, owner: CallableOwner) -> bool {
     match (template, owner) {
         (CallableTemplateOwner::Function(a), CallableOwner::Function(b)) => a == b,
+        (CallableTemplateOwner::GenericFunction(a), CallableOwner::GenericTemplate(b)) => a == b,
         (CallableTemplateOwner::Constructor(a), CallableOwner::Constructor(b)) => a == b,
         (CallableTemplateOwner::Accessor(a), CallableOwner::Accessor(b)) => a == b,
         (CallableTemplateOwner::Generated(a), CallableOwner::Generated(b)) => a == b,

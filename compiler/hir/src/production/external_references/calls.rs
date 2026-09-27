@@ -14,6 +14,7 @@ pub(super) struct PendingCallSite<'a> {
     result: PersistentExactTypeId,
     receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
     binding: Option<&'a DirectImportedTargetBinding>,
+    instantiation: crate::HirDependencyCallInstantiationV1,
 }
 
 pub(super) fn project<'a, E>(
@@ -60,6 +61,7 @@ pub(super) fn project<'a, E>(
         result,
         receiver,
         binding: call.binding(),
+        instantiation: call.instantiation(),
     })
 }
 
@@ -76,15 +78,17 @@ impl PendingCallSite<'_> {
             result,
             receiver,
             binding,
+            instantiation,
         } = self;
         let Some(binding) = binding else {
-            return HirDependencyCallSiteV1::try_new_with_reason(
+            return HirDependencyCallSiteV1::try_new_with_instantiation(
                 position,
                 origin,
                 arguments,
                 result,
                 HirDependencyCallReasonV1::SourceDeclaration,
                 receiver,
+                instantiation,
             )
             .map_err(Error::CallSite);
         };
@@ -102,7 +106,15 @@ impl PendingCallSite<'_> {
         }
         indices.sort_unstable();
         indices.dedup();
-        HirDependencyCallSiteV1::try_new(position, origin, arguments, result, indices, receiver)
-            .map_err(Error::CallSite)
+        HirDependencyCallSiteV1::try_new_with_instantiation(
+            position,
+            origin,
+            arguments,
+            result,
+            HirDependencyCallReasonV1::SourceBinding(indices),
+            receiver,
+            instantiation,
+        )
+        .map_err(Error::CallSite)
     }
 }

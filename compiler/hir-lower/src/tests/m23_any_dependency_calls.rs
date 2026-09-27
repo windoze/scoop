@@ -21,7 +21,11 @@ fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
             let mut defaults = 0;
             let mut dump = String::new();
             for call in output.committed_dependency_call_occurrences().unwrap() {
-                let signature = call.callable().capability().signature();
+                let hir::CommittedDependencyCallTarget::Direct { callable, .. } = call.target()
+                else {
+                    panic!("the Any fixture uses parameter-free dependency callables");
+                };
+                let signature = callable.capability().signature();
                 let arguments = signature
                     .receiver()
                     .into_option()
@@ -32,10 +36,7 @@ fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
                     continue;
                 }
                 count += 1;
-                assert_ne!(
-                    call.callable().provider(),
-                    scoop_identity::ConeIdentity::CORE
-                );
+                assert_ne!(callable.provider(), scoop_identity::ConeIdentity::CORE);
                 assert_eq!(arguments.len(), call.arguments().len());
                 for (argument, expected) in call.arguments().iter().zip(&arguments) {
                     assert_eq!(module.exact_type_identities[argument.ty].id(), *expected);
@@ -58,7 +59,7 @@ fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
                 dump.push_str(&format!(
                     "{} {:?} receiver={} arguments={} result={:?} copied={}\n",
                     call.position().expression_index,
-                    call.callable().interface().declaration(),
+                    call.declaration(),
                     call.receiver().has_receiver(),
                     arguments.len(),
                     module.types[call.result_type()].kind,

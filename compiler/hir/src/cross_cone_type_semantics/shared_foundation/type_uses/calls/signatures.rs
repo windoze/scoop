@@ -19,20 +19,16 @@ impl Graph<'_> {
 
     pub(super) fn call_signature(
         &mut self,
-        source: &crate::CallableDeclarationRecordV1,
+        call: &crate::HirDependencyCallSiteV1,
     ) -> Result<(), Error> {
-        match source.owner().nominal_owner() {
-            Some(SourceNominalId::Concrete(owner)) => self.select(owner, Kind::Signature)?,
-            Some(SourceNominalId::GenericTemplate(_)) => return Err(Error::NonConcreteSignature),
-            None => {
-                if let Some(receiver) = source.receiver() {
-                    self.signature(receiver, Kind::Signature)?;
-                }
-            }
+        // The declaration join already checked these complete exact types.
+        for &ty in call
+            .arguments()
+            .iter()
+            .chain(std::iter::once(&call.result()))
+        {
+            self.exact_signature_type(ty)?;
         }
-        for parameter in source.parameters().parameters() {
-            self.signature(parameter.value_type(), Kind::Signature)?;
-        }
-        self.signature(source.result(), Kind::Signature)
+        Ok(())
     }
 }

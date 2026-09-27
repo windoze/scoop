@@ -12,6 +12,13 @@ impl Graph<'_> {
         let SourceCallReceiver::Receiver { static_type } = receiver else {
             return Ok(());
         };
+        self.exact_signature_type(static_type)
+    }
+
+    pub(super) fn exact_signature_type(
+        &mut self,
+        static_type: PersistentExactTypeId,
+    ) -> Result<(), Error> {
         let nominals = crate::collect_type_site_nominals(static_type, |exact| {
             self.current
                 .identities
@@ -33,7 +40,6 @@ impl Graph<'_> {
     pub(super) fn source_extension(
         &self,
         source: &crate::CallableDeclarationRecordV1,
-        metadata: SharedTypeMetadataV1<'_>,
         call: &crate::HirDependencyCallSiteV1,
 
         path: &WirePath,
@@ -41,10 +47,10 @@ impl Graph<'_> {
         if source.owner() != crate::PublicDeclarationOwnerV1::Extension {
             return Ok(());
         }
-        let signature = source
-            .receiver()
+        let expected = *call
+            .arguments()
+            .first()
             .ok_or(Error::CallableContract(source.declaration()))?;
-        let expected = metadata.signature_exact_type(signature)?;
         let invalid = || Error::CallReceiver {
             position: Box::new(call.position()),
             receiver: call.receiver(),

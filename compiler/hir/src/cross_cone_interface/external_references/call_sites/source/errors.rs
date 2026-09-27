@@ -7,6 +7,16 @@ pub enum HirDependencyCallSignatureError {
     Target(ExternalHirTargetV1),
     Declaration(CallableTemplateOrigin),
     GenericDeclaration(CallableTemplateOrigin),
+    ApplicationOrigin {
+        expected: CallableTemplateOrigin,
+        actual: CallableTemplateOrigin,
+    },
+    ApplicationOwner(CallableTemplateOrigin),
+    ApplicationArity {
+        expected: usize,
+        actual: usize,
+    },
+    RedundantApplication(CallableTemplateOrigin),
     ReceiverRole {
         expected: bool,
         actual: bool,
@@ -54,6 +64,22 @@ impl std::fmt::Display for HirDependencyCallSignatureError {
             Self::GenericDeclaration(target) => write!(
                 f,
                 "source call target {target:?} has unresolved type parameters"
+            ),
+            Self::ApplicationOrigin { expected, actual } => write!(
+                f,
+                "source call application names {actual:?}, expected {expected:?}"
+            ),
+            Self::ApplicationOwner(declaration) => write!(
+                f,
+                "source call application has an invalid owner for {declaration:?}"
+            ),
+            Self::ApplicationArity { expected, actual } => write!(
+                f,
+                "source call application has {actual} type arguments, expected {expected}"
+            ),
+            Self::RedundantApplication(declaration) => write!(
+                f,
+                "source call to {declaration:?} has no type substitution and requires a direct target"
             ),
             Self::ArgumentCount { expected, actual } => write!(
                 f,

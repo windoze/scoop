@@ -32,6 +32,7 @@ impl HirInterfaceValidationInput<'_> {
                         foundation: provider.foundation,
                         public: provider.interface,
                     },
+                    self.identities,
                 )
                 .map_err(|source| CrossConeHirCallSiteOriginError::Signature {
                     position: site.position(),
@@ -69,8 +70,25 @@ impl HirInterfaceValidationInput<'_> {
                 position,
                 source: Box::new(source),
             })?;
-        self.foundation
-            .validate_executable_evaluation_origin(self.current, position.root, origin.evaluation())
+        let evaluation_provider = origin.evaluation().source().cone();
+        let evaluation_foundation = if evaluation_provider == self.current {
+            self.foundation
+        } else {
+            dependencies
+                .iter()
+                .find(|view| view.identity == evaluation_provider)
+                .map(|view| view.foundation)
+                .ok_or(CrossConeHirCallSiteOriginError::UnreachableEvaluation {
+                    position,
+                    provider: evaluation_provider,
+                })?
+        };
+        evaluation_foundation
+            .validate_executable_evaluation_origin(
+                evaluation_provider,
+                position.root,
+                origin.evaluation(),
+            )
             .map_err(|source| CrossConeHirCallSiteOriginError::Evaluation {
                 position,
                 source: Box::new(source),
@@ -91,6 +109,10 @@ pub enum CrossConeHirCallSiteOriginError {
         provider: ConeIdentity,
     },
     UnreachableDefinition {
+        position: ExecutableExpressionPosition,
+        provider: ConeIdentity,
+    },
+    UnreachableEvaluation {
         position: ExecutableExpressionPosition,
         provider: ConeIdentity,
     },
@@ -120,6 +142,10 @@ impl std::fmt::Display for CrossConeHirCallSiteOriginError {
             Self::UnreachableDefinition { position, provider } => write!(
                 f,
                 "expression {position:?} has an unreachable definition provider {provider}"
+            ),
+            Self::UnreachableEvaluation { position, provider } => write!(
+                f,
+                "expression {position:?} has an unreachable evaluation provider {provider}"
             ),
             Self::Definition { position, source } => {
                 write!(f, "invalid definition of expression {position:?}: {source}")

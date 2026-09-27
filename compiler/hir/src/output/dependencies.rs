@@ -8,7 +8,8 @@ mod occurrences;
 mod witnesses;
 pub use callables::ExecutableDependencyCallableUse;
 pub use occurrences::{
-    CommittedDependencyCallOccurrence, DependencyCallOccurrenceError, DependencyCallOrigin,
+    CommittedDependencyCallOccurrence, CommittedDependencyCallTarget,
+    DependencyCallOccurrenceError, DependencyCallOrigin,
 };
 
 /// HIR product with the committed dependency selections and source

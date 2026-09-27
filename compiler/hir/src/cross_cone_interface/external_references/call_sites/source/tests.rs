@@ -13,8 +13,12 @@ fn validate(
     fixture: &Fixture,
     site: &HirDependencyCallSiteV1,
 ) -> Result<(), HirDependencyCallSignatureError> {
-    site.validate_source_signature(fixture.target, fixture.metadata())
-        .map(|_| ())
+    site.validate_source_signature(
+        fixture.target,
+        fixture.metadata(),
+        fixture.metadata().identities,
+    )
+    .map(|_| ())
 }
 
 #[test]

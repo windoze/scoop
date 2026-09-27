@@ -90,13 +90,34 @@ impl<'a> MetadataTypes<'a, '_> {
         self,
         signature: &SignatureTypeKey,
     ) -> Result<PersistentExactTypeId, Error> {
+        self.exact_with_bindings(signature, &[])
+    }
+
+    pub(crate) fn exact_with_bindings(
+        self,
+        signature: &SignatureTypeKey,
+        bindings: &[Vec<PersistentExactTypeId>],
+    ) -> Result<PersistentExactTypeId, Error> {
         let key = match signature {
             SignatureTypeKey::Nominal(owner) => ExactTypeKey::Nominal(*owner),
-            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
-                return Err(Error::NonConcreteSignature);
+            SignatureTypeKey::NominalApplication { origin, arguments } => {
+                ExactTypeKey::NominalApplication {
+                    origin: *origin,
+                    arguments: NonEmptyVec::new(self.exacts(arguments.as_slice(), bindings)?)
+                        .map_err(|error| Error::Key(error.to_string()))?,
+                }
+            }
+            SignatureTypeKey::Binder { depth, index } => {
+                let exact = bindings
+                    .get(*depth as usize)
+                    .and_then(|scope| scope.get(*index as usize))
+                    .copied()
+                    .ok_or(Error::NonConcreteSignature)?;
+                self.key(exact)?;
+                return Ok(exact);
             }
             SignatureTypeKey::Tuple(elements) => ExactTypeKey::Tuple(
-                NonEmptyVec::new(self.exacts(elements.as_slice())?)
+                NonEmptyVec::new(self.exacts(elements.as_slice(), bindings)?)
                     .map_err(|e| Error::Key(e.to_string()))?,
             ),
             SignatureTypeKey::Function {
@@ -105,28 +126,34 @@ impl<'a> MetadataTypes<'a, '_> {
                 result,
             } => ExactTypeKey::Function {
                 effect: *effect,
-                parameters: self.exacts(parameters)?,
-                result: self.exact(result)?,
+                parameters: self.exacts(parameters, bindings)?,
+                result: self.exact_with_bindings(result, bindings)?,
             },
-            SignatureTypeKey::RawPointer(pointee) => ExactTypeKey::RawPointer(self.exact(pointee)?),
+            SignatureTypeKey::RawPointer(pointee) => {
+                ExactTypeKey::RawPointer(self.exact_with_bindings(pointee, bindings)?)
+            }
             SignatureTypeKey::NativeFunctionPointer {
                 calling_convention,
                 parameters,
                 result,
             } => ExactTypeKey::NativeFunctionPointer {
                 calling_convention: *calling_convention,
-                parameters: self.exacts(parameters)?,
-                result: self.exact(result)?,
+                parameters: self.exacts(parameters, bindings)?,
+                result: self.exact_with_bindings(result, bindings)?,
             },
         };
         self.exact_key(key)
     }
 
-    fn exacts(self, signatures: &[SignatureTypeKey]) -> Result<Vec<PersistentExactTypeId>, Error> {
+    fn exacts(
+        self,
+        signatures: &[SignatureTypeKey],
+        bindings: &[Vec<PersistentExactTypeId>],
+    ) -> Result<Vec<PersistentExactTypeId>, Error> {
         let mut exacts = Vec::new();
         scoop_wire::allocation::try_reserve(&mut exacts, signatures.len(), &WirePath::root())?;
         for signature in signatures {
-            exacts.push(self.exact(signature)?);
+            exacts.push(self.exact_with_bindings(signature, bindings)?);
         }
         Ok(exacts)
     }
