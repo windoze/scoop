@@ -71,15 +71,22 @@ fn trusted_builder_sorts_nodes_and_accepts_only_typed_legal_edges() {
 
 #[test]
 fn strong_profile_rejects_odr_nodes_and_requires_its_image() {
+    let group =
+        scoop_identity::OdrGroupId::from_key(&scoop_identity::SpecializationKey::StructuralType {
+            exact_type: unit_exact_type(),
+        })
+        .unwrap();
+    let member = scoop_identity::OdrMemberId::from_key(
+        &scoop_identity::OdrMemberKey::new(
+            group,
+            scoop_identity::OdrMemberRole::TypeDescriptor,
+            scoop_identity::OdrMemberDiscriminator::ExactType(unit_exact_type()),
+        )
+        .unwrap(),
+    )
+    .unwrap();
     let odr = DigestNodeV1::new(
-        DigestNodeKey::odr_definition(
-            scoop_identity::OdrGroupId::from_key(
-                &scoop_identity::SpecializationKey::StructuralType {
-                    exact_type: unit_exact_type(),
-                },
-            )
-            .unwrap(),
-        ),
+        DigestNodeKey::odr_member_definition(member),
         Vec::new(),
         Vec::new(),
     )

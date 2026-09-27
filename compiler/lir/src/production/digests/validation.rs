@@ -191,7 +191,7 @@ fn validate_owner(
             .iter()
             .any(|record| record.id() == id),
         DigestOwnerAndRoleKey::StackmapRecord(id) => foundation.contains_safepoint_site(id),
-        DigestOwnerAndRoleKey::OdrDefinition(_) => {
+        DigestOwnerAndRoleKey::OdrMemberDefinition(_) => {
             return Err(DigestPlanError::OdrDefinition(node.id()));
         }
         DigestOwnerAndRoleKey::StrongRegistration(plan) => {

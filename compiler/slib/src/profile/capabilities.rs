@@ -10,7 +10,8 @@ pub fn mir_identity_foundation_capability() -> CapabilityId {
 }
 
 pub fn lir_identity_foundation_capability() -> CapabilityId {
-    known_capability("org.scoop-lang.lir", "identity-foundation")
+    CapabilityId::new("org.scoop-lang.lir", "identity-foundation", 2)
+        .expect("built-in capability id is valid")
 }
 
 pub fn manifest_single_cone_production_capability() -> CapabilityId {

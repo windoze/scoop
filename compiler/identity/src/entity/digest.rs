@@ -4,7 +4,7 @@ use super::DefinitionAtomRole;
 use crate::ids::derive_persistent_id;
 use crate::{
     ConeIdentity, DigestNodeId, DigestPatchIntentId, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, OdrGroupId, PersistentCallableBodyId, PersistentLayoutId,
+    ObjectDefinitionPlanId, OdrMemberId, PersistentCallableBodyId, PersistentLayoutId,
     PersistentSafepointSiteId, PersistentScanId,
 };
 
@@ -62,9 +62,10 @@ pub enum DigestOwnerAndRoleKey {
     ObjectSupport(ObjectDefinitionAtomId),
     ObjectDefinition(ObjectDefinitionAtomId),
     StackmapRecord(PersistentSafepointSiteId),
-    OdrDefinition(OdrGroupId),
     StrongRegistration(ObjectDefinitionPlanId),
     RuntimeImage(ConeIdentity),
+    /// A single physical ODR definition. The former group owner tag 8 is retired.
+    OdrMemberDefinition(OdrMemberId),
 }
 
 impl DigestOwnerAndRoleKey {
@@ -77,7 +78,7 @@ impl DigestOwnerAndRoleKey {
             Self::ObjectSupport(_) => DigestKind::ObjectSupport,
             Self::ObjectDefinition(_) => DigestKind::ObjectDefinition,
             Self::StackmapRecord(_) => DigestKind::StackmapRecord,
-            Self::OdrDefinition(_) => DigestKind::OdrDefinition,
+            Self::OdrMemberDefinition(_) => DigestKind::OdrDefinition,
             Self::StrongRegistration(_) => DigestKind::StrongRegistration,
             Self::RuntimeImage(_) => DigestKind::RuntimeImage,
         }
@@ -94,7 +95,7 @@ impl WireEncode for DigestOwnerAndRoleKey {
             Self::ObjectSupport(id) => encode_value_sum(encoder, 5, id),
             Self::ObjectDefinition(id) => encode_value_sum(encoder, 6, id),
             Self::StackmapRecord(id) => encode_value_sum(encoder, 7, id),
-            Self::OdrDefinition(id) => encode_value_sum(encoder, 8, id),
+            Self::OdrMemberDefinition(id) => encode_value_sum(encoder, 11, id),
             Self::StrongRegistration(id) => encode_value_sum(encoder, 9, id),
             Self::RuntimeImage(id) => encode_value_sum(encoder, 10, id),
         }
@@ -136,8 +137,8 @@ impl DigestNodeKey {
         Self::from_owner(DigestOwnerAndRoleKey::StackmapRecord(owner))
     }
 
-    pub const fn odr_definition(owner: OdrGroupId) -> Self {
-        Self::from_owner(DigestOwnerAndRoleKey::OdrDefinition(owner))
+    pub const fn odr_member_definition(owner: OdrMemberId) -> Self {
+        Self::from_owner(DigestOwnerAndRoleKey::OdrMemberDefinition(owner))
     }
 
     pub const fn strong_registration(owner: ObjectDefinitionPlanId) -> Self {
@@ -354,7 +355,7 @@ mod tests {
     };
 
     #[test]
-    fn digest_kinds_and_owners_share_frozen_tags() {
+    fn digest_kinds_and_owners_keep_their_independent_wire_tags() {
         let raw = ConeIdentity::CORE.0;
         let keys = [
             DigestNodeKey::source_signature(PersistentCallableBodyId(raw)),
@@ -364,18 +365,58 @@ mod tests {
             DigestNodeKey::object_support(crate::ObjectDefinitionAtomId(raw)),
             DigestNodeKey::object_definition(crate::ObjectDefinitionAtomId(raw)),
             DigestNodeKey::stackmap_record(crate::PersistentSafepointSiteId(raw)),
-            DigestNodeKey::odr_definition(crate::OdrGroupId(raw)),
+            DigestNodeKey::odr_member_definition(crate::OdrMemberId(raw)),
             DigestNodeKey::strong_registration(crate::ObjectDefinitionPlanId(raw)),
             DigestNodeKey::runtime_image(ConeIdentity::CORE),
         ];
 
-        for (key, tag) in keys.into_iter().zip(1_u8..=10) {
+        for ((key, tag), owner_tag) in keys
+            .into_iter()
+            .zip(1_u8..=10)
+            .zip([1, 2, 3, 4, 5, 6, 7, 11, 9, 10])
+        {
             assert_eq!(key.kind().tag(), u32::from(tag));
             assert_eq!(key.owner_and_role().kind(), key.kind());
             let encoded = encode(&key).unwrap();
             assert_eq!(&encoded[..3], &[0xa2, 0x01, tag]);
-            assert_eq!(encoded[6], tag);
+            assert_eq!(encoded[6], owner_tag);
         }
+    }
+
+    #[test]
+    fn independent_members_in_one_group_have_independent_definition_nodes() {
+        use crate::{
+            CoreBuiltinNominal, ExactTypeKey, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
+            OdrMemberKey, OdrMemberRole, PersistentExactTypeId, SpecializationKey,
+        };
+
+        let exact_type = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap();
+        let group =
+            OdrGroupId::from_key(&SpecializationKey::StructuralType { exact_type }).unwrap();
+        let member = |role| {
+            OdrMemberId::from_key(
+                &OdrMemberKey::new(group, role, OdrMemberDiscriminator::ExactType(exact_type))
+                    .unwrap(),
+            )
+            .unwrap()
+        };
+        let descriptor = member(OdrMemberRole::TypeDescriptor);
+        let registration = member(OdrMemberRole::RegistrationRecord);
+        let descriptor_node = DigestNodeKey::odr_member_definition(descriptor);
+        let registration_node = DigestNodeKey::odr_member_definition(registration);
+
+        assert_ne!(descriptor, registration);
+        assert_ne!(
+            DigestNodeId::from_key(&descriptor_node).unwrap(),
+            DigestNodeId::from_key(&registration_node).unwrap(),
+        );
+        assert_eq!(
+            descriptor_node.owner_and_role(),
+            DigestOwnerAndRoleKey::OdrMemberDefinition(descriptor),
+        );
     }
 
     #[test]

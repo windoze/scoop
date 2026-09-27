@@ -1005,7 +1005,7 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 
 ### 2.13 M23-7：跨 Cone 模板实例化与 ODR 定义
 
-本节与 [M23-7 设计](../milestone23/stage7/DESIGN.md) 规定 M23-6 之后的实现合同；阶段状态仍为设计完成、待实现。语言行为沿用语言规范 3.2、8.5、9.1.1、9.2 与 12.5，runtime 沿用运行时规范 2.2、2.7、2.8。本节取代旧设计要求每个 producer 为同一 ODR group 发射完全相同成员集合的条款。
+本节与 [M23-7 设计](../milestone23/stage7/DESIGN.md) 规定 M23-6 之后的实现合同；阶段状态为实现中。语言行为沿用语言规范 3.2、8.5、9.1.1、9.2 与 12.5，runtime 沿用运行时规范 2.2、2.7、2.8。本节取代旧设计要求每个 producer 为同一 ODR group 发射完全相同成员集合的条款。
 
 共有 HIR 源码接口增加真正用于下游具体化的 generic callable body、constructor/common initialization 和 generic delegated extension template。声明、binder、字段、默认值及定义位置继续使用既有共有表；正文保留已解析的 typed target、符号化类型实参、bound member、局部值与 capture、control flow 和条件约束，不保存 AST、未解析名称、上游 LocalConcrete 实例或另一套语义检查结果。默认值与泛型正文共用节点编解码和替换算法，但用不同的根类型保存各自的语言规则；public default 的访问域不会因共用节点而放宽。前端完成定义处语言检查，reader 检查格式、typed 引用、binder/owner 和实际依赖；二者不互相重做全部工作。
 

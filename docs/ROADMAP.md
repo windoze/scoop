@@ -341,7 +341,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 - 真实源码生成完整 `.slib`，由本阶段跨 Cone Compile/Link 路径消费，并完成适用链接与运行；覆盖 core 修改、扩展、重建、下游使用，以及类型、成员、dispatch、ABI、ZST 的独立与组合场景。手工 metadata 和证明反例不能替代验收。
 - **M23-6 已完成并验收（2026-09-27）**：实际功能、七项清理和生产调用链核对已完成，变更按功能提交；启用真实配套编译器的全仓测试 5084 项通过。详见 [实际产物验收记录](milestone23/stage6/ACCEPTANCE.md)。ODR、multi-image startup、artifact-only program-link 按 M23-7/8/9 的原阶段安排。
 
-### M23-7 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](milestone23/stage7/DESIGN.md)，设计完成，待实现）
+### M23-7 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](milestone23/stage7/DESIGN.md)，实现中）
 
 - 从共有 `.slib` 模板完成 consumer-side concretization，覆盖泛型函数/名义类型、constructor/member/default/bound、hidden support 与 generic delegate；复用当前 MIR/LIR、对象集合、registration、reader 和发布路径。参数自由 source nominal 的 shell/start 由定义方补齐，所需 generic application 按实际引用闭合，不递归生成全部 helper。
 - 保留四类 specialization 和既有 group/member identity；按重复 member 的完整 ABI、canonical LIR、对象/EH/stackmap 判等，独立 helper 的成员集合取并集。旧“同组全部成员必须相同”规则会拒绝不同源签名到同一目标类型的合法 adapter，现按实际定义与引用修订；不增加授权、预算或证明体系。

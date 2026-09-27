@@ -108,14 +108,14 @@ impl PersistentIdResolver<ConeIdentity> for Foundation<'_> {
             })
     }
 }
-impl PersistentIdResolver<OdrGroupId> for Foundation<'_> {
+impl PersistentIdResolver<OdrMemberId> for Foundation<'_> {
     type Error = IdentityReferenceError;
     fn resolve(
         &mut self,
-        decoded: DecodedPersistentId<OdrGroupId>,
-    ) -> Result<OdrGroupId, Self::Error> {
+        decoded: DecodedPersistentId<OdrMemberId>,
+    ) -> Result<OdrMemberId, Self::Error> {
         Err(IdentityReferenceError::Missing {
-            kind: "OdrGroupId",
+            kind: "OdrMemberId",
             id: *decoded.as_array(),
         })
     }

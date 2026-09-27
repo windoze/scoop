@@ -4,6 +4,15 @@ use super::*;
 fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every_view() {
     for (current, profiles, rejected) in [
         (
+            lir_identity_foundation_capability(),
+            &[
+                ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+                ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+                ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            ][..],
+            &[1][..],
+        ),
+        (
             lir_link_identity_closure_capability(),
             &[
                 ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
