@@ -64,6 +64,7 @@ pub struct ValidatedCrossConeArtifactClosure {
     links: Vec<ValidatedCrossConeStrongLinkArtifact>,
     publications: Vec<CrossConeArtifactSummary>,
     positions: BTreeMap<ConeIdentity, usize>,
+    odr_definitions: crate::MergedOdrDefinitions,
 }
 
 /// A completed artifact closure retaining all three current artifact views.
@@ -84,11 +85,19 @@ impl ValidatedCompletedCrossConeArtifactClosure {
     pub fn current_link(&self) -> &ValidatedCrossConeStrongLinkArtifact {
         &self.closure.links[self.current_position]
     }
+
+    pub const fn odr_definitions(&self) -> &crate::MergedOdrDefinitions {
+        &self.closure.odr_definitions
+    }
 }
 
 impl ValidatedCrossConeArtifactClosure {
     pub const fn semantic(&self) -> &ValidatedCrossConeSemanticClosure {
         &self.semantic
+    }
+
+    pub const fn odr_definitions(&self) -> &crate::MergedOdrDefinitions {
+        &self.odr_definitions
     }
 
     pub fn dependency_symbol_owners(
@@ -124,7 +133,7 @@ pub fn validate_cross_cone_artifact_closure<'input>(
 ) -> Result<ValidatedCrossConeArtifactClosure, CrossConeArtifactClosureValidationError> {
     let complete = crate::read_cross_cone_layout_artifact_closure(input, c_bridge_profile)
         .map_err(|error| CrossConeArtifactClosureValidationError::Layout(Box::new(error)))?;
-    let (current, target, direct, records) = complete.into_parts();
+    let (current, target, direct, records, odr_definitions) = complete.into_parts();
     let mut artifacts = Vec::with_capacity(records.len());
     let mut links = Vec::with_capacity(records.len());
     let mut publications = Vec::with_capacity(records.len());
@@ -150,6 +159,7 @@ pub fn validate_cross_cone_artifact_closure<'input>(
         links,
         publications,
         positions,
+        odr_definitions,
     })
 }
 

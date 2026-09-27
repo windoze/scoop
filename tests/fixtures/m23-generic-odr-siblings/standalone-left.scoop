@@ -1,0 +1,7 @@
+package sibling.left
+
+import dependency.odr.Payload
+import dependency.odr.identity
+
+public fun left(value: Payload): Payload = identity(value)
+public fun leftNumber(value: Int): Int = identity(value)

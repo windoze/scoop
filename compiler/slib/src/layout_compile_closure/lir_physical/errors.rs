@@ -10,6 +10,7 @@ pub enum SharedLirPhysicalError {
     LinkMaterializations(Box<crate::StrongLinkMaterializationError>),
     LinkObjectContents(Box<crate::LayoutLinkObjectContentsError>),
     LinkSymbolUses(Box<crate::LayoutLinkSymbolUseError>),
+    OdrDefinitions(Box<OdrDefinitionMergeError>),
 }
 
 macro_rules! from_error {

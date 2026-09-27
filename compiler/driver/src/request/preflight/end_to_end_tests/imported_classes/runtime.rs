@@ -38,22 +38,29 @@ pub(in super::super) fn build(
 
 pub(in super::super) fn check(
     target: &scoop_toolchain::ResolvedTargetProfile,
-    artifacts: &[&SingleConeProductionSuccess; 4],
+    artifacts: &[&SingleConeProductionSuccess],
     runtime: &Path,
     fixtures: &Path,
     directory: &Path,
     case: &str,
-) {
-    let bytes = artifacts.map(|artifact| std::fs::read(artifact.artifact().path()).unwrap());
-    let identities = artifacts.map(|artifact| {
-        artifact
-            .artifact()
-            .summary()
-            .coordinate()
-            .identity()
-            .unwrap()
-    });
-    let mut direct = artifacts[3]
+) -> scoop_slib::LinkSymbolsReplayedCrossConeLayoutClosure {
+    let bytes = artifacts
+        .iter()
+        .map(|artifact| std::fs::read(artifact.artifact().path()).unwrap())
+        .collect::<Vec<_>>();
+    let identities = artifacts
+        .iter()
+        .map(|artifact| {
+            artifact
+                .artifact()
+                .summary()
+                .coordinate()
+                .identity()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let current = artifacts.len().checked_sub(1).expect("current artifact");
+    let mut direct = artifacts[current]
         .artifact()
         .summary()
         .direct_dependencies()
@@ -63,11 +70,11 @@ pub(in super::super) fn check(
     direct.sort_unstable();
     let closure = scoop_slib::read_cross_cone_layout_artifact_closure(
         scoop_slib::CrossConeArtifactClosureInput::completed(
-            identities[3],
+            identities[current],
             target.lir_target_selection(),
             direct,
-            bytes[..3].iter().map(Vec::as_slice).collect(),
-            &bytes[3],
+            bytes[..current].iter().map(Vec::as_slice).collect(),
+            &bytes[current],
         ),
         target.c_bridge_toolchain().profile(),
     )
@@ -151,7 +158,7 @@ pub(in super::super) fn check(
                 );
             }
         }
-        if index == 3 {
+        if index == current {
             for export in sections.lir_cross_cone_bridge().exports() {
                 let StrongCallableDefinitionOwner::Function(id) = export.target() else {
                     continue;
@@ -264,6 +271,7 @@ pub(in super::super) fn check(
         );
         assert!(output.stdout.is_empty(), "{output:?}");
     }
+    closure
 }
 
 fn archive_objects(archive: &Path, objects: &[PathBuf]) {

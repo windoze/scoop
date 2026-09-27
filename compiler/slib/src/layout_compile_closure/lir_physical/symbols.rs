@@ -5,6 +5,7 @@ use crate::{ReplayedLayoutLinkSymbolUsesV1, layout_link_symbols};
 pub struct LinkSymbolsReplayedCrossConeLayoutClosure {
     physical: PhysicalImportsReplayedCrossConeLayoutClosure,
     symbols: Vec<ReplayedLayoutLinkSymbolUsesV1>,
+    odr_definitions: MergedOdrDefinitions,
 }
 
 impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
@@ -43,7 +44,18 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 )?;
                 Ok(symbols)
             })?;
-        Ok(LinkSymbolsReplayedCrossConeLayoutClosure { physical, symbols })
+        let odr_definitions = merge_cross_cone_odr_definitions(
+            physical.dependency_first().zip(&symbols),
+        )
+        .map_err(|source| CrossConeLayoutLirPhysicalError {
+            provider: source.provider(),
+            source: Box::new(SharedLirPhysicalError::OdrDefinitions(Box::new(source))),
+        })?;
+        Ok(LinkSymbolsReplayedCrossConeLayoutClosure {
+            physical,
+            symbols,
+            odr_definitions,
+        })
     }
 }
 
@@ -58,6 +70,7 @@ impl LinkSymbolsReplayedCrossConeLayoutClosure {
             PhysicalImportsReplayedCrossConeLayoutSections,
             ReplayedLayoutLinkSymbolUsesV1,
         )>,
+        MergedOdrDefinitions,
     ) {
         let PhysicalImportsReplayedCrossConeLayoutClosure {
             current,
@@ -71,8 +84,13 @@ impl LinkSymbolsReplayedCrossConeLayoutClosure {
             target,
             direct,
             artifacts.into_iter().zip(self.symbols).collect(),
+            self.odr_definitions,
         )
     }
+    pub const fn odr_definitions(&self) -> &MergedOdrDefinitions {
+        &self.odr_definitions
+    }
+
     pub const fn physical_imports(&self) -> &PhysicalImportsReplayedCrossConeLayoutClosure {
         &self.physical
     }

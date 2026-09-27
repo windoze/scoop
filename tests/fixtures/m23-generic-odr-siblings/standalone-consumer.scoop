@@ -1,0 +1,11 @@
+import dependency.odr.Payload
+import sibling.left.left
+import sibling.left.leftNumber
+import sibling.right.right
+import sibling.right.rightNumber
+
+public fun check(): Int {
+    val first = left(Payload(leftNumber(20)))
+    val second = right(Payload(rightNumber(22)))
+    return first.number + second.number
+}

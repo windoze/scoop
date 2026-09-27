@@ -17,10 +17,16 @@ mod accessors;
 mod driver;
 mod errors;
 mod objects;
+mod odr;
 mod replay;
 mod symbols;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
 pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
+pub use odr::{
+    MergedOdrDefinitions, MergedOdrMemberDefinition, OdrDefinitionCandidate,
+    OdrDefinitionDifference, OdrDefinitionMergeError, OdrMemberConflict,
+    merge_cross_cone_odr_definitions,
+};
 pub use symbols::LinkSymbolsReplayedCrossConeLayoutClosure;
 
 pub struct PhysicalImportsReplayedCrossConeLayoutSections {

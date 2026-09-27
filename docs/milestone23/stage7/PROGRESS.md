@@ -239,9 +239,20 @@
 
 本次按用户要求提交当前迁移基线。后续构造、委托和类型 application 的真实 payload 仍须同步升级 section 与 inventory；M23-7 尚未完成。全仓测试继续运行，构建目录待相关进程结束后再清理。
 
+## 2026-09-28：共有 reader 合并跨产物 ODR 成员
+
+- 共有 Compile/Link reader 在各产物 symbol/object 读取结束后，按实际 group/member 建立定义并集。完整 canonical key 借用各自已验证的 identity graph；重复成员比较 ABI 和最终 definition，兼容后才加入物理候选。没有直接依赖关系的 sibling 也在同一入口比较。
+- 合并结果随完整 closure 保留，每个成员必需包含首个候选及其余兼容候选，候选指向真实 Cone、`SlibMemberId` 和 primary symbol。相同 symbol 被不同 owner 认领时拒绝；普通 Strong 引用与各产物的必要闭包继续由原 reader 检查。
+- 冲突报告两个 Cone、group/member、role 及不同的 key、ABI、LIR、object 或 stackmap 部分。只在 definition 不一致时查询已有内容叶子以细化诊断，不重新解析对象、计算摘要或重放 HIR；没有新增 wire、runtime ABI、发布器或验证状态链。
+- 新增真实 provider、两个 sibling 和 consumer 的独立及组合 fixture。provider 与 sibling 发布后移走源码，consumer 仅用 `.slib` 编译。共同实例覆盖整数、provider 引用类型、默认参数、try/finally 和异常恢复；两例都完成真实链接、普通运行与移动 GC，并断言实际发生收集。逐项核对全部成员和物理候选，反转产物输入顺序后完整 key、ABI、definition 与候选集合保持一致。
+- 新增真实正文冲突回归：两个 provider 版本的泛型正文仅有一个常量不同，消费产物各自通过完整 reader 后进入同一合并函数。相同 group/member 的 key 和 ABI 保持一致，实际 definition 不同被明确拒绝；重复传入同一产物也不能成为第二个候选。这项定向检查不替代原完整依赖图的产物指纹检查。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和本次配套 `scoopc` 构建通过，lint 无警告。584项 slib 测试及全部5项真实泛型产物回归通过，共589项，无失败或忽略；既有 golden 未修改。确认本轮独立构建目录没有运行进程后，清理1501个构建文件，回收2.5 GiB。上一提交的全仓验证仍在原构建目录运行，结果与本轮验证分别记录。
+
+本项接通当前函数和注册成员的跨产物合并，以及两个 sibling 的真实泛型运行闭环。生成实体的独立成员并集、其余物理角色和 TD/storage/cell 地址合并仍须随实际功能继续验证；构造、委托及全部阶段验收尚未完成。
+
 ## 剩余主线
 
-1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要和跨产物成员合并，随实际 payload 同步升级正式 profile inventory。
+1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的泛型函数产物闭环上补齐 hidden helper、默认值与 vararg、宿主和方法两组 binder、bound dispatch、局部函数及 capture 的完整组合。
 3. 完成泛型名义类型、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与扫描。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。

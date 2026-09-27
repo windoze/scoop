@@ -306,6 +306,8 @@ callable 与 safepoint registration 的 canonical LIR 直接投影已有实际 p
 
 不同 definition 是产物/链接错误，报告两个 Cone、group/member、角色以及首个不同的 ABI/LIR/object/stackmap 部分。它不是源码 bound 错误，也不允许交给 native linker 任意选择。
 
+这一步接在共有 closure 的各产物 symbol/object 读取之后，覆盖没有彼此直接依赖的 sibling。完整 canonical key 借用已有 identity graph，物理候选直接关联已验证 primary definition 的 Cone、`SlibMemberId` 和 symbol。结果随共有 closure 保留，不另建发布器或 wire 表；诊断只读取现有内容叶子，不重算已验证摘要。
+
 ## 9. 泛型委托扩展属性
 
 ### 9.1 source template 与 application
