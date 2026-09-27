@@ -12,7 +12,8 @@ Module
       Call localReader : LocalBase
     val local1
       MethodCall LocalChoice.choose : Long
-        Local $receiver : LocalBase
+        ReferenceUpcast : LocalChoice
+          Local $receiver : LocalBase
     val local2
       Local $dependency.argument.0 : Long
     return

@@ -8,7 +8,7 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=210 descriptors=105 dispatch=125 callables=38 shapes=29
+layouts=214 descriptors=107 dispatch=127 callables=38 shapes=30
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$body$1: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
@@ -72,6 +72,7 @@ descriptor g(r=00000005;i=90a6ed4fd3a16783d85014c4d542fe6dc370aa8f8e3a671b96b093
 descriptor g(r=00000005;i=a705b1c41ec97556f1d97f2774fd600f0c443f5c5582d3bf2b9ac939c1c039ea): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=bb687296e18150920cdc62ad13ad60f35b4fae54335bb15838ae56bdd6e4c7a8): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=bd415a042ff6d6b646182dea9d6ad19b962c52d4376dbf4766e4721d81fa4023): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000005;i=c80b8527ec2e63723456e18a4c687d0bb588156488fd57d31dc39ae01f6bd79f): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=d07563f17c395b381774e9f5341a76b398ecc3d7ee91aced533e096827aa16ac): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=d4c6ca05d4a7e2e2875e483f7d1b9fd307c51cbcbde02e87a4c87ed4e271a1d6): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=e1359b55fc7bb58ab244e97581c936e858c1e6b00037fa0f9335044e71d00c80): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
@@ -117,6 +118,7 @@ descriptor g(r=00000007;i=c25b90912d9eb0ef25d9c947a8b07326eafd632990456180132859
 descriptor g(r=00000007;i=cab96bdeed3ca0933d67220b00869840c78f50886c1f8cd23df66f31aa72fd7d): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000007;i=d51bc99cedaf725673539452d75df67db118a511462c0e0c472f3027054f9202): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: References([24]), inline_scan: References([8]) } scan=References([24]) vslots=0 itables=0
 descriptor g(r=00000007;i=d89473dbb688af2e149559d90c924923a1e3b2353e30b3ff25e95fe3b88fb1b2): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000007;i=e021fc2bef4f58cda1d29b3edf965654a42a51a5cff4fcca4a65c7e8bf70365f): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000007;i=e5b50f95000bdf1e16439b4a68880f5a4d21afe9eec5cad568776f0da35c6401): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000007;i=eeb1d84288923e004d2d8db85c8d8bc8c4b8b03fa6711e3bcd50f05160977af8): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000007;i=f6fedf8a32283ace85e90acdb3519ba8d57451e2a248f444fb2fb34ee226df89): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
@@ -177,6 +179,7 @@ dispatch g(r=00000005;i=90a6ed4fd3a16783d85014c4d542fe6dc370aa8f8e3a671b96b093ae
 dispatch g(r=00000005;i=a705b1c41ec97556f1d97f2774fd600f0c443f5c5582d3bf2b9ac939c1c039ea) [Vtable]: []
 dispatch g(r=00000005;i=bb687296e18150920cdc62ad13ad60f35b4fae54335bb15838ae56bdd6e4c7a8) [Vtable]: []
 dispatch g(r=00000005;i=bd415a042ff6d6b646182dea9d6ad19b962c52d4376dbf4766e4721d81fa4023) [Vtable]: []
+dispatch g(r=00000005;i=c80b8527ec2e63723456e18a4c687d0bb588156488fd57d31dc39ae01f6bd79f) [Vtable]: []
 dispatch g(r=00000005;i=d07563f17c395b381774e9f5341a76b398ecc3d7ee91aced533e096827aa16ac) [Vtable]: []
 dispatch g(r=00000005;i=d4c6ca05d4a7e2e2875e483f7d1b9fd307c51cbcbde02e87a4c87ed4e271a1d6) [Vtable]: []
 dispatch g(r=00000005;i=e1359b55fc7bb58ab244e97581c936e858c1e6b00037fa0f9335044e71d00c80) [Vtable]: []
@@ -240,6 +243,7 @@ dispatch g(r=00000007;i=c25b90912d9eb0ef25d9c947a8b07326eafd63299045618013285990
 dispatch g(r=00000007;i=cab96bdeed3ca0933d67220b00869840c78f50886c1f8cd23df66f31aa72fd7d) [Vtable]: []
 dispatch g(r=00000007;i=d51bc99cedaf725673539452d75df67db118a511462c0e0c472f3027054f9202) [Vtable]: []
 dispatch g(r=00000007;i=d89473dbb688af2e149559d90c924923a1e3b2353e30b3ff25e95fe3b88fb1b2) [Vtable]: []
+dispatch g(r=00000007;i=e021fc2bef4f58cda1d29b3edf965654a42a51a5cff4fcca4a65c7e8bf70365f) [Vtable]: []
 dispatch g(r=00000007;i=e5b50f95000bdf1e16439b4a68880f5a4d21afe9eec5cad568776f0da35c6401) [Vtable]: []
 dispatch g(r=00000007;i=eeb1d84288923e004d2d8db85c8d8bc8c4b8b03fa6711e3bcd50f05160977af8) [Vtable]: []
 dispatch g(r=00000007;i=f6fedf8a32283ace85e90acdb3519ba8d57451e2a248f444fb2fb34ee226df89) [Vtable]: []
@@ -302,6 +306,7 @@ layout CoroutineSlot<SharedConstructorOther> [ManagedValue]: size=8 align=8 fiel
 layout CoroutineSlot<SharedConstructorPair> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineSlot<SharedConstructorPrivate.Companion> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineSlot<SharedConstructorPrivate> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineSlot<SharedConstructorSupport> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineSlot<SharedConstructorToken> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineSlot<SourceLocation> [ManagedValue]: size=48 align=8 fields=[] scan=Enum { scan: References([8, 32, 40]) }
 layout CoroutineSlot<String> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
@@ -331,6 +336,7 @@ layout CoroutineStep<SharedConstructorOther> [ManagedValue]: size=8 align=8 fiel
 layout CoroutineStep<SharedConstructorPair> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineStep<SharedConstructorPrivate.Companion> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineStep<SharedConstructorPrivate> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineStep<SharedConstructorSupport> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineStep<SharedConstructorToken> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineStep<SourceLocation> [ManagedValue]: size=48 align=8 fields=[] scan=Enum { scan: References([8, 32, 40]) }
 layout CoroutineStep<String> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }

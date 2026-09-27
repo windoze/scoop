@@ -8,7 +8,7 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=184 descriptors=92 dispatch=116 callables=29 shapes=25
+layouts=190 descriptors=95 dispatch=119 callables=29 shapes=26
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
@@ -57,6 +57,7 @@ descriptor g(r=00000005;i=56323d9eec013d21c6924caef1eaf5c63627cb7303d599f49fbd3e
 descriptor g(r=00000005;i=61f8867043d94d750180c80cd7ba0229b54f5b6bda283332d040337185083af4): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=69d5078ac90fa6b64cf547d3de0d2ee18e5179ec6d52b3c104560d5f36b86ade): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=764baaf664a2296a5f4d40934cc823d215929eba00df50d07bfddb89b8fa5a01): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000005;i=81378c887f1181118939210b0fd2af122cc43bac6622e98c9de677ea6189944a): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=8f875d0495a1c54ed648bf73edc32fa8614ccd4335a17ee688fe3ef4e13d7f20): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=a705b1c41ec97556f1d97f2774fd600f0c443f5c5582d3bf2b9ac939c1c039ea): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=bd415a042ff6d6b646182dea9d6ad19b962c52d4376dbf4766e4721d81fa4023): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
@@ -75,6 +76,7 @@ descriptor g(r=00000006;i=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f95
 descriptor g(r=00000006;i=9998276d77b1440b651ab89b36decb49be3f72b687801ebd40eea50d574b8000): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=2
 descriptor g(r=00000006;i=adb25914e90c2d4fb3b4af969746a6725289251b4b7688111cc5e8e8ec1a8387): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 2, inline_stride: 0, inline_alignment: 2, object_scan: None, inline_scan: None } scan=None vslots=0 itables=2
 descriptor g(r=00000006;i=cd3b5441540c9cd09bc8f5d9575f5c4094e1de010b3b80dc4cb542d1f60e1310): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 56, instance_alignment: 8, inline_offset: 16, inline_size: 40, inline_stride: 0, inline_alignment: 8, object_scan: References([16, 40, 48]), inline_scan: References([0, 24, 32]) } scan=References([16, 40, 48]) vslots=0 itables=0
+descriptor g(r=00000006;i=d10b366fdabbf236a1ec7fa15c9c979186f33e22a517e7fac6f54781b734e9a4): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000006;i=d3ec1dd80e1deff45823497aaf368fae1fd223a3e94270c12ebe3b9145f95ade): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 2, inline_stride: 0, inline_alignment: 2, object_scan: None, inline_scan: None } scan=None vslots=0 itables=2
 descriptor g(r=00000006;i=da0660e11b38ce6bf74b7487a2ac2a6769bb4dc0c6cbfee253ecc509765ee6c9): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000006;i=de537a479a9750a662a38e8bc8144b7035afa0c1849733a99c565fd3a7bc87b1): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 1, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=2
@@ -87,6 +89,7 @@ descriptor g(r=00000007;i=25e83a9610b604b3ae7472b4fcd0480664a5cc790a1029c2e1be5b
 descriptor g(r=00000007;i=263241ad55afaae08cf741398ae55879a9b8a368b1a87070d05ffb8425ab943e): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000007;i=4128ad6da7e2b0bc58abebf06b0767a361595314807dc576fed2c3fc32dbe12d): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000007;i=412b35381bc9ae7ba2e8abc18fdf0dac6d593c9925275b5c14e44386c0561bf4): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000007;i=5736c5ea277d31e2a2922d64e1ae48c946502224eb3850026ba882065a11686b): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000007;i=74562339ee8657b0249000f671372e0b5a2186a71b490c4fb3e4455d215b81d2): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 48, instance_alignment: 8, inline_offset: 16, inline_size: 32, inline_stride: 0, inline_alignment: 8, object_scan: References([32, 40]), inline_scan: References([16, 24]) } scan=References([32, 40]) vslots=0 itables=0
 descriptor g(r=00000007;i=79e42e183ef876f35cc0e62d117f545ef9f328f1b44c64f5913db03fc08a0843): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000007;i=7a52b8a414b30973f93aecaf70590ad86e00262b8e7599bd66c61cf02514673e): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
@@ -149,6 +152,7 @@ dispatch g(r=00000005;i=56323d9eec013d21c6924caef1eaf5c63627cb7303d599f49fbd3ef3
 dispatch g(r=00000005;i=61f8867043d94d750180c80cd7ba0229b54f5b6bda283332d040337185083af4) [Vtable]: []
 dispatch g(r=00000005;i=69d5078ac90fa6b64cf547d3de0d2ee18e5179ec6d52b3c104560d5f36b86ade) [Vtable]: []
 dispatch g(r=00000005;i=764baaf664a2296a5f4d40934cc823d215929eba00df50d07bfddb89b8fa5a01) [Vtable]: []
+dispatch g(r=00000005;i=81378c887f1181118939210b0fd2af122cc43bac6622e98c9de677ea6189944a) [Vtable]: []
 dispatch g(r=00000005;i=8f875d0495a1c54ed648bf73edc32fa8614ccd4335a17ee688fe3ef4e13d7f20) [Vtable]: []
 dispatch g(r=00000005;i=a705b1c41ec97556f1d97f2774fd600f0c443f5c5582d3bf2b9ac939c1c039ea) [Vtable]: []
 dispatch g(r=00000005;i=bd415a042ff6d6b646182dea9d6ad19b962c52d4376dbf4766e4721d81fa4023) [Vtable]: []
@@ -180,6 +184,7 @@ dispatch g(r=00000006;i=adb25914e90c2d4fb3b4af969746a6725289251b4b7688111cc5e8e8
 dispatch g(r=00000006;i=adb25914e90c2d4fb3b4af969746a6725289251b4b7688111cc5e8e8ec1a8387) [Itable { interface_exact: PersistentExactTypeId([30, 236, 169, 253, 51, 31, 160, 246, 243, 95, 14, 11, 145, 124, 71, 150, 103, 25, 223, 113, 227, 144, 178, 122, 122, 33, 54, 34, 108, 140, 25, 161]) }]: [(0, "thunk<Int16> Hash.hash()", Identity)]
 dispatch g(r=00000006;i=adb25914e90c2d4fb3b4af969746a6725289251b4b7688111cc5e8e8ec1a8387) [Vtable]: []
 dispatch g(r=00000006;i=cd3b5441540c9cd09bc8f5d9575f5c4094e1de010b3b80dc4cb542d1f60e1310) [Vtable]: []
+dispatch g(r=00000006;i=d10b366fdabbf236a1ec7fa15c9c979186f33e22a517e7fac6f54781b734e9a4) [Vtable]: []
 dispatch g(r=00000006;i=d3ec1dd80e1deff45823497aaf368fae1fd223a3e94270c12ebe3b9145f95ade) [Itable { interface_exact: PersistentExactTypeId([202, 210, 163, 28, 107, 235, 126, 94, 144, 53, 244, 233, 232, 109, 119, 131, 11, 212, 12, 2, 26, 65, 240, 185, 95, 143, 181, 18, 186, 175, 31, 58]) }]: [(0, "thunk<UInt16> ToString.toString()", Identity)]
 dispatch g(r=00000006;i=d3ec1dd80e1deff45823497aaf368fae1fd223a3e94270c12ebe3b9145f95ade) [Itable { interface_exact: PersistentExactTypeId([30, 236, 169, 253, 51, 31, 160, 246, 243, 95, 14, 11, 145, 124, 71, 150, 103, 25, 223, 113, 227, 144, 178, 122, 122, 33, 54, 34, 108, 140, 25, 161]) }]: [(0, "thunk<UInt16> Hash.hash()", Identity)]
 dispatch g(r=00000006;i=d3ec1dd80e1deff45823497aaf368fae1fd223a3e94270c12ebe3b9145f95ade) [Vtable]: []
@@ -198,6 +203,7 @@ dispatch g(r=00000007;i=25e83a9610b604b3ae7472b4fcd0480664a5cc790a1029c2e1be5b6c
 dispatch g(r=00000007;i=263241ad55afaae08cf741398ae55879a9b8a368b1a87070d05ffb8425ab943e) [Vtable]: []
 dispatch g(r=00000007;i=4128ad6da7e2b0bc58abebf06b0767a361595314807dc576fed2c3fc32dbe12d) [Vtable]: []
 dispatch g(r=00000007;i=412b35381bc9ae7ba2e8abc18fdf0dac6d593c9925275b5c14e44386c0561bf4) [Vtable]: []
+dispatch g(r=00000007;i=5736c5ea277d31e2a2922d64e1ae48c946502224eb3850026ba882065a11686b) [Vtable]: []
 dispatch g(r=00000007;i=74562339ee8657b0249000f671372e0b5a2186a71b490c4fb3e4455d215b81d2) [Vtable]: []
 dispatch g(r=00000007;i=79e42e183ef876f35cc0e62d117f545ef9f328f1b44c64f5913db03fc08a0843) [Vtable]: []
 dispatch g(r=00000007;i=7a52b8a414b30973f93aecaf70590ad86e00262b8e7599bd66c61cf02514673e) [Vtable]: []
@@ -261,6 +267,7 @@ layout CoroutineSlot<Int16> [ManagedValue]: size=16 align=8 fields=[] scan=Enum 
 layout CoroutineSlot<Int8> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineSlot<Int> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineSlot<Long> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineSlot<SharedShapeBase.NestedToken> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineSlot<SharedShapeBase> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineSlot<SharedShapeChoice> [ManagedValue]: size=32 align=8 fields=[] scan=Enum { scan: References([16, 24]) }
 layout CoroutineSlot<SharedShapeEmpty> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
@@ -286,6 +293,7 @@ layout CoroutineStep<Int16> [ManagedValue]: size=16 align=8 fields=[] scan=Enum 
 layout CoroutineStep<Int8> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineStep<Int> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineStep<Long> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineStep<SharedShapeBase.NestedToken> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineStep<SharedShapeBase> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineStep<SharedShapeChoice> [ManagedValue]: size=32 align=8 fields=[] scan=Enum { scan: References([16, 24]) }
 layout CoroutineStep<SharedShapeEmpty> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
@@ -353,6 +361,8 @@ layout box<Int> [ManagedObject]: size=24 align=8 fields=[(16, 4)] scan=Plain { s
 layout box<Int> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout box<Long> [ManagedObject]: size=24 align=8 fields=[(16, 8)] scan=Plain { scan: None }
 layout box<Long> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout box<SharedShapeBase.NestedToken> [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
+layout box<SharedShapeBase.NestedToken> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout box<SharedShapeChoice> [ManagedObject]: size=40 align=8 fields=[(16, 8)] scan=Plain { scan: References([24, 32]) }
 layout box<SharedShapeChoice> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout box<SharedShapeEmpty> [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }

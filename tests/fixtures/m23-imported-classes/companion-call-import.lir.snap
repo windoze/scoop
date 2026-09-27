@@ -6,13 +6,13 @@ Module
     local %2 $call.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn2()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn4()
     t0 = aggregate () : {}
     t1 = global_load global0 : ptr<managed>
     store t1 -> local0
-    call no-gc-elided-zst-target0 t2 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    call no-gc-elided-zst-target0 t2 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn2()
     store t2 -> local1
-    call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> ptr<managed> external-fn1(local0, elided-zst local1)
+    call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> ptr<managed> external-fn3(local0, elided-zst local1)
     store t3 -> local2
     ret local2
   output library

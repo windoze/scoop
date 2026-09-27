@@ -1,6 +1,6 @@
 Module
-  class MutableBase vtable=0 itables=0
-  class ComputedValue vtable=0 itables=0
+  class MutableBase vtable=2 itables=1
+  class ComputedValue vtable=2 itables=1
   class Counter vtable=0 itables=0
   interface MutableValue
   fun primary @fn0() -> Counter
@@ -14,7 +14,7 @@ Module
       assign $new.1
         Type ComputedValue
         ClassAlloc ComputedValue
-      call external0 direct
+      call external4 direct
         Type ComputedValue
         Local $new.1
         Type Long
@@ -35,7 +35,7 @@ Module
       val $place.1: MutableBase
         Type MutableBase
         Local cell
-      call $old.2: Long = external2 virtual[0]
+      call $old.2: Long = external0 virtual[0]
         Type MutableBase
         Local $place.1
       val $dependency.receiver: Long
@@ -56,7 +56,7 @@ Module
           Local $dependency.receiver
           Type Long
           Local $dependency.parameter.other
-      call $dependency.receiver: Long = external2 virtual[0]
+      call $dependency.receiver: Long = external0 virtual[0]
         Type MutableBase
         Local cell
       val $dependency.argument.0: Long
@@ -92,7 +92,7 @@ Module
       assign $new.2
         Type Counter
         ClassAlloc Counter
-      call external3 direct
+      call external5 direct
         Type Counter
         Local $new.2
         Type Long

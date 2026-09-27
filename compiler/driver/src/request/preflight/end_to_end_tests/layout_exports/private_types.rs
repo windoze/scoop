@@ -81,18 +81,23 @@ pub(super) fn check_support(
         input.bridge.shapes().clone(),
         input.bridge.initialization_uses().clone(),
     );
-    assert!(matches!(
-        scoop_lir_lower::lower_layout_abi_exports(
-            scoop_lir_lower::LayoutAbiExportInputV1 {
-                bridge: &incomplete,
-                ..input
-            },
-            dependencies,
+    let error = scoop_lir_lower::lower_layout_abi_exports(
+        scoop_lir_lower::LayoutAbiExportInputV1 {
+            bridge: &incomplete,
+            ..input
+        },
+        dependencies,
+    )
+    .expect_err("a published support type must retain its MIR shape");
+    assert!(
+        matches!(
+            &error,
+            scoop_lir_lower::LayoutAbiExportLoweringError::Layout(
+                scoop_lir_lower::ExactLayoutLoweringError::MissingMirShape(missing)
+            ) if *missing == exact
         ),
-        Err(scoop_lir_lower::LayoutAbiExportLoweringError::Layout(
-            scoop_lir_lower::ExactLayoutLoweringError::MissingDependency(_)
-        ))
-    ));
+        "{error}"
+    );
 }
 
 fn identity(

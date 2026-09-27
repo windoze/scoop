@@ -50,8 +50,10 @@ Module
     bb0 entry
       call $receiver: LocalBase = @fn1 direct
       call $dependency.argument.0: Long = @fn3 interface LocalChoice[0]
-        Type LocalBase
-        Local $receiver
+        Type LocalChoice
+        Retype LocalChoice
+          Type LocalBase
+          Local $receiver
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0

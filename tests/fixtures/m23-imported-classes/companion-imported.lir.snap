@@ -4,10 +4,10 @@ Module
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn1()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn3()
     t0 = aggregate () : {}
     t1 = global_load global0 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:1> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn0(t1)
+    call managed-direct-target0 sp<managed-call:1> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn2(t1)
     store t2 -> local0
     ret local0
   output library

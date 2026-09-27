@@ -12,19 +12,19 @@ Module
     local %8 $new.1: ptr<managed>
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn4()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn6()
     t0 = aggregate () : {}
     t1 = global_load global0 : ptr<managed>
     store t1 -> local0
-    call no-gc-elided-zst-target0 t2 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    call no-gc-elided-zst-target0 t2 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn2()
     store t2 -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> ptr<managed> external-fn1(local0, elided-zst local2)
+    call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> ptr<managed> external-fn3(local0, elided-zst local2)
     store t3 -> local3
-    call managed-void-target1 sp<managed-call:2> live=[local3:ptr<managed>@0] sig=void1 () external-fn4()
+    call managed-void-target1 sp<managed-call:2> live=[local3:ptr<managed>@0] sig=void1 () external-fn6()
     t4 = aggregate () : {}
     t5 = global_load global0 : ptr<managed>
-    call managed-direct-target1 sp<managed-call:3> live=[local3:ptr<managed>@0, t5:ptr<managed>@0] t6 = sig=direct1 (ptr<managed>) -> ptr<managed> external-fn2(t5)
+    call managed-direct-target1 sp<managed-call:3> live=[local3:ptr<managed>@0, t5:ptr<managed>@0] t6 = sig=direct1 (ptr<managed>) -> ptr<managed> external-fn4(t5)
     store t6 -> local4
     t7 = Eq local3, local4 : i1
     cbr t7 then @if.then.1 else @if.else.2
@@ -36,7 +36,7 @@ Module
     store local5 -> local6
     call managed-direct-target2 sp<managed-call:4> live=[] t8 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
     store t8 -> local8
-    call managed-void-target2 sp<managed-call:5> live=[local8:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn3(local8, local6)
+    call managed-void-target2 sp<managed-call:5> live=[local8:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn5(local8, local6)
     t9 = aggregate () : {}
     store local8 -> local7
     br @if.merge.3

@@ -1,6 +1,6 @@
 Module
   global0 $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf: Factory imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413
-  class Factory vtable=0 itables=0
+  class Factory vtable=0 itables=1
   class Counter vtable=0 itables=0
   interface Readable
   fun identity @fn0(value: Factory) -> Factory
@@ -10,7 +10,7 @@ Module
         Local value
   fun primary @fn1() -> Counter
     bb0 entry
-      call external2 direct
+      call external4 direct
       val $argument.0: Factory
         Type Factory
         GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
@@ -20,7 +20,7 @@ Module
       call first: Factory = @fn0 direct
         Type Factory
         Local $parameter.value
-      call external2 direct
+      call external4 direct
       val second: Factory
         Type Factory
         GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
@@ -32,7 +32,7 @@ Module
           Type Factory
           Local second
     bb1 if.then.1
-      call $call.1: Counter = external0 direct
+      call $call.1: Counter = external2 direct
         Type Factory
         Local first
       assign $result.0
@@ -49,7 +49,7 @@ Module
       assign $new.2
         Type Counter
         ClassAlloc Counter
-      call external1 direct
+      call external3 direct
         Type Counter
         Local $new.2
         Type Long

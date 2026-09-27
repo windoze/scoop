@@ -13,7 +13,7 @@ Module
     local %9 $new.1: ptr<managed>
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn2()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn3()
     t0 = aggregate () : {}
     t1 = global_load global0 : ptr<managed>
     store t1 -> local0
@@ -31,7 +31,7 @@ Module
     store local7 -> local8
     call managed-direct-target1 sp<managed-call:2> live=[] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
     store t6 -> local9
-    call managed-void-target1 sp<managed-call:3> live=[local9:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn1(local9, local8)
+    call managed-void-target1 sp<managed-call:3> live=[local9:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn2(local9, local8)
     t7 = aggregate () : {}
     ret local9
   output library

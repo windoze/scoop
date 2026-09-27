@@ -1,6 +1,7 @@
 span=109..122
 expression=Wide(Token())
 no applicable candidate for `Wide` in exact import layer:
+  - constructor `Wide` is not accessible here
   - dependency constructor `Token` returns Token, which is not compatible with expected (Token, (Long, Long, Long), Token)
   - dependency constructor `Token` returns Token, which is not compatible with expected Boolean
   - dependency constructor `Token` returns Token, which is not compatible with expected Long

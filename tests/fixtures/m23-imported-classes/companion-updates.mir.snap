@@ -1,24 +1,24 @@
 Module
   global0 $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf: Factory imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413
-  class Factory vtable=0 itables=0
+  class Factory vtable=0 itables=1
   class Counter vtable=0 itables=0
   interface Readable
   fun primary @fn0() -> Counter
     bb0 entry
-      call external3 direct
+      call external5 direct
       val $property_receiver.0: Factory
         Type Factory
         GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
-      call external0 direct
+      call external2 direct
         Type Factory
         Local $property_receiver.0
         Type Long
         IntegerLiteral Long value=18 bits=0x0000000000000012
-      call external3 direct
+      call external5 direct
       val $property_receiver.1: Factory
         Type Factory
         GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
-      call $old.2: Long = external1 direct
+      call $old.2: Long = external3 direct
         Type Factory
         Local $property_receiver.1
       val $dependency.receiver: Long
@@ -29,7 +29,7 @@ Module
         IntegerUnary increment kind=Long
           Type Long
           Local $dependency.receiver
-      call external0 direct
+      call external2 direct
         Type Factory
         Local $property_receiver.1
         Type Long
@@ -37,11 +37,11 @@ Module
       val first: Long
         Type Long
         Local $old.2
-      call external3 direct
+      call external5 direct
       val $property_receiver.4: Factory
         Type Factory
         GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
-      call $old.5: Long = external1 direct
+      call $old.5: Long = external3 direct
         Type Factory
         Local $property_receiver.4
       val $dependency.receiver: Long
@@ -52,7 +52,7 @@ Module
         IntegerUnary increment kind=Long
           Type Long
           Local $dependency.receiver
-      call external0 direct
+      call external2 direct
         Type Factory
         Local $property_receiver.4
         Type Long
@@ -60,11 +60,11 @@ Module
       val second: Long
         Type Long
         Local $new.6
-      call external3 direct
+      call external5 direct
       val $property_receiver.7: Factory
         Type Factory
         GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
-      call $old.8: Long = external1 direct
+      call $old.8: Long = external3 direct
         Type Factory
         Local $property_receiver.7
       val $dependency.receiver: Long
@@ -76,7 +76,7 @@ Module
       val $dependency.parameter.other: Long
         Type Long
         Local $dependency.argument.0
-      call external0 direct
+      call external2 direct
         Type Factory
         Local $property_receiver.7
         Type Long
@@ -129,8 +129,8 @@ Module
         Type Boolean
         Local $shortCircuit.9
     bb4 if.then.4
-      call external3 direct
-      call $call.1: Long = external1 direct
+      call external5 direct
+      call $call.1: Long = external3 direct
         Type Factory
         GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
       assign $result.10
@@ -152,7 +152,7 @@ Module
       assign $new.2
         Type Counter
         ClassAlloc Counter
-      call external2 direct
+      call external4 direct
         Type Counter
         Local $new.2
         Type Long
