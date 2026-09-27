@@ -3,11 +3,11 @@ use scoop_lir::StrongSafepointRegistrationPlanV1;
 use super::StrongSafepointRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
-const ABI_VERSION: u32 = 1;
+pub(in crate::link_object) const ABI_VERSION: u32 = 1;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
-const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 200;
+pub(super) const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 200;
 const DIGEST_WIDTH: usize = 32;
-pub(super) const DESCRIPTOR_SIZE: usize = 232;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 232;
 
 pub(super) fn validate_record_bytes(
     object: &[u8],

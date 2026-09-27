@@ -8,9 +8,10 @@ use scoop_wire::{
 
 use super::VerifiedConeImageV1;
 use crate::link_object::{
-    runtime_encode_strong_callable_record_v1, runtime_encode_strong_immortal_object_record_v1,
-    runtime_encode_strong_initialization_record_v1, runtime_encode_strong_safepoint_record_v1,
-    runtime_encode_strong_static_storage_record_v1, runtime_encode_strong_type_record_v1,
+    runtime_encode_callable_record_v1, runtime_encode_safepoint_record_v1,
+    runtime_encode_strong_immortal_object_record_v1,
+    runtime_encode_strong_initialization_record_v1, runtime_encode_strong_static_storage_record_v1,
+    runtime_encode_strong_type_record_v1,
 };
 use crate::{CompatibilityRecord, RuntimeImageFingerprint, VerifiedStrongRegistrationPatchSetV1};
 
@@ -250,21 +251,21 @@ where
                 .iter()
                 .map(|entry| entry.registration_node()),
         )
+        .map(|node| (DigestKind::StrongRegistration, node))
         .chain(
             registrations
                 .safepoints()
                 .fingerprints()
                 .iter()
-                .map(|entry| entry.registration_node()),
+                .map(|entry| (entry.registration().kind(), entry.registration_node())),
         )
         .chain(
             registrations
                 .callables()
                 .fingerprints()
                 .iter()
-                .map(|entry| entry.registration_node()),
+                .map(|entry| (entry.registration().kind(), entry.registration_node())),
         )
-        .map(|node| (DigestKind::StrongRegistration, node))
         .collect::<Vec<_>>();
     expected.sort_unstable();
     if actual != expected {
@@ -410,7 +411,7 @@ where
         let plans = fingerprints.registrations().plan().registrations();
         encoder.sequence_length(plans.len())?;
         for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_strong_safepoint_record_v1(
+            runtime_encode_safepoint_record_v1(
                 encoder,
                 *plan,
                 fingerprint.registration().as_array(),
@@ -430,9 +431,9 @@ where
             .registrations();
         encoder.sequence_length(plans.len())?;
         for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_strong_callable_record_v1(
+            runtime_encode_callable_record_v1(
                 encoder,
-                plan.body(),
+                *plan,
                 fingerprint.registration().as_array(),
                 fingerprint.body_definition().as_array(),
             )?;

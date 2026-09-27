@@ -8,7 +8,10 @@ use scoop_identity::{
 };
 use scoop_wire::{Encoder, WireEncode};
 
-use super::{StrongRegistrationFingerprintV1, VerifiedStrongRegistrationPatchSetV1};
+use super::{
+    RegistrationFingerprintV1, StrongRegistrationFingerprintV1,
+    VerifiedStrongRegistrationPatchSetV1,
+};
 
 mod wire;
 pub use wire::{
@@ -105,8 +108,14 @@ impl CanonicalStrongRegistrationFingerprintSetV1 {
                     .safepoints()
                     .fingerprints()
                     .iter()
-                    .map(|fingerprint| entry(fingerprint.site(), fingerprint.registration()))
-                    .collect(),
+                    .map(|fingerprint| {
+                        strong_entry(
+                            StrongRegistrationFingerprintTableV1::Safepoint,
+                            fingerprint.site(),
+                            fingerprint.registration(),
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
             )?,
             callables: canonicalize_table(
                 StrongRegistrationFingerprintTableV1::Callable,
@@ -114,8 +123,14 @@ impl CanonicalStrongRegistrationFingerprintSetV1 {
                     .callables()
                     .fingerprints()
                     .iter()
-                    .map(|fingerprint| entry(fingerprint.body(), fingerprint.registration()))
-                    .collect(),
+                    .map(|fingerprint| {
+                        strong_entry(
+                            StrongRegistrationFingerprintTableV1::Callable,
+                            fingerprint.body(),
+                            fingerprint.registration(),
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
             )?,
         })
     }
@@ -185,6 +200,23 @@ fn entry<I>(
     }
 }
 
+fn strong_entry<I>(
+    table: StrongRegistrationFingerprintTableV1,
+    semantic_id: I,
+    fingerprint: RegistrationFingerprintV1,
+) -> Result<StrongRegistrationFingerprintEntryV1<I>, StrongRegistrationFingerprintProjectionError> {
+    match fingerprint {
+        RegistrationFingerprintV1::Strong(fingerprint) => Ok(entry(semantic_id, fingerprint)),
+        RegistrationFingerprintV1::Odr(fingerprint) => Err(
+            StrongRegistrationFingerprintProjectionError::OdrRegistration {
+                table,
+                group: fingerprint.group(),
+                member: fingerprint.member(),
+            },
+        ),
+    }
+}
+
 fn canonicalize_table<I: Copy + Ord>(
     table: StrongRegistrationFingerprintTableV1,
     mut entries: Vec<StrongRegistrationFingerprintEntryV1<I>>,
@@ -226,6 +258,11 @@ pub enum StrongRegistrationFingerprintTableV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongRegistrationFingerprintProjectionError {
     DuplicateSemanticId(StrongRegistrationFingerprintTableV1),
+    OdrRegistration {
+        table: StrongRegistrationFingerprintTableV1,
+        group: scoop_identity::OdrGroupId,
+        member: scoop_identity::OdrMemberId,
+    },
 }
 
 impl fmt::Display for StrongRegistrationFingerprintProjectionError {

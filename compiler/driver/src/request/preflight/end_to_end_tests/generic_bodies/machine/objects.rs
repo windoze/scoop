@@ -9,6 +9,8 @@ use scoop_wire::{decode_canonical, encode};
 
 mod associated;
 pub(super) use associated::change_associated_atom;
+mod finalization;
+pub(super) use finalization::CallableFingerprints;
 
 pub(super) fn verify(
     emitted: scoop_codegen::EmittedConeObjectSetV2,
@@ -17,7 +19,7 @@ pub(super) fn verify(
     imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1,
     dependencies: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     expected_bodies: usize,
-) -> BTreeMap<PersistentCallableBodyId, [scoop_slib::ObjectDefinitionFingerprintV1; 2]> {
+) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let prepared = crate::object_production::layout::prepare(emitted, generated).unwrap();
     let (callables, safepoints) = prepared.verify_callable_metadata().unwrap();
     assert_eq!(
@@ -134,21 +136,8 @@ pub(super) fn verify(
     let undefined =
         crate::object_production::layout::complete_requirements(&prepared, &native, &shape)
             .unwrap();
-    let objects = prepared
-        .fingerprint_callable_objects(callables, &undefined)
-        .unwrap();
-    objects
-        .fingerprints()
-        .iter()
-        .zip(objects.registration_objects().fingerprints())
-        .map(|(body, registration)| {
-            assert_eq!(body.body(), registration.body());
-            (
-                body.body(),
-                [body.fingerprint(), registration.fingerprint()],
-            )
-        })
-        .collect()
+    let finalized = prepared.finalize_metadata(&undefined).unwrap();
+    finalization::check(&finalized)
 }
 
 pub(super) fn check(

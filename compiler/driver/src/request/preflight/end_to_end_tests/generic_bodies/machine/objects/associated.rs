@@ -42,16 +42,29 @@ pub(in super::super) fn change_associated_atom(
             .unwrap();
         let range = start.address() - section.address()..end.address() - section.address();
         let relocations = section.relocations().collect::<Vec<_>>();
-        let offset = range
-            .rev()
-            .find(|offset| {
-                relocations.iter().all(|(start, relocation)| {
-                    !(*start..*start + u64::from(relocation.size().div_ceil(8))).contains(offset)
+        let file_start = section.file_range().unwrap().0;
+        if role == DefinitionAtomRole::Stackmap {
+            let start = usize::try_from(file_start + range.start).unwrap();
+            assert_eq!(
+                u32::from_le_bytes(bytes[start + 4..start + 8].try_into().unwrap()),
+                1
+            );
+            let stack_size = u64::from_le_bytes(bytes[start + 24..start + 32].try_into().unwrap());
+            bytes[start + 24..start + 32]
+                .copy_from_slice(&stack_size.checked_add(16).unwrap().to_le_bytes());
+        } else {
+            let offset = range
+                .rev()
+                .find(|offset| {
+                    relocations.iter().all(|(start, relocation)| {
+                        !(*start..*start + u64::from(relocation.size().div_ceil(8)))
+                            .contains(offset)
+                    })
                 })
-            })
-            .expect("associated atom contains non-relocated data");
-        let offset = usize::try_from(section.file_range().unwrap().0 + offset).unwrap();
-        bytes[offset] ^= 1;
+                .expect("associated atom contains non-relocated data");
+            let offset = usize::try_from(file_start + offset).unwrap();
+            bytes[offset] ^= 1;
+        }
         let replacement = member.path().with_extension("changed");
         std::fs::write(&replacement, bytes).unwrap();
         std::fs::rename(replacement, member.path()).unwrap();

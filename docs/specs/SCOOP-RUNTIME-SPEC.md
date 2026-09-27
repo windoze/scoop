@@ -241,6 +241,8 @@ M24起每个machine body的persistent identity为`SHA-256(ByteSpan("scoop-callab
 
 普通内容 fingerprint 用于产物一致性和缓存失效，不承担 String 资格或完整程序来源证明。删除没有生产用途的 program/core binding key、Graph fingerprint 编码及逐层反向重放要求；编译、Link 和 runtime 各自只验证当前消费边界需要的格式、符号、ABI、地址范围与 GC 契约。
 
+callable/safepoint 的 compiler finalizer 按 registration 的实际 owner 选择 StrongRegistration 或逐 member OdrDefinition。RuntimeImage 的这两类记录保留真实 linkage、group/member 与最终 definition，不能统一编码成 Strong；image DAG 的直接输入 kind 同样遵循实际 registration node。ODR safepoint 对象 leaf 已代入其 normalized-stackmap 上游字段，自身 definition 仍置零，最终按实现规范 2.5 汇总并回填；此计算不改变上述 C record 布局或32-byte字段宽度。
+
 root entry不是裸Scoop function pointer。`ScoopRootEntryDescriptorV1`保存root Cone、persistent main body、ordinary `() -> Unit` source signature fingerprint、由root image producer表拥有的已登记failure root，以及gateway body id/fingerprint和精确`uint32_t(void)` C-callable gateway。gateway id必须由`RootGateway { root_cone, main_body_id }`重算，pointer逐bit等于该body的callable registration entry，两个位置的ObjectDefinition digest逐byte相等。gateway以自己的body identity登记内部managed call/异常路径全部safepoint，再调用namespaced main：成功返回0；未捕获异常必须在generated landing pad内物化并发布failure root、结束native catch后返回1；其他值fatal。
 
 init schedule在IR中是封闭`EagerStartup { gateway } | LazyAccess`。Eager的startup gateway body id由`InitializationStartupGateway { unit_id }`重算，fingerprint非零且等于对应callable body digest，pointer逐bit等于该entry；Lazy的gateway id/fingerprint全零且pointer为null。两种schedule的cell、storage/failure registration及initializer/ensure body id/entry都必须non-null/nonzero并由当前strong producer或unit同一ODR group拥有；initializer/ensure pointer逐bit等于各自callable registration entry。eager init只能由no-throw startup gateway从C调用，普通initializer/ensure entry仅供generated managed代码；lazy访问仍经普通ensure抛向Scoop caller。由此任何startup异常都不会跨C ABI frame。

@@ -227,6 +227,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 DefinitionAtomRole::Lsda,
                 DefinitionAtomRole::EhFrame,
                 DefinitionAtomRole::CompactUnwind,
+                DefinitionAtomRole::Stackmap,
             ] {
                 let changed = scoop_codegen::emit_object_set_v2(
                     &lir,
@@ -250,13 +251,44 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 for (body, original) in &object_fingerprints {
                     if *body == changed_body {
                         assert_ne!(
-                            original[0], changed[body][0],
+                            original.objects[0], changed[body].objects[0],
                             "{role:?} must affect its body"
                         );
                         assert_ne!(
-                            original[1], changed[body][1],
+                            original.objects[1], changed[body].objects[1],
                             "{role:?} must affect the ODR registration"
                         );
+                        let (
+                            scoop_slib::RegistrationFingerprintV1::Odr(before),
+                            scoop_slib::RegistrationFingerprintV1::Odr(after),
+                        ) = (original.registration, changed[body].registration)
+                        else {
+                            panic!("associated atoms belong to an ODR callable");
+                        };
+                        assert_eq!(before.abi(), after.abi());
+                        assert_eq!(before.lir(), after.lir());
+                        assert_ne!(before.definition(), after.definition());
+                        if role == DefinitionAtomRole::Stackmap {
+                            assert!(!original.safepoints.is_empty());
+                            assert_eq!(original.safepoints.len(), changed[body].safepoints.len());
+                            for ((site, before), (other_site, after)) in
+                                original.safepoints.iter().zip(&changed[body].safepoints)
+                            {
+                                assert_eq!(site, other_site);
+                                let (
+                                    scoop_slib::RegistrationFingerprintV1::Odr(before),
+                                    scoop_slib::RegistrationFingerprintV1::Odr(after),
+                                ) = (before, after)
+                                else {
+                                    panic!("an ODR body's safepoints must retain ODR ownership");
+                                };
+                                assert_eq!(before.abi(), after.abi());
+                                assert_eq!(before.lir(), after.lir());
+                                assert_ne!(before.definition(), after.definition());
+                            }
+                        } else {
+                            assert_eq!(original.safepoints, changed[body].safepoints);
+                        }
                     } else {
                         assert_eq!(*original, changed[body]);
                     }
@@ -335,11 +367,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 encode(registration).unwrap(),
                 encode(production.canonical_definitions().plan(plan.id()).unwrap()).unwrap(),
             ];
-            records.extend(
-                object_fingerprints[&body.id()]
-                    .iter()
-                    .map(|fingerprint| fingerprint.as_array().to_vec()),
-            );
+            object_fingerprints[&body.id()].append_contents(&mut records);
             for id in [member, registration.id()] {
                 let node = production
                     .digest_finalization_plan()

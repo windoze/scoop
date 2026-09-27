@@ -15,34 +15,7 @@ impl PreparedLayoutObjects {
         dependencies: &[DependencyRecord],
         source_count: usize,
     ) -> Result<FinalizedLayoutObjects, BuiltinObjectProductionError> {
-        let objects = {
-            let candidates = self.candidates();
-            let image = verify_cone_image_v1(
-                self.patch_sites.clone(),
-                self.production.image_plan().clone(),
-                &candidates,
-            )
-            .map_err(BuiltinObjectProductionError::ConeImage)?;
-            let entry = verify_entry_production_v1(
-                self.patch_sites.clone(),
-                self.production.entry_plan().clone(),
-                &candidates,
-            )
-            .map_err(BuiltinObjectProductionError::EntryProduction)?;
-            let registrations = registrations::finalize(&self, undefined)?;
-            let compatibility = slib::CompatibilityRecord::new(
-                self.target_selection,
-                ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
-            )
-            .map_err(BuiltinObjectProductionError::Compatibility)?;
-            let image =
-                slib::compute_runtime_image_fingerprint_v2(image, registrations, compatibility)
-                    .map_err(BuiltinObjectProductionError::RuntimeImageFingerprint)?;
-            let image = slib::patch_runtime_image_fingerprint_v2(image)
-                .map_err(BuiltinObjectProductionError::RuntimeImagePatch)?;
-            slib::patch_entry_production_v2(image, entry)
-                .map_err(BuiltinObjectProductionError::EntryPatch)?
-        };
+        let objects = self.finalize_metadata(undefined)?;
         let members = final_members(
             &self.bindings.member_plan,
             &self.bindings.generated_c_bridge_members,
@@ -68,5 +41,36 @@ impl PreparedLayoutObjects {
             projection,
             members,
         })
+    }
+
+    pub(crate) fn finalize_metadata(
+        &self,
+        undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
+    ) -> Result<slib::VerifiedEntryPatchSetV2, BuiltinObjectProductionError> {
+        let candidates = self.candidates();
+        let image = verify_cone_image_v1(
+            self.patch_sites.clone(),
+            self.production.image_plan().clone(),
+            &candidates,
+        )
+        .map_err(BuiltinObjectProductionError::ConeImage)?;
+        let entry = verify_entry_production_v1(
+            self.patch_sites.clone(),
+            self.production.entry_plan().clone(),
+            &candidates,
+        )
+        .map_err(BuiltinObjectProductionError::EntryProduction)?;
+        let registrations = registrations::finalize(self, undefined)?;
+        let compatibility = slib::CompatibilityRecord::new(
+            self.target_selection,
+            ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        )
+        .map_err(BuiltinObjectProductionError::Compatibility)?;
+        let image = slib::compute_runtime_image_fingerprint_v2(image, registrations, compatibility)
+            .map_err(BuiltinObjectProductionError::RuntimeImageFingerprint)?;
+        let image = slib::patch_runtime_image_fingerprint_v2(image)
+            .map_err(BuiltinObjectProductionError::RuntimeImagePatch)?;
+        slib::patch_entry_production_v2(image, entry)
+            .map_err(BuiltinObjectProductionError::EntryPatch)
     }
 }

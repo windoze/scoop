@@ -1,17 +1,19 @@
 use std::fmt;
 
 use scoop_identity::{DigestKind, DigestNodeId, PersistentCallableBodyId};
+use scoop_lir::RegistrationDefinitionOwner;
 use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
 
 use super::VerifiedStrongCallableBodyObjectFingerprintSetV1;
 use super::object_definition::CanonicalDigestInputV1;
-use crate::link_object::{ObjectDefinitionFingerprintV1, StrongRegistrationFingerprintV1};
+use crate::link_object::{
+    ObjectDefinitionFingerprintV1, RegistrationFingerprintV1, StrongRegistrationFingerprintV1,
+};
 
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
 const CALLABLE_REGISTRATION_RECORD_KIND: u32 = 6;
-const STRONG_LINKAGE: u32 = 1;
 const OWN_CALLABLE_ENTRY_ROLE: u32 = 8;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -22,7 +24,7 @@ pub struct VerifiedStrongCallableFingerprintV1 {
     body_definition_node: DigestNodeId,
     body_definition: ObjectDefinitionFingerprintV1,
     registration_node: DigestNodeId,
-    registration: StrongRegistrationFingerprintV1,
+    registration: RegistrationFingerprintV1,
 }
 
 impl VerifiedStrongCallableFingerprintV1 {
@@ -50,13 +52,13 @@ impl VerifiedStrongCallableFingerprintV1 {
         self.registration_node
     }
 
-    pub const fn registration(self) -> StrongRegistrationFingerprintV1 {
+    pub const fn registration(self) -> RegistrationFingerprintV1 {
         self.registration
     }
 }
 
-/// Canonical strong-registration fingerprints derived from the complete
-/// callable registration and body object proofs.
+/// Final Strong or ODR registration fingerprints from the actual callable
+/// registration and body ObjectDefinition leaves.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongCallableFingerprintSetV1 {
     body_objects: VerifiedStrongCallableBodyObjectFingerprintSetV1,
@@ -110,13 +112,25 @@ pub fn compute_strong_callable_fingerprints_v1(
         if body_definition.body() != body || body_definition.node() != plan.body_definition_node() {
             return Err(StrongCallableFingerprintError::BodyObjectMismatch { body });
         }
-        let registration = strong_callable_registration_fingerprint(
-            *plan,
-            registration_object.node(),
-            registration_object.fingerprint(),
-            body_definition.node(),
-            body_definition.fingerprint(),
-        )
+        let registration = match plan.definition_owner() {
+            RegistrationDefinitionOwner::Strong => strong_callable_registration_fingerprint(
+                *plan,
+                registration_object.node(),
+                registration_object.fingerprint(),
+                body_definition.node(),
+                body_definition.fingerprint(),
+            )
+            .map(RegistrationFingerprintV1::Strong),
+            RegistrationDefinitionOwner::Odr { group, member } => {
+                crate::link_object::odr_registration_fingerprints::callable_registration(
+                    group,
+                    member,
+                    *plan,
+                    registration_object.fingerprint(),
+                )
+                .map(RegistrationFingerprintV1::Odr)
+            }
+        }
         .map_err(|source| StrongCallableFingerprintError::Hash { body, source })?;
         fingerprints.push(VerifiedStrongCallableFingerprintV1 {
             body,
@@ -158,7 +172,7 @@ fn strong_callable_registration_fingerprint(
     domain_separated_runtime_hash(
         STRONG_REGISTRATION_DOMAIN,
         &StrongCallableRegistrationFingerprintInputV1 {
-            body: plan.body(),
+            plan,
             body_definition,
             direct_inputs,
         },
@@ -167,16 +181,16 @@ fn strong_callable_registration_fingerprint(
 }
 
 struct StrongCallableRegistrationFingerprintInputV1 {
-    body: PersistentCallableBodyId,
+    plan: scoop_lir::StrongCallableRegistrationPlanV1,
     body_definition: ObjectDefinitionFingerprintV1,
     direct_inputs: [CanonicalDigestInputV1; 2],
 }
 
 impl RuntimeEncode for StrongCallableRegistrationFingerprintInputV1 {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        runtime_encode_strong_callable_record_v1(
+        runtime_encode_callable_record_v1(
             encoder,
-            self.body,
+            self.plan,
             &[0; 32],
             self.body_definition.as_array(),
         )?;
@@ -188,21 +202,22 @@ impl RuntimeEncode for StrongCallableRegistrationFingerprintInputV1 {
     }
 }
 
-pub(in crate::link_object) fn runtime_encode_strong_callable_record_v1(
+pub(in crate::link_object) fn runtime_encode_callable_record_v1(
     encoder: &mut RuntimeEncoder,
-    body: PersistentCallableBodyId,
+    plan: scoop_lir::StrongCallableRegistrationPlanV1,
     registration: &[u8; 32],
     body_definition: &[u8; 32],
 ) -> Result<(), RuntimeEncodeError> {
     encoder.u32(CALLABLE_REGISTRATION_RECORD_KIND)?;
-    encoder.u32(STRONG_LINKAGE)?;
-    encoder.fixed(body.as_array())?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(registration)?;
+    crate::link_object::registration_identity::runtime_encode_registration_identity(
+        encoder,
+        plan.body().as_array(),
+        plan.definition_owner(),
+        registration,
+    )?;
     encoder.fixed(body_definition)?;
     encoder.u32(OWN_CALLABLE_ENTRY_ROLE)?;
-    encoder.fixed(body.as_array())
+    encoder.fixed(plan.body().as_array())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

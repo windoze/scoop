@@ -1,24 +1,26 @@
 use std::fmt;
 
 use scoop_identity::{DigestKind, DigestNodeId, DigestNodeKey, PersistentSafepointSiteId};
+use scoop_lir::RegistrationDefinitionOwner;
 use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
 
 use super::physical::validate_objects;
-use super::record::DESCRIPTOR_SIZE;
+use super::record::{DESCRIPTOR_SIZE, NORMALIZED_STACKMAP_FINGERPRINT_OFFSET};
 use super::{StrongSafepointRegistrationValidationError, VerifiedStrongSafepointRegistrationSetV1};
 use crate::SlibMemberId;
+use crate::link_object::callable_registrations::object_definition::{
+    CanonicalDigestInputV1, ObjectDefinitionFingerprintInputV1,
+};
 use crate::link_object::{
-    ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1, StackmapRecordFingerprintV1,
-    StrongRegistrationFingerprintV1,
+    ObjectDefinitionFingerprintV1, RegistrationFingerprintV1, ScoopLirObjectCandidateV1,
+    StackmapRecordFingerprintV1, StrongRegistrationFingerprintV1,
 };
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
-const PRIMARY_ATOM_ROLE: u32 = 1;
 const SAFEPOINT_REGISTRATION_RECORD_KIND: u32 = 5;
-const STRONG_LINKAGE: u32 = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongSafepointFingerprintV1 {
@@ -28,7 +30,7 @@ pub struct VerifiedStrongSafepointFingerprintV1 {
     stackmap_node: DigestNodeId,
     stackmap: StackmapRecordFingerprintV1,
     registration_node: DigestNodeId,
-    registration: StrongRegistrationFingerprintV1,
+    registration: RegistrationFingerprintV1,
 }
 
 impl VerifiedStrongSafepointFingerprintV1 {
@@ -56,13 +58,13 @@ impl VerifiedStrongSafepointFingerprintV1 {
         self.registration_node
     }
 
-    pub const fn registration(self) -> StrongRegistrationFingerprintV1 {
+    pub const fn registration(self) -> RegistrationFingerprintV1 {
         self.registration
     }
 }
 
-/// Canonical object and strong-registration fingerprints derived only from a
-/// complete safepoint registration proof and the exact verified object bytes.
+/// Canonical object and Strong/ODR registration fingerprints from the exact
+/// object bytes and the already normalized stackmap record.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongSafepointFingerprintSetV1 {
     registrations: VerifiedStrongSafepointRegistrationSetV1,
@@ -101,15 +103,31 @@ pub fn compute_strong_safepoint_fingerprints_v1(
         let object = objects.get(&verified.member()).copied().ok_or(
             StrongSafepointFingerprintError::MissingObject(verified.member()),
         )?;
-        let record = registration_record_bytes(object, verified.checked_offset(), plan.site())?;
+        let mut record =
+            registration_record_bytes(object, verified.checked_offset(), plan.site())?.to_vec();
+        let stackmap_fingerprint = stackmap.normalized().fingerprint();
+        let mut direct_inputs = Vec::new();
+        if matches!(
+            plan.definition_owner(),
+            RegistrationDefinitionOwner::Odr { .. }
+        ) {
+            record[NORMALIZED_STACKMAP_FINGERPRINT_OFFSET
+                ..NORMALIZED_STACKMAP_FINGERPRINT_OFFSET + 32]
+                .copy_from_slice(stackmap_fingerprint.as_array());
+            direct_inputs.push(CanonicalDigestInputV1 {
+                kind: DigestKind::StackmapRecord,
+                node: plan.normalized_stackmap_fingerprint_node(),
+                digest: *stackmap_fingerprint.as_array(),
+            });
+        }
         let object_definition =
-            relocation_free_object_definition_fingerprint(record).map_err(|source| {
-                StrongSafepointFingerprintError::Hash {
+            relocation_free_object_definition_fingerprint(&record, &direct_inputs).map_err(
+                |source| StrongSafepointFingerprintError::Hash {
                     site: plan.site(),
                     kind: SafepointFingerprintKindV1::ObjectDefinition,
                     source,
-                }
-            })?;
+                },
+            )?;
         let object_definition_node =
             DigestNodeId::from_key(&DigestNodeKey::object_definition(plan.primary_atom()))
                 .map_err(|source| StrongSafepointFingerprintError::Hash {
@@ -117,16 +135,29 @@ pub fn compute_strong_safepoint_fingerprints_v1(
                     kind: SafepointFingerprintKindV1::ObjectDefinitionNode,
                     source,
                 })?;
-        let stackmap_fingerprint = stackmap.normalized().fingerprint();
-        let registration = strong_registration_fingerprint(
-            *plan,
-            object_definition_node,
-            object_definition.as_array(),
-            stackmap_fingerprint.as_array(),
-        )
+        let registration = match plan.definition_owner() {
+            RegistrationDefinitionOwner::Strong => strong_registration_fingerprint(
+                *plan,
+                object_definition_node,
+                object_definition.as_array(),
+                stackmap_fingerprint.as_array(),
+            )
+            .map(RegistrationFingerprintV1::Strong),
+            RegistrationDefinitionOwner::Odr { group, member } => {
+                crate::link_object::odr_registration_fingerprints::safepoint_registration(
+                    group,
+                    member,
+                    *plan,
+                    object_definition_node,
+                    object_definition,
+                    stackmap_fingerprint,
+                )
+                .map(RegistrationFingerprintV1::Odr)
+            }
+        }
         .map_err(|source| StrongSafepointFingerprintError::Hash {
             site: plan.site(),
-            kind: SafepointFingerprintKindV1::StrongRegistration,
+            kind: SafepointFingerprintKindV1::RegistrationDefinition,
             source,
         })?;
         fingerprints.push(VerifiedStrongSafepointFingerprintV1 {
@@ -163,25 +194,17 @@ fn registration_record_bytes(
 
 fn relocation_free_object_definition_fingerprint(
     bytes: &[u8],
+    direct_inputs: &[CanonicalDigestInputV1],
 ) -> Result<ObjectDefinitionFingerprintV1, HashError> {
     domain_separated_runtime_hash(
         OBJECT_DEFINITION_DOMAIN,
-        &RelocationFreeObjectDefinitionInput { bytes },
+        &ObjectDefinitionFingerprintInputV1 {
+            bytes,
+            relocations: &[],
+            direct_inputs,
+        },
     )
     .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
-}
-
-struct RelocationFreeObjectDefinitionInput<'a> {
-    bytes: &'a [u8],
-}
-
-impl RuntimeEncode for RelocationFreeObjectDefinitionInput<'_> {
-    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        encoder.u32(PRIMARY_ATOM_ROLE)?;
-        encoder.byte_span(self.bytes)?;
-        encoder.sequence_length(0)?;
-        encoder.sequence_length(0)
-    }
 }
 
 fn strong_registration_fingerprint(
@@ -218,12 +241,7 @@ struct StrongSafepointRegistrationFingerprintInput<'a> {
 
 impl RuntimeEncode for StrongSafepointRegistrationFingerprintInput<'_> {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        runtime_encode_strong_safepoint_record_v1(
-            encoder,
-            self.plan,
-            &[0; 32],
-            self.normalized_stackmap,
-        )?;
+        runtime_encode_safepoint_record_v1(encoder, self.plan, &[0; 32], self.normalized_stackmap)?;
         encoder.sequence_length(self.direct_inputs.len())?;
         for input in self.direct_inputs {
             input.runtime_encode(encoder)?;
@@ -232,18 +250,19 @@ impl RuntimeEncode for StrongSafepointRegistrationFingerprintInput<'_> {
     }
 }
 
-pub(in crate::link_object) fn runtime_encode_strong_safepoint_record_v1(
+pub(in crate::link_object) fn runtime_encode_safepoint_record_v1(
     encoder: &mut RuntimeEncoder,
     plan: scoop_lir::StrongSafepointRegistrationPlanV1,
     registration: &[u8; 32],
     normalized_stackmap: &[u8; 32],
 ) -> Result<(), RuntimeEncodeError> {
     encoder.u32(SAFEPOINT_REGISTRATION_RECORD_KIND)?;
-    encoder.u32(STRONG_LINKAGE)?;
-    encoder.fixed(plan.site().as_array())?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(registration)?;
+    crate::link_object::registration_identity::runtime_encode_registration_identity(
+        encoder,
+        plan.site().as_array(),
+        plan.definition_owner(),
+        registration,
+    )?;
     encoder.u64(plan.safepoint().get())?;
     encoder.u32(plan.role().tag())?;
     encoder.u32(plan.root_pair_count())?;
@@ -270,7 +289,7 @@ impl RuntimeEncode for StrongRegistrationDigestInput<'_> {
 pub enum SafepointFingerprintKindV1 {
     ObjectDefinitionNode,
     ObjectDefinition,
-    StrongRegistration,
+    RegistrationDefinition,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -159,6 +159,19 @@
 
 本项完成真实 Function 内容摘要的生产、持久化和读取。其他物理 member 的 canonical LIR 叶子、逐 member ABI/最终 definition 摘要、补丁回填、正式泛型 profile 和泛型单 image 链接运行继续实施，不能据此认定 M23-7 已完成。
 
+## 2026-09-28：callable 与 safepoint ODR 注册摘要及实际回填
+
+- 两类注册记录沿原共有对象生产路径，按实际 `RegistrationDefinitionOwner` 选择 StrongRegistration 或 OdrDefinition。新增独立的 ODR ABI/definition 内容类型与注册摘要结果；没有另设发布器、对象读取路线或 runtime ABI。
+- callable registration 的 canonical LIR 覆盖 body 与 typed entry；safepoint registration 覆盖 site、runtime id、owner body、site role 和 root-pair count。ABI 摘要描述注册记录自身的 kind/version/byte size。按 member 汇总自身 primary 的 LIR/object 叶子，仅 safepoint 另含所属 site 的 normalized stackmap；callable 引用的 body 不被误计为 registration 自身的 object leaf。
+- ODR safepoint 的 ObjectDefinition 先代入实际 normalized-stackmap 字段并记录对应直接输入，再计算最终 definition；callable 继续复用已有 body-definition 上游值。自身 definition 槽保持零，最终由已有唯一 patch site 回填。
+- image 表引用从已验证的实际 primary definition 核对 typed entity、registration role、symbol 与 Strong/ODR owner，修复旧代码一律推导 Strong 目标的问题。RuntimeImage 的记录编码保留真实 linkage/group/member/definition，DAG 输入使用对应 digest kind。原有 relocation 形式、宽度、零 addend、范围与内容检查保持。
+- 旧 Strong manifest 注册表明确拒收 ODR 摘要，避免错误套用旧字段或遗漏成员。两种 Strong production 格式、现有摘要向量及 runtime C record 布局不变；完整 ODR member 目录与正式泛型 profile 仍待后续接通。
+- 真实泛型 fixture 已走到 registration、RuntimeImage、entry 的最终对象回填；四个消费方比较共同 member 的 ABI/LIR/definition。固定 callable/safepoint 的六个摘要向量并核对实际32-byte补丁。分别改变 LSDA、EH frame、compact unwind 与 stackmap，验证所属 definition 改变，注册 ABI/LIR 保持；stackmap 变化同时传至所属 safepoint 和 callable registration，其他 callable 不变。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和真实 `scoopc` 构建通过。576 项 slib、116 项 driver 库、7 项 CLI 单测和1项实际编译器能力查询通过，共700项，无失败或忽略。两项扩展后的泛型回归先独立运行，再随完整 driver 复验；完整库测试耗时753.52秒，使用本次构建的配套编译器，所有既有 golden 均未修改。
+- 最终格式化与全工作区 lint 再次通过且无警告；确认构建、测试和编译器进程全部结束后执行 `cargo clean`，删除2568个构建文件，回收4.2 GiB。
+
+本项接通两类注册 member 的完整数值摘要与实际回填。callable-body member 自身的 ABI/最终 definition、其他物理角色、完整 member 目录及重复定义合并、正式泛型 profile 与单 image 运行继续实施，M23-7 仍未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；完成逐 member 内容摘要及完整 profile。

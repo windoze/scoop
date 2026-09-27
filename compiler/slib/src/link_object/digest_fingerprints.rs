@@ -48,6 +48,8 @@ macro_rules! typed_fingerprint {
 typed_fingerprint!(ObjectDefinitionFingerprintV1);
 typed_fingerprint!(ScanFingerprintV1);
 typed_fingerprint!(StrongRegistrationFingerprintV1);
+typed_fingerprint!(OdrAbiFingerprintV1);
+typed_fingerprint!(OdrDefinitionFingerprintV1);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct LayoutFingerprintV1(pub(in crate::link_object) [u8; 32]);

@@ -1,9 +1,9 @@
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeKey, DigestSemanticFieldRole,
-    ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
+    ObjectDefinitionAtomId, StrongDefinitionEntity, StrongDefinitionEntityKind,
+    StrongDefinitionRole,
 };
-use scoop_lir::{ConeImagePlanV1, LinkageClass};
+use scoop_lir::ConeImagePlanV1;
 
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::record::{IMAGE_DESCRIPTOR_SIZE, expected_image_record};
@@ -14,12 +14,15 @@ use super::{
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
-    ScoopLirObjectCandidateV1, StrongDefinitionOwnerV1, StrongRelocationBindingV1,
-    StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedDefinitionAtomRangeV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedRelocationTargetV1, VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    ScoopLirObjectCandidateV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
+    VerifiedDarwinArm64RelocationFormV1, VerifiedDarwinArm64RelocationShapeV1,
+    VerifiedDefinitionAtomRangeV1, VerifiedMaterializedPatchSiteV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
+    VerifiedScoopLirDigestPatchSiteSetV1,
 };
+
+mod registrations;
+use registrations::verify_registration_table;
 
 const RUNTIME_IMAGE_FINGERPRINT_OFFSET: u64 = 96;
 const DIGEST_WIDTH: u8 = 32;
@@ -269,8 +272,7 @@ pub fn verify_cone_image_v1(
         support_plan.static_storages(),
         ConeImageAtomRoleV1::StaticStorages,
         plan.tables().static_storages().iter().copied().map(|id| {
-            registration_target(
-                plan.cone().identity(),
+            (
                 StrongDefinitionEntity::static_storage(id),
                 StrongDefinitionRole::RootRegistration,
             )
@@ -285,8 +287,7 @@ pub fn verify_cone_image_v1(
         support_plan.immortal_objects(),
         ConeImageAtomRoleV1::ImmortalObjects,
         plan.tables().immortal_objects().iter().copied().map(|id| {
-            registration_target(
-                plan.cone().identity(),
+            (
                 StrongDefinitionEntity::immortal_object(id),
                 StrongDefinitionRole::ImmortalRegistration,
             )
@@ -305,8 +306,7 @@ pub fn verify_cone_image_v1(
             .iter()
             .copied()
             .map(|id| {
-                registration_target(
-                    plan.cone().identity(),
+                (
                     StrongDefinitionEntity::initialization_unit(id),
                     StrongDefinitionRole::InitializationRegistration,
                 )
@@ -325,8 +325,7 @@ pub fn verify_cone_image_v1(
             .iter()
             .copied()
             .map(|id| {
-                registration_target(
-                    plan.cone().identity(),
+                (
                     StrongDefinitionEntity::exact_type(id),
                     StrongDefinitionRole::TypeRegistration,
                 )
@@ -341,8 +340,7 @@ pub fn verify_cone_image_v1(
         support_plan.safepoints(),
         ConeImageAtomRoleV1::Safepoints,
         plan.tables().safepoints().iter().copied().map(|id| {
-            registration_target(
-                plan.cone().identity(),
+            (
                 StrongDefinitionEntity::safepoint_site(id),
                 StrongDefinitionRole::SafepointRegistration,
             )
@@ -357,8 +355,7 @@ pub fn verify_cone_image_v1(
         support_plan.callables(),
         ConeImageAtomRoleV1::Callables,
         plan.tables().callables().iter().copied().map(|id| {
-            registration_target(
-                plan.cone().identity(),
+            (
                 StrongDefinitionEntity::callable_body(id),
                 StrongDefinitionRole::CallableRegistration,
             )
@@ -763,125 +760,6 @@ fn verify_local_relocation(
         return relocation_error(role, index, kind);
     }
     Ok(relocation.clone())
-}
-
-#[derive(Clone, Copy)]
-struct ExpectedRegistrationTargetV1 {
-    definition: ObjectDefinitionPlanId,
-    owner: StrongDefinitionOwnerV1,
-    symbol: PersistentSymbolRequest,
-}
-
-fn registration_target(
-    producer: ConeIdentity,
-    entity: StrongDefinitionEntity,
-    role: StrongDefinitionRole,
-) -> ExpectedRegistrationTargetV1 {
-    let key = scoop_identity::ObjectDefinitionPlanKey::strong(producer, entity, role)
-        .expect("registration entity and role are statically paired");
-    ExpectedRegistrationTargetV1 {
-        definition: ObjectDefinitionPlanId::from_key(&key)
-            .expect("registration definition identity hashes"),
-        owner: StrongDefinitionOwnerV1::new(entity, role)
-            .expect("registration owner is a non-reserved strong kind"),
-        symbol: PersistentSymbolRequest::new(
-            key.primary_symbol_key()
-                .expect("registration definition has one primary symbol"),
-            LinkageClass::ConeStrong,
-        )
-        .expect("registration symbol accepts strong Cone linkage"),
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn verify_registration_table(
-    patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    atoms: &[VerifiedDefinitionAtomRangeV1],
-    object: &[u8],
-    atom: ObjectDefinitionAtomId,
-    role: ConeImageAtomRoleV1,
-    targets: impl IntoIterator<Item = ExpectedRegistrationTargetV1>,
-    all_bindings: &mut Vec<StrongRelocationBindingV1>,
-) -> Result<VerifiedConeImageAtomV1, ConeImageValidationError> {
-    let targets = targets.into_iter().collect::<Vec<_>>();
-    let expected_bytes = vec![0; targets.len().max(1) * 8];
-    let verified = require_table_bytes(member, atoms, object, atom, role, &expected_bytes, 8)?;
-    require_relocation_count(member, atom, targets.len(), role)?;
-    for (index, target) in targets.into_iter().enumerate() {
-        let offset = u64::try_from(index).expect("table index fits u64") * 8;
-        let relocation = require_relocation(member, atom, offset, role, index)?;
-        let binding = patch_sites
-            .builtins()
-            .strong_relocations()
-            .bindings()
-            .iter()
-            .find(|binding| {
-                binding.source_member() == member.member()
-                    && binding.containing_atom() == atom
-                    && binding.offset_within_atom() == offset
-            })
-            .ok_or(ConeImageValidationError::RelocationMismatch {
-                role,
-                index,
-                kind: ConeImageRelocationFailureV1::TargetKind,
-            })?;
-        let kind = if relocation.containing_atom_role() != DefinitionAtomRole::RuntimeRecord
-            || binding.containing_atom_role() != DefinitionAtomRole::RuntimeRecord
-        {
-            Some(ConeImageRelocationFailureV1::ContainingAtomRole)
-        } else if relocation.section_role() != BuiltinObjectSectionRoleV1::ReadOnlyData
-            || binding.section_role() != BuiltinObjectSectionRoleV1::ReadOnlyData
-        {
-            Some(ConeImageRelocationFailureV1::SectionRole)
-        } else if relocation.width_bytes() != 8 || binding.width_bytes() != 8 {
-            Some(ConeImageRelocationFailureV1::Width)
-        } else if relocation.shape().form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64
-            || binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64
-        {
-            Some(ConeImageRelocationFailureV1::Form)
-        } else if relocation.encoded_value() != 0 || binding.encoded_value() != 0 {
-            Some(ConeImageRelocationFailureV1::EncodedValue)
-        } else if binding.target_slot() != RelocationTargetSlotV1::Single {
-            Some(ConeImageRelocationFailureV1::TargetSlot)
-        } else if binding.symbol() != expected_macho_name(target.symbol).as_slice() {
-            Some(ConeImageRelocationFailureV1::TargetSymbol)
-        } else {
-            match binding.resolution() {
-                StrongRelocationResolutionV1::ObjectLocalStrong {
-                    definition,
-                    owner: LinkDefinitionOwnerV1::StrongDefinition(owner),
-                    ..
-                }
-                | StrongRelocationResolutionV1::CurrentConeUndefinedStrong {
-                    definition,
-                    owner: LinkDefinitionOwnerV1::StrongDefinition(owner),
-                    ..
-                } => {
-                    if definition != target.definition {
-                        Some(ConeImageRelocationFailureV1::TargetDefinition)
-                    } else if owner != target.owner {
-                        Some(ConeImageRelocationFailureV1::TargetOwner)
-                    } else {
-                        None
-                    }
-                }
-                _ => Some(ConeImageRelocationFailureV1::TargetKind),
-            }
-        };
-        if let Some(kind) = kind {
-            return relocation_error(role, index, kind);
-        }
-        all_bindings.push(binding.clone());
-    }
-    Ok(verified)
-}
-
-fn expected_macho_name(request: PersistentSymbolRequest) -> Vec<u8> {
-    let mut name = Vec::with_capacity(request.symbol().as_str().len() + 1);
-    name.push(b'_');
-    name.extend_from_slice(request.symbol().as_str().as_bytes());
-    name
 }
 
 fn require_relocation_count(

@@ -277,6 +277,12 @@ production section 新增必需 field 13，保存按 callable-body ID 排序的 
 
 每个 ODR node 只汇总该 member 的 LIR、object 和 stackmap leaves。registration 的 `definition_fingerprint` 来自该 registration member；callable 的 `body_definition_fingerprint`、TD 的 descriptor 字段继续来自对应 ObjectDefinition。计算 registration 的对象 leaf 时，其自身最终 ODR slot 归零；已有 body/layout/scan 等上游字段保留。
 
+callable 与 safepoint registration 的 canonical LIR 直接投影已有实际 production plan：callable 使用 `{0=6, 1=body, 2=entry symbol request}`，safepoint 使用 `{0=5, 1=site, 2=runtime safepoint id, 3=owner body, 4=site role, 5=root-pair count}`，在 `scoop-lir-definition-v1` 域计算。这里不编码物理 member、patch intent、最终摘要或 producer。注册 ABI payload 为 `{0=record kind, 1=实际 ABI version, 2=实际 record byte size}`；kind 沿用 runtime 的 callable=6、safepoint=5，当前 version=1、size 分别为192和232。它描述注册记录自身的格式，函数调用签名另由 callable-body member 的 ABI 覆盖。
+
+逐 member definition 的 LIR leaf 编码为 `{1=atom, 2=fingerprint}`，object leaf 为 `{1=digest node, 2=fingerprint}`，stackmap leaf 为 `{1=site, 2=fingerprint}`。callable registration 各有一个自身 primary 的 LIR/object leaf，stackmap array 为空；safepoint registration 同样各有一个自身 LIR/object leaf，并含该 site 唯一的已规范化 stackmap。ODR safepoint 对象摘要须先代入其实际上游 normalized-stackmap 字段，并记录该直接输入，再计算自身 member definition；不能沿用 Strong 的全零 provisional record 对象摘要。callable registration 对象已包含实际上游 body-definition，最终 ODR 汇总不再次把 body node 当作自身 object leaf。
+
+共有注册摘要结果区分 `StrongRegistration` 和 `OdrDefinition`，补丁写入与 RuntimeImage 编码使用实际 owner 及对应 digest kind。image 表中的注册指针按期望的 typed entity/registration role 核对已解析目标的实际 primary definition、symbol 与 owner，不重新派生 Strong-only definition；其余 relocation 宽度、形式、零 addend 和所属范围检查保持。Strong manifest 注册表只接受 Strong 摘要；在完整 ODR member 目录和正式泛型 profile 接通前，不能将 ODR 值塞入旧表或静默丢弃。既有 Strong 编码和摘要向量保持不变。
+
 共有生产查询按 typed subject 与物理角色取得 foundation 中的实际 Strong/ODR plan。源 callable 的 subject 使用已解析的 callable-body key，其他物理 member 使用原 ODR key，不重复发布上游 member 或重新解码其 key。ODR registration 的 ObjectDefinition 节点依赖实际写入该记录的上游字段；其 ODR node 只汇总自身 LIR、对象和所属 stackmap leaves。对象间的摘要边仅表达这些实际补丁依赖，image 继续汇总六类实际 registration node。
 
 函数的 ObjectDefinition 规范化 primary text 及全部实际关联 atom：runtime scan、取址常量、LSDA、EH frame、compact unwind 与 LLVM stackmap。关联条目按 atom ID 排序；内部 label 引用转换为所属 atom 与相对 offset，外部引用使用既有 typed target，不能把 section 起点或物理 member 写入摘要。已有 stackmap record 的规范化结果继续作为函数的直接输入，不重做解析。 Mach-O compact unwind 与关联数据中的本地 UNSIGNED 指针按实际 section ordinal 和对象内目标地址定位所属 atom，编码 atom 相对 offset 后清除物理地址；其余真实符号引用继续保留原 relocation 形式与语义 addend。目标不在该定义的实际 atom 范围内时拒绝。
