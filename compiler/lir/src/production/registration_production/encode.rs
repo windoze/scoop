@@ -191,6 +191,12 @@ pub(super) fn encode_ref_scan(
     }
 }
 
+impl WireEncode for RefScan {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_ref_scan(encoder, self)
+    }
+}
+
 fn encode_field(
     encoder: &mut Encoder,
     field: u32,

@@ -62,6 +62,7 @@ impl ProviderFixture {
             registrations,
             EntryProductionSourceV1::Library,
             &[],
+            crate::canonical_callable::tests::fixture_definitions(&source.foundation),
         )
         .unwrap();
         let layouts =

@@ -145,6 +145,7 @@ pub(super) fn replay_provider_production(
             .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
+        provider.production.canonical_callable_definitions().clone(),
     )
     .unwrap();
     replay(&old, coordinate, &provider.foundation, section)

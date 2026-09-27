@@ -146,6 +146,19 @@
 
 本项补齐 canonical LIR 编码所需的物理名义类型身份。LIR 内容摘要、逐 member ABI/最终 definition 摘要、回填和泛型产物链接运行继续实施。
 
+## 2026-09-28：实际 LIR 函数正文的 canonical 内容摘要
+
+- 新增 `scoop-lir-definition-v1` 正文内容叶子，直接编码最终 `Function` 的 ABI、GC effect、全部 56 类指令、正常/异常 CFG、存储与 root plan。类型、函数、全局存储、桥和 safepoint 使用实际持久身份；调用目标、签名和 root-scan 局部表按使用处的完整值编码，不采用 arena ID、诊断名称、dump 或 LLVM 文本。
+- 入口可达块按固定后继顺序编号，local/temp 先按普通定义与使用确定次序，再据此排序根集合。未使用槽和不可达块不进入该语义投影；所有实际对象 atom 仍由既有 ObjectDefinition 验证。具有相同布局的名义类型继续保留不同 exact-type 身份。
+- 共有 production section 增加必需 field 13，形成 field 2～9、13 的九字段 product。记录按 callable-body ID 排序，精确覆盖 foundation 的全部实际 Function，包括普通 Strong/ODR 正文、root gateway 和初始化 startup gateway。摘要表顺序独立于 foundation 的引用拓扑顺序，`main` 必须先于 gateway 解析不意味着其 body ID 必须更小。
+- producer 从实际最终 LIR 计算正文摘要；reader 检查记录集合、typed 引用、顺序和固定宽度后复用。两种现有 reference schema 的 capability 同步升至 `strong-production/13`、`/14`，必需 inventory、profile 与固定向量更新，旧 `/11`、`/12` 产物和缓存重建。没有新增 runtime ABI 或另一套正文语义检查。
+- 增加 10 项独立回归与固定摘要向量，覆盖 arena/块/局部表顺序、诊断名称、操作数与操作、控制流、ABI、exact identity、根集合、异常 liveness、unwind 正文、缺失/重复/未知正文、摘要宽度及 gateway 拓扑顺序。既有实际 lowering fixture 均计算正式内容叶子；真实泛型产物回归在移走 provider 源码后，通过四个消费方比较相同 ODR 正文的规范化摘要并重放正式 reader。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 与 `cargo build -p scoopc` 通过。460 项 LIR、139 项 LIR lowering、301 项 codegen/runtime、576 项 slib 测试通过。driver 库首次 114/116 通过，两项 gateway 排序问题修复后均复验通过；另有 7 项 CLI 单测与 1 项实际编译器能力查询通过，共覆盖 1600 个独立测试，无忽略。
+- 49 个既有产物快照只更新 Artifact/Code 摘要，runtime 摘要及其他结构不变；25 项布局/发布组合测试在关闭所有快照更新开关后复验通过。九份泛型 HIR/MIR/LIR golden 全程未启用更新开关并通过。
+- 最终格式化与全工作区 lint 再次通过；确认全部构建、测试和编译器进程结束后执行 `cargo clean`，删除 2678 个构建文件，回收 4.7 GiB。
+
+本项完成真实 Function 内容摘要的生产、持久化和读取。其他物理 member 的 canonical LIR 叶子、逐 member ABI/最终 definition 摘要、补丁回填、正式泛型 profile 和泛型单 image 链接运行继续实施，不能据此认定 M23-7 已完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；完成逐 member 内容摘要及完整 profile。

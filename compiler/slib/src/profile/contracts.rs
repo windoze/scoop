@@ -198,7 +198,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.lir", "strong-production", 11 | 12) => (
+            ("org.scoop-lang.lir", "strong-production", 13 | 14) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR

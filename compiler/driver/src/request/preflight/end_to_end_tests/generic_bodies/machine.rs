@@ -324,6 +324,13 @@ fn actual_generic_library_emits_shared_odr_objects() {
             let mut records = vec![
                 native_bodies.get(&body.id()).unwrap().clone(),
                 encode(body.identity_record()).unwrap(),
+                encode(
+                    production
+                        .canonical_callable_definitions()
+                        .get(body.id())
+                        .unwrap(),
+                )
+                .unwrap(),
                 encode(plan).unwrap(),
                 encode(registration).unwrap(),
                 encode(production.canonical_definitions().plan(plan.id()).unwrap()).unwrap(),

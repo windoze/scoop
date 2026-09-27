@@ -85,6 +85,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
+        v1.canonical_callable_definitions().clone(),
     )
     .unwrap()
     .validate_layout_abi(&layout)

@@ -49,6 +49,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
+        v1.canonical_callable_definitions().clone(),
     )
     .unwrap()
     .validate_layout_abi(&layout)

@@ -89,7 +89,7 @@ pub(in crate::tests) fn lower_test_input(
         target,
         Some(&selected),
     )?;
-    lir::ConeLirOutput::try_new(
+    let output = lir::ConeLirOutput::try_new(
         lowered.module,
         input
             .materialization()
@@ -98,5 +98,8 @@ pub(in crate::tests) fn lower_test_input(
             .map(|root| root.declaration().clone())
             .collect(),
     )
-    .map_err(LirLoweringError::Output)
+    .map_err(LirLoweringError::Output)?;
+    lir::CanonicalCallableLirDefinitionsV1::from_module(output.module(), output.foundation())
+        .expect("every actual lowered Function has a canonical content leaf");
+    Ok(output)
 }

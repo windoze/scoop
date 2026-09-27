@@ -108,6 +108,9 @@ pub use foundation::*;
 mod cone_output;
 pub use cone_output::*;
 
+mod canonical_callable;
+pub use canonical_callable::*;
+
 mod production;
 pub use production::*;
 

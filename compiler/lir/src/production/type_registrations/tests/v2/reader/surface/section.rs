@@ -1,4 +1,4 @@
-//! Dependency TD/dispatch references traverse the actual eight-field wire.
+//! Dependency TD/dispatch references traverse the actual nine-field wire.
 
 use super::*;
 use crate::{
@@ -26,6 +26,7 @@ fn section(fixture: &Fixture) -> ConeProductionSectionV2 {
         surface(fixture, true),
         EntryProductionSourceV1::Library,
         &[],
+        crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
     )
     .unwrap()
 }
@@ -49,11 +50,11 @@ fn replay_section(
 }
 
 #[test]
-fn eight_field_section_replays_foreign_parent_interface_and_dispatch() {
+fn nine_field_section_replays_foreign_parent_interface_and_dispatch() {
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
-    assert_eq!(bytes[0], 0xa8);
+    assert_eq!(bytes[0], 0xa9);
     let shared: crate::DecodedConeProductionSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
@@ -89,7 +90,7 @@ fn eight_field_section_replays_foreign_parent_interface_and_dispatch() {
 }
 
 #[test]
-fn eight_field_section_rejects_missing_foreign_definitions_and_changed_definition_atoms() {
+fn nine_field_section_rejects_missing_foreign_definitions_and_changed_definition_atoms() {
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
@@ -113,7 +114,7 @@ fn eight_field_section_rejects_missing_foreign_definitions_and_changed_definitio
 }
 
 #[test]
-fn eight_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
+fn nine_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
     let fixture = complete_fixture();
     let bytes = crate::production::cone_section::tests::without_image_input(
         &section(&fixture),
@@ -157,6 +158,7 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
         surface(&fixture, false),
         EntryProductionSourceV1::Library,
         &[],
+        crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
     )
     .unwrap();
     let expected = production.registration_production().types().clone();

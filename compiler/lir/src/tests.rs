@@ -54,7 +54,7 @@ fn abi_value(ty: LirType, size: u64, alignment: u64, scan: RefScan) -> AbiValue 
     .expect("test ABI value must be valid")
 }
 
-fn callable_body(symbol: &str) -> super::CallableBodyIdentity {
+pub(crate) fn callable_body(symbol: &str) -> super::CallableBodyIdentity {
     let identifier = format!(
         "test{}",
         symbol

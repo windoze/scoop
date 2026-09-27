@@ -269,6 +269,10 @@ OdrDefinitionFingerprint = DomainSeparatedCborHash(
 
 最终 LIR 的 `StructDef` 与 `EnumDef` 必需保存实际 `PersistentExactTypeId`，lowering 从 MIR 已解析的 exact-type record 直接传入；完整 key 仍由同一份 `LirMeta.exact_types` 保存。session-local 的 `StructDefId` / `EnumDefId` 只用于访问当前表示表，canonical LIR、ABI 和全局引用使用记录中的持久身份。名称、arena 排列、相同布局或字段集合不能替代该身份；表示、扫描和 C ABI refinement 的后续填写必须保留它。泛型实例使用其完整 application 身份，生成 enum 使用已有 generated exact-type record。
 
+函数正文的 canonical LIR leaf 使用 `scoop-lir-definition-v1`，从最终 `Function` 的实际 ABI、GC effect、指令、正常/异常控制流与 root plan 计算。块按入口可达 CFG 的固定后继顺序规范化，local/temp 按正文首次出现顺序编号；未使用的 arena 槽、诊断名称和不可达块不进入这个语义投影，实际发射的所有对象 atom 仍由 ObjectDefinition 覆盖。类型、函数、存储、桥和 safepoint 使用已有 typed persistent identity，call target/signature/root-scan 等函数局部表在使用位置编码实际值；不编码 arena ID、dump、LLVM 文本或最终摘要补丁。
+
+production section 新增必需 field 13，保存按 callable-body ID 排序的 `{1=body, 2=canonical LIR fingerprint}` records；此排序独立于 foundation 为解析引用使用的拓扑顺序，并精确覆盖全部 callable-body；其中普通 Strong/ODR 正文与 lowering 已生成的 root/init gateway 均按实际 `Function` 编码，不用空记录或入口计划替代 gateway 正文。producer 从同一最终 LIR 计算一次，reader 检查集合、引用、排序和 fingerprint 格式后复用；物理对象仍独立按实际内容验证。当前两种 Strong reference schema 的 production capability 分别由 `/11`、`/12` 升至 `/13`、`/14`，旧产物重建，ODR 发布限制保持；完整泛型 profile 最终仍统一使用本节设计的 cone-production/1。
+
 保留 `DigestKind::OdrDefinition = 8`。旧 owner variant `OdrDefinition(OdrGroupId) = 8` 退役，新增 `OdrMemberDefinition(OdrMemberId) = 11`；后者映射到 kind 8。其他 owner tag 与 patch field role 不变，不复用退役编号。
 
 每个 ODR node 只汇总该 member 的 LIR、object 和 stackmap leaves。registration 的 `definition_fingerprint` 来自该 registration member；callable 的 `body_definition_fingerprint`、TD 的 descriptor 字段继续来自对应 ObjectDefinition。计算 registration 的对象 leaf 时，其自身最终 ODR slot 归零；已有 body/layout/scan 等上游字段保留。

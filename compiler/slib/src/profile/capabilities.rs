@@ -46,7 +46,7 @@ pub fn lir_cross_cone_link_closure_capability() -> CapabilityId {
 }
 
 pub fn lir_strong_production_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "strong-production", 11)
+    CapabilityId::new("org.scoop-lang.lir", "strong-production", 13)
         .expect("a fixed capability identity is valid")
 }
 
@@ -70,7 +70,7 @@ pub fn lir_cross_cone_layout_link_closure_capability() -> CapabilityId {
 }
 
 pub fn lir_strong_production_v2_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "strong-production", 12)
+    CapabilityId::new("org.scoop-lang.lir", "strong-production", 14)
         .expect("built-in capability id is valid")
 }
 

@@ -73,6 +73,8 @@ impl ConeLirOutput {
             registrations,
             entry_source,
             &self.shape_support.source_declarations(),
+            crate::CanonicalCallableLirDefinitionsV1::from_module(&self.module, &self.foundation)
+                .map_err(ConeProductionWriterError::CanonicalCallables)?,
         )
         .map_err(ConeProductionWriterError::Section)
     }
@@ -101,6 +103,8 @@ impl ConeLirOutput {
             registrations,
             entry_source,
             &self.shape_support.source_declarations(),
+            crate::CanonicalCallableLirDefinitionsV1::from_module(&self.module, &self.foundation)
+                .map_err(ConeProductionWriterError::CanonicalCallables)?,
         )
         .map_err(ConeProductionWriterError::Section)
     }
@@ -136,6 +140,7 @@ impl std::error::Error for ConeLirOutputError {
 
 #[derive(Debug)]
 pub enum ConeProductionWriterError {
+    CanonicalCallables(crate::CanonicalCallableLirError),
     Registrations(StrongRegistrationProductionBuildError),
     Section(ConeProductionSectionBuildError),
 }

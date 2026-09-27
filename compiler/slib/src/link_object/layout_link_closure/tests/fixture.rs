@@ -109,6 +109,7 @@ impl Provider {
             StrongRegistrationProductionSurfaceV1::empty(TARGET, &foundation, &digests).unwrap(),
             EntryProductionSourceV1::Library,
             &[],
+            scoop_lir::CanonicalCallableLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
         )
         .unwrap();
         let raw: DecodedConeProductionSectionV2 = decode_canonical(&encode(&old).unwrap()).unwrap();

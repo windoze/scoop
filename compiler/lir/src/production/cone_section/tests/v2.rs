@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn layout_schema_retains_eight_shared_production_fields() {
+fn layout_schema_retains_nine_shared_production_fields() {
     let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
     let producer = foundation.producer();
@@ -39,6 +39,7 @@ fn layout_schema_retains_eight_shared_production_fields() {
         registrations,
         EntryProductionSourceV1::Library,
         &[],
+        crate::canonical_callable::tests::fixture_definitions(&foundation),
     )
     .unwrap();
     let old = ConeProductionSectionV1::new(
@@ -49,18 +50,19 @@ fn layout_schema_retains_eight_shared_production_fields() {
         StrongRegistrationProductionSurfaceV1::empty(target, &foundation, &digests).unwrap(),
         EntryProductionSourceV1::Library,
         &[],
+        crate::canonical_callable::tests::fixture_definitions(&foundation),
     )
     .unwrap();
     let bytes = encode(&current).unwrap();
     super::digests::check(&current, &foundation);
-    assert_eq!(bytes[0], 0xa8);
+    assert_eq!(bytes[0], 0xa9);
     assert_eq!(bytes, encode(&old).unwrap());
     let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let mut truncated = bytes.clone();
     truncated.pop();
     assert!(decode_canonical::<DecodedConeProductionSectionV2>(&truncated).is_err());
-    for field_count in [0xa7, 0xa9] {
+    for field_count in [0xa8, 0xaa] {
         let mut malformed = bytes.clone();
         malformed[0] = field_count;
         assert!(decode_canonical::<DecodedConeProductionSectionV2>(&malformed).is_err());

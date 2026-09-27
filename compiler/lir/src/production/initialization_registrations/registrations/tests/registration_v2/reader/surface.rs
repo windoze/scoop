@@ -79,6 +79,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             original,
             crate::EntryProductionSourceV1::Library,
             &[],
+            crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
         )
         .unwrap();
         let decoded: crate::DecodedConeProductionSectionV2 =
