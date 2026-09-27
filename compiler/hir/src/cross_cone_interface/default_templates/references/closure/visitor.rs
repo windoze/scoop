@@ -17,6 +17,7 @@ pub use super::compare::{
     compare_default_signature_reference_targets,
 };
 
+mod initialization;
 mod state;
 
 /// A borrowed body reference. This view does not grant lookup or publication access.
@@ -40,6 +41,8 @@ pub enum DefaultBodyReferenceMetadataV1<'a> {
     },
     Body(&'a ExportDefaultBodyV1),
     CallableBody(&'a ExportGenericCallableBodyV1),
+    Fragment(&'a crate::ExportTemplateFragmentV1),
+    ConstructorInitialization(&'a crate::ExportConstructorInitializationV1),
     Statement(&'a DefaultStatementV1),
     Pattern(&'a DefaultPatternV1),
     Assignment(&'a DefaultAssignTargetV1),

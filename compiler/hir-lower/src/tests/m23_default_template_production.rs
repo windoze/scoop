@@ -263,7 +263,7 @@ fn producer_closes_nested_callable_capture_and_function_types() {
 }
 
 #[test]
-fn producer_rejects_a_constructor_only_expression_in_a_default() {
+fn producer_rejects_an_out_of_scope_constructor_parameter_in_a_default() {
     let declaration = with_default(
         fun_expr(
             "invalidProjectedDefault",
@@ -298,9 +298,7 @@ fn producer_rejects_a_constructor_only_expression_in_a_default() {
             if matches!(
                 source.as_ref(),
                 hir::DefaultTemplateEnvelopeProjectionError::Body(
-                    hir::DefaultBodyProjectionError::UnsupportedExpression(
-                        "constructor-parameter"
-                    )
+                    hir::DefaultBodyProjectionError::UnknownConstructorParameter(0)
                 )
             )
     ));

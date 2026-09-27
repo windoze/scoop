@@ -727,6 +727,7 @@ fn section(
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         references,
         Default::default(),
+        Default::default(),
     )
 }
 

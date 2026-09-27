@@ -135,7 +135,7 @@ pub(super) fn project(
     .map_err(Error::Record)
 }
 
-fn binder_uses(
+pub(in crate::production::default_templates) fn binder_uses(
     parameters: impl IntoIterator<Item = TypeParamId>,
     binders: &[HirSignatureBinder],
 ) -> Result<CanonicalBinderUseListV1, Error> {

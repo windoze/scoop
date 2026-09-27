@@ -15,7 +15,11 @@ impl BodyProjection<'_, '_> {
         &mut self,
         expression: &Expr,
     ) -> Result<DefaultExpressionV1, super::super::DefaultBodyProjectionError> {
-        let kind = self.expression_kind(&expression.kind, expression.ty)?;
+        let kind = self.expression_kind(
+            &expression.kind,
+            expression.ty,
+            expression.origin.definition(),
+        )?;
         DefaultExpressionV1::try_new(
             kind,
             self.type_key(expression.ty)?,
@@ -28,6 +32,7 @@ impl BodyProjection<'_, '_> {
         &mut self,
         kind: &ExprKind,
         result_type: crate::TypeId,
+        origin: crate::DefinitionOrigin,
     ) -> Result<DefaultExpressionKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
             ExprKind::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
@@ -70,12 +75,8 @@ impl BodyProjection<'_, '_> {
                     .class_constructor(*constructor, self.binders)?,
                 arguments: self.expressions(args)?,
             },
-            ExprKind::ConstructorParam(_) => {
-                return Err(
-                    super::super::DefaultBodyProjectionError::UnsupportedExpression(
-                        "constructor-parameter",
-                    ),
-                );
+            ExprKind::ConstructorParam(parameter) => {
+                DefaultExpressionKindV1::Local(self.locals.constructor_parameter(*parameter)?)
             }
             ExprKind::VariantConstruct { variant, args } => {
                 DefaultExpressionKindV1::VariantConstruct {
@@ -195,19 +196,28 @@ impl BodyProjection<'_, '_> {
                 receiver: Box::new(self.expression(receiver)?),
                 field: self.entities.field(*field, self.binders)?,
             },
-            ExprKind::InitializingClassFieldAccess { .. } => {
-                return Err(
-                    super::super::DefaultBodyProjectionError::UnsupportedExpression(
-                        "initializing-class-field",
-                    ),
-                );
+            ExprKind::InitializingClassFieldAccess { field } => {
+                let (receiver, field) = self.initializing_class_field(*field, origin)?;
+                DefaultExpressionKindV1::FieldAccess {
+                    receiver: Box::new(receiver),
+                    field,
+                }
             }
-            ExprKind::InitializingStructFieldAccess { .. } => {
-                return Err(
-                    super::super::DefaultBodyProjectionError::UnsupportedExpression(
-                        "initializing-struct-field",
-                    ),
-                );
+            ExprKind::InitializingStructFieldAccess { application, index } => {
+                let ty = self.struct_application_type(*application)?;
+                let field = crate::AppliedStructFieldRef::checked(
+                    &self.entities.export().structs,
+                    &self.entities.export().struct_applications,
+                    *application,
+                    *index,
+                )
+                .ok_or_else(|| self.unknown("struct application", *application))?;
+                DefaultExpressionKindV1::FieldAccess {
+                    receiver: Box::new(self.initializing_receiver(ty, origin)?),
+                    field: self
+                        .entities
+                        .field(crate::FieldRef::StructField(field), self.binders)?,
+                }
             }
             ExprKind::MethodCall {
                 receiver,

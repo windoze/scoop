@@ -91,6 +91,7 @@ pub(super) fn replace(
         CanonicalExportDefinitionSourcesV1::try_new(locations).unwrap(),
         interface.external_references().clone(),
         interface.generic_callable_bodies().clone(),
+        interface.generic_initializations().clone(),
     );
     index
 }

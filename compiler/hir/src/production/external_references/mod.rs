@@ -62,6 +62,19 @@ impl CanonicalExternalHirReferencesV1 {
                 &scoop_wire::WirePath::root().field(11).index(index as u64),
             )?;
         }
+        for (index, initialization) in input.generic_initializations.records().iter().enumerate() {
+            initialization.visit_declaration_targets(
+                &mut |target| {
+                    accumulator
+                        .observe(
+                            target,
+                            crate::ExternalHirReferenceRoleV1::TemplateDependency,
+                        )
+                        .map(|_| ())
+                },
+                &scoop_wire::WirePath::root().field(12).index(index as u64),
+            )?;
+        }
         surface::collect_constants(input, &mut accumulator)?;
         for use_ in witness_uses {
             accumulator.add_witness_use(use_)?;

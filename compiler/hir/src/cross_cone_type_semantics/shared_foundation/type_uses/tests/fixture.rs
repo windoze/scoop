@@ -149,6 +149,7 @@ impl Artifact {
             Default::default(),
             Default::default(),
             Default::default(),
+            Default::default(),
         );
         let decoded: DecodedCrossConeHirInterfaceSectionV1 = scoop_wire::decode_canonical(
             &scoop_wire::encode(&public.index_for_wire().unwrap()).unwrap(),

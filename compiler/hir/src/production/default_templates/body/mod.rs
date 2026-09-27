@@ -9,6 +9,7 @@ use crate::{
 
 mod bindings;
 mod expressions;
+mod initialization;
 mod nested;
 mod patterns;
 mod statements;
@@ -35,6 +36,23 @@ pub(super) fn project_statements(
     statements: &[crate::Statement],
 ) -> Result<Vec<DefaultStatementV1>, super::DefaultBodyProjectionError> {
     BodyProjection::new(entities, locals, binders, template_origin).statements(statements)
+}
+
+pub(super) fn project_fragment(
+    entities: &DefaultEntityProjector<'_>,
+    locals: &TemplateLocalProjection,
+    binders: &[HirSignatureBinder],
+    template_origin: crate::DefinitionOrigin,
+    statements: &[crate::Statement],
+    results: &[crate::Expr],
+    local_table: crate::CanonicalTemplateLocalTableV1,
+) -> Result<crate::ExportTemplateFragmentV1, super::DefaultBodyProjectionError> {
+    let mut projection = BodyProjection::new(entities, locals, binders, template_origin);
+    Ok(crate::ExportTemplateFragmentV1::new(
+        local_table,
+        projection.statements(statements)?,
+        projection.expressions(results)?,
+    ))
 }
 
 pub(super) struct BodyProjection<'a, 'hir> {

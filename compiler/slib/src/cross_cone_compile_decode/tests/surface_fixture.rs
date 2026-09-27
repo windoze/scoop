@@ -79,6 +79,7 @@ fn interface_with_support(
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
         Default::default(),
+        Default::default(),
     );
     encode(&section.index_for_wire().unwrap()).unwrap()
 }

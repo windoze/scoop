@@ -73,6 +73,21 @@ impl crate::ExportGenericCallableBodyV1 {
     }
 }
 
+impl crate::ExportTemplateFragmentV1 {
+    pub fn visit_definition_sources<V, E>(&self, visitor: &mut V, path: &WirePath) -> Result<(), E>
+    where
+        V: FnMut(&ExportDefinitionSourceV1) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        for local in self.locals().records() {
+            if let crate::TemplateLocalDefinitionV1::Source(origin) = local.definition() {
+                visitor(origin)?;
+            }
+        }
+        walk::visit_fragment_sources(self, &mut |source, _, _| visitor(source), path)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultBodyOriginSiteV1 {
     Statement,

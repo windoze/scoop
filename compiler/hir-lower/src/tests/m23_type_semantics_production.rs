@@ -19,6 +19,7 @@ mod default_value_access;
 mod executable_type_sites;
 mod fact_providers;
 mod generic_bodies;
+mod generic_initializations;
 mod materialization_requirements;
 mod materialized_type_uses;
 mod setter_domains;

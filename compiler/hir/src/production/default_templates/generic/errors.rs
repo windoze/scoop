@@ -20,6 +20,7 @@ pub enum GenericTemplateProductionError {
     Binders(crate::BinderUseListBuildError),
     Record(crate::GenericCallableBodyBuildError),
     Table(crate::GenericCallableBodyTableError),
+    Initialization(crate::GenericInitializationBuildError),
     Wire(scoop_wire::WireError),
 }
 
@@ -59,6 +60,7 @@ impl fmt::Display for GenericTemplateProductionError {
             Self::Binders(error) => error.fmt(f),
             Self::Record(error) => error.fmt(f),
             Self::Table(error) => error.fmt(f),
+            Self::Initialization(error) => error.fmt(f),
             Self::Wire(error) => error.fmt(f),
         }
     }

@@ -14,6 +14,8 @@ pub(super) struct TemplateLocalProjection {
     selectors: Vec<LocalValueSelector>,
     bindings: HashMap<crate::BindingId, LocalValueSelector>,
     captures: HashMap<crate::BindingId, crate::DefaultCaptureSourceV1>,
+    constructor_parameters: HashMap<crate::ConstructorParamId, LocalValueSelector>,
+    initializing_receiver: Option<scoop_identity::SignatureTypeKey>,
 }
 
 impl TemplateLocalProjection {
@@ -68,6 +70,8 @@ impl TemplateLocalProjection {
                 selectors,
                 bindings,
                 captures: HashMap::new(),
+                constructor_parameters: HashMap::new(),
+                initializing_receiver: None,
             },
             table,
         ))
@@ -104,5 +108,39 @@ impl TemplateLocalProjection {
         source: crate::DefaultCaptureSourceV1,
     ) {
         self.captures.insert(binding, source);
+    }
+
+    pub(super) fn bind_constructor_inputs(
+        &mut self,
+        parameters: &[crate::ConstructorParameter],
+        receiver: scoop_identity::SignatureTypeKey,
+    ) {
+        for (index, parameter) in parameters.iter().enumerate() {
+            let selector = LocalValueSelector::Parameter {
+                declaration_index: u32::try_from(index)
+                    .expect("a constructor parameter position fits its source interface"),
+            };
+            self.constructor_parameters
+                .insert(parameter.id, selector.clone());
+            self.bindings.insert(parameter.binding, selector);
+        }
+        self.initializing_receiver = Some(receiver);
+    }
+
+    pub(super) fn constructor_parameter(
+        &self,
+        parameter: crate::ConstructorParamId,
+    ) -> Result<LocalValueSelector, super::DefaultBodyProjectionError> {
+        self.constructor_parameters.get(&parameter).cloned().ok_or(
+            super::DefaultBodyProjectionError::UnknownConstructorParameter(parameter.into_raw()),
+        )
+    }
+
+    pub(super) fn initializing_receiver(
+        &self,
+    ) -> Result<&scoop_identity::SignatureTypeKey, super::DefaultBodyProjectionError> {
+        self.initializing_receiver
+            .as_ref()
+            .ok_or(super::DefaultBodyProjectionError::MissingInitializingReceiver)
     }
 }

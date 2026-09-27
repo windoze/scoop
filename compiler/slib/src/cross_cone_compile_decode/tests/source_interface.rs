@@ -437,6 +437,7 @@ impl CallableSourceSurface {
             CanonicalExportDefinitionSourcesV1::try_new(definition_sources).unwrap(),
             CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
             Default::default(),
+            Default::default(),
         );
 
         Self {

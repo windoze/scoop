@@ -24,7 +24,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         self.walk_nodes(statements.iter().map(BodyNode::Statement))
     }
 
-    fn walk_nodes(
+    pub(super) fn walk_nodes(
         &mut self,
         nodes: impl DoubleEndedIterator<Item = BodyNode<'body>>,
     ) -> Result<(), V::Error> {

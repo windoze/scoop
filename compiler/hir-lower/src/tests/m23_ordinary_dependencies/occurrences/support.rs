@@ -128,6 +128,7 @@ fn facade(
         hir::CanonicalExportDefinitionSourcesV1::try_new(vec![]).unwrap(),
         hir::CanonicalExternalHirReferencesV1::try_new(vec![]).unwrap(),
         Default::default(),
+        Default::default(),
     );
     let external = CborIdentityRecord::from_key(source_key).unwrap();
     (

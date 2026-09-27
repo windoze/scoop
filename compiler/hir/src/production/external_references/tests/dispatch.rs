@@ -100,6 +100,7 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
             CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
             references,
             Default::default(),
+            Default::default(),
         )
     };
     section(references.clone())

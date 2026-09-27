@@ -430,6 +430,7 @@ impl AliasSurface {
             CanonicalExportDefinitionSourcesV1::try_new(vec![definition_source]).unwrap(),
             CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
             Default::default(),
+            Default::default(),
         );
 
         Self {

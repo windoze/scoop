@@ -41,6 +41,7 @@ pub(super) fn replace_root(
         CanonicalExportDefinitionSourcesV1::try_new(origins).unwrap(),
         interface.external_references().clone(),
         interface.generic_callable_bodies().clone(),
+        interface.generic_initializations().clone(),
     );
 }
 

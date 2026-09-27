@@ -131,12 +131,13 @@ impl BodyProjection<'_, '_> {
                 receiver: Box::new(self.expression(receiver)?),
                 field: self.entities.field(*field, self.binders)?,
             },
-            crate::AssignTarget::InitializingClassField { .. } => {
-                return Err(
-                    super::super::DefaultBodyProjectionError::UnsupportedAssignment(
-                        "initializing-class-field",
-                    ),
-                );
+            crate::AssignTarget::InitializingClassField { field, origin } => {
+                let (receiver, field) =
+                    self.initializing_class_field(*field, origin.definition())?;
+                DefaultAssignTargetV1::Field {
+                    receiver: Box::new(receiver),
+                    field,
+                }
             }
         })
     }

@@ -80,6 +80,7 @@ fn producer_collects_the_exact_deduplicated_definition_source_closure() {
         &default_templates,
         &constants,
         &Default::default(),
+        &Default::default(),
     )
     .unwrap();
 
@@ -102,6 +103,7 @@ fn producer_collects_the_exact_deduplicated_definition_source_closure() {
         constants,
         definition_sources,
         hir::CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
         Default::default(),
     );
     section

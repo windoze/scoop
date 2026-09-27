@@ -11,6 +11,7 @@ use crate::{
 pub(crate) struct ExportSharedSource {
     pub(in crate::production) roots: SharedSourceRoots,
     pub(in crate::production) bodies: CanonicalExportGenericCallableBodiesV1,
+    pub(in crate::production) initializations: crate::CanonicalExportGenericInitializationsV1,
 }
 
 impl ExportSharedSource {
@@ -18,7 +19,12 @@ impl ExportSharedSource {
         export: &ExportHir,
         imported: Option<&SelectedImportedDependencySet>,
     ) -> Result<Self, GenericTemplateProductionError> {
-        let (roots, bodies) = SharedSourceRoots::with_callable_bodies(export, imported)?;
-        Ok(Self { roots, bodies })
+        let (roots, bodies, initializations) =
+            SharedSourceRoots::with_callable_bodies(export, imported)?;
+        Ok(Self {
+            roots,
+            bodies,
+            initializations,
+        })
     }
 }

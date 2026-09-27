@@ -270,6 +270,17 @@
 
 本项完成导入泛型正文中 helper 与局部直接调用的组合闭环。lambda、匿名函数、callable reference、构造和委托模板及其他阶段验收继续按原设计推进，M23-7 尚未完成。
 
+## 2026-09-28：构造初始化模板进入共有 HIR 生产与读取
+
+- 泛型 class 按原名义声明保存一次 common initialization，各构造器分别保留 primary、secondary `this`、terminal `super` 的实际委托和正文；泛型 struct 保留 primary 值构造与 secondary 委托。字段与 delegate backing field 的写入、`init` 和次构造正文保持源码顺序。
+- 委托实参、字段初始化与纯语句正文复用同一 typed 执行片段，保存局部值表、语句和实际结果列表；没有结果的正文不填充假的 Unit。构造输入使用原参数位置与 `This` selector，字段访问保留原 typed identity，定义位置与外来引用进入现有闭包。
+- 共有声明、callable body 与构造初始化在同一工作队列收集；实际引用的 private generic helper 进入支持正文，未使用的 private 名义声明不导出。reader 在记录构造边界验证顺序、引用形状、构造种类、字段写入和结果数量，不重复类型检查或布局计算。
+- `hir/cross-cone-interface` 升至 `/33`，增加必需 field 12；required inventory、reader、profile descriptor、固定摘要和空 section 编码同步迁移，旧 `/32` 产物和缓存需要重建。
+- 新增独立与组合源码 fixture 和两份 HIR golden，覆盖泛型 struct/class 主次构造、继承、多个 terminal 构造器、普通及委托属性和私有 helper。真实源码投影后完成 canonical 编码、解码和引用闭包验证；格式反例拒绝缺失/重复/错误 owner、构造种类不符、非法参数写入、错误结果数量及 struct 携带 class common sequence。旧默认值反例继续拒绝作用域外的构造参数。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，无警告。关闭快照更新开关后，887 项 HIR、1249 项 HIR lowering、584 项 slib，以及 `scoop` 的 93 项单测和 2 项命令集成测试通过，共 2815 项，无失败或忽略；profile 固定向量与编译缓存回归均包含在内。
+
+本项完成构造执行模板的生产与读取，不代表消费方泛型名义类型已完成。实际发布测试已暴露泛型类型描述符、扫描与分发表的 ODR 物理链路缺口，修复继续沿同一对象与摘要入口推进；MIR/LIR golden、产物消费、链接和移动 GC 尚未作为本项验收通过。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。

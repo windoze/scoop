@@ -85,6 +85,28 @@ where
     .run_nodes(statements.iter().map(BodyNode::Statement))
 }
 
+pub(super) fn visit_fragment_sources<V, E>(
+    fragment: &crate::ExportTemplateFragmentV1,
+    visitor: &mut V,
+    path: &WirePath,
+) -> Result<(), E>
+where
+    V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
+    E: From<WireError>,
+{
+    Validator {
+        mode: origin::DefinitionSourceVisitor { visitor },
+        path,
+    }
+    .run_nodes(
+        fragment
+            .statements()
+            .iter()
+            .map(BodyNode::Statement)
+            .chain(fragment.results().iter().map(BodyNode::Expression)),
+    )
+}
+
 pub(super) trait BodyWalkMode {
     type Error;
 

@@ -128,7 +128,7 @@ fn function_owner(
     }
 }
 
-fn roundtrip(
+pub(super) fn roundtrip(
     output: &hir::DependencyHirOutput,
     core: &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     section: &hir::CrossConeHirInterfaceSectionV1,

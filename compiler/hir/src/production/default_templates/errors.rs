@@ -97,6 +97,8 @@ pub enum DefaultBodyProjectionError {
     DefinitionOrigin(HirDefinitionSourceProjectionError),
     UnknownLocal(u32),
     UnknownBinding(u32),
+    UnknownConstructorParameter(u32),
+    MissingInitializingReceiver,
     InvalidCaptureSource,
     InvalidLiteralPattern,
     MissingMethodReceiver,

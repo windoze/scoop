@@ -231,6 +231,7 @@ impl Fixture {
             CanonicalExportDefinitionSourcesV1::try_new(vec![]).unwrap(),
             CanonicalExternalHirReferencesV1::try_new(vec![]).unwrap(),
             Default::default(),
+            Default::default(),
         );
         cross_cone_artifact_for_with_hir_foundation(
             cone(),

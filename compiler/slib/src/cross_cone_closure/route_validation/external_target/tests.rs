@@ -383,6 +383,7 @@ fn empty_interface() -> CrossConeHirInterfaceSectionV1 {
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
         Default::default(),
+        Default::default(),
     )
 }
 

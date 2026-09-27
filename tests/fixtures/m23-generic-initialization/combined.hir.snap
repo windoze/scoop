@@ -1,0 +1,66 @@
+Module
+  class Payload(number: Int)
+    field0 property0: Int
+    property0 val number: Int getter0=body(Payload.$get$number) <stored field0 init=parameter0>
+  open class Base<T>(item: T0)
+    field1 property1: T0
+    field2 property2: Int
+    property1 val item: T0 getter1=body(Base.$get$item) <stored field1 init=parameter1>
+    property2 var baseNumber: Int getter2=body(Base.$get$baseNumber) setter0=body(Base.$set$baseNumber) <stored field2 init=expression>
+  class Derived<T>(value: T0)
+    field3 property3: T0
+    field4 property4: Int
+    property3 val copied: T0 getter3=body(Derived.$get$copied) <stored field3 init=expression>
+    property4 var extra: Int getter4=body(Derived.$get$extra) setter1=body(Derived.$set$extra) <stored field4 init=expression>
+  class Alternate<T>()
+    field5 property5: T0
+    field6 property6: Int
+    property5 val copied: T0 getter5=body(Alternate.$get$copied) <stored field5 init=expression>
+    property6 var extra: Int getter6=body(Alternate.$get$extra) setter2=body(Alternate.$set$extra) <stored field6 init=expression>
+  class Cell<T>(value: T0)
+    field7 property7: T0
+    property7 val value: T0 getter7=storage <stored field7 init=parameter10>
+  class Holder<T>(value: T0)
+    field8 property8: Cell<T0>
+    property8 val stored: T0 getter8=body(Holder.$get$stored) <delegated storage0 type=Cell<T0> location=class-field8>
+  fun keep<T>(value: T0): T0
+    return
+      Local value : T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 40 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ClassInit Payload : Payload
+        Local $parameter.number : Int
+    val local3
+      Local $argument.0 : Payload
+    val local4
+      ClassInit Alternate<Payload> : Alternate<Payload>
+        Local $parameter.value : Payload
+    val local5
+      MethodCall Alternate.$get$copied : Payload
+        Local value : Alternate<Payload>
+    val local6
+      Local $argument.0 : Payload
+    val local7
+      ClassInit Holder<Payload> : Holder<Payload>
+        Local $parameter.value : Payload
+    val local8
+      MethodCall Payload.$get$number : Int
+        MethodCall Holder.$get$stored : Payload
+          Local holder : Holder<Payload>
+    val local9
+      MethodCall Alternate.$get$extra : Int
+        Local value : Alternate<Payload>
+    val local10
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  output library
+  instance keep<T0>
+  instance keep<T0>
+  instance keep<T0>

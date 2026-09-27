@@ -38,6 +38,7 @@ pub(super) fn empty_hir_interface() -> CrossConeHirInterfaceSectionV1 {
         CanonicalExportDefinitionSourcesV1::try_new(vec![]).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(vec![]).unwrap(),
         Default::default(),
+        Default::default(),
     )
 }
 

@@ -24,6 +24,20 @@ impl ExportGenericCallableBodyV1 {
     }
 }
 
+impl crate::ExportGenericNominalInitializationV1 {
+    pub(crate) fn visit_declaration_targets<V, E>(
+        &self,
+        visitor: &mut V,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(ExternalHirTargetV1) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        self.visit_direct_references(&mut DeclarationTargets { visitor }, path)
+    }
+}
+
 struct DeclarationTargets<'a, V> {
     visitor: &'a mut V,
 }

@@ -1023,6 +1023,8 @@ Export HIR 完成后、LocalConcrete HIR 生成前，收集一次共有声明与
 
 仅继承外层类型参数的局部函数仍以 `PersistentFunctionId` 标识；有自身类型参数时才使用 `PersistentGenericFunctionId`。其 application 的 owner 是外层 callable application，只有自身实参进入 callable 参数组。共有正文目录直接提供词法实现，不把局部声明加入源码名字查找接口。消费端对已经完成定义处检查的词法正文只保留有序替换 binder 和已有条件约束；供源码重载推断使用的声明参数与这组替换参数在 HIR 中明确区分，不补造无约束的声明签名。
 
+构造模板按原名义声明组织：每个泛型 class 保存一次公共初始化序列，各构造器保存自身参数、委托及次构造正文；struct 保留 primary 值构造与 secondary 委托的区别。委托实参、字段初始化和语句正文共用已有 typed expression/statement 与局部值表，分别保存实际结果列表，不用假的 Unit 表达式填充没有结果的语句正文。构造参数按源码参数位置关联原 `LocalValueSelector::Parameter`，初始化接收者使用原 `This` selector；正文中的已解析字段读取和写入保留原字段身份。公共初始化中的 stored/delegate 写入与 `init` 保持源码顺序；class 委托目标仍是对同一已分配对象的 initializer 调用，不能改成再次分配的构造表达式。共有名义与源码调用声明继续唯一保存 shape、参数协议和 bounds，执行模板不复制另一套声明表。
+
 HIR 根据实际调用、构造、成员、类型操作和委托访问建立实例化工作队列，在当前消费 Cone 完成全部类型替换、bound 与已有 GC-free/CLayout 条件检查。模板声明、已解析 application、本地 concrete 实体使用不同 typed ID；实例 key 使用 origin 与完整 exact arguments，不含消费 Cone 或首次调用位置。已选普通外来函数仍引用定义方实现；泛型正文引用的 private/internal 参数自由 helper 由其定义 Cone 提供普通可链接定义，消费方不复制正文，不重做名字查找。泛型递归继续按语言规范 3.2 检查 SCC 中参数替换环，正常递归复用实例；引用字段不递归展开值布局，不以数量、深度或时间预算判定合法性。
 
 共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造和委托模板后续分别迁移到 `/33`、`/34`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。

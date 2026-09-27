@@ -159,6 +159,7 @@ pub(super) fn reject_nominal(
         source.definition_sources().clone(),
         source.external_references().clone(),
         source.generic_callable_bodies().clone(),
+        source.generic_initializations().clone(),
     );
     let mut metadata = checked.metadata();
     metadata.public = &public;

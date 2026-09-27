@@ -1,5 +1,5 @@
 use super::*;
-use crate::production::default_templates::GenericBodyProducer;
+use crate::production::default_templates::{GenericBodyProducer, GenericInitializationProducer};
 use crate::{
     CanonicalExportGenericCallableBodiesV1, DefaultBodyReferenceOccurrenceV1,
     DefaultBodyReferenceTargetV1, DefaultBodyReferenceVisitorV1, DefaultBoundCallableSourceV1,
@@ -12,10 +12,17 @@ impl SharedSourceRoots {
     pub(in crate::production) fn with_callable_bodies(
         export: &ExportHir,
         imported: Option<&SelectedImportedDependencySet>,
-    ) -> Result<(Self, CanonicalExportGenericCallableBodiesV1), GenericTemplateProductionError>
-    {
+    ) -> Result<
+        (
+            Self,
+            CanonicalExportGenericCallableBodiesV1,
+            crate::CanonicalExportGenericInitializationsV1,
+        ),
+        GenericTemplateProductionError,
+    > {
         let mut collection = SourceCollection::new(export).map_err(declarations)?;
         let mut producer = GenericBodyProducer::new(export, imported)?;
+        let mut initialization_producer = GenericInitializationProducer::new(export, imported);
         let properties = export
             .properties
             .iter()
@@ -26,10 +33,23 @@ impl SharedSourceRoots {
             })
             .collect::<BTreeMap<_, _>>();
         let mut bodies = Vec::new();
+        let mut initializations = Vec::new();
         loop {
             collection.expand().map_err(declarations)?;
             let roots = collection.snapshot().map_err(declarations)?;
             producer.include_roots(&roots);
+            initialization_producer.include_roots(&roots);
+            while let Some(initialization) = initialization_producer.next_initialization()? {
+                initialization.visit_direct_references(
+                    &mut TemplateReferences {
+                        collection: &mut collection,
+                        producer: &mut producer,
+                        properties: &properties,
+                    },
+                    &WirePath::root(),
+                )?;
+                initializations.push(initialization);
+            }
             while let Some(body) = producer.next_body()? {
                 body.visit_direct_references(
                     &mut TemplateReferences {
@@ -44,7 +64,10 @@ impl SharedSourceRoots {
             if !collection.has_pending() {
                 let bodies = CanonicalExportGenericCallableBodiesV1::try_new(bodies)
                     .map_err(GenericTemplateProductionError::Table)?;
-                return Ok((roots, bodies));
+                let initializations =
+                    crate::CanonicalExportGenericInitializationsV1::try_new(initializations)
+                        .map_err(GenericTemplateProductionError::Initialization)?;
+                return Ok((roots, bodies, initializations));
             }
         }
     }

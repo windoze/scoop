@@ -112,6 +112,8 @@ lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的
 
 无自身类型参数的局部声明保持 `PersistentFunctionId`，其继承实参通过 enclosing callable application 表达；局部 generic 声明另外保留自身实参组。词法正文从已有正文表读取，不成为可按名字导入的源码接口。该正文的 binder 已在定义处检查，消费端保存有序替换参数及已有条件约束；它们与需要参与源码推断的声明参数使用不同表示，不能伪造一组无约束声明参数来填充接口。
 
+构造初始化表按原名义声明保存公共序列与各构造器：class 的 common initialization 只保存一次，primary 保留 base delegation 和参数到字段的写入，secondary 区分 `this` 与 terminal `super` 委托，并保留其后执行的正文；struct 区分 primary 值构造与 secondary 委托。委托实参、字段初始化、`init` 和次构造正文共用含局部值表、typed statements 与实际结果列表的执行片段；纯语句片段的结果列表为空，不填充假的 Unit。构造参数用原源码位置对应的 `Parameter` selector，初始化接收者用 `This` selector，字段访问继续使用原 typed field identity。class 的委托复用同一个已分配接收者，common sequence 中的 stored/delegate 写入与 `init` 按源码顺序执行。shape、参数调用协议和 bounds 仍由既有共有声明表提供。
+
 ### 3.3 默认参数的边界
 
 public default 仍只能直接引用覆盖其完整调用域的实体；generic body 可以引用定义处合法的 narrower 实现。二者共享节点不共享访问规则。private generic helper 自己的默认值按该 helper 的实际调用域检查，不能把正文依赖资格传播给 public default。
@@ -383,6 +385,8 @@ HIR identity-foundation `/3`、MIR identity-foundation `/1`、现有 compiler pr
 HIR cross-cone-interface 的新增字段直接保存三张 canonical 表：field 11=按 typed callable owner 排序的 body records，field 12=按 nominal/constructor owner 排序的 common/delegation initialization records，field 13=按 extension property ID 排序的 delegate templates。每条记录引用共有声明、签名和定义位置，内含完整 body/sequence 与该记录实际需要的 predicates；无对应内容时表为空。禁止用空 body 表示 abstract、intrinsic 或缺失实现。
 
 生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 增加必需 field 13；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
+
+构造初始化生产与读取启用 `/33`，当前 interface 是必需 field 1～12 的十二字段 product。field 12 中每个 nominal record 为 `{1=generic type owner, 2=common steps, 3=constructors}`；constructor 数组非空并按原 typed constructor reference 严格递增，nominal records 按 owner 严格递增。constructor 是六字段 product：declaration、inputs、effects、predicates、definition origin、kind。kind 1 为 struct primary；kind 2 为 struct secondary（delegation、body）；kind 3 为 class primary（base、primary stores）；kind 4 为 class secondary this（delegation、body）；kind 5 为 class terminal secondary（base、body）。base 用长度为 0 或 1 的数组区分根类和实际基类委托。delegation 保存目标和实参片段；primary store 保存原 field reference 和参数 selector。common field step 保存原 field reference 和单结果片段，common body step 保存无结果片段。所有片段统一使用 `{1=locals, 2=statements, 3=results}`，复用既有 typed 节点、局部值索引和引用解析；不重复声明表的 shape，也不为 abstract/intrinsic 构造产生执行记录。源码生产先排序，reader 保留 wire 顺序并在记录构造边界完成一次格式与引用形状检查。后续 `/34` 的 delegate table 不提前写入当前 payload。
 
 共有 external reference 的实际 call-site product 使用必需 field 8 保存实例化分支：`{0=1}` 表示直接调用，`{0=2, 1=PersistentCallableApplicationId}` 表示 application。该 ID 引用已有 canonical application 表，不复制 binder、实参或另一份签名。读取时将 application 的原声明、宿主与 callable 实参连接到 provider 声明，并检查完全替换后的实际参数与结果类型；泛型声明不能使用直接分支，application 不能引用另一声明。实际泛型调用和参数自由调用使用同一 occurrence、绑定记录和 source-location 路径。实例化正文中的调用保留 provider 的求值位置，按实际 root 的模板定义检查；普通消费方调用及默认值展开继续使用自己的求值位置，不要求所有调用位置都属于消费 Cone。
 

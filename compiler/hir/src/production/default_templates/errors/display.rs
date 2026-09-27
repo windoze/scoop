@@ -158,6 +158,13 @@ impl fmt::Display for DefaultBodyProjectionError {
                     "default body references unknown binding {binding}"
                 )
             }
+            Self::UnknownConstructorParameter(parameter) => write!(
+                formatter,
+                "template references unknown constructor parameter {parameter}"
+            ),
+            Self::MissingInitializingReceiver => {
+                formatter.write_str("template field access has no initializing receiver")
+            }
             Self::InvalidCaptureSource => {
                 formatter.write_str("default body capture source is not canonical")
             }

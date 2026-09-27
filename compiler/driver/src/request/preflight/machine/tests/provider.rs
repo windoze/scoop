@@ -91,6 +91,7 @@ impl Provider {
             scoop_hir::CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
             scoop_hir::CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
             Default::default(),
+            Default::default(),
         );
         Self {
             coordinate,
