@@ -501,7 +501,8 @@ fn resolve_target(
                 .get(table_index as usize)
                 .ok_or(ObjectRelocationValidationError::InvalidSymbolTarget { table_index })?;
             match symbol.kind() {
-                DarwinArm64SymbolKindV1::ExternalStrongDefinition => Err(
+                DarwinArm64SymbolKindV1::ExternalStrongDefinition
+                | DarwinArm64SymbolKindV1::ExternalWeakDefinition => Err(
                     ObjectRelocationValidationError::UnplannedStrongDefinitionTarget {
                         table_index,
                     },

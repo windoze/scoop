@@ -6,7 +6,6 @@ use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
     PersistentCallableBodyId, PersistentSafepointSiteId,
 };
-use scoop_wire::HashError;
 
 use super::DarwinAarch64StackmapMachineCodeError;
 use crate::SlibMemberId;
@@ -25,11 +24,9 @@ pub enum ScoopLirStackmapValidationError {
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
-    DefinitionIdentity(HashError),
-    InvalidCallableDefinition(PersistentCallableBodyId),
     MissingOwnerDefinitionAssignment {
         site: PersistentSafepointSiteId,
-        definition: ObjectDefinitionPlanId,
+        owner: PersistentCallableBodyId,
     },
     OwnerAssignedToNonScoopMember {
         site: PersistentSafepointSiteId,
@@ -63,11 +60,6 @@ pub enum ScoopLirStackmapValidationError {
     NonCallableFunctionTarget {
         member: SlibMemberId,
         table_index: u32,
-    },
-    CallableDefinitionMismatch {
-        member: SlibMemberId,
-        owner: PersistentCallableBodyId,
-        definition: ObjectDefinitionPlanId,
     },
     UnexpectedFunctionOwner {
         member: SlibMemberId,
@@ -126,7 +118,6 @@ impl fmt::Display for ScoopLirStackmapValidationError {
 impl std::error::Error for ScoopLirStackmapValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::DefinitionIdentity(source) => Some(source),
             Self::PhysicalSection { source, .. } => Some(source),
             Self::Normalization { source, .. } => Some(source),
             Self::MachineCode { source, .. } => Some(source),

@@ -5,7 +5,7 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionPlanOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::{
@@ -243,6 +243,7 @@ pub fn verify_current_cone_strong_relocation_closure_v1(
 struct IndexedStrongSymbol<'a> {
     member: SlibMemberId,
     role: PlannedStrongObjectSymbolRoleV1,
+    definition_owner: ObjectDefinitionPlanOwner,
     name: &'a [u8],
 }
 
@@ -263,6 +264,7 @@ fn index_strong_definitions(
             let indexed = IndexedStrongSymbol {
                 member: member.member(),
                 role: symbol.role(),
+                definition_owner: symbol.definition_owner(),
                 name: symbol.macho_name(),
             };
             if symbols
@@ -374,14 +376,18 @@ fn collect_target_binding(
             else {
                 unreachable!("the primary-definition index contains only primary symbols")
             };
-            let owner = LinkDefinitionOwnerV1::from_strong_primary(owner, definition_role)
-                .map_err(|_| {
-                    StrongRelocationClosureValidationError::InvalidResolvedDefinitionOwner {
-                        definition: *definition,
-                        owner,
-                        definition_role,
-                    }
-                })?;
+            let owner = LinkDefinitionOwnerV1::from_definition(
+                indexed.definition_owner,
+                owner,
+                definition_role,
+            )
+            .map_err(|_| {
+                StrongRelocationClosureValidationError::InvalidResolvedDefinitionOwner {
+                    definition: *definition,
+                    owner,
+                    definition_role,
+                }
+            })?;
             (
                 indexed.name.to_vec(),
                 StrongRelocationResolutionV1::ObjectLocalStrong {
@@ -411,7 +417,7 @@ fn collect_target_binding(
                             );
                             }
                             let link_owner =
-                            LinkDefinitionOwnerV1::from_strong_primary(owner, definition_role)
+                            LinkDefinitionOwnerV1::from_definition(indexed.definition_owner, owner, definition_role)
                                 .map_err(|_| {
                                 StrongRelocationClosureValidationError::InvalidResolvedDefinitionOwner {
                                     definition,

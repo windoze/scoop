@@ -148,7 +148,18 @@ fn validate_digest_graph(
                 kind: Failure::MissingObjectDefinitionNode,
             },
         )?;
-    if !object.direct_inputs().is_empty() {
+    let odr = matches!(
+        plan.definition_owner(),
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
+    );
+    let expected_object_inputs = if odr {
+        vec![DigestInputRefV1::StackmapRecord(
+            plan.normalized_stackmap_fingerprint_node(),
+        )]
+    } else {
+        Vec::new()
+    };
+    if object.direct_inputs() != expected_object_inputs {
         return Err(
             StrongSafepointRegistrationValidationError::DigestPlanMismatch {
                 site: plan.site(),
@@ -183,7 +194,7 @@ fn validate_digest_graph(
             },
         );
     }
-    let registration_key = DigestNodeKey::strong_registration(plan.definition_plan());
+    let registration_key = plan.definition_owner().digest_key(plan.definition_plan());
     let registration = digest_plan
         .nodes()
         .iter()
@@ -202,12 +213,25 @@ fn validate_digest_graph(
             },
         );
     }
-    if registration.direct_inputs()
-        != [
-            DigestInputRefV1::from_node(object),
-            DigestInputRefV1::from_node(stackmap),
-        ]
-    {
+    let mut expected_inputs = vec![
+        DigestInputRefV1::from_node(object),
+        DigestInputRefV1::from_node(stackmap),
+    ];
+    if odr {
+        let lir = digest_plan
+            .nodes()
+            .iter()
+            .find(|node| node.key() == &DigestNodeKey::lir_definition(plan.primary_atom()))
+            .ok_or(
+                StrongSafepointRegistrationValidationError::DigestPlanMismatch {
+                    site: plan.site(),
+                    kind: Failure::RegistrationDirectInputs,
+                },
+            )?;
+        expected_inputs.push(DigestInputRefV1::from_node(lir));
+    }
+    expected_inputs.sort_unstable();
+    if registration.direct_inputs() != expected_inputs {
         return Err(
             StrongSafepointRegistrationValidationError::DigestPlanMismatch {
                 site: plan.site(),

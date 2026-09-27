@@ -112,6 +112,10 @@ fn encode_legacy_requirement(
     requirement: FinalUndefinedSymbolRequirementV1,
 ) -> Result<(), RuntimeEncodeError> {
     match requirement {
+        FinalUndefinedSymbolRequirementV1::OdrMember { member } => {
+            encoder.u32(14)?;
+            encoder.fixed(member.as_array())
+        }
         FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner } => {
             encoder.u32(1)?;
             encode_strong_owner(encoder, owner)

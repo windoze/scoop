@@ -5,7 +5,8 @@ use std::fmt;
 use std::num::NonZeroU8;
 
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    ConeIdentity, DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanOwner,
 };
 use scoop_wire::sha256;
 
@@ -19,6 +20,7 @@ use crate::SlibMemberId;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongDefinitionSymbolV1 {
     role: PlannedStrongObjectSymbolRoleV1,
+    definition_owner: ObjectDefinitionPlanOwner,
     macho_name: Vec<u8>,
     table_index: u32,
     section_ordinal: NonZeroU8,
@@ -28,6 +30,10 @@ pub struct VerifiedStrongDefinitionSymbolV1 {
 }
 
 impl VerifiedStrongDefinitionSymbolV1 {
+    pub const fn definition_owner(&self) -> ObjectDefinitionPlanOwner {
+        self.definition_owner
+    }
+
     pub const fn role(&self) -> PlannedStrongObjectSymbolRoleV1 {
         self.role
     }
@@ -186,12 +192,13 @@ pub fn verify_member_strong_object_definitions_v1(
         .map(|symbol| (symbol.macho_name().to_vec(), symbol))
         .collect::<BTreeMap<_, _>>();
     let mut actual = BTreeMap::<Vec<u8>, &ObservedMachOSymbolV1>::new();
-    for symbol in sections
-        .envelope()
-        .symbols()
-        .iter()
-        .filter(|symbol| symbol.kind() == DarwinArm64SymbolKindV1::ExternalStrongDefinition)
-    {
+    for symbol in sections.envelope().symbols().iter().filter(|symbol| {
+        matches!(
+            symbol.kind(),
+            DarwinArm64SymbolKindV1::ExternalStrongDefinition
+                | DarwinArm64SymbolKindV1::ExternalWeakDefinition
+        )
+    }) {
         if actual.insert(symbol.name().to_vec(), symbol).is_some() {
             return Err(
                 StrongObjectDefinitionValidationError::DuplicateExternalStrongDefinition {
@@ -219,6 +226,17 @@ pub fn verify_member_strong_object_definitions_v1(
     let mut definitions = BTreeMap::<ObjectDefinitionPlanId, DefinitionAccumulator>::new();
     for (name, planned) in expected {
         let observed = actual[&name];
+        let expected_weak = planned.request().linkage() == LinkageClass::OdrWeak;
+        let actual_weak = observed.kind() == DarwinArm64SymbolKindV1::ExternalWeakDefinition;
+        if expected_weak != actual_weak {
+            return Err(
+                StrongObjectDefinitionValidationError::DefinitionLinkageMismatch {
+                    name,
+                    expected: planned.request().linkage(),
+                    actual: observed.kind(),
+                },
+            );
+        }
         let section_ordinal = observed.section_ordinal().ok_or(
             StrongObjectDefinitionValidationError::ExternalDefinitionWithoutSection {
                 table_index: observed.table_index(),
@@ -233,6 +251,7 @@ pub fn verify_member_strong_object_definitions_v1(
         record_definition_symbol(&mut definitions, role, location)?;
         symbols.push(VerifiedStrongDefinitionSymbolV1 {
             role,
+            definition_owner: planned.definition_owner(),
             macho_name: name,
             table_index: location.table_index,
             section_ordinal: location.section_ordinal,
@@ -582,6 +601,11 @@ fn validate_zero_padding(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongObjectDefinitionValidationError {
+    DefinitionLinkageMismatch {
+        name: Vec<u8>,
+        expected: LinkageClass,
+        actual: DarwinArm64SymbolKindV1,
+    },
     ObjectBytesMismatch,
     DuplicateExternalStrongDefinition {
         name: Vec<u8>,

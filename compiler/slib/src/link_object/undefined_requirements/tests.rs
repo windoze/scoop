@@ -34,7 +34,7 @@ fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
     ));
     assert_eq!(
         hex(&encode(&runtime).unwrap()),
-        "81a201aa0158204944a769dc38fa9fb4ba158a185c5343204e5dbb92e8dabfc75dc31b3359be4f0258201ac89db56dadcbb38d882cd5fc8b7b9a8b894ee48d502b5afb345a59078b549c030104010500060407a10009081addccbbaa09010a581c5f73636f6f705f72745f616c6c6f636174696f6e5f636f6e7465787402a200050158204d8d73e6d4d595109a62671e6c0e6433eb90a696d799001db658399c5a20e1a4"
+        "81a201aa015820fd1949b2935319000749d2c7a983ce897886f97fb910565e6e0524ca5d3f916d0258201ac89db56dadcbb38d882cd5fc8b7b9a8b894ee48d502b5afb345a59078b549c030104010500060407a10009081addccbbaa09010a581c5f73636f6f705f72745f616c6c6f636174696f6e5f636f6e7465787402a200050158204d8d73e6d4d595109a62671e6c0e6433eb90a696d799001db658399c5a20e1a4"
     );
 
     let eh = final_from_external(classify(b"__Unwind_Resume"));
@@ -46,7 +46,15 @@ fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
 }
 
 #[test]
-fn service_requirement_tags_are_retired() {
+fn odr_requirement_uses_a_new_tag_and_keeps_service_tags_retired() {
+    let mut bytes = vec![0xa2, 0x00, 0x09, 0x01, 0x58, 0x20];
+    bytes.extend_from_slice(&[0x5a; 32]);
+    let decoded = decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&bytes).unwrap();
+    assert!(matches!(
+        decoded,
+        DecodedFinalUndefinedSymbolRequirementV1::OdrMember { .. }
+    ));
+    assert_eq!(encode(&decoded).unwrap(), bytes);
     for tag in [2, 8] {
         assert!(matches!(
             decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&[0xa1, 0, tag]),

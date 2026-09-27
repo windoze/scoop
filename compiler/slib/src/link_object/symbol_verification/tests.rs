@@ -78,6 +78,27 @@ fn rejects_duplicate_and_unexpected_external_definitions() {
 }
 
 #[test]
+fn rejects_weak_definition_for_a_planned_strong_symbol() {
+    let fixture = fixture();
+    let mut object = object_for_plan(&fixture.symbols, canonical_value);
+    object.bytes[object.symbol_offset + 6..object.symbol_offset + 8]
+        .copy_from_slice(&macho::N_WEAK_DEF.to_le_bytes());
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
+        .unwrap()
+        .into_sections();
+    assert!(matches!(
+        verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols),
+        Err(
+            StrongObjectDefinitionValidationError::DefinitionLinkageMismatch {
+                expected: LinkageClass::ConeStrong,
+                actual: DarwinArm64SymbolKindV1::ExternalWeakDefinition,
+                ..
+            }
+        )
+    ));
+}
+
+#[test]
 fn rejects_empty_ranges_and_displaced_primary_symbols() {
     let fixture = fixture();
     let empty = object_for_plan(&fixture.symbols, |role| match role {

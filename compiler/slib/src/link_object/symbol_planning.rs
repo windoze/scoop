@@ -5,7 +5,8 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionPlanOwner, PersistentSymbolRequest, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_lir::{LirTargetProfile, ObjectSymbolSurfaceV1};
 
@@ -35,11 +36,16 @@ pub enum PlannedStrongObjectSymbolRoleV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedStrongObjectSymbolV1 {
     role: PlannedStrongObjectSymbolRoleV1,
+    definition_owner: ObjectDefinitionPlanOwner,
     request: PersistentSymbolRequest,
     macho_name: Vec<u8>,
 }
 
 impl PlannedStrongObjectSymbolV1 {
+    pub const fn definition_owner(&self) -> ObjectDefinitionPlanOwner {
+        self.definition_owner
+    }
+
     pub const fn role(&self) -> PlannedStrongObjectSymbolRoleV1 {
         self.role
     }
@@ -123,6 +129,7 @@ impl PlannedStrongObjectSymbolSetV1 {
                     primary_atom: plan.primary_atom(),
                 },
                 plan.primary_symbol(),
+                plan.definition_owner(),
                 normalization,
             )?;
             for boundary in plan.atom_boundaries() {
@@ -135,6 +142,7 @@ impl PlannedStrongObjectSymbolSetV1 {
                         atom_role: boundary.atom_role(),
                     },
                     boundary.start(),
+                    plan.definition_owner(),
                     normalization,
                 )?;
                 insert_symbol(
@@ -146,6 +154,7 @@ impl PlannedStrongObjectSymbolSetV1 {
                         atom_role: boundary.atom_role(),
                     },
                     boundary.end(),
+                    plan.definition_owner(),
                     normalization,
                 )?;
             }
@@ -209,6 +218,7 @@ fn insert_symbol(
     member: SlibMemberId,
     role: PlannedStrongObjectSymbolRoleV1,
     request: PersistentSymbolRequest,
+    definition_owner: ObjectDefinitionPlanOwner,
     normalization: scoop_lir::NativeSymbolNormalization,
 ) -> Result<(), StrongObjectSymbolPlanningError> {
     let macho_name = normalization
@@ -216,6 +226,7 @@ fn insert_symbol(
         .into_bytes();
     let symbol = PlannedStrongObjectSymbolV1 {
         role,
+        definition_owner,
         request,
         macho_name: macho_name.clone(),
     };

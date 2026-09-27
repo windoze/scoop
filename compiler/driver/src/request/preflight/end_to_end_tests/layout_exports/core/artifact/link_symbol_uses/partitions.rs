@@ -51,6 +51,9 @@ pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> (usize, [us
     for requirement in legacy {
         use slib::FinalUndefinedSymbolRequirementV1 as Requirement;
         categories[match requirement.requirement() {
+            Requirement::OdrMember { .. } => {
+                panic!("a Strong fixture cannot reference an ODR member")
+            }
             Requirement::IntraConeStrong { .. } => 0,
             Requirement::GeneratedBridge { .. } => 1,
             Requirement::SourceExtern { .. } => 2,

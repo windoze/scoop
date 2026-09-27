@@ -155,6 +155,13 @@ fn actual_generic_library_emits_shared_odr_objects() {
             &dependencies,
             &selected_layout,
         );
+        let generated = scoop_codegen::emit_c_bridge_object_set(
+            &lir,
+            sysroot.path(),
+            target.c_bridge_toolchain(),
+        )
+        .unwrap();
+        objects::verify(objects, &generated, expected_bodies);
         let replayed = scoop_lir::replay_digest_finalization_plan_v2(
             lir.foundation(),
             production.registration_production(),

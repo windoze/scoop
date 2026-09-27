@@ -148,7 +148,11 @@ pub fn verify_darwin_arm64_stackmap_section_v3(
                     table_index: target_symbol_table_index,
                 },
             )?;
-        if symbol.kind() != DarwinArm64SymbolKindV1::ExternalStrongDefinition {
+        if !matches!(
+            symbol.kind(),
+            DarwinArm64SymbolKindV1::ExternalStrongDefinition
+                | DarwinArm64SymbolKindV1::ExternalWeakDefinition
+        ) {
             return Err(
                 DarwinArm64StackmapSectionError::InvalidFunctionTargetSymbol {
                     index,

@@ -1,8 +1,7 @@
 //! Complete member-aware stackmap coverage against final LIR semantics.
 
 use scoop_identity::{
-    DefinitionAtomRole, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId,
-    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
+    DefinitionAtomRole, PersistentCallableBodyId, StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 use scoop_lir::{StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1};
 use std::collections::{BTreeMap, BTreeSet};
@@ -184,17 +183,37 @@ fn expected_sites_by_member(
         .map(|member| member.member_id())
         .collect::<BTreeSet<_>>();
     let mut by_member = BTreeMap::<SlibMemberId, Vec<_>>::new();
+    let assignments = builtins
+        .strong_relocations()
+        .members()
+        .iter()
+        .flat_map(|member| {
+            member
+                .definitions()
+                .symbols()
+                .iter()
+                .filter_map(move |symbol| match symbol.role() {
+                    PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                        owner,
+                        definition_role: StrongDefinitionRole::CallableBody,
+                        ..
+                    } => match owner.kind() {
+                        StrongDefinitionEntityKind::CallableBody(body) => {
+                            Some((body, member.member()))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                })
+        })
+        .collect::<BTreeMap<_, _>>();
     for site in semantic_plan.sites() {
-        let definition = callable_definition(semantic_plan.producer(), site.owner())?;
-        let member = builtins
-            .member_plan()
-            .member_for_definition(definition)
-            .ok_or(
-                ScoopLirStackmapValidationError::MissingOwnerDefinitionAssignment {
-                    site: site.site(),
-                    definition,
-                },
-            )?;
+        let member = assignments.get(&site.owner()).copied().ok_or(
+            ScoopLirStackmapValidationError::MissingOwnerDefinitionAssignment {
+                site: site.site(),
+                owner: site.owner(),
+            },
+        )?;
         if !scoop_members.contains(&member) {
             return Err(
                 ScoopLirStackmapValidationError::OwnerAssignedToNonScoopMember {
@@ -206,20 +225,6 @@ fn expected_sites_by_member(
         by_member.entry(member).or_default().push(*site);
     }
     Ok(by_member)
-}
-
-fn callable_definition(
-    producer: scoop_identity::ConeIdentity,
-    owner: PersistentCallableBodyId,
-) -> Result<ObjectDefinitionPlanId, ScoopLirStackmapValidationError> {
-    let key = ObjectDefinitionPlanKey::strong(
-        producer,
-        StrongDefinitionEntity::callable_body(owner),
-        StrongDefinitionRole::CallableBody,
-    )
-    .map_err(|_| ScoopLirStackmapValidationError::InvalidCallableDefinition(owner))?;
-    ObjectDefinitionPlanId::from_key(&key)
-        .map_err(ScoopLirStackmapValidationError::DefinitionIdentity)
 }
 
 fn verified_member(
@@ -312,15 +317,6 @@ fn verify_member_records(
                 table_index: function.target_symbol_table_index(),
             });
         };
-        if callable_definition(member.producer(), owner)? != definition {
-            return Err(
-                ScoopLirStackmapValidationError::CallableDefinitionMismatch {
-                    member: member.member(),
-                    owner,
-                    definition,
-                },
-            );
-        }
         let expected_for_owner = expected_by_owner.get(&owner).ok_or(
             ScoopLirStackmapValidationError::UnexpectedFunctionOwner {
                 member: member.member(),

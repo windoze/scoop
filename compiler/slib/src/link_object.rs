@@ -18,6 +18,7 @@ use crate::{
 
 mod wire;
 pub(crate) use wire::DecodedFixedBytesV1;
+mod registration_identity;
 
 const SCOOP_LIR_UNIT_SET_DOMAIN: &str = "scoop-lir-object-unit-set-v1";
 const GENERATED_BRIDGE_UNIT_SET_DOMAIN: &str = "scoop-generated-bridge-object-unit-set-v1";
@@ -443,7 +444,7 @@ impl WireDecode for DecodedGeneratedBridgeObjectLogicalKeyV1 {
 }
 
 pub fn scoop_lir_link_object_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.link-object", "scoop-lir", 1)
+    CapabilityId::new("org.scoop-lang.link-object", "scoop-lir", 2)
         .expect("built-in Scoop LIR object capability is valid")
 }
 

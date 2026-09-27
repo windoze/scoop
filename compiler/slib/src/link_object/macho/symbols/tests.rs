@@ -71,10 +71,16 @@ fn accepts_only_nonlazy_external_undefined_symbols() {
         &bytes,
         DarwinArm64SymbolInventoryValidationError::InvalidUndefinedSymbol { index: 0 },
     );
+    write_u64(&mut bytes, SYMBOL_OFFSET + 8, 0);
+    write_u16(&mut bytes, SYMBOL_OFFSET + 6, macho::N_WEAK_REF);
+    assert_symbol_error(
+        &bytes,
+        DarwinArm64SymbolInventoryValidationError::InvalidUndefinedSymbol { index: 0 },
+    );
 }
 
 #[test]
-fn rejects_empty_names_weakness_and_unsupported_symbol_forms() {
+fn rejects_empty_names_weak_references_and_unsupported_symbol_forms() {
     let mut empty_name = super::super::tests::object_with_text_section();
     write_u32(&mut empty_name, SYMBOL_OFFSET, 0);
     assert_symbol_error(
@@ -83,12 +89,12 @@ fn rejects_empty_names_weakness_and_unsupported_symbol_forms() {
     );
 
     let mut weak = super::super::tests::object_with_text_section();
-    write_u16(&mut weak, SYMBOL_OFFSET + 6, macho::N_WEAK_DEF);
+    write_u16(&mut weak, SYMBOL_OFFSET + 6, macho::N_WEAK_REF);
     assert_symbol_error(
         &weak,
         DarwinArm64SymbolInventoryValidationError::UnsupportedSymbolDescription {
             index: 0,
-            actual: macho::N_WEAK_DEF,
+            actual: macho::N_WEAK_REF,
         },
     );
 
@@ -99,6 +105,34 @@ fn rejects_empty_names_weakness_and_unsupported_symbol_forms() {
         DarwinArm64SymbolInventoryValidationError::UnsupportedSymbolType {
             index: 0,
             actual: macho::N_ABS | macho::N_EXT,
+        },
+    );
+}
+
+#[test]
+fn preserves_external_weak_definition_flags_and_rejects_local_weak_symbols() {
+    let mut bytes = super::super::tests::object_with_text_section();
+    for flags in [
+        macho::N_WEAK_DEF,
+        macho::N_WEAK_DEF | macho::N_ALT_ENTRY,
+        macho::N_WEAK_DEF | macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY,
+    ] {
+        write_u16(&mut bytes, SYMBOL_OFFSET + 6, flags);
+        let envelope = validate_darwin_arm64_object_envelope_v1(&bytes).unwrap();
+        let symbol = &envelope.symbols()[0];
+        assert_eq!(
+            symbol.kind(),
+            DarwinArm64SymbolKindV1::ExternalWeakDefinition
+        );
+        assert_eq!(symbol.no_dead_strip(), flags & macho::N_NO_DEAD_STRIP != 0);
+    }
+    bytes[SYMBOL_OFFSET + 4] = macho::N_SECT;
+    write_u16(&mut bytes, SYMBOL_OFFSET + 6, macho::N_WEAK_DEF);
+    assert_symbol_error(
+        &bytes,
+        DarwinArm64SymbolInventoryValidationError::UnsupportedSymbolDescription {
+            index: 0,
+            actual: macho::N_WEAK_DEF,
         },
     );
 }

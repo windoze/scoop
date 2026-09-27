@@ -4,7 +4,7 @@ use std::fmt;
 
 use scoop_identity::{
     DecodedNativeLibraryBinding, DecodedPersistentId, DefinitionAtomRole, GeneratedBridgeUnitId,
-    NativeExternalContractFingerprint, ObjectDefinitionAtomId,
+    NativeExternalContractFingerprint, ObjectDefinitionAtomId, OdrMemberId,
 };
 use scoop_lir::{
     CBridgeTargetSupportRequirementId, RuntimeSymbolContractId, TargetEhRequirementId,
@@ -25,6 +25,7 @@ use crate::link_object::{
 impl WireEncode for FinalUndefinedSymbolRequirementV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::OdrMember { member } => encode_one_field_sum(encoder, 9, member),
             Self::IntraConeStrong { owner } => encode_one_field_sum(encoder, 1, owner),
             Self::GeneratedBridge { unit } => encode_one_field_sum(encoder, 3, unit),
             Self::SourceExtern { contract, library } => {
@@ -90,6 +91,9 @@ impl WireEncode for CanonicalUndefinedRelocationUseV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
+    OdrMember {
+        member: DecodedPersistentId<OdrMemberId>,
+    },
     IntraConeStrong {
         owner: DecodedStrongDefinitionOwnerV1,
     },
@@ -115,6 +119,7 @@ pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
 impl WireEncode for DecodedFinalUndefinedSymbolRequirementV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::OdrMember { member } => encode_one_field_sum(encoder, 9, member),
             Self::IntraConeStrong { owner } => encode_one_field_sum(encoder, 1, owner),
             Self::GeneratedBridge { unit } => encode_one_field_sum(encoder, 3, unit),
             Self::SourceExtern { contract, library } => {
@@ -174,6 +179,12 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
                 decoder
                     .field(1, DecodedFixedBytesV1::decode)
                     .map(|contract| Self::CBridgeTargetSupport { contract })
+            }
+            9 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, DecodedPersistentId::decode)
+                    .map(|member| Self::OdrMember { member })
             }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }

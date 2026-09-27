@@ -4,7 +4,6 @@ use super::StrongCallableRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
 const ABI_VERSION: u32 = 1;
-const STRONG_LINKAGE: u32 = 1;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const BODY_DEFINITION_FINGERPRINT_OFFSET: usize = 152;
 const DIGEST_WIDTH: usize = 32;
@@ -48,8 +47,12 @@ pub(in crate::link_object) fn expected_record(
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    write_u32(&mut bytes, 16, STRONG_LINKAGE);
-    bytes[24..56].copy_from_slice(plan.body().as_array());
+    bytes[16..152].copy_from_slice(
+        &crate::link_object::registration_identity::provisional_registration_identity(
+            plan.body().as_array(),
+            plan.definition_owner(),
+        ),
+    );
     bytes
 }
 

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, GeneratedBridgeAtomId, GeneratedBridgeUnitId, ObjectDefinitionPlanId,
+    ConeIdentity, GeneratedBridgeAtomId, GeneratedBridgeUnitId, ObjectDefinitionPlanId, OdrMemberId,
 };
 use scoop_lir::GeneratedBridgePlanSetV1;
 
@@ -17,6 +17,7 @@ use crate::SlibMemberId;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CurrentConeUndefinedRequirementV1 {
     IntraConeStrong { owner: StrongDefinitionOwnerV1 },
+    OdrMember { member: OdrMemberId },
     GeneratedBridge { unit: GeneratedBridgeUnitId },
 }
 
@@ -111,6 +112,9 @@ pub fn verify_current_cone_undefined_requirements_v1(
         let requirement = match owner {
             LinkDefinitionOwnerV1::StrongDefinition(owner) => {
                 CurrentConeUndefinedRequirementV1::IntraConeStrong { owner }
+            }
+            LinkDefinitionOwnerV1::OdrDefinition(member) => {
+                CurrentConeUndefinedRequirementV1::OdrMember { member }
             }
             LinkDefinitionOwnerV1::GeneratedBridge(atom) => {
                 let Some((unit, is_primary)) = bridge_atoms.get(&atom).copied() else {

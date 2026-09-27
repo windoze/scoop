@@ -59,6 +59,7 @@ impl WireEncode for AtomBoundarySymbolsV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DefinitionSymbolPlanV1 {
     definition_plan: ObjectDefinitionPlanId,
+    definition_owner: ObjectDefinitionPlanOwner,
     owner: StrongDefinitionEntity,
     definition_role: StrongDefinitionRole,
     primary_atom: ObjectDefinitionAtomId,
@@ -67,6 +68,10 @@ pub struct DefinitionSymbolPlanV1 {
 }
 
 impl DefinitionSymbolPlanV1 {
+    pub const fn definition_owner(&self) -> ObjectDefinitionPlanOwner {
+        self.definition_owner
+    }
+
     pub const fn definition_plan(&self) -> ObjectDefinitionPlanId {
         self.definition_plan
     }
@@ -187,6 +192,7 @@ impl ObjectSymbolSurfaceV1 {
                 .collect::<Result<Vec<_>, _>>()?;
             plans.push(DefinitionSymbolPlanV1 {
                 definition_plan,
+                definition_owner: key.owner(),
                 owner: entity,
                 definition_role,
                 primary_atom: definition.primary_atom(),

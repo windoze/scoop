@@ -12,6 +12,7 @@ use super::ObservedMachOSectionV1;
 pub enum DarwinArm64SymbolKindV1 {
     LocalSectionDefinition,
     ExternalStrongDefinition,
+    ExternalWeakDefinition,
     ExternalUndefined,
 }
 
@@ -108,15 +109,15 @@ fn classify_symbol(
             false,
         ),
         symbol_type if symbol_type == (macho::N_SECT | macho::N_EXT) => (
-            DarwinArm64SymbolKindV1::ExternalStrongDefinition,
+            external_definition_kind(description),
             validate_definition_location(table_index, symbol.n_sect, value, sections)?,
-            validate_definition_description(table_index, description)?,
+            validate_definition_description(table_index, description & !macho::N_WEAK_DEF)?,
             false,
         ),
         symbol_type if symbol_type == (macho::N_SECT | macho::N_EXT | macho::N_PEXT) => (
-            DarwinArm64SymbolKindV1::ExternalStrongDefinition,
+            external_definition_kind(description),
             validate_definition_location(table_index, symbol.n_sect, value, sections)?,
-            validate_definition_description(table_index, description)?,
+            validate_definition_description(table_index, description & !macho::N_WEAK_DEF)?,
             true,
         ),
         symbol_type if symbol_type == (macho::N_UNDF | macho::N_EXT) => {
@@ -184,6 +185,14 @@ fn validate_definition_location(
     Ok(Some(ordinal))
 }
 
+fn external_definition_kind(description: u16) -> DarwinArm64SymbolKindV1 {
+    if description & macho::N_WEAK_DEF != 0 {
+        DarwinArm64SymbolKindV1::ExternalWeakDefinition
+    } else {
+        DarwinArm64SymbolKindV1::ExternalStrongDefinition
+    }
+}
+
 fn validate_definition_description(
     index: u32,
     description: u16,
@@ -218,7 +227,13 @@ fn validate_partition(
         } else {
             DarwinArm64SymbolKindV1::ExternalUndefined
         };
-        if symbol.kind != expected {
+        let actual = match symbol.kind {
+            DarwinArm64SymbolKindV1::ExternalWeakDefinition => {
+                DarwinArm64SymbolKindV1::ExternalStrongDefinition
+            }
+            kind => kind,
+        };
+        if actual != expected {
             return Err(
                 DarwinArm64SymbolInventoryValidationError::DynamicPartitionKindMismatch {
                     index: symbol.table_index,

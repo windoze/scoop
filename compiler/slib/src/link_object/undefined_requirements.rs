@@ -11,6 +11,7 @@ use super::{
 use crate::SlibMemberId;
 use scoop_identity::{
     ConeIdentity, GeneratedBridgeUnitId, NativeExternalContractFingerprint, NativeLibraryBinding,
+    OdrMemberId,
 };
 use scoop_lir::{
     CBridgeTargetSupportRequirementId, RuntimeSymbolContractId, TargetEhRequirementId,
@@ -30,6 +31,9 @@ pub use partitions::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FinalUndefinedSymbolRequirementV1 {
+    OdrMember {
+        member: OdrMemberId,
+    },
     IntraConeStrong {
         owner: StrongDefinitionOwnerV1,
     },
@@ -162,6 +166,9 @@ pub(super) fn finalize_partitioned_undefined_symbol_requirements_with_additional
         let requirement = match item.requirement() {
             CurrentConeUndefinedRequirementV1::IntraConeStrong { owner } => {
                 FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner }
+            }
+            CurrentConeUndefinedRequirementV1::OdrMember { member } => {
+                FinalUndefinedSymbolRequirementV1::OdrMember { member }
             }
             CurrentConeUndefinedRequirementV1::GeneratedBridge { unit } => {
                 FinalUndefinedSymbolRequirementV1::GeneratedBridge { unit }

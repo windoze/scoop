@@ -4,7 +4,6 @@ use super::StrongSafepointRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
 const ABI_VERSION: u32 = 1;
-const STRONG_LINKAGE: u32 = 1;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 200;
 const DIGEST_WIDTH: usize = 32;
@@ -47,8 +46,12 @@ pub(super) fn expected_record(plan: StrongSafepointRegistrationPlanV1) -> [u8; D
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    write_u32(&mut bytes, 16, STRONG_LINKAGE);
-    bytes[24..56].copy_from_slice(plan.site().as_array());
+    bytes[16..152].copy_from_slice(
+        &crate::link_object::registration_identity::provisional_registration_identity(
+            plan.site().as_array(),
+            plan.definition_owner(),
+        ),
+    );
     write_u64(&mut bytes, 152, plan.safepoint().get());
     write_u32(&mut bytes, 160, plan.role().tag());
     write_u32(&mut bytes, 164, plan.root_pair_count());

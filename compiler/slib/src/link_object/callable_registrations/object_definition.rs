@@ -412,6 +412,11 @@ fn canonical_requirement(
 ) -> Result<CanonicalObjectDefinitionRequirementV1, ObjectDefinitionRelocationFailureV1> {
     match binding.resolution() {
         StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. } => match owner {
+            LinkDefinitionOwnerV1::OdrDefinition(member) => {
+                Ok(CanonicalObjectDefinitionRequirementV1::Legacy(
+                    FinalUndefinedSymbolRequirementV1::OdrMember { member },
+                ))
+            }
             LinkDefinitionOwnerV1::StrongDefinition(owner) => {
                 Ok(CanonicalObjectDefinitionRequirementV1::Legacy(
                     FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },

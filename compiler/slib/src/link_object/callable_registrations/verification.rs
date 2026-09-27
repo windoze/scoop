@@ -142,7 +142,18 @@ fn validate_digest_graph(
             },
         );
     }
-    if !registration_object.direct_inputs().is_empty() {
+    let odr = matches!(
+        plan.definition_owner(),
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
+    );
+    let expected_object_inputs = if odr {
+        vec![DigestInputRefV1::ObjectDefinition(
+            plan.body_definition_node(),
+        )]
+    } else {
+        Vec::new()
+    };
+    if registration_object.direct_inputs() != expected_object_inputs {
         return Err(
             StrongCallableRegistrationValidationError::DigestPlanMismatch {
                 body: plan.body(),
@@ -181,7 +192,7 @@ fn validate_digest_graph(
     let registration = digest_plan
         .nodes()
         .iter()
-        .find(|node| node.key() == &DigestNodeKey::strong_registration(plan.definition_plan()))
+        .find(|node| node.key() == &plan.definition_owner().digest_key(plan.definition_plan()))
         .ok_or(
             StrongCallableRegistrationValidationError::DigestPlanMismatch {
                 body: plan.body(),
@@ -196,10 +207,22 @@ fn validate_digest_graph(
             },
         );
     }
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(registration_object),
-        DigestInputRefV1::from_node(body_definition),
-    ];
+    let mut expected_inputs = vec![DigestInputRefV1::from_node(registration_object)];
+    if odr {
+        let lir = digest_plan
+            .nodes()
+            .iter()
+            .find(|node| node.key() == &DigestNodeKey::lir_definition(plan.primary_atom()))
+            .ok_or(
+                StrongCallableRegistrationValidationError::DigestPlanMismatch {
+                    body: plan.body(),
+                    kind: Failure::RegistrationDirectInputs,
+                },
+            )?;
+        expected_inputs.push(DigestInputRefV1::from_node(lir));
+    } else {
+        expected_inputs.push(DigestInputRefV1::from_node(body_definition));
+    }
     expected_inputs.sort_unstable();
     if registration.direct_inputs() != expected_inputs {
         return Err(
@@ -446,11 +469,12 @@ fn verify_entry_relocation(
                 body: plan.body(),
             },
         )?;
-    let expected_owner = LinkDefinitionOwnerV1::from_strong_primary(
+    let expected_owner = LinkDefinitionOwnerV1::from_definition(
+        body_symbol.definition_owner(),
         StrongDefinitionEntity::callable_body(plan.body()),
         StrongDefinitionRole::CallableBody,
     )
-    .expect("callable body is a valid strong definition owner");
+    .expect("callable body has a valid definition owner");
     let (target_member, target_definition, target_owner) = match binding.resolution() {
         StrongRelocationResolutionV1::ObjectLocalStrong {
             target_member,

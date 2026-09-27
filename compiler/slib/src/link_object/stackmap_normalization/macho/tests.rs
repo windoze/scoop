@@ -5,22 +5,24 @@ use crate::link_object::validate_scoop_lir_llvm_22_1_object_envelope_v1;
 
 #[test]
 fn qualifies_exact_function_address_relocations() {
-    let object = stackmap_object(0, &[RelocationKind::Unsigned], SymbolKind::Definition);
-    let sections = validated_sections(&object.bytes);
+    for kind in [SymbolKind::Definition, SymbolKind::WeakDefinition] {
+        let object = stackmap_object(0, &[RelocationKind::Unsigned], kind);
+        let sections = validated_sections(&object.bytes);
 
-    let verified = verify_darwin_arm64_stackmap_section_v3(&object.bytes, &sections)
-        .unwrap()
-        .unwrap();
+        let verified = verify_darwin_arm64_stackmap_section_v3(&object.bytes, &sections)
+            .unwrap()
+            .unwrap();
 
-    assert_eq!(verified.section_ordinal().get(), 1);
-    assert_eq!(verified.constants(), &[0xfeed, 0]);
-    assert_eq!(verified.record_count(), 1);
-    assert_eq!(verified.functions().len(), 1);
-    assert_eq!(verified.functions()[0].target_symbol_table_index(), 0);
-    assert_eq!(
-        verified.functions()[0].parsed().function_address_offset(),
-        16
-    );
+        assert_eq!(verified.section_ordinal().get(), 1);
+        assert_eq!(verified.constants(), &[0xfeed, 0]);
+        assert_eq!(verified.record_count(), 1);
+        assert_eq!(verified.functions().len(), 1);
+        assert_eq!(verified.functions()[0].target_symbol_table_index(), 0);
+        assert_eq!(
+            verified.functions()[0].parsed().function_address_offset(),
+            16
+        );
+    }
 }
 
 #[test]
@@ -183,6 +185,7 @@ struct Relocation {
 #[derive(Clone, Copy)]
 enum SymbolKind {
     Definition,
+    WeakDefinition,
     Undefined,
 }
 
@@ -265,7 +268,7 @@ fn object_with_section(
     push_u32(&mut bytes, 0);
     push_u32(&mut bytes, 0);
     match symbol_kind {
-        SymbolKind::Definition => {
+        SymbolKind::Definition | SymbolKind::WeakDefinition => {
             push_u32(&mut bytes, 0);
             push_u32(&mut bytes, 1);
             push_u32(&mut bytes, 1);
@@ -291,7 +294,7 @@ fn object_with_section(
     }
     push_u32(&mut bytes, 1);
     match symbol_kind {
-        SymbolKind::Definition => {
+        SymbolKind::Definition | SymbolKind::WeakDefinition => {
             bytes.push(macho::N_SECT | macho::N_EXT);
             bytes.push(1);
         }
@@ -300,7 +303,14 @@ fn object_with_section(
             bytes.push(0);
         }
     }
-    push_u16(&mut bytes, 0);
+    push_u16(
+        &mut bytes,
+        if matches!(symbol_kind, SymbolKind::WeakDefinition) {
+            macho::N_WEAK_DEF
+        } else {
+            0
+        },
+    );
     push_u64(&mut bytes, 0);
     bytes.extend_from_slice(strings);
     ObjectFixture {

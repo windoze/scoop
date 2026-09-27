@@ -1,5 +1,33 @@
 use super::*;
 
+impl PreparedLayoutObjects {
+    pub(crate) fn verify_callable_metadata(
+        &self,
+    ) -> Result<
+        (
+            slib::VerifiedStrongCallableRegistrationSetV1,
+            slib::VerifiedStrongSafepointRegistrationSetV1,
+        ),
+        BuiltinObjectProductionError,
+    > {
+        let candidates = self.candidates();
+        let callables = verify_strong_callable_registrations_v1(
+            self.patch_sites.clone(),
+            self.production.callable_registrations().clone(),
+            &candidates,
+        )
+        .map_err(BuiltinObjectProductionError::CallableRegistrations)?;
+        let safepoints = verify_strong_safepoint_registrations_v1(
+            self.stackmaps.clone(),
+            self.patch_sites.clone(),
+            self.production.safepoint_registrations().clone(),
+            &candidates,
+        )
+        .map_err(BuiltinObjectProductionError::SafepointRegistrations)?;
+        Ok((callables, safepoints))
+    }
+}
+
 pub(super) fn finalize(
     input: &PreparedLayoutObjects,
     undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
@@ -7,22 +35,10 @@ pub(super) fn finalize(
     let candidates = input.candidates();
     let production = &input.production;
     let patches = &input.patch_sites;
-    let safepoints = verify_strong_safepoint_registrations_v1(
-        input.stackmaps.clone(),
-        patches.clone(),
-        production.safepoint_registrations().clone(),
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::SafepointRegistrations)?;
+    let (callables, safepoints) = input.verify_callable_metadata()?;
     let safepoints = compute_strong_safepoint_fingerprints_v1(safepoints, &candidates)
         .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
 
-    let callables = verify_strong_callable_registrations_v1(
-        patches.clone(),
-        production.callable_registrations().clone(),
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::CallableRegistrations)?;
     let callables =
         compute_strong_callable_registration_object_fingerprints_v1(callables, &candidates)
             .map_err(BuiltinObjectProductionError::CallableRegistrationObjectFingerprints)?;

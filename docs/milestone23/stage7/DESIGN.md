@@ -232,6 +232,8 @@ MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 cano
 
 单成员 LLVM 模块中，只有实际定义的 ODR 函数和 global 使用 `weak_odr`；指向其它对象中该定义的声明使用 LLVM 必需的普通 external declaration，其语义 symbol request 仍为 `OdrWeak`，不能改成可缺失的弱引用。registration 的 runtime identity 写入实际 group/member，image 的 Strong pointer table 直接使用这些 registration 的既有符号请求。
 
+机器对象 reader 从 external section definition 读取实际 Strong/weak 标志，再与已有 plan 逐项比较。局部 weak definition、weak undefined reference、缺失或未计划的定义仍被拒绝；所有真实 range、relocation 和 patch 继续使用同一对象索引。物理符号计划保留 foundation 已解析的实际 definition owner，ODR relocation 的逻辑目标为 member，物理 producer 只用于定位对象。
+
 同一 member 的 canonical LIR 和规范化对象在同一 target/backend 下必须一致。重排物理对象分片可以改变 Code/Artifact fingerprint，但不改变 ODR member identity 和 definition fingerprint。测试分别比较 canonical 内容与物理目录，不要求不同 Cone 的整个 `.slib` bytes 相同。
 
 ODR 定义引用的空 span、空 scan 等非 null sentinel 也按所属 group 的稳定角色发射为实际 member 或对应定义的关联 atom；不能复用以消费 Cone 派生的私有 sentinel。只有 ABI 明确允许为空的字段才使用原有 null/zero 分支。
@@ -347,6 +349,8 @@ HIR cross-cone-interface 的新增字段直接保存三张 canonical 表：field
 共有 external reference 的 `TemplateDependency` 使用新 role tag 10，保存模板中实际外来声明及类型引用；旧 tag 9 保持退役。该 role 不携带消费方 lookup observation 或绑定路径，只在 reader 边界核对正文引用、实际 provider 与声明记录的一致性。
 
 manifest/single-cone-production `/2` 在原十字段 product 后增加必需 field 11 的 ODR 目录：group record 为 `{1=group, 2=members}`；member record 为 `{1=member, 2=role, 3=abi_fingerprint, 4=definition_fingerprint}`，均严格排序、无重复。materialization 仍在原对象投影中，用 member ID 关联，不把物理 offset 再复制进 ODR 目录。该 section 与 bootstrap manifest 是不同的 product；后者 field 11 继续保存 ArtifactFingerprint，不改其含义。
+
+`link-identity-closure/4` 的 defined owner 增加 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/2` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
 
 ReleaseHook role 16 仍只由 M24 启用，本阶段完整 profile 继续拒绝其语义成员。退役字段和 tag 不复用；旧 Strong profile 保持“不支持 ODR”的含义。正式工具链、core、provider 与 consumer 同批重建为新 profile；不把新字段作为旧 section 的 optional 扩展，也不保留长期双轨 reader/publisher。尚未迁移的真实回归入口必须在正式切换前接入共有路径，旧格式仅保留拒绝测试。
 

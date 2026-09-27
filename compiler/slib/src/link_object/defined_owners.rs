@@ -5,8 +5,8 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, DecodedPersistentId, DecodedStrongDefinitionEntity, GeneratedBridgeAtomId,
-    ObjectDefinitionAtomId, StrongDefinitionEntity, StrongDefinitionEntityKind,
-    StrongDefinitionRole,
+    ObjectDefinitionAtomId, ObjectDefinitionPlanOwner, OdrMemberId, StrongDefinitionEntity,
+    StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -82,6 +82,7 @@ impl std::error::Error for StrongDefinitionOwnerValidationError {}
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum LinkDefinitionOwnerV1 {
     StrongDefinition(StrongDefinitionOwnerV1),
+    OdrDefinition(OdrMemberId),
     GeneratedBridge(GeneratedBridgeAtomId),
     ConeImage(ConeIdentity),
     VerifierBoundary {
@@ -94,6 +95,7 @@ impl WireEncode for LinkDefinitionOwnerV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::StrongDefinition(owner) => encode_one_field_sum(encoder, 1, owner),
+            Self::OdrDefinition(member) => encode_one_field_sum(encoder, 5, member),
             Self::GeneratedBridge(atom) => encode_one_field_sum(encoder, 2, atom),
             Self::ConeImage(cone) => encode_one_field_sum(encoder, 3, cone),
             Self::VerifierBoundary { atom, boundary } => {
@@ -109,6 +111,17 @@ impl WireEncode for LinkDefinitionOwnerV1 {
 }
 
 impl LinkDefinitionOwnerV1 {
+    pub(in crate::link_object) fn from_definition(
+        definition: ObjectDefinitionPlanOwner,
+        entity: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+    ) -> Result<Self, StrongDefinitionOwnerValidationError> {
+        match definition {
+            ObjectDefinitionPlanOwner::Strong { .. } => Self::from_strong_primary(entity, role),
+            ObjectDefinitionPlanOwner::Odr { member } => Ok(Self::OdrDefinition(member)),
+        }
+    }
+
     pub fn from_strong_primary(
         entity: StrongDefinitionEntity,
         role: StrongDefinitionRole,
@@ -180,7 +193,17 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
                         definition_role,
                         ..
                     } => {
-                        let link_owner = primary_owner(owner, definition_role)?;
+                        let link_owner = LinkDefinitionOwnerV1::from_definition(
+                            symbol.definition_owner(),
+                            owner,
+                            definition_role,
+                        )
+                        .map_err(|_| {
+                            DefinedLinkSymbolOwnerBuildError::EntityRoleMismatch {
+                                entity: owner,
+                                role: definition_role,
+                            }
+                        })?;
                         if !primary_owners.insert(link_owner) {
                             return Err(DefinedLinkSymbolOwnerBuildError::DuplicatePrimaryOwner(
                                 link_owner,
@@ -325,6 +348,7 @@ impl WireDecode for DecodedStrongDefinitionOwnerV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DecodedLinkDefinitionOwnerV1 {
     StrongDefinition(DecodedStrongDefinitionOwnerV1),
+    OdrDefinition(DecodedPersistentId<OdrMemberId>),
     GeneratedBridge(DecodedPersistentId<GeneratedBridgeAtomId>),
     ConeImage(DecodedPersistentId<ConeIdentity>),
     VerifierBoundary {
@@ -337,6 +361,7 @@ impl WireEncode for DecodedLinkDefinitionOwnerV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::StrongDefinition(owner) => encode_one_field_sum(encoder, 1, owner),
+            Self::OdrDefinition(member) => encode_one_field_sum(encoder, 5, member),
             Self::GeneratedBridge(atom) => encode_one_field_sum(encoder, 2, atom),
             Self::ConeImage(cone) => encode_one_field_sum(encoder, 3, cone),
             Self::VerifierBoundary { atom, boundary } => {
@@ -380,6 +405,12 @@ impl WireDecode for DecodedLinkDefinitionOwnerV1 {
                     atom: decoder.field(1, DecodedPersistentId::decode)?,
                     boundary: decoder.field(2, decode_boundary)?,
                 })
+            }
+            5 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, DecodedPersistentId::decode)
+                    .map(Self::OdrDefinition)
             }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
@@ -454,14 +485,6 @@ impl WireDecode for DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
             .decode_array(|decoder, _| DecodedDefinedLinkSymbolOwnerV1::decode(decoder))
             .map(|owners| Self { owners })
     }
-}
-
-fn primary_owner(
-    entity: StrongDefinitionEntity,
-    role: StrongDefinitionRole,
-) -> Result<LinkDefinitionOwnerV1, DefinedLinkSymbolOwnerBuildError> {
-    LinkDefinitionOwnerV1::from_strong_primary(entity, role)
-        .map_err(|_| DefinedLinkSymbolOwnerBuildError::EntityRoleMismatch { entity, role })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
