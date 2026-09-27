@@ -19,7 +19,7 @@ use scoop_wire::{
 use super::SingleConeProductionManifestV1;
 use crate::CrossConeLayoutProductionManifestV1;
 use crate::link_object::{
-    DecodedCanonicalNativeExternalContractCodeSetV1,
+    DecodedCanonicalNativeExternalContractCodeSetV1, DecodedCanonicalOdrMemberDirectoryV1,
     DecodedCanonicalStrongRegistrationFingerprintSetV1, DecodedFixedBytesV1,
     ObjectDefinitionFingerprintV1, VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2,
 };
@@ -148,8 +148,8 @@ impl WireDecode for DecodedSingleConeProductionOutputV1 {
 type DecodedNativeLibraryRequirementV1 =
     DecodedCborIdentityRecord<NativeLinkRequirementId, DecodedNativeLinkRequirementKey>;
 
-/// Canonically decoded ten-field manifest without authority to promote any
-/// carried identity, fingerprint, registration, contract, or C bridge value.
+/// Parsed eleven-field manifest, compared with the actual production result
+/// before its IDs and fingerprints are consumed.
 #[derive(Debug)]
 pub struct DecodedSingleConeProductionManifestV1 {
     distribution: DecodedArtifactDistributionClassV1,
@@ -162,10 +162,11 @@ pub struct DecodedSingleConeProductionManifestV1 {
     native_contracts: DecodedCanonicalNativeExternalContractCodeSetV1,
     native_library_requirements: Vec<DecodedNativeLibraryRequirementV1>,
     c_bridge_production: DecodedCBridgeProductionSetV1,
+    odr_members: DecodedCanonicalOdrMemberDirectoryV1,
 }
 
 /// A decoded production manifest whose generated-C production branch was
-/// rebuilt from one typed bridge plan and toolchain profile. The other nine
+/// rebuilt from one typed bridge plan and toolchain profile. The other ten
 /// fields remain untrusted until the complete Code proof is available.
 #[derive(Debug)]
 pub struct CBridgeCheckedSingleConeProductionManifestV1 {
@@ -239,7 +240,7 @@ impl DecodedSingleConeProductionManifestV1 {
 
 impl WireEncode for DecodedSingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.distribution.encode(encoder)?;
         encoder.field(2)?;
@@ -259,13 +260,15 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
         encoder.field(9)?;
         encode_array(encoder, &self.native_library_requirements)?;
         encoder.field(10)?;
-        self.c_bridge_production.encode(encoder)
+        self.c_bridge_production.encode(encoder)?;
+        encoder.field(11)?;
+        self.odr_members.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedSingleConeProductionManifestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(11)?;
         Ok(Self {
             distribution: decoder.field(1, DecodedArtifactDistributionClassV1::decode)?,
             output: decoder.field(2, DecodedSingleConeProductionOutputV1::decode)?,
@@ -284,6 +287,7 @@ impl WireDecode for DecodedSingleConeProductionManifestV1 {
                 decoder.decode_array(|decoder, _| DecodedCborIdentityRecord::decode(decoder))
             })?,
             c_bridge_production: decoder.field(10, DecodedCBridgeProductionSetV1::decode)?,
+            odr_members: decoder.field(11, DecodedCanonicalOdrMemberDirectoryV1::decode)?,
         })
     }
 }

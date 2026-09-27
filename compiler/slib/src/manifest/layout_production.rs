@@ -14,8 +14,7 @@ use super::{
 use crate::link_object::VerifiedCodeLinkObjectMemberSetV2;
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId, VerifiedCodeFingerprintV2};
 
-/// Strong V2 metadata and final object bytes proven to produce one unchanged
-/// ten-field manifest projection.
+/// V2 metadata and final object bytes producing the shared manifest projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV2 {
     strong_production: ConeProductionSectionV2,
@@ -64,8 +63,8 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
     })
 }
 
-/// The unchanged ten-field production manifest, derived from a Code proof
-/// whose strong-production input is V2.
+/// The shared eleven-field production manifest, derived from a Code result
+/// whose production input is V2.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeLayoutProductionManifestV1 {
     code: VerifiedCodeFingerprintV2,
@@ -106,6 +105,10 @@ impl CrossConeLayoutProductionManifestV1 {
         self.projection().runtime_image_fingerprint()
     }
 
+    pub const fn odr_members(&self) -> &crate::CanonicalOdrMemberDirectoryV1 {
+        self.projection().odr_members()
+    }
+
     pub const fn code_fingerprint(&self) -> CodeFingerprint {
         self.code.fingerprint()
     }
@@ -129,7 +132,7 @@ impl CrossConeLayoutProductionManifestV1 {
 
 impl WireEncode for CrossConeLayoutProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.distribution().encode(encoder)?;
         encoder.field(2)?;
@@ -149,7 +152,9 @@ impl WireEncode for CrossConeLayoutProductionManifestV1 {
         encoder.field(9)?;
         encode_array(encoder, self.native_library_requirements())?;
         encoder.field(10)?;
-        self.c_bridge_production().encode(encoder)
+        self.c_bridge_production().encode(encoder)?;
+        encoder.field(11)?;
+        self.odr_members().encode(encoder)
     }
 }
 

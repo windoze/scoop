@@ -20,7 +20,10 @@ impl DecodedSingleConeProductionManifestV1 {
             &Array(&self.native_library_requirements),
             &Array(libraries),
             9,
-        )
+        )?;
+        self.odr_members
+            .validate_against(production.odr_members())
+            .map_err(CodeProductionProjectionError::OdrMembers)
     }
 }
 
@@ -50,6 +53,7 @@ fn same(
 pub enum CodeProductionProjectionError {
     Resource(WireError),
     FieldMismatch { field: u32 },
+    OdrMembers(crate::OdrMemberDirectoryValidationError),
 }
 
 impl From<WireError> for CodeProductionProjectionError {
@@ -68,6 +72,7 @@ impl std::error::Error for CodeProductionProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Resource(error) => Some(error),
+            Self::OdrMembers(error) => Some(error),
             Self::FieldMismatch { .. } => None,
         }
     }

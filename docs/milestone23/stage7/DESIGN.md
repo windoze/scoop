@@ -285,7 +285,7 @@ callable 与 safepoint registration 的 canonical LIR 直接投影已有实际 p
 
 逐 member definition 的 LIR leaf 编码为 `{1=atom, 2=fingerprint}`，object leaf 为 `{1=digest node, 2=fingerprint}`，stackmap leaf 为 `{1=site, 2=fingerprint}`。callable registration 各有一个自身 primary 的 LIR/object leaf，stackmap array 为空；safepoint registration 同样各有一个自身 LIR/object leaf，并含该 site 唯一的已规范化 stackmap。ODR safepoint 对象摘要须先代入其实际上游 normalized-stackmap 字段，并记录该直接输入，再计算自身 member definition；不能沿用 Strong 的全零 provisional record 对象摘要。callable registration 对象已包含实际上游 body-definition，最终 ODR 汇总不再次把 body node 当作自身 object leaf。
 
-共有注册摘要结果区分 `StrongRegistration` 和 `OdrDefinition`，补丁写入与 RuntimeImage 编码使用实际 owner 及对应 digest kind。image 表中的注册指针按期望的 typed entity/registration role 核对已解析目标的实际 primary definition、symbol 与 owner，不重新派生 Strong-only definition；其余 relocation 宽度、形式、零 addend 和所属范围检查保持。Strong manifest 注册表只接受 Strong 摘要；在完整 ODR member 目录和正式泛型 profile 接通前，不能将 ODR 值塞入旧表或静默丢弃。既有 Strong 编码和摘要向量保持不变。
+共有注册摘要结果区分 `StrongRegistration` 和 `OdrDefinition`，补丁写入与 RuntimeImage 编码使用实际 owner 及对应 digest kind。image 表中的注册指针按期望的 typed entity/registration role 核对已解析目标的实际 primary definition、symbol 与 owner，不重新派生 Strong-only definition；其余 relocation 宽度、形式、零 addend 和所属范围检查保持。manifest `/2` 的 field 5 只投影六类注册中的 Strong 子集，ODR registration 与 callable-body 等物理定义统一进入必需 field 11。field 4 继续包含全部实际注册 identity；ODR 摘要不能写入 Strong 字段，也不能从完整成员目录中遗漏。Strong registration 自身的编码和摘要算法保持；manifest 与 profile 的格式变化进入 Code/Artifact fingerprint，RuntimeImage 仍由实际注册、runtime ABI 与 target 投影计算。
 
 共有生产查询按 typed subject 与物理角色取得 foundation 中的实际 Strong/ODR plan。源 callable 的 subject 使用已解析的 callable-body key，其他物理 member 使用原 ODR key，不重复发布上游 member 或重新解码其 key。ODR registration 的 ObjectDefinition 节点依赖实际写入该记录的上游字段；其 ODR node 只汇总自身 LIR、对象和所属 stackmap leaves。对象间的摘要边仅表达这些实际补丁依赖，image 继续汇总六类实际 registration node。
 
@@ -368,7 +368,11 @@ HIR cross-cone-interface 的新增字段直接保存三张 canonical 表：field
 
 共有 external reference 的 `TemplateDependency` 使用新 role tag 10，保存模板中实际外来声明及类型引用；旧 tag 9 保持退役。该 role 不携带消费方 lookup observation 或绑定路径，只在 reader 边界核对正文引用、实际 provider 与声明记录的一致性。
 
-manifest/single-cone-production `/2` 在原十字段 product 后增加必需 field 11 的 ODR 目录：group record 为 `{1=group, 2=members}`；member record 为 `{1=member, 2=role, 3=abi_fingerprint, 4=definition_fingerprint}`，均严格排序、无重复。materialization 仍在原对象投影中，用 member ID 关联，不把物理 offset 再复制进 ODR 目录。该 section 与 bootstrap manifest 是不同的 product；后者 field 11 继续保存 ArtifactFingerprint，不改其含义。
+manifest/single-cone-production `/2` 在原十字段 product 后增加必需 field 11 的 ODR 目录：group record 为 `{1=group, 2=members}`；member record 为 `{1=member, 2=role, 3=abi_fingerprint, 4=definition_fingerprint}`。group 和组内 member 分别按 ID bytes 严格递增，无重复；目录可为空，每个已列出的 group 必须非空，两个摘要各为32 bytes。未知 role、纯语义 GeneratedNominal 和本阶段未启用的 ReleaseHook 不得作为物理目录条目。materialization 仍在原对象投影中，用 member ID 关联，不把物理 offset 再复制进 ODR 目录。该 section 与 bootstrap manifest 是不同的 product；后者 field 11 继续保存 ArtifactFingerprint，不改其含义。
+
+目录由共有最终摘要结果构建，并与已有已验证对象索引中的全部 ODR primary definition 做一次成员集合核对；缺少摘要、多余条目或同一 member 重复均为错误。普通外部引用和仅存在于语义 metadata 的成员不进入目录。读取端先解码结构，再把 group/member/role/ABI/definition 与本次对象读取已重建的目录比较；不重新解析对象或重算已完成的摘要。Code 的 manifest 投影相应成为七字段 product，保留 field 1～6，增加同义 field 11，仍不包含 CodeFingerprint 自身。
+
+目录沿既有 producer/reader 迁移，`single-cone-production/1` 退役；全部当前 production profile 的 required inventory、profile fingerprint 和缓存同步改用 `/2`。Strong profile 的完整目录为空，其既有语义边界继续拒绝 ODR；共有生产投影可以处理已完成的 Strong/ODR 定义，但不因此提前开放完整 generic artifact 发布。后续物理角色沿同一摘要与目录入口接入，不增加另一套发布路径。
 
 `link-identity-closure/4` 的 defined owner 增加 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/3` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
 

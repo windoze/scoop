@@ -19,13 +19,39 @@ fn library_manifest_wire_round_trips_without_promoting_carried_values() {
 
 #[test]
 fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
-    for bytes in [vec![0xa9], vec![0xab]] {
+    let mut old = library_manifest_bytes();
+    old.truncate(old.len() - 2);
+    old[0] = 0xaa;
+    let mut extended = library_manifest_bytes();
+    extended[0] = 0xac;
+    extended.extend_from_slice(&[12, 0x80]);
+    for bytes in [old, extended] {
         assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).is_err());
     }
     assert!(decode_canonical::<DecodedArtifactDistributionClassV1>(&[0xa1, 0x00, 0x03]).is_err());
     assert!(
         decode_canonical::<DecodedSingleConeProductionOutputV1>(&[0xa2, 0x00, 0x01, 0x01, 0x00])
             .is_err()
+    );
+}
+
+#[test]
+fn manifest_reader_requires_the_odr_directory_field_even_when_empty() {
+    let mut missing = library_manifest_bytes();
+    missing.truncate(missing.len() - 2);
+    assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&missing).is_err());
+    let mut wrong_field = library_manifest_bytes();
+    let field = wrong_field.len() - 2;
+    assert_eq!(wrong_field[field], 11);
+    wrong_field[field] = 12;
+    let error =
+        decode_canonical::<DecodedSingleConeProductionManifestV1>(&wrong_field).unwrap_err();
+    assert_eq!(
+        error.kind(),
+        &WireErrorKind::UnexpectedField {
+            expected: 11,
+            actual: 12
+        }
     );
 }
 
@@ -49,7 +75,7 @@ fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
 }
 
 pub(crate) fn library_manifest_bytes() -> Vec<u8> {
-    let mut bytes = vec![0xaa];
+    let mut bytes = vec![0xab];
     field(&mut bytes, 1);
     bytes.extend_from_slice(&[0xa1, 0x00, 0x01]);
     field(&mut bytes, 2);
@@ -70,6 +96,8 @@ pub(crate) fn library_manifest_bytes() -> Vec<u8> {
     bytes.push(0x80);
     field(&mut bytes, 10);
     bytes.extend_from_slice(&[0xa1, 0x00, 0x01]);
+    field(&mut bytes, 11);
+    bytes.push(0x80);
     bytes
 }
 

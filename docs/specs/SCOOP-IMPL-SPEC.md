@@ -1045,7 +1045,9 @@ LLVM 按每个实际对象区分声明与定义：当前对象中的 ODR 定义�
 
 generic delegated extension 的 binder 只从 receiver 静态类型求得。source template 不预分配参数自由 global；实际 application 使用既有 `InitializationUnitKey::GenericDelegatedExtensionApplication`，创建完整的 `LazyAccess` concrete unit。`by` 与 `provideDelegate` 不接收某次访问的 receiver 值；get/set 才接收该值。普通赋值先求值 receiver 和 RHS，再进入 setter 的 ensure；复合赋值先通过 getter ensure，再求值 RHS，遵守既有调用求值规则。初始化成功发布 effective delegate，失败保存在同一 application 的 failure root；重入、并发等待与 GC 沿用现有 coordinator，不增加 runtime dictionary 或新的状态机。
 
-生产切到 `org.scoop-lang.slib-profile/cross-cone-generic/1`，以共有源码接口、完整类型/ABI、Strong/ODR production 和逐 member ODR 目录组成一个正式路径。具体 required section 与版本见阶段设计第 10 节；其中 LIR identity-foundation 升为 `/2` 以退役旧 group digest owner，M24 的 LIR foundation 版本相应顺延为 `/3`。三层 outer schema、callable-body-v1、persistent identity schema、mangler 与实际 runtime C ABI 保持；旧 Strong 产物及缓存需重建，旧 profile 不能承载 ODR，也不保留第二条生产管线。
+共有 production manifest 先沿原生产与读取入口升至 `single-cone-production/2`，在原十字段后增加必需 field 11 的物理 ODR member 目录；field 5 明确为 Strong registration 子集，field 4 仍覆盖全部注册。目录从已完成的 member 摘要构建，与已有对象索引的全部 ODR primary definition 精确匹配；不能遗漏缺少摘要的实际定义，也不为普通外部引用或纯语义 member 建物理条目。group/member 按 ID bytes 严格排序且无重复，group 不得为空，目录整体可为空。member 保存 role 和32-byte ABI/definition，具体 wire 见阶段设计第 10 节。Code 的 manifest 投影保留 field 1～6 并增加同义 field 11，不包含自身 CodeFingerprint。reader 比较已解析目录与本次读取已经重建的 group/member/role/ABI/definition，不重放对象解析或摘要计算。所有当前 production profile 的 inventory、fingerprint 与缓存随 `/2` 迁移；Strong profile 仍在原语义边界拒绝 ODR，其目录为空。
+
+生产最终切到 `org.scoop-lang.slib-profile/cross-cone-generic/1`，以共有源码接口、完整类型/ABI、Strong/ODR production 和逐 member ODR 目录组成一个正式路径。具体 required section 与版本见阶段设计第 10 节；其中 LIR identity-foundation 升为 `/2` 以退役旧 group digest owner，M24 的 LIR foundation 版本相应顺延为 `/3`。三层 outer schema、callable-body-v1、persistent identity schema、mangler 与实际 runtime C ABI 保持；旧 Strong 产物及缓存需重建，旧 profile 不能承载 ODR，也不保留第二条生产管线。
 
 完成门包含真实源码生产 `.slib`、移走 provider 源码后的下游编译、重复成员一致性与合法成员并集、现有单 image 测试入口的实际链接运行、地址合并、委托初始化和移动 GC。M23-8 承接生产多 image 登记，M23-9 承接正式 artifact-only program-link，M23-10 承接一般 native provider 解析；本节不提前建立这些入口或来源凭证。
 

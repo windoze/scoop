@@ -57,6 +57,8 @@ where
 
     let distribution = distribution(cone, dependency_identities, source_count)?;
     let output = output(cone, final_objects)?;
+    let odr_members = CanonicalOdrMemberDirectoryV1::from_patch_set(registrations)
+        .map_err(ProductionCodeProjectionError::OdrMembers)?;
     let strong_registration_set =
         CanonicalStrongRegistrationFingerprintSetV1::from_patch_set(registrations)
             .map_err(ProductionCodeProjectionError::StrongRegistrations)?;
@@ -67,6 +69,7 @@ where
         runtime_registration_projection: plans.identities.clone(),
         strong_registration_set,
         runtime_image_fingerprint: runtime_image.fingerprint(),
+        odr_members,
     };
     Ok(projection)
 }

@@ -11,6 +11,7 @@ mod associated;
 pub(super) use associated::change_associated_atom;
 mod finalization;
 pub(super) use finalization::CallableFingerprints;
+mod directory;
 mod member_fingerprints;
 
 pub(super) fn verify(
@@ -18,7 +19,8 @@ pub(super) fn verify(
     generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
     public: &scoop_lir::CrossConeLirBridgeSectionV1,
     imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1,
-    dependencies: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
+    dependencies: &crate::request::preflight::ValidatedExplicitDependencyInputSet,
+    source_count: usize,
     expected_bodies: usize,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let prepared = crate::object_production::layout::prepare(emitted, generated).unwrap();
@@ -124,10 +126,15 @@ pub(super) fn verify(
         &prepared.foundation,
     )
     .unwrap();
+    let dependency_owners = dependencies
+        .closure
+        .dependency_symbol_owners()
+        .cloned()
+        .collect::<Vec<_>>();
     let ordinary = scoop_slib::verify_cross_cone_strong_requirements_v1(
         prepared.target_selection.target(),
         closure.clone(),
-        dependencies,
+        &dependency_owners,
         public,
     )
     .unwrap();
@@ -137,18 +144,39 @@ pub(super) fn verify(
     let undefined =
         crate::object_production::layout::complete_requirements(&prepared, &native, &shape)
             .unwrap();
-    let finalized = prepared.finalize_metadata(&undefined).unwrap();
-    if expected_bodies == 1 {
-        member_fingerprints::check_inputs(
-            &finalized,
-            &prepared.foundation,
-            prepared.production.canonical_callable_definitions(),
-        );
-    }
-    finalization::check(
-        &finalized,
-        prepared.production.canonical_callable_definitions(),
+    let cone = scoop_slib::ConeRecord::new(
+        prepared.production.image_plan().cone().coordinate().clone(),
+        scoop_slib::ConeKind::Library,
+        scoop_slib::ConeSourceForm::Manifest,
     )
+    .unwrap();
+    let finalized = prepared
+        .finalize(
+            &undefined,
+            &cone,
+            dependencies.direct_dependencies(),
+            source_count,
+        )
+        .unwrap();
+    let objects = finalized.projection.link_objects().final_objects();
+    let canonical = finalized
+        .projection
+        .strong_production()
+        .canonical_callable_definitions();
+    if expected_bodies == 1 {
+        member_fingerprints::check_inputs(objects, &finalized.foundation, canonical);
+    }
+    let fingerprints = finalization::check(objects, canonical);
+    let code = scoop_slib::compute_cross_cone_layout_code_fingerprint_v1(
+        finalized.projection,
+        native,
+        owners,
+        undefined,
+        &shape,
+    )
+    .unwrap();
+    directory::check(code.code(), &expected_members);
+    fingerprints
 }
 
 pub(super) fn check(

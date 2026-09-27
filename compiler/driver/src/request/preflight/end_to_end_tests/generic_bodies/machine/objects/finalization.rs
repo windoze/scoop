@@ -47,10 +47,6 @@ pub(super) fn check(
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let image = finalized.runtime_images().fingerprint();
     let registrations = image.registrations();
-    assert!(matches!(
-        scoop_slib::CanonicalStrongRegistrationFingerprintSetV1::from_patch_set(registrations),
-        Err(scoop_slib::StrongRegistrationFingerprintProjectionError::OdrRegistration { .. })
-    ));
     let callables = registrations.callables();
     let plans = callables
         .body_objects()

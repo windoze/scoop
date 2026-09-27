@@ -141,7 +141,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::LIR,
             ),
-            ("org.scoop-lang.manifest", "single-cone-production", 1) => (
+            ("org.scoop-lang.manifest", "single-cone-production", 2) => (
                 SectionLocation::Manifest,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE

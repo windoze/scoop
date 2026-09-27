@@ -24,7 +24,7 @@ use crate::{
 };
 
 #[test]
-fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire() {
+fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() {
     let cone = cone();
     let producer = cone.identity();
     let objects =

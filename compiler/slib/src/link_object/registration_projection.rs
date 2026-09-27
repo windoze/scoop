@@ -1,4 +1,4 @@
-//! Manifest projection of the six strong-registration fingerprint tables.
+//! Manifest projection of the Strong subset of the six registration tables.
 
 use std::fmt;
 
@@ -108,14 +108,10 @@ impl CanonicalStrongRegistrationFingerprintSetV1 {
                     .safepoints()
                     .fingerprints()
                     .iter()
-                    .map(|fingerprint| {
-                        strong_entry(
-                            StrongRegistrationFingerprintTableV1::Safepoint,
-                            fingerprint.site(),
-                            fingerprint.registration(),
-                        )
+                    .filter_map(|fingerprint| {
+                        strong_entry(fingerprint.site(), fingerprint.registration())
                     })
-                    .collect::<Result<Vec<_>, _>>()?,
+                    .collect(),
             )?,
             callables: canonicalize_table(
                 StrongRegistrationFingerprintTableV1::Callable,
@@ -123,14 +119,10 @@ impl CanonicalStrongRegistrationFingerprintSetV1 {
                     .callables()
                     .fingerprints()
                     .iter()
-                    .map(|fingerprint| {
-                        strong_entry(
-                            StrongRegistrationFingerprintTableV1::Callable,
-                            fingerprint.body(),
-                            fingerprint.registration(),
-                        )
+                    .filter_map(|fingerprint| {
+                        strong_entry(fingerprint.body(), fingerprint.registration())
                     })
-                    .collect::<Result<Vec<_>, _>>()?,
+                    .collect(),
             )?,
         })
     }
@@ -201,19 +193,12 @@ fn entry<I>(
 }
 
 fn strong_entry<I>(
-    table: StrongRegistrationFingerprintTableV1,
     semantic_id: I,
     fingerprint: RegistrationFingerprintV1,
-) -> Result<StrongRegistrationFingerprintEntryV1<I>, StrongRegistrationFingerprintProjectionError> {
+) -> Option<StrongRegistrationFingerprintEntryV1<I>> {
     match fingerprint {
-        RegistrationFingerprintV1::Strong(fingerprint) => Ok(entry(semantic_id, fingerprint)),
-        RegistrationFingerprintV1::Odr(fingerprint) => Err(
-            StrongRegistrationFingerprintProjectionError::OdrRegistration {
-                table,
-                group: fingerprint.group(),
-                member: fingerprint.member(),
-            },
-        ),
+        RegistrationFingerprintV1::Strong(fingerprint) => Some(entry(semantic_id, fingerprint)),
+        RegistrationFingerprintV1::Odr(_) => None,
     }
 }
 
@@ -258,11 +243,6 @@ pub enum StrongRegistrationFingerprintTableV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongRegistrationFingerprintProjectionError {
     DuplicateSemanticId(StrongRegistrationFingerprintTableV1),
-    OdrRegistration {
-        table: StrongRegistrationFingerprintTableV1,
-        group: scoop_identity::OdrGroupId,
-        member: scoop_identity::OdrMemberId,
-    },
 }
 
 impl fmt::Display for StrongRegistrationFingerprintProjectionError {

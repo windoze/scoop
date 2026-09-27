@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn production_manifest_v2_requires_the_physical_odr_directory_in_every_profile() {
+    let current = manifest_single_cone_production_capability();
+    assert_eq!(current.major_version(), 2);
+    let old = CapabilityId::new(current.namespace(), current.name(), 1).unwrap();
+    assert!(CapabilityContractRegistry::contract(&old).is_none());
+    for profile in [
+        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+        ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+    ] {
+        let descriptor = profile.descriptor();
+        assert_eq!(
+            descriptor.required_manifest(),
+            std::slice::from_ref(&current)
+        );
+        for view in [ArtifactProfileView::Compile, ArtifactProfileView::Link] {
+            for purpose in [MemberPurposeSet::NONE, MemberPurposeSet::LINK] {
+                let sections = [
+                    (current.clone(), MemberPurposeSet::LINK),
+                    (old.clone(), purpose),
+                ];
+                assert!(matches!(
+                    super::super::validate_inventory(
+                        view, SectionLocation::Manifest, descriptor.required_manifest(), &sections,
+                        |section| &section.0, |section| section.1,
+                    ),
+                    Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. })
+                        if *required == current && *actual == old
+                ));
+            }
+        }
+    }
+}
+
+#[test]
 fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every_view() {
     for (current, profiles, rejected) in [
         (

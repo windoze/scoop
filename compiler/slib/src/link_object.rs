@@ -43,6 +43,9 @@ pub use odr_member_fingerprints::{
     CallableDefinitionFingerprintV1, OdrMemberFingerprintV1, RegistrationFingerprintV1,
 };
 
+mod odr_directory;
+pub use odr_directory::*;
+
 mod stackmap_normalization;
 pub use stackmap_normalization::*;
 

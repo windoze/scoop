@@ -184,9 +184,22 @@
 
 本项补齐 callable-body 的逐 member ABI/definition。其他物理角色的摘要、完整 member 目录与重复定义合并、正式泛型 profile 和单 image 运行继续实施，M23-7 仍未完成。
 
+## 2026-09-28：物理 ODR 成员目录接入共有产物投影
+
+- `single-cone-production` 升至 `/2`，现有两种生产投影共用必需的 field 11 ODR 目录。原 field 5 只保存六类 registration 的 Strong 子集，field 4 继续保留全部实际注册 identity；ODR registration 和 callable-body 使用同一成员目录。
+- 目录从现有最终摘要结果提取 group/member/role/ABI/definition，与已验证对象索引的全部 ODR primary definition 精确核对。重复、多余或缺少摘要的物理成员均拒绝；普通外部引用及纯语义成员不进入目录。没有再次解析对象、重算摘要或复制上游 identity key。
+- group 与组内 member 按 ID bytes 排序，已列出的 group 必须非空；Strong 产物使用空目录。reader 拒绝重复、逆序、错误 record shape、摘要宽度、未知 role、GeneratedNominal 和本阶段未启用的 ReleaseHook，并逐项比较已有重建结果中的成员身份、角色及两类摘要。
+- Code 的 manifest 投影保留 field 1～6，追加同义 field 11；两种 writer、共有 reader、required inventory、三个 profile 的固定格式/摘要以及 compatibility 向量同步迁移。旧 `/1` 产物与缓存需重建，现有 Strong profile 的语义边界继续拒绝 ODR，runtime C ABI 和 Strong registration 摘要算法保持。
+- 同步49份实际产物及 Code golden，逐份核对差异仅为 Code/Artifact 摘要；RuntimeImage 摘要、HIR/MIR/LIR 语义、物理引用和登记内容均未改变。固定向量由原真实 fixture 生成，更新开关关闭后再验证。
+- 真实泛型 fixture 从 metadata 回填推进到共有 `PreparedLayoutObjects::finalize`、Code 摘要和最终 manifest 往返验证。四个消费方核对完整实际成员集合与 Strong 注册子集；修改 ABI 或 definition 后，原 Code 结果拒绝该 manifest。原函数/注册摘要固定向量及 EH/stackmap 变化回归继续通过。
+- 新增五项目录测试、一项必需字段测试及一项跨 profile 旧版本拒绝测试。关闭全部 golden 更新开关后，全工作区共5143项测试通过，无失败或忽略；包含583项 slib、116项 driver 库测试及两项文档测试。完整 driver 库测试耗时757.88秒，使用本次构建的配套编译器，两项真实泛型回归随全仓再次通过。
+- 全工作区 `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和 `cargo build -p scoopc` 通过，最终 lint 无警告。确认全部构建、测试和编译器进程结束后执行 `cargo clean`，删除2690个构建文件，回收4.7 GiB。
+
+本项完成当前已发射物理成员的目录和共有生产/读取投影。其他物理角色的摘要、跨产物重复成员合并、正式 generic profile 和单 image 运行继续实施，M23-7 仍未完成。
+
 ## 剩余主线
 
-1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；完成逐 member 内容摘要及完整 profile。
+1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要、跨产物成员合并与正式 profile。
 2. public generic function 经真实 provider `.slib`、消费方具体化、MIR/LIR、对象与单 image 运行形成闭环，包含 consumer-local struct。
 3. 支持 hidden helper、默认值与 vararg、宿主和方法两组 binder、bound dispatch、局部函数及 capture。
 4. 完成泛型名义类型、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与扫描。
