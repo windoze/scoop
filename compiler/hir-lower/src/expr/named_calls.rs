@@ -102,43 +102,28 @@ impl Lowerer {
         let mut implicit_property = None;
         if let Some(receiver_ty) = self.current_this_ty() {
             let members = self.methods_by_name(receiver_ty, name);
-            if !members.is_empty() {
-                let mut state = self.clone();
-                let mut layer_sink = Vec::new();
-                let receiver = state.lower_current_this(call.callee.span)?;
-                let explicit = state.resolve_call_type_args(&call.type_args)?;
-                match state.resolve_member_overload_outcome(
-                    name,
-                    &members,
-                    receiver,
-                    OverloadCall {
-                        explicit_type_args: &explicit,
-                        arg_exprs: &call.args,
-                        span: call.span,
-                        expected_result: expected,
-                        argument_protocol: CallArgumentProtocol::Ordinary,
-                    },
-                    &mut layer_sink,
-                ) {
-                    crate::overload::OverloadResolutionOutcome::Resolved(resolved) => {
-                        let expression = state.finish_resolved_method_call(*resolved, call.span)?;
-                        return Some(self.commit_expr_layer(
-                            SuccessfulExprLayer {
-                                state: Box::new(state),
-                                expression,
-                                sink: layer_sink,
-                            },
-                            sink,
-                        ));
+            let mut state = self.clone();
+            let receiver = state.lower_current_this(call.callee.span)?;
+            match state.probe_member_call_partition(
+                members,
+                &call.callee,
+                receiver,
+                site,
+                expected,
+                RequiredCallableModifiers::default(),
+            ) {
+                PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                    if let Some(failure) = failure {
+                        first_failure.get_or_insert(failure);
                     }
-                    crate::overload::OverloadResolutionOutcome::NoApplicable => {
-                        first_failure.get_or_insert(Box::new(state));
-                    }
-                    crate::overload::OverloadResolutionOutcome::Blocked => return None,
-                    crate::overload::OverloadResolutionOutcome::Failed => {
-                        self.commit_layer_diagnostics(state);
-                        return None;
-                    }
+                }
+                PropertyExtensionInvokeOutcome::Blocked => return None,
+                PropertyExtensionInvokeOutcome::Failed(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
                 }
             }
         }

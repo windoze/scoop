@@ -3,66 +3,90 @@ use super::*;
 impl Projection<'_> {
     pub(super) fn interface_slot(
         &self,
-        member: InterfaceMethodId,
+        member: InterfaceMethodReference,
     ) -> Result<PersistentDispatchSlotId, Error> {
-        self.export
-            .dispatch_slot_identities
-            .get_interface(member)
-            .map(|identity| identity.id())
-            .ok_or_else(|| invalid("interface member has no sealed dispatch identity"))
+        match member {
+            InterfaceMethodReference::Local(member) => self
+                .export
+                .dispatch_slot_identities
+                .get_interface(member)
+                .map(|identity| identity.id())
+                .ok_or_else(|| invalid("interface member has no dispatch identity")),
+            InterfaceMethodReference::Imported { slot, .. } => Ok(slot),
+        }
     }
 
     pub(in crate::production) fn interface_members(
         &mut self,
         application: InterfaceApplicationId,
-    ) -> Result<Vec<InterfaceMethodId>, Error> {
+    ) -> Result<Vec<InterfaceMethodReference>, Error> {
+        let ty = self.export.interface_applications[application].canonical_type;
         let mut members = Vec::new();
         let mut suppressed = BTreeSet::new();
-        for application in self.interface_postorder(application)? {
-            let interface = self.export.interface_applications[application].template;
-            for member in &self.export.interfaces[interface].methods {
-                self.push(&mut members, *member)?;
-                for overridden in &self.export.interface_methods[*member].overrides {
-                    suppressed.insert(*overridden);
+        for ty in self.interface_postorder(ty)? {
+            match &self.export.types[ty] {
+                Type::Interface(application) => {
+                    let owner = self.export.interface_applications[*application].template;
+                    for member in &self.export.interfaces[owner].methods {
+                        self.push(&mut members, InterfaceMethodReference::Local(*member))?;
+                        for reference in &self.export.interface_methods[*member].overrides {
+                            suppressed.insert(self.interface_slot(*reference)?);
+                        }
+                    }
                 }
+                Type::ImportedInterface(interface) => {
+                    let owner = PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(
+                        interface.declaration.identity.id(),
+                    ));
+                    for method in &interface.methods {
+                        if method.declaration.owner() == owner {
+                            self.push(
+                                &mut members,
+                                InterfaceMethodReference::Imported {
+                                    owner: ty,
+                                    slot: method.slot.id(),
+                                },
+                            )?;
+                            suppressed.extend(method.overrides.iter().copied());
+                        }
+                    }
+                }
+                _ => return Err(invalid("interface parent has a non-interface type")),
             }
         }
         let mut effective = Vec::new();
         for member in members {
-            if !suppressed.contains(&member) {
+            if !suppressed.contains(&self.interface_slot(member)?) {
                 self.push(&mut effective, member)?;
             }
         }
         Ok(effective)
     }
 
-    pub(in crate::production) fn interface_postorder(
-        &mut self,
-        application: InterfaceApplicationId,
-    ) -> Result<Vec<InterfaceApplicationId>, Error> {
+    fn interface_postorder(&mut self, ty: TypeId) -> Result<Vec<TypeId>, Error> {
         let mut result = Vec::new();
-        let mut complete = BTreeSet::new();
-        let mut active = BTreeSet::new();
+        let mut seen = BTreeSet::new();
         let mut pending = Vec::new();
-        self.push(&mut pending, (application, false, 1))?;
-        while let Some((application, leaving, depth)) = pending.pop() {
-            if complete.contains(&application) {
-                continue;
-            }
-            let source = &self.export.interface_applications[application];
-
+        self.push(&mut pending, (ty, false))?;
+        while let Some((ty, leaving)) = pending.pop() {
             if leaving {
-                active.remove(&application);
-                complete.insert(application);
-                self.push(&mut result, application)?;
+                self.push(&mut result, ty)?;
                 continue;
             }
-            if !active.insert(application) {
-                return Err(invalid("cycle in source interface inheritance"));
+            if !seen.insert(ty) {
+                continue;
             }
-            self.push(&mut pending, (application, true, depth))?;
-            for parent in self.export.interfaces[source.template].parents.iter().rev() {
-                self.push(&mut pending, (*parent, false, depth + 1))?;
+            let parents = match &self.export.types[ty] {
+                Type::Interface(application) => {
+                    let owner = self.export.interface_applications[*application].template;
+                    &self.export.interfaces[owner].parents
+                }
+                Type::ImportedInterface(interface) => &interface.parents,
+                _ => return Err(invalid("interface parent has a non-interface type")),
+            };
+            self.push(&mut pending, (ty, true))?;
+            for parent in parents.iter().rev() {
+                self.push(&mut pending, (*parent, false))?;
             }
         }
         Ok(result)

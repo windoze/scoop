@@ -67,32 +67,10 @@ impl Lowerer {
                 first_failure = Some(Box::new(failure));
             }
         }
-        if !members.is_empty() {
-            match self.probe_member_call_partition(
-                members,
-                &name.text,
-                receiver.clone(),
-                call,
-                expected,
-                false,
-            ) {
-                PropertyExtensionInvokeOutcome::Resolved(layer) => {
-                    return Some(self.commit_expr_layer(layer, sink));
-                }
-                PropertyExtensionInvokeOutcome::Blocked => return None,
-                PropertyExtensionInvokeOutcome::Failed(failure) => {
-                    self.commit_layer_diagnostics(*failure);
-                    return None;
-                }
-                PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
-                    first_failure = failure;
-                }
-            }
-        }
-
-        match self.probe_imported_member_partition(
-            receiver.clone(),
+        match self.probe_member_call_partition(
+            members,
             name,
+            receiver.clone(),
             call,
             expected,
             direct_required,

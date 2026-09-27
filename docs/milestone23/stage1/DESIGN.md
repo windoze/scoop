@@ -540,7 +540,7 @@ exact import -> current package -> star import -> M22 core prelude
 - type、object、property name 等非可重载 lookup 在同层出现多个不同 typed origin 时歧义；
 - 同一 typed origin 在同一层重复到达时去重；
 - declaration、source、import 或 namespace 的枚举顺序不能作为 tie-break；
-- visibility/access witness 在 applicability 前完成，非法候选不能靠 overload 选择变得可访问。
+- visibility/access 检查在 applicability 前完成，非法候选不能靠 overload 选择变得可访问。
 
 ### 7.4 qualified type path
 

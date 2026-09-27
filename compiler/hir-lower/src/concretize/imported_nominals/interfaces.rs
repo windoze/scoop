@@ -41,48 +41,59 @@ impl Concretizer<'_> {
         let methods = source
             .methods
             .iter()
-            .map(|method| {
-                let effects = method.declaration.effects();
-                concrete::MethodSig {
-                    name: method.name.clone(),
-                    is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
-                    attributes: export::FunctionAttributes {
-                        safety: match effects.safety() {
-                            export::CallableSafetyV1::Safe => export::Safety::Safe,
-                            export::CallableSafetyV1::Unsafe => export::Safety::Unsafe,
-                        },
-                        gc_effect: match effects.gc_effect() {
-                            scoop_identity::GcEffect::Managed => export::GcEffect::Managed,
-                            scoop_identity::GcEffect::NoGc => export::GcEffect::NoGc,
-                        },
-                        calling_convention: export::CallingConvention::Cdecl,
-                    },
-                    implementation: match method.declaration.modality() {
-                        export::CallableModalityV1::Abstract => {
-                            concrete::InterfaceMemberImplementation::AbstractSlot
-                        }
-                        _ => concrete::InterfaceMemberImplementation::Body,
-                    },
-                    params: method
-                        .parameters
-                        .iter()
-                        .enumerate()
-                        .map(|(index, (name, ty))| concrete::Param {
-                            name: name.clone(),
-                            ty: self.lower_type(*ty, &[]),
-                            local: concrete::LocalId::from_raw(
-                                u32::try_from(index + 1)
-                                    .expect("method parameter index fits in u32")
-                                    .into(),
-                            ),
-                        })
-                        .collect(),
-                    return_ty: self.lower_type(method.return_type, &[]),
-                    span: scoop_ast::Span::new(0, 0),
-                }
+            .enumerate()
+            .map(|(index, method)| {
+                self.interface_slot_by_source.insert(
+                    (id, method.slot.id()),
+                    concrete::InterfaceMethodSlot::from_raw(index as u32),
+                );
+                self.lower_imported_interface_method(method)
             })
             .collect();
         self.interfaces[id].methods = methods;
         ty
+    }
+    pub(in crate::concretize) fn lower_imported_interface_method(
+        &mut self,
+        method: &export::ImportedInterfaceMethod,
+    ) -> concrete::MethodSig {
+        let effects = method.declaration.effects();
+        concrete::MethodSig {
+            name: method.name.clone(),
+            is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
+            attributes: export::FunctionAttributes {
+                safety: match effects.safety() {
+                    export::CallableSafetyV1::Safe => export::Safety::Safe,
+                    export::CallableSafetyV1::Unsafe => export::Safety::Unsafe,
+                },
+                gc_effect: match effects.gc_effect() {
+                    scoop_identity::GcEffect::Managed => export::GcEffect::Managed,
+                    scoop_identity::GcEffect::NoGc => export::GcEffect::NoGc,
+                },
+                calling_convention: export::CallingConvention::Cdecl,
+            },
+            implementation: match method.declaration.modality() {
+                export::CallableModalityV1::Abstract => {
+                    concrete::InterfaceMemberImplementation::AbstractSlot
+                }
+                _ => concrete::InterfaceMemberImplementation::Body,
+            },
+            params: method
+                .parameters
+                .iter()
+                .enumerate()
+                .map(|(index, (name, ty))| concrete::Param {
+                    name: name.clone(),
+                    ty: self.lower_type(*ty, &[]),
+                    local: concrete::LocalId::from_raw(
+                        u32::try_from(index + 1)
+                            .expect("method parameter index fits in u32")
+                            .into(),
+                    ),
+                })
+                .collect(),
+            return_ty: self.lower_type(method.return_type, &[]),
+            span: scoop_ast::Span::new(0, 0),
+        }
     }
 }

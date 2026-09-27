@@ -185,7 +185,7 @@ Stage 7 只补物化和一致性证明，不能再修改本阶段冻结的零尺
 迭代与绑定计划的语义检查属于前端：选择实际 iterator/component、验证签名及 effect、构造局部数据流和 typed 循环目标后，concretizer 直接代换并展开完整计划。删除 `validate_iteration_plans` 这条没有产物 reader 生产调用的整模块重放通道及其独立语义实现，不把它移成新工厂或另一份证明。真实语言错误、generic 展开、继承/boxing、默认值及 break/continue 的回归继续保留。
 
 ```text
-scoop-hir       type facts / inheritance interface / selected use / access witness
+scoop-hir       type facts / inheritance interface / selected use / lookup and slot domains
 scoop-hir-lower 语义检查、receiver proof、完整外部请求与 winner commit
 scoop-mir       representation-neutral type/callable/slot bridge
 scoop-mir-lower 外部构造、ensure、dispatch 和 helper 的机械 lowering
@@ -393,6 +393,8 @@ layout reader 使用共有 HIR 中已检查的 typed 默认值正文、参数位
 ## 4. HIR：type facts 与继承接口
 
 本地 class、struct 和 enum 实现参数自由的依赖接口时，前端直接消费共有接口声明的完整父接口、typed slot、签名、默认实现和访问域。HIR 的 conformance 引用实际接口类型及本地/外来槽声明，目标为本地方法 application 或共有依赖 callable；不得为复用本地检查而复制外来函数声明、正文或生成同名替身。MIR 的 dispatch 表保留本地函数或实际外部 callable 引用，默认实现与抽象槽 trap 沿定义方原有 target 解析，LIR 使用现有 canonical ABI、外部定义与 relocation 路径。override、缺失实现、默认方法冲突、setter 能力和签名/effect 规则在同一前端检查中完成；类型、成员和 dispatch 独立及组合场景须经真实源码产物消费和单 image 普通/移动 GC 运行验收。
+
+本地 interface 可以继承参数自由的依赖接口。父边保留实际 TypeId，override 关系保留实际本地或外来槽声明；继承的成员按父接口声明顺序进入完整槽表，菱形继承按声明身份去重，被覆盖的槽按已解析 override 关系消除。显式成员及当前 this 的隐式成员查找沿本地与依赖声明的同一父图进行，本地和外来候选共同执行语言规定的适用性与最具体选择；不能以声明存储位置决定优先级，也不能将外来成员复制为本地声明。该接口再次发布后，下游按实际父类型、槽与 provider 消费，保持 canonical ABI、默认方法、属性和装箱语义。
 
 外来 dispatch target 按实际 provider 的普通 callable 或布局 ABI 导出取得定义和 canonical ABI；已完成消费边界检查的物理引用直接复用，不再重复完整验证或要求普通 callable 在布局 ABI 表中再登记一次。装箱和 dispatch adapter 的目标签名在完整本地及依赖 callable 查询中关联；组成记录只检查自身签名与转换形状，不要求外来目标同时登记在本地 foundation，也不重复进行同一目标签名的完整验证。
 

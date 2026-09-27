@@ -24,32 +24,31 @@ impl Concretizer<'_> {
             .iter()
             .map(|(_, interface)| vec![None; interface.methods.len()])
             .collect::<Vec<_>>();
+        let identities = self
+            .source
+            .dispatch_slot_identities
+            .records()
+            .chain(
+                self.source
+                    .types
+                    .iter()
+                    .filter_map(|(_, ty)| match ty {
+                        export::Type::ImportedInterface(interface) => Some(interface),
+                        _ => None,
+                    })
+                    .flat_map(|interface| interface.methods.iter().map(|method| &method.slot)),
+            )
+            .map(|record| (record.id(), record))
+            .collect::<HashMap<_, _>>();
         for ((interface, source), slot) in &self.interface_slot_by_source {
             let interface_index = interface.into_raw().into_u32() as usize;
             let slot_index = slot.into_raw() as usize;
             assert!(
                 interface_slots[interface_index][slot_index]
-                    .replace(self.source.dispatch_slot_identities[*source].clone())
+                    .replace((*identities[source]).clone())
                     .is_none(),
-                "each LocalConcrete interface slot has one Export HIR origin"
+                "each concrete interface slot retains its actual declaration identity"
             );
-        }
-        for (_, ty) in self.source.types.iter() {
-            let export::Type::ImportedInterface(source) = ty else {
-                continue;
-            };
-            let Some(id) = self
-                .imported_interfaces
-                .get(&source.declaration.identity.id())
-            else {
-                continue;
-            };
-            let index = id.into_raw().into_u32() as usize;
-            interface_slots[index] = source
-                .methods
-                .iter()
-                .map(|method| Some(method.slot.clone()))
-                .collect();
         }
         let interface_slots = interface_slots
             .into_iter()
@@ -403,7 +402,8 @@ impl Concretizer<'_> {
                 else {
                     unreachable!("interface dispatch belongs to a concrete interface method")
                 };
-                let slot = self.interface_slot_by_source[&(interface, member)];
+                let source_slot = self.source.dispatch_slot_identities[member].id();
+                let slot = self.interface_slot_by_source[&(interface, source_slot)];
                 concrete::MethodDispatch::Interface { interface, slot }
             }
         }

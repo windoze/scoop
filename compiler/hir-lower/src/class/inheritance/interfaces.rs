@@ -34,11 +34,7 @@ impl Lowerer {
             Owner::Object(id) => return self.class_interfaces_all(self.objects[id].backing_class),
             Owner::Struct(id) => self.structs[id].interfaces.clone(),
             Owner::Enum(id) => self.enums[id].interfaces.clone(),
-            Owner::Interface(id) => self.interfaces[id]
-                .parents
-                .iter()
-                .map(|parent| self.interface_applications[*parent].canonical_type)
-                .collect(),
+            Owner::Interface(id) => self.interfaces[id].parents.clone(),
         };
         let mut interfaces = Vec::new();
         for root in roots {
@@ -289,13 +285,20 @@ impl Lowerer {
     ) -> Vec<(FunctionId, Vec<TypeId>)> {
         let mut candidates = Vec::new();
         for &interface_ty in interfaces {
-            if let Type::Interface(application) = self.types[interface_ty] {
-                candidates.extend(
-                    self.interface_member_instances(application)
-                        .into_iter()
-                        .filter(|(_, method, _)| self.function_is_accessible(*method, None))
-                        .map(|(_, method, arguments)| (method, arguments)),
-                );
+            for member in self.conformance_members(interface_ty) {
+                let hir::InterfaceMethodReference::Local(id) = member.member else {
+                    continue;
+                };
+                let function = self.interface_method_entities[id].function;
+                let Type::Interface(owner) = self.types[member.owner] else {
+                    unreachable!("a local interface member has a local owner application");
+                };
+                if self.function_is_accessible(function, None) {
+                    let arguments = self.interface_applications[owner].arguments.clone();
+                    if !candidates.contains(&(function, arguments.clone())) {
+                        candidates.push((function, arguments));
+                    }
+                }
             }
         }
         candidates

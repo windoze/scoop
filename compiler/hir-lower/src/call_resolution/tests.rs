@@ -17,11 +17,7 @@ fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
     }
 }
 
-fn add_interface(
-    lowerer: &mut Lowerer,
-    name: &str,
-    parents: Vec<hir::InterfaceApplicationId>,
-) -> hir::TypeId {
+fn add_interface(lowerer: &mut Lowerer, name: &str, parents: Vec<hir::TypeId>) -> hir::TypeId {
     let interface = hir::InterfaceId::from_raw(
         u32::try_from(lowerer.interfaces.len())
             .expect("test interface count fits u32")
@@ -43,13 +39,6 @@ fn add_interface(
     });
     assert_eq!(allocated, interface);
     lowerer.interface_applications[application].canonical_type
-}
-
-fn interface_application(lowerer: &Lowerer, ty: hir::TypeId) -> hir::InterfaceApplicationId {
-    let Type::Interface(application) = lowerer.types[ty] else {
-        panic!("test type is an interface application")
-    };
-    application
 }
 
 fn add_generic_struct(
@@ -190,10 +179,7 @@ fn incomparable_minimal_upper_bounds_are_not_collapsed_to_any() {
     let mut lowerer = Lowerer::new();
     let left_parent = add_interface(&mut lowerer, "Left", Vec::new());
     let right_parent = add_interface(&mut lowerer, "Right", Vec::new());
-    let parents = vec![
-        interface_application(&lowerer, left_parent),
-        interface_application(&lowerer, right_parent),
-    ];
+    let parents = vec![left_parent, right_parent];
     let first_child = add_interface(&mut lowerer, "FirstChild", parents.clone());
     let second_child = add_interface(&mut lowerer, "SecondChild", parents);
     let callable = parameter(40, 0);

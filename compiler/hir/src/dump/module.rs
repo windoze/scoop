@@ -227,10 +227,7 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                 " : {}",
                 decl.parents
                     .iter()
-                    .map(|parent| type_name(
-                        module,
-                        module.interface_applications[*parent].canonical_type
-                    ))
+                    .map(|parent| type_name(module, *parent))
                     .collect::<Vec<_>>()
                     .join(", ")
             )

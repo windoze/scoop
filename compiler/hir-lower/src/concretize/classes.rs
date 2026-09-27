@@ -175,28 +175,8 @@ impl Concretizer<'_> {
                     .methods
                     .into_iter()
                     .map(|method| {
-                        let slot = match method.member {
-                            export::InterfaceMethodReference::Local(member) => {
-                                self.interface_slot_by_source[&(interface, member)]
-                            }
-                            export::InterfaceMethodReference::Imported { slot, .. } => {
-                                let export::Type::ImportedInterface(source) =
-                                    &self.source.types[implementation.interface]
-                                else {
-                                    unreachable!("imported slots belong to imported interfaces")
-                                };
-                                concrete::InterfaceMethodSlot::from_raw(
-                                    u32::try_from(
-                                        source
-                                            .methods
-                                            .iter()
-                                            .position(|method| method.slot.id() == slot)
-                                            .expect("conformance slot belongs to the interface"),
-                                    )
-                                    .expect("interface slot fits in u32"),
-                                )
-                            }
-                        };
+                        let source_slot = self.interface_reference_slot(method.member);
+                        let slot = self.interface_slot_by_source[&(interface, source_slot)];
                         let target = match method.target {
                             export::InterfaceImplementationTarget::Method(application) => {
                                 let concrete::Callable::Function(function) =

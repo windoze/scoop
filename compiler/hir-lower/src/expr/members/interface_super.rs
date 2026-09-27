@@ -212,11 +212,7 @@ impl Lowerer {
             crate::Owner::Class(owner) => self.classes[owner].interfaces.clone(),
             crate::Owner::Struct(owner) => self.structs[owner].interfaces.clone(),
             crate::Owner::Enum(owner) => self.enums[owner].interfaces.clone(),
-            crate::Owner::Interface(owner) => self.interfaces[owner]
-                .parents
-                .iter()
-                .map(|parent| self.interface_applications[*parent].canonical_type)
-                .collect(),
+            crate::Owner::Interface(owner) => self.interfaces[owner].parents.clone(),
             crate::Owner::Object(owner) => self.classes[self.objects[owner].backing_class]
                 .interfaces
                 .clone(),

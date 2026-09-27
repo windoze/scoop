@@ -79,8 +79,21 @@ impl Lowerer {
                 },
             )
         });
-        candidate_state
-            .probe_member_call_partition(candidates, "invoke", property, call, expected, false)
+        candidate_state.probe_member_call_partition(
+            candidates,
+            &ast::Ident {
+                text: "invoke".into(),
+                span: call.span,
+            },
+            property,
+            call,
+            expected,
+            RequiredCallableModifiers {
+                operator: Some(hir::OperatorKind::Invoke),
+                infix: require_infix,
+                ..Default::default()
+            },
+        )
     }
 
     pub(in crate::expr) fn probe_property_extension_invoke_partition(

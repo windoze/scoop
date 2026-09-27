@@ -26,17 +26,12 @@ pub(in crate::production::type_semantics) fn project_edges(
         }
         NominalLocalId::Interface(id) => {
             let interface = &export.interfaces[id];
-            let parents = interface
-                .parents
-                .iter()
-                .map(|parent| export.interface_applications[*parent].canonical_type)
-                .collect::<Vec<_>>();
             return build_edges(
                 export,
                 nominal.exact,
                 NominalInheritanceModalityV1::Interface,
                 None,
-                &parents,
+                &interface.parents,
             );
         }
         NominalLocalId::Object(id) => {

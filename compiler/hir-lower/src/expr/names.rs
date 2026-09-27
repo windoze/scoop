@@ -400,7 +400,11 @@ impl Lowerer {
             let receiver = self.lower_current_this(name.span)?;
             return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
         }
-        None
+        let property = self
+            .resolve_imported_member_property(receiver_ty, name)
+            .ok()??;
+        let receiver = self.lower_current_this(name.span)?;
+        self.emit_imported_member_property_read(&property, receiver, name.span)
     }
 
     /// Smart-cast candidates established by `cond` evaluating to

@@ -386,6 +386,15 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
                 "initialization-object-downstream"
             } else if *case == "companion-reexport" {
                 "companion-downstream"
+            } else if matches!(
+                *case,
+                "conformance-interface" | "conformance-interface-overload"
+            ) {
+                "conformance-interface-downstream"
+            } else if *case == "conformance-interface-diamond" {
+                "conformance-interface-diamond-downstream"
+            } else if *case == "conformance-interface-property" {
+                "conformance-interface-property-downstream"
             } else {
                 "downstream"
             }),
@@ -445,7 +454,7 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         .build_and_publish()
         .unwrap_err();
         let SingleConeProductionError::Production(error) = error else {
-            panic!("class errors must be diagnosed by the HIR stage");
+            panic!("{case}: expected HIR diagnostics, got {error:?}");
         };
         if *case == "primitive-variance" {
             assert!(matches!(

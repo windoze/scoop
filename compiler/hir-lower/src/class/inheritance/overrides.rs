@@ -71,11 +71,7 @@ impl Lowerer {
                 self.interface_method_candidates(&self.enums[enum_id].interfaces.clone())
             }
             Owner::Interface(interface) => {
-                let parents = self.interfaces[interface]
-                    .parents
-                    .iter()
-                    .map(|parent| self.interface_applications[*parent].canonical_type)
-                    .collect::<Vec<_>>();
+                let parents = self.interfaces[interface].parents.clone();
                 self.interface_method_candidates(&parents)
             }
         };
@@ -128,28 +124,6 @@ impl Lowerer {
                     .map(|(candidate, _)| *candidate)
                     .collect(),
             );
-            if matches!(owner, Owner::Interface(_)) {
-                let hir::MethodDispatch::Interface(member) = self.functions[id]
-                    .method
-                    .expect("an interface declaration is a method")
-                    .dispatch
-                else {
-                    unreachable!("a non-private interface declaration owns an interface slot")
-                };
-                let overridden = matching_overrides
-                    .iter()
-                    .filter_map(|(candidate, _)| {
-                        let method = self.functions[*candidate].method?;
-                        match method.dispatch {
-                            hir::MethodDispatch::Interface(member) => Some(member),
-                            hir::MethodDispatch::Direct
-                            | hir::MethodDispatch::Virtual(_)
-                            | hir::MethodDispatch::FinalOverride(_) => None,
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                self.interface_method_entities[member].overrides = overridden;
-            }
             for (candidate, arguments) in &matching_overrides {
                 let mut default_type_arguments = arguments.clone();
                 for parameter in &sig.type_params[sig.owner_type_param_count..] {
@@ -183,6 +157,31 @@ impl Lowerer {
                     break;
                 }
             }
+        }
+        if matches!(owner, Owner::Interface(_)) {
+            let hir::MethodDispatch::Interface(member) = self.functions[id]
+                .method
+                .expect("an interface declaration is a method")
+                .dispatch
+            else {
+                unreachable!("a non-private interface declaration owns an interface slot")
+            };
+            let mut overridden = matching_overrides
+                .iter()
+                .filter_map(|(candidate, _)| {
+                    let method = self.functions[*candidate].method?;
+                    match method.dispatch {
+                        hir::MethodDispatch::Interface(member) => {
+                            Some(hir::InterfaceMethodReference::Local(member))
+                        }
+                        hir::MethodDispatch::Direct
+                        | hir::MethodDispatch::Virtual(_)
+                        | hir::MethodDispatch::FinalOverride(_) => None,
+                    }
+                })
+                .collect::<Vec<_>>();
+            overridden.extend(imported_matches.iter().map(|member| member.member));
+            self.interface_method_entities[member].overrides = overridden;
         }
         if overrides.is_none() && imported_matches.is_empty() {
             let local_shape = candidates

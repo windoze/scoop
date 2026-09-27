@@ -30,10 +30,18 @@ impl Lowerer {
             return false;
         }
         visiting.push(current);
-        let reaches = self.interfaces[current].parents.iter().any(|parent| {
-            let parent = self.interface_applications[*parent].template;
-            parent == target || self.interface_reaches(parent, target, visiting)
-        });
+        let reaches =
+            self.interfaces[current]
+                .parents
+                .iter()
+                .any(|parent| match self.types[*parent] {
+                    Type::Interface(application) => {
+                        let parent = self.interface_applications[application].template;
+                        parent == target || self.interface_reaches(parent, target, visiting)
+                    }
+                    Type::ImportedInterface(_) => false,
+                    _ => unreachable!("resolved interface parents are interface types"),
+                });
         visiting.pop();
         reaches
     }

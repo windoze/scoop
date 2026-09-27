@@ -8,8 +8,8 @@ pub struct InterfaceDecl {
     pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
-    /// Exact parent applications in declaration order.
-    pub parents: Vec<InterfaceApplicationId>,
+    /// Actual local or dependency parent types in declaration order.
+    pub parents: Vec<TypeId>,
     /// Methods declared directly by this interface, in itable order after
     /// inherited methods. Inheritance traversal follows `parents` and these
     /// typed ids; consumers never reconstruct ownership from function names.
@@ -39,7 +39,7 @@ pub struct InterfaceMethod {
     pub implementation: InterfaceMemberImplementation,
     /// Interface slots shadowed by this declaration. The relation is typed
     /// and may contain every matching ancestor slot through a diamond.
-    pub overrides: Vec<InterfaceMethodId>,
+    pub overrides: Vec<InterfaceMethodReference>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

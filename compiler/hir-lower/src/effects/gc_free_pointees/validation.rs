@@ -514,7 +514,7 @@ impl Lowerer {
                     .parents
                     .iter()
                     .map(|parent| PointeeApplicationOccurrence {
-                        ty: self.interface_applications[*parent].canonical_type,
+                        ty: *parent,
                         file,
                         span: declaration.span,
                         context,

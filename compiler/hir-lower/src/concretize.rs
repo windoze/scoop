@@ -142,8 +142,13 @@ struct Concretizer<'a> {
     interfaces: Arena<concrete::InterfaceDef>,
     interface_by_key: HashMap<(export::InterfaceId, Vec<concrete::TypeId>), concrete::InterfaceId>,
     interface_type: HashMap<concrete::InterfaceId, concrete::TypeId>,
-    interface_slot_by_source:
-        HashMap<(concrete::InterfaceId, export::InterfaceMethodId), concrete::InterfaceMethodSlot>,
+    interface_slot_by_source: HashMap<
+        (
+            concrete::InterfaceId,
+            scoop_identity::PersistentDispatchSlotId,
+        ),
+        concrete::InterfaceMethodSlot,
+    >,
     virtual_method_by_source: HashMap<export::VirtualMethodId, concrete::VirtualMethodId>,
     classes: Arena<concrete::ClassDef>,
     class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,

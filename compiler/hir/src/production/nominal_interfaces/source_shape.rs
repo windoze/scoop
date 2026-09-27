@@ -48,18 +48,12 @@ pub(super) fn interface_supertypes(
     declaration: &crate::InterfaceDecl,
     binders: &[HirSignatureBinder],
 ) -> Result<CanonicalSignatureTypesV1, NominalInterfaceBuildError> {
-    let mut types = Vec::with_capacity(declaration.parents.len());
-    for &parent in &declaration.parents {
-        let application = super::arena_get(&projection.export.interface_applications, parent)
-            .ok_or_else(|| NominalInterfaceBuildError::Signature {
-                declaration: owner,
-                source: crate::HirInterfaceSignatureProjectionError::UnknownInterfaceApplication(
-                    super::raw_index(parent),
-                ),
-            })?;
-        types.push(application.canonical_type);
-    }
-    canonical_supertypes(projection, owner, types, binders)
+    canonical_supertypes(
+        projection,
+        owner,
+        declaration.parents.iter().copied(),
+        binders,
+    )
 }
 
 pub(super) fn direct_supertypes(

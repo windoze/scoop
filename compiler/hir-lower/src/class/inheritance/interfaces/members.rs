@@ -76,33 +76,85 @@ impl Lowerer {
         &mut self,
         ty: TypeId,
     ) -> Vec<InterfaceMemberInstance> {
-        match self.types[ty].clone() {
-            Type::Interface(application) => self
-                .interface_member_instances(application)
-                .into_iter()
-                .filter_map(|(member, function, arguments)| {
-                    if self.functions[function].method_type_param_count() != 0 {
-                        // Invalid generic interface members already have a declaration diagnostic.
-                        return None;
-                    }
-                    let declaration = self.interface_method_entities[member].clone();
-                    let signature = self.instantiated_signature(function, &arguments, &[]);
-                    let name = self.functions[function].name.clone();
-                    let owner = self.intern_interface_application(declaration.owner, arguments);
-                    Some(InterfaceMemberInstance {
-                        member: hir::InterfaceMethodReference::Local(member),
-                        owner,
-                        signature: InterfaceSignature::local(&name, &signature),
-                        implementation: declaration.implementation,
-                        mutable_property: match declaration.role {
-                            hir::InterfaceMemberRole::PropertySetter(property) => {
-                                Some(self.properties[property].name.clone())
-                            }
-                            _ => None,
-                        },
+        let mut members = Vec::new();
+        self.collect_conformance_members(ty, &mut Vec::new(), &mut members);
+        let mut suppressed = std::collections::HashSet::new();
+        let mut imported_suppressed = std::collections::HashSet::new();
+        for member in &members {
+            match member.member {
+                hir::InterfaceMethodReference::Local(id) => {
+                    suppressed.extend(self.interface_method_entities[id].overrides.iter().copied());
+                }
+                hir::InterfaceMethodReference::Imported { owner, slot } => {
+                    let Type::ImportedInterface(interface) = &self.types[owner] else {
+                        unreachable!("an imported slot retains its declaring interface");
+                    };
+                    let method = interface
+                        .methods
+                        .iter()
+                        .find(|method| method.slot.id() == slot)
+                        .expect("the declaring interface contains its slot");
+                    imported_suppressed.extend(method.overrides.iter().copied());
+                }
+            }
+        }
+        let mut seen = std::collections::HashSet::new();
+        members.retain(|member| {
+            !suppressed.contains(&member.member)
+                && !matches!(member.member, hir::InterfaceMethodReference::Imported { slot, .. }
+                    if imported_suppressed.contains(&slot))
+                && seen.insert((member.member, member.owner))
+        });
+        members
+    }
+
+    fn collect_conformance_members(
+        &mut self,
+        ty: TypeId,
+        seen: &mut Vec<TypeId>,
+        out: &mut Vec<InterfaceMemberInstance>,
+    ) {
+        if seen.contains(&ty) {
+            return;
+        }
+        seen.push(ty);
+        let members = match self.types[ty].clone() {
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                let declaration = self.interfaces[application.template].clone();
+                for parent in declaration.parents {
+                    let parent = self.instantiate_ty(parent, &application.arguments);
+                    self.collect_conformance_members(parent, seen, out);
+                }
+                declaration
+                    .methods
+                    .into_iter()
+                    .filter_map(|member| {
+                        let function = self.interface_method_entities[member].function;
+                        let arguments = application.arguments.clone();
+                        if self.functions[function].method_type_param_count() != 0 {
+                            // Invalid generic interface members already have a declaration diagnostic.
+                            return None;
+                        }
+                        let declaration = self.interface_method_entities[member].clone();
+                        let signature = self.instantiated_signature(function, &arguments, &[]);
+                        let name = self.functions[function].name.clone();
+                        let owner = self.intern_interface_application(declaration.owner, arguments);
+                        Some(InterfaceMemberInstance {
+                            member: hir::InterfaceMethodReference::Local(member),
+                            owner,
+                            signature: InterfaceSignature::local(&name, &signature),
+                            implementation: declaration.implementation,
+                            mutable_property: match declaration.role {
+                                hir::InterfaceMemberRole::PropertySetter(property) => {
+                                    Some(self.properties[property].name.clone())
+                                }
+                                _ => None,
+                            },
+                        })
                     })
-                })
-                .collect(),
+                    .collect::<Vec<_>>()
+            }
             Type::ImportedInterface(interface) => interface
                 .methods
                 .iter()
@@ -162,7 +214,8 @@ impl Lowerer {
                 })
                 .collect(),
             _ => unreachable!("conformance members belong to an interface"),
-        }
+        };
+        out.extend(members);
     }
 
     pub(in crate::class) fn same_interface_signature_shape(

@@ -73,7 +73,7 @@ pub(in crate::production::type_semantics::nominals) fn visit_required_types(
         }
         NominalLocalId::Interface(id) => {
             for parent in &export.interfaces[id].parents {
-                visit(export.interface_applications[*parent].canonical_type)?;
+                visit(*parent)?;
             }
         }
         NominalLocalId::Object(id) => {

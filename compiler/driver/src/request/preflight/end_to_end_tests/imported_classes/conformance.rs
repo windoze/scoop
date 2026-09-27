@@ -37,3 +37,32 @@ fn local_types_implement_dependency_interfaces_report_source_errors() {
         ],
     );
 }
+
+#[test]
+fn local_interfaces_inherit_dependency_members_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "conformance-interface",
+            "conformance-interface-diamond",
+            "conformance-interface-property",
+            "conformance-interface-overload",
+        ],
+        &[],
+    );
+}
+
+#[test]
+fn local_interfaces_inherit_dependency_members_report_source_errors() {
+    check_class_cases(
+        "direct",
+        &[],
+        &[
+            "conformance-interface-override-missing",
+            "conformance-interface-override-effect",
+            "conformance-interface-override-visibility",
+            "conformance-interface-conflict",
+            "conformance-interface-cycle",
+        ],
+    );
+}

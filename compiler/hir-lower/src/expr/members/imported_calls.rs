@@ -12,39 +12,38 @@ pub(in crate::expr) enum ImportedMemberSelectionFailure {
 }
 
 impl Lowerer {
-    pub(super) fn probe_imported_member_partition(
+    pub(super) fn imported_member_call_candidates(
         &self,
-        receiver: hir::Expr,
+        receiver: TypeId,
         name: &ast::Ident,
-        call: CallSite<'_>,
-        expected: Option<TypeId>,
         required: RequiredCallableModifiers,
-    ) -> PropertyExtensionInvokeOutcome {
-        let probe = match self.select_imported_member_probe(
-            ImportedMemberReceiver::Value(receiver),
-            name,
-            call.into(),
-            expected,
-            required,
-        ) {
-            Ok(probe) => probe,
-            Err(ImportedMemberSelectionFailure::NoApplicable(failure)) => {
-                return PropertyExtensionInvokeOutcome::NoApplicable(failure);
-            }
-            Err(ImportedMemberSelectionFailure::Failed(failure)) => {
-                return PropertyExtensionInvokeOutcome::Failed(failure);
-            }
+    ) -> Result<Vec<hir::ImportedCallableDeclaration>, Box<Lowerer>> {
+        let lookup = match required.operator {
+            Some(operator) => hir::ImportedMemberLookup::Operator(
+                hir::CallableOperatorRoleV1::Language(wire_operator(operator)),
+            ),
+            None => hir::ImportedMemberLookup::Name(&name.text),
         };
-        let mut state = self.clone();
-        let mut sink = Vec::new();
-        let Some(expression) = state.commit_imported_dependency_callable(probe, &mut sink) else {
-            return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
-        };
-        PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
-            state: Box::new(state),
-            expression,
-            sink,
-        })
+        let candidates = self
+            .imported_member_candidates(receiver, lookup)
+            .map_err(|error| {
+                let mut failure = self.clone();
+                failure.error(name.span, format!("invalid imported member: {error}"));
+                Box::new(failure)
+            })?;
+        Ok(candidates
+            .into_iter()
+            .filter(|candidate| {
+                let effects = candidate.interface().effects();
+                (!required.infix || effects.infix() == hir::CallableInfixV1::Infix)
+                    && required.property_delegate_operator.is_none_or(|operator| {
+                        effects.operator_role()
+                            == hir::CallableOperatorRoleV1::PropertyDelegate(
+                                super::extension_calls::imported_delegate_operator(operator),
+                            )
+                    })
+            })
+            .collect())
     }
 
     pub(in crate::expr) fn select_imported_member_probe(
@@ -55,38 +54,12 @@ impl Lowerer {
         expected: Option<TypeId>,
         required: RequiredCallableModifiers,
     ) -> Result<ImportedDependencyCallProbe, ImportedMemberSelectionFailure> {
-        if self.imported_nominal_declaration(receiver.ty()).is_none() {
-            return Err(ImportedMemberSelectionFailure::NoApplicable(None));
-        }
-        let lookup = match required.operator {
-            Some(operator) => hir::ImportedMemberLookup::Operator(
-                hir::CallableOperatorRoleV1::Language(wire_operator(operator)),
-            ),
-            None => hir::ImportedMemberLookup::Name(&name.text),
-        };
-        let candidates = match self.imported_member_candidates(receiver.ty(), lookup) {
-            Ok(candidates) => candidates,
-            Err(error) => {
-                let mut failure = self.clone();
-                failure.error(name.span, format!("invalid imported member: {error}"));
-                return Err(ImportedMemberSelectionFailure::Failed(Box::new(failure)));
-            }
-        };
+        let candidates = self
+            .imported_member_call_candidates(receiver.ty(), name, required)
+            .map_err(ImportedMemberSelectionFailure::Failed)?;
         let mut probes = Vec::new();
         let mut first_failure = None;
         for candidate in candidates {
-            let effects = candidate.interface().effects();
-            if required.infix && effects.infix() != hir::CallableInfixV1::Infix {
-                continue;
-            }
-            if let Some(operator) = required.property_delegate_operator
-                && effects.operator_role()
-                    != hir::CallableOperatorRoleV1::PropertyDelegate(
-                        super::extension_calls::imported_delegate_operator(operator),
-                    )
-            {
-                continue;
-            }
             match self.probe_imported_member_callable(
                 candidate,
                 receiver.clone(),

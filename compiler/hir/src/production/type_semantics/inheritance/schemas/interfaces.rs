@@ -22,19 +22,23 @@ impl Projection<'_> {
 
     pub(super) fn interface_slot(
         &self,
-        member: InterfaceMethodId,
+        member: InterfaceMethodReference,
     ) -> Result<PersistentDispatchSlotId, Error> {
-        self.export
-            .dispatch_slot_identities
-            .get_interface(member)
-            .map(|identity| identity.id())
-            .ok_or_else(|| self.invalid("interface member has no sealed dispatch identity"))
+        match member {
+            InterfaceMethodReference::Local(member) => self
+                .export
+                .dispatch_slot_identities
+                .get_interface(member)
+                .map(|identity| identity.id())
+                .ok_or_else(|| self.invalid("interface member has no dispatch identity")),
+            InterfaceMethodReference::Imported { slot, .. } => Ok(slot),
+        }
     }
 
     pub(super) fn interface_members(
         &mut self,
         application: InterfaceApplicationId,
-    ) -> Result<Vec<InterfaceMethodId>, Error> {
+    ) -> Result<Vec<InterfaceMethodReference>, Error> {
         crate::production::nominal_dispatch::Projection::new(self.export)
             .interface_members(application)
     }

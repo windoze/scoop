@@ -280,12 +280,7 @@ impl Lowerer {
             .iter()
             .map(|(id, value)| {
                 let mut types = self.type_parameter_signature_types(&value.type_params);
-                types.extend(
-                    value
-                        .parents
-                        .iter()
-                        .map(|parent| self.interface_applications[*parent].canonical_type),
-                );
+                types.extend(value.parents.iter().copied());
                 (
                     id,
                     types,

@@ -133,11 +133,7 @@ impl Lowerer {
                 .interfaces
                 .iter()
                 .map(|(id, declaration)| {
-                    let types = declaration
-                        .parents
-                        .iter()
-                        .map(|parent| self.interface_applications[*parent].canonical_type)
-                        .collect::<Vec<_>>();
+                    let types = declaration.parents.clone();
                     (
                         id,
                         types,

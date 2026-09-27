@@ -1,5 +1,8 @@
 use super::*;
 
+mod members;
+use members::InterfaceMethodInstance;
+
 impl Concretizer<'_> {
     pub(super) fn ensure_interface(
         &mut self,
@@ -32,15 +35,25 @@ impl Concretizer<'_> {
         assert_eq!(allocated, id);
         self.interface_by_key.insert(key, id);
         self.interface_type.insert(id, ty);
-        let method_instances = self.interface_method_instances(source.self_application, &arguments);
+        for parent in &source.parents {
+            self.lower_type(*parent, &arguments);
+        }
+        let source_ty = self.source.interface_applications[source.self_application].canonical_type;
+        let method_instances = self.interface_method_instances(source_ty, &arguments);
         let methods = method_instances
             .iter()
             .enumerate()
-            .map(|(index, (method, method_arguments))| {
+            .map(|(index, instance)| {
                 self.interface_slot_by_source.insert(
-                    (id, *method),
+                    (id, instance.slot(self.source)),
                     concrete::InterfaceMethodSlot::from_raw(index as u32),
                 );
+                let (method, method_arguments) = match instance {
+                    InterfaceMethodInstance::Local { member, arguments } => (member, arguments),
+                    InterfaceMethodInstance::Imported(method) => {
+                        return self.lower_imported_interface_method(method);
+                    }
+                };
                 let function =
                     &self.source.functions[self.source.interface_methods[*method].function];
                 let implementation = match self.source.interface_methods[*method].implementation {
@@ -96,12 +109,18 @@ impl Concretizer<'_> {
         member: export::InterfaceMethodId,
         substitution: &[concrete::TypeId],
     ) -> concrete::FunctionId {
+        let ty = self.source.interface_applications[application].canonical_type;
         let arguments = self
-            .interface_method_instances(application, substitution)
+            .interface_method_instances(ty, substitution)
             .into_iter()
-            .find(|(candidate, _)| *candidate == member)
-            .expect("the conformance member belongs to its interface")
-            .1;
+            .find_map(|candidate| match candidate {
+                InterfaceMethodInstance::Local {
+                    member: candidate,
+                    arguments,
+                } if candidate == member => Some(arguments),
+                _ => None,
+            })
+            .expect("the conformance member belongs to its interface");
         let function = self.source.interface_methods[member].function;
         let owner = self.source.functions[function]
             .method
@@ -116,56 +135,5 @@ impl Concretizer<'_> {
             concrete::MethodOwner::Interface(owner),
             MethodRequest::Plain,
         )
-    }
-
-    pub(super) fn interface_method_instances(
-        &mut self,
-        application: export::InterfaceApplicationId,
-        substitution: &[concrete::TypeId],
-    ) -> Vec<(export::InterfaceMethodId, Vec<concrete::TypeId>)> {
-        let mut result = Vec::new();
-        let mut seen = Vec::new();
-        self.collect_interface_method_instances(application, substitution, &mut seen, &mut result);
-        let suppressed = result
-            .iter()
-            .flat_map(|(member, _)| {
-                self.source.interface_methods[*member]
-                    .overrides
-                    .iter()
-                    .copied()
-            })
-            .collect::<Vec<_>>();
-        result.retain(|(member, _)| !suppressed.contains(member));
-        result
-    }
-
-    pub(super) fn collect_interface_method_instances(
-        &mut self,
-        application: export::InterfaceApplicationId,
-        substitution: &[concrete::TypeId],
-        seen: &mut Vec<(export::InterfaceId, Vec<concrete::TypeId>)>,
-        out: &mut Vec<(export::InterfaceMethodId, Vec<concrete::TypeId>)>,
-    ) {
-        let application = self.source.interface_applications[application].clone();
-        let arguments = application
-            .arguments
-            .iter()
-            .map(|argument| self.lower_type(*argument, substitution))
-            .collect::<Vec<_>>();
-        let key = (application.template, arguments.clone());
-        if seen.contains(&key) {
-            return;
-        }
-        seen.push(key);
-        let declaration = self.source.interfaces[application.template].clone();
-        for parent in declaration.parents {
-            self.collect_interface_method_instances(parent, &arguments, seen, out);
-        }
-        out.extend(
-            declaration
-                .methods
-                .iter()
-                .map(|&member| (member, arguments.clone())),
-        );
     }
 }

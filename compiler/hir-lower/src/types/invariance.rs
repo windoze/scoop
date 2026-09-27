@@ -162,10 +162,7 @@ impl Lowerer {
                 let parents = self.interfaces[application.template].parents.clone();
                 parents
                     .into_iter()
-                    .map(|parent| {
-                        let parent = self.interface_applications[parent].canonical_type;
-                        self.instantiate_ty(parent, &application.arguments)
-                    })
+                    .map(|parent| self.instantiate_ty(parent, &application.arguments))
                     .collect()
             }
             Type::Param(parameter) => self

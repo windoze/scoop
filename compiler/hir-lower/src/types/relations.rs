@@ -67,7 +67,6 @@ impl Lowerer {
                 if a.template != b.template {
                     let parents = self.interfaces[a.template].parents.clone();
                     return parents.into_iter().any(|parent| {
-                        let parent = self.interface_applications[parent].canonical_type;
                         let parent = self.instantiate_ty(parent, &a.arguments);
                         self.is_subtype(parent, b.canonical_type)
                     });
@@ -77,6 +76,10 @@ impl Lowerer {
                     .zip(b.arguments)
                     .all(|(a, b)| self.types_equal(a, b))
             }
+            (Type::Interface(_), Type::ImportedInterface(_)) => self
+                .interface_parent_types(a)
+                .into_iter()
+                .any(|parent| self.is_subtype(parent, b)),
             (Type::Function(source), Type::Function(target)) => {
                 let source = self.function_types[source].clone();
                 let target = self.function_types[target].clone();
@@ -215,10 +218,7 @@ impl Lowerer {
                     .parents
                     .clone()
                     .into_iter()
-                    .map(|parent| {
-                        let parent = self.interface_applications[parent].canonical_type;
-                        self.instantiate_ty(parent, &application.arguments)
-                    })
+                    .map(|parent| self.instantiate_ty(parent, &application.arguments))
                     .collect()
             }
             Type::ImportedInterface(interface) => interface.parents.clone(),

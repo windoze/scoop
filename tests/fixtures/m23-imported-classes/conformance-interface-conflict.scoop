@@ -1,0 +1,4 @@
+import dependency.classes.FirstChoice
+import dependency.classes.SecondChoice
+public interface LocalReader: FirstChoice, SecondChoice {}
+public struct LocalValue(): LocalReader

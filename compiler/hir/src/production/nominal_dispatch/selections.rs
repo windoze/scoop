@@ -32,10 +32,7 @@ impl Projection<'_> {
         };
         for implementation in implementations {
             for method in &implementation.methods {
-                let slot = match method.member {
-                    InterfaceMethodReference::Local(member) => self.interface_slot(member)?,
-                    InterfaceMethodReference::Imported { slot, .. } => slot,
-                };
+                let slot = self.interface_slot(method.member)?;
                 let selection = match method.target {
                     InterfaceImplementationTarget::Method(application) => {
                         self.target(application)?

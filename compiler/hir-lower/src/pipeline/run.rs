@@ -282,13 +282,7 @@ impl Lowerer {
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
             let parents = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
-            self.interfaces[id].parents = parents
-                .into_iter()
-                .map(|parent| match self.types[parent] {
-                    Type::Interface(application) => application,
-                    _ => unreachable!("resolved interface parents are interface applications"),
-                })
-                .collect();
+            self.interfaces[id].parents = parents;
         }
         self.current_owner = None;
         self.check_interface_inheritance_cycles(&pending_interfaces);

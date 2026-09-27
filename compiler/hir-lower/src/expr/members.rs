@@ -13,6 +13,7 @@ mod property_invoke;
 mod qualifiers;
 mod receiver_calls;
 mod resolution;
+mod selection;
 
 pub(in crate::expr) use property_invoke::{
     PropertyExtensionInvokeInput, PropertyExtensionInvokeOrigin, PropertyExtensionInvokeOutcome,
@@ -269,7 +270,7 @@ impl Lowerer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn probe_member_call_partition(
+    fn probe_local_member_call_partition(
         &self,
         candidates: Vec<crate::CallableCandidate>,
         name: &str,
@@ -336,7 +337,10 @@ impl Lowerer {
         {
             return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
         }
-        None
+        let property = self
+            .resolve_imported_member_property(receiver_ty, name)
+            .ok()??;
+        self.emit_imported_member_property_read(&property, receiver, name.span)
     }
 
     pub(super) fn lower_safe_method_call(

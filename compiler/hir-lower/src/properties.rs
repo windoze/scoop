@@ -189,10 +189,9 @@ impl Lowerer {
             return Some((property, application, ty));
         }
         for parent in self.interfaces[value.template].parents.clone() {
-            let parent_ty = self.interface_applications[parent].canonical_type;
-            let parent_ty = self.instantiate_ty(parent_ty, &value.arguments);
+            let parent_ty = self.instantiate_ty(parent, &value.arguments);
             let hir::Type::Interface(parent) = self.types[parent_ty] else {
-                unreachable!("interface parent substitutions stay interface applications")
+                continue;
             };
             if let Some(property) =
                 self.find_accessible_interface_application_property(parent, name, receiver_ty, seen)

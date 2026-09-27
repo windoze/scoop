@@ -107,7 +107,7 @@ external code use = committed HIR winner
 | 阶段 | M23-5 接收 | M23-5 交付 |
 | --- | --- | --- |
 | M23-4 | 已完成节点的direct/support Compile与Link closure、canonical dependency order、cache/child gate | 可直接传给HIR的semantic closure；scheduler只更新accepted profile和删除无条件non-core拒绝 |
-| M23-6 | persistent exact/source/owner identity、name/access witness、selected external relation与明确的layout/dispatch拒绝 | 新layout/ABI/scan/inheritance capability可在同一world上精化target，不重跑import或按名称找实体 |
+| M23-6 | persistent exact/source/owner identity、名称解析结果与访问域、selected external relation与明确的layout/dispatch拒绝 | 新layout/ABI/scan/inheritance capability可在同一world上精化target，不重跑import或按名称找实体 |
 | M23-7 | generic declaration name/source interface、type parameter/bound identity与明确的generic拒绝 | hidden support/ODR capability沿已选typed template继续，不把support entity加入普通lookup |
 | M23-8 | per-Cone image与canonical graph order、外部accessor内部自有init unit | runtime登记全部image后，provider accessor按自身unit语义执行；consumer不复制init storage |
 | M23-9/10 | Link closure中的typed cross-Cone requirement、terminal provider与physical use proof | program-link只做全程序definition/native resolution，不补做源码visibility/import |

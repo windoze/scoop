@@ -141,7 +141,7 @@ pub(super) fn visit_bases(
         LocalNominalId::Enum(id) => (None, export.enums[id].interfaces.as_slice()),
         LocalNominalId::Interface(id) => {
             for parent in &export.interfaces[id].parents {
-                visit(export.interface_applications[*parent].canonical_type)?;
+                visit(*parent)?;
             }
             return Ok(());
         }

@@ -1,5 +1,7 @@
 use super::*;
 
+mod defaults;
+
 impl Lowerer {
     /// All visible methods named `name` on a receiver type (M7 overload
     /// candidates). A class contributes its own methods followed by
@@ -188,6 +190,7 @@ impl Lowerer {
             _ => {}
         }
 
+        self.collect_selected_interface_defaults(ty, &mut declared);
         declared
     }
 
@@ -233,7 +236,7 @@ impl Lowerer {
                 for interface in self.classes[class].interfaces.clone() {
                     let interface = self.instantiate_ty(interface, &application_value.arguments);
                     let Type::Interface(interface) = self.types[interface] else {
-                        unreachable!("class conformances are interface applications")
+                        continue;
                     };
                     self.collect_interface_method_candidates(
                         interface,
@@ -383,59 +386,10 @@ impl Lowerer {
             ));
         }
         for parent in self.interfaces[application_value.template].parents.clone() {
-            let parent = self.interface_applications[parent].canonical_type;
             let parent = self.instantiate_ty(parent, &application_value.arguments);
-            let Type::Interface(parent) = self.types[parent] else {
-                unreachable!("interface parent substitutions stay interface applications")
-            };
-            self.collect_interface_method_candidates(parent, depth + 1, root, bound, seen, out);
-        }
-    }
-
-    pub(super) fn interface_member_instances(
-        &mut self,
-        application: hir::InterfaceApplicationId,
-    ) -> Vec<(hir::InterfaceMethodId, FunctionId, Vec<TypeId>)> {
-        let mut result = Vec::new();
-        self.collect_interface_member_instances(application, &mut Vec::new(), &mut result);
-        let suppressed = result
-            .iter()
-            .flat_map(|(member, _, _)| {
-                self.interface_method_entities[*member]
-                    .overrides
-                    .iter()
-                    .copied()
-            })
-            .collect::<Vec<_>>();
-        result.retain(|(member, _, _)| !suppressed.contains(member));
-        result
-    }
-
-    fn collect_interface_member_instances(
-        &mut self,
-        application: hir::InterfaceApplicationId,
-        seen: &mut Vec<hir::InterfaceApplicationId>,
-        out: &mut Vec<(hir::InterfaceMethodId, FunctionId, Vec<TypeId>)>,
-    ) {
-        if seen.contains(&application) {
-            return;
-        }
-        seen.push(application);
-        let application_value = self.interface_applications[application].clone();
-        for parent in self.interfaces[application_value.template].parents.clone() {
-            let parent = self.interface_applications[parent].canonical_type;
-            let parent = self.instantiate_ty(parent, &application_value.arguments);
-            let Type::Interface(parent) = self.types[parent] else {
-                unreachable!("interface parent substitutions stay interface applications")
-            };
-            self.collect_interface_member_instances(parent, seen, out);
-        }
-        for &member in &self.interfaces[application_value.template].methods {
-            out.push((
-                member,
-                self.interface_method_entities[member].function,
-                application_value.arguments.clone(),
-            ));
+            if let Type::Interface(parent) = self.types[parent] {
+                self.collect_interface_method_candidates(parent, depth + 1, root, bound, seen, out);
+            }
         }
     }
 

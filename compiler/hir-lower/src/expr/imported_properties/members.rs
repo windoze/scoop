@@ -21,9 +21,6 @@ impl Lowerer {
         receiver: hir::TypeId,
         name: &ast::Ident,
     ) -> Result<Option<ResolvedImportedMemberProperty>, ()> {
-        if self.imported_nominal_declaration(receiver).is_none() {
-            return Ok(None);
-        }
         let candidates = self
             .imported_member_candidates(
                 receiver,

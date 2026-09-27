@@ -1,0 +1,13 @@
+import dependency.classes.Counter
+import dependency.classes.Valued
+
+public interface LocalValue: Valued {
+    public fun inherited(): Long = value
+}
+public enum LocalChoice: LocalValue {
+    Ready
+    public override val value: Long
+        get() = 21
+}
+public fun localValue(): LocalValue = LocalChoice.Ready
+public fun primary(): Counter = Counter(localValue().inherited())

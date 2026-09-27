@@ -46,10 +46,7 @@ pub(super) fn project(
         let slots = conformance
             .methods
             .iter()
-            .map(|method| match method.member {
-                InterfaceMethodReference::Local(member) => projection.interface_slot(member),
-                InterfaceMethodReference::Imported { slot, .. } => Ok(slot),
-            })
+            .map(|method| projection.interface_slot(method.member))
             .collect::<Result<Vec<_>, Error>>()?;
         let schema = projection.schema(
             InheritanceSlotSchemaRoleV1::Interface { interface_exact },

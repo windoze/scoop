@@ -1,0 +1,148 @@
+Module
+  struct LocalValue ()
+  enum CoroutineStep<LocalReader>
+    Completed(value: LocalReader)
+    Suspended()
+  enum CoroutineSlot<LocalReader>
+    Empty()
+    Value(value: LocalReader)
+  enum CoroutineStep<LocalValue>
+    Completed(value: LocalValue)
+    Suspended()
+  enum CoroutineSlot<LocalValue>
+    Empty()
+    Value(value: LocalValue)
+  class Counter vtable=0 itables=0
+  class box<LocalValue> vtable=0 itables=2
+  interface LocalReader
+  interface Readable
+  generated_exact_type get0 location=enum0 nominal_id=44e8d8ce931976ed58df505793bb52cc2d14a67920b5336d49eae97133bf9d52 exact_id=23df1235de19190e5f8ef37a6fbab94e9b6d1eac1f52c6d6a09b27ed2107429f
+  generated_exact_type get1 location=class1 nominal_id=7056e2803d75f50116b62288b6217bd87d4af1e0747d8ee327a8bb095631c449 exact_id=73699a76f2ea63a63ba96e2ae4c0f4addedc5306003fb82cbfc652f398d6cbaf
+  generated_exact_type get2 location=enum2 nominal_id=32b0c1eae4393eb91524431918b31ea80b2a762403c647acd3c237501edfa876 exact_id=8eeb3f5754aa82f1b192e58e7d6a0a397a8b1f144165dd8d65ffc1c99510d314
+  generated_exact_type get3 location=enum3 nominal_id=942ee45044d67b89bf4fb566621a8184721abb810234a97cade768cff86ebd27 exact_id=e4045b5b7e6aed4e09f51ebb28d04caa0cc569ec6ebe02ea80f9b0058ae77a14
+  generated_exact_type get4 location=enum1 nominal_id=fdfb666cd742f1b928df3c50e7f5706d82d01bc3946f9a375360bacec14277c6 exact_id=ed1758288dba489a232d0bab6f9804d93121c18358728beade56e6b0b8946580
+  generated_callable gc0 function=@fn7 id=017ce37143cc1967d7521f81fb025f4351aeef62e618be2fa94a4f208c629422
+  generated_callable gc1 function=@fn9 id=2edad0df11ef0b85c53828f9b34979bbff76d20eff419e8b5461d90ea36381d9
+  generated_callable gc2 function=@fn6 id=7fb832f987060080c27973ae3fb9c67f066a1d0a06e8ff1715e3f8c3afafc4aa
+  generated_callable gc3 function=@fn8 id=e74c636d7e46eb55e43d5650399133ae8277954bfb66d40afb7b3ecb98a7f5f3
+  generated_callable gc4 function=@fn5 id=ec3a6abae7da9816e509f159156db8806a3d223b13e8344381feccf402af1994
+  fun localReader @fn0() -> LocalReader
+    bb0 entry
+      call $call.1: LocalValue = @fn4 direct
+      return
+        Type LocalReader
+        Box
+          Type LocalValue
+          Local $call.1
+  fun primary @fn1() -> Counter
+    bb0 entry
+      val extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $call.1: LocalValue = @fn4 direct
+      val $dependency.receiver: Readable
+        Type Readable
+        Box
+          Type LocalValue
+          Local $call.1
+      val $dependency.argument.0: Long
+        Type Long
+        Local extra
+      val $dependency.parameter.extra: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.argument.0: Long = external0 interface Readable[1]
+        Type Readable
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun LocalReader.read @fn2(this: LocalReader) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+  fun LocalReader.answer @fn3(this: LocalReader, extra: Any) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+  fun ctor.LocalValue.$c0 @fn4() -> LocalValue <no-gc>
+    bb0 entry
+      return
+        Type LocalValue
+        StructInit LocalValue
+  fun thunk<LocalValue> LocalReader.answer(Long) @fn5(this: LocalReader, extra: Long) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type Readable
+        Retype Readable
+          Type LocalReader
+          Local this
+        Type Long
+        Local extra
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> LocalReader.read() @fn6(this: LocalReader) -> Long
+    bb0 entry
+      call $call.1: Long = @fn2 direct
+        Type LocalReader
+        Retype LocalReader
+          Type LocalReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> LocalReader.answer(Any) @fn7(this: LocalReader, extra: Any) -> Long
+    bb0 entry
+      call $call.1: Long = @fn3 direct
+        Type LocalReader
+        Retype LocalReader
+          Type LocalReader
+          Local this
+        Type Any
+        Local extra
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> Readable.read() @fn8(this: Readable) -> Long
+    bb0 entry
+      call $call.1: Long = @fn2 direct
+        Type LocalReader
+        Retype LocalReader
+          Type Readable
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> Readable.answer(Long) @fn9(this: Readable, extra: Long) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type Readable
+        Retype Readable
+          Type Readable
+          Local this
+        Type Long
+        Local extra
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalReader> result=LocalReader
+  coroutine_step cs1 CoroutineStep<LocalValue> result=LocalValue
+  coroutine_slot cl0 CoroutineSlot<LocalReader> value=LocalReader
+  coroutine_slot cl1 CoroutineSlot<LocalValue> value=LocalValue
+  output library

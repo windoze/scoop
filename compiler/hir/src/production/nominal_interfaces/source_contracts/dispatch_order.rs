@@ -53,7 +53,7 @@ fn interface(export: &ExportHir, id: InterfaceId) -> Result<NominalDispatchOrder
         .map_err(invalid)?;
     let mut parents = Vec::new();
     for parent in &declaration.parents {
-        let ty = export.interface_applications[*parent].canonical_type;
+        let ty = *parent;
 
         push(
             &mut parents,
@@ -69,13 +69,14 @@ fn interface(export: &ExportHir, id: InterfaceId) -> Result<NominalDispatchOrder
             .id();
         let mut overrides = BTreeSet::new();
         for inherited in &export.interface_methods[*member].overrides {
-            let inherited = export
-                .dispatch_slot_identities
-                .get_interface(*inherited)
-                .ok_or_else(|| {
-                    invalid("overridden interface member has no persistent slot identity")
-                })?
-                .id();
+            let inherited = match inherited {
+                InterfaceMethodReference::Local(member) => export
+                    .dispatch_slot_identities
+                    .get_interface(*member)
+                    .ok_or_else(|| invalid("overridden interface member has no dispatch identity"))?
+                    .id(),
+                InterfaceMethodReference::Imported { slot, .. } => *slot,
+            };
             overrides.insert(inherited);
         }
 

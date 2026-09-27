@@ -99,8 +99,42 @@ impl Projection<'_> {
 
     pub(super) fn interface_selection(
         &self,
-        member: InterfaceMethodId,
+        member: InterfaceMethodReference,
     ) -> Result<Selection, Error> {
+        let member = match member {
+            InterfaceMethodReference::Local(member) => member,
+            InterfaceMethodReference::Imported { owner, slot } => {
+                let Type::ImportedInterface(interface) = &self.export.types[owner] else {
+                    return Err(invalid("imported slot has no interface owner"));
+                };
+                let method = interface
+                    .methods
+                    .iter()
+                    .find(|method| method.slot.id() == slot)
+                    .ok_or_else(|| invalid("imported interface has no referenced slot"))?;
+                if method.declaration.modality() == CallableModalityV1::Abstract {
+                    return Ok(Selection::Abstract);
+                }
+                let target = match method.declaration.declaration() {
+                    scoop_identity::CallableTemplateOrigin::Function(id) => {
+                        InheritanceCallableDeclarationV1::Function(id)
+                    }
+                    scoop_identity::CallableTemplateOrigin::Accessor(id) => {
+                        match method.slot.key().role() {
+                            scoop_identity::DispatchRole::PropertyGetter => {
+                                InheritanceCallableDeclarationV1::Getter(id)
+                            }
+                            scoop_identity::DispatchRole::PropertySetter => {
+                                InheritanceCallableDeclarationV1::Setter(id)
+                            }
+                            _ => return Err(invalid("interface accessor has no accessor role")),
+                        }
+                    }
+                    _ => return Err(invalid("interface member has no callable declaration")),
+                };
+                return Ok(Selection::InterfaceDefault(target));
+            }
+        };
         let declaration = &self.export.interface_methods[member];
         match declaration.implementation {
             InterfaceMemberImplementation::Body => Ok(Selection::InterfaceDefault(
