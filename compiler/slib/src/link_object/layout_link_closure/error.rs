@@ -15,9 +15,6 @@ pub enum LayoutLinkClosureError {
         first: u32,
         second: u32,
     },
-    OldPartition {
-        import_index: u32,
-    },
     NonExternalRemainder {
         member: SlibMemberId,
         atom: ObjectDefinitionAtomId,

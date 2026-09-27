@@ -1,0 +1,5 @@
+import dependency.classes.Valued
+public struct Wrong(): Valued {
+    public val value: Long
+        get() = 21
+}

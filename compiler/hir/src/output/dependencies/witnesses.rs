@@ -6,9 +6,12 @@ use crate::{ExternalHirBindingWitnessUse, ExternalHirTargetV1};
 pub(super) fn collect(
     output: &crate::Output,
     selected: &crate::SelectedImportedDependencySet,
+    executable: &mut Vec<concrete::ImportedDependencyCallableUseId>,
 ) -> Result<Vec<ExternalHirBindingWitnessUse>, DependencyCallOccurrenceError> {
     let mut uses = Vec::new();
     occurrences::visit(output, selected, |call| {
+        call.validate_origin(output.export.module())?;
+        executable.push(call.callee());
         let target = ExternalHirTargetV1::Callable(call.callable().interface().declaration());
         if let Some(binding) = call.binding() {
             append(&mut uses, target, binding)?;

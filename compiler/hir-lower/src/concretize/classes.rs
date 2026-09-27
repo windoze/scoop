@@ -170,23 +170,64 @@ impl Concretizer<'_> {
             .iter()
             .cloned()
             .map(|implementation| {
-                let interface =
-                    self.lower_interface_application(implementation.interface, substitution);
+                let interface = self.lower_interface_type(implementation.interface, substitution);
                 let methods = implementation
                     .methods
                     .into_iter()
                     .map(|method| {
-                        let slot = self.interface_slot_by_source[&(interface, method.member)];
+                        let slot = match method.member {
+                            export::InterfaceMethodReference::Local(member) => {
+                                self.interface_slot_by_source[&(interface, member)]
+                            }
+                            export::InterfaceMethodReference::Imported { slot, .. } => {
+                                let export::Type::ImportedInterface(source) =
+                                    &self.source.types[implementation.interface]
+                                else {
+                                    unreachable!("imported slots belong to imported interfaces")
+                                };
+                                concrete::InterfaceMethodSlot::from_raw(
+                                    u32::try_from(
+                                        source
+                                            .methods
+                                            .iter()
+                                            .position(|method| method.slot.id() == slot)
+                                            .expect("conformance slot belongs to the interface"),
+                                    )
+                                    .expect("interface slot fits in u32"),
+                                )
+                            }
+                        };
                         let target = match method.target {
                             export::InterfaceImplementationTarget::Method(application) => {
                                 let concrete::Callable::Function(function) =
                                     self.lower_method_application(application, substitution);
                                 concrete::InterfaceImplementationTarget::Method(function)
                             }
+                            export::InterfaceImplementationTarget::Imported(callable) => {
+                                concrete::InterfaceImplementationTarget::Imported(
+                                    self.imported_dependency_callable_map[&callable],
+                                )
+                            }
+                            export::InterfaceImplementationTarget::ImportedAbstract(callable) => {
+                                concrete::InterfaceImplementationTarget::ImportedAbstract {
+                                    declaration: self.imported_dependency_callable_map[&callable],
+                                }
+                            }
                             export::InterfaceImplementationTarget::Subclass => {
+                                let export::Type::Interface(application) =
+                                    self.source.types[implementation.interface]
+                                else {
+                                    unreachable!("local abstract slots have local declarations")
+                                };
+                                let export::InterfaceMethodReference::Local(member) = method.member
+                                else {
+                                    unreachable!(
+                                        "local abstract slots reference local interface methods"
+                                    )
+                                };
                                 let declaration = self.request_abstract_interface_member(
-                                    implementation.interface,
-                                    method.member,
+                                    application,
+                                    member,
                                     substitution,
                                 );
                                 concrete::InterfaceImplementationTarget::Abstract { declaration }
@@ -198,6 +239,18 @@ impl Concretizer<'_> {
                 concrete::InterfaceImplementation { interface, methods }
             })
             .collect()
+    }
+
+    pub(super) fn lower_interface_type(
+        &mut self,
+        source: export::TypeId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::InterfaceId {
+        let ty = self.lower_type(source, substitution);
+        let concrete::TypeKind::Interface(interface) = self.types[ty].kind else {
+            unreachable!("interface type lowers to an interface")
+        };
+        interface
     }
 
     pub(super) fn lower_extern_functions(&mut self) {

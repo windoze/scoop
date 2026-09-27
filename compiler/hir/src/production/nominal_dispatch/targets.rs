@@ -1,6 +1,51 @@
 use super::*;
 
 impl Projection<'_> {
+    pub(super) fn imported_callable(
+        &self,
+        id: ImportedDependencyCallableUseId,
+    ) -> Result<InheritanceCallableDeclarationV1, Error> {
+        let callable = &self.export.imported_dependency_callables[id];
+        match callable.reference().declaration() {
+            scoop_identity::CallableTemplateOrigin::Function(id) => {
+                Ok(InheritanceCallableDeclarationV1::Function(id))
+            }
+            scoop_identity::CallableTemplateOrigin::Accessor(id) => {
+                let ImportedDependencyDispatch::Interface { interface, slot } = callable.dispatch()
+                else {
+                    return Err(invalid(
+                        "an interface default accessor has an interface declaration",
+                    ));
+                };
+                let method = self
+                    .export
+                    .types
+                    .iter()
+                    .find_map(|(_, ty)| match ty {
+                        Type::ImportedInterface(source)
+                            if source.declaration.identity.id() == interface =>
+                        {
+                            source.methods.get(slot as usize)
+                        }
+                        _ => None,
+                    })
+                    .ok_or_else(|| invalid("imported accessor has no interface slot"))?;
+                match method.slot.key().role() {
+                    scoop_identity::DispatchRole::PropertyGetter => {
+                        Ok(InheritanceCallableDeclarationV1::Getter(id))
+                    }
+                    scoop_identity::DispatchRole::PropertySetter => {
+                        Ok(InheritanceCallableDeclarationV1::Setter(id))
+                    }
+                    _ => Err(invalid("imported accessor has no accessor role")),
+                }
+            }
+            _ => Err(invalid(
+                "interface dispatch target is not a method or accessor",
+            )),
+        }
+    }
+
     pub(super) fn method(&self, function: FunctionId) -> Result<Method, Error> {
         self.export.functions[function]
             .method

@@ -1,0 +1,40 @@
+Module
+  class LocalValue(initial: Long) : MutableValue
+    field0 property0: Long
+    property0 override var value: Long getter0=body(LocalValue.$get$value) setter0=body(LocalValue.$set$value) <stored field0 init=expression> overrides=[imported(MutableValue,4998ee009deb23f5206e079031827cf0a42bafcbecab93df23e31b033b63ffb3)]
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 19 : Long
+    val local1
+      Local $argument.0 : Long
+    val local2
+      ClassInit LocalValue : LocalValue
+        Local $parameter.initial : Long
+    val local3
+      ReferenceUpcast : MutableValue
+        Local concrete : LocalValue
+    val local4
+      Local view : MutableValue
+    val local5
+      ImportedDependencyCall #0 interface[0] : Long
+        Local $place.0 : MutableValue
+    val local6
+      Local $old.1 : Long
+    val local7
+      IntegerLiteral 1 : Long
+    val local8
+      Local $dependency.argument.0 : Long
+    ImportedDependencyCall #1 interface[1] : Unit
+      Local $place.0 : MutableValue
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local9
+      MethodCall LocalValue.$get$value : Long
+        Local concrete : LocalValue
+    val local10
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

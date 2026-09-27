@@ -95,13 +95,7 @@ fn validate_physical(
             .ok_or(LayoutAbiSectionError::MissingPhysicalProvider(
                 import.provider(),
             ))?;
-        import.validate_semantic_against(
-            terminal.layouts(),
-            terminal.callables(),
-            terminal.descriptors(),
-            terminal.dispatch(),
-        )?;
-        let Some(target) = import.semantic_target(terminal.layouts())? else {
+        let Some(target) = import.semantic_target(terminal.layouts(), terminal.callables())? else {
             continue;
         };
         let relation = LayoutAbiDependencyV1::new(import.provider(), target);

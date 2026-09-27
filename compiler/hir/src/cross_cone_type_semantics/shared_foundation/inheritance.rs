@@ -21,6 +21,15 @@ mod members;
 mod schemas;
 mod source;
 
+impl SharedTypeMetadataV1<'_> {
+    pub(crate) fn callable_declaration_access(
+        self,
+        source: &crate::CallableDeclarationRecordV1,
+    ) -> Result<DeclarationAccessSourceV1, Error> {
+        contracts::callable_access(self, source)
+    }
+}
+
 impl CheckedSharedTypeFoundationV1<'_> {
     /// Replays every supplied provider's complete inheritance inventory against
     /// its shared declarations. The temporary graph cannot escape this scope.

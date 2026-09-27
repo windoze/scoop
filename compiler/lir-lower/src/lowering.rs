@@ -204,6 +204,7 @@ pub(super) fn lower_graph(
         module,
         &enums,
         &local_function_map,
+        &external_callable_map,
         dependency_types,
     )?;
     let (arrays, array_type_map) = array_types(

@@ -193,12 +193,12 @@ impl Harness {
                 };
                 let template = self.interface_applications[application].template;
                 hir::InterfaceImplementation {
-                    interface: application,
+                    interface,
                     methods: self.interfaces[template]
                         .methods
                         .iter()
                         .map(|&member| hir::InterfaceMethodImplementation {
-                            member,
+                            member: hir::InterfaceMethodReference::Local(member),
                             target: hir::InterfaceImplementationTarget::Subclass,
                         })
                         .collect(),

@@ -1,4 +1,4 @@
-//! Machine callable roots are borrowed from actual executable expressions.
+//! Machine callable roots come from executable expressions and dispatch tables.
 
 use scoop_wire::WirePath;
 
@@ -21,25 +21,26 @@ impl<'a> ExecutableDependencyCallableUse<'a> {
 }
 
 impl DependencyHirOutput {
-    /// Validates every occurrence before deduplicating machine targets. The
-    /// result carries no representative source route: all actual routes were
-    /// checked, including later occurrences of an already encountered callee.
+    /// Reuses the actual machine roots collected when this immutable output was
+    /// built. Source-only default references do not become executable roots.
     pub fn executable_dependency_callables(
         &self,
     ) -> Result<Vec<ExecutableDependencyCallableUse<'_>>, DependencyCallOccurrenceError> {
-        let path = WirePath::root();
         let mut uses = Vec::new();
-        occurrences::visit(&self.output, &self.imported_dependencies, |occurrence| {
-            scoop_wire::allocation::try_reserve(&mut uses, 1, &path)?;
-            uses.push(ExecutableDependencyCallableUse {
-                callee: occurrence.callee(),
-                callable: occurrence.callable(),
-            });
-            Ok(())
-        })?;
-
-        uses.sort_unstable_by_key(|use_| use_.callee);
-        uses.dedup_by_key(|use_| use_.callee);
+        scoop_wire::allocation::try_reserve(
+            &mut uses,
+            self.executable_callables.len(),
+            &WirePath::root(),
+        )?;
+        for &callee in &self.executable_callables {
+            let reference =
+                self.output.local.module().imported_dependency_callables[callee].reference();
+            let callable = self
+                .imported_dependencies
+                .resolve_callable(reference)
+                .expect("output construction resolved every executable dependency callable");
+            uses.push(ExecutableDependencyCallableUse { callee, callable });
+        }
         Ok(uses)
     }
 }

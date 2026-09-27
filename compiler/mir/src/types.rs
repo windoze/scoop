@@ -466,6 +466,7 @@ pub fn array_type<'a>(module: &'a Module, ty: &Type) -> Option<(ArrayKind, &'a T
 #[derive(Debug)]
 pub enum TableSlot {
     Function(FunctionId),
+    External(ExternalCallableUseId),
     Runtime(RuntimeFn),
 }
 

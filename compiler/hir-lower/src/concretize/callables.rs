@@ -131,15 +131,16 @@ impl Concretizer<'_> {
         required_interface: concrete::InterfaceId,
     ) -> (concrete::Callable, Option<concrete::InterfaceId>) {
         for conformance in conformances {
-            let interface =
-                self.lower_interface_application(conformance.interface, owner_arguments);
+            let interface = self.lower_interface_type(conformance.interface, owner_arguments);
             if interface != required_interface {
                 continue;
             }
             let implementation = conformance
                 .methods
                 .iter()
-                .find(|implementation| implementation.member == member)
+                .find(|implementation| {
+                    implementation.member == export::InterfaceMethodReference::Local(member)
+                })
                 .unwrap_or_else(|| {
                     panic!("export HIR conformance omits a required interface method")
                 });
@@ -148,7 +149,9 @@ impl Concretizer<'_> {
                     self.lower_method_application(*application, owner_arguments),
                     None,
                 ),
-                export::InterfaceImplementationTarget::Subclass => {
+                export::InterfaceImplementationTarget::Subclass
+                | export::InterfaceImplementationTarget::Imported(_)
+                | export::InterfaceImplementationTarget::ImportedAbstract(_) => {
                     let function = self.source.interface_methods[member].function;
                     (
                         concrete::Callable::Function(self.request_method(

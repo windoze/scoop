@@ -1,85 +1,71 @@
 use super::*;
-use scoop_identity::{DispatchDeclarationOwner, DispatchRole};
 use scoop_wire::WirePath;
-use std::collections::BTreeSet;
 
 mod contract;
 
 type Declaration = InheritanceCallableDeclarationV1;
 
-pub(in crate::production::type_semantics) fn project(
+pub(super) fn local(
     export: &ExportHir,
-    inventory: &CanonicalSourceInheritanceInventoriesV1,
-    selections: &CanonicalInheritanceSourceSlotSelectionsV1,
-) -> Result<CanonicalInheritanceSourceCallablesV1, Error> {
-    let mut required = required(export, inventory, selections)?;
-    let mut records = Vec::new();
-    for (id, _) in export.functions.iter() {
-        let Some(declaration) = identity(export, id) else {
-            continue;
-        };
-        if required.remove(&declaration) {
-            scoop_wire::allocation::try_reserve(&mut records, 1, &WirePath::root())
-                .map_err(resource)?;
-            records.push(contract::project(export, id, declaration)?);
-        }
-    }
-    if !required.is_empty() {
-        return Err(invalid(
-            "a required dispatch callable has no sealed source declaration",
-        ));
-    }
-    CanonicalInheritanceSourceCallablesV1::try_new(records).map_err(Error::SourceInventory)
+    id: FunctionId,
+    declaration: Declaration,
+) -> Result<InheritanceSourceCallableV1, Error> {
+    contract::project(export, id, declaration)
 }
 
-pub(super) fn required(
-    export: &ExportHir,
-    inventory: &CanonicalSourceInheritanceInventoriesV1,
-    selections: &CanonicalInheritanceSourceSlotSelectionsV1,
-) -> Result<BTreeSet<Declaration>, Error> {
-    let mut slots = BTreeSet::new();
-    let mut declarations = BTreeSet::new();
-    for owner in inventory.records() {
-        for schema in owner.slot_schemas().records() {
-            for slot in schema.slots() {
-                insert(&mut slots, *slot)?;
-            }
+pub(super) fn imported(
+    metadata: SharedTypeMetadataV1<'_>,
+    declaration: Declaration,
+) -> Result<
+    (
+        InheritanceSourceCallableV1,
+        scoop_identity::PersistentTypeId,
+    ),
+    Error,
+> {
+    let origin = match declaration {
+        Declaration::Function(id) => scoop_identity::CallableTemplateOrigin::Function(id),
+        Declaration::Getter(id) | Declaration::Setter(id) => {
+            scoop_identity::CallableTemplateOrigin::Accessor(id)
         }
-    }
-    for record in export.dispatch_slot_identities.records() {
-        if slots.remove(&record.id()) {
-            let declaration = match (record.key().owner(), record.key().role()) {
-                (
-                    DispatchDeclarationOwner::Function(id),
-                    DispatchRole::VirtualMethod | DispatchRole::InterfaceMethod,
-                ) => Declaration::Function(id),
-                (DispatchDeclarationOwner::Accessor(id), DispatchRole::PropertyGetter) => {
-                    Declaration::Getter(id)
-                }
-                (DispatchDeclarationOwner::Accessor(id), DispatchRole::PropertySetter) => {
-                    Declaration::Setter(id)
-                }
-                _ => {
-                    return Err(invalid(
-                        "dispatch role disagrees with its sealed declaration identity",
-                    ));
-                }
-            };
-            insert(&mut declarations, declaration)?;
-        }
-    }
-    if !slots.is_empty() {
-        return Err(invalid("source schema refers to an unsealed dispatch slot"));
-    }
-    for record in selections.records() {
-        let declaration = match record.selection() {
-            InheritanceSourceSlotSelectionV1::Abstract => continue,
-            InheritanceSourceSlotSelectionV1::Concrete(declaration)
-            | InheritanceSourceSlotSelectionV1::InterfaceDefault(declaration) => declaration,
-        };
-        insert(&mut declarations, declaration)?;
-    }
-    Ok(declarations)
+    };
+    let source = metadata
+        .public
+        .callable_interfaces()
+        .declaration(origin)
+        .ok_or_else(|| invalid("dependency dispatch callable has no declaration"))?;
+    let PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner)) = source.owner() else {
+        return Err(invalid("dispatch callable needs an exact nominal owner"));
+    };
+    let receiver = scoop_identity::SignatureTypeKey::Nominal(owner);
+    let signature = InheritanceCallableSignatureV1::try_new(
+        scoop_identity::ExactCallableSignature::new(
+            source.effects().execution(),
+            Some(metadata.signature_exact_type(&receiver).map_err(invalid)?),
+            source
+                .parameters()
+                .parameters()
+                .iter()
+                .map(|parameter| {
+                    metadata
+                        .signature_exact_type(parameter.value_type())
+                        .map_err(invalid)
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            metadata
+                .signature_exact_type(source.result())
+                .map_err(invalid)?,
+        ),
+        source.effects(),
+    )
+    .map_err(invalid)?;
+    let access = metadata
+        .callable_declaration_access(source)
+        .map_err(invalid)?;
+    Ok((
+        InheritanceSourceCallableV1::new(declaration, signature, source.modality(), access),
+        owner,
+    ))
 }
 
 pub(super) fn identity(export: &ExportHir, function: FunctionId) -> Option<Declaration> {
@@ -100,16 +86,9 @@ pub(super) fn identity(export: &ExportHir, function: FunctionId) -> Option<Decla
     }
 }
 
-fn insert<T: Ord>(set: &mut BTreeSet<T>, value: T) -> Result<(), Error> {
-    if !set.contains(&value) {
-        set.insert(value);
-    }
-    Ok(())
-}
-
 fn resource(error: scoop_wire::WireError) -> Error {
     Error::SourceInventory(SourceInventoryError::Resource(error))
 }
-fn invalid(reason: impl Into<String>) -> Error {
-    Error::InvalidSourceDeclaration(reason.into())
+fn invalid(reason: impl std::fmt::Display) -> Error {
+    Error::InvalidSourceDeclaration(reason.to_string())
 }

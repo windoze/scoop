@@ -237,13 +237,19 @@ fn bound_member_inherits_through_exact_parent_application() {
         .interface_implementations
         .iter()
         .find(|conformance| {
-            output.export.interfaces
-                [output.export.interface_applications[conformance.interface].template]
+            let hir::Type::Interface(application) = output.export.types[conformance.interface]
+            else {
+                return false;
+            };
+            output.export.interfaces[output.export.interface_applications[application].template]
                 .name
                 == "Child"
         })
         .expect("Child conformance");
-    assert_eq!(child_conformance.methods[0].member, member);
+    assert_eq!(
+        child_conformance.methods[0].member,
+        hir::InterfaceMethodReference::Local(member)
+    );
 }
 
 #[test]

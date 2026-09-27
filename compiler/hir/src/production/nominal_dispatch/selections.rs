@@ -32,15 +32,25 @@ impl Projection<'_> {
         };
         for implementation in implementations {
             for method in &implementation.methods {
-                let slot = self.interface_slot(method.member)?;
+                let slot = match method.member {
+                    InterfaceMethodReference::Local(member) => self.interface_slot(member)?,
+                    InterfaceMethodReference::Imported { slot, .. } => slot,
+                };
                 let selection = match method.target {
                     InterfaceImplementationTarget::Method(application) => {
                         self.target(application)?
                     }
-                    InterfaceImplementationTarget::Subclass if allow_abstract => {
+                    InterfaceImplementationTarget::Imported(callable) => {
+                        Selection::InterfaceDefault(self.imported_callable(callable)?)
+                    }
+                    InterfaceImplementationTarget::ImportedAbstract(_)
+                    | InterfaceImplementationTarget::Subclass
+                        if allow_abstract =>
+                    {
                         Selection::Abstract
                     }
-                    InterfaceImplementationTarget::Subclass => {
+                    InterfaceImplementationTarget::ImportedAbstract(_)
+                    | InterfaceImplementationTarget::Subclass => {
                         return Err(invalid(
                             "non-abstract owner leaves an interface slot abstract",
                         ));

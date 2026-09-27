@@ -1,0 +1,8 @@
+span=101..105
+expression=read
+`read` must have the same `effect` modifier as `UnsafeReader.read`
+span=39..120
+expression=public struct Wrong(): UnsafeReader {
+    public override fun read(): Long = 21
+}
+struct `Wrong` does not implement interface method `UnsafeReader.read`

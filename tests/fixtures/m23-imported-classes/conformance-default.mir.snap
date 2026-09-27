@@ -1,0 +1,84 @@
+Module
+  struct LocalReader ()
+  enum CoroutineStep<LocalReader>
+    Completed(value: LocalReader)
+    Suspended()
+  enum CoroutineSlot<LocalReader>
+    Empty()
+    Value(value: LocalReader)
+  class Counter vtable=0 itables=0
+  class box<LocalReader> vtable=0 itables=2
+  interface ChildReader
+  interface ParentReader
+  generated_exact_type get0 location=class1 nominal_id=360f85d8db46bacfb6fb2b918ef5b69dac85a9fa08100dacded6a4313cb583ec exact_id=4c83c5f6c4ab15aceece9dce5cd014f12b3fda6410e9e1b85d7182f8ae708e15
+  generated_exact_type get1 location=enum0 nominal_id=f4ece62e4cf7a0b3f3541c419790fcd3a6a3fb8e120331d6d0eac76960f99fd0 exact_id=b3dd55df7de07a19b31e4b142f379630e14bcb78f9d2c7a63640dcb678151e19
+  generated_exact_type get2 location=enum1 nominal_id=142d562ac3c9652ac0d5fb7bdf244470f37f27067bbd07eb37d345d9518dd0e0 exact_id=ef06f1bd16f4b07a41a16d578139880f92cc5af96dac4507c427962faba17c70
+  generated_callable gc0 function=@fn2 id=3985d058a9763d259d1f2127d9e2e32644e8411698583efe915332d9b11afb2b
+  generated_callable gc1 function=@fn3 id=96eb175ede66e110fe6d6bf22e49055b3aa4e629ab9870ec551c623e53ed395a
+  generated_callable gc2 function=@fn4 id=ea40b19da4679bf6f11aaa9ab215f5d9ba0f99a6ee4ac75abe0aef065004ee99
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call $call.1: LocalReader = @fn1 direct
+      val reader: ChildReader
+        Type ChildReader
+        Box
+          Type LocalReader
+          Local $call.1
+      val $dependency.receiver: ChildReader
+        Type ChildReader
+        Local reader
+      call $dependency.argument.0: Long = external1 interface ChildReader[1]
+        Type ChildReader
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun ctor.LocalReader.$c0 @fn1() -> LocalReader <no-gc>
+    bb0 entry
+      return
+        Type LocalReader
+        StructInit LocalReader
+  fun thunk<LocalReader> ChildReader.parent() @fn2(this: ChildReader) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type ParentReader
+        Retype ParentReader
+          Type ChildReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalReader> ChildReader.child() @fn3(this: ChildReader) -> Long
+    bb0 entry
+      call $call.1: Long = external1 direct
+        Type ChildReader
+        Retype ChildReader
+          Type ChildReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalReader> ParentReader.parent() @fn4(this: ParentReader) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type ParentReader
+        Retype ParentReader
+          Type ParentReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalReader> result=LocalReader
+  coroutine_slot cl0 CoroutineSlot<LocalReader> value=LocalReader
+  output library

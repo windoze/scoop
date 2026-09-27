@@ -100,10 +100,14 @@ pub(super) fn targets(
         return Err(mismatch());
     }
     for slot in slots {
-        let mir::TableSlot::Function(function) = slot else {
-            return Err(mismatch());
-        };
-        targets.push(context.target(*function)?);
+        targets.push(match slot {
+            mir::TableSlot::Function(function) => context.target(*function)?,
+            mir::TableSlot::External(callable) => context.input.module().meta.external_callables
+                [*callable]
+                .reference()
+                .implementation(),
+            mir::TableSlot::Runtime(_) => return Err(mismatch()),
+        });
     }
     Ok(targets)
 }

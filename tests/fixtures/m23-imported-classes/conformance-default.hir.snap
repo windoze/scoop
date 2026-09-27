@@ -1,0 +1,17 @@
+Module
+  struct LocalReader : ChildReader
+  fun primary(): Counter
+    val local0
+      Box : ChildReader
+        StructInit LocalReader : LocalReader
+    val local1
+      Local reader : ChildReader
+    val local2
+      ImportedDependencyCall #1 interface[1] : Long
+        Local $dependency.receiver : ChildReader
+    val local3
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

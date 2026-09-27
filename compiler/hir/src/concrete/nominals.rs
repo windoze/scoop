@@ -462,10 +462,14 @@ pub struct InterfaceMethodImplementation {
 #[derive(Debug, Clone, Copy)]
 pub enum InterfaceImplementationTarget {
     Method(FunctionId),
+    Imported(ImportedDependencyCallableUseId),
     /// An abstract class intentionally leaves this obligation to a concrete
     /// subclass. The declaration supplies the complete slot signature.
     Abstract {
         declaration: FunctionId,
+    },
+    ImportedAbstract {
+        declaration: ImportedDependencyCallableUseId,
     },
 }
 

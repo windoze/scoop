@@ -80,12 +80,14 @@ impl TypeDescriptorRefs {
 pub(crate) fn dispatch_entry(
     slot: &mir::TableSlot,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    external_callables: &HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
 ) -> lir::DispatchEntry {
     lir::DispatchEntry {
         callable: match slot {
             mir::TableSlot::Function(id) => {
                 lir::CallableRef::Local(local_functions[id].declaration())
             }
+            mir::TableSlot::External(id) => lir::CallableRef::External(external_callables[id]),
             mir::TableSlot::Runtime(function) => {
                 lir::CallableRef::Runtime(lower_runtime_function(*function))
             }
@@ -102,6 +104,7 @@ pub(crate) fn type_descriptors(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    external_callables: &HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
     dependencies: crate::dependency_types::DependencyTypeDescriptors,
 ) -> Result<
     (
@@ -195,6 +198,7 @@ pub(crate) fn type_descriptors(
             id,
             &refs,
             local_functions,
+            external_callables,
         )?;
         let descriptor = lir::TypeDescriptorRef::Local(descriptors.alloc(descriptor));
         assert!(refs.classes.insert(id, descriptor).is_none());

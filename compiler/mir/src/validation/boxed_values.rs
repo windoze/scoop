@@ -57,16 +57,33 @@ pub(super) fn validate_boxing_adjust_metadata(module: &Module) -> Result<(), Mir
         let location = MirValidationLocation::BoxingAdjust {
             adjust: index as u32,
         };
-        if BoxingAdjust::checked(
-            &module.functions,
-            &module.classes,
-            &module.interfaces,
-            adjust.location(),
-            adjust.target(),
-            adjust.identity().clone(),
-        )
-        .is_none()
+        let valid_target = match adjust.target() {
+            BoxingAdjustTarget::Local(id) => {
+                (id.into_raw().into_u32() as usize) < module.functions.len()
+            }
+            BoxingAdjustTarget::External(id) => {
+                (id.into_raw().into_u32() as usize) < module.meta.external_callables.len()
+            }
+        };
+        let valid_function =
+            (adjust.function().into_raw().into_u32() as usize) < module.functions.len();
+        let valid_interface = (adjust.interface().into_raw().into_u32() as usize)
+            < module.interfaces.len()
+            && (adjust.slot() as usize) < module.interfaces[adjust.interface()].methods.len();
+        let valid_table = if (adjust.boxed().into_raw().into_u32() as usize) < module.classes.len()
         {
+            let mut tables = module.classes[adjust.boxed()]
+                .itables
+                .iter()
+                .filter(|table| table.interface == adjust.interface());
+            let matching = tables.next().is_some_and(|table| {
+                matches!(table.slots.get(adjust.slot() as usize), Some(TableSlot::Function(function)) if *function == adjust.function())
+            });
+            matching && tables.next().is_none()
+        } else {
+            false
+        };
+        if !valid_target || !valid_function || !valid_interface || !valid_table {
             return invalid_adjust(
                 location,
                 "the physical itable slot or target is invalid for the adjust",

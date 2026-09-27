@@ -10,11 +10,21 @@ pub struct Property {
     pub access: DeclarationAccess,
     pub modifier: MethodModifier,
     pub is_override: bool,
-    pub overrides: Vec<PropertyId>,
+    pub overrides: Vec<PropertyReference>,
     pub ty: TypeId,
     pub capability: PropertyCapability,
     pub representation: PropertyRepresentation,
     pub span: Span,
+}
+
+/// The actual property declaration overridden by a local property.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropertyReference {
+    Local(PropertyId),
+    Imported {
+        owner: TypeId,
+        declaration: scoop_identity::PersistentPropertyId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

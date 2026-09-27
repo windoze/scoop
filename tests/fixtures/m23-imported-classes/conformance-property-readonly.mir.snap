@@ -1,0 +1,123 @@
+Module
+  struct LocalValue (input: Long)
+  enum Marker
+    Only()
+  enum CoroutineStep<LocalValue>
+    Completed(value: LocalValue)
+    Suspended()
+  enum CoroutineSlot<LocalValue>
+    Empty()
+    Value(value: LocalValue)
+  enum CoroutineStep<Marker>
+    Completed(value: Marker)
+    Suspended()
+  enum CoroutineSlot<Marker>
+    Empty()
+    Value(value: Marker)
+  class Counter vtable=0 itables=0
+  class box<LocalValue> vtable=0 itables=1
+  class box<Marker> vtable=0 itables=1
+  interface Valued
+  generated_exact_type get0 location=enum3 nominal_id=74216cee231b65cd3d6fd2dd4c2da4aeb52df976cd75fa53dea87f27ee854a38 exact_id=231f83fa8916c1e608e8c12bda01eaaaa13b347bfe8a24103e77da09a46882ed
+  generated_exact_type get1 location=enum1 nominal_id=9c489d483a22f910c18d404a4bf81502a0118c1ab09a83db3a4c8bee48d9aab4 exact_id=561cc61bb6b1bff089f4503369ae0a345be35c55a9637adc69c2995ad8b78f0a
+  generated_exact_type get2 location=enum4 nominal_id=b7450e67f74469007a3bf0f30a288cbcfa288a74609f44717235de0accc574ff exact_id=97274066a72876d321ae881f8109bb885d453609799de7420edbc26e294c0813
+  generated_exact_type get3 location=class1 nominal_id=c4d8bae347856d133caeadb49293861ebbf0733ca6b020f2825dea7a6a1fe451 exact_id=9b785f14f3b5576b14466488ee193fffb4d63f2afdb2de0bdf5082422aed749c
+  generated_exact_type get4 location=class2 nominal_id=64dfe0de76ed6b459096093f0fa3a51855e59671f4dc4a19dbcb9cd7837927b7 exact_id=ba48ebb9d04ebaf59d090e7a5de1e6ee0024334f78cb725cd816eebb7e859073
+  generated_exact_type get5 location=enum2 nominal_id=eefb8fd896c885a3cddde69c05ae58007cbf3d7093cd357a106426556bc2c795 exact_id=f44a2422fdee7d0fbf4705e5d62d6f480bb30862881317a6bd7a671bef816b99
+  generated_callable gc0 function=@fn5 id=79c5ccbe9e8ed591f1feac0b165c2fddd1fb5dd9e3aad467e17be81a381d4403
+  generated_callable gc1 function=@fn4 id=95905c06374155017b7089c07c40b80f9ccd647c13399d93f6522edc01de60d9
+  fun LocalValue.$get$value @fn0(this: LocalValue) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type LocalValue
+          Local this
+  fun Marker.$get$value @fn1(this: Marker) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+  fun primary @fn2() -> Counter
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $parameter.input: Long
+        Type Long
+        Local $argument.0
+      call $call.1: LocalValue = @fn3 direct
+        Type Long
+        Local $parameter.input
+      val value: Valued
+        Type Valued
+        Box
+          Type LocalValue
+          Local $call.1
+      val marker: Valued
+        Type Valued
+        Box
+          Type Marker
+          VariantConstruct Marker v0
+      call $dependency.receiver: Long = external0 interface Valued[0]
+        Type Valued
+        Local value
+      call $dependency.argument.0: Long = external0 interface Valued[0]
+        Type Valued
+        Local marker
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun ctor.LocalValue.$c0 @fn3(input: Long) -> LocalValue <no-gc>
+    bb0 entry
+      return
+        Type LocalValue
+        StructInit LocalValue
+          Type Long
+          Local input
+  fun thunk<LocalValue> Valued.value() @fn4(this: Valued) -> Long
+    bb0 entry
+      call $call.1: Long = @fn0 direct
+        Type LocalValue
+        Unbox
+          Type Valued
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<Marker> Valued.value() @fn5(this: Valued) -> Long
+    bb0 entry
+      call $call.1: Long = @fn1 direct
+        Type Marker
+        Unbox
+          Type Valued
+          Local this
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalValue> result=LocalValue
+  coroutine_step cs1 CoroutineStep<Marker> result=Marker
+  coroutine_slot cl0 CoroutineSlot<LocalValue> value=LocalValue
+  coroutine_slot cl1 CoroutineSlot<Marker> value=Marker
+  output library

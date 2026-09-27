@@ -56,12 +56,6 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
                 .ok_or(LayoutAbiSectionError::MissingPhysicalProvider(
                     import.provider(),
                 ))?;
-            import.validate_semantic_against(
-                terminal.layouts(),
-                terminal.callables(),
-                terminal.descriptors(),
-                terminal.dispatch(),
-            )?;
             let Some(target) = semantic_target(import.subject(), terminal)
                 .map_err(LayoutAbiSectionError::MissingPhysicalSubject)?
             else {
@@ -115,7 +109,10 @@ fn semantic_target(
 ) -> Result<Option<LayoutAbiSemanticTargetV1>, crate::ExternalStrongShapeSubjectV1> {
     use crate::ExternalStrongShapeSubjectV1 as Subject;
     Ok(match subject {
-        Subject::Callable(target) => Some(LayoutAbiSemanticTargetV1::Callable(target)),
+        Subject::Callable(target) => terminal
+            .callables()
+            .get(target)
+            .map(|_| LayoutAbiSemanticTargetV1::Callable(target)),
         Subject::Layout(layout) => Some(LayoutAbiSemanticTargetV1::Layout(layout)),
         Subject::Scan(scan) => Some(
             terminal

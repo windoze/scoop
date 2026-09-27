@@ -3,6 +3,16 @@ use scoop_identity::{CallableTemplateOrigin, PropertyOwner};
 use super::*;
 
 impl ImportedDependencySelectionPlan {
+    pub fn property_declaration(
+        &self,
+        declaration: crate::PropertyDeclarationId,
+    ) -> Option<&crate::PropertyInterfaceRecordV1> {
+        self.catalog
+            .properties
+            .get(&declaration)
+            .map(|entry| &entry.interface)
+    }
+
     pub fn property_for_accessor(
         &self,
         accessor: scoop_identity::PersistentPropertyAccessorId,

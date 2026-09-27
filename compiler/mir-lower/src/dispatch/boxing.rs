@@ -40,22 +40,16 @@ impl Lowerer {
                 slots,
             });
             for (slot, function, target, identity) in identities {
-                self.boxing_adjusts.push(
-                    mir::BoxingAdjust::checked(
-                        &self.functions,
-                        &self.classes,
-                        &self.interfaces.defs,
-                        mir::BoxingAdjustLocation::new(
-                            class_id,
-                            iface,
-                            u32::try_from(slot).expect("interface method indices fit in u32"),
-                            function,
-                        ),
-                        target,
-                        identity,
-                    )
-                    .expect("a generated boxing adjust occupies its exact itable slot"),
-                );
+                self.boxing_adjusts.push(mir::BoxingAdjust::new(
+                    mir::BoxingAdjustLocation::new(
+                        class_id,
+                        iface,
+                        u32::try_from(slot).expect("interface method indices fit in u32"),
+                        function,
+                    ),
+                    target,
+                    identity,
+                ));
             }
         }
     }
@@ -75,7 +69,11 @@ impl Lowerer {
         payload_name: &str,
         iface: mir::InterfaceId,
         method_index: usize,
-    ) -> (mir::FunctionId, mir::FunctionId, mir::BoxingAdjustIdentity) {
+    ) -> (
+        mir::FunctionId,
+        mir::BoxingAdjustTarget,
+        mir::BoxingAdjustIdentity,
+    ) {
         let (hir_iface, _) = self.interfaces.source(iface);
         let signature = &module.interfaces[hir_iface].methods[method_index];
         let types = Types {
@@ -178,20 +176,57 @@ impl Lowerer {
             .into_iter()
             .find(|implementation| implementation.slot.into_raw() as usize == method_index)
             .expect("concrete HIR supplies every boxed itable slot");
-        let implementation = match implementation.target {
-            hir::InterfaceImplementationTarget::Method(function) => function,
-            hir::InterfaceImplementationTarget::Abstract { .. } => {
-                unreachable!("value-type interface implementations are always concrete")
+        let (callee, implementation_params, implementation_result) = match implementation.target {
+            hir::InterfaceImplementationTarget::Method(function) => {
+                let implementation = &module.functions[function];
+                (
+                    mir::Callee::User(self.function_map[&function]),
+                    implementation
+                        .params
+                        .iter()
+                        .map(|param| param.ty)
+                        .collect::<Vec<_>>(),
+                    implementation.return_ty,
+                )
+            }
+            hir::InterfaceImplementationTarget::Imported(callable) => {
+                let scoop_hir::ImportedDependencyDispatch::Interface { interface, slot } =
+                    module.imported_dependency_callables[callable].dispatch()
+                else {
+                    unreachable!("a value conformance imports an interface default")
+                };
+                let declaration = module
+                    .interfaces
+                    .iter()
+                    .find_map(|(_, declaration)| match &declaration.origin {
+                        scoop_hir::HirNominalIdentity::Source(
+                            scoop_hir::HirSourceNominalIdentity::Concrete(identity),
+                        ) if identity.id() == interface => Some(declaration),
+                        _ => None,
+                    })
+                    .expect("a selected interface default retains its declaring interface");
+                let method = &declaration.methods[slot as usize];
+                let params = std::iter::once(declaration.canonical_type)
+                    .chain(method.params.iter().map(|param| param.ty))
+                    .collect();
+                (
+                    mir::Callee::External(self.imported_dependency_callable_map[&callable].0),
+                    params,
+                    method.return_ty,
+                )
+            }
+            hir::InterfaceImplementationTarget::Abstract { .. }
+            | hir::InterfaceImplementationTarget::ImportedAbstract { .. } => {
+                unreachable!("value-type interface implementations are concrete")
             }
         };
-        let implementation_function = &module.functions[implementation];
         let source_types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
         };
         let receiver_ty = source_types.lower(
-            implementation_function.params[0].ty,
+            implementation_params[0],
             &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
@@ -220,13 +255,12 @@ impl Lowerer {
             )
         };
         args.push(receiver);
-        let source_params = implementation_function
-            .params
+        let source_params = implementation_params
             .iter()
             .skip(1)
             .map(|param| {
                 source_types.lower(
-                    param.ty,
+                    *param,
                     &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
@@ -236,7 +270,7 @@ impl Lowerer {
             })
             .collect::<Vec<_>>();
         let implementation_return = source_types.lower(
-            implementation_function.return_ty,
+            implementation_result,
             &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
@@ -262,7 +296,7 @@ impl Lowerer {
             smir::ExprKind::Call(smir::Call {
                 target: mir::CallTarget {
                     kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(self.function_map[&implementation]),
+                    callee,
                 },
                 args,
                 return_ty: implementation_return.clone(),
@@ -276,7 +310,7 @@ impl Lowerer {
                     module,
                     call,
                     &implementation_return,
-                    module.exact_type_identities[implementation_function.return_ty].id(),
+                    module.exact_type_identities[implementation_result].id(),
                     &return_ty,
                 )),
             }
@@ -334,7 +368,15 @@ impl Lowerer {
                 source_return: return_ty,
             });
         }
-        (id, self.function_map[&implementation], identity)
+        (
+            id,
+            match callee {
+                mir::Callee::User(function) => mir::BoxingAdjustTarget::Local(function),
+                mir::Callee::External(callable) => mir::BoxingAdjustTarget::External(callable),
+                _ => unreachable!("boxing adjust targets are ordinary Scoop callables"),
+            },
+            identity,
+        )
     }
 
     pub(crate) fn value_interfaces(

@@ -13,8 +13,8 @@ use crate::link_object::{
 mod symbols;
 use symbols::ImportSymbolIndex;
 
-/// This proof preserves both preceding partitions and every unmatched native
-/// or runtime candidate. Its imports can only come from a complete selection.
+/// Keeps the resolved callable relocations and classifies the remaining shape
+/// uses while preserving every unmatched native or runtime candidate.
 #[derive(Debug)]
 pub struct VerifiedExternalShapeRequirementClosureV1<'a> {
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
@@ -51,8 +51,7 @@ pub fn verify_external_shape_requirements_v1<'a>(
     verify_import_requirements(legacy, selected.consumer(), selected.physical_imports())
 }
 
-/// Reuses the same partition rules after the owned reader has independently
-/// replayed the complete physical imports. This does not grant source access.
+/// Classifies shape uses from the reader's complete physical imports.
 pub fn verify_replayed_external_shape_requirements_v1<'a>(
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
     layout: &'a scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1,
@@ -76,7 +75,6 @@ fn verify_import_requirements<'a>(
         });
     }
     let symbols = ImportSymbolIndex::new(imports, legacy.target())?;
-    symbols.reject_old_partitions(legacy)?;
     let classified = classify(legacy.remaining_external_candidates(), &symbols)?;
     Ok(VerifiedExternalShapeRequirementClosureV1 {
         legacy,

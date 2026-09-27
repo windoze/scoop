@@ -13,29 +13,38 @@ type Declaration = InheritanceCallableDeclarationV1;
 /// Joins resolved source members and implementation choices without changing
 /// slot identity, root visibility, or the schema's declaration order.
 pub(in crate::production::type_semantics) struct SlotContracts<'a> {
-    export: &'a ExportHir,
-    sources: &'a CanonicalInheritanceSourceCallablesV1,
+    sources: BTreeMap<Declaration, DispatchSource>,
     selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
-    functions: BTreeMap<Declaration, FunctionId>,
     roots: BTreeMap<PersistentDispatchSlotId, Declaration>,
+}
+
+struct DispatchSource {
+    owner: PersistentTypeId,
+    callable: InheritanceSourceCallableV1,
+    lookup: PersistentSlotContractDomainV1,
 }
 
 impl<'a> SlotContracts<'a> {
     pub(in crate::production::type_semantics) fn new(
-        export: &'a ExportHir,
-        sources: &'a CanonicalInheritanceSourceCallablesV1,
+        export: &ExportHir,
+        dependencies: &[SharedTypeMetadataV1<'_>],
+        inventory: &CanonicalSourceInheritanceInventoriesV1,
         selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
     ) -> Result<Self, Error> {
-        let mut functions = BTreeMap::new();
-        for (id, _) in export.functions.iter() {
-            if let Some(declaration) = source_callables::identity(export, id)
-                && sources.get(declaration).is_some()
-            {
-                insert(&mut functions, declaration, id)?;
-            }
-        }
         let mut roots = BTreeMap::new();
-        for record in export.dispatch_slot_identities.records() {
+        let records = export.dispatch_slot_identities.records().chain(
+            export
+                .types
+                .iter()
+                .filter_map(|(_, ty)| match ty {
+                    Type::ImportedInterface(interface) => {
+                        Some(interface.methods.iter().map(|method| &method.slot))
+                    }
+                    _ => None,
+                })
+                .flatten(),
+        );
+        for record in records {
             let declaration = match (record.key().owner(), record.key().role()) {
                 (
                     DispatchDeclarationOwner::Function(id),
@@ -47,21 +56,93 @@ impl<'a> SlotContracts<'a> {
                 (DispatchDeclarationOwner::Accessor(id), DispatchRole::PropertySetter) => {
                     Declaration::Setter(id)
                 }
-                _ => {
-                    return Err(invalid(
-                        "dispatch role disagrees with its sealed declaration identity",
-                    ));
-                }
+                _ => return Err(invalid("dispatch slot role does not match its declaration")),
             };
-            if sources.get(declaration).is_some() {
-                insert(&mut roots, record.id(), declaration)?;
+            roots.insert(record.id(), declaration);
+        }
+        let mut required = std::collections::BTreeSet::new();
+        for slot in inventory
+            .records()
+            .iter()
+            .flat_map(|record| record.slot_schemas().records())
+            .flat_map(|schema| schema.slots())
+        {
+            required.insert(
+                *roots
+                    .get(slot)
+                    .ok_or_else(|| invalid("dispatch slot has no declaration"))?,
+            );
+        }
+        for selection in selections.records() {
+            match selection.selection() {
+                InheritanceSourceSlotSelectionV1::Concrete(target)
+                | InheritanceSourceSlotSelectionV1::InterfaceDefault(target) => {
+                    required.insert(target);
+                }
+                InheritanceSourceSlotSelectionV1::Abstract => {}
             }
         }
+        let mut sources = BTreeMap::new();
+        for (id, function) in export.functions.iter() {
+            let Some(declaration) = source_callables::identity(export, id) else {
+                continue;
+            };
+            if !required.remove(&declaration) {
+                continue;
+            }
+            let method = function.method.expect("dispatch targets are methods");
+            let identity = export.type_identities[method.owner].exact().ok_or(
+                Error::MissingExactIdentity {
+                    context: "dispatch receiver",
+                },
+            )?;
+            let ExactTypeKey::Nominal(owner) = identity.key() else {
+                return Err(Error::GenericOdrRequired(identity.id()));
+            };
+            sources.insert(
+                declaration,
+                DispatchSource {
+                    owner: *owner,
+                    callable: source_callables::local(export, id, declaration)?,
+                    lookup: PersistentSlotContractDomainV1::new(domain(
+                        export,
+                        &function.access.lookup.0,
+                    )?),
+                },
+            );
+        }
+        for declaration in required {
+            let origin = match declaration {
+                Declaration::Function(id) => scoop_identity::CallableTemplateOrigin::Function(id),
+                Declaration::Getter(id) | Declaration::Setter(id) => {
+                    scoop_identity::CallableTemplateOrigin::Accessor(id)
+                }
+            };
+            let metadata = dependencies
+                .iter()
+                .find(|metadata| {
+                    metadata
+                        .public
+                        .callable_interfaces()
+                        .declaration(origin)
+                        .is_some()
+                })
+                .ok_or_else(|| invalid("dispatch target has no dependency declaration"))?;
+            let (callable, owner) = source_callables::imported(*metadata, declaration)?;
+            sources.insert(
+                declaration,
+                DispatchSource {
+                    owner,
+                    callable,
+                    lookup: PersistentSlotContractDomainV1::new(
+                        PersistentAccessDomainV1::universal(),
+                    ),
+                },
+            );
+        }
         Ok(Self {
-            export,
             sources,
             selections,
-            functions,
             roots,
         })
     }
@@ -82,7 +163,7 @@ impl<'a> SlotContracts<'a> {
                     .roots
                     .get(slot)
                     .ok_or_else(|| invalid("dispatch slot has no source root declaration"))?;
-                let (source, function, declaration_owner) = self.source(declaration)?;
+                let source = self.source(declaration)?;
 
                 let selection = self.selections.get(owner, *slot).ok_or_else(|| {
                     invalid("dispatch slot has no resolved implementation selection")
@@ -100,15 +181,12 @@ impl<'a> SlotContracts<'a> {
                 };
                 let contract = InheritanceSlotContractV1::try_new(
                     *slot,
-                    declaration_owner,
+                    source.owner,
                     declaration,
-                    source.signature().clone(),
-                    PersistentSlotContractDomainV1::new(domain(
-                        self.export,
-                        &function.access.lookup.0,
-                    )?),
+                    source.callable.signature().clone(),
+                    source.lookup.clone(),
                     implementation,
-                    source.declaration_access().clone(),
+                    source.callable.declaration_access().clone(),
                 )
                 .map_err(invalid)?;
                 insert(&mut contracts, *slot, contract)?;
@@ -119,41 +197,20 @@ impl<'a> SlotContracts<'a> {
             .map_err(invalid)
     }
 
-    fn source(
-        &self,
-        declaration: Declaration,
-    ) -> Result<(&InheritanceSourceCallableV1, &Function, PersistentTypeId), Error> {
-        let source = self
-            .sources
-            .get(declaration)
-            .ok_or_else(|| invalid("dispatch declaration has no source callable contract"))?;
-
-        let function = &self.export.functions[*self
-            .functions
+    fn source(&self, declaration: Declaration) -> Result<&DispatchSource, Error> {
+        self.sources
             .get(&declaration)
-            .ok_or_else(|| invalid("dispatch declaration has no source function"))?];
-        let method = function
-            .method
-            .ok_or_else(|| invalid("dispatch declaration has no member owner"))?;
-        let identity = self.export.type_identities[method.owner].exact().ok_or(
-            Error::MissingExactIdentity {
-                context: "dispatch receiver",
-            },
-        )?;
-        let ExactTypeKey::Nominal(owner) = identity.key() else {
-            return Err(Error::GenericOdrRequired(identity.id()));
-        };
-        Ok((source, function, *owner))
+            .ok_or_else(|| invalid("dispatch declaration has no callable contract"))
     }
 
     fn target(&self, declaration: Declaration) -> Result<InheritanceSlotTargetV1, Error> {
-        let (source, _, owner) = self.source(declaration)?;
+        let source = self.source(declaration)?;
         InheritanceSlotTargetV1::try_new(
             declaration,
-            owner,
-            source.signature().clone(),
-            source.modality(),
-            source.declaration_access().clone(),
+            source.owner,
+            source.callable.signature().clone(),
+            source.callable.modality(),
+            source.callable.declaration_access().clone(),
         )
         .map_err(invalid)
     }

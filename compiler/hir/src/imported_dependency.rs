@@ -12,7 +12,7 @@ pub struct ImportedDependencyCallableUse {
 }
 
 /// The source-selected dispatch table and its provider-defined slot position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImportedDependencyDispatch {
     Direct,
     Virtual {

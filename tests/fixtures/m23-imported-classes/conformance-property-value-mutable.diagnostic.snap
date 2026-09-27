@@ -1,0 +1,10 @@
+span=81..131
+expression=public override val value: Long
+        get() = 21
+immutable property `value` cannot override a mutable property
+span=39..133
+expression=public struct Wrong(): MutableValue {
+    public override val value: Long
+        get() = 21
+}
+struct `Wrong` cannot implement mutable interface property `value`

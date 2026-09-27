@@ -18,6 +18,7 @@ pub struct DependencyHirOutput {
     imported_dependencies: crate::SelectedImportedDependencySet,
     binding_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
     concrete_dependency_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
+    executable_callables: Vec<concrete::ImportedDependencyCallableUseId>,
 }
 
 impl DependencyHirOutput {
@@ -35,8 +36,48 @@ impl DependencyHirOutput {
         let export = output.export.module();
         let local = output.local.module();
         validate_imported_dependency_projection(export, local, &imported_dependencies)?;
-        let concrete_dependency_witness_uses = witnesses::collect(&output, &imported_dependencies)
-            .map_err(DependencyHirOutputError::CallOccurrence)?;
+        let mut executable_callables = Vec::new();
+        let concrete_dependency_witness_uses =
+            witnesses::collect(&output, &imported_dependencies, &mut executable_callables)
+                .map_err(DependencyHirOutputError::CallOccurrence)?;
+        for implementation in local
+            .classes
+            .iter()
+            .flat_map(|(_, class)| &class.interface_implementations)
+            .chain(
+                local
+                    .structs
+                    .iter()
+                    .flat_map(|(_, value)| &value.interface_implementations),
+            )
+            .chain(
+                local
+                    .enums
+                    .iter()
+                    .flat_map(|(_, value)| &value.interface_implementations),
+            )
+        {
+            for method in &implementation.methods {
+                let callable = match method.target {
+                    concrete::InterfaceImplementationTarget::Imported(callable)
+                    | concrete::InterfaceImplementationTarget::ImportedAbstract {
+                        declaration: callable,
+                    } => callable,
+                    concrete::InterfaceImplementationTarget::Method(_)
+                    | concrete::InterfaceImplementationTarget::Abstract { .. } => continue,
+                };
+                if callable.into_raw().into_u32() as usize
+                    >= local.imported_dependency_callables.len()
+                {
+                    return Err(DependencyHirOutputError::MissingDispatchUse {
+                        index: callable.into_raw().into_u32(),
+                    });
+                }
+                executable_callables.push(callable);
+            }
+        }
+        executable_callables.sort_unstable();
+        executable_callables.dedup();
         binding_witness_uses.sort_unstable();
         binding_witness_uses.dedup();
 
@@ -45,6 +86,7 @@ impl DependencyHirOutput {
             imported_dependencies,
             binding_witness_uses,
             concrete_dependency_witness_uses,
+            executable_callables,
         })
     }
 
@@ -56,13 +98,13 @@ impl DependencyHirOutput {
         &self.imported_dependencies
     }
 
-    /// Source-name proofs retained by HIR lowering for export-surface uses
+    /// Source lookup routes retained by HIR lowering for export-surface uses
     /// whose route cannot be reconstructed from the projected interface.
     pub fn binding_witness_uses(&self) -> &[crate::ExternalHirBindingWitnessUse] {
         &self.binding_witness_uses
     }
 
-    /// Canonical source-name proofs for concrete ordinary-dependency uses.
+    /// Canonical source lookup routes for concrete dependency uses.
     /// Callable routes come from actual executable nodes; source-only
     /// default references retain their separate source metadata roles.
     pub fn concrete_dependency_witness_uses(&self) -> &[crate::ExternalHirBindingWitnessUse] {
@@ -89,13 +131,6 @@ fn validate_imported_dependency_projection(
             },
         );
     }
-    if export_count != selected.callable_count() {
-        return Err(DependencyHirOutputError::DependencySelectionCountMismatch {
-            hir: export_count,
-            selected: selected.callable_count(),
-        });
-    }
-
     let mut references = HashSet::with_capacity(export_count);
     for ((export_id, export_use), (local_id, local_use)) in export
         .imported_dependency_callables
@@ -112,7 +147,7 @@ fn validate_imported_dependency_projection(
         if selected.resolve_callable(reference).is_none() {
             return Err(DependencyHirOutputError::ForeignImportedDependencyUse { index });
         }
-        if !references.insert(reference) {
+        if !references.insert((reference, export_use.dispatch())) {
             return Err(DependencyHirOutputError::DuplicateImportedDependencyUse { index });
         }
     }
@@ -130,9 +165,8 @@ pub enum DependencyHirOutputError {
         export: usize,
         local: usize,
     },
-    DependencySelectionCountMismatch {
-        hir: usize,
-        selected: usize,
+    MissingDispatchUse {
+        index: u32,
     },
     DependencyProjectionMismatch {
         index: u32,

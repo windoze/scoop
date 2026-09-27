@@ -67,6 +67,7 @@ pub(super) fn value_or_abstract_type_descriptor(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn class_type_descriptor(
     context: &LoweringContext,
     identity_roots: &IdentityRoots<'_>,
@@ -75,6 +76,7 @@ pub(crate) fn class_type_descriptor(
     id: mir::ClassId,
     refs: &TypeDescriptorRefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    external_callables: &HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
 ) -> StorageResult<lir::TypeDescriptor> {
     let def = &module.classes[id];
     let descriptor_type = if matches!(
@@ -171,7 +173,7 @@ pub(crate) fn class_type_descriptor(
         &identity,
         def.vtable
             .iter()
-            .map(|slot| dispatch_entry(slot, local_functions))
+            .map(|slot| dispatch_entry(slot, local_functions, external_callables))
             .collect(),
     )
     .expect("validated class exact type must derive a vtable identity");
@@ -187,7 +189,7 @@ pub(crate) fn class_type_descriptor(
                 record
                     .slots
                     .iter()
-                    .map(|slot| dispatch_entry(slot, local_functions))
+                    .map(|slot| dispatch_entry(slot, local_functions, external_callables))
                     .collect(),
             )
             .expect("validated class and interface exact types must derive an itable identity")

@@ -14,7 +14,6 @@ pub(super) use slots::SlotContracts;
 mod source_callables;
 pub(in crate::production) mod source_errors;
 pub(in crate::production::type_semantics) mod source_inventory;
-pub(super) use source_callables::project as source_callables;
 pub(super) use source_inventory::project as source_inventory;
 
 pub(super) fn produce(

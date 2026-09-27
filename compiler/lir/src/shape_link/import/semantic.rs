@@ -1,20 +1,24 @@
 use super::*;
+use crate::{CanonicalExactCallableAbiExportsV1, CanonicalExactLayoutExportsV1};
+#[cfg(test)]
 use crate::{
-    CanonicalExactCallableAbiExportsV1, CanonicalExactDescriptorExportsV1,
-    CanonicalExactDispatchExportsV1, CanonicalExactLayoutExportsV1, ExactLayoutBodyKindV1,
+    CanonicalExactDescriptorExportsV1, CanonicalExactDispatchExportsV1, ExactLayoutBodyKindV1,
     InstanceRepresentationKindV1,
 };
+#[cfg(test)]
 use scoop_identity::ScanRole;
 
 impl ExternalShapeLinkImportV1 {
     pub(crate) fn semantic_target(
         &self,
         layouts: &CanonicalExactLayoutExportsV1,
+        callables: &CanonicalExactCallableAbiExportsV1,
     ) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
-        semantic_target(self.subject(), layouts)
+        semantic_target(self.subject(), layouts, callables)
     }
     /// Rebinds the semantic contract to the terminal section's actual tables.
     /// Storage and initialization retain the enclosing closure's support join.
+    #[cfg(test)]
     pub(crate) fn validate_semantic_against(
         &self,
         layouts: &CanonicalExactLayoutExportsV1,
@@ -109,11 +113,12 @@ impl ExternalShapeLinkImportV1 {
 pub(in crate::shape_link) fn semantic_target(
     subject: ExternalStrongShapeSubjectV1,
     layouts: &CanonicalExactLayoutExportsV1,
+    callables: &CanonicalExactCallableAbiExportsV1,
 ) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
     use crate::{ExternalStrongShapeSubjectV1 as Subject, LayoutAbiSemanticTargetV1 as Target};
 
     Ok(match subject {
-        Subject::Callable(owner) => Some(Target::Callable(owner)),
+        Subject::Callable(owner) => callables.get(owner).map(|_| Target::Callable(owner)),
         Subject::Layout(id) => Some(Target::Layout(id)),
         Subject::Scan(id) => Some(Target::Layout(
             layouts

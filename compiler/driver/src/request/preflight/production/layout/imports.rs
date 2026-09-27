@@ -22,11 +22,10 @@ pub(super) fn select<'a>(
     for callable in input.materialization().external_callable_roots() {
         let provider = callable.provider();
         let target = callable.implementation();
-        if section
-            .selected()
-            .record(provider, mir::MirTypeBridgeTargetV1::Callable(target))
-            .is_some()
-        {
+        if dependencies.iter().any(|dependency| {
+            dependency.identity() == provider
+                && dependency.lir_exports().callables().get(target).is_some()
+        }) {
             roots.push(lir::LayoutAbiDependencyV1::new(
                 provider,
                 lir::LayoutAbiSemanticTargetV1::Callable(target),
@@ -35,6 +34,21 @@ pub(super) fn select<'a>(
                 provider,
                 lir::ExternalStrongShapeSubjectV1::Callable(target),
             ));
+        }
+    }
+    for (_, class) in input.module().classes.iter() {
+        for slot in class
+            .vtable
+            .iter()
+            .chain(class.itables.iter().flat_map(|table| &table.slots))
+        {
+            if let mir::TableSlot::External(callable) = slot {
+                let reference = input.module().meta.external_callables[*callable].reference();
+                physical.push((
+                    reference.provider(),
+                    lir::ExternalStrongShapeSubjectV1::Callable(reference.implementation()),
+                ));
+            }
         }
     }
     physical.extend(section.initialization_uses().records().iter().map(|usage| {

@@ -47,5 +47,16 @@ pub(crate) fn referenced_external_callables(module: &Module) -> HashSet<External
             }
         }
     }
+    for (_, class) in module.classes.iter() {
+        for slot in class
+            .vtable
+            .iter()
+            .chain(class.itables.iter().flat_map(|table| &table.slots))
+        {
+            if let crate::TableSlot::External(callable) = slot {
+                referenced.insert(*callable);
+            }
+        }
+    }
     referenced
 }

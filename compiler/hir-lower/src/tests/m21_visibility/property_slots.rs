@@ -57,7 +57,8 @@ fn explicit_setters_preserve_independent_slot_contracts_and_override_relations()
         ));
         if owner_name == "Child" {
             assert!(!function.access.lookup.0.is_universal());
-            let [inherited_property] = property.overrides.as_slice() else {
+            let [hir::PropertyReference::Local(inherited_property)] = property.overrides.as_slice()
+            else {
                 panic!("one overridden property");
             };
             let setter = module.properties[*inherited_property]

@@ -29,7 +29,9 @@ impl Parser {
             ));
         }
         let modifier = prefix.modifiers.method_modifier.unwrap_or_else(|| {
-            if context == PropertyContext::Interface || prefix.modifiers.is_override {
+            if context == PropertyContext::Interface
+                || (prefix.modifiers.is_override && context != PropertyContext::ValueType)
+            {
                 MethodModifier::Open
             } else {
                 MethodModifier::Final

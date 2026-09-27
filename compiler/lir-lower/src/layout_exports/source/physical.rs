@@ -109,6 +109,27 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
             )?;
         }
     }
+    for (_, descriptor) in module.meta.type_descriptors.iter() {
+        for slot in descriptor
+            .vtable
+            .slots()
+            .iter()
+            .chain(descriptor.itables.iter().flat_map(|table| table.slots()))
+        {
+            if let lir::CallableRef::External(id) = slot.callable {
+                let callable = &module.meta.external_callables[id];
+                push(
+                    &mut imports,
+                    RequiredImport {
+                        provider: callable.provider(),
+                        subject: Subject::Callable(callable.target()),
+                        symbol: callable.expected_symbol(),
+                        definition: callable.required_definition(),
+                    },
+                )?;
+            }
+        }
+    }
     for unit in input
         .registration
         .registration_production()

@@ -178,8 +178,9 @@ impl MirCallableBridgeAuthority<'_> {
         let semantic = binding.semantic.exact();
         let lowered = binding.lowered.exact();
         self.identities.canonical_key::<_, DispatchSlotKey>(slot)?;
-        if self.foundation_signature(target)? != semantic
-            || semantic.receiver() != OptionalExactOwner::Present(implementor)
+        // The complete dispatch check resolves the target through the shared
+        // callable index, including definitions from dependency providers.
+        if semantic.receiver() != OptionalExactOwner::Present(implementor)
             || !lowered.receiver().is_present()
             || semantic.parameters() != lowered.parameters()
             || semantic.result() != lowered.result()

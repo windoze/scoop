@@ -2,7 +2,6 @@
 
 use std::fmt;
 
-use la_arena::{Arena, Idx};
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableOdrMemberId, CallableOwner,
     CallableTemplateOwner, CborIdentityRecord, DispatchRole, DispatchSlotKey,
@@ -12,8 +11,8 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallableSignatureRecord, CallableSignatureSubject, ClassDef, ClassId, ExactOwnerRoot,
-    ExactOwnerRootError, Function, FunctionId, InterfaceDef, InterfaceId, TableSlot,
+    CallableSignatureRecord, CallableSignatureSubject, ClassId, ExactOwnerRoot,
+    ExactOwnerRootError, FunctionId, InterfaceId,
 };
 
 type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
@@ -181,43 +180,31 @@ impl BoxingAdjustLocation {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BoxingAdjustTarget {
+    Local(FunctionId),
+    External(crate::ExternalCallableUseId),
+}
+
 /// One checked physical boxing-adjust materialization.
 #[derive(Clone, Debug)]
 pub struct BoxingAdjust {
     location: BoxingAdjustLocation,
-    target: FunctionId,
+    target: BoxingAdjustTarget,
     identity: BoxingAdjustIdentity,
 }
 
 impl BoxingAdjust {
-    pub fn checked(
-        functions: &Arena<Function>,
-        classes: &Arena<ClassDef>,
-        interfaces: &Arena<InterfaceDef>,
+    pub const fn new(
         location: BoxingAdjustLocation,
-        target: FunctionId,
+        target: BoxingAdjustTarget,
         identity: BoxingAdjustIdentity,
-    ) -> Option<Self> {
-        arena_get(functions, location.function)?;
-        arena_get(functions, target)?;
-        let interface_definition = arena_get(interfaces, location.interface)?;
-        interface_definition.methods.get(location.slot as usize)?;
-        let class = arena_get(classes, location.boxed)?;
-        let mut matching_tables = class
-            .itables
-            .iter()
-            .filter(|table| table.interface == location.interface);
-        let table = matching_tables.next()?;
-        if matching_tables.next().is_some()
-            || !matches!(table.slots.get(location.slot as usize), Some(TableSlot::Function(found)) if *found == location.function)
-        {
-            return None;
-        }
-        Some(Self {
+    ) -> Self {
+        Self {
             location,
             target,
             identity,
-        })
+        }
     }
 
     pub const fn location(&self) -> BoxingAdjustLocation {
@@ -241,17 +228,13 @@ impl BoxingAdjust {
     }
 
     /// The concrete conformance target used when lowering the thunk body.
-    pub const fn target(&self) -> FunctionId {
+    pub const fn target(&self) -> BoxingAdjustTarget {
         self.target
     }
 
     pub const fn identity(&self) -> &BoxingAdjustIdentity {
         &self.identity
     }
-}
-
-fn arena_get<T>(arena: &Arena<T>, id: Idx<T>) -> Option<&T> {
-    (id.into_raw().into_u32() < arena.len() as u32).then(|| &arena[id])
 }
 
 #[cfg(test)]

@@ -38,16 +38,8 @@ impl Lowerer {
                         (candidate.function, arguments)
                     })
                     .collect();
-                for interface_ty in self.class_interfaces_all(class_id) {
-                    let (iface, args) = self.interface_application(interface_ty);
-                    candidates.extend(
-                        self.interface_methods[&iface]
-                            .iter()
-                            .copied()
-                            .filter(|method| self.function_is_accessible(*method, None))
-                            .map(|method| (method, args.clone())),
-                    );
-                }
+                let interfaces = self.class_interfaces_all(class_id);
+                candidates.extend(self.interface_method_candidates(&interfaces));
                 candidates
             }
             Owner::Object(object) => {
@@ -68,16 +60,8 @@ impl Lowerer {
                         (candidate.function, arguments)
                     })
                     .collect();
-                for interface_ty in self.class_interfaces_all(class_id) {
-                    let (iface, args) = self.interface_application(interface_ty);
-                    candidates.extend(
-                        self.interface_methods[&iface]
-                            .iter()
-                            .copied()
-                            .filter(|method| self.function_is_accessible(*method, None))
-                            .map(|method| (method, args.clone())),
-                    );
-                }
+                let interfaces = self.class_interfaces_all(class_id);
+                candidates.extend(self.interface_method_candidates(&interfaces));
                 candidates
             }
             Owner::Struct(struct_id) => {
@@ -104,6 +88,34 @@ impl Lowerer {
             })
             .cloned()
             .collect::<Vec<_>>();
+        let interfaces = self.owner_interfaces(owner);
+        let signature = super::interfaces::InterfaceSignature::local(&short, &sig);
+        let mut imported = Vec::new();
+        for interface in interfaces {
+            if matches!(self.types[interface], Type::ImportedInterface(_)) {
+                for member in self.conformance_members(interface) {
+                    if !imported
+                        .iter()
+                        .any(|other: &super::interfaces::InterfaceMemberInstance| {
+                            other.member == member.member
+                        })
+                    {
+                        imported.push(member);
+                    }
+                }
+            }
+        }
+        let imported_matches = imported
+            .iter()
+            .filter(|member| {
+                sig.type_params.len() == sig.owner_type_param_count
+                    && self.same_interface_signature(&signature, &member.signature)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if decl.is_override {
+            self.check_imported_interface_override(id, decl, &sig, &imported_matches);
+        }
         let overrides = matching_overrides.first().cloned();
         if !matching_overrides.is_empty() {
             if decl.is_override {
@@ -172,34 +184,50 @@ impl Lowerer {
                 }
             }
         }
-        if overrides.is_none()
-            && let Some((candidate, _)) = candidates.iter().find(|(candidate, args)| {
-                self.same_instantiated_signature_shape(*candidate, &short, &sig, args)
-            })
-        {
-            let target = self.functions[*candidate].name.clone();
-            if self.functions[*candidate].is_suspend != sig.is_suspend {
+        if overrides.is_none() && imported_matches.is_empty() {
+            let local_shape = candidates
+                .iter()
+                .find(|(candidate, args)| {
+                    self.same_instantiated_signature_shape(*candidate, &short, &sig, args)
+                })
+                .map(|(candidate, _)| {
+                    (
+                        self.functions[*candidate].name.clone(),
+                        super::interfaces::InterfaceSignature::local(
+                            &short,
+                            &self.signatures[candidate],
+                        ),
+                    )
+                });
+            let inherited = local_shape.or_else(|| {
+                imported
+                    .iter()
+                    .find(|member| {
+                        self.same_interface_signature_shape(&signature, &member.signature)
+                    })
+                    .map(|member| {
+                        (
+                            format!("{}.{}", self.type_name(member.owner), member.signature.name),
+                            member.signature.clone(),
+                        )
+                    })
+            });
+            if let Some((target, inherited)) = inherited {
+                let modifier = if inherited.is_suspend != signature.is_suspend {
+                    "suspend"
+                } else if inherited.operator != signature.operator {
+                    "operator"
+                } else if inherited.infix != signature.infix {
+                    "infix"
+                } else {
+                    "effect"
+                };
                 self.error(
                     decl.name.span,
-                    format!("`{short}` must have the same `suspend` modifier as `{target}`"),
+                    format!("`{short}` must have the same `{modifier}` modifier as `{target}`"),
                 );
-            } else if self.functions[*candidate].modifiers.operator != sig.modifiers.operator
-                || self.functions[*candidate]
-                    .modifiers
-                    .property_delegate_operator
-                    != sig.modifiers.property_delegate_operator
-            {
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` must have the same `operator` modifier as `{target}`"),
-                );
-            } else if self.functions[*candidate].modifiers.is_infix != sig.modifiers.is_infix {
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` must have the same `infix` modifier as `{target}`"),
-                );
+                return;
             }
-            return;
         }
         if let Some((candidate, _)) = overrides.as_ref()
             && matches!(self.function_owner.get(candidate), Some(Owner::Class(_)))
@@ -251,21 +279,81 @@ impl Lowerer {
                 .expect("the checked declaration is a method")
                 .dispatch = dispatch;
         }
-        match (overrides, decl.is_override) {
-            (Some((candidate, _)), false) => {
-                let owner = self.functions[candidate].name.clone();
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` overrides `{owner}` and must be marked `override`"),
-                );
-            }
-            (None, true) => {
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` is marked `override` but does not override any method"),
-                );
-            }
+        let overridden_name = overrides
+            .map(|(candidate, _)| self.functions[candidate].name.clone())
+            .or_else(|| {
+                imported_matches.first().map(|member| {
+                    format!("{}.{}", self.type_name(member.owner), member.signature.name)
+                })
+            });
+        match (overridden_name, decl.is_override) {
+            (Some(target), false) => self.error(
+                decl.name.span,
+                format!("`{short}` overrides `{target}` and must be marked `override`"),
+            ),
+            (None, true) => self.error(
+                decl.name.span,
+                format!("`{short}` is marked `override` but does not override any method"),
+            ),
             _ => {}
+        }
+    }
+
+    fn check_imported_interface_override(
+        &mut self,
+        id: FunctionId,
+        decl: &ast::FunctionDecl,
+        signature: &FnSig,
+        inherited: &[super::interfaces::InterfaceMemberInstance],
+    ) {
+        use hir::ImportedCallableSource;
+        for member in inherited {
+            let target = format!("{}.{}", self.type_name(member.owner), member.signature.name);
+            let covers = self.functions[id]
+                .access
+                .slot
+                .as_ref()
+                .is_some_and(|provided| {
+                    self.access_domain_is_subset(&hir::AccessDomain::universal(), &provided.0)
+                });
+            if !covers {
+                self.error(
+                    decl.name.span,
+                    format!(
+                        "visibility of `{}` does not cover inherited slot `{target}`",
+                        decl.name.text
+                    ),
+                );
+            }
+            let hir::InterfaceMethodReference::Imported { owner, slot } = member.member else {
+                unreachable!("imported candidates retain imported slots")
+            };
+            let Type::ImportedInterface(interface) = &self.types[owner] else {
+                unreachable!("imported slot owner is an interface")
+            };
+            let declaration = self
+                .dependencies
+                .as_ref()
+                .expect("an imported interface has a dependency catalog")
+                .callable_for_slot(
+                    hir::SourceNominalId::Concrete(interface.declaration.identity.id()),
+                    slot,
+                )
+                .expect("resolved interface callable")
+                .expect("resolved interface slot");
+            for (index, parameter) in signature.params.iter().enumerate() {
+                let inherited_vararg = declaration.source_interface().is_some_and(|source| {
+                    source.parameters().parameters()[index]
+                        .calling()
+                        .is_vararg()
+                });
+                if matches!(parameter.calling, crate::FnParamCalling::Vararg { .. })
+                    != inherited_vararg
+                {
+                    self.error(decl.params[index].span, format!("parameter `{}` of `{}` must have the same `vararg` shape as `{target}`", decl.params[index].name.text, decl.name.text));
+                    break;
+                }
+            }
         }
     }
 

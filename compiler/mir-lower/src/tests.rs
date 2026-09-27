@@ -850,6 +850,7 @@ fn class_index(raw: u32) -> mir::ClassId {
 fn slot_fn<'a>(module: &'a mir::Module, slot: &mir::TableSlot) -> &'a str {
     match slot {
         mir::TableSlot::Function(id) => &module.functions[*id].name,
+        mir::TableSlot::External(_) => "external",
         mir::TableSlot::Runtime(function) => function.symbol(),
     }
 }

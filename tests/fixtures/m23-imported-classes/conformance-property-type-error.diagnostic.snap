@@ -1,0 +1,13 @@
+span=69..118
+expression=public override val value: Int
+        get() = 21
+property `value` must have the exact inherited type Long, found Int
+span=89..94
+expression=value
+`$get$value` is marked `override` but does not override any method
+span=33..120
+expression=public struct Wrong(): Valued {
+    public override val value: Int
+        get() = 21
+}
+struct `Wrong` does not implement interface method `Valued.$get$value`

@@ -1,0 +1,78 @@
+Module
+  enum CoroutineStep<LocalReader> tagged size=16 align=8 variants=(struct0)@8+8 ()@8+0
+  enum CoroutineSlot<LocalReader> tagged size=16 align=8 variants=()@8+0 (struct0)@8+8
+  fun @scoop$1$cb$4b249e1559771df80692b939decc0a10d13ae0fbcde43757caab9283140f13c3(indirect<struct0 size=8 align=8 scan=none>) -> i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i64
+    ret t0
+  fun @scoop$1$cb$73eed3d20907b08cea963620c6dc16904eb98d03a0bd80943d9658fd21da62f2() -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 reader: ptr<managed>
+    local %3 $dependency.argument.0: ptr<managed>
+    local %4 $dependency.parameter.value: ptr<managed>
+    local %5 $dependency.receiver: ptr<managed>
+    local %6 $dependency.parameter.extra: i64
+    local %7 $dependency.argument.0: i64
+    local %8 $dependency.parameter.value: i64
+    local %9 $call.1: struct0
+    local %10 $new.2: ptr<managed>
+    local %11 $sc.1: struct0
+    local %12 $box.2: struct0
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000014) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct0 size=8 align=8 scan=none, i64) local-fn2(local1)
+    store local11 -> local9
+    store local9 -> local12
+    t0 = box_value td0, local12 scan=none sp<managed-call:0> live=[]
+    store t0 -> local2
+    store local2 -> local3
+    store local3 -> local4
+    call managed-direct-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn1(local4)
+    store t1 -> local5
+    store integer<Long>(0x0000000000000001) -> local6
+    t2 = heap_load local5 +0 : ptr<metadata>
+    call no-gc-direct-target0 t3 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t2, external-td0)
+    call managed-direct-target1 sp<managed-call:2> live=[local5:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, i64) -> i64 dispatch[Interface:1] t3(local5, local6)
+    store t4 -> local7
+    store local7 -> local8
+    call managed-direct-target2 sp<managed-call:3> live=[] t5 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t5 -> local10
+    call managed-void-target0 sp<managed-call:4> live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn2(local10, local8)
+    t6 = aggregate () : {}
+    ret local10
+  fun @scoop$1$cb$10a1805ee959894e6168d3e632813ef4a5467b6d7135194dc68bcf1c4d27ed93(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  fun @scoop$1$cb$cc1001f20622799b3704b2998bd431e8fc4b7a7f464b26b224dc83c23351999a(ptr<managed>) -> i64
+    local %0 $call.1: i64
+    local %1 $box.1: struct0
+    local %2 $sc.2: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    unbox_value td0, param0 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<struct0 size=8 align=8 scan=none>) -> i64 local-fn0(indirect local2)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$57be33f1ed9f05cc17fbc0ea374333d18bc75510d69641511eb582538cabd613(ptr<managed>, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i64) -> i64 external-fn0(param0, param1)
+    store t0 -> local0
+    ret local0
+  td td0 g(r=00000006;i=6d208261744137838a46110f910ca0eaf2764ad5a3e93653fa92269b6deddd81) @scoop$1$td$ec4615c963d96d7a82b58437c6c41b52a18628fe6bf4c0d130493ba60a272fc1 type-id=3789184039244429830 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[external-td0:[local-fn3, local-fn4]]
+  td td1 n(c=dev.example%3Aclasses-conformance-struct%3A0.1.0;p=;o=-;k=S;x=LocalReader) @scoop$1$td$e812af24b1d4608a16713b72277f6610bf4f4b59260956641603252436b8eaed type-id=3532914106127759173 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000007;i=320e4cd7dd07d4cccb77f7b8f1d32e86ec2f11ef550373e48b92f49b23c56e3a) @scoop$1$td$1f0ac100e1bdeb70d36e2eb50a6caaf0a19e93e1c0e1c36d502c28fadee5df9d type-id=4018268735530781930 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000005;i=aebad170e7770e6d19f78f3bce97aaa83388fab4ccbfc615074b521d0a795f19) @scoop$1$td$f3ad4733d9148e59df77e4c9716f4aab6dc898479c883a0d868c029739347267 type-id=16386305592485634619 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout LocalReader size=8 align=8 refs=[]
+  layout CoroutineStep<LocalReader> size=16 align=8 enum-scan=none
+  layout CoroutineSlot<LocalReader> size=16 align=8 enum-scan=none
+  layout box<LocalReader> value size=8 align=8 refs=[0]
+  layout box<LocalReader> size=24 align=8 refs=[]
+  output library

@@ -220,6 +220,12 @@ pub struct ImportedDependencyCallableRef {
     pub(super) callable: CallableTemplateOrigin,
 }
 
+impl ImportedDependencyCallableRef {
+    pub const fn declaration(self) -> CallableTemplateOrigin {
+        self.callable
+    }
+}
+
 /// Complete HIR input for one selected dependency callable.
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyCallable {

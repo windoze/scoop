@@ -1,5 +1,6 @@
 use super::*;
 
+mod conformance;
 mod runtime;
 
 #[test]
@@ -302,6 +303,13 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     let provider_root = sysroot.path().join("provider");
     let coordinate = ConeCoordinate::new("dev.example", "class-provider", "0.1.0").unwrap();
     let mut provider_source = source("provider");
+    if cases
+        .iter()
+        .chain(negative_cases)
+        .any(|case| case.starts_with("conformance-"))
+    {
+        provider_source.push_str(&source("conformance-provider"));
+    }
     if cases.iter().any(|case| {
         case.starts_with("initialization-object-") || *case == "initialization-imported-object"
     }) {

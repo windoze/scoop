@@ -243,6 +243,21 @@ fn every_boxed_itable_slot_requires_one_persistent_adjust_identity() {
     );
     let mut module = lower(&h.finish(main));
     assert_eq!(module.meta.boxing_adjusts.len(), 1);
+    let adjust = module.meta.boxing_adjusts[0].clone();
+    for target in [
+        mir::BoxingAdjustTarget::Local(mir::FunctionId::from_raw(u32::MAX.into())),
+        mir::BoxingAdjustTarget::External(mir::ExternalCallableUseId::from_raw(u32::MAX.into())),
+    ] {
+        module.meta.boxing_adjusts[0] =
+            mir::BoxingAdjust::new(adjust.location(), target, adjust.identity().clone());
+        assert!(matches!(
+            module.validate(),
+            Err(mir::MirValidationError {
+                kind: mir::MirValidationErrorKind::InvalidBoxingAdjust { .. },
+                ..
+            })
+        ));
+    }
     module.meta.boxing_adjusts.clear();
 
     assert!(matches!(

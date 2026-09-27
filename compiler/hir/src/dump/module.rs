@@ -597,7 +597,12 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
             property
                 .overrides
                 .iter()
-                .map(|property| property.into_raw().to_string())
+                .map(|property| match property {
+                    PropertyReference::Local(property) => property.into_raw().to_string(),
+                    PropertyReference::Imported { owner, declaration } => {
+                        format!("imported({},{declaration})", type_name(module, *owner))
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join(",")
         )

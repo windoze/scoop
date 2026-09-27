@@ -1,0 +1,32 @@
+Module
+  struct LocalReader : Readable
+    field0 value: Long
+    property0 val value: Long getter0=storage <stored struct0-field0>
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 20 : Long
+    val local1
+      Local $argument.0 : Long
+    val local2
+      Box : Readable
+        StructInit LocalReader : LocalReader
+          Local $parameter.value : Long
+    val local3
+      Local reader : Readable
+    val local4
+      Local $dependency.argument.0 : Readable
+    val local5
+      ImportedDependencyCall #1 : Readable
+        Local $dependency.parameter.value : Readable
+    val local6
+      IntegerLiteral 1 : Long
+    val local7
+      ImportedDependencyCall #0 interface[1] : Long
+        Local $dependency.receiver : Readable
+        Local $dependency.parameter.extra : Long
+    val local8
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

@@ -1,17 +1,6 @@
 use super::*;
 
 impl Projection<'_> {
-    pub(super) fn interface_application(
-        &self,
-        ty: TypeId,
-    ) -> Result<InterfaceApplicationId, Error> {
-        exact(self.export, ty)?;
-        match self.export.types[ty] {
-            Type::Interface(application) => Ok(application),
-            _ => Err(self.invalid("interface edge does not resolve to an interface application")),
-        }
-    }
-
     pub(super) fn interface(
         &mut self,
         application: InterfaceApplicationId,
@@ -48,20 +37,5 @@ impl Projection<'_> {
     ) -> Result<Vec<InterfaceMethodId>, Error> {
         crate::production::nominal_dispatch::Projection::new(self.export)
             .interface_members(application)
-    }
-
-    pub(super) fn interface_postorder(
-        &mut self,
-        application: InterfaceApplicationId,
-    ) -> Result<Vec<InterfaceApplicationId>, Error> {
-        let result = crate::production::nominal_dispatch::Projection::new(self.export)
-            .interface_postorder(application)?;
-        for application in &result {
-            exact(
-                self.export,
-                self.export.interface_applications[*application].canonical_type,
-            )?;
-        }
-        Ok(result)
     }
 }

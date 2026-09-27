@@ -65,7 +65,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         &self,
         subject: ExternalStrongShapeSubjectV1,
     ) -> Result<Option<LayoutAbiSemanticTargetV1>, ShapeLinkError> {
-        super::import::semantic_target(subject, self.parts.layouts)
+        super::import::semantic_target(subject, self.parts.layouts, self.parts.callables)
     }
 
     /// The complete local Strong definition surface used by import replay.

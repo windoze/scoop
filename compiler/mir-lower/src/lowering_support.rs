@@ -36,6 +36,7 @@ pub(super) fn clone_slots(slots: &[mir::TableSlot]) -> Vec<mir::TableSlot> {
         .iter()
         .map(|slot| match slot {
             mir::TableSlot::Function(id) => mir::TableSlot::Function(*id),
+            mir::TableSlot::External(id) => mir::TableSlot::External(*id),
             mir::TableSlot::Runtime(function) => mir::TableSlot::Runtime(*function),
         })
         .collect()

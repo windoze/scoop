@@ -1,6 +1,5 @@
 //! Callable data used while assembling inheritance slot contracts.
 
-use super::*;
 use crate::{
     CallableModalityV1, DeclarationAccessSourceV1, InheritanceCallableDeclarationV1,
     InheritanceCallableSignatureV1,
@@ -39,41 +38,5 @@ impl InheritanceSourceCallableV1 {
     }
     pub const fn declaration_access(&self) -> &DeclarationAccessSourceV1 {
         &self.declaration_access
-    }
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct CanonicalInheritanceSourceCallablesV1 {
-    records: Vec<InheritanceSourceCallableV1>,
-}
-
-impl CanonicalInheritanceSourceCallablesV1 {
-    pub fn try_new(
-        mut records: Vec<InheritanceSourceCallableV1>,
-    ) -> Result<Self, SourceInventoryError> {
-        records.sort_unstable_by_key(InheritanceSourceCallableV1::declaration);
-        Self::from_ordered(records)
-    }
-    fn from_ordered(
-        records: Vec<InheritanceSourceCallableV1>,
-    ) -> Result<Self, SourceInventoryError> {
-        validate_order(
-            &records,
-            InheritanceSourceCallableV1::declaration,
-            "inheritance source callables",
-        )?;
-        Ok(Self { records })
-    }
-    pub fn records(&self) -> &[InheritanceSourceCallableV1] {
-        &self.records
-    }
-    pub fn get(
-        &self,
-        declaration: InheritanceCallableDeclarationV1,
-    ) -> Option<&InheritanceSourceCallableV1> {
-        self.records
-            .binary_search_by_key(&declaration, InheritanceSourceCallableV1::declaration)
-            .ok()
-            .map(|index| &self.records[index])
     }
 }

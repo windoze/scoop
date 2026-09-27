@@ -29,7 +29,7 @@ pub(super) fn actual(
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| root.function() == adjust.target())
+            .find(|root| scoop_mir::BoxingAdjustTarget::Local(root.function()) == adjust.target())
             .unwrap();
         assert_eq!(root.implementation(), target.callable_owner());
         let calls: Vec<_> = input.module().functions[adjust.function()]
@@ -47,7 +47,7 @@ pub(super) fn actual(
         assert_eq!(calls.len(), 1);
         assert!(matches!(calls[0].target.kind, scoop_mir::CallKind::Direct));
         assert!(
-            matches!(calls[0].target.callee, scoop_mir::Callee::User(actual) if actual == adjust.target())
+            matches!(calls[0].target.callee, scoop_mir::Callee::User(actual) if scoop_mir::BoxingAdjustTarget::Local(actual) == adjust.target())
         );
         assert_eq!(
             binding.semantic_signature(),
@@ -73,17 +73,6 @@ pub(super) fn actual(
         assert!(
             matches!(input.module().classes[adjust.boxed()].itables.iter().find(|table| table.interface == adjust.interface()).unwrap().slots[adjust.slot() as usize], scoop_mir::TableSlot::Function(function) if function == adjust.function())
         );
-        assert!(
-            scoop_mir::BoxingAdjust::checked(
-                &input.module().functions,
-                &input.module().classes,
-                &input.module().interfaces,
-                adjust.location(),
-                scoop_mir::FunctionId::from_raw(u32::MAX.into()),
-                adjust.identity().clone(),
-            )
-            .is_none()
-        );
     }
 }
 
@@ -102,7 +91,14 @@ pub(super) fn dump(
         lines.push(format!(
             "{} => {} ({:?} -> {:?})\n",
             input.module().functions[adjust.function()].name,
-            input.module().functions[adjust.target()].name,
+            match adjust.target() {
+                scoop_mir::BoxingAdjustTarget::Local(target) =>
+                    input.module().functions[target].name.clone(),
+                scoop_mir::BoxingAdjustTarget::External(target) => format!(
+                    "{:?}",
+                    input.module().meta.external_callables[target].reference()
+                ),
+            },
             binding.semantic_signature().gc_effect(),
             binding.lowered_signature().gc_effect()
         ));

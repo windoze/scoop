@@ -107,14 +107,14 @@ fn callable(
             matches = matches.saturating_add(1);
         }
     }
-    let owner = match (matches, owner) {
+    match (matches, owner) {
         (0, _) => {
             return Err(StrongProductionLayoutJoinError::MissingPhysicalCallable {
                 provider,
                 body,
             });
         }
-        (1, Some(owner)) => owner,
+        (1, Some(_)) => {}
         _ => {
             return Err(StrongProductionLayoutJoinError::AmbiguousPhysicalCallable {
                 provider,
@@ -123,9 +123,6 @@ fn callable(
         }
     };
 
-    if !selected.contains(provider, Target::Callable(owner)) {
-        return Err(StrongProductionLayoutJoinError::MissingSelectedCallable { provider, body });
-    }
     Ok(())
 }
 

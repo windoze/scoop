@@ -61,10 +61,6 @@ pub enum StrongProductionLayoutJoinError {
         provider: ConeIdentity,
         exact: PersistentExactTypeId,
     },
-    MissingSelectedCallable {
-        provider: ConeIdentity,
-        body: PersistentCallableBodyId,
-    },
     MissingPhysicalCallable {
         provider: ConeIdentity,
         body: PersistentCallableBodyId,

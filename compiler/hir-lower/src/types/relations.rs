@@ -101,11 +101,11 @@ impl Lowerer {
                 .intrinsic_type_interfaces(hir::IntrinsicTypeKind::String)
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::Class(application), Type::Interface(..)) => self
+            (Type::Class(application), Type::Interface(..) | Type::ImportedInterface(_)) => self
                 .class_interfaces_for_application(application)
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::Struct(application), Type::Interface(..)) => {
+            (Type::Struct(application), Type::Interface(..) | Type::ImportedInterface(_)) => {
                 let application = self.struct_applications[application].clone();
                 let interfaces = self.structs[application.template].interfaces.clone();
                 interfaces.into_iter().any(|implemented| {
@@ -113,7 +113,7 @@ impl Lowerer {
                     self.is_subtype(implemented, b)
                 })
             }
-            (Type::Enum(application), Type::Interface(..)) => {
+            (Type::Enum(application), Type::Interface(..) | Type::ImportedInterface(_)) => {
                 let application = self.enum_applications[application].clone();
                 let interfaces = self.enums[application.template].interfaces.clone();
                 interfaces.into_iter().any(|implemented| {
@@ -201,14 +201,28 @@ impl Lowerer {
             return;
         }
         result.push(interface);
-        let Type::Interface(application) = self.types[interface] else {
-            unreachable!("interface closure starts from an interface application")
-        };
-        let application = self.interface_applications[application].clone();
-        for parent in self.interfaces[application.template].parents.clone() {
-            let parent = self.interface_applications[parent].canonical_type;
-            let parent = self.instantiate_ty(parent, &application.arguments);
+        let parents = self.interface_parent_types(interface);
+        for parent in parents {
             self.append_interface_closure(parent, result);
+        }
+    }
+
+    pub(crate) fn interface_parent_types(&mut self, interface: TypeId) -> Vec<TypeId> {
+        match self.types[interface].clone() {
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                self.interfaces[application.template]
+                    .parents
+                    .clone()
+                    .into_iter()
+                    .map(|parent| {
+                        let parent = self.interface_applications[parent].canonical_type;
+                        self.instantiate_ty(parent, &application.arguments)
+                    })
+                    .collect()
+            }
+            Type::ImportedInterface(interface) => interface.parents.clone(),
+            _ => unreachable!("interface closure contains interface types"),
         }
     }
 

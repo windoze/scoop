@@ -1,452 +1,285 @@
 use super::*;
 use std::collections::HashSet;
 
+mod members;
+pub(super) use members::{InterfaceMemberInstance, InterfaceSignature};
+
 enum InterfaceDefaultSelection {
-    Default {
-        function: FunctionId,
-        owner: hir::InterfaceApplicationId,
-    },
+    Default(InterfaceMemberInstance),
     Obligation,
-    Conflict(Vec<InterfaceDefaultCandidate>),
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct InterfaceDefaultCandidate {
-    function: FunctionId,
-    owner: hir::InterfaceApplicationId,
-    implementation: hir::InterfaceMemberImplementation,
-}
-
-#[derive(PartialEq, Eq, Hash)]
-struct InterfaceObligationKey {
-    name: String,
-    parameter_types: Vec<TypeId>,
-    return_ty: TypeId,
-    is_suspend: bool,
+    Conflict(Vec<InterfaceMemberInstance>),
 }
 
 impl Lowerer {
-    /// Every method of every implemented interface (including
-    /// interfaces inherited from base classes) must have a
-    /// same-signature concrete method on the class or its base chain.
-    /// Abstract classes may leave methods unimplemented.
     pub(super) fn check_interface_implementation(
         &mut self,
         id: ClassId,
         span: ast::Span,
         host: &str,
     ) {
-        self.classes[id].interface_implementations.clear();
-        let abstract_class = self.classes[id].modifier == hir::ClassModifier::Abstract;
-        let all_interfaces = self.class_interfaces_all(id);
-        let mut reported_conflicts = HashSet::new();
-        let mut reported_obligations = HashSet::new();
-        for &interface_ty in &all_interfaces {
-            let (iface, _args) = self.interface_application(interface_ty);
-            let application = match self.types[interface_ty] {
-                Type::Interface(application) => application,
-                _ => unreachable!("class interface closure contains interface applications"),
-            };
-            let methods = self.interface_member_instances(application);
-            let mut implementations = Vec::with_capacity(methods.len());
-            for (member, method, member_arguments) in methods {
-                if self.functions[method].method_type_param_count() != 0 {
-                    // Interface methods with their own type parameters are
-                    // rejected while their declarations are resolved.  Do
-                    // not manufacture a dispatch application for that
-                    // invalid declaration during error recovery.
-                    continue;
-                }
-                let qualified = self.functions[method].name.clone();
-                let sig = self.instantiated_signature(method, &member_arguments, &[]);
-                let short = qualified.rsplit('.').next().expect("methods are qualified");
-                let own_owner = self.object_by_backing_class.get(&id).map_or(
-                    hir::MethodOwnerApplication::Class(self.classes[id].self_application),
-                    |object| hir::MethodOwnerApplication::Object(self.objects[*object].object_type),
-                );
-                let mut candidates = self.classes[id]
-                    .methods
-                    .iter()
-                    .copied()
-                    .map(|function| crate::CallableCandidate::method(function, own_owner))
-                    .collect::<Vec<_>>();
-                candidates.extend(self.base_chain_methods(id));
-                let implemented = candidates.into_iter().find(|candidate| {
-                    if !self.function_is_accessible(candidate.function, None) {
-                        return false;
-                    }
-                    let owner_arguments = match &candidate.owner {
-                        crate::CallableCandidateOwner::Method(owner) => {
-                            self.method_owner_arguments(*owner).to_vec()
-                        }
-                        crate::CallableCandidateOwner::Function { owner_arguments } => {
-                            owner_arguments.clone()
-                        }
-                    };
-                    self.same_instantiated_signature(
-                        candidate.function,
-                        short,
-                        &sig,
-                        &owner_arguments,
-                    )
-                });
-                match implemented {
-                    Some(candidate) if !self.is_abstract_method(candidate.function) => {
-                        let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
-                            unreachable!("interface implementations are methods")
-                        };
-                        let application = self.record_method_application(candidate.function, owner);
-                        implementations.push(hir::InterfaceMethodImplementation {
-                            member,
-                            target: hir::InterfaceImplementationTarget::Method(application),
-                        });
-                    }
-                    Some(_) if abstract_class => {
-                        implementations.push(hir::InterfaceMethodImplementation {
-                            member,
-                            target: hir::InterfaceImplementationTarget::Subclass,
-                        });
-                    }
-                    Some(_) => {
-                        let iface_name = self.interfaces[iface].name.clone();
-                        let key = Self::interface_obligation_key(short, &sig);
-                        if reported_obligations.insert(key) {
-                            self.error(
-                                span,
-                                format!(
-                                    "{host} leaves interface method `{iface_name}.{short}` abstract"
-                                ),
-                            );
-                        }
-                    }
-                    None => match self.select_interface_default(&all_interfaces, short, &sig) {
-                        InterfaceDefaultSelection::Default { function, owner } => {
-                            let application = self.record_method_application(
-                                function,
-                                hir::MethodOwnerApplication::Interface(owner),
-                            );
-                            implementations.push(hir::InterfaceMethodImplementation {
-                                member,
-                                target: hir::InterfaceImplementationTarget::Method(application),
-                            });
-                        }
-                        InterfaceDefaultSelection::Obligation if abstract_class => {
-                            implementations.push(hir::InterfaceMethodImplementation {
-                                member,
-                                target: hir::InterfaceImplementationTarget::Subclass,
-                            });
-                        }
-                        InterfaceDefaultSelection::Obligation => {
-                            let iface_name = self.interfaces[iface].name.clone();
-                            let key = Self::interface_obligation_key(short, &sig);
-                            if reported_obligations.insert(key) {
-                                self.error(
-                                    span,
-                                    format!("{host} does not implement interface method `{iface_name}.{short}`"),
-                                );
-                            }
-                        }
-                        InterfaceDefaultSelection::Conflict(functions) => {
-                            self.report_default_conflict(
-                                &mut reported_conflicts,
-                                &functions,
-                                span,
-                                host,
-                                short,
-                            );
-                        }
-                    },
-                }
-            }
-            self.classes[id]
-                .interface_implementations
-                .push(hir::InterfaceImplementation {
-                    interface: application,
-                    methods: implementations,
-                });
-        }
+        let owner = self
+            .object_by_backing_class
+            .get(&id)
+            .map_or(Owner::Class(id), |id| Owner::Object(*id));
+        self.check_nominal_interface_implementation(owner, span, host);
     }
 
-    /// Every method of every interface a value type implements must
-    /// have a same-signature method among the value type's own methods
-    /// (spec 4.4.3; value types have no base chain to inherit from,
-    /// and their methods are always concrete).
     pub(super) fn check_value_interface_implementation(&mut self, owner: Owner, span: ast::Span) {
-        let (declared_interfaces, own_methods): (Vec<TypeId>, Vec<FunctionId>) = match owner {
-            Owner::Struct(id) => (
-                self.structs[id].interfaces.clone(),
-                self.structs[id].methods.clone(),
-            ),
-            Owner::Enum(id) => (
-                self.enums[id].interfaces.clone(),
-                self.enums[id].methods.clone(),
-            ),
-            // Only called for value types.
-            Owner::Class(_) | Owner::Interface(_) | Owner::Object(_) => return,
+        self.check_nominal_interface_implementation(owner, span, &owner.describe(self));
+    }
+
+    pub(in crate::class) fn owner_interfaces(&mut self, owner: Owner) -> Vec<TypeId> {
+        let roots = match owner {
+            Owner::Class(id) => return self.class_interfaces_all(id),
+            Owner::Object(id) => return self.class_interfaces_all(self.objects[id].backing_class),
+            Owner::Struct(id) => self.structs[id].interfaces.clone(),
+            Owner::Enum(id) => self.enums[id].interfaces.clone(),
+            Owner::Interface(id) => self.interfaces[id]
+                .parents
+                .iter()
+                .map(|parent| self.interface_applications[*parent].canonical_type)
+                .collect(),
         };
         let mut interfaces = Vec::new();
-        for interface in declared_interfaces {
-            self.append_interface_closure(interface, &mut interfaces);
+        for root in roots {
+            self.append_interface_closure(root, &mut interfaces);
         }
-        let all_interfaces = interfaces.clone();
+        interfaces
+    }
+
+    fn check_nominal_interface_implementation(
+        &mut self,
+        owner: Owner,
+        span: ast::Span,
+        host: &str,
+    ) {
+        let (own_methods, class) = match owner {
+            Owner::Class(id) => (self.classes[id].methods.clone(), Some(id)),
+            Owner::Object(id) => {
+                let class = self.objects[id].backing_class;
+                (self.classes[class].methods.clone(), Some(class))
+            }
+            Owner::Struct(id) => (self.structs[id].methods.clone(), None),
+            Owner::Enum(id) => (self.enums[id].methods.clone(), None),
+            Owner::Interface(_) => {
+                unreachable!("interfaces declare slots rather than nominal conformances")
+            }
+        };
+        let abstract_class =
+            class.is_some_and(|id| self.classes[id].modifier == hir::ClassModifier::Abstract);
+        let all_interfaces = self.owner_interfaces(owner);
+        let own_owner = self.method_owner_application(owner, self.owner_type_args(owner));
+        let mut candidates = own_methods
+            .into_iter()
+            .map(|function| crate::CallableCandidate::method(function, own_owner))
+            .collect::<Vec<_>>();
+        if let Some(class) = class {
+            candidates.extend(self.base_chain_methods(class));
+        }
+        let mut conformances = Vec::new();
         let mut reported_conflicts = HashSet::new();
-        let mut reported_mutable_properties = HashSet::new();
         let mut reported_obligations = HashSet::new();
-        match owner {
-            Owner::Struct(id) => self.structs[id].interface_implementations.clear(),
-            Owner::Enum(id) => self.enums[id].interface_implementations.clear(),
-            Owner::Class(_) | Owner::Interface(_) | Owner::Object(_) => {}
-        }
-        for interface_ty in interfaces {
-            let (iface, _args) = self.interface_application(interface_ty);
-            let application = match self.types[interface_ty] {
-                Type::Interface(application) => application,
-                _ => unreachable!("value interface list contains interface applications"),
-            };
-            let methods = self.interface_member_instances(application);
-            let mut implementations = Vec::with_capacity(methods.len());
-            for (member, method, member_arguments) in methods {
-                if let hir::InterfaceMemberRole::PropertySetter(property) =
-                    self.interface_method_entities[member].role
+        let mut reported_mutable = HashSet::new();
+        for &interface in &all_interfaces {
+            let members = self.conformance_members(interface);
+            let mut methods = Vec::with_capacity(members.len());
+            for member in members {
+                if class.is_none()
+                    && let Some(property) = &member.mutable_property
                 {
-                    if reported_mutable_properties.insert(property) {
-                        let property_name = self.properties[property].name.clone();
-                        let host = owner.describe(self);
+                    if reported_mutable.insert((member.owner, property.clone())) {
                         self.error(
                             span,
                             format!(
-                                "{host} cannot implement mutable interface property `{property_name}`"
+                                "{host} cannot implement mutable interface property `{property}`"
                             ),
                         );
                     }
                     continue;
                 }
-                if self.functions[method].method_type_param_count() != 0 {
-                    // The declaration-site diagnostic is authoritative;
-                    // an illegal generic interface member has no itable
-                    // identity for conformance recovery to complete.
-                    continue;
-                }
-                let qualified = self.functions[method].name.clone();
-                let sig = self.instantiated_signature(method, &member_arguments, &[]);
-                let short = qualified.rsplit('.').next().expect("methods are qualified");
-                let implemented = own_methods
+                let implemented = candidates
                     .iter()
-                    .copied()
-                    .filter(|candidate| self.function_is_accessible(*candidate, None))
-                    .find(|&candidate| self.same_signature(candidate, short, &sig));
-                match implemented {
-                    Some(function) => {
-                        let owner_application =
-                            self.method_owner_application(owner, self.owner_type_args(owner));
-                        let application =
-                            self.record_method_application(function, owner_application);
-                        implementations.push(hir::InterfaceMethodImplementation {
-                            member,
-                            target: hir::InterfaceImplementationTarget::Method(application),
-                        });
+                    .find(|candidate| {
+                        if !self.function_is_accessible(candidate.function, None)
+                            || self.functions[candidate.function].method_type_param_count() != 0
+                        {
+                            return false;
+                        }
+                        let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
+                            unreachable!("nominal candidates are methods")
+                        };
+                        let arguments = self.method_owner_arguments(owner).to_vec();
+                        let signature =
+                            self.instantiated_signature(candidate.function, &arguments, &[]);
+                        let signature = InterfaceSignature::local(
+                            &self.functions[candidate.function].name,
+                            &signature,
+                        );
+                        self.same_interface_signature(&signature, &member.signature)
+                    })
+                    .cloned();
+                let target = match implemented {
+                    Some(candidate) if !self.is_abstract_method(candidate.function) => {
+                        let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
+                            unreachable!("nominal candidates are methods")
+                        };
+                        Some(hir::InterfaceImplementationTarget::Method(
+                            self.record_method_application(candidate.function, owner),
+                        ))
                     }
-                    None => match self.select_interface_default(&all_interfaces, short, &sig) {
-                        InterfaceDefaultSelection::Default { function, owner } => {
-                            let application = self.record_method_application(
-                                function,
-                                hir::MethodOwnerApplication::Interface(owner),
-                            );
-                            implementations.push(hir::InterfaceMethodImplementation {
-                                member,
-                                target: hir::InterfaceImplementationTarget::Method(application),
-                            });
+                    Some(_) if abstract_class => self.abstract_conformance_target(&member, span),
+                    Some(_) => {
+                        self.report_interface_obligation(
+                            &mut reported_obligations,
+                            &member,
+                            span,
+                            host,
+                            true,
+                        );
+                        None
+                    }
+                    None => match self.select_interface_default(&all_interfaces, &member.signature)
+                    {
+                        InterfaceDefaultSelection::Default(default) => {
+                            self.conformance_target(&default, span)
+                        }
+                        InterfaceDefaultSelection::Obligation if abstract_class => {
+                            self.abstract_conformance_target(&member, span)
                         }
                         InterfaceDefaultSelection::Obligation => {
-                            let iface_name = self.interfaces[iface].name.clone();
-                            let host = owner.describe(self);
-                            let key = Self::interface_obligation_key(short, &sig);
-                            if reported_obligations.insert(key) {
-                                self.error(
-                                    span,
-                                    format!(
-                                        "{host} does not implement interface method `{iface_name}.{short}`"
-                                    ),
-                                );
-                            }
-                        }
-                        InterfaceDefaultSelection::Conflict(functions) => {
-                            let host = owner.describe(self);
-                            self.report_default_conflict(
-                                &mut reported_conflicts,
-                                &functions,
+                            self.report_interface_obligation(
+                                &mut reported_obligations,
+                                &member,
                                 span,
-                                &host,
-                                short,
+                                host,
+                                false,
                             );
+                            None
+                        }
+                        InterfaceDefaultSelection::Conflict(defaults) => {
+                            let mut key = defaults
+                                .iter()
+                                .map(|default| (default.member, default.owner))
+                                .collect::<Vec<_>>();
+                            key.sort_unstable();
+                            key.dedup();
+                            if reported_conflicts.insert(key) {
+                                let providers = defaults
+                                    .iter()
+                                    .map(|default| {
+                                        format!(
+                                            "{}.{}",
+                                            self.type_name(default.owner),
+                                            default.signature.name
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(" and ");
+                                self.error(span, format!("{host} inherits conflicting defaults for `{}` from {providers}; declare an explicit override", member.signature.name));
+                            }
+                            None
                         }
                     },
+                };
+                if let Some(target) = target {
+                    methods.push(hir::InterfaceMethodImplementation {
+                        member: member.member,
+                        target,
+                    });
                 }
             }
-            let implementation = hir::InterfaceImplementation {
-                interface: application,
-                methods: implementations,
-            };
-            match owner {
-                Owner::Struct(id) => self.structs[id]
-                    .interface_implementations
-                    .push(implementation),
-                Owner::Enum(id) => self.enums[id]
-                    .interface_implementations
-                    .push(implementation),
-                Owner::Class(_) | Owner::Interface(_) | Owner::Object(_) => unreachable!(),
+            conformances.push(hir::InterfaceImplementation { interface, methods });
+        }
+        match owner {
+            Owner::Class(id) => self.classes[id].interface_implementations = conformances,
+            Owner::Object(id) => {
+                self.classes[self.objects[id].backing_class].interface_implementations =
+                    conformances
             }
+            Owner::Struct(id) => self.structs[id].interface_implementations = conformances,
+            Owner::Enum(id) => self.enums[id].interface_implementations = conformances,
+            Owner::Interface(_) => unreachable!("interfaces do not carry nominal conformances"),
         }
     }
+
+    fn abstract_conformance_target(
+        &mut self,
+        member: &InterfaceMemberInstance,
+        span: ast::Span,
+    ) -> Option<hir::InterfaceImplementationTarget> {
+        let mut abstract_member = member.clone();
+        abstract_member.implementation = hir::InterfaceMemberImplementation::AbstractSlot;
+        self.conformance_target(&abstract_member, span)
+    }
+
+    fn report_interface_obligation(
+        &mut self,
+        reported: &mut HashSet<(String, Vec<TypeId>, TypeId, bool)>,
+        member: &InterfaceMemberInstance,
+        span: ast::Span,
+        host: &str,
+        abstract_method: bool,
+    ) {
+        let sig = &member.signature;
+        if reported.insert((
+            sig.name.clone(),
+            sig.parameters.clone(),
+            sig.result,
+            sig.is_suspend,
+        )) {
+            let interface = self.type_name(member.owner);
+            let message = if abstract_method {
+                format!(
+                    "{host} leaves interface method `{interface}.{}` abstract",
+                    sig.name
+                )
+            } else {
+                format!(
+                    "{host} does not implement interface method `{interface}.{}`",
+                    sig.name
+                )
+            };
+            self.error(span, message);
+        }
+    }
+
     fn select_interface_default(
         &mut self,
         interfaces: &[TypeId],
-        name: &str,
-        signature: &crate::FnSig,
+        signature: &InterfaceSignature,
     ) -> InterfaceDefaultSelection {
-        let mut candidates = Vec::new();
-        for &interface_ty in interfaces {
-            let Type::Interface(application) = self.types[interface_ty] else {
-                unreachable!("default candidates come from interface applications")
-            };
-            let value = self.interface_applications[application].clone();
-            for &member in &self.interfaces[value.template].methods.clone() {
-                let declaration = self.interface_method_entities[member].clone();
-                if !self.function_is_accessible(declaration.function, None)
-                    || !self.same_instantiated_signature(
-                        declaration.function,
-                        name,
-                        signature,
-                        &value.arguments,
-                    )
+        let mut candidates = Vec::<InterfaceMemberInstance>::new();
+        for &interface in interfaces {
+            for candidate in self.conformance_members(interface) {
+                if self.same_interface_signature(&candidate.signature, signature)
+                    && !candidates.iter().any(|other| {
+                        other.member == candidate.member && other.owner == candidate.owner
+                    })
                 {
-                    continue;
-                }
-                let candidate = InterfaceDefaultCandidate {
-                    function: declaration.function,
-                    owner: application,
-                    implementation: declaration.implementation,
-                };
-                if !candidates.contains(&candidate) {
                     candidates.push(candidate);
                 }
             }
         }
-        let mut frontier = Vec::new();
+        let mut defaults = Vec::new();
         for candidate in &candidates {
             let overridden = candidates.iter().any(|other| {
-                other.owner != candidate.owner
-                    && self.interface_application_reaches(
-                        other.owner,
-                        candidate.owner,
-                        &mut Vec::new(),
-                    )
+                if self.types_equal(other.owner, candidate.owner) {
+                    return false;
+                }
+                let mut closure = Vec::new();
+                self.append_interface_closure(other.owner, &mut closure);
+                closure
+                    .into_iter()
+                    .any(|ty| self.types_equal(ty, candidate.owner))
             });
-            if !overridden {
-                frontier.push(*candidate);
+            if !overridden && candidate.implementation == hir::InterfaceMemberImplementation::Body {
+                defaults.push(candidate.clone());
             }
         }
-        let defaults = frontier
-            .into_iter()
-            .filter(|candidate| {
-                candidate.implementation == hir::InterfaceMemberImplementation::Body
-            })
-            .collect::<Vec<_>>();
-        match defaults.as_slice() {
-            [] => InterfaceDefaultSelection::Obligation,
-            [candidate] => InterfaceDefaultSelection::Default {
-                function: candidate.function,
-                owner: candidate.owner,
-            },
+        match defaults.len() {
+            0 => InterfaceDefaultSelection::Obligation,
+            1 => InterfaceDefaultSelection::Default(defaults.pop().expect("one default")),
             _ => InterfaceDefaultSelection::Conflict(defaults),
-        }
-    }
-
-    fn interface_obligation_key(name: &str, signature: &crate::FnSig) -> InterfaceObligationKey {
-        InterfaceObligationKey {
-            name: name.to_string(),
-            parameter_types: signature
-                .params
-                .iter()
-                .map(|parameter| parameter.ty)
-                .collect(),
-            return_ty: signature.return_ty,
-            is_suspend: signature.is_suspend,
-        }
-    }
-
-    fn interface_application_reaches(
-        &mut self,
-        current: hir::InterfaceApplicationId,
-        target: hir::InterfaceApplicationId,
-        visiting: &mut Vec<hir::InterfaceApplicationId>,
-    ) -> bool {
-        if current == target {
-            return true;
-        }
-        if visiting.contains(&current) {
-            return false;
-        }
-        visiting.push(current);
-        let value = self.interface_applications[current].clone();
-        let parents = self.interfaces[value.template].parents.clone();
-        let reaches = parents.into_iter().any(|parent| {
-            let parent = self.interface_applications[parent].canonical_type;
-            let parent = self.instantiate_ty(parent, &value.arguments);
-            let Type::Interface(parent) = self.types[parent] else {
-                unreachable!("interface parent substitution stays an interface")
-            };
-            self.interface_application_reaches(parent, target, visiting)
-        });
-        visiting.pop();
-        reaches
-    }
-
-    fn report_default_conflict(
-        &mut self,
-        reported: &mut HashSet<Vec<(FunctionId, hir::InterfaceApplicationId)>>,
-        candidates: &[InterfaceDefaultCandidate],
-        span: ast::Span,
-        host: &str,
-        name: &str,
-    ) {
-        let mut key = candidates
-            .iter()
-            .map(|candidate| (candidate.function, candidate.owner))
-            .collect::<Vec<_>>();
-        key.sort_by_key(|(function, owner)| (function.into_raw(), owner.into_raw()));
-        key.dedup();
-        if !reported.insert(key.clone()) {
-            return;
-        }
-        let providers = key
-            .iter()
-            .map(|(function, owner)| {
-                let owner_ty = self.interface_applications[*owner].canonical_type;
-                let member = self.functions[*function]
-                    .name
-                    .rsplit('.')
-                    .next()
-                    .expect("interface methods are qualified");
-                format!("{}.{member}", self.type_name(owner_ty))
-            })
-            .collect::<Vec<_>>()
-            .join(" and ");
-        self.error(
-            span,
-            format!(
-                "{host} inherits conflicting defaults for `{name}` from {providers}; declare an explicit override"
-            ),
-        );
-    }
-
-    pub(super) fn interface_application(&self, ty: TypeId) -> (hir::InterfaceId, Vec<TypeId>) {
-        match &self.types[ty] {
-            Type::Interface(application) => {
-                let application = &self.interface_applications[*application];
-                (application.template, application.arguments.clone())
-            }
-            _ => unreachable!("resolved interface lists only contain interface applications"),
         }
     }
 
@@ -456,15 +289,14 @@ impl Lowerer {
     ) -> Vec<(FunctionId, Vec<TypeId>)> {
         let mut candidates = Vec::new();
         for &interface_ty in interfaces {
-            let Type::Interface(application) = self.types[interface_ty] else {
-                unreachable!("resolved interface lists contain interface applications")
-            };
-            candidates.extend(
-                self.interface_member_instances(application)
-                    .into_iter()
-                    .filter(|(_, method, _)| self.function_is_accessible(*method, None))
-                    .map(|(_, method, arguments)| (method, arguments)),
-            );
+            if let Type::Interface(application) = self.types[interface_ty] {
+                candidates.extend(
+                    self.interface_member_instances(application)
+                        .into_iter()
+                        .filter(|(_, method, _)| self.function_is_accessible(*method, None))
+                        .map(|(_, method, arguments)| (method, arguments)),
+                );
+            }
         }
         candidates
     }

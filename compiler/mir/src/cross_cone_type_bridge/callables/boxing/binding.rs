@@ -14,13 +14,38 @@ pub(super) fn project(
     if roots.get(&adjust.function()) != Some(&implementation) {
         return Err(Error::MissingStrongRoot(adjust.function()));
     }
-    let target_owner = *roots
-        .get(&adjust.target())
-        .ok_or(Error::MissingStrongRoot(adjust.target()))?;
-    let target = match target_owner {
-        CallableOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
-        CallableOwner::Accessor(id) => StrongCallableDefinitionOwner::PropertyAccessor(id),
-        _ => return Err(Error::InvalidTarget(target_owner)),
+    let (target, target_signature, target_effect) = match adjust.target() {
+        crate::BoxingAdjustTarget::Local(function) => {
+            let owner = *roots
+                .get(&function)
+                .ok_or(Error::MissingStrongRoot(function))?;
+            let target = match owner {
+                CallableOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
+                CallableOwner::Accessor(id) => StrongCallableDefinitionOwner::PropertyAccessor(id),
+                _ => return Err(Error::InvalidTarget(owner)),
+            };
+            let signature = input
+                .module()
+                .meta
+                .callable_signatures
+                .get(CallableSignatureSubject::Strong(owner))
+                .ok_or(Error::MissingSignature(owner))?
+                .signature();
+            (
+                target,
+                signature,
+                input.module().functions[function].gc_effect,
+            )
+        }
+        crate::BoxingAdjustTarget::External(callable) => {
+            let root = input
+                .materialization()
+                .external_callable_roots()
+                .iter()
+                .find(|root| root.callable() == callable)
+                .expect("validated external boxing target has a callable root");
+            (root.implementation(), root.signature(), root.gc_effect())
+        }
     };
     let source = source
         .get(target)
@@ -33,10 +58,6 @@ pub(super) fn project(
     }
     let signatures = &input.module().meta.callable_signatures;
 
-    let target_signature = signatures
-        .get(CallableSignatureSubject::Strong(target_owner))
-        .ok_or(Error::MissingSignature(target_owner))?
-        .signature();
     let lowered = signatures
         .get(CallableSignatureSubject::Strong(implementation))
         .ok_or(Error::MissingSignature(implementation))?
@@ -44,8 +65,7 @@ pub(super) fn project(
 
     if source.semantic_signature() != source.lowered_signature()
         || source.lowered_signature().exact() != target_signature
-        || source.lowered_signature().gc_effect()
-            != input.module().functions[adjust.target()].gc_effect
+        || source.lowered_signature().gc_effect() != target_effect
     {
         return Err(Error::TargetMismatch(target));
     }

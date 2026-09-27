@@ -62,13 +62,24 @@ pub enum InterfaceMemberImplementation {
 /// closure, not only methods declared directly on `interface`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceImplementation {
-    pub interface: InterfaceApplicationId,
+    pub interface: TypeId,
     pub methods: Vec<InterfaceMethodImplementation>,
+}
+
+/// The declaration of a slot used by one conformance. Dependency slots retain
+/// their actual declaring interface and persistent identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum InterfaceMethodReference {
+    Local(InterfaceMethodId),
+    Imported {
+        owner: TypeId,
+        slot: scoop_identity::PersistentDispatchSlotId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceMethodImplementation {
-    pub member: InterfaceMethodId,
+    pub member: InterfaceMethodReference,
     pub target: InterfaceImplementationTarget,
 }
 
@@ -77,6 +88,8 @@ pub enum InterfaceImplementationTarget {
     /// Exact ordinary method application selected by HIR conformance
     /// checking. Generic methods cannot implement interface slots.
     Method(MethodApplicationId),
+    Imported(ImportedDependencyCallableUseId),
+    ImportedAbstract(ImportedDependencyCallableUseId),
     /// An abstract class may promise an interface while leaving a member for
     /// a concrete subclass. Calls through such a specialization use the
     /// interface application directly instead of guessing a class member.

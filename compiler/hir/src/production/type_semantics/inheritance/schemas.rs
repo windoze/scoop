@@ -20,38 +20,42 @@ pub(super) fn project(
         owner: nominal.exact,
     };
     let mut schemas = Vec::new();
-    let mut interfaces = Vec::new();
-    match nominal.local {
+    let conformances = match nominal.local {
         NominalLocalId::Class(id) => {
-            let (vtable, implemented) = projection.class(id)?;
+            let vtable = projection.class(id)?;
             projection.push(&mut schemas, vtable)?;
-            interfaces = implemented;
+            &export.classes[id].interface_implementations
         }
         NominalLocalId::Object(id) => {
-            let (vtable, implemented) = projection.class(export.objects[id].backing_class)?;
+            let class = export.objects[id].backing_class;
+            let vtable = projection.class(class)?;
             projection.push(&mut schemas, vtable)?;
-            interfaces = implemented;
+            &export.classes[class].interface_implementations
         }
         NominalLocalId::Interface(id) => {
             let schema = projection.interface(export.interfaces[id].self_application)?;
             projection.push(&mut schemas, schema)?;
+            return CanonicalInheritanceSlotSchemasV1::try_new(schemas)
+                .map_err(|error| projection.invalid(error));
         }
-        NominalLocalId::Struct(id) => {
-            projection.extend(&mut interfaces, &export.structs[id].interfaces)?;
-        }
-        NominalLocalId::Enum(id) => {
-            projection.extend(&mut interfaces, &export.enums[id].interfaces)?;
-        }
-    }
-    let mut seen = BTreeSet::new();
-    for ty in interfaces {
-        let application = projection.interface_application(ty)?;
-        for inherited in projection.interface_postorder(application)? {
-            if seen.insert(inherited) {
-                let schema = projection.interface(inherited)?;
-                projection.push(&mut schemas, schema)?;
-            }
-        }
+        NominalLocalId::Struct(id) => &export.structs[id].interface_implementations,
+        NominalLocalId::Enum(id) => &export.enums[id].interface_implementations,
+    };
+    for conformance in conformances {
+        let interface_exact = exact(export, conformance.interface)?;
+        let slots = conformance
+            .methods
+            .iter()
+            .map(|method| match method.member {
+                InterfaceMethodReference::Local(member) => projection.interface_slot(member),
+                InterfaceMethodReference::Imported { slot, .. } => Ok(slot),
+            })
+            .collect::<Result<Vec<_>, Error>>()?;
+        let schema = projection.schema(
+            InheritanceSlotSchemaRoleV1::Interface { interface_exact },
+            slots,
+        )?;
+        projection.push(&mut schemas, schema)?;
     }
 
     CanonicalInheritanceSlotSchemasV1::try_new(schemas).map_err(|error| projection.invalid(error))
@@ -77,12 +81,6 @@ impl Projection<'_> {
     fn push<T>(&mut self, values: &mut Vec<T>, value: T) -> Result<(), Error> {
         self.reserve(values, 1)?;
         values.push(value);
-        Ok(())
-    }
-
-    fn extend<T: Copy>(&mut self, values: &mut Vec<T>, additions: &[T]) -> Result<(), Error> {
-        self.reserve(values, additions.len())?;
-        values.extend_from_slice(additions);
         Ok(())
     }
 

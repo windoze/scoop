@@ -1,0 +1,57 @@
+Module
+  enum CoroutineStep<LocalChoice>
+    Completed(value: LocalChoice)
+    Suspended()
+  enum CoroutineSlot<LocalChoice>
+    Empty()
+    Value(value: LocalChoice)
+  class LocalChoice vtable=0 itables=2
+  class Counter vtable=0 itables=0
+  interface FirstChoice
+  interface SecondChoice
+  generated_exact_type get0 location=enum0 nominal_id=126109b565405994b500ca3f584acdc26bc1e3f54b675d2221ecd544806e1874 exact_id=2908a902d9e8df848f7182fed0b68cdb723ca91dbc32d99a5fe35669997d656e
+  generated_exact_type get1 location=enum1 nominal_id=809e0ac24c06ea9e653f7d2654d47e664c2e98ecbaf27742f01c01f7e31cc0df exact_id=542b5bddcda53f3bc003913ddba5cd2cae5eee0dcdd392d9b2ef046db7ea3181
+  fun LocalChoice.choose @fn0(this: LocalChoice) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+  fun primary @fn1() -> Counter
+    bb0 entry
+      assign $new.1
+        Type LocalChoice
+        ClassAlloc LocalChoice
+      call @fn2 direct
+        Type LocalChoice
+        Local $new.1
+      val choice: SecondChoice
+        Type SecondChoice
+        Retype SecondChoice
+          Type LocalChoice
+          Local $new.1
+      val $dependency.receiver: SecondChoice
+        Type SecondChoice
+        Local choice
+      call $dependency.argument.0: Long = external0 interface SecondChoice[0]
+        Type SecondChoice
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.LocalChoice.$c0 @fn2(this: LocalChoice) -> Unit
+    bb0 entry
+      return
+  coroutine_step cs0 CoroutineStep<LocalChoice> result=LocalChoice
+  coroutine_slot cl0 CoroutineSlot<LocalChoice> value=LocalChoice
+  output library

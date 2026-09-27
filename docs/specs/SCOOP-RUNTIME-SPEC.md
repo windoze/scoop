@@ -142,6 +142,8 @@ scan的canonical typed bytes使用2.8的scalar/count规则且没有pointer：`No
 
 访问域、override 和签名可见性由前端检查，runtime 不消费 lookup/override/signature-exposure witness；删除这些 HIR 记录不改变 runtime C ABI、String 表示或 GC 契约。
 
+本地类型实现外来接口时，dispatch 表直接引用定义方的完整 callable 与 canonical ABI，值类型装箱 thunk 保留实际 payload/receiver 适配和 GC 根。该消费能力使用现有 C ABI 与 String 表示，不复制外来方法定义或新增启动协议。
+
 不可变 TypeDescriptor、instance shape 与 scan 在负责其输入的边界完成完整验证。M23-6 的编译器验证 typed LIR，外部产物 reader 验证完整静态表示；runtime 正常分配、装箱、数组和 GC 路径消费这些已验证常量，只检查当前 pointer/TD、对象范围、动态 length/size 溢出、payload 对齐及具体 GC/root 契约。完整静态交叉核对保留为 `scoop_shape_validate`，并可用 `SCOOP_VERIFY_METADATA=1` 编译 runtime，在操作入口显式启用；不为此增加静态登记表或指针缓存，也不提前实现 M23-8 的多 image 登记。M23-8 引入外部静态 image 的实际登记边界时，完整检查在该边界进行一次，结果供正常操作复用。
 
 ### 2.3 装箱

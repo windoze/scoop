@@ -1,0 +1,17 @@
+Module
+  class LocalChoice() : FirstChoice, SecondChoice
+  fun primary(): Counter
+    val local0
+      ReferenceUpcast : SecondChoice
+        ClassInit LocalChoice : LocalChoice
+    val local1
+      Local choice : SecondChoice
+    val local2
+      ImportedDependencyCall #0 interface[0] : Long
+        Local $dependency.receiver : SecondChoice
+    val local3
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

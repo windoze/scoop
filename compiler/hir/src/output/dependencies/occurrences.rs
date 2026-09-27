@@ -20,6 +20,13 @@ pub struct CommittedDependencyCallOccurrence<'a> {
 }
 
 impl<'a> CommittedDependencyCallOccurrence<'a> {
+    pub(super) fn validate_origin(
+        self,
+        export: &crate::ExportHir,
+    ) -> Result<(), DependencyCallOccurrenceError> {
+        validate_origins(export, self.occurrence)
+    }
+
     pub const fn callee(self) -> concrete::ImportedDependencyCallableUseId {
         self.callee
     }
@@ -92,7 +99,6 @@ pub(super) fn visit<'a>(
             let callable = selected
                 .resolve_callable(reference)
                 .ok_or(DependencyCallOccurrenceError::UnselectedUse(position))?;
-            validate_origins(output.export.module(), occurrence)?;
             visitor(CommittedDependencyCallOccurrence {
                 occurrence,
                 callee: *callee,

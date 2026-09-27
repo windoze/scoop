@@ -53,14 +53,19 @@ impl Lowerer {
                         .collect::<Vec<_>>();
                     for method in &implementation.methods {
                         let target = match method.target {
-                            hir::InterfaceImplementationTarget::Method(function) => function,
-                            hir::InterfaceImplementationTarget::Abstract { declaration } => {
-                                declaration
-                            }
+                            hir::InterfaceImplementationTarget::Method(function)
+                            | hir::InterfaceImplementationTarget::Abstract {
+                                declaration: function,
+                            } => mir::TableSlot::Function(self.function_map[&function]),
+                            hir::InterfaceImplementationTarget::Imported(callable)
+                            | hir::InterfaceImplementationTarget::ImportedAbstract {
+                                declaration: callable,
+                            } => mir::TableSlot::External(
+                                self.imported_dependency_callable_map[&callable].0,
+                            ),
                         };
                         let slot = method.slot.into_raw() as usize;
-                        let previous = slots[slot]
-                            .replace(mir::TableSlot::Function(self.function_map[&target]));
+                        let previous = slots[slot].replace(target);
                         assert!(
                             previous.is_none(),
                             "concrete HIR emits each itable slot once"

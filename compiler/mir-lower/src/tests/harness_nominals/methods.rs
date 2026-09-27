@@ -201,7 +201,11 @@ impl Harness {
         let mut matches = Vec::new();
         for (implementation_index, implementation) in implementations.iter().enumerate() {
             for (method_index, implementation_method) in implementation.methods.iter().enumerate() {
-                let declaration = self.interface_methods[implementation_method.member].function;
+                let hir::InterfaceMethodReference::Local(member) = implementation_method.member
+                else {
+                    panic!("local test conformance")
+                };
+                let declaration = self.interface_methods[member].function;
                 if self.same_method_shape(
                     declaration,
                     &self.functions[function].name,

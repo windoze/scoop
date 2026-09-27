@@ -1,17 +1,12 @@
 use super::*;
 
 impl Projection<'_> {
-    pub(super) fn class(
-        &mut self,
-        class: ClassId,
-    ) -> Result<(InheritanceSlotSchemaV1, Vec<TypeId>), Error> {
+    pub(super) fn class(&mut self, class: ClassId) -> Result<InheritanceSlotSchemaV1, Error> {
         let chain = self.class_chain(class)?;
         let mut slots = Vec::new();
         let mut seen = BTreeSet::new();
-        let mut interfaces = Vec::new();
         for class in chain.into_iter().rev() {
             let declaration = &self.export.classes[class];
-            self.extend(&mut interfaces, &declaration.interfaces)?;
             for function in &declaration.methods {
                 let Some(method) = self.export.functions[*function].method else {
                     return Err(self.invalid("class method has no dispatch metadata"));
@@ -41,10 +36,7 @@ impl Projection<'_> {
                 self.push(&mut slots, identity.id())?;
             }
         }
-        Ok((
-            self.schema(InheritanceSlotSchemaRoleV1::ClassVtable, slots)?,
-            interfaces,
-        ))
+        self.schema(InheritanceSlotSchemaRoleV1::ClassVtable, slots)
     }
 
     pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassId>, Error> {

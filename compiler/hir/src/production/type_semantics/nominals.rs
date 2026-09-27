@@ -67,9 +67,12 @@ pub(super) fn produce(
 
     let inheritance_inventory = inheritance::source_inventory(export, &concrete)?;
     let slot_selections = inheritance::slot_selections(export, &concrete)?;
-    let source_callables =
-        inheritance::source_callables(export, &inheritance_inventory, &slot_selections)?;
-    let slots = inheritance::SlotContracts::new(export, &source_callables, &slot_selections)?;
+    let slots = inheritance::SlotContracts::new(
+        export,
+        dependencies,
+        &inheritance_inventory,
+        &slot_selections,
+    )?;
     let inheritance = inheritance::produce(export, &concrete, &inheritance_inventory, &slots)?;
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)

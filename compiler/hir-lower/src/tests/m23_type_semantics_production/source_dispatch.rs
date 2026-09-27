@@ -40,6 +40,7 @@ fn source_vtable_keeps_base_prefix_final_override_and_protected_accessors() {
                 .map(|slot| match slot {
                     scoop_mir::TableSlot::Function(function) =>
                         mir.functions[*function].name.as_str(),
+                    scoop_mir::TableSlot::External(_) => panic!("local dispatch fixture"),
                     scoop_mir::TableSlot::Runtime(_) =>
                         panic!("source virtual slots select user functions"),
                 })

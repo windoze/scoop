@@ -1,0 +1,129 @@
+Module
+  enum CoroutineStep<LocalValue>
+    Completed(value: LocalValue)
+    Suspended()
+  enum CoroutineSlot<LocalValue>
+    Empty()
+    Value(value: LocalValue)
+  class LocalValue vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  interface MutableValue
+  generated_exact_type get0 location=enum1 nominal_id=cbe2af71153f02b0db9d698499bac3ec42be071321db3ea100d30cfed9cd3782 exact_id=452349e68172c259db83006a92037399023a039d8b895c30cd0b65a161c8b679
+  generated_exact_type get1 location=enum0 nominal_id=33db365396f35419b5d64456a6627f2f2f47d52ab0354fd3b9c62877459f01fb exact_id=5aa3978f0974e74b6c1d02792e5cbe9827a7f19bb9a5067235c2d918741c33e2
+  fun LocalValue.$get$value @fn0(this: LocalValue) -> Long
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type LocalValue
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun LocalValue.$set$value @fn1(this: LocalValue, next: Long) -> Unit
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local next
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      field_set 0
+        Type LocalValue
+        Local this
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      return
+  fun primary @fn2() -> Counter
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=19 bits=0x0000000000000013
+      val $parameter.initial: Long
+        Type Long
+        Local $argument.0
+      assign $new.1
+        Type LocalValue
+        ClassAlloc LocalValue
+      call @fn3 direct
+        Type LocalValue
+        Local $new.1
+        Type Long
+        Local $parameter.initial
+      val concrete: LocalValue
+        Type LocalValue
+        Local $new.1
+      val view: MutableValue
+        Type MutableValue
+        Retype MutableValue
+          Type LocalValue
+          Local concrete
+      val $place.0: MutableValue
+        Type MutableValue
+        Local view
+      call $old.1: Long = external0 interface MutableValue[0]
+        Type MutableValue
+        Local $place.0
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external1 interface MutableValue[1]
+        Type MutableValue
+        Local $place.0
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Long = @fn0 direct
+        Type LocalValue
+        Local concrete
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.LocalValue.$c0 @fn3(this: LocalValue, initial: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalValue
+        Local this
+        Type Long
+        Local initial
+      return
+  coroutine_step cs0 CoroutineStep<LocalValue> result=LocalValue
+  coroutine_slot cl0 CoroutineSlot<LocalValue> value=LocalValue
+  output library

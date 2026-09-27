@@ -422,13 +422,6 @@ impl Lowerer {
         }
         seen.push(application);
         let application_value = self.interface_applications[application].clone();
-        for &member in &self.interfaces[application_value.template].methods {
-            out.push((
-                member,
-                self.interface_method_entities[member].function,
-                application_value.arguments.clone(),
-            ));
-        }
         for parent in self.interfaces[application_value.template].parents.clone() {
             let parent = self.interface_applications[parent].canonical_type;
             let parent = self.instantiate_ty(parent, &application_value.arguments);
@@ -436,6 +429,13 @@ impl Lowerer {
                 unreachable!("interface parent substitutions stay interface applications")
             };
             self.collect_interface_member_instances(parent, seen, out);
+        }
+        for &member in &self.interfaces[application_value.template].methods {
+            out.push((
+                member,
+                self.interface_method_entities[member].function,
+                application_value.arguments.clone(),
+            ));
         }
     }
 
