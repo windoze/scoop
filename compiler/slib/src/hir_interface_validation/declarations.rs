@@ -102,9 +102,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
         authority
             .validate_support_callable_origins()
             .map_err(CrossConeHirCallableSurfaceError::Declarations)?;
-        authority
-            .validate_property_setter_domains()
-            .map_err(CrossConeHirCallableSurfaceError::Declarations)?;
         Ok(())
     }
     pub(crate) fn type_aliases(

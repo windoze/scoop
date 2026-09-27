@@ -44,6 +44,8 @@ MIR 输出在 HIR→MIR 边界完成一次整模块结构、类型与实际外�
 
 继承的实际产物验收同时覆盖 ZST 字段与交错参数/返回值、大值构造与虚调用的 indirect/sret ABI、含 managed 引用的聚合参数和基类/派生类字段、次构造器的基类先行初始化及 object 单例继承。派生类再次发布后，由后续 Cone 继续派生并执行 super 与虚调用；普通和移动 GC 运行使用同一完整产物。上述场景不增加新的机器表示或 runtime ABI。跨 Cone 初始化中的 inherited backing field 由共有 property、实际字段身份与声明关系解析，前端检查 getter/setter 可见性及字段就绪；不能用同名字段或调用 accessor 代替直接存储访问。完整 HIR 的初始化字段引用区分本地 class application 与实际依赖字段，concretize 后均成为共有的 ConstructorReceiver 字段读写。基类完成后外来存储已就绪，computed/delegated property、不可见 setter、未就绪自有字段与 receiver 逃逸继续拒绝。现有产物已携带所需 property/field 引用，此项不增加 wire 字段或来源表。
 
+setter 的有效访问域包含关系由前端在声明处检查。共有 reader 保留 property/accessor 的 typed 身份、owner、签名、effect、声明位置和 public binding 一致性检查，删除第二套访问域集合运算、逐属性继承遍历及其专用测试。继承环和引用闭合仍在共有继承图边界检查；已检查的完整声明不附加来源或操作资格，也不因 selected 去重而反复重新证明源码访问。此清理不改变 wire、profile、runtime C ABI 或 String 表示。
+
 primitive 与 String 的接口默认方法使用前端识别的实际声明及已解析的接口实现参与普通成员查找。成员查找自身解析依赖中的父接口，不依赖此前是否发生过类型转换。重建 core 时的源码调用和下游的产物消费遵守同一候选选择、可见性、参数及 effect 规则；值接收者沿既有装箱路径适配，String 使用其既有引用表示。不得因这些类型使用内建表示而遗漏合法接口默认方法，也不为它们重建固定 provider 或增加后端资格。验收覆盖 Long、Boolean、String 的独立源码调用及跨 Cone 混合调用，保持现有 wire、runtime C ABI 与 String 表示。
 
 跨 Cone 的覆写按真实声明关系继承默认参数。默认来源保留原声明的 typed root、定义路径、正文和引用；下游再次发布时只关联新的参数位置，不把原声明改造成本地函数或重新解析其源码。未求值的继承模板也保留完整源码位置记录；位置收集复用同一模板遍历，不触发机器物化。来自同一定义的菱形继承只保留一个默认来源，互不相关的默认来源在覆写定义处报冲突；参数名仍由调用点静态声明决定。实际省略参数时复用共有的依赖默认值实例化，并把接收者显式转换或装箱为模板所需类型，默认值内部的动态分派、显式参数求值顺序及 GC effect 保持。参数自由的导入模板已经在提供方完成类型和 effect 检查，未改变的正文不参与本地泛型约束重放。该功能沿用已有完整默认值产物格式和共享 reader，不新增来源凭证、模板工厂、wire tag 或 runtime ABI；验收包括覆写、菱形继承、命名参数、ZST、大值参数与再次发布后的真实消费。
@@ -536,13 +538,13 @@ M23-6 的机器使用限于成功矩阵中的完整 param-free 关系。generic 
 
 ### 4.4 HIR selected set
 
-HIR 类型接口的生产入口必须借用同一 artifact 的共有 foundation、已验证 identity graph 与 HIR interface，以及实际可达依赖的同类元数据，不能固定发布空的 selected 表。Signature、Representation 与 TypeTest 三类类型用途从共有 external reference 的实际 type_sites 逐次读取：调用签名与 constructor initializer result 贡献 Signature，类型测试保留 TypeTest，其余值、存储及 sizeOf/alignOf 等用途贡献 Representation；初始化循环消息保留其实际 String 参数依赖。完整 exact 及源码位置继续保留在原 type_sites 中，持久化 target 只对实际 provider 与 nominal exact/use kind 去重。Signature 和 TypeTest 均需要同一类型的 Representation；闭包从实际类型用途及当前类型导出所需的参数自由名义声明继续沿完整字段、enum payload、直接继承及 constructor/slot 签名递归，包含 private storage 和无自身物理槽的实际 interface implementation。每个 provider 的共享声明决定其 source-only 边界，不能通过外来 selected 或同名类型绕过；Unit/Any 仅沿固定语言身份处理。共有 Compile reader 独立重算这三类用途并与候选表的对应分区精确比较，拒绝缺项、额外项、错误 provider 及仅在无关 artifact 中存在的依赖。不增加来源 wire 表；这项类型依赖闭合不代替各次 source lookup/access、receiver/default/support parent 证明，以及操作用途和最终 Compile/Link 资格。
+HIR 类型接口的生产入口必须借用同一 artifact 的共有 foundation、已验证 identity graph 与 HIR interface，以及实际可达依赖的同类元数据，不能固定发布空的 selected 表。Signature、Representation 与 TypeTest 三类类型用途从共有 external reference 的实际 type_sites 逐次读取：调用签名与 constructor initializer result 贡献 Signature，类型测试保留 TypeTest，其余值、存储及 sizeOf/alignOf 等用途贡献 Representation；初始化循环消息保留其实际 String 参数依赖。完整 exact 及源码位置继续保留在原 type_sites 中，持久化 target 只对实际 provider 与 nominal exact/use kind 去重。Signature 和 TypeTest 均需要同一类型的 Representation；闭包从实际类型用途及当前类型导出所需的参数自由名义声明继续沿完整字段、enum payload、直接继承及 constructor/slot 签名递归，包含 private storage 和无自身物理槽的实际 interface implementation。每个 provider 的共享声明决定其 source-only 边界，不能通过外来 selected 或同名类型绕过；Unit/Any 仅沿固定语言身份处理。共有 Compile reader 独立重算这三类用途并与候选表的对应分区精确比较，拒绝缺项、额外项、错误 provider 及仅在无关 artifact 中存在的依赖。不增加来源 wire 表；前端已经完成 source lookup/access 和 receiver/default 规则，后续阶段按完整 typed 使用核对所需定义、ABI 与对象引用。
 
-共有 HIR selected 同时从当前可物化声明的完整直接父边重建 Inheritance 用途。derived 必须属于当前 provider；target 的实际声明 kind 决定 ClassBase 或 Interface，完整 typed derived、target exact 与 terminal provider 一并保留。每条当前直接边独立处理，相同父类型但不同 derived 不得合并；本地父边不产生 external selected，递归读取依赖声明的父边只贡献 Representation，不冒充当前声明的直接继承。父类或接口自身的完整表示与签名依赖继续沿原闭包展开。源码泛型或不能完整物化的声明不生成该用途，Unit/Any 内建身份不构成继承资格。producer 与共有 Compile reader 使用相同声明查询重建四类用途，Inheritance 与 Signature、Representation、TypeTest 的候选分区须精确相等，缺失、额外、错 derived、错边种类、错 provider 及不可达依赖均拒绝。声明来源、访问域、modality、override 与 slot 关系仍由原共有继承重放验证；该扩展不增加来源记录、wire 字段或机器资格，后续五类操作用途和完整 Compile/Link 验证继续属于发布条件。
+共有 HIR selected 同时从当前可物化声明的完整直接父边重建 Inheritance 用途。derived 必须属于当前 provider；target 的实际声明 kind 决定 ClassBase 或 Interface，完整 typed derived、target exact 与 terminal provider 一并保留。每条当前直接边独立处理，相同父类型但不同 derived 不得合并；本地父边不产生 external selected，递归读取依赖声明的父边只贡献 Representation，不冒充当前声明的直接继承。父类或接口自身的完整表示与签名依赖继续沿原闭包展开。源码泛型或不能完整物化的声明不生成该用途，Unit/Any 内建身份不构成继承资格。producer 与共有 Compile reader 使用相同声明查询重建四类用途，Inheritance 与 Signature、Representation、TypeTest 的候选分区须精确相等，缺失、额外、错 derived、错边种类、错 provider 及不可达依赖均拒绝。前端完成访问、modality 与 override 规则，reader 在同一共有继承图中核对实际声明、边与 slot 关系；该扩展不增加来源记录或 wire 字段。后续阶段消费实际操作用途并完成所需 ABI、定义和对象检查。
 
 HIR 中保留为 Cast 节点的普通与可选运行时类型转换显式保存实际 checked type；Export HIR、LocalConcrete HIR、泛型默认值实例化和默认正文运输均保留这一必需字段。结果仍分别为 T 或 Option<T>，读取方必须验证其与 checked type 的完整类型关系，不能从结果类型反推或默认补齐目标。默认表达式 Cast 的既有 tag 37 使用四字段 closed product：field 0=37，field 1=完整 operand，field 2=checked_type（SignatureTypeKey），field 3=optional（CanonicalBoolean）；缺少 checked_type 的旧格式拒绝。该目标参加原默认正文的类型、引用、访问域、来源遍历；MIR 直接消费实际目标，不从 Option payload 重新解析。
 
-共有表达式 type_sites 的角色 1～5 保持含义，unsigned 6=BoxedValue，unsigned 7=SingletonValue（见 object value 与初始化规则）：Box 保存 operand 的完整 exact，Unbox 保存实际 payload 结果 exact；Cast 与 IsInstance 均以 TypeTest 保存完整 checked exact，可选转换不以 Option<T> 冒充目标。每次操作继续使用自身正文根、expression_index 和 definition/evaluation 来源，记录加入原 external reference 的完整 foreign nominal 分发。共有 HIR selected 查询从这些实际 TypeTest/BoxedValue 操作重建 ShapeSupport：只有整个操作 exact 为外来 source nominal 时，才对该实际 owner/provider 请求完整有限支持；结构类型的内部 nominal 仍参加原类型依赖，不能冒充整个操作的 helper owner。相同 helper 目标可去重，但各操作位置及原类型记录仍全部验证；本地类型不产生 external ShapeSupport。读取方独立重算并精确比较 ShapeSupport 分区，拒绝遗漏、多项、错 provider、错 payload 和借用结构成员身份。该步骤不授予构造、成员、槽或单例的源码操作资格，最终 MIR/LIR、object 与 Compile/Link 关联仍须完成。
+共有表达式 type_sites 的角色 1～5 保持含义，unsigned 6=BoxedValue，unsigned 7=SingletonValue（见 object value 与初始化规则）：Box 保存 operand 的完整 exact，Unbox 保存实际 payload 结果 exact；Cast 与 IsInstance 均以 TypeTest 保存完整 checked exact，可选转换不以 Option<T> 冒充目标。每次操作继续使用自身正文根、expression_index 和 definition/evaluation 来源，记录加入原 external reference 的完整 foreign nominal 分发。共有 HIR selected 查询从这些实际 TypeTest/BoxedValue 操作重建 ShapeSupport：只有整个操作 exact 为外来 source nominal 时，才对该实际 owner/provider 请求完整有限支持；结构类型的内部 nominal 仍参加原类型依赖，不能冒充整个操作的 helper owner。相同 helper 目标可去重，但各操作位置及原类型记录仍全部验证；本地类型不产生 external ShapeSupport。读取方独立重算并精确比较 ShapeSupport 分区，拒绝遗漏、多项、错 provider、错 payload 和借用结构成员身份。该集合只表达实际机器支持依赖；MIR/LIR、object 与 Compile/Link 继续关联同一 typed target 和实际定义。
 
 上述转换字段与表达式角色更新将共有接口升级为 hir/cross-cone-interface/30，仅保存类型关系的类型接口同步升级为 hir/cross-cone-type-semantics/8；required inventory、profile fingerprint、HIR fingerprint 和缓存同步失效并重建。旧 major 不能混入 Compile 或 Link view；persistent identity、runtime C ABI 与 capability kind 不变。
 
@@ -550,11 +552,11 @@ HIR 中保留为 Cast 节点的普通与可选运行时类型转换显式保存�
 
 `SelectedExternalTypeUseV1` 保存 terminal provider、exact/declaration target 与封闭的 use kind：`Signature`、`Representation`、`Construct`、`MemberCall`、`SlotCall`、`TypeTest`、`SingletonValue`、`Inheritance`、`ShapeSupport`。涉及 declaration 的分支携带相应 kind-specific declaration ref；slot 分支携带 exact receiver 与 slot；inheritance 分支携带当前 derived owner 和 direct base edge。
 
-selected record固定为二字段product：field1 `terminal_provider: ConeIdentity`，field2 `typed_use`。typed_use的tag1～9依次对应上述九类：Signature/Representation/TypeTest/ShapeSupport各以field1保存exact；Construct的field1、2为构造结果的source exact与typed declaration；MemberCall为实际静态receiver exact与typed callable declaration；SlotCall为实际静态receiver exact与persistent slot；SingletonValue为source object exact与`PersistentObjectValueId`，不得用generated backing identity替代source object；Inheritance为当前derived exact与直接继承edge。构造declaration的tag1、2分别为Constructor和EnumVariant（field1为各自typed id）；member declaration复用`InheritanceCallableDeclarationV1`的Function/Getter/Setter叶子（tag1/2/3），不包含generic template/application或generated实现。直接edge的tag1、2分别为ClassBase和Interface，field1为其target exact，没有NoBase分支。完整record按canonical编码严格排序、唯一，reader拒绝重复和乱序；仅取得这些typed id不构成selected资格。
+selected record固定为二字段product：field1 `terminal_provider: ConeIdentity`，field2 `typed_use`。typed_use的tag1～9依次对应上述九类：Signature/Representation/TypeTest/ShapeSupport各以field1保存exact；Construct的field1、2为构造结果的source exact与typed declaration；MemberCall为实际静态receiver exact与typed callable declaration；SlotCall为实际静态receiver exact与persistent slot；SingletonValue为source object exact与`PersistentObjectValueId`，不得用generated backing identity替代source object；Inheritance为当前derived exact与直接继承edge。构造declaration的tag1、2分别为Constructor和EnumVariant（field1为各自typed id）；member declaration复用`InheritanceCallableDeclarationV1`的Function/Getter/Setter叶子（tag1/2/3），不包含generic template/application或generated实现。直接edge的tag1、2分别为ClassBase和Interface，field1为其target exact，没有NoBase分支。完整record按canonical编码严格排序、唯一，reader拒绝重复和乱序；typed id 的引用必须在实际依赖闭包中可解析。
 
-该persistent集合只按terminal provider与完整typed target去重，不保存或任意挑选某一个source/root/parent provenance。独立checked committed-use authority从全部实际typed HIR roots和递归semantic edges重算精确target集合，完整section逐项对照，再重放每一个真实source使用的lookup/access、receiver、definition/evaluation来源及每一条派生support edge的semantic parent。相同target被多个source或parent使用时，所有证明仍须成立；wire不能以去重为由跳过其中任何一次使用。Representation和ShapeSupport使用同样规则，不伪造import route。候选selected表不能反推实际roots/parents或自证terminal provider，GenericSourceMetadata default不能产生selected、展开或物化入口。
+该 persistent 集合按实际 provider 与完整 typed target 去重。producer 从完整 HIR 的真实使用和必要表示依赖生成集合；reader 对新读入数据核对实际 typed 引用、依赖范围与集合闭合。前端保存的声明、receiver、默认值及求值位置继续供后续阶段使用，不再设置独立 committed-use authority、逐使用访问证明或 support-parent 凭证。相同 target 的多次使用共享已检查的定义与 ABI，各调用点仍保留自身位置和参数语义。未实例化的泛型默认值不产生机器使用或物化请求。
 
-`CrossConeUseSet` 对 type、constructor、member/accessor、slot、TD、object ensure/value 增加独立 typed request 家族，不把所有请求塞入 callable id。source use 的 lookup/access provenance 保留在 HIR；由 lowerer 产生的表示/dispatch support edge 携带选中语义 parent，不伪造 import route。
+类型、constructor、member/accessor、slot、TD 与 object ensure/value 使用各自的 typed 引用。完整 HIR 保存实际声明、访问关系和调用位置；lowerer 从实际表示与 dispatch 依赖产生需要的机器引用，不另建来源或 support-edge 证明表。
 
 capability gate 在 winner commit、default expansion 和 persistent materialization 前完成整个请求闭包。缺 source access 是语言错误，缺必需 section/record 是 artifact 错误，闭包需要 ODR/native 能力则使用相邻阶段诊断。成功 `LocalConcreteHir` 只包含 local body 与 external complete ref，不复制 provider param-free body。
 
@@ -1044,7 +1046,7 @@ HIR在source边界统一检查，不能推迟到LIR/generated C/native linker：
 
 generic CLayout的binder-dependent字段保留 `CFieldSafeAndNonZst { signature_type, declaration_field_path }` predicate，条件进入template fingerprint。无字段或与binder无关的非法字段在定义处报错；concretization检查在M23-7接入生产，本阶段在typed constituent测试锁定。不能把待替换条件提前编码为true，或在consumer丢弃字段路径。
 
-C端真实寄存器/aggregate lowering继续由validated generated-C toolchain完成。M23-2的canonical C storage/layout、extern contract与callback bytes保持；general layout proof只能与它们交叉验证，不能反向扩充旧native witness的授权范围。
+C端真实寄存器/aggregate lowering继续由validated generated-C toolchain完成。M23-2的canonical C storage/layout、extern contract与callback bytes保持；共有 layout 消费这些实际 C 类型与布局合同，并核对必要的 ABI 一致性。
 
 ## 11. 产物消费、Link 与 fingerprint
 
@@ -1196,7 +1198,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 ### 13.3 wire、object、cache与健壮性
 
 - 四条新增 capability、strong-production/12 和新 profile fixed vectors；覆盖 empty/nonempty、unknown required、错 purpose 与旧 profile 拒绝。M23-2 foundation/extern/callback 及 persistent identity vectors 保持；按清理设计退役 HIR 协议定义和 strong production 的旧格式，并更新对应 vectors。共有 metadata 覆盖缺失、额外、重复、错 origin、错 access/receiver、错实际 use、错 provider 与跨表不一致，并通过仅 artifact bytes 的 prebuilt/cache 路径重放。V2 ordinary parent、itable key、dispatch target 的正反例经过真实 strong production wire round-trip；内部 constituent 测试不能代替完整 profile。
-- 每个record去掉/增加/错tag/错kind/错owner/乱序/重复逐项拒绝；reader独立重放字段layout、scan、ABI和source-root obligation。
+- 每个record去掉/增加/错tag/错kind/错owner/乱序/重复逐项拒绝；reader 在相应边界检查字段 layout、scan、ABI 和真实声明引用。
 - scan/type-name 共享 DAG 正常处理；cycle、实际范围越界和长度溢出拒绝。合法递归 ref class 成功，by-value 环失败。删除仅验证预算与重复证明的测试。
 - 别名/re-export spelling改变不改变exact TD name/ABI；改变base prefix、ZST exact identity、slot contract或scan offset改变对应fingerprint。
 - metadata-only外部layout没有伪relocation也能成功；physical callable/TD/table use缺relocation、错definition或多归属失败。
@@ -1220,7 +1222,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 7. 完成新Link-only closure、共有 requirement 与完整 object coverage、definition规范化、Code贡献和双view发布；删除 core 独立 closure 并更新core、scheduler、cache accepted profile。
 8. 完成独立/组合/negative/golden/corruption与回归矩阵，将多Cone运行场景交给M23-9/11复用。
 
-每批代码变更完成后先 `cargo fmt --all`、`cargo clippy --workspace`，再运行相关test；最终运行完整workspace与runtime/fixture验证。不能用最终linker尚未实现为理由跳过本阶段object和双view证明。
+每批代码变更完成后先 `cargo fmt --all`、`cargo clippy --workspace`，再运行相关test；最终运行完整workspace与runtime/fixture验证。本阶段必须覆盖实际对象检查、Compile/Link 消费以及适用的链接和运行。
 
 ## 15. 完成门
 

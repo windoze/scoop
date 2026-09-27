@@ -20,7 +20,6 @@ mod nominals;
 mod property;
 mod property_declarations;
 mod source_inventory;
-mod source_visibility;
 mod type_alias;
 
 pub use callable_source::*;
