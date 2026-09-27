@@ -13,11 +13,13 @@ pub(in crate::expr) enum ImportedMemberSelectionFailure {
 
 impl Lowerer {
     pub(super) fn imported_member_call_candidates(
-        &self,
+        &mut self,
         receiver: TypeId,
         name: &ast::Ident,
         required: RequiredCallableModifiers,
     ) -> Result<Vec<hir::ImportedCallableDeclaration>, Box<Lowerer>> {
+        self.resolve_imported_member_receiver(receiver, name.span)
+            .map_err(|()| Box::new(self.clone()))?;
         let lookup = match required.operator {
             Some(operator) => hir::ImportedMemberLookup::Operator(
                 hir::CallableOperatorRoleV1::Language(wire_operator(operator)),
@@ -54,13 +56,14 @@ impl Lowerer {
         expected: Option<TypeId>,
         required: RequiredCallableModifiers,
     ) -> Result<ImportedDependencyCallProbe, ImportedMemberSelectionFailure> {
-        let candidates = self
+        let mut context = self.clone();
+        let candidates = context
             .imported_member_call_candidates(receiver.ty(), name, required)
             .map_err(ImportedMemberSelectionFailure::Failed)?;
         let mut probes = Vec::new();
         let mut first_failure = None;
         for candidate in candidates {
-            match self.probe_imported_member_callable(
+            match context.probe_imported_member_callable(
                 candidate,
                 receiver.clone(),
                 name,
@@ -79,7 +82,7 @@ impl Lowerer {
         if probes.is_empty() {
             return Err(ImportedMemberSelectionFailure::NoApplicable(first_failure));
         }
-        let mut state = self.clone();
+        let mut state = context;
         let winner = match call.arguments {
             ImportedCallArguments::Source(arguments) => state
                 .select_named_function_like(&name.text, "member", &probes, arguments, call.span),

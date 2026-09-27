@@ -36,13 +36,14 @@ impl Lowerer {
         required: RequiredCallableModifiers,
         kind: MemberCallKind,
     ) -> PropertyExtensionInvokeOutcome {
-        let imported = match self.imported_member_call_candidates(receiver.ty, name, required) {
+        let mut context = self.clone();
+        let imported = match context.imported_member_call_candidates(receiver.ty, name, required) {
             Ok(candidates) => candidates,
             Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
         };
         let operator_set = required.operator == Some(hir::OperatorKind::Set);
         if imported.is_empty() && kind == MemberCallKind::Ordinary {
-            return self.probe_local_member_call_partition(
+            return context.probe_local_member_call_partition(
                 candidates,
                 &name.text,
                 receiver,
@@ -55,14 +56,14 @@ impl Lowerer {
         let mut first_failure = None;
         let mut suppressed = false;
         for candidate in candidates {
-            if self
+            if context
                 .declaration_surface
                 .rejects_function(candidate.function)
             {
                 suppressed = true;
                 continue;
             }
-            let mut state = self.clone();
+            let mut state = context.clone();
             let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
                 first_failure.get_or_insert(Box::new(state));
                 continue;
@@ -90,7 +91,7 @@ impl Lowerer {
             }
         }
         for candidate in imported {
-            match self.probe_imported_member_callable(
+            match context.probe_imported_member_callable(
                 candidate,
                 ImportedMemberReceiver::Value(receiver.clone()),
                 name,
@@ -113,7 +114,7 @@ impl Lowerer {
                 (false, failure) => PropertyExtensionInvokeOutcome::NoApplicable(failure),
             };
         }
-        let mut state = self.clone();
+        let mut state = context;
         let Some(winner) =
             state.select_named_function_like(&name.text, "member", &probes, call.args, call.span)
         else {

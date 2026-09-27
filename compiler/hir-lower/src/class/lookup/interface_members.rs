@@ -34,7 +34,26 @@ impl Lowerer {
                     application.arguments.clone(),
                 )
             }
-            _ => return,
+            ty => {
+                let kind = match ty {
+                    Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+                    Type::Boolean => hir::IntrinsicTypeKind::Boolean,
+                    Type::String => hir::IntrinsicTypeKind::String,
+                    _ => return,
+                };
+                let Some(&(owner, _)) = self.intrinsic_type_owners.get(&kind) else {
+                    return;
+                };
+                let implementations = match owner {
+                    crate::IntrinsicTypeOwner::Struct(owner) => {
+                        self.structs[owner].interface_implementations.clone()
+                    }
+                    crate::IntrinsicTypeOwner::Class(owner) => {
+                        self.classes[owner].interface_implementations.clone()
+                    }
+                };
+                (implementations, Vec::new())
+            }
         };
         for method in implementations
             .into_iter()

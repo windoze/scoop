@@ -1,0 +1,9 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val integer: Long = 9
+    val boolean: Boolean = true
+    val text: String = "mixed"
+    val selected: RebuiltDefaults = integer
+    return Counter(selected.score() + boolean.score() + text.score() - 42)
+}

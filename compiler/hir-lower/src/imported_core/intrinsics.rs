@@ -3,6 +3,21 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn resolve_imported_member_receiver(
+        &mut self,
+        ty: hir::TypeId,
+        span: Span,
+    ) -> Result<(), ()> {
+        let kind = match self.types[ty] {
+            hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+            hir::Type::Boolean => hir::IntrinsicTypeKind::Boolean,
+            hir::Type::String => hir::IntrinsicTypeKind::String,
+            _ => return Ok(()),
+        };
+        self.resolve_imported_intrinsic_type(kind)
+            .map_err(|error| self.error(span, error.diagnostic("member receiver")))
+    }
+
     pub(crate) fn retain_imported_box_source(
         &mut self,
         ty: hir::TypeId,

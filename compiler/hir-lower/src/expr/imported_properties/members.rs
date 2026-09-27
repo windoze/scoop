@@ -23,6 +23,7 @@ impl Lowerer {
         receiver: hir::TypeId,
         name: &ast::Ident,
     ) -> Result<Option<ResolvedImportedMemberProperty>, ()> {
+        self.resolve_imported_member_receiver(receiver, name.span)?;
         let candidates = self
             .imported_member_candidates(
                 receiver,

@@ -99,6 +99,15 @@ impl Lowerer {
         ) {
             return Some(expr);
         }
+        let receiver = if resolved.source == crate::CallableCandidateSource::Direct
+            && let Some(method) = self.functions[function].method
+            && matches!(self.types[method.owner], Type::Interface(_))
+        {
+            let owner = self.instantiate_ty(method.owner, &resolved.type_args);
+            self.adapt_to(receiver, owner)
+        } else {
+            receiver
+        };
         let callee = self.materialize_resolved_callee(&resolved);
         let method_callee =
             self.materialize_method_callee(resolved.source, callee, &resolved.type_args);

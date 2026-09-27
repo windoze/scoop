@@ -117,6 +117,23 @@ fn primitive_interfaces_compile_and_run_through_actual_artifacts() {
 }
 
 #[test]
+fn rebuilt_intrinsic_declarations_inherit_interface_default_members() {
+    check_class_cases(
+        "direct",
+        &[
+            "primitive-inherited-long",
+            "primitive-inherited-boolean",
+            "primitive-inherited-string",
+            "primitive-inherited-combined",
+        ],
+        &[
+            "primitive-inherited-no-gc",
+            "primitive-inherited-wrong-argument",
+        ],
+    );
+}
+
+#[test]
 fn integer_division_compiles_and_runs_through_actual_artifacts() {
     check_class_cases(
         "direct",
@@ -231,20 +248,36 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     let source =
         |name: &str| std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
     let original_fingerprint = core.artifact().summary().artifact_fingerprint();
+    let intrinsic_defaults = cases
+        .iter()
+        .chain(negative_cases)
+        .any(|case| case.starts_with("primitive-inherited-"));
     let core_source = sysroot.path().join("editable-core");
     std::fs::rename(sysroot.path().join("lib/scoop.core"), &core_source).unwrap();
-    std::fs::write(
-        core_source.join("src/user_class.scoop"),
-        source("core-provider"),
-    )
-    .unwrap();
+    let mut core_provider = source("core-provider");
+    if intrinsic_defaults {
+        core_provider.push_str(&source("core-member-defaults"));
+    }
+    std::fs::write(core_source.join("src/user_class.scoop"), core_provider).unwrap();
     let types = core_source.join("src/types.scoop");
     let original_types = std::fs::read_to_string(&types).unwrap();
-    let changed_types = original_types.replace(
+    let mut changed_types = original_types.replace(
         "public struct Long : ToString, Hash {",
         "public struct Long : ToString, Hash, RebuiltReadable {\n    public override fun read(): Long = this + stage3CoreAnswer() - 43",
     );
     assert_ne!(original_types, changed_types);
+    if intrinsic_defaults {
+        for declaration in [
+            "public struct Long : ToString, Hash, RebuiltReadable",
+            "public struct Boolean : ToString, Hash",
+            "public class String : ToString, Hash",
+        ] {
+            let before = format!("{declaration} {{");
+            let after = format!("{declaration}, RebuiltDefaults {{");
+            assert!(changed_types.contains(&before));
+            changed_types = changed_types.replace(&before, &after);
+        }
+    }
     std::fs::write(types, changed_types).unwrap();
     let throwable = core_source.join("src/throwable.scoop");
     let original = std::fs::read_to_string(&throwable).unwrap();

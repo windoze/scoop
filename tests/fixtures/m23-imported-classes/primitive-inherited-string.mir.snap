@@ -1,0 +1,56 @@
+Module
+  class Counter vtable=0 itables=0
+  interface RebuiltDefaults
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val value: String
+        Type String
+        StringConst @str0
+      call $dependency.receiver: Long = external0 direct
+      val $dependency.receiver: RebuiltDefaults
+        Type RebuiltDefaults
+        Retype RebuiltDefaults
+          Type String
+          Local value
+      call $dependency.argument.0: Long = external1 interface RebuiltDefaults[0]
+        Type RebuiltDefaults
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  str @str0 "downstream"
+  output library
