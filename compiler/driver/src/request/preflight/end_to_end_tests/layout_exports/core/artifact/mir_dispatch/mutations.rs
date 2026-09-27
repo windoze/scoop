@@ -64,7 +64,14 @@ fn abstract_target(replay: &Replay<'_>) {
         .dispatch()
         .get(replay.owner("SharedDispatchAbstract"))
         .unwrap();
-    let base = base.vtable().entries()[0].implementation().target();
+    let Implementation::AbstractObligation {
+        declaration: base_declaration,
+        trap_target: base,
+        ..
+    } = base.vtable().entries()[0].implementation()
+    else {
+        panic!("the base fixture has an abstract obligation")
+    };
     for name in ["SharedDispatchAgain", "SharedDispatchInherited"] {
         let owner = replay.owner(name);
         let entries = replay
@@ -76,12 +83,7 @@ fn abstract_target(replay: &Replay<'_>) {
             .entries();
         assert_eq!(entries.len(), 1);
         let entry = &entries[0];
-        let Implementation::AbstractObligation {
-            declaration,
-            trap_target,
-            ..
-        } = entry.implementation()
-        else {
+        let Implementation::AbstractObligation { trap_target, .. } = entry.implementation() else {
             panic!("the fixture has an abstract obligation")
         };
         assert_ne!(trap_target, base);
@@ -90,7 +92,7 @@ fn abstract_target(replay: &Replay<'_>) {
             entry.position(),
             entry.signature().clone(),
             Implementation::AbstractObligation {
-                declaration,
+                declaration: base_declaration,
                 trap_target: base,
                 receiver: Receiver::Identity,
             },

@@ -49,7 +49,9 @@ impl DecodedCanonicalNominalDispatchSelectionsV1 {
             .map(|record| {
                 let slot = resolver.resolve(record.slot).map_err(Error::Reference)?;
                 let selection = match record.selection {
-                    Decoded::Abstract => Selection::Abstract,
+                    Decoded::Abstract(target) => {
+                        Selection::Abstract(target.resolve(resolver).map_err(Error::Reference)?)
+                    }
                     Decoded::Concrete(target) => {
                         Selection::Concrete(target.resolve(resolver).map_err(Error::Reference)?)
                     }

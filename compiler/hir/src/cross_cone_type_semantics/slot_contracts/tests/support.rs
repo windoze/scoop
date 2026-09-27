@@ -140,14 +140,22 @@ impl Fixture {
         );
     }
     pub fn concrete(&self, owner: Node, slot: PersistentDispatchSlotId) -> InheritanceSlotTargetV1 {
-        InheritanceSlotTargetV1::try_new(
+        InheritanceSlotTargetV1::new(
             self.declaration(slot),
             nominal(owner),
             self.signature(owner, vec![]),
             CallableModalityV1::Open,
             self.access(owner, DeclaredVisibilityV1::Public),
         )
-        .unwrap()
+    }
+    pub fn abstract_target(
+        &self,
+        owner: Node,
+        slot: PersistentDispatchSlotId,
+    ) -> InheritanceSlotTargetV1 {
+        let mut target = self.concrete(owner, slot);
+        target.modality = CallableModalityV1::Abstract;
+        target
     }
     pub fn contract(
         &self,

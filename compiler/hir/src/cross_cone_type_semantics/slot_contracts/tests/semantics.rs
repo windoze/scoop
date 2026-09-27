@@ -73,7 +73,6 @@ fn inherited_slot_keeps_root_identity_and_joins_the_derived_receiver_and_source(
             .record()
             .implementation()
             .target()
-            .unwrap()
             .signature()
             .exact_signature()
             .receiver()
@@ -98,7 +97,11 @@ fn parameters_accessors_and_receiver_owners_are_replayed_from_foundation() {
         vec![SignatureTypeKey::Nominal(support::nominal(value))],
     );
     fixture.schema(owner, &[slot]);
-    let mut record = fixture.contract(owner, slot, InheritanceSlotImplementationV1::Abstract);
+    let mut record = fixture.contract(
+        owner,
+        slot,
+        InheritanceSlotImplementationV1::Abstract(fixture.abstract_target(owner, slot)),
+    );
     fixture
         .inheritance
         .modality(owner, NominalInheritanceModalityV1::Abstract);
@@ -110,6 +113,10 @@ fn parameters_accessors_and_receiver_owners_are_replayed_from_foundation() {
         Err(InheritanceSlotContractSemanticError::Signature)
     ));
     record.signature = fixture.signature(owner, vec![value.exact]);
+    let InheritanceSlotImplementationV1::Abstract(target) = &mut record.implementation else {
+        panic!("the fixture preserves its abstract declaration");
+    };
+    target.signature = record.signature.clone();
     graph
         .validate_slot_contract(owner.exact, &record, &fixture)
         .unwrap();
@@ -125,7 +132,11 @@ fn parameters_accessors_and_receiver_owners_are_replayed_from_foundation() {
     let graph =
         CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
             .unwrap();
-    let mut record = fixture.contract(owner, getter, InheritanceSlotImplementationV1::Abstract);
+    let mut record = fixture.contract(
+        owner,
+        getter,
+        InheritanceSlotImplementationV1::Abstract(fixture.abstract_target(owner, getter)),
+    );
     graph
         .validate_slot_contract(owner.exact, &record, &fixture)
         .unwrap();
@@ -134,12 +145,20 @@ fn parameters_accessors_and_receiver_owners_are_replayed_from_foundation() {
         graph.validate_slot_contract(owner.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Signature)
     ));
-    record = fixture.contract(owner, setter, InheritanceSlotImplementationV1::Abstract);
+    record = fixture.contract(
+        owner,
+        setter,
+        InheritanceSlotImplementationV1::Abstract(fixture.abstract_target(owner, setter)),
+    );
     assert!(matches!(
         graph.validate_slot_contract(owner.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Signature)
     ));
     record.signature = fixture.signature(owner, vec![value.exact]);
+    let InheritanceSlotImplementationV1::Abstract(target) = &mut record.implementation else {
+        panic!("the fixture preserves its abstract declaration");
+    };
+    target.signature = record.signature.clone();
     graph
         .validate_slot_contract(owner.exact, &record, &fixture)
         .unwrap();

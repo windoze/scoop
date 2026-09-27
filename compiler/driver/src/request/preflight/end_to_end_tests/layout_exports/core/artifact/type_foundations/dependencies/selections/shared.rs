@@ -17,7 +17,7 @@ pub(super) fn check(
                 .dispatch_selections()
                 .records()
                 .iter()
-                .any(|record| !matches!(record.selection(), Selection::Abstract))
+                .any(|record| !matches!(record.selection(), Selection::Abstract(_)))
         })
         .unwrap();
     let records = nominal
@@ -48,9 +48,12 @@ pub(super) fn check(
     let mut changed = records.to_vec();
     let target = changed
         .iter_mut()
-        .find(|record| !matches!(record.selection(), Selection::Abstract))
+        .find(|record| !matches!(record.selection(), Selection::Abstract(_)))
         .unwrap();
-    *target = NominalDispatchSelectionV1::new(target.slot(), Selection::Abstract);
+    *target = NominalDispatchSelectionV1::new(
+        target.slot(),
+        Selection::Abstract(target.selection().declaration()),
+    );
     assert!(
         matches!(reject(checked, core, nominal, changed), Error::SlotContracts(error)
         if matches!(error.as_ref(), hir::InheritanceInterfaceSemanticError::SlotSelection))

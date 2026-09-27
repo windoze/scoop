@@ -1,10 +1,7 @@
 use scoop_identity::PersistentTypeId;
 use scoop_wire::{Encoder, WireEncode};
 
-use super::{
-    InheritanceCallableDeclarationV1, InheritanceCallableSignatureV1,
-    InheritanceSlotContractBuildError, wire,
-};
+use super::{InheritanceCallableDeclarationV1, InheritanceCallableSignatureV1, wire};
 use crate::{CallableModalityV1, DeclarationAccessSourceV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -16,23 +13,20 @@ pub struct InheritanceSlotTargetV1 {
     pub(super) declaration_access: DeclarationAccessSourceV1,
 }
 impl InheritanceSlotTargetV1 {
-    pub fn try_new(
+    pub const fn new(
         declaration: InheritanceCallableDeclarationV1,
         owner: PersistentTypeId,
         signature: InheritanceCallableSignatureV1,
         modality: CallableModalityV1,
         declaration_access: DeclarationAccessSourceV1,
-    ) -> Result<Self, InheritanceSlotContractBuildError> {
-        if modality == CallableModalityV1::Abstract {
-            return Err(InheritanceSlotContractBuildError::AbstractTarget);
-        }
-        Ok(Self {
+    ) -> Self {
+        Self {
             declaration,
             owner,
             signature,
             modality,
             declaration_access,
-        })
+        }
     }
     pub const fn declaration(&self) -> InheritanceCallableDeclarationV1 {
         self.declaration
@@ -68,35 +62,28 @@ impl WireEncode for InheritanceSlotTargetV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InheritanceSlotImplementationV1 {
-    Abstract,
+    Abstract(InheritanceSlotTargetV1),
     Concrete(InheritanceSlotTargetV1),
     InterfaceDefault(InheritanceSlotTargetV1),
 }
 impl InheritanceSlotImplementationV1 {
-    pub const fn target(&self) -> Option<&InheritanceSlotTargetV1> {
+    pub const fn target(&self) -> &InheritanceSlotTargetV1 {
         match self {
-            Self::Abstract => None,
-            Self::Concrete(target) | Self::InterfaceDefault(target) => Some(target),
+            Self::Abstract(target) | Self::Concrete(target) | Self::InterfaceDefault(target) => {
+                target
+            }
         }
     }
 }
 impl WireEncode for InheritanceSlotImplementationV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Abstract => wire::tag(encoder, 1, 1),
-            Self::Concrete(target) | Self::InterfaceDefault(target) => {
-                wire::tag(
-                    encoder,
-                    2,
-                    if matches!(self, Self::Concrete(_)) {
-                        2
-                    } else {
-                        3
-                    },
-                )?;
-                encoder.field(1)?;
-                target.encode(encoder)
-            }
-        }
+        let tag = match self {
+            Self::Abstract(_) => 4,
+            Self::Concrete(_) => 2,
+            Self::InterfaceDefault(_) => 3,
+        };
+        wire::tag(encoder, 2, tag)?;
+        encoder.field(1)?;
+        self.target().encode(encoder)
     }
 }

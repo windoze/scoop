@@ -31,7 +31,7 @@ impl Harness {
             .iter()
             .map(|&interface| self.interface_ty(interface))
             .collect();
-        let interface_implementations = self.interface_implementation_shells(&interfaces);
+        let interface_implementations = self.initial_interface_implementations(&interfaces);
         let self_application =
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
         let owner = hir::StructId::from_raw((self.structs.len() as u32).into());
@@ -181,29 +181,38 @@ impl Harness {
         class
     }
 
-    pub(in crate::tests) fn interface_implementation_shells(
-        &self,
+    pub(in crate::tests) fn initial_interface_implementations(
+        &mut self,
         interfaces: &[hir::TypeId],
     ) -> Vec<hir::InterfaceImplementation> {
-        interfaces
-            .iter()
-            .map(|&interface| {
-                let hir::Type::Interface(application) = self.types[interface] else {
-                    panic!("test harness interface lists are fully applied")
+        let mut implementations = Vec::new();
+        for &interface in interfaces {
+            let hir::Type::Interface(application) = self.types[interface] else {
+                panic!("test harness interface lists are fully applied")
+            };
+            let template = self.interface_applications[application].template;
+            let mut methods = Vec::new();
+            for member in self.interfaces[template].methods.clone() {
+                let declaration = &self.interface_methods[member];
+                let application = self.method_applications.alloc(hir::MethodApplication {
+                    function: declaration.function,
+                    owner: hir::MethodOwnerApplication::Interface(application),
+                });
+                let target = match declaration.implementation {
+                    hir::InterfaceMemberImplementation::AbstractSlot => {
+                        hir::InterfaceImplementationTarget::Abstract(application)
+                    }
+                    hir::InterfaceMemberImplementation::Body => {
+                        hir::InterfaceImplementationTarget::Method(application)
+                    }
                 };
-                let template = self.interface_applications[application].template;
-                hir::InterfaceImplementation {
-                    interface,
-                    methods: self.interfaces[template]
-                        .methods
-                        .iter()
-                        .map(|&member| hir::InterfaceMethodImplementation {
-                            member: hir::InterfaceMethodReference::Local(member),
-                            target: hir::InterfaceImplementationTarget::Subclass,
-                        })
-                        .collect(),
-                }
-            })
-            .collect()
+                methods.push(hir::InterfaceMethodImplementation {
+                    member: hir::InterfaceMethodReference::Local(member),
+                    target,
+                });
+            }
+            implementations.push(hir::InterfaceImplementation { interface, methods });
+        }
+        implementations
     }
 }

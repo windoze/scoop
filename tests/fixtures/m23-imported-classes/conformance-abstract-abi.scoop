@@ -1,0 +1,17 @@
+import dependency.classes.Counter
+import dependency.classes.Token
+import dependency.classes.WideValue
+import dependency.classes.ValueReader
+
+public abstract class LocalBase public constructor(): ValueReader {
+    public abstract override fun value(marker: Token, input: Counter): WideValue
+}
+public class LocalReader public constructor(): LocalBase() {
+    public override fun value(marker: Token, input: Counter): WideValue =
+        WideValue(input.twice(), 0, 0)
+}
+public fun localReader(): LocalBase = LocalReader()
+public fun primary(): Counter {
+    val reader: ValueReader = localReader()
+    return Counter(reader.value(Token(), Counter(10)).first + 1)
+}

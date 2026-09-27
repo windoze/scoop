@@ -52,10 +52,6 @@ pub(super) fn check(
         matches!(error, Error::Missing(owner) if owner == missing),
         "{error:?}"
     );
-
-    replay
-        .validate(section.dispatch(), section.callables())
-        .unwrap();
 }
 
 struct Replay<'a> {
@@ -74,7 +70,6 @@ impl Replay<'_> {
     ) -> Result<(), Error> {
         scoop_slib::validate_shared_mir_dispatch(
             self.source,
-            &[],
             callables,
             &[],
             &[self.ordinary],

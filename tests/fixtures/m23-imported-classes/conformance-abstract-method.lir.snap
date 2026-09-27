@@ -1,0 +1,80 @@
+Module
+  global @scoop$1$io$bf1f0cb89fb2028f9d1f19a246843351ff058f6b9d11630ba908b721440fae05 = "call to abstract method `LocalBase.read`"
+  global @scoop$1$bs$02a6cfd0c40543943b5bdb9438b76b1096b1271a9d8f0b8ce3a8dc9255aa1cc7 = c"call to abstract method `LocalBase.read`"
+  enum CoroutineStep<LocalReader> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<LocalReader> niche(kind=managed,payload_variant=1)
+  enum CoroutineStep<LocalBase> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<LocalBase> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$4edf0fe14a2b39acce60e01f3ce498b4aa3a2ffa67637519b60a1338f419fe1d(ptr<managed>) -> i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    unreachable
+  fun @scoop$1$cb$5d09b5cdc828c30e48e046acaa98948b79a4b9d4b7d40d0b5e2ed0c99d06d11f(ptr<managed>) -> i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Long>(0x0000000000000014)
+  fun @scoop$1$cb$b48dfa7b0b53200fde8a318eefed20880d109def8dddb9be601a5c09961147a0() -> ptr<managed>
+    local %0 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(16)))
+    store t0 -> local0
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn5(local0)
+    t1 = aggregate () : {}
+    ret local0
+  fun @scoop$1$cb$462fc1def13d0d7a4d1b285525765e9b91e3654966cabf9483935981dee98629() -> ptr<managed>
+    local %0 $dependency.argument.0: ptr<managed>
+    local %1 $dependency.parameter.value: ptr<managed>
+    local %2 $dependency.receiver: ptr<managed>
+    local %3 $dependency.parameter.extra: i64
+    local %4 $dependency.argument.0: i64
+    local %5 $dependency.parameter.value: i64
+    local %6 $call.1: ptr<managed>
+    local %7 $new.2: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn2()
+    store t0 -> local6
+    store local6 -> local0
+    store local0 -> local1
+    call managed-direct-target1 sp<managed-call:1> live=[local1:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> ptr<managed> external-fn1(local1)
+    store t1 -> local2
+    store integer<Long>(0x0000000000000001) -> local3
+    t2 = heap_load local2 +0 : ptr<metadata>
+    call no-gc-direct-target0 t3 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t2, external-td0)
+    call managed-direct-target2 sp<managed-call:2> live=[local2:ptr<managed>@0] t4 = sig=direct3 (ptr<managed>, i64) -> i64 dispatch[Interface:1] t3(local2, local3)
+    store t4 -> local4
+    store local4 -> local5
+    call managed-direct-target3 sp<managed-call:3> live=[] t5 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t5 -> local7
+    call managed-void-target0 sp<managed-call:4> live=[local7:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn2(local7, local5)
+    t6 = aggregate () : {}
+    ret local7
+  fun @scoop$1$cb$57299785b256b07bc351e8bf9f2118e510bca7af0b8bbf97d7ac489562b5d375(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$09adb81a8db3ba12e297d28a27021fc8a49bcd1e02f79ba835f5b28b5e13e4f8(ptr<managed>) -> void
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn4(param0)
+    t0 = aggregate () : {}
+    ret
+  td td0 n(c=dev.example%3Aclasses-conformance-abstract-method%3A0.1.0;p=;o=-;k=C;x=LocalBase) @scoop$1$td$d7865d8bcff9feaa26e9986161846c8023a125ddfa4e5188671bca7ac312e939 type-id=8402813589828817231 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0] itables=[external-td0:[local-fn0, external-fn0]]
+  td td1 n(c=dev.example%3Aclasses-conformance-abstract-method%3A0.1.0;p=;o=-;k=C;x=LocalReader) @scoop$1$td$3b123b18b2b34ae8aa83609fc1ffe0522c20394ef67164d127c1fff651b6b27a type-id=10897747910219688460 shape=FixedObject minimum-size=16 align=8 parent=td0 vtable=[local-fn1] itables=[external-td0:[local-fn1, external-fn0]]
+  td td2 g(r=00000005;i=d9582137deeabbff8f97b294099ba1c4d91932a0fca8a498c2ce3f4df5d1ad75) @scoop$1$td$2200da646aa3f664db397737c031fb056a47c556f488cde00b60707ef30f3a4e type-id=14106709007649559396 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000005;i=64bd73f2f4d1a343e8d3c2198e3e9d9640682de75095586127d1892817509150) @scoop$1$td$39bb200cc70c30684c140a6b251bcb4d676d38af1c19f36c768ae7fd707e37d2 type-id=5784919272303792330 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 g(r=00000007;i=1bdd7bea0f21745eacdd2abab6fde61e8f18f42743362d174df439b82190bbe4) @scoop$1$td$65adaaa0229209f2570d0722856d6ee60b6c265cca338979cd6ec6756194a399 type-id=12486175345644306520 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 g(r=00000007;i=cc8165785d5e61912b0a786696b68af0c53f9f18811e11d66d376c8c47a496f7) @scoop$1$td$e7688cd22d20b69ac74007bdf2ac7eb3d383d7ad0dfa35c3a363fd31141e2e0d type-id=2252188241468434637 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<LocalReader> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<LocalReader> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<LocalBase> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<LocalBase> size=8 align=8 enum-scan=refs[0]
+  layout LocalBase value size=8 align=8 refs=[0]
+  layout LocalBase size=16 align=8 refs=[]
+  layout LocalReader value size=8 align=8 refs=[0]
+  layout LocalReader size=16 align=8 refs=[]
+  output library

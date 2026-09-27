@@ -66,3 +66,31 @@ fn local_interfaces_inherit_dependency_members_report_source_errors() {
         ],
     );
 }
+
+#[test]
+fn abstract_dependency_conformances_keep_actual_targets_through_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "conformance-abstract-method",
+            "conformance-abstract-default",
+            "conformance-abstract-interface",
+            "conformance-abstract-property",
+            "conformance-abstract-abi",
+        ],
+        &[],
+    );
+}
+
+#[test]
+fn abstract_dependency_conformances_report_unimplemented_source_members() {
+    check_class_cases(
+        "direct",
+        &[],
+        &[
+            "conformance-abstract-class-incomplete",
+            "conformance-abstract-interface-incomplete",
+            "conformance-abstract-property-incomplete",
+        ],
+    );
+}

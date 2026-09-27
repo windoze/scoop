@@ -49,7 +49,10 @@ mod tests {
             insert(&mut selections, slot, Selection::Concrete(callable)).unwrap();
         }
         assert_eq!(selections.len(), 1);
-        for conflicting in [Selection::Abstract, Selection::InterfaceDefault(callable)] {
+        for conflicting in [
+            Selection::Abstract(callable),
+            Selection::InterfaceDefault(callable),
+        ] {
             assert!(matches!(insert(&mut selections, slot, conflicting),
                 Err(Error::InvalidSourceDeclaration(reason)) if reason.contains("conflicting implementation selections")));
             assert_eq!(selections[&slot], Selection::Concrete(callable));

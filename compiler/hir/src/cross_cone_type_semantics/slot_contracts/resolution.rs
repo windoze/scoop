@@ -49,8 +49,13 @@ impl DecodedInheritanceSlotTargetV1 {
             .declaration_access
             .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Source)?;
-        InheritanceSlotTargetV1::try_new(declaration, owner, signature, self.modality, access)
-            .map_err(InheritanceSlotResolutionError::Contract)
+        Ok(InheritanceSlotTargetV1::new(
+            declaration,
+            owner,
+            signature,
+            self.modality,
+            access,
+        ))
     }
 }
 impl DecodedInheritanceSlotImplementationV1 {
@@ -59,7 +64,9 @@ impl DecodedInheritanceSlotImplementationV1 {
         resolver: &mut R,
     ) -> Result<InheritanceSlotImplementationV1, InheritanceSlotResolutionError<E>> {
         match self {
-            Self::Abstract => Ok(InheritanceSlotImplementationV1::Abstract),
+            Self::Abstract(target) => target
+                .resolve(resolver)
+                .map(InheritanceSlotImplementationV1::Abstract),
             Self::Concrete(target) => target
                 .resolve(resolver)
                 .map(InheritanceSlotImplementationV1::Concrete),

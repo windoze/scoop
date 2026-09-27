@@ -58,72 +58,82 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
     if domain.domain() != root_domains.lookup().domain() {
         return Err(Error::Domain);
     }
-    match record.implementation() {
-        InheritanceSlotImplementationV1::Abstract => {
-            if !matches!(
-                node.edges().modality(),
-                NominalInheritanceModalityV1::Abstract | NominalInheritanceModalityV1::Interface
-            ) {
-                return Err(Error::AbstractObligation);
-            }
-            let owner_domains = graph.replay_nominal_domains(owner).map_err(Error::Access)?;
-            if !domain
-                .covers(owner_domains.inheritance())
-                .map_err(Error::Access)?
-            {
-                return Err(Error::AbstractObligation);
-            }
+    let is_abstract = matches!(
+        record.implementation(),
+        InheritanceSlotImplementationV1::Abstract(_)
+    );
+    if is_abstract {
+        if !matches!(
+            node.edges().modality(),
+            NominalInheritanceModalityV1::Abstract | NominalInheritanceModalityV1::Interface
+        ) {
+            return Err(Error::AbstractObligation);
         }
-        InheritanceSlotImplementationV1::Concrete(target)
-        | InheritanceSlotImplementationV1::InterfaceDefault(target) => {
-            let (implementation, access) = declarations::validate(
-                graph,
-                target.declaration(),
-                target.owner(),
-                target.signature(),
-                target.declaration_access(),
-                authority,
-            )?;
-            if root.key.name() != implementation.key.name() {
-                return Err(Error::TargetName);
-            }
-            let preserves_protected = record.declaration_access().declared_visibility()
-                == DeclaredVisibilityV1::Protected
-                && target.declaration_access().declared_visibility()
-                    == DeclaredVisibilityV1::Protected
-                && graph
-                    .is_subclass(implementation.exact_owner, root.exact_owner)
-                    .map_err(Error::Inheritance)?;
-            if !preserves_protected && !access.declared().covers(&domain).map_err(Error::Access)? {
-                return Err(Error::Domain);
-            }
-            let source = graph
-                .source(SourceNominalId::Concrete(target.owner()))
-                .ok_or(Error::TargetOwner)?;
-            let is_interface = source.key.declaration_kind() == SourceDeclarationKind::Interface;
-            if is_interface
-                != matches!(
-                    record.implementation(),
-                    InheritanceSlotImplementationV1::InterfaceDefault(_)
-                )
-            {
-                return Err(Error::TargetOwner);
-            }
-            let applicable = if implementation.exact_owner == owner {
-                true
-            } else if is_interface {
-                schemas.supports_interface(implementation.exact_owner)
-            } else if source.key.declaration_kind() == SourceDeclarationKind::Class {
-                graph
-                    .is_subclass(owner, implementation.exact_owner)
-                    .map_err(Error::Inheritance)?
-            } else {
-                false
-            };
-            if !applicable {
-                return Err(Error::TargetOwner);
-            }
+        let owner_domains = graph.replay_nominal_domains(owner).map_err(Error::Access)?;
+        if !domain
+            .covers(owner_domains.inheritance())
+            .map_err(Error::Access)?
+        {
+            return Err(Error::AbstractObligation);
         }
+    }
+    let target = record.implementation().target();
+    let target_data;
+    let (implementation, access) = if target.declaration() == record.declaration()
+        && target.owner() == record.declaration_owner()
+        && target.signature() == record.signature()
+        && target.declaration_access() == record.declaration_access()
+    {
+        (&root, &root_domains)
+    } else {
+        target_data = declarations::validate(
+            graph,
+            target.declaration(),
+            target.owner(),
+            target.signature(),
+            target.declaration_access(),
+            authority,
+        )?;
+        (&target_data.0, &target_data.1)
+    };
+    if root.key.name() != implementation.key.name() {
+        return Err(Error::TargetName);
+    }
+    let preserves_protected = record.declaration_access().declared_visibility()
+        == DeclaredVisibilityV1::Protected
+        && target.declaration_access().declared_visibility() == DeclaredVisibilityV1::Protected
+        && graph
+            .is_subclass(implementation.exact_owner, root.exact_owner)
+            .map_err(Error::Inheritance)?;
+    if !preserves_protected && !access.declared().covers(&domain).map_err(Error::Access)? {
+        return Err(Error::Domain);
+    }
+    let source = graph
+        .source(SourceNominalId::Concrete(target.owner()))
+        .ok_or(Error::TargetOwner)?;
+    let is_interface = source.key.declaration_kind() == SourceDeclarationKind::Interface;
+    if !is_abstract
+        && is_interface
+            != matches!(
+                record.implementation(),
+                InheritanceSlotImplementationV1::InterfaceDefault(_)
+            )
+    {
+        return Err(Error::TargetOwner);
+    }
+    let applicable = if implementation.exact_owner == owner {
+        true
+    } else if is_interface {
+        schemas.supports_interface(implementation.exact_owner)
+    } else if source.key.declaration_kind() == SourceDeclarationKind::Class {
+        graph
+            .is_subclass(owner, implementation.exact_owner)
+            .map_err(Error::Inheritance)?
+    } else {
+        false
+    };
+    if !applicable {
+        return Err(Error::TargetOwner);
     }
     Ok(())
 }

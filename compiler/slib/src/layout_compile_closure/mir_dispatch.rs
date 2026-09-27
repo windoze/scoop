@@ -7,9 +7,8 @@ use scoop_identity::{
 };
 use scoop_mir as mir;
 use scoop_wire::WirePath;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
-mod abstract_targets;
 mod bindings;
 mod entries;
 mod errors;
@@ -20,7 +19,6 @@ pub use errors::{SharedMirDispatchComponent, SharedMirDispatchValidationError};
 
 pub fn validate_shared_mir_dispatch(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
-    dependencies: &[hir::CheckedSharedTypeFoundationV1<'_>],
     callables: &mir::CanonicalMirCallableBindingsV1,
     dependency_callables: &[&mir::CanonicalMirCallableBindingsV1],
     direct_callables: &[&mir::CrossConeMirBridgeSectionV1],
@@ -35,36 +33,28 @@ pub fn validate_shared_mir_dispatch(
     tables.push(callables);
     tables.extend_from_slice(dependency_callables);
     let index = mir::MirTypeBridgeCallableIndexV1::try_new(&tables, direct_callables)?;
-    source.with_inheritance_graph(dependencies, |graph| {
-        let mut replay = Replay {
-            graph,
-            callables: &index,
-            abstract_targets: abstract_targets::collect(source, dependencies)?,
-            adjustments: BTreeSet::new(),
-        };
-        inventory::validate(source, dispatch, &mut replay)?;
-        for binding in callables.entries() {
-            if let mir::MirCallableOriginV1::Generated {
-                callable,
-                role:
-                    GeneratedCallableKey::BoxingAdjust { .. }
-                    | GeneratedCallableKey::DispatchAdjust { .. },
-            } = binding.origin()
-            {
-                if !replay.adjustments.contains(callable) {
-                    return Err(Error::UnexpectedAdjustment(*callable));
-                }
+    let mut replay = Replay {
+        callables: &index,
+        adjustments: BTreeSet::new(),
+    };
+    inventory::validate(source, dispatch, &mut replay)?;
+    for binding in callables.entries() {
+        if let mir::MirCallableOriginV1::Generated {
+            callable,
+            role:
+                GeneratedCallableKey::BoxingAdjust { .. } | GeneratedCallableKey::DispatchAdjust { .. },
+        } = binding.origin()
+        {
+            if !replay.adjustments.contains(callable) {
+                return Err(Error::UnexpectedAdjustment(*callable));
             }
         }
-        Ok(())
-    })?
+    }
+    Ok(())
 }
 
-struct Replay<'g, 'c> {
-    graph: &'g hir::CheckedNominalInheritanceGraphV1<'g>,
+struct Replay<'c> {
     callables: &'c dyn mir::MirTypeBridgeCallableLookupV1,
-    abstract_targets:
-        BTreeMap<(hir::SourceNominalId, PersistentDispatchSlotId), StrongCallableDefinitionOwner>,
     adjustments: BTreeSet<PersistentGeneratedCallableId>,
 }
 

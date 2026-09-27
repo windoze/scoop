@@ -14,14 +14,15 @@ pub(super) fn render(checked: CheckedSharedTypeFoundationV1<'_>) -> String {
         };
         for slot in nominal.slots().records() {
             let implementation = match slot.implementation() {
-                Implementation::Abstract => "abstract".to_owned(),
-                Implementation::Concrete(target) | Implementation::InterfaceDefault(target) => {
+                Implementation::Abstract(target)
+                | Implementation::Concrete(target)
+                | Implementation::InterfaceDefault(target) => {
                     format!(
                         "{} {}.{}",
-                        if matches!(slot.implementation(), Implementation::Concrete(_)) {
-                            "concrete"
-                        } else {
-                            "default"
+                        match slot.implementation() {
+                            Implementation::Abstract(_) => "abstract",
+                            Implementation::Concrete(_) => "concrete",
+                            Implementation::InterfaceDefault(_) => "default",
                         },
                         nominal_name(checked, target.owner()),
                         callable_name(checked, target.declaration()),

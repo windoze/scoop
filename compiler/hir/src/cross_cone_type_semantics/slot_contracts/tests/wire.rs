@@ -11,7 +11,11 @@ fn complete_slot_wire_round_trips_abstract_concrete_and_default_targets() {
     let mut target = fixture.concrete(interface, default_slot);
     target.modality = CallableModalityV1::InterfaceDefault;
     let records = [
-        fixture.contract(class, slot, InheritanceSlotImplementationV1::Abstract),
+        fixture.contract(
+            class,
+            slot,
+            InheritanceSlotImplementationV1::Abstract(fixture.abstract_target(class, slot)),
+        ),
         fixture.contract(
             class,
             slot,
@@ -30,10 +34,15 @@ fn complete_slot_wire_round_trips_abstract_concrete_and_default_targets() {
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.clone().resolve(&mut fixture).unwrap(), record);
     }
-    assert_eq!(
-        encode(&InheritanceSlotImplementationV1::Abstract).unwrap(),
-        [0xa1, 0, 1]
+    assert!(decode_canonical::<DecodedInheritanceSlotImplementationV1>(&[0xa1, 0, 1]).is_err());
+    assert!(
+        decode_canonical::<crate::DecodedInheritanceSourceSlotSelectionV1>(&[0xa1, 0, 1]).is_err()
     );
+    let selection = crate::InheritanceSourceSlotSelectionV1::Abstract(fixture.declaration(slot));
+    let bytes = encode(&selection).unwrap();
+    assert_eq!(&bytes[..3], &[0xa2, 0, 4]);
+    let decoded: crate::DecodedInheritanceSourceSlotSelectionV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
     assert!(decode_canonical::<DecodedInheritanceSlotImplementationV1>(&[0xa1, 0, 4]).is_err());
     assert!(decode_canonical::<DecodedInheritanceCallableDeclarationV1>(&[0xa1, 0, 1]).is_err());
 }
@@ -54,8 +63,13 @@ fn contract_tables_sort_only_at_production_and_reject_wire_reordering_or_duplica
     let owner = fixture.add("Owner", SourceNominalKind::Class);
     let a = fixture.function(owner, "a");
     let b = fixture.function(owner, "b");
-    let records =
-        [a, b].map(|slot| fixture.contract(owner, slot, InheritanceSlotImplementationV1::Abstract));
+    let records = [a, b].map(|slot| {
+        fixture.contract(
+            owner,
+            slot,
+            InheritanceSlotImplementationV1::Abstract(fixture.abstract_target(owner, slot)),
+        )
+    });
     let table = CanonicalInheritanceSlotContractsV1::try_new(records.to_vec()).unwrap();
     let decoded: DecodedCanonicalInheritanceSlotContractsV1 =
         decode_canonical(&encode(&table).unwrap()).unwrap();

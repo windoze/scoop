@@ -88,19 +88,28 @@ fn interface_default_targets_keep_provider_identity_and_conformance() {
 }
 
 #[test]
-fn targets_cannot_be_abstract_or_cross_callable_roles() {
+fn targets_match_implementation_modality_and_callable_roles() {
     let mut fixture = Fixture::default();
     let owner = fixture.add("Owner", SourceNominalKind::Class);
     let slot = fixture.function(owner, "method");
+    let target = fixture.abstract_target(owner, slot);
+    let record = fixture.contract(
+        owner,
+        slot,
+        InheritanceSlotImplementationV1::Abstract(target.clone()),
+    );
+    assert_eq!(record.implementation().target(), &target);
     assert!(matches!(
-        InheritanceSlotTargetV1::try_new(
-            fixture.declaration(slot),
-            support::nominal(owner),
-            fixture.signature(owner, vec![]),
-            CallableModalityV1::Abstract,
-            fixture.access(owner, DeclaredVisibilityV1::Public)
+        InheritanceSlotContractV1::try_new(
+            record.slot,
+            record.declaration_owner,
+            record.declaration,
+            record.signature.clone(),
+            record.domain.clone(),
+            InheritanceSlotImplementationV1::Concrete(target),
+            record.declaration_access.clone(),
         ),
-        Err(InheritanceSlotContractBuildError::AbstractTarget)
+        Err(InheritanceSlotContractBuildError::AbstractModality)
     ));
     let getter = fixture.accessor(owner, "property", AccessorRole::Getter);
     let target = fixture.concrete(owner, getter);

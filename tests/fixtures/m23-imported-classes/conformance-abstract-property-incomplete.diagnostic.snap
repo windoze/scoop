@@ -1,0 +1,6 @@
+span=156..217
+expression=public class LocalReader public constructor(): LocalBase() {}
+class `LocalReader` leaves interface method `MutableValue.$get$value` abstract
+span=156..217
+expression=public class LocalReader public constructor(): LocalBase() {}
+class `LocalReader` leaves interface method `MutableValue.$set$value` abstract

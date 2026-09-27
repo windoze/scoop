@@ -36,7 +36,7 @@ impl Harness {
                 self.classes[base].interface_implementations.clone()
             })
             .unwrap_or_default();
-        for implementation in self.interface_implementation_shells(&interfaces) {
+        for implementation in self.initial_interface_implementations(&interfaces) {
             if let Some(existing) = interface_implementations
                 .iter_mut()
                 .find(|existing| existing.interface == implementation.interface)

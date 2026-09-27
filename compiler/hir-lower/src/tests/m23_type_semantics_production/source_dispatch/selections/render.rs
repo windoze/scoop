@@ -16,7 +16,9 @@ pub(super) fn render(
             .iter()
             .map(|record| {
                 let selection = match record.implementation() {
-                    hir::InheritanceSlotImplementationV1::Abstract => "abstract".to_owned(),
+                    hir::InheritanceSlotImplementationV1::Abstract(callable) => {
+                        format!("abstract {}", callables[&callable.declaration()])
+                    }
                     hir::InheritanceSlotImplementationV1::Concrete(callable) => {
                         format!("concrete {}", callables[&callable.declaration()])
                     }

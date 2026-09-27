@@ -193,23 +193,9 @@ impl Concretizer<'_> {
                                     declaration: self.imported_dependency_callable_map[&callable],
                                 }
                             }
-                            export::InterfaceImplementationTarget::Subclass => {
-                                let export::Type::Interface(application) =
-                                    self.source.types[implementation.interface]
-                                else {
-                                    unreachable!("local abstract slots have local declarations")
-                                };
-                                let export::InterfaceMethodReference::Local(member) = method.member
-                                else {
-                                    unreachable!(
-                                        "local abstract slots reference local interface methods"
-                                    )
-                                };
-                                let declaration = self.request_abstract_interface_member(
-                                    application,
-                                    member,
-                                    substitution,
-                                );
+                            export::InterfaceImplementationTarget::Abstract(application) => {
+                                let concrete::Callable::Function(declaration) =
+                                    self.lower_method_application(application, substitution);
                                 concrete::InterfaceImplementationTarget::Abstract { declaration }
                             }
                         };

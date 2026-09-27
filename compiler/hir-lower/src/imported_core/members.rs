@@ -206,8 +206,11 @@ fn suppress_local_implementations(
         .iter()
         .flat_map(|implementation| &implementation.methods)
     {
-        if matches!(method.target, hir::InterfaceImplementationTarget::Method(_))
-            && let hir::InterfaceMethodReference::Imported { slot, .. } = method.member
+        if matches!(
+            method.target,
+            hir::InterfaceImplementationTarget::Method(_)
+                | hir::InterfaceImplementationTarget::Abstract(_)
+        ) && let hir::InterfaceMethodReference::Imported { slot, .. } = method.member
         {
             slots.insert(slot);
         }

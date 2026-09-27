@@ -10,21 +10,18 @@ pub(super) fn check(
     let mut rejected_abstract = false;
     for nominal in checked.section().inheritance().records() {
         for slot in nominal.slots().records() {
-            let Some(target) = slot.implementation().target() else {
-                continue;
-            };
+            let target = slot.implementation().target();
             let source = callable(checked, slot.declaration());
             if target.declaration() != slot.declaration()
                 && source.modality() != CallableModalityV1::Abstract
             {
-                let ancestor = InheritanceSlotTargetV1::try_new(
+                let ancestor = InheritanceSlotTargetV1::new(
                     slot.declaration(),
                     slot.declaration_owner(),
                     slot.signature().clone(),
                     source.modality(),
                     slot.declaration_access().clone(),
-                )
-                .unwrap();
+                );
                 let ancestor = if source.modality() == CallableModalityV1::InterfaceDefault {
                     Implementation::InterfaceDefault(ancestor)
                 } else {
@@ -42,14 +39,13 @@ pub(super) fn check(
                 } else {
                     CallableModalityV1::Final
                 };
-                let changed = InheritanceSlotTargetV1::try_new(
+                let changed = InheritanceSlotTargetV1::new(
                     target.declaration(),
                     target.owner(),
                     target.signature().clone(),
                     modality,
                     target.declaration_access().clone(),
-                )
-                .unwrap();
+                );
                 assert!(matches!(
                     reject(checked, core, nominal.owner(), replace(slot, Implementation::Concrete(changed))),
                     Error::SlotContracts(error) if matches!(error.as_ref(), ContractError::SourceContract)
@@ -60,7 +56,10 @@ pub(super) fn check(
                 && nominal.edges().modality() == hir::NominalInheritanceModalityV1::Final
             {
                 assert!(matches!(
-                    reject(checked, core, nominal.owner(), replace(slot, Implementation::Abstract)),
+                    reject(checked, core, nominal.owner(), replace(slot, Implementation::Abstract(InheritanceSlotTargetV1::new(
+                        target.declaration(), target.owner(), target.signature().clone(),
+                        CallableModalityV1::Abstract, target.declaration_access().clone(),
+                    )))),
                     Error::SlotContracts(error) if matches!(error.as_ref(), ContractError::Slot(hir::InheritanceSlotContractSemanticError::AbstractObligation))
                 ));
                 rejected_abstract = true;
@@ -104,14 +103,13 @@ fn signature(checked: CheckedSharedTypeFoundationV1<'_>, core: CheckedSharedType
         hir::InheritanceCallableSignatureV1::try_new(source.exact_signature().clone(), effects)
             .unwrap()
     };
-    let target = InheritanceSlotTargetV1::try_new(
+    let target = InheritanceSlotTargetV1::new(
         target.declaration(),
         target.owner(),
         changed(target.signature()),
         target.modality(),
         target.declaration_access().clone(),
-    )
-    .unwrap();
+    );
     let replacement = InheritanceSlotContractV1::try_new(
         slot.slot(),
         slot.declaration_owner(),

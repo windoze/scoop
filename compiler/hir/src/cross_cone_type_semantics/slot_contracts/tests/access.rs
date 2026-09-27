@@ -107,7 +107,11 @@ fn abstract_obligations_must_be_reachable_and_implementable_by_the_owner() {
     let slot = fixture.function(hidden, "method");
     fixture.schema(hidden, &[slot]);
     fixture.schema(public, &[slot]);
-    let mut record = fixture.contract(hidden, slot, InheritanceSlotImplementationV1::Abstract);
+    let mut record = fixture.contract(
+        hidden,
+        slot,
+        InheritanceSlotImplementationV1::Abstract(fixture.abstract_target(hidden, slot)),
+    );
     record.domain = PersistentSlotContractDomainV1::new(
         PersistentAccessDomainV1::try_from_constraints(vec![PersistentAccessConstraintV1::Cone(
             ConeIdentity::CORE,

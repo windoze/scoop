@@ -395,6 +395,17 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
                 "conformance-interface-diamond-downstream"
             } else if *case == "conformance-interface-property" {
                 "conformance-interface-property-downstream"
+            } else if *case == "conformance-abstract-method" {
+                "conformance-abstract-method-downstream"
+            } else if matches!(
+                *case,
+                "conformance-abstract-default" | "conformance-abstract-interface"
+            ) {
+                "conformance-abstract-choice-downstream"
+            } else if *case == "conformance-abstract-property" {
+                "conformance-abstract-property-downstream"
+            } else if *case == "conformance-abstract-abi" {
+                "conformance-abstract-abi-downstream"
             } else {
                 "downstream"
             }),

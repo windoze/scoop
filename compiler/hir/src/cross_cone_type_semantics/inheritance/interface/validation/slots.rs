@@ -38,7 +38,9 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             return Err(Error::SourceContract);
         }
         let actual_selection = match slot.implementation() {
-            InheritanceSlotImplementationV1::Abstract => InheritanceSourceSlotSelectionV1::Abstract,
+            InheritanceSlotImplementationV1::Abstract(target) => {
+                InheritanceSourceSlotSelectionV1::Abstract(target.declaration())
+            }
             InheritanceSlotImplementationV1::Concrete(target) => {
                 InheritanceSourceSlotSelectionV1::Concrete(target.declaration())
             }
@@ -54,15 +56,14 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         {
             return Err(Error::SlotSelection);
         }
-        if let Some(target) = slot.implementation().target() {
-            let source = authority
-                .inheritance_callable_source(target.declaration())
-                .map_err(Error::Foundation)?;
-            compare(target.signature(), source.signature)?;
-            compare(target.declaration_access(), source.declaration_access)?;
-            if target.modality() != source.modality {
-                return Err(Error::SourceContract);
-            }
+        let target = slot.implementation().target();
+        let source = authority
+            .inheritance_callable_source(target.declaration())
+            .map_err(Error::Foundation)?;
+        compare(target.signature(), source.signature)?;
+        compare(target.declaration_access(), source.declaration_access)?;
+        if target.modality() != source.modality {
+            return Err(Error::SourceContract);
         }
         Ok(CheckedInheritanceSourceSlotContractV1 { contract })
     }

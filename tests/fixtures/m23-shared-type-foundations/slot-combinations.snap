@@ -13,13 +13,13 @@ MutableWinner MutableRoot.size.get -> concrete MutableWinner.size.get
 MutableWinner MutableRoot.size.set -> concrete MutableWinner.size.set
 MutableWinner MutableSpecific.size.get -> concrete MutableWinner.size.get
 MutableWinner MutableSpecific.size.set -> concrete MutableWinner.size.set
-Obligation Obligation.evaluate -> abstract
+Obligation Obligation.evaluate -> abstract Obligation.evaluate
 Obligation Root.value.get -> default Root.value.get
-Pending Obligation.evaluate -> abstract
-Pending Refined.evaluate -> abstract
-Pending Root.evaluate -> abstract
+Pending Obligation.evaluate -> abstract Obligation.evaluate
+Pending Refined.evaluate -> abstract Obligation.evaluate
+Pending Root.evaluate -> abstract Obligation.evaluate
 Pending Root.value.get -> default Root.value.get
-Reabstract Virtual.compute -> abstract
+Reabstract Virtual.compute -> abstract Reabstract.compute
 Refined Refined.evaluate -> default Refined.evaluate
 Refined Root.value.get -> default Root.value.get
 Root Root.evaluate -> default Root.evaluate

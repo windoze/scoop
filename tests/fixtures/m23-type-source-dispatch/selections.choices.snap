@@ -9,15 +9,15 @@ Complete
 Final
   Virtual.compute -> concrete Final.compute
 Obligation
-  Obligation.evaluate -> abstract
+  Obligation.evaluate -> abstract Obligation.evaluate
   Root.$get$value -> default Root.$get$value
 Pending
-  Obligation.evaluate -> abstract
-  Refined.evaluate -> abstract
+  Obligation.evaluate -> abstract Obligation.evaluate
+  Refined.evaluate -> abstract Obligation.evaluate
   Root.$get$value -> default Root.$get$value
-  Root.evaluate -> abstract
+  Root.evaluate -> abstract Obligation.evaluate
 Reabstract
-  Virtual.compute -> abstract
+  Virtual.compute -> abstract Reabstract.compute
 Refined
   Refined.evaluate -> default Refined.evaluate
   Root.$get$value -> default Root.$get$value

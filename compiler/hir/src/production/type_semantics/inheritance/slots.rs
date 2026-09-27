@@ -74,13 +74,7 @@ impl<'a> SlotContracts<'a> {
             );
         }
         for selection in selections.records() {
-            match selection.selection() {
-                InheritanceSourceSlotSelectionV1::Concrete(target)
-                | InheritanceSourceSlotSelectionV1::InterfaceDefault(target) => {
-                    required.insert(target);
-                }
-                InheritanceSourceSlotSelectionV1::Abstract => {}
-            }
+            required.insert(selection.selection().declaration());
         }
         let mut sources = BTreeMap::new();
         for (id, function) in export.functions.iter() {
@@ -169,8 +163,8 @@ impl<'a> SlotContracts<'a> {
                     invalid("dispatch slot has no resolved implementation selection")
                 })?;
                 let implementation = match selection {
-                    InheritanceSourceSlotSelectionV1::Abstract => {
-                        InheritanceSlotImplementationV1::Abstract
+                    InheritanceSourceSlotSelectionV1::Abstract(target) => {
+                        InheritanceSlotImplementationV1::Abstract(self.target(target)?)
                     }
                     InheritanceSourceSlotSelectionV1::Concrete(target) => {
                         InheritanceSlotImplementationV1::Concrete(self.target(target)?)
@@ -205,14 +199,13 @@ impl<'a> SlotContracts<'a> {
 
     fn target(&self, declaration: Declaration) -> Result<InheritanceSlotTargetV1, Error> {
         let source = self.source(declaration)?;
-        InheritanceSlotTargetV1::try_new(
+        Ok(InheritanceSlotTargetV1::new(
             declaration,
             source.owner,
             source.callable.signature().clone(),
             source.callable.modality(),
             source.callable.declaration_access().clone(),
-        )
-        .map_err(invalid)
+        ))
     }
 }
 

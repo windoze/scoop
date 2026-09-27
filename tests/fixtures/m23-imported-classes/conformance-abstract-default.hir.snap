@@ -1,0 +1,19 @@
+Module
+  abstract class LocalBase() : FirstChoice
+  class LocalReader()
+  fun localReader(): LocalBase
+    return
+      ReferenceUpcast : LocalBase
+        ClassInit LocalReader : LocalReader
+  fun primary(): Counter
+    val local0
+      Call localReader : LocalBase
+    val local1
+      MethodCall LocalBase.choose : Long
+        Local $receiver : LocalBase
+    val local2
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #0 : Counter
+        Local $dependency.parameter.value : Long
+  output library

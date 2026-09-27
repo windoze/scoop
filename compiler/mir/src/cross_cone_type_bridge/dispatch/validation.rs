@@ -94,7 +94,7 @@ impl MirDispatchSchemaAuthority<'_> {
             {
                 return Err(MirDispatchSchemaError::SlotSignature { slot: entry.slot() });
             }
-            self.implementation(owner, interface, entry, key.owner())?;
+            self.implementation(owner, interface, entry)?;
         }
         Ok(())
     }
@@ -113,19 +113,20 @@ impl MirDispatchSchemaAuthority<'_> {
         owner: PersistentExactTypeId,
         interface: Option<PersistentExactTypeId>,
         entry: &MirDispatchEntryV1,
-        declaration: DispatchDeclarationOwner,
     ) -> Result<(), MirDispatchSchemaError> {
         let target = self.callable(entry.implementation().target())?;
         let invalid = || MirDispatchSchemaError::InvalidImplementation { slot: entry.slot() };
         match entry.implementation() {
             MirDispatchImplementationV1::AbstractObligation {
                 declaration: supplied,
+                trap_target,
                 receiver,
-                ..
             } => {
-                if supplied != declaration
-                    || *target.lowering_role()
-                        != (MirCallableLoweringRoleV1::PureVirtualTrap { slot: entry.slot() })
+                if declaration_target(supplied) != trap_target
+                    || !matches!(
+                        target.lowering_role(),
+                        MirCallableLoweringRoleV1::PureVirtualTrap { .. }
+                    )
                 {
                     return Err(invalid());
                 }

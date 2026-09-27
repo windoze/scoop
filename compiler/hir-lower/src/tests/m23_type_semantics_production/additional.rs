@@ -24,7 +24,7 @@ fn producer_emits_complete_interface_slot_contracts() {
     ));
     assert_eq!(
         slots[0].declaration(),
-        slots[0].implementation().target().unwrap().declaration()
+        slots[0].implementation().target().declaration()
     );
 }
 

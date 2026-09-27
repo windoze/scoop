@@ -102,38 +102,4 @@ impl Concretizer<'_> {
         }
         id
     }
-
-    pub(super) fn request_abstract_interface_member(
-        &mut self,
-        application: export::InterfaceApplicationId,
-        member: export::InterfaceMethodId,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::FunctionId {
-        let ty = self.source.interface_applications[application].canonical_type;
-        let arguments = self
-            .interface_method_instances(ty, substitution)
-            .into_iter()
-            .find_map(|candidate| match candidate {
-                InterfaceMethodInstance::Local {
-                    member: candidate,
-                    arguments,
-                } if candidate == member => Some(arguments),
-                _ => None,
-            })
-            .expect("the conformance member belongs to its interface");
-        let function = self.source.interface_methods[member].function;
-        let owner = self.source.functions[function]
-            .method
-            .expect("an interface declaration has a method owner")
-            .owner;
-        let ty = self.lower_type(owner, &arguments);
-        let concrete::TypeKind::Interface(owner) = self.types[ty].kind else {
-            unreachable!("an interface declaration has an interface receiver")
-        };
-        self.request_method(
-            function,
-            concrete::MethodOwner::Interface(owner),
-            MethodRequest::Plain,
-        )
-    }
 }

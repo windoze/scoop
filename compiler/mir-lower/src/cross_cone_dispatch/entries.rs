@@ -43,14 +43,25 @@ impl Context<'_> {
                 mir::MirDispatchReceiverAdaptationV1::ReferenceDispatch
             };
             let implementation = match selection {
-                hir::InheritanceSlotImplementationV1::Abstract => {
-                    if *binding.lowering_role()
-                        != (mir::MirCallableLoweringRoleV1::PureVirtualTrap { slot: *slot })
+                hir::InheritanceSlotImplementationV1::Abstract(expected) => {
+                    if *target != source_target(expected.declaration())
+                        || !matches!(
+                            binding.lowering_role(),
+                            mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }
+                        )
                     {
                         return Err(mismatch());
                     }
                     mir::MirDispatchImplementationV1::AbstractObligation {
-                        declaration: key.owner(),
+                        declaration: match expected.declaration() {
+                            hir::InheritanceCallableDeclarationV1::Function(id) => {
+                                DispatchDeclarationOwner::Function(id)
+                            }
+                            hir::InheritanceCallableDeclarationV1::Getter(id)
+                            | hir::InheritanceCallableDeclarationV1::Setter(id) => {
+                                DispatchDeclarationOwner::Accessor(id)
+                            }
+                        },
                         trap_target: *target,
                         receiver,
                     }

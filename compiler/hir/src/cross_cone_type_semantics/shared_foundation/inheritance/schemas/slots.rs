@@ -42,9 +42,8 @@ pub(super) fn validate<'a>(
             }
             for slot in slots {
                 signatures::project(&mut data, slot.declaration(), dependencies)?;
-                if let Some(target) = slot.implementation().target() {
-                    signatures::project(&mut data, target.declaration(), dependencies)?;
-                }
+                let target = slot.implementation().target();
+                signatures::project(&mut data, target.declaration(), dependencies)?;
             }
         }
     }

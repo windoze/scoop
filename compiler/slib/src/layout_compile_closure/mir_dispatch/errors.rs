@@ -25,10 +25,6 @@ pub enum SharedMirDispatchValidationError {
     MissingFact(PersistentExactTypeId),
     MissingCallable(StrongCallableDefinitionOwner),
     UnexpectedAdjustment(PersistentGeneratedCallableId),
-    AbstractSlot {
-        owner: hir::SourceNominalId,
-        slot: PersistentDispatchSlotId,
-    },
     SourceSlot {
         owner: PersistentExactTypeId,
         slot: PersistentDispatchSlotId,

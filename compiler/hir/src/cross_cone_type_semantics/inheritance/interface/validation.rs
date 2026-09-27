@@ -17,9 +17,19 @@ pub struct InheritanceSourceCallableFactsV1<'a> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InheritanceSourceSlotSelectionV1 {
-    Abstract,
+    Abstract(InheritanceCallableDeclarationV1),
     Concrete(InheritanceCallableDeclarationV1),
     InterfaceDefault(InheritanceCallableDeclarationV1),
+}
+
+impl InheritanceSourceSlotSelectionV1 {
+    pub const fn declaration(self) -> InheritanceCallableDeclarationV1 {
+        match self {
+            Self::Abstract(declaration)
+            | Self::Concrete(declaration)
+            | Self::InterfaceDefault(declaration) => declaration,
+        }
+    }
 }
 
 /// Shared callable declarations and resolved implementation choices for slots.

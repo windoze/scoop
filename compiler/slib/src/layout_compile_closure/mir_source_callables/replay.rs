@@ -72,7 +72,6 @@ pub(super) fn validate_sources(
             .map_err(|error| Error::Equality(Box::new(error)))?;
             super::super::mir_dispatch::validate_shared_mir_dispatch(
                 source,
-                &dependencies,
                 artifact.mir.callables(),
                 &dependency_callables,
                 &std::iter::once(parts.mir_ordinary)

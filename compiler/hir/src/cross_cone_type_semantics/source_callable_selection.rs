@@ -8,9 +8,8 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallableDeclarationRecordV1, CallableModalityV1, CrossConeHirInterfaceSectionV1,
-    CrossConeTypeSemanticsSectionV1, InheritanceCallableDeclarationV1, ProtectedDeclarationRefV1,
-    SharedTypeMetadataError as Error,
+    CallableDeclarationRecordV1, CrossConeHirInterfaceSectionV1, CrossConeTypeSemanticsSectionV1,
+    InheritanceCallableDeclarationV1, ProtectedDeclarationRefV1, SharedTypeMetadataError as Error,
 };
 
 mod constructors;
@@ -52,19 +51,8 @@ pub fn select_param_free_source_callables<'a>(
         }
         for slot in nominal.slots().records() {
             selection.insert(origin(slot.declaration()))?;
-            if let Some(target) = slot.implementation().target() {
-                selection.insert(origin(target.declaration()))?;
-            }
-        }
-    }
-    // An abstract override owns its trap even when the inherited slot keeps
-    // the original declaration and has no concrete selected target.
-    for source in public.callable_interfaces().all_declarations() {
-        if source.modality() == CallableModalityV1::Abstract
-            && !source.slot_relations().is_empty()
-            && selection.materialized_owner(source, types)?
-        {
-            selection.insert(source.declaration())?;
+            let target = slot.implementation().target();
+            selection.insert(origin(target.declaration()))?;
         }
     }
     selection.properties()?;

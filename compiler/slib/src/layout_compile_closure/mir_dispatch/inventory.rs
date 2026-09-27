@@ -4,7 +4,7 @@ use scoop_identity::{CoreBuiltinNominal, SignatureTypeKey};
 pub(super) fn validate(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
     dispatch: &mir::CanonicalMirDispatchSchemasV1,
-    replay: &mut Replay<'_, '_>,
+    replay: &mut Replay<'_>,
 ) -> Result<(), Error> {
     let mut required = BTreeSet::new();
     let facts = source.facts();
@@ -67,7 +67,7 @@ fn get(
     table.get(owner).ok_or(Error::Missing(owner))
 }
 
-impl Replay<'_, '_> {
+impl Replay<'_> {
     pub(super) fn record(
         &mut self,
         source: &hir::NominalInheritanceInterfaceV1,

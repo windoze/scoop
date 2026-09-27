@@ -3,7 +3,7 @@ use mir::{
     MirDispatchImplementationV1 as Implementation, MirDispatchReceiverAdaptationV1 as Receiver,
 };
 
-impl Replay<'_, '_> {
+impl Replay<'_> {
     pub(super) fn entry(
         &mut self,
         (owner, value): (PersistentExactTypeId, bool),
@@ -29,22 +29,29 @@ impl Replay<'_, '_> {
             candidate.signature() == &signature,
         )?;
         let expected = match contract.implementation() {
-            hir::InheritanceSlotImplementationV1::Abstract => {
-                let (target, receiver) = self.abstract_target(owner, contract)?;
-                let expected = bindings::signature(source, Some(receiver))?;
+            hir::InheritanceSlotImplementationV1::Abstract(selected) => {
+                let target = target(selected.declaration());
+                let expected = bindings::signature(
+                    selected.signature(),
+                    selected
+                        .signature()
+                        .exact_signature()
+                        .receiver()
+                        .into_option(),
+                )?;
                 self.source_binding(owner, contract.slot(), target, &expected)?;
                 let binding = self.binding(target)?;
                 Error::entry(
                     owner,
                     contract.slot(),
                     Component::CallableRole,
-                    binding.lowering_role()
-                        == &mir::MirCallableLoweringRoleV1::PureVirtualTrap {
-                            slot: contract.slot(),
-                        },
+                    matches!(
+                        binding.lowering_role(),
+                        mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }
+                    ),
                 )?;
                 Implementation::AbstractObligation {
-                    declaration: declaration(contract.declaration()),
+                    declaration: declaration(selected.declaration()),
                     trap_target: target,
                     receiver: adaptation(&signature, &expected),
                 }

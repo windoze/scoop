@@ -1,0 +1,3 @@
+span=124..185
+expression=public class LocalReader public constructor(): LocalChoice {}
+class `LocalReader` does not implement interface method `LocalChoice.choose`

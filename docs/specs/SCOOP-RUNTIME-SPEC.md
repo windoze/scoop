@@ -12,21 +12,23 @@
 
 编译器只为实际装箱和分派选取相应的外部 TD 及接口定义；未使用的 primitive 声明不会扩大 runtime 登记或机器依赖集合。
 
-运行时类型转换的失败构造使用前端解析的实际异常类型与 constructor 引用，并沿共有的类型、callable、ABI 和 Link 路径消费。删除由 Cast 反向投影的独立 CastFailure call-site、RuntimeOperationDependency role，以及 reader 对同一目标再按 compiler protocol 进行资格判断的通道；普通源码调用的位置、参数、结果与 typed 引用检查保留。共有 HIR 格式更新为 `hir/cross-cone-interface/29`，原 call-site reason tag 2 与 external-reference role tag 9 退役，不复用；旧产物、profile fingerprint 与缓存重建。该调整不改变转换失败抛出 ClassCastException 的语言行为、runtime C ABI 或 String 表示。
+运行时类型转换的失败构造使用前端解析的实际异常类型与 constructor 引用，并沿共有的类型、callable、ABI 和 Link 路径消费。删除由 Cast 反向投影的独立 CastFailure call-site、RuntimeOperationDependency role，以及 reader 对同一目标再按 compiler protocol 进行资格判断的通道；普通源码调用的位置、参数、结果与 typed 引用检查保留。共有 HIR 格式更新为 `hir/cross-cone-interface/30`，原 call-site reason tag 2 与 external-reference role tag 9 退役，不复用；旧产物、profile fingerprint 与缓存重建。该调整不改变转换失败抛出 ClassCastException 的语言行为、runtime C ABI 或 String 表示。
 
-引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/29`，旧产物与缓存重建，不改变 runtime C ABI。
+引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/30`，旧产物与缓存重建，不改变 runtime C ABI。
 
 跨 Cone 动态调用沿现有 vtable/itable 及对象 TypeDescriptor 执行；接口查找键使用真实 exact interface 的 TD，槽序号仅在其所属表内有效。外来 class/interface 与本地类型共用调用约定、GC roots 和异常边界，不因 provider 为 core 而取得额外资格，也不改变 String 表示或 C runtime ABI。 成员 setter 同样使用实际 accessor ABI 与 dispatch；含引用属性写入由 provider 的普通 setter 执行已有写屏障，ZST 和大值参数沿 canonical ABI 传递。
 
 本地接口继承依赖接口时，父接口与各槽继续引用真实 exact type 和声明身份。接口表中的本地与外来默认实现使用同一 canonical ABI，值类型装箱按同一 receiver 转换规则调用；接口继承不新增 runtime 表、来源资格或验证重放。
 
+抽象 slot 的物理 entry 使用实际所选 abstract 声明的既有 pure-virtual trap 及完整 ABI；slot 的根声明与 trap 声明可以不同，receiver 沿真实 base/interface 关系适配，调用错误仍有明确 fatal 出口。该关系由编译器完整产物提供，runtime 不反向重建声明或新增来源、配额和重复元数据检查。HIR 接口及 type-semantics 格式按实现规范升级并要求旧产物重建，runtime C ABI、String 表示和 GC 契约保持不变。
+
 删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
 
 参数自由依赖class通过共有名义声明取得真实身份、modality、直接父类型和声明序字段，引用类型按GC契约传播，递归引用字段不展开成递归值布局。HIR保留完整声明及解析后的字段、父类型，不重建同名本地声明。外来class构造仍是对真实constructor的typed调用；HIR→MIR消费已选MIR绑定中的ClassInitializer角色，使用共有class分配路径创建对象，再将该对象作为receiver调用实际provider的初始化实现。构造表达式返回分配的对象，物理initializer返回Unit；普通返回class的函数不走构造分支。本地与外来initializer共用Callee表示、参数求值顺序和GC处理。 core默认导入层的构造调用和静态限定名同时查询普通Type/Value binding；用户新增的class、enum和typealias与其他依赖使用相同声明路径，不限于预设内建名字。此能力不增加来源凭证、core分支或runtime ABI，沿用现有类型、MIR绑定及LIR布局格式。 M23-6的真实class运行在单个最终镜像中链接实际产物及runtime；LLVM stackmap段按各对象贡献的完整v3 blob逐个读取，长度由已有count和对齐决定，保留每份格式、记录唯一性与精确PC检查，不增加展开预算。该读取不要求M23-8的多镜像启动或M23-9的program-link。
 
-默认值引用的访问证明字段退役属于 HIR 产物格式变更：`hir/cross-cone-interface/29` 要求旧 `/24` 及更早产物和缓存重建。runtime 不读取这类前端访问证明；删除它不改变 C 调用约定、String 表示、类型布局或 GC 扫描契约。
+默认值引用的访问证明字段退役属于 HIR 产物格式变更：`hir/cross-cone-interface/30` 要求旧 `/24` 及更早产物和缓存重建。runtime 不读取这类前端访问证明；删除它不改变 C 调用约定、String 表示、类型布局或 GC 扫描契约。
 
-共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/29` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
+共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/30` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 跨 Cone enum 构造与默认值展开只改变前端取得完整构造信息的路径。runtime 继续使用现有 tag/niche、payload、ZST 与 scan 表示；不新增外部构造服务、来源检查或 C ABI 分支。
 
@@ -44,7 +46,7 @@ MIR 输出在 HIR→MIR 边界完成一次整模块结构、类型与实际外�
 
 依赖 companion 与 static nested 访问复用共有 reader 的静态命名空间和原 typed binding，前端在值遮蔽之后沿实际 owner 逐段解析限定类型与表达式。转发调用、属性和默认参数使用实际 object receiver，并沿普通 singleton ensure/root 路径消费；限定 host 和 const 访问不额外初始化。限定或直接导入的 companion 属性赋值、复合赋值与自增复用共有 getter/setter 路径，保存一次实际接收者，在右值之前完成接收者求值与初始化。验收覆盖命名 companion、Companion 别名、转发、跨 facade、类型别名及可见性错误，由真实源码产生四 Cone 产物后链接运行。此项补齐真实声明关系及其消费路径，不引入来源凭证。
 
-`hir/cross-cone-interface/29` 补齐 object 的声明种类：source-shape 的旧 Object tag 8 退役，新 tag 9 保留 field 1=value、field 2=声明序字段，新增 field 3=`Standalone(1)` 或 `Companion(2)`；host 沿已有声明 key 的 typed owner 查询。命名 companion 发布名称与 `Companion` 两个普通 type/value binding，object 的公开方法和属性进入自身静态 binding 表。共有命名空间在本 owner 无同名 binding 时，沿已声明的 companion 关系转发其直接 binding；不复制成员声明、不用名称或初始化 metadata 推断 companion。旧 `/28` 产物与缓存重建，退役 tag 不复用，runtime ABI 不变。
+`hir/cross-cone-interface/30` 补齐 object 的声明种类：source-shape 的旧 Object tag 8 退役，新 tag 9 保留 field 1=value、field 2=声明序字段，新增 field 3=`Standalone(1)` 或 `Companion(2)`；host 沿已有声明 key 的 typed owner 查询。命名 companion 发布名称与 `Companion` 两个普通 type/value binding，object 的公开方法和属性进入自身静态 binding 表。共有命名空间在本 owner 无同名 binding 时，沿已声明的 companion 关系转发其直接 binding；不复制成员声明、不用名称或初始化 metadata 推断 companion。旧 `/28` 产物与缓存重建，退役 tag 不复用，runtime ABI 不变。
 
 产物的 identity graph 从 manifest 的当前 producer、实际直接依赖和已经读取的依赖实体构成；不无条件注册 CORE 身份，也不为 CORE 设置单独的重复过滤规则。CORE 与普通 provider 的声明使用相同的 typed 引用解析，缺失依赖、身份冲突及非法引用由共有格式与引用检查报告。默认 core 依赖仍由正常构建与前端依赖发现加入 manifest；本项不改变 wire 或 runtime ABI。
 
@@ -103,7 +105,7 @@ Runtime 是编译产物的支撑层，职责包括：
 
 每个引用类型对象带有对象头 `ScoopObjectHeader`，其中包含指向 `TypeDescriptor` 的指针（类似 vpointer，spec 10.4）。除本文明确冻结的pin/release-ready位及16-byte ABI外，对象头中其余GC状态的分配由collector实现决定。
 
-M23-6的class instance以完整base instance作为prefix：继承字段offset不变，derived字段在base的完整size（含tail padding）之后追加并完成自身alignment/tail padding；同Cone与跨Cone使用同一规则，不复用base tail padding。abstract class也保留完整FixedObject layout供derived继承和initializer使用，但编译器的class allocation target必须另有ConcreteClass modality证明；不能把abstract class的base布局与interface/纯reference identity的AbstractRef混为一类。runtime仍只按最派生TD的完整allocation/scan处理实际对象，不分配或扫描独立base子对象。
+M23-6的class instance以完整base instance作为prefix：继承字段offset不变，derived字段在base的完整size（含tail padding）之后追加并完成自身alignment/tail padding；同Cone与跨Cone使用同一规则，不复用base tail padding。abstract class也保留完整FixedObject layout供derived继承和initializer使用，但编译器的class allocation target必须具有实际ConcreteClass modality；不能把abstract class的base布局与interface/纯reference identity的AbstractRef混为一类。runtime仍只按最派生TD的完整allocation/scan处理实际对象，不分配或扫描独立base子对象。
 
 对象分配与语言构造是两个层次。M19 class construction只分配一次exact concrete对象；header从分配完成起始终指向最派生TypeDescriptor，base/`this` constructor initializer在同一对象上执行，不分配base子对象或替换header。runtime不运行constructor、不在对象header/payload保存逐field“正在初始化”状态，也不根据TypeDescriptor补字段默认值；初始化顺序与访问限制完全由编译器静态保证。唯一相关的生命周期位是M24为hook-bearing class定义的`RELEASE_READY`：它只表示整个对象已经正常完成最外层构造、可在逻辑死亡时运行release hook，不表示任一field的就绪状态。M21的object/global exactly-once cell是独立的runtime side metadata，只管理完整initializer的并发执行与发布，不改变任一property的源码type或field表示（见2.7）。
 
@@ -401,7 +403,7 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 
 所有可见性的 nominal、callable、property、参数、默认值和定义环境由共有源码接口完整保存。protected 成员仍以 typed 引用参与实际 MIR callable 选择，其可见性和签名读取同一声明；构造器使用共有 nominal 的 constructor 引用及对应 callable，不在 inheritance record 再保存一份 payload。generic 词法 owner 不因访问域查询而要求 machine exact type。名义类型的 lookup/inheritance/slot 三份派生域不再保存和重验。
 
-`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/7`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
+`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/8`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
 
 ### 5.1 Scoop exception record 与抛出
 

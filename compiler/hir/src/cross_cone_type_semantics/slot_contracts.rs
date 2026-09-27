@@ -46,21 +46,24 @@ impl InheritanceSlotContractV1 {
         implementation: InheritanceSlotImplementationV1,
         declaration_access: DeclarationAccessSourceV1,
     ) -> Result<Self, InheritanceSlotContractBuildError> {
-        if let Some(target) = implementation.target() {
-            if !target.signature().matches_slot(&signature) {
-                return Err(InheritanceSlotContractBuildError::SignatureMismatch);
-            }
-            if matches!(
-                implementation,
-                InheritanceSlotImplementationV1::InterfaceDefault(_)
-            ) != (target.modality() == CallableModalityV1::InterfaceDefault)
-            {
-                return Err(InheritanceSlotContractBuildError::DefaultModality);
-            }
-            if std::mem::discriminant(&declaration) != std::mem::discriminant(&target.declaration())
-            {
-                return Err(InheritanceSlotContractBuildError::DeclarationRole);
-            }
+        let target = implementation.target();
+        if !target.signature().matches_slot(&signature) {
+            return Err(InheritanceSlotContractBuildError::SignatureMismatch);
+        }
+        if matches!(implementation, InheritanceSlotImplementationV1::Abstract(_))
+            != (target.modality() == CallableModalityV1::Abstract)
+        {
+            return Err(InheritanceSlotContractBuildError::AbstractModality);
+        }
+        if matches!(
+            implementation,
+            InheritanceSlotImplementationV1::InterfaceDefault(_)
+        ) != (target.modality() == CallableModalityV1::InterfaceDefault)
+        {
+            return Err(InheritanceSlotContractBuildError::DefaultModality);
+        }
+        if std::mem::discriminant(&declaration) != std::mem::discriminant(&target.declaration()) {
+            return Err(InheritanceSlotContractBuildError::DeclarationRole);
         }
         Ok(Self {
             slot,
@@ -116,7 +119,7 @@ impl WireEncode for InheritanceSlotContractV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InheritanceSlotContractBuildError {
-    AbstractTarget,
+    AbstractModality,
     SignatureMismatch,
     DefaultModality,
     DeclarationRole,
@@ -125,8 +128,8 @@ pub enum InheritanceSlotContractBuildError {
 impl fmt::Display for InheritanceSlotContractBuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AbstractTarget => {
-                f.write_str("an abstract callable is not a concrete slot target")
+            Self::AbstractModality => {
+                f.write_str("slot implementation variant disagrees with target abstract modality")
             }
             Self::SignatureMismatch => {
                 f.write_str("slot target signature or effects disagree with the root contract")

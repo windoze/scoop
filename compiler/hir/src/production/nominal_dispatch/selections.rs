@@ -40,14 +40,15 @@ impl Projection<'_> {
                     InterfaceImplementationTarget::Imported(callable) => {
                         Selection::InterfaceDefault(self.imported_callable(callable)?)
                     }
-                    InterfaceImplementationTarget::ImportedAbstract(_)
-                    | InterfaceImplementationTarget::Subclass
-                        if allow_abstract =>
-                    {
-                        Selection::Abstract
+                    InterfaceImplementationTarget::Abstract(application) if allow_abstract => {
+                        let application = &self.export.method_applications[application];
+                        Selection::Abstract(self.callable(application.function)?)
+                    }
+                    InterfaceImplementationTarget::ImportedAbstract(callable) if allow_abstract => {
+                        Selection::Abstract(self.imported_callable(callable)?)
                     }
                     InterfaceImplementationTarget::ImportedAbstract(_)
-                    | InterfaceImplementationTarget::Subclass => {
+                    | InterfaceImplementationTarget::Abstract(_) => {
                         return Err(invalid(
                             "non-abstract owner leaves an interface slot abstract",
                         ));
@@ -88,7 +89,7 @@ impl Projection<'_> {
 
                 if !selections.contains_key(&slot) {
                     let selection = if method.modifier == MethodModifier::Abstract {
-                        Selection::Abstract
+                        Selection::Abstract(self.callable(*function)?)
                     } else {
                         Selection::Concrete(self.callable(*function)?)
                     };

@@ -220,7 +220,16 @@ impl Harness {
             return;
         }
         let application = self.method_application(function);
-        let target = hir::InterfaceImplementationTarget::Method(application);
+        let target = if self.functions[function]
+            .method
+            .expect("a conformance target is a method")
+            .modifier
+            == hir::MethodModifier::Abstract
+        {
+            hir::InterfaceImplementationTarget::Abstract(application)
+        } else {
+            hir::InterfaceImplementationTarget::Method(application)
+        };
         match self.types[owner] {
             hir::Type::Class(owner_application) => {
                 let owner = self.class_applications[owner_application].template;

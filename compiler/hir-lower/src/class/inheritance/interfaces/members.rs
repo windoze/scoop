@@ -254,19 +254,19 @@ impl Lowerer {
             member.implementation == hir::InterfaceMemberImplementation::AbstractSlot;
         match member.member {
             hir::InterfaceMethodReference::Local(id) => {
-                if abstract_slot {
-                    return Some(hir::InterfaceImplementationTarget::Subclass);
-                }
                 let Type::Interface(owner) = self.types[member.owner] else {
                     unreachable!("local interface member has a local application")
                 };
                 let function = self.interface_method_entities[id].function;
-                Some(hir::InterfaceImplementationTarget::Method(
-                    self.record_method_application(
-                        function,
-                        hir::MethodOwnerApplication::Interface(owner),
-                    ),
-                ))
+                let application = self.record_method_application(
+                    function,
+                    hir::MethodOwnerApplication::Interface(owner),
+                );
+                Some(if abstract_slot {
+                    hir::InterfaceImplementationTarget::Abstract(application)
+                } else {
+                    hir::InterfaceImplementationTarget::Method(application)
+                })
             }
             hir::InterfaceMethodReference::Imported { owner, slot } => {
                 let Type::ImportedInterface(interface) = &self.types[owner] else {

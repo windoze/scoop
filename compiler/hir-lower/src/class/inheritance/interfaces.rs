@@ -6,7 +6,7 @@ pub(super) use members::{InterfaceMemberInstance, InterfaceSignature};
 
 enum InterfaceDefaultSelection {
     Default(InterfaceMemberInstance),
-    Obligation,
+    Obligation(InterfaceMemberInstance),
     Conflict(Vec<InterfaceMemberInstance>),
 }
 
@@ -123,7 +123,14 @@ impl Lowerer {
                             self.record_method_application(candidate.function, owner),
                         ))
                     }
-                    Some(_) if abstract_class => self.abstract_conformance_target(&member, span),
+                    Some(candidate) if abstract_class => {
+                        let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
+                            unreachable!("nominal candidates are methods")
+                        };
+                        Some(hir::InterfaceImplementationTarget::Abstract(
+                            self.record_method_application(candidate.function, owner),
+                        ))
+                    }
                     Some(_) => {
                         self.report_interface_obligation(
                             &mut reported_obligations,
@@ -139,10 +146,10 @@ impl Lowerer {
                         InterfaceDefaultSelection::Default(default) => {
                             self.conformance_target(&default, span)
                         }
-                        InterfaceDefaultSelection::Obligation if abstract_class => {
-                            self.abstract_conformance_target(&member, span)
+                        InterfaceDefaultSelection::Obligation(declaration) if abstract_class => {
+                            self.conformance_target(&declaration, span)
                         }
-                        InterfaceDefaultSelection::Obligation => {
+                        InterfaceDefaultSelection::Obligation(_) => {
                             self.report_interface_obligation(
                                 &mut reported_obligations,
                                 &member,
@@ -198,16 +205,6 @@ impl Lowerer {
         }
     }
 
-    fn abstract_conformance_target(
-        &mut self,
-        member: &InterfaceMemberInstance,
-        span: ast::Span,
-    ) -> Option<hir::InterfaceImplementationTarget> {
-        let mut abstract_member = member.clone();
-        abstract_member.implementation = hir::InterfaceMemberImplementation::AbstractSlot;
-        self.conformance_target(&abstract_member, span)
-    }
-
     fn report_interface_obligation(
         &mut self,
         reported: &mut HashSet<(String, Vec<TypeId>, TypeId, bool)>,
@@ -257,6 +254,7 @@ impl Lowerer {
             }
         }
         let mut defaults = Vec::new();
+        let mut obligations = Vec::new();
         for candidate in &candidates {
             let overridden = candidates.iter().any(|other| {
                 if self.types_equal(other.owner, candidate.owner) {
@@ -268,12 +266,22 @@ impl Lowerer {
                     .into_iter()
                     .any(|ty| self.types_equal(ty, candidate.owner))
             });
-            if !overridden && candidate.implementation == hir::InterfaceMemberImplementation::Body {
-                defaults.push(candidate.clone());
+            if !overridden {
+                match candidate.implementation {
+                    hir::InterfaceMemberImplementation::Body => defaults.push(candidate.clone()),
+                    hir::InterfaceMemberImplementation::AbstractSlot => {
+                        obligations.push(candidate.clone())
+                    }
+                }
             }
         }
         match defaults.len() {
-            0 => InterfaceDefaultSelection::Obligation,
+            0 => InterfaceDefaultSelection::Obligation(
+                obligations
+                    .into_iter()
+                    .next()
+                    .expect("an unresolved interface member has a maximal abstract declaration"),
+            ),
             1 => InterfaceDefaultSelection::Default(defaults.pop().expect("one default")),
             _ => InterfaceDefaultSelection::Conflict(defaults),
         }

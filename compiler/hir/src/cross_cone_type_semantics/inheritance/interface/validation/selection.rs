@@ -6,7 +6,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 impl WireEncode for InheritanceSourceSlotSelectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let (tag, declaration) = match self {
-            Self::Abstract => return codec::tag(encoder, 1, 1),
+            Self::Abstract(declaration) => (4, declaration),
             Self::Concrete(declaration) => (2, declaration),
             Self::InterfaceDefault(declaration) => (3, declaration),
         };
@@ -18,7 +18,7 @@ impl WireEncode for InheritanceSourceSlotSelectionV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DecodedInheritanceSourceSlotSelectionV1 {
-    Abstract,
+    Abstract(DecodedInheritanceCallableDeclarationV1),
     Concrete(DecodedInheritanceCallableDeclarationV1),
     InterfaceDefault(DecodedInheritanceCallableDeclarationV1),
 }
@@ -26,7 +26,7 @@ pub enum DecodedInheritanceSourceSlotSelectionV1 {
 impl WireEncode for DecodedInheritanceSourceSlotSelectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let (tag, declaration) = match self {
-            Self::Abstract => return codec::tag(encoder, 1, 1),
+            Self::Abstract(declaration) => (4, declaration),
             Self::Concrete(declaration) => (2, declaration),
             Self::InterfaceDefault(declaration) => (3, declaration),
         };
@@ -40,18 +40,16 @@ impl WireDecode for DecodedInheritanceSourceSlotSelectionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
-            1 => {
-                codec::expect_fields(decoder, fields, 1)?;
-                Ok(Self::Abstract)
-            }
-            tag @ (2 | 3) => {
+            tag @ 2..=4 => {
                 codec::expect_fields(decoder, fields, 2)?;
                 let declaration =
                     decoder.field(1, DecodedInheritanceCallableDeclarationV1::decode)?;
                 Ok(if tag == 2 {
                     Self::Concrete(declaration)
-                } else {
+                } else if tag == 3 {
                     Self::InterfaceDefault(declaration)
+                } else {
+                    Self::Abstract(declaration)
                 })
             }
             tag => Err(codec::error(decoder, WireErrorKind::UnknownTag { tag })),

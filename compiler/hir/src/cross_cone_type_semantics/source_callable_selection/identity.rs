@@ -1,7 +1,5 @@
 use super::*;
-use scoop_identity::{
-    ExactTypeKey, PersistentExactTypeId, PropertyAccessorKey, PropertyOwner, SourceDeclarationKey,
-};
+use scoop_identity::{PropertyAccessorKey, PropertyOwner, SourceDeclarationKey};
 
 pub(super) fn is_local(
     provider: ConeIdentity,
@@ -44,21 +42,5 @@ impl Selection<'_, '_> {
             self.properties.insert(id);
         }
         Ok(())
-    }
-
-    pub(super) fn materialized_owner(
-        &mut self,
-        source: &CallableDeclarationRecordV1,
-        types: &CrossConeTypeSemanticsSectionV1,
-    ) -> Result<bool, Error> {
-        let Some(crate::SourceNominalId::Concrete(owner)) = source.owner().nominal_owner() else {
-            return Ok(false);
-        };
-        let key = ExactTypeKey::Nominal(owner);
-
-        let exact =
-            PersistentExactTypeId::from_key(&key).map_err(|error| Error::Key(error.to_string()))?;
-
-        Ok(types.inheritance().get(exact).is_some())
     }
 }

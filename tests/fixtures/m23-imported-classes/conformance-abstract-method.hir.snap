@@ -1,0 +1,28 @@
+Module
+  abstract class LocalBase() : Readable
+  class LocalReader()
+  fun localReader(): LocalBase
+    return
+      ReferenceUpcast : LocalBase
+        ClassInit LocalReader : LocalReader
+  fun primary(): Counter
+    val local0
+      ReferenceUpcast : Readable
+        Call localReader : LocalBase
+    val local1
+      Local $dependency.argument.0 : Readable
+    val local2
+      ImportedDependencyCall #1 : Readable
+        Local $dependency.parameter.value : Readable
+    val local3
+      IntegerLiteral 1 : Long
+    val local4
+      ImportedDependencyCall #0 interface[1] : Long
+        Local $dependency.receiver : Readable
+        Local $dependency.parameter.extra : Long
+    val local5
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

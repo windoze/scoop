@@ -41,7 +41,11 @@ fn inheritance_record_requires_the_complete_slot_schema_union() {
     let owner = fixture.add("Owner", SourceNominalKind::Class);
     let slot = fixture.method(owner, "call", vec![]);
     fixture.schema(owner, &[slot]);
-    let contract = fixture.contract(owner, slot, InheritanceSlotImplementationV1::Abstract);
+    let contract = fixture.contract(
+        owner,
+        slot,
+        InheritanceSlotImplementationV1::Abstract(fixture.abstract_target(owner, slot)),
+    );
     let schemas = fixture.schemas[&owner.exact].clone();
     for (contracts, schemas) in [
         (vec![], schemas),

@@ -112,9 +112,6 @@ impl Projection<'_> {
                     .iter()
                     .find(|method| method.slot.id() == slot)
                     .ok_or_else(|| invalid("imported interface has no referenced slot"))?;
-                if method.declaration.modality() == CallableModalityV1::Abstract {
-                    return Ok(Selection::Abstract);
-                }
                 let target = match method.declaration.declaration() {
                     scoop_identity::CallableTemplateOrigin::Function(id) => {
                         InheritanceCallableDeclarationV1::Function(id)
@@ -132,7 +129,13 @@ impl Projection<'_> {
                     }
                     _ => return Err(invalid("interface member has no callable declaration")),
                 };
-                return Ok(Selection::InterfaceDefault(target));
+                return Ok(
+                    if method.declaration.modality() == CallableModalityV1::Abstract {
+                        Selection::Abstract(target)
+                    } else {
+                        Selection::InterfaceDefault(target)
+                    },
+                );
             }
         };
         let declaration = &self.export.interface_methods[member];
@@ -140,7 +143,9 @@ impl Projection<'_> {
             InterfaceMemberImplementation::Body => Ok(Selection::InterfaceDefault(
                 self.callable(declaration.function)?,
             )),
-            InterfaceMemberImplementation::AbstractSlot => Ok(Selection::Abstract),
+            InterfaceMemberImplementation::AbstractSlot => {
+                Ok(Selection::Abstract(self.callable(declaration.function)?))
+            }
         }
     }
 

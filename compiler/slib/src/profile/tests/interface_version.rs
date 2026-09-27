@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v29_requires_complete_object_declarations() {
+fn source_interface_v30_requires_actual_abstract_dispatch_targets() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        29,
+        30,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
@@ -13,10 +13,10 @@ fn source_interface_v29_requires_complete_object_declarations() {
 }
 
 #[test]
-fn type_semantics_v7_rejects_retired_duplicate_declaration_tables() {
+fn type_semantics_v8_requires_actual_abstract_slot_targets() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        7,
+        8,
         &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG],
     );
 }

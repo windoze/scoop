@@ -19,9 +19,7 @@ where
             .dispatch_selections()
             .records()
         {
-            let Some(target) = record.callable_target() else {
-                continue;
-            };
+            let target = record.callable_target();
             accumulator.observe(
                 ExternalHirTargetV1::Callable(target),
                 ExternalHirReferenceRoleV1::InheritanceDependency,

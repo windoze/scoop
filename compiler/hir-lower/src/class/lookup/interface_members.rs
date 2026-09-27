@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn collect_selected_interface_defaults(
+    pub(super) fn collect_selected_interface_members(
         &mut self,
         receiver: TypeId,
         out: &mut Vec<(crate::CallableCandidate, usize, usize)>,
@@ -40,8 +40,11 @@ impl Lowerer {
             .into_iter()
             .flat_map(|implementation| implementation.methods)
         {
-            let hir::InterfaceImplementationTarget::Method(application) = method.target else {
-                continue;
+            let application = match method.target {
+                hir::InterfaceImplementationTarget::Method(application)
+                | hir::InterfaceImplementationTarget::Abstract(application) => application,
+                hir::InterfaceImplementationTarget::Imported(_)
+                | hir::InterfaceImplementationTarget::ImportedAbstract(_) => continue,
             };
             let application = self.method_applications[application].clone();
             let hir::MethodOwnerApplication::Interface(owner) = application.owner else {
@@ -50,7 +53,7 @@ impl Lowerer {
             let owner = self.interface_applications[owner].canonical_type;
             let owner = self.instantiate_ty(owner, &arguments);
             let Type::Interface(owner) = self.types[owner] else {
-                unreachable!("a local default retains its actual interface application");
+                unreachable!("a selected interface member retains its actual application");
             };
             let candidate = crate::CallableCandidate::method(
                 application.function,

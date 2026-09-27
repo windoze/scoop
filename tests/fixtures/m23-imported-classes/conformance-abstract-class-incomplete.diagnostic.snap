@@ -1,0 +1,3 @@
+span=157..218
+expression=public class LocalReader public constructor(): LocalBase() {}
+class `LocalReader` leaves interface method `FirstChoice.choose` abstract

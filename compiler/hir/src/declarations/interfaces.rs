@@ -90,10 +90,8 @@ pub enum InterfaceImplementationTarget {
     Method(MethodApplicationId),
     Imported(ImportedDependencyCallableUseId),
     ImportedAbstract(ImportedDependencyCallableUseId),
-    /// An abstract class may promise an interface while leaving a member for
-    /// a concrete subclass. Calls through such a specialization use the
-    /// interface application directly instead of guessing a class member.
-    Subclass,
+    /// The actual abstract declaration retained for a derived implementation.
+    Abstract(MethodApplicationId),
 }
 
 /// Convenience signature record used by tests and by the fully concrete

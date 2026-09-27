@@ -1,6 +1,6 @@
 use super::*;
 
-mod defaults;
+mod interface_members;
 
 impl Lowerer {
     /// All visible methods named `name` on a receiver type (M7 overload
@@ -190,7 +190,7 @@ impl Lowerer {
             _ => {}
         }
 
-        self.collect_selected_interface_defaults(ty, &mut declared);
+        self.collect_selected_interface_members(ty, &mut declared);
         declared
     }
 

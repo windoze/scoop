@@ -149,7 +149,7 @@ impl Concretizer<'_> {
                     self.lower_method_application(*application, owner_arguments),
                     None,
                 ),
-                export::InterfaceImplementationTarget::Subclass
+                export::InterfaceImplementationTarget::Abstract(_)
                 | export::InterfaceImplementationTarget::Imported(_)
                 | export::InterfaceImplementationTarget::ImportedAbstract(_) => {
                     let function = self.source.interface_methods[member].function;

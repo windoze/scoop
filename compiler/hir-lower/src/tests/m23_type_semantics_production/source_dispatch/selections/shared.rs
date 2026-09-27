@@ -44,7 +44,9 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
                     .iter()
                     .map(|record| {
                         let selection = match record.implementation() {
-                            hir::InheritanceSlotImplementationV1::Abstract => Selection::Abstract,
+                            hir::InheritanceSlotImplementationV1::Abstract(target) => {
+                                Selection::Abstract(target.declaration())
+                            }
                             hir::InheritanceSlotImplementationV1::Concrete(target) => {
                                 Selection::Concrete(target.declaration())
                             }
@@ -114,7 +116,7 @@ fn shared_generic_choices_keep_source_identity_without_materializing_exact_types
             assert!(!choices.records().is_empty());
             for record in choices.records() {
                 let choice = match record.selection() {
-                    Selection::Abstract => "abstract".into(),
+                    Selection::Abstract(id) => format!("abstract {}", callables[&id]),
                     Selection::Concrete(id) => format!("concrete {}", callables[&id]),
                     Selection::InterfaceDefault(id) => format!("default {}", callables[&id]),
                 };

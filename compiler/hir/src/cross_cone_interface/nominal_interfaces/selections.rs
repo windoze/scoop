@@ -32,18 +32,14 @@ impl NominalDispatchSelectionV1 {
         self.selection
     }
 
-    pub fn callable_target(&self) -> Option<scoop_identity::CallableTemplateOrigin> {
+    pub fn callable_target(&self) -> scoop_identity::CallableTemplateOrigin {
         use crate::InheritanceCallableDeclarationV1 as Declaration;
         use scoop_identity::CallableTemplateOrigin as Target;
-        let declaration = match self.selection {
-            InheritanceSourceSlotSelectionV1::Abstract => return None,
-            InheritanceSourceSlotSelectionV1::Concrete(declaration)
-            | InheritanceSourceSlotSelectionV1::InterfaceDefault(declaration) => declaration,
-        };
-        Some(match declaration {
+        let declaration = self.selection.declaration();
+        match declaration {
             Declaration::Function(id) => Target::Function(id),
             Declaration::Getter(id) | Declaration::Setter(id) => Target::Accessor(id),
-        })
+        }
     }
 }
 

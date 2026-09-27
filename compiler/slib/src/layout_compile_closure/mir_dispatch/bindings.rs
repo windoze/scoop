@@ -35,7 +35,7 @@ fn exact_signature(
     ))
 }
 
-impl Replay<'_, '_> {
+impl Replay<'_> {
     pub(super) fn binding(
         &self,
         target: StrongCallableDefinitionOwner,

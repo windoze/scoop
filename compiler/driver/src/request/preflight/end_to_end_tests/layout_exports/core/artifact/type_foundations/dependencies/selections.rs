@@ -32,8 +32,6 @@ pub(super) fn check(
 
         checked.with_inheritance_graph(&[core], |_| ()).unwrap();
 
-        checked.with_inheritance_graph(&[core], |_| ()).unwrap();
-
         claims::check(checked, core);
         shared::check(checked, core);
         let dump = snapshot::render(checked);

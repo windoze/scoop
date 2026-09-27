@@ -24,9 +24,7 @@ impl CrossConeHirInterfaceSectionV1 {
                 .dispatch_selections()
                 .records()
             {
-                let Some(target) = choice.callable_target() else {
-                    continue;
-                };
+                let target = choice.callable_target();
                 let target = ExternalHirTargetV1::Callable(target);
                 let expected = authority
                     .external_hir_target_origin(target)
