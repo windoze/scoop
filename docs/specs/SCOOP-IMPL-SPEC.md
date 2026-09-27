@@ -1053,6 +1053,14 @@ generic delegated extension 的 binder 只从 receiver 静态类型求得。sour
 
 声明类型位置中的泛型函数 root 使用原 `CallableMaterialization` 和真实 application。reader 核对 application 指向同一 typed 泛型声明，再从本地或可达 provider 的原声明检查 receiver、参数下标和 result 位置；局部值仍属于当前 materialization，其源码位置保留模板来源。该位置检查不另建替换后的签名，实际 exact 类型及 MIR/LIR 对接继续使用共有的 application 和签名检查。
 
+HIR 的实际泛型调用通过原 application 关联消费方 MIR foundation 中已经物化的 ODR callable-body 签名，不要求 provider 的 Strong selected/export 表重复提供这份实例。每次调用都核对完整逻辑 receiver、参数和 result，Unit 参数不能被物理 ABI 的消除规则省略；调用所属 root 必须对应当前 MIR 的真实 Strong 或 application 定义。reader 从已验证的 member key 建立本次调用对接需要的 application 索引，不重新构造实例、重放 provider 类型检查或新增 wire 表。
+
+实际调用签名中的 exact type 按其原声明所属 Cone 收集外部类型用途。泛型替换带入的消费方本地类型不属于外部依赖，也不因此要求普通函数体私有类型进入共有声明表；复合签名中的外来类型仍完整收集。当前共有名义类型的表示闭包及本地字段、局部值等实际外部类型位置继续按原有入口处理。
+
+MIR/LIR 的外部 callable 依赖闭包只从实际直接调用或普通取址引用加入 provider 的 Strong 定义；仅含 application 调用的同一 HIR 引用使用前述已检查的消费方实例。模板正文实际引用的外部类型、布局、普通函数和初始化依赖仍按原有完整闭包处理，不因实例在本地产生而省略。
+
+普通 Strong shape 引用目录从依赖的完整注册集合中选择 Strong callable 子集。ODR callable 继续由其实际 member、正文和注册表核对，不加入这个仅服务 Strong 引用的目录，也不能仅因依赖包含 ODR callable 而拒绝整份产物。
+
 profile 的 required inventory 随实际 section 生产分步迁移，具体当前及最终版本见阶段设计第 10 节。第一条泛型函数闭环使用现有 HIR interface `/32` 等完整 section，启用 `cone-production/1` 和对象 verifier `/3`；构造与委托等后续 payload 落地时再升级其 section 和 descriptor fingerprint，不填充假空表或增加临时 profile。LIR identity-foundation `/2` 已退役旧 group digest owner，M24 的 LIR foundation 版本相应顺延为 `/3`。三层 outer schema、callable-body-v1、persistent identity schema、mangler 与实际 runtime C ABI 保持；旧 layout-strong 产物及缓存需重建，旧 profile 不能承载 ODR，也不保留第二条 layout 生产管线。增量格式迁移不缩减本阶段完成门。
 
 完成门包含真实源码生产 `.slib`、移走 provider 源码后的下游编译、重复成员一致性与合法成员并集、现有单 image 测试入口的实际链接运行、地址合并、委托初始化和移动 GC。M23-8 承接生产多 image 登记，M23-9 承接正式 artifact-only program-link，M23-10 承接一般 native provider 解析；本节不提前建立这些入口或来源凭证。

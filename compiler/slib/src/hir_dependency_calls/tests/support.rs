@@ -3,11 +3,12 @@ use scoop_hir::{
     DependencyBindingWitnessV1, ExternalHirReferenceV1, ReexportRouteHopV1, ReexportRouteV1,
 };
 use scoop_identity::{
-    BindingTarget, CallableMaterialization, CanonicalIdentifier, ConcreteExpressionOrigin,
-    ConeCoordinate, ConeIdentity, CoreBuiltinNominal, DeclarationScope, DefinitionOrigin,
-    DefinitionOwnerChain, EvaluationOrigin, ExactTypeKey, ExportBindingKey, NormalizedSourcePath,
-    PackagePath, PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
-    SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceSpan,
+    BindingTarget, CallableMaterialization, CallableMaterializationContext, CallableOwner,
+    CallableTemplateOwner, CanonicalIdentifier, ConcreteExpressionOrigin, ConeCoordinate,
+    ConeIdentity, CoreBuiltinNominal, DeclarationScope, DefinitionOrigin, DefinitionOwnerChain,
+    EvaluationOrigin, ExactTypeKey, ExportBindingKey, NormalizedSourcePath, PackagePath,
+    PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId, SourceContextKey,
+    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceSpan,
     StrongCallableDefinitionOwner,
 };
 use scoop_mir::{
@@ -16,6 +17,8 @@ use scoop_mir::{
 };
 
 use super::*;
+
+mod applications;
 
 pub(super) struct Fixture {
     current: ConeIdentity,

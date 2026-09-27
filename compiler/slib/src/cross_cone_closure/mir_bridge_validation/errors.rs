@@ -2,7 +2,8 @@ use std::fmt;
 
 use scoop_hir::ExternalHirTargetV1;
 use scoop_identity::{
-    ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
+    ConeIdentity, DependencyCallableDeclarationId, IdentityReferenceError,
+    PersistentCallableApplicationId, StrongCallableDefinitionOwner,
 };
 
 use crate::CrossConeMirFrontValidationError;
@@ -63,7 +64,15 @@ pub enum CrossConeMirClosureRelationError {
     CallSignature {
         position: Box<scoop_hir::concrete::ExecutableExpressionPosition>,
         provider: ConeIdentity,
-        target: StrongCallableDefinitionOwner,
+        target: ExternalHirTargetV1,
+    },
+    CallIdentity(Box<IdentityReferenceError>),
+    DuplicateMirApplication {
+        application: PersistentCallableApplicationId,
+    },
+    MissingMirApplication {
+        position: Box<scoop_hir::concrete::ExecutableExpressionPosition>,
+        application: PersistentCallableApplicationId,
     },
     NominalClassifier(scoop_hir::NominalExactLeafClassifierBuildError),
     NominalClassification(scoop_hir::NominalCallableClassificationError),
@@ -123,7 +132,7 @@ impl fmt::Display for CrossConeMirClosureRelationError {
         match self {
             Self::CallRoot { position } => write!(
                 formatter,
-                "HIR call {position:?} has no strong MIR executable root"
+                "HIR call {position:?} has no matching MIR executable root"
             ),
             Self::CallSignature {
                 position,
@@ -132,6 +141,18 @@ impl fmt::Display for CrossConeMirClosureRelationError {
             } => write!(
                 formatter,
                 "HIR call {position:?} disagrees with the logical signature of {provider}:{target:?}"
+            ),
+            Self::CallIdentity(source) => source.fmt(formatter),
+            Self::DuplicateMirApplication { application } => write!(
+                formatter,
+                "MIR has multiple callable bodies for application {application}"
+            ),
+            Self::MissingMirApplication {
+                position,
+                application,
+            } => write!(
+                formatter,
+                "HIR call {position:?} has no matching MIR body for application {application}"
             ),
             Self::NominalClassifier(source) => source.fmt(formatter),
             Self::NominalClassification(source) => source.fmt(formatter),

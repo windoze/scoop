@@ -105,6 +105,8 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                     parts.mir_core.strong_callable_bridges(),
                     parts.mir_ordinary,
                     Some((&mir, &dependencies)),
+                    parts.mir_foundation,
+                    parts.identities,
                 )
                 .map_err(|source| SharedMirDependencyGraphError::CallSites(Box::new(source)))?;
                 replay_shared_mir_dependency_graph(

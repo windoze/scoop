@@ -86,7 +86,7 @@ pub fn replay_shared_lir_dependency_graph(
         {
             continue;
         }
-        let target = crate::hir_dependency_calls::concrete_callable(reference.target())
+        let target = crate::hir_dependency_calls::direct_callable(reference)
             .map_err(|source| Error::CallableReferences(Box::new(source)))?;
         let Some(target) = target else {
             continue;

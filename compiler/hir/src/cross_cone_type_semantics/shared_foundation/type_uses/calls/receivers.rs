@@ -32,7 +32,13 @@ impl Graph<'_> {
             let SourceNominalId::Concrete(owner) = owner else {
                 return Err(Error::NonConcreteSignature);
             };
-            self.select(owner, Kind::Signature)?;
+            let declaration = self
+                .current
+                .identities
+                .canonical_key::<_, SourceDeclarationKey>(owner)?;
+            if declaration.origin() != self.current.provider {
+                self.select(owner, Kind::Signature)?;
+            }
         }
         Ok(())
     }

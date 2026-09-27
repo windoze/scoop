@@ -62,7 +62,8 @@ pub(super) fn definitions(
                     // Gateways are unit-owned entries, not ordinary dispatch targets.
                     continue;
                 }
-                CallableBodyKeyKind::Odr(_) | CallableBodyKeyKind::RootGateway { .. } => {
+                CallableBodyKeyKind::Odr(_) => continue,
+                CallableBodyKeyKind::RootGateway { .. } => {
                     return Err(Error::CallableBody(callable.body()));
                 }
             };

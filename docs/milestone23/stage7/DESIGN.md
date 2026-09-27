@@ -354,6 +354,10 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 
 泛型函数的声明类型位置使用实际 application；核对其原声明与 root 一致，再按原签名检查 receiver、参数下标和 result 位置。局部值保留当前 materialization 与原模板源码位置，完全替换后的类型关系由已有 application、签名及 MIR/LIR 对接检查。
 
+HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方已有的 ODR callable-body 签名；普通直接调用继续关联真实外部 Strong 定义。完整逻辑参数、receiver、result 及当前 root 的存在性逐次核对，不向 provider 的 Strong 表索取消费方实例，也不新增实例或签名 wire 表。
+
+调用签名的外部类型用途按 exact type 的真实声明归属收集；消费方本地类型可作为泛型实参，普通函数体中的私有类型不因此进入共有声明表。复合签名中的外来类型、当前共有类型的表示闭包及实际字段和局部值中的外部类型依赖继续完整保留。
+
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |

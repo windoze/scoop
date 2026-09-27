@@ -218,14 +218,24 @@
 
 本项完成泛型消费产物的这两处 HIR 读取缺口。继续沿同一发布、消费和运行回归接通 MIR 中已有的 ODR 定义，M23-7 尚未完成。
 
+## 2026-09-28：泛型函数产物贯通下游发布、链接与移动 GC
+
+- HIR→MIR 调用对接从当前 canonical MIR 的真实 ODR callable-body 签名建立 application 索引，按原 typed 模板匹配每次调用及其 root，检查完整 receiver、逻辑参数和 result。普通直接调用仍使用已有 Strong 定义；Unit 参数不能因物理 ABI 消除而从逻辑签名中缺失。
+- MIR/LIR 外部依赖闭包按实际 call site 区分 provider 的直接 Strong 调用和消费方已有的泛型实例。普通 Strong shape 目录只选择完整注册集合中的 Strong 子集，ODR body 与 registration 继续沿原有完整 member 检查，不再因依赖包含 ODR 而拒绝整份产物。
+- 实际泛型调用的类型用途按 exact type 原声明的 Cone 归属收集；消费方普通函数体内的私有类型不再被误要求出现在共有名义声明表。复合签名中的外来类型及既有共享表示、字段和局部值的依赖闭包保持。
+- 真实三 Cone 回归全部通过：发布 provider 后移走源码，消费方沿正式入口发布，再移走消费方源码，最后仅用 `.slib` 编译和发布下游。独立案例以本地 class 引用穿过泛型调用并跨两次分配保持存活；组合案例覆盖消费方本地 struct、泛型转调、异常恢复和默认参数。两例都通过完整 artifact reader、真实对象链接、正常运行和 `SCOOP_GC_STRESS_MOVE=1` 运行；压力运行还断言实际发生 GC，六份既有 HIR/MIR/LIR golden 保持。
+- `cargo fmt --all` 与 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，lint 无警告。887项 HIR 测试、4项调用对接测试、12项 layout reader 测试、39项跨 Cone 闭包测试及1项上述真实发布运行测试通过，共943项，无失败或忽略。此前单独运行的26项类型用途测试包含在887项 HIR 测试中，不重复计数。
+- profile descriptor/fingerprint 固定向量和受 profile 迁移影响的产物 golden 尚待同步，本批未执行全工作区测试。确认构建、测试和编译器进程全部结束后执行 `cargo clean`，删除2726个构建文件，回收5.2 GiB。
+
+本项完成公共泛型函数和消费方本地值/引用类型的首条真实产物运行闭环。构造和委托模板、其他物理角色、跨产物重复成员合并及全部功能组合仍按原阶段验收继续实施，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要、跨产物成员合并与正式 profile。
-2. public generic function 经真实 provider `.slib`、消费方具体化、MIR/LIR、对象与单 image 运行形成闭环，包含 consumer-local struct。
-3. 支持 hidden helper、默认值与 vararg、宿主和方法两组 binder、bound dispatch、局部函数及 capture。
-4. 完成泛型名义类型、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与扫描。
-5. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
-6. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
-7. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
+2. 在已通过的泛型函数产物闭环上补齐 hidden helper、默认值与 vararg、宿主和方法两组 binder、bound dispatch、局部函数及 capture 的完整组合。
+3. 完成泛型名义类型、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与扫描。
+4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
+5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
+6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

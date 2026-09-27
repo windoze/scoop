@@ -1,17 +1,22 @@
 //! HIR call occurrences joined once to the actual MIR dependency definitions.
 
-use scoop_hir::{CrossConeHirInterfaceSectionV1, ExternalHirReferenceRoleV1, ExternalHirTargetV1};
+use scoop_hir::{
+    CrossConeHirInterfaceSectionV1, ExternalHirReferenceRoleV1, ExternalHirReferenceV1,
+    ExternalHirTargetV1, HirDependencyCallInstantiationV1,
+};
 use scoop_identity::{
-    CallableMaterializationContext, CallableOwner, CallableTemplateOrigin, CallableTemplateOwner,
-    DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
+    CallableTemplateOrigin, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
+    ValidatedIdentityGraph,
 };
 use scoop_mir::{
-    CrossConeMirBridgeSectionV1, DependencyResolvedCrossConeMirTypeBridgeSectionV1,
-    MirTypeBridgeDependencyV1, MirTypeBridgeDependencyViewV1, MirTypeBridgeTargetV1,
-    StrongCallableBridgeSurfaceV1,
+    CanonicalMirFoundation, CrossConeMirBridgeSectionV1,
+    DependencyResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeDependencyV1,
+    MirTypeBridgeDependencyViewV1, MirTypeBridgeTargetV1, StrongCallableBridgeSurfaceV1,
 };
 
 use crate::CrossConeMirClosureRelationError;
+
+mod applications;
 
 #[cfg(test)]
 mod tests;
@@ -24,8 +29,11 @@ pub(crate) fn validate_executable_hir_calls(
         &DependencyResolvedCrossConeMirTypeBridgeSectionV1,
         &[MirTypeBridgeDependencyViewV1<'_>],
     )>,
+    foundation: &CanonicalMirFoundation,
+    identities: &ValidatedIdentityGraph,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     use CrossConeMirClosureRelationError as Error;
+    let applications = applications::signatures(foundation, identities)?;
     for record in bridge.selected() {
         let Some(reference) = interface
             .external_references()
@@ -48,55 +56,65 @@ pub(crate) fn validate_executable_hir_calls(
         {
             continue;
         }
-        let Some(target) = concrete_callable(reference.target())? else {
+        if !matches!(
+            reference.target(),
+            ExternalHirTargetV1::Callable(_) | ExternalHirTargetV1::GeneratedCallable(_)
+        ) {
             continue;
-        };
+        }
         let provider = reference.origin();
-        let signature = if let Some(direct) = bridge
-            .selected()
-            .iter()
-            .find(|record| record.provider() == provider && record.implementation() == target)
-        {
-            direct.signature()
+        let sites = reference.call_sites().records();
+        let direct_signature = if let Some(target) = direct_callable(reference)? {
+            Some(
+                if let Some(direct) = bridge.selected().iter().find(|record| {
+                    record.provider() == provider && record.implementation() == target
+                }) {
+                    direct.signature()
+                } else {
+                    let definition = lowered
+                        .and_then(|(selected, dependencies)| {
+                            let relation = MirTypeBridgeDependencyV1::new(
+                                provider,
+                                MirTypeBridgeTargetV1::Callable(target),
+                            );
+                            selected
+                                .selected_relations()
+                                .binary_search(&relation)
+                                .ok()?;
+                            dependencies
+                                .iter()
+                                .find(|view| view.provider() == provider)?
+                                .exports()
+                                .callables()
+                                .get(target)
+                        })
+                        .ok_or(Error::MissingMirSelection { provider, target })?;
+                    definition.semantic_signature().exact()
+                },
+            )
         } else {
-            let definition = lowered
-                .and_then(|(selected, dependencies)| {
-                    let relation = MirTypeBridgeDependencyV1::new(
-                        provider,
-                        MirTypeBridgeTargetV1::Callable(target),
-                    );
-                    selected
-                        .selected_relations()
-                        .binary_search(&relation)
-                        .ok()?;
-                    dependencies
-                        .iter()
-                        .find(|view| view.provider() == provider)?
-                        .exports()
-                        .callables()
-                        .get(target)
-                })
-                .ok_or(Error::MissingMirSelection { provider, target })?;
-            definition.semantic_signature().exact()
+            None
         };
-        for site in reference.call_sites().records() {
+        for site in sites {
             let position = site.position();
-            if position.root.context() != CallableMaterializationContext::NoSubstitution {
-                return Err(Error::CallRoot { position });
-            }
-            let owner = match position.root.template() {
-                CallableTemplateOwner::Function(id) => CallableOwner::Function(id),
-                CallableTemplateOwner::Constructor(id) => CallableOwner::Constructor(id),
-                CallableTemplateOwner::Accessor(id) => CallableOwner::Accessor(id),
-                CallableTemplateOwner::Generated(id) => CallableOwner::Generated(id),
-                CallableTemplateOwner::GenericFunction(_)
-                | CallableTemplateOwner::VariantConstructor(_) => {
-                    return Err(Error::CallRoot { position });
+            applications::validate_root(position, strong, &applications)?;
+            let signature = match site.instantiation() {
+                HirDependencyCallInstantiationV1::Direct => {
+                    direct_signature.ok_or(Error::UnmaterializedHirSelection {
+                        target: reference.target(),
+                    })?
                 }
+                HirDependencyCallInstantiationV1::Application(application) => applications
+                    .get(&application)
+                    .filter(|entry| {
+                        reference.target() == ExternalHirTargetV1::Callable(entry.origin)
+                    })
+                    .map(|entry| entry.signature)
+                    .ok_or_else(|| Error::MissingMirApplication {
+                        position: Box::new(position),
+                        application,
+                    })?,
             };
-            if strong.get(owner).is_none() {
-                return Err(Error::CallRoot { position });
-            }
             let arguments = signature
                 .receiver()
                 .into_option()
@@ -108,7 +126,7 @@ pub(crate) fn validate_executable_hir_calls(
                 return Err(Error::CallSignature {
                     position: Box::new(position),
                     provider,
-                    target,
+                    target: reference.target(),
                 });
             }
         }
@@ -116,7 +134,24 @@ pub(crate) fn validate_executable_hir_calls(
     Ok(())
 }
 
-pub(crate) fn concrete_callable(
+pub(crate) fn direct_callable(
+    reference: &ExternalHirReferenceV1,
+) -> Result<Option<StrongCallableDefinitionOwner>, CrossConeMirClosureRelationError> {
+    let sites = reference.call_sites().records();
+    if !sites.is_empty()
+        && sites.iter().all(|site| {
+            matches!(
+                site.instantiation(),
+                HirDependencyCallInstantiationV1::Application(_)
+            )
+        })
+    {
+        return Ok(None);
+    }
+    concrete_callable(reference.target())
+}
+
+fn concrete_callable(
     target: ExternalHirTargetV1,
 ) -> Result<Option<StrongCallableDefinitionOwner>, CrossConeMirClosureRelationError> {
     Ok(match target {

@@ -107,7 +107,7 @@ impl CanonicalMirFoundation {
         }
     }
 
-    pub(crate) fn callable_signatures(&self) -> &[CallableSignatureRecord] {
+    pub fn callable_signatures(&self) -> &[CallableSignatureRecord] {
         &self.callable_signatures
     }
 
