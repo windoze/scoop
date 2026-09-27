@@ -34,11 +34,17 @@ pub fn validate_shared_mir_source_callables(
         metadata.identities,
     )?;
     let classifier = hir::NominalExactLeafClassifierV1::try_from_nominal_interfaces(
-        metadata.public.nominal_interfaces().records().iter().chain(
-            dependencies
-                .iter()
-                .flat_map(|dependency| dependency.metadata().public.nominal_interfaces().records()),
-        ),
+        metadata
+            .public
+            .nominal_interfaces()
+            .all_records()
+            .chain(dependencies.iter().flat_map(|dependency| {
+                dependency
+                    .metadata()
+                    .public
+                    .nominal_interfaces()
+                    .all_records()
+            })),
     )
     .map_err(Error::Classifier)?;
     let mut ordinary_expected = hir::select_ordinary_source_callables(

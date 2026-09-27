@@ -28,7 +28,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             .nominal_interfaces()
             .validate_semantics(&mut authority)
             .map_err(|error| CrossConeHirNominalSurfaceError::NominalInterfaces(Box::new(error)))?;
-        let mut authority = authority.for_source_declarations();
         self.interface
             .nominal_interfaces()
             .validate_support_semantics(&mut authority)
@@ -52,7 +51,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             .map_err(|error| {
                 CrossConeHirPropertySurfaceError::PropertyInterfaces(Box::new(error))
             })?;
-        let mut authority = authority.for_source_declarations();
         self.interface
             .property_interfaces()
             .validate_support_semantics(&mut authority)
@@ -95,7 +93,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             .map_err(|error| {
                 CrossConeHirCallableSurfaceError::CallableInterfaces(Box::new(error))
             })?;
-        let mut authority = authority.for_source_declarations();
         self.interface
             .callable_interfaces()
             .validate_support_semantics(&mut authority)

@@ -105,6 +105,18 @@ impl Lowerer {
                         out.extend(sink);
                         return Some(kind);
                     }
+                    if let Some(property) = self
+                        .resolve_imported_member_property(receiver_ty, name)
+                        .ok()?
+                    {
+                        let receiver = self.lower_current_this(name.span)?;
+                        let mut sink = Vec::new();
+                        let kind = self.assign_imported_member_property(
+                            assign, property, receiver, name, &mut sink,
+                        )?;
+                        out.extend(sink);
+                        return Some(kind);
+                    }
                 }
                 Some(Type::Struct(_)) | Some(Type::Enum(_)) => {
                     let receiver_ty = self.current_this_ty().expect("member receiver type");

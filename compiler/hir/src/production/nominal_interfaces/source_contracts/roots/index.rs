@@ -64,14 +64,6 @@ impl Index {
     }
 }
 
-pub(super) fn source(export: &ExportHir, local: LocalNominalId) -> Result<SourceNominalId, Error> {
-    local
-        .identity(export)
-        .and_then(HirNominalIdentity::source)
-        .map(source_nominal_id)
-        .ok_or_else(|| invalid("public nominal has no source identity"))
-}
-
 fn visibility(export: &ExportHir, local: LocalNominalId) -> DeclaredVisibility {
     match local {
         LocalNominalId::Class(id) => export.classes[id].access.declared,

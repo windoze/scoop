@@ -58,6 +58,7 @@ impl ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
                 static_namespaces: BTreeMap::new(),
                 nominals: BTreeMap::new(),
+                nominal_visibilities: BTreeMap::new(),
                 consumer,
                 callables: BTreeMap::new(),
                 properties: BTreeMap::new(),

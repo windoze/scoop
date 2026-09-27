@@ -1,6 +1,36 @@
 use super::*;
 
 #[test]
+fn inherited_class_access_uses_actual_dependency_declarations() {
+    check_class_cases(
+        "direct",
+        &[
+            "inheritance-access-method",
+            "inheritance-access-property",
+            "inheritance-access-nested",
+            "inheritance-access-values",
+        ],
+        &[],
+    );
+}
+
+#[test]
+fn inherited_class_access_reports_language_errors() {
+    check_class_cases(
+        "direct",
+        &[],
+        &[
+            "inheritance-access-base-receiver",
+            "inheritance-access-sibling-receiver",
+            "inheritance-access-nested-outside",
+            "inheritance-access-nested-exposure",
+            "inheritance-access-setter",
+            "inheritance-access-narrow-override",
+        ],
+    );
+}
+
+#[test]
 fn inherited_classes_compile_and_run_through_actual_artifacts() {
     check_class_cases(
         "direct",

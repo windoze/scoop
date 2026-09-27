@@ -1,0 +1,11 @@
+import dependency.classes.Outer
+import dependency.classes.Counter
+
+public class Derived public constructor(): Outer() {
+    private class Sub public constructor(): Outer.Hidden() {
+        public fun own(): Long = secret()
+    }
+    private fun consume(value: Outer.Hidden): Long = value.read()
+    public fun read(): Long = consume(Outer.Hidden()) + Sub().own() - 21
+}
+public fun primary(): Counter = Counter(Derived().read())

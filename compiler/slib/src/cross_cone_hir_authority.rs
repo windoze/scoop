@@ -78,8 +78,6 @@ pub(crate) struct CanonicalCrossConeHirSurfaceAuthority<'a> {
     current_foundation: &'a OdrFreeHirFoundation,
     current_interface: &'a CrossConeHirInterfaceSectionV1,
     dependencies: Vec<ValidatedNominalProviderView<'a>>,
-
-    include_nominal_support: bool,
 }
 
 impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
@@ -96,14 +94,7 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             current_foundation,
             current_interface,
             dependencies,
-
-            include_nominal_support: false,
         }
-    }
-
-    pub(crate) fn for_source_declarations(mut self) -> Self {
-        self.include_nominal_support = true;
-        self
     }
 
     fn require_current(

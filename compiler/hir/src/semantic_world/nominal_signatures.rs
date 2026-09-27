@@ -13,10 +13,10 @@ impl ImportedSemanticWorld<'_> {
         current: &CanonicalNominalInterfacesV1,
     ) -> Result<NominalExactLeafClassifierV1, NominalExactLeafClassifierBuildError> {
         NominalExactLeafClassifierV1::try_from_nominal_interfaces(
-            current.records().iter().chain(
+            current.all_records().chain(
                 self.providers
                     .iter()
-                    .flat_map(|provider| provider.interface().nominal_interfaces().records()),
+                    .flat_map(|provider| provider.interface().nominal_interfaces().all_records()),
             ),
         )
     }

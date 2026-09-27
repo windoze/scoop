@@ -170,15 +170,7 @@ impl Lowerer {
             .resolve_imported_member_property(receiver_ty, name)
             .ok()?
         {
-            let receiver = self.materialize_place_expr(receiver, "place", name.span, sink);
-            let value = self.lower_expr(&assign.value, sink, Some(property.value_type))?;
-            return self.lower_imported_member_property_write(
-                property,
-                receiver,
-                value,
-                name,
-                assign.span,
-            );
+            return self.assign_imported_member_property(assign, property, receiver, name, sink);
         }
         let resolved = match self.resolve_extension_property_write(receiver, name, sink) {
             crate::properties::ExtensionPropertyResolution::Resolved(property) => property,
@@ -224,6 +216,19 @@ impl Lowerer {
         }
         let value = self.adapt_to(value, property_ty);
         self.lower_extension_property_write(*resolved, value, name.span)
+    }
+
+    fn assign_imported_member_property(
+        &mut self,
+        assign: &ast::Assign,
+        property: crate::expr::ResolvedImportedMemberProperty,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let receiver = self.materialize_place_expr(receiver, "place", name.span, sink);
+        let value = self.lower_expr(&assign.value, sink, Some(property.value_type))?;
+        self.lower_imported_member_property_write(property, receiver, value, name, assign.span)
     }
 
     /// Indexed assignment uses the same typed `operator set` resolver as user

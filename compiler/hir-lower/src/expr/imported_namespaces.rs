@@ -35,7 +35,44 @@ impl Lowerer {
     ) -> Result<Option<TypeId>, ()> {
         let bindings = self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
         match bindings.as_slice() {
-            [] => Ok(None),
+            [] => {
+                let declaration = self
+                    .imported_nominal_declaration(owner)
+                    .and_then(|owner| {
+                        self.dependencies
+                            .as_ref()?
+                            .nested_nominal(owner, &name.text)
+                    })
+                    .cloned();
+                let Some(declaration) = declaration else {
+                    return Ok(None);
+                };
+                if supplied_type_arguments {
+                    self.error(name.span, format!("type `{}` is not generic", name.text));
+                    return Err(());
+                }
+                let ty = self
+                    .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
+                        declaration.identity.id(),
+                    ))
+                    .map_err(|error| {
+                        self.error(
+                            name.span,
+                            format!("invalid dependency nested type: {error:?}"),
+                        )
+                    })?;
+                if !self.nominal_is_accessible(ty) {
+                    self.error(
+                        name.span,
+                        format!(
+                            "type `{}` is not accessible from this source location",
+                            self.type_name(ty)
+                        ),
+                    );
+                    return Err(());
+                }
+                Ok(Some(ty))
+            }
             [binding] => self
                 .resolve_imported_dependency_type_target(binding, name, supplied_type_arguments)
                 .map(Some)
@@ -168,6 +205,16 @@ impl Lowerer {
                 return None;
             }
         }
+        if let Some(index) = self.find_imported_variant(owner, &name.text) {
+            return self.lower_imported_unit_variant(owner, index, name);
+        }
+        if let Some(nested) = self.resolve_imported_nested_type(owner, name, false).ok()?
+            && let Some(value) = self
+                .imported_nominal_declaration(nested)
+                .and_then(|owner| self.imported_object_value(owner))
+        {
+            return self.lower_imported_singleton(value, access.span);
+        }
         if let Some(value) = self
             .imported_nominal_declaration(owner)
             .and_then(|owner| self.imported_object_value(owner))
@@ -213,6 +260,14 @@ impl Lowerer {
             return self.lower_imported_variant_construct(owner, index, name, call, sink, expected);
         }
         let mut bindings = self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
+        if bindings.is_empty()
+            && let Some(nested) = self.resolve_imported_nested_type(owner, name, false).ok()?
+        {
+            let declaration = self
+                .imported_nominal_declaration(nested)
+                .expect("a dependency nested type retains its declaration");
+            return self.lower_imported_nominal_construct(declaration, name, call, sink, expected);
+        }
         if bindings.is_empty()
             && let Some(value) = self
                 .imported_nominal_declaration(owner)

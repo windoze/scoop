@@ -1,0 +1,16 @@
+Module
+  class Derived()
+    field0 property0: Long
+    property0 override var state: Long getter0=body(Derived.$get$state) setter0=body(Derived.$set$state) <stored field0 init=expression> overrides=[imported(AccessParent,69ffe1db6158f3b0139bd8d6781210617981b493e579a4234c53f966e7aabe8c)]
+  fun primary(): Counter
+    val local0
+      ClassInit Derived : Derived
+    val local1
+      MethodCall Derived.read : Long
+        Local $receiver : Derived
+    val local2
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #4 : Counter
+        Local $dependency.parameter.value : Long
+  output library

@@ -76,7 +76,15 @@ Module
     Active()
     Completed()
     Failed()
+  enum CoroutineStep<String>
+    Completed(value: String)
+    Suspended()
+  enum CoroutineSlot<String>
+    Empty()
+    Value(value: String)
   class MyError vtable=0 itables=0
+  generated_exact_type get0 location=enum2 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
+  generated_exact_type get1 location=enum3 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
   fun main @fn0() -> Unit
     bb0 entry
       goto bb8
@@ -142,6 +150,8 @@ Module
   fun init.MyError.$c0 @fn1(this: MyError) -> Unit
     bb0 entry
       return
+  coroutine_step cs0 CoroutineStep<String> result=String
+  coroutine_slot cl0 CoroutineSlot<String> value=String
   output executable @fn0
 ";
     assert_eq!(dump(&module), expected);

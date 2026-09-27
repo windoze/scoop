@@ -2,6 +2,27 @@ use super::*;
 use crate::properties::PropertyCallReceiver;
 
 impl Lowerer {
+    pub(super) fn imported_member_place(
+        &mut self,
+        property: crate::expr::ResolvedImportedMemberProperty,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        span: ast::Span,
+    ) -> Option<ResolvedPlacePlan> {
+        let ty = property.value_type;
+        let read = self.emit_imported_member_property_read(&property, receiver.clone(), span)?;
+        let write = if property.has_setter() {
+            WriteCapability::ImportedMemberProperty {
+                property: Box::new(property),
+                receiver,
+                name: name.clone(),
+            }
+        } else {
+            WriteCapability::ReadOnly
+        };
+        Some(ResolvedPlacePlan { read, write, ty })
+    }
+
     pub(super) fn resolve_imported_property_place(
         &mut self,
         binding: hir::DirectImportedTargetBinding,

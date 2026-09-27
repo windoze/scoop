@@ -119,6 +119,14 @@ impl Lowerer {
             };
             return Some(ResolvedPlacePlan { read, write, ty });
         }
+        if let Some(receiver_ty) = self.current_this_ty()
+            && let Some(property) = self
+                .resolve_imported_member_property(receiver_ty, name)
+                .ok()?
+        {
+            let receiver = self.lower_current_this(name.span)?;
+            return self.imported_member_place(property, receiver, name, name.span);
+        }
         let mut selected_value = None;
         if self.initialization_context.is_none()
             && let Some(receiver) = self.lower_current_this(name.span)

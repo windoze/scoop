@@ -126,14 +126,9 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let owner = self.source_key_owner("property accessor", &property_key)?;
         self.require_current_nominal_owner("property owner", owner)?;
         let properties = self.current_interface.property_interfaces();
-        let property = if self.include_nominal_support {
-            properties.declaration(declaration)
-        } else {
-            properties
-                .get(declaration)
-                .map(scoop_hir::PropertyInterfaceRecordV1::declaration_data)
-        }
-        .ok_or(CrossConeHirNominalAuthorityError::MissingPropertyInterface { declaration })?;
+        let property = properties
+            .declaration(declaration)
+            .ok_or(CrossConeHirNominalAuthorityError::MissingPropertyInterface { declaration })?;
         let parameters = match accessor_key.role() {
             AccessorRole::Getter => Vec::new(),
             AccessorRole::Setter => vec![property.value_type().clone()],
@@ -169,15 +164,12 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         self.require_current("enum variant constructor", declaration_key.origin())?;
         let shape = self.nominal_shape(declaration)?;
         let nominals = self.current_interface.nominal_interfaces();
-        let record = if self.include_nominal_support {
-            nominals.declaration(declaration)
-        } else {
-            nominals.get(declaration)
-        }
-        .ok_or(CrossConeHirNominalAuthorityError::MissingNominalInterface {
-            origin: self.current,
-            declaration,
-        })?;
+        let record = nominals.declaration(declaration).ok_or(
+            CrossConeHirNominalAuthorityError::MissingNominalInterface {
+                origin: self.current,
+                declaration,
+            },
+        )?;
         let NominalSourceShapeV1::Enum(source) = record.source_shape() else {
             return Err(
                 CrossConeHirNominalAuthorityError::NominalSourceShapeNotEnum {

@@ -9,7 +9,7 @@ mod support;
 use support::*;
 
 #[test]
-fn source_support_queries_never_expose_a_dependency_private_nominal() {
+fn signature_queries_resolve_actual_local_and_dependency_declarations() {
     use crate::cross_cone_hir_authority::CanonicalCrossConeHirSurfaceAuthority;
     use scoop_hir::NominalInterfaceShapeAuthority as _;
 
@@ -25,7 +25,7 @@ fn source_support_queries_never_expose_a_dependency_private_nominal() {
     let SourceNominalId::Concrete(hidden) = fixture.hidden.declaration() else {
         panic!("concrete private declaration")
     };
-    for (local, source_scope) in [(true, false), (true, true), (false, false), (false, true)] {
+    for local in [true, false] {
         let (current, foundation, interface, dependencies) = if local {
             (
                 provider.identity(),
@@ -42,27 +42,15 @@ fn source_support_queries_never_expose_a_dependency_private_nominal() {
             )
         };
 
-        let authority = CanonicalCrossConeHirSurfaceAuthority::new(
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             current,
             &identities,
             foundation,
             interface,
             dependencies,
         );
-        let mut authority = if source_scope {
-            authority.for_source_declarations()
-        } else {
-            authority
-        };
         let result = authority.concrete_nominal_shape(hidden);
-        if local && source_scope {
-            assert_eq!(result.unwrap().kind(), PublicNominalKindV1::Class);
-        } else {
-            assert!(
-                matches!(result, Err(CrossConeHirNominalAuthorityError::MissingNominalInterface { origin, declaration })
-                if origin == provider.identity() && declaration == fixture.hidden.declaration())
-            );
-        }
+        assert_eq!(result.unwrap().kind(), PublicNominalKindV1::Class);
     }
 }
 

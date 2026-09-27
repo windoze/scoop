@@ -68,7 +68,10 @@ impl Lowerer {
             .find(|candidate| {
                 self.functions[candidate.function].name.rsplit('.').next() == Some(name)
                     && !self.function_is_accessible(candidate.function, Some(receiver_ty))
-            })?;
+            });
+        let Some(candidate) = candidate else {
+            return self.inaccessible_imported_method_message(receiver_ty, name);
+        };
         let function = &self.functions[candidate.function];
         if function.access.declared == hir::DeclaredVisibility::Protected
             && let Some(base) = function

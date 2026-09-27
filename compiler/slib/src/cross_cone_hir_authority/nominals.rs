@@ -46,17 +46,7 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
         {
             return Ok(PublicNominalShapeV1::new(expected_kind, expected_arity));
         }
-        let record = if self.include_nominal_support && origin == self.current {
-            interface
-                .nominal_interfaces()
-                .declaration(declaration)
-                .ok_or(CrossConeHirNominalAuthorityError::MissingNominalInterface {
-                    origin,
-                    declaration,
-                })?
-        } else {
-            Self::checked_nominal_record(interface, declaration, &key)?
-        };
+        let record = Self::checked_nominal_record(interface, declaration, &key)?;
         Ok(PublicNominalShapeV1::new(
             record.kind(),
             record.type_parameters().len_u32(),
@@ -76,12 +66,13 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
                 }
             })?;
         let expected_arity = key.duplicate_signature().type_parameter_count();
-        let record = interface.nominal_interfaces().get(declaration).ok_or(
-            CrossConeHirNominalAuthorityError::MissingNominalInterface {
+        let record = interface
+            .nominal_interfaces()
+            .declaration(declaration)
+            .ok_or(CrossConeHirNominalAuthorityError::MissingNominalInterface {
                 origin: key.origin(),
                 declaration,
-            },
-        )?;
+            })?;
         if record.kind() != expected_kind {
             return Err(CrossConeHirNominalAuthorityError::NominalKindMismatch {
                 declaration,

@@ -1,6 +1,7 @@
 use super::*;
 use crate::constructor_resolution::NominalConstructorCall;
 
+mod imported;
 mod plans;
 
 struct NominalPlan {
@@ -163,59 +164,14 @@ impl Lowerer {
                 Err(failure) => failures.push(failure),
             }
         }
-        for (mut state, owner) in imported {
-            let dependencies = state
-                .dependencies
-                .as_ref()
-                .expect("dependency name lookup retains its declaration catalog");
-            let declaration = dependencies
-                .nominal(owner)
-                .expect("a resolved dependency type retains its declaration");
-            if declaration.interface.declaration_details().modality()
-                == hir::NominalInheritanceModalityV1::Abstract
-            {
-                state.error(
-                    call.span,
-                    format!(
-                        "abstract class `{}` cannot be instantiated",
-                        declaration.name()
-                    ),
-                );
-                failures.push(Box::new(state));
-                continue;
-            }
-            let candidates = dependencies.constructor_candidates(owner);
-            let candidates = match candidates {
-                Ok(candidates) => candidates,
-                Err(error) => {
-                    state.error(
-                        call.span,
-                        format!("invalid dependency constructor declaration: {error}"),
-                    );
-                    failures.push(Box::new(state));
-                    continue;
-                }
-            };
-            if candidates.is_empty() {
-                state.error(
-                    call.span,
-                    format!(
-                        "type `{}` does not name a constructible type",
-                        call.callee.text
-                    ),
-                );
-                failures.push(Box::new(state));
-                continue;
-            }
-            for candidate in candidates {
-                match state.probe_imported_constructor(candidate, call, expected) {
-                    Ok(probe) => applicable.push(NamedApplicable {
-                        probe: NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)),
-                        commit: NamedFunctionCommit::ImportedDependency,
-                    }),
-                    Err(failure) => failures.push(failure),
-                }
-            }
+        for (state, owner) in imported {
+            state.collect_imported_constructor_probes(
+                owner,
+                call,
+                expected,
+                &mut applicable,
+                &mut failures,
+            );
         }
         for plan in plans {
             let arguments =

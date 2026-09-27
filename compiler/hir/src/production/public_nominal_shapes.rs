@@ -1,4 +1,4 @@
-//! Transient shape obligations derived from the shared public binding surface.
+//! Finite machine-shape requirements of the published nominal declarations.
 
 use std::{
     collections::{BTreeMap, BTreeSet},

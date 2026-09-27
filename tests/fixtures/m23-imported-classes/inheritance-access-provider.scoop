@@ -1,0 +1,27 @@
+
+public open class AccessParent public constructor(public val seed: Long = 20) {
+    protected open fun secret(): Long = seed
+    protected open var state: Long = seed
+    public var guarded: Long = seed
+        protected set(next) { field = next }
+}
+public open class Outer public constructor() {
+    protected open class Hidden public constructor(public val seed: Long = 21) {
+        public fun read(): Long = seed
+        protected fun secret(): Long = seed
+        public class Exposed public constructor()
+    }
+    protected interface View {
+        public fun read(): Long
+    }
+    protected struct Value(val amount: Long): View {
+        public override fun read(): Long = amount
+    }
+    protected enum Flag {
+        Ready,
+        public fun read(): Long = 1
+    }
+    protected object Cache {
+        public fun read(): Long = 1
+    }
+}

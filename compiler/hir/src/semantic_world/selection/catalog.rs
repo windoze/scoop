@@ -57,6 +57,7 @@ pub(super) struct DependencyCatalog {
         BTreeMap<crate::SourceNominalId, Vec<crate::DirectNamedPublicBindingGroup>>,
     pub(super) nominals:
         BTreeMap<scoop_identity::PersistentTypeId, Arc<super::ImportedNominalDeclaration>>,
+    pub(super) nominal_visibilities: BTreeMap<crate::SourceNominalId, crate::DeclaredVisibilityV1>,
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
@@ -76,8 +77,15 @@ impl ImportedSemanticWorld<'_> {
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
         let mut nominals = BTreeMap::new();
+        let mut nominal_visibilities = BTreeMap::new();
         let mut static_namespaces = BTreeMap::new();
         for provider in &self.providers {
+            for nominal in provider.interface().nominal_interfaces().all_records() {
+                nominal_visibilities.insert(
+                    nominal.declaration(),
+                    nominal.declaration_details().declared_visibility(),
+                );
+            }
             for nominal in provider.interface().nominal_interfaces().records() {
                 let owner = nominal.declaration();
                 let namespace = self
@@ -199,6 +207,7 @@ impl ImportedSemanticWorld<'_> {
             catalog: Arc::new(DependencyCatalog {
                 static_namespaces,
                 nominals,
+                nominal_visibilities,
                 consumer: self.current,
                 callables,
                 properties,

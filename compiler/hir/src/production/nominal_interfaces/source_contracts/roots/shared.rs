@@ -38,7 +38,13 @@ impl SharedSourceRoots {
         };
         let mut sources = SourceRoots::default();
         for local in super::index::public(export) {
-            nominals.require(super::index::source(export, local)?, true)?;
+            let source = local
+                .identity(export)
+                .and_then(HirNominalIdentity::source)
+                .ok_or_else(|| invalid("public nominal has no source identity"))?;
+            if source.declaration().origin() == export.cone {
+                nominals.require(source_nominal_id(source), true)?;
+            }
         }
         for function in &export.public_surface.functions {
             sources.function(export, *function, &mut nominals)?;

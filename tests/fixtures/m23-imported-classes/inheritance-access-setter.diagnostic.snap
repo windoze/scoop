@@ -1,0 +1,3 @@
+span=90..97
+expression=guarded
+setter of property `guarded` is not accessible

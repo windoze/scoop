@@ -5,28 +5,63 @@ impl Lowerer {
         &self,
         declaration: &hir::ImportedNominalDeclaration,
     ) -> hir::AccessDomain {
-        match declaration
-            .interface
-            .declaration_details()
-            .declared_visibility()
-        {
+        let key = declaration.identity.key();
+        let mut domain = hir::AccessDomain::universal();
+        let mut parent = None;
+        for owner in key.owners().owners() {
+            let owner = match owner {
+                scoop_identity::DefinitionOwnerAtom::Type(id) => {
+                    hir::SourceNominalId::Concrete(*id)
+                }
+                scoop_identity::DefinitionOwnerAtom::GenericType(id) => {
+                    hir::SourceNominalId::GenericTemplate(*id)
+                }
+                _ => return hir::AccessDomain::empty(),
+            };
+            let visibility = self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_visibility(owner))
+                .expect("dependency declarations retain every lexical owner");
+            domain = domain.intersect(&self.imported_declaration_domain(
+                visibility,
+                parent,
+                key.origin(),
+            ));
+            parent = Some(owner);
+        }
+        domain.intersect(
+            &self.imported_declaration_domain(
+                declaration
+                    .interface
+                    .declaration_details()
+                    .declared_visibility(),
+                parent,
+                key.origin(),
+            ),
+        )
+    }
+
+    pub(super) fn imported_declaration_domain(
+        &self,
+        visibility: hir::DeclaredVisibilityV1,
+        parent: Option<hir::SourceNominalId>,
+        provider: scoop_identity::ConeIdentity,
+    ) -> hir::AccessDomain {
+        match visibility {
             hir::DeclaredVisibilityV1::Public => hir::AccessDomain::universal(),
             hir::DeclaredVisibilityV1::Internal => {
-                hir::AccessDomain::from_constraints([hir::AccessConstraint::Cone(
-                    declaration.identity.key().origin(),
-                )])
+                hir::AccessDomain::from_constraints([hir::AccessConstraint::Cone(provider)])
             }
             hir::DeclaredVisibilityV1::Private => hir::AccessDomain::empty(),
-            hir::DeclaredVisibilityV1::Protected => {
-                match declaration.identity.key().owners().owners().last() {
-                    Some(scoop_identity::DefinitionOwnerAtom::Type(owner)) => {
-                        hir::AccessDomain::from_constraints([
-                            hir::AccessConstraint::ImportedSubclassesOf(*owner),
-                        ])
-                    }
-                    _ => hir::AccessDomain::empty(),
+            hir::DeclaredVisibilityV1::Protected => match parent {
+                Some(hir::SourceNominalId::Concrete(owner)) => {
+                    hir::AccessDomain::from_constraints([
+                        hir::AccessConstraint::ImportedSubclassesOf(owner),
+                    ])
                 }
-            }
+                _ => hir::AccessDomain::empty(),
+            },
         }
     }
 

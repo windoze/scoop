@@ -350,6 +350,13 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     if cases
         .iter()
         .chain(negative_cases)
+        .any(|case| case.starts_with("inheritance-access-"))
+    {
+        provider_source.push_str(&source("inheritance-access-provider"));
+    }
+    if cases
+        .iter()
+        .chain(negative_cases)
         .any(|case| case.starts_with("conformance-"))
     {
         provider_source.push_str(&source("conformance-provider"));

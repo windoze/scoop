@@ -1,5 +1,4 @@
 use super::*;
-use scoop_identity::BindableEntity;
 
 pub(super) fn all_current(
     export: &ExportHir,
@@ -54,39 +53,4 @@ pub(super) fn all_current(
         roots.push(source);
     }
     Ok(roots)
-}
-
-pub(super) fn current(
-    export: &ExportHir,
-) -> Result<Vec<SourceNominalId>, PublicNominalShapeProjectionError> {
-    let path = WirePath::root();
-    let mut keys = BTreeMap::new();
-    for record in export.export_binding_identities.iter() {
-        keys.insert(record.id(), record.key());
-    }
-    let mut roots = BTreeSet::new();
-    for record in export.public_export_bindings.records() {
-        let key = keys.get(&record.binding()).ok_or(
-            PublicNominalShapeProjectionError::MissingBinding(record.binding()),
-        )?;
-        if key.exporter() != export.cone {
-            continue;
-        }
-        let ExportBindingSourceV1::DeclaredCurrent { declaration } = record.source() else {
-            continue;
-        };
-        let source = match declaration {
-            BindableEntity::Type(id) => SourceNominalId::Concrete(*id),
-            BindableEntity::GenericType(id) => SourceNominalId::GenericTemplate(*id),
-            _ => continue,
-        };
-
-        if !roots.contains(&source) {
-            roots.insert(source);
-        }
-    }
-    let mut values = Vec::new();
-    scoop_wire::allocation::try_reserve(&mut values, roots.len(), &path).map_err(resource)?;
-    values.extend(roots);
-    Ok(values)
 }

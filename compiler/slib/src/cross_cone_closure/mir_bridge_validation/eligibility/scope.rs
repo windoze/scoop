@@ -35,13 +35,12 @@ fn validate_provider(
     let nominal_records =
         interface
             .nominal_interfaces()
-            .records()
-            .iter()
+            .all_records()
             .chain(reachable.iter().flat_map(|dependency| {
                 preceding[*dependency]
                     .hir_interface()
                     .nominal_interfaces()
-                    .records()
+                    .all_records()
             }));
     let classifier = NominalExactLeafClassifierV1::try_from_nominal_interfaces(nominal_records)
         .map_err(CrossConeMirClosureRelationError::NominalClassifier)?;

@@ -1,14 +1,6 @@
 use super::*;
 use std::collections::BTreeMap;
 
-pub(in crate::production::nominal_interfaces) fn project_roots(
-    export: &ExportHir,
-    roots: &[SourceNominalId],
-) -> Result<BTreeMap<SourceNominalId, NominalInterfaceRecordV1>, Error> {
-    let required = CanonicalSourceNominalIdsV1::from_complete_roots(export, roots)?;
-    project_required(export, &required)
-}
-
 pub(in crate::production::nominal_interfaces) fn project_required(
     export: &ExportHir,
     required: &CanonicalSourceNominalIdsV1,

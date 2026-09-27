@@ -47,6 +47,32 @@ impl ImportedDependencySelectionPlan {
         self.catalog.nominals.get(&id)
     }
 
+    /// Lexical scope visibility does not require a generic owner's machine type.
+    pub fn nominal_visibility(
+        &self,
+        owner: SourceNominalId,
+    ) -> Option<crate::DeclaredVisibilityV1> {
+        self.catalog.nominal_visibilities.get(&owner).copied()
+    }
+
+    pub fn nested_nominal(
+        &self,
+        owner: PersistentTypeId,
+        name: &str,
+    ) -> Option<&Arc<ImportedNominalDeclaration>> {
+        self.nominal(owner)?
+            .interface
+            .declaration_details()
+            .children()
+            .values()
+            .iter()
+            .filter_map(|child| match child {
+                SourceNominalId::Concrete(child) => self.nominal(*child),
+                SourceNominalId::GenericTemplate(_) => None,
+            })
+            .find(|declaration| declaration.name() == name)
+    }
+
     pub fn singleton_owner(
         &self,
         value: scoop_identity::PersistentObjectValueId,

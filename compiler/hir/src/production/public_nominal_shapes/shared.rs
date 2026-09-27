@@ -8,8 +8,13 @@ mod roots;
 
 impl NominalMaterializationClosure {
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, PublicNominalShapeProjectionError> {
-        let roots = roots::current(export)?;
-        Self::from_roots(export, &roots)
+        let roots =
+            crate::production::nominal_interfaces::SharedSourceRoots::from_export_hir(export)
+                .map_err(shared_declarations)?;
+        let nominals =
+            CanonicalNominalInterfacesV1::declarations_for_required(export, &roots.nominals)
+                .map_err(shared_declarations)?;
+        Self::from_nominals(export, &nominals)
     }
 
     pub fn from_current_declarations(
@@ -24,29 +29,41 @@ impl NominalMaterializationClosure {
         roots: &[SourceNominalId],
     ) -> Result<Self, PublicNominalShapeProjectionError> {
         let nominals = CanonicalNominalInterfacesV1::declarations_for_roots(export, roots)
-            .map_err(|error| match error {
-                crate::NominalInterfaceBuildError::Resource(error) => resource(error),
-                other => PublicNominalShapeProjectionError::SharedDeclarations(other.to_string()),
-            })?;
+            .map_err(shared_declarations)?;
+        Self::from_nominals(export, &nominals)
+    }
+
+    fn from_nominals(
+        export: &ExportHir,
+        nominals: &CanonicalNominalInterfacesV1,
+    ) -> Result<Self, PublicNominalShapeProjectionError> {
         let properties =
-            crate::CanonicalPropertyInterfacesV1::from_nominal_declarations(export, &nominals)
+            crate::CanonicalPropertyInterfacesV1::from_nominal_declarations(export, nominals)
                 .map_err(|error| match error {
                     crate::PropertyInterfaceBuildError::Resource(error) => resource(error),
                     other => {
                         PublicNominalShapeProjectionError::SharedDeclarations(other.to_string())
                     }
                 })?;
-        let callables = CanonicalCallableInterfacesV1::from_nominal_declarations(
-            export,
-            &properties,
-            &nominals,
-        )
-        .map_err(|error| match error {
-            crate::CallableInterfaceBuildError::Resource(error) => resource(error),
-            other => PublicNominalShapeProjectionError::SharedDeclarations(other.to_string()),
-        })?;
-        Self::from_declarations(&nominals, &callables)
+        let callables =
+            CanonicalCallableInterfacesV1::from_nominal_declarations(export, &properties, nominals)
+                .map_err(|error| match error {
+                    crate::CallableInterfaceBuildError::Resource(error) => resource(error),
+                    other => {
+                        PublicNominalShapeProjectionError::SharedDeclarations(other.to_string())
+                    }
+                })?;
+        Self::from_declarations(nominals, &callables)
             .map_err(PublicNominalShapeProjectionError::Materialization)
+    }
+}
+
+fn shared_declarations(
+    error: crate::NominalInterfaceBuildError,
+) -> PublicNominalShapeProjectionError {
+    match error {
+        crate::NominalInterfaceBuildError::Resource(error) => resource(error),
+        other => PublicNominalShapeProjectionError::SharedDeclarations(other.to_string()),
     }
 }
 
@@ -57,27 +74,9 @@ fn resource(error: scoop_wire::WireError) -> PublicNominalShapeProjectionError {
 }
 
 impl PublicNominalShapeRequirementsV1 {
-    pub fn retain_materializable(
-        mut self,
-        closure: &NominalMaterializationClosure,
-    ) -> Result<Self, PublicNominalShapeProjectionError> {
-        let builtins = LANGUAGE_BUILTINS.map(|builtin| builtin.identity_record().id());
-        self.roots
-            .retain(|root| builtins.contains(&root.source) || closure.contains(root.source));
-        Ok(self)
-    }
-
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, PublicNominalShapeProjectionError> {
-        let requirements = Self::from_public_bindings(
-            export.cone,
-            &export.public_export_bindings,
-            &export.export_binding_identities,
-        )?;
-        if requirements.roots().is_empty() {
-            return Ok(requirements);
-        }
         let closure = NominalMaterializationClosure::from_export_hir(export)?;
-        requirements.retain_materializable(&closure)
+        Self::from_sources(export.cone, closure.sources().iter().copied().collect())
     }
 
     pub fn from_shared_surface(
@@ -102,6 +101,6 @@ impl PublicNominalShapeRequirementsV1 {
         }
         let closure = NominalMaterializationClosure::from_declarations(nominals, callables)
             .map_err(PublicNominalShapeProjectionError::Materialization)?;
-        requirements.retain_materializable(&closure)
+        Self::from_sources(producer, closure.sources().iter().copied().collect())
     }
 }

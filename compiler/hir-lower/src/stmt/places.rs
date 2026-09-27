@@ -200,22 +200,7 @@ impl Lowerer {
                     .resolve_imported_member_property(receiver.ty, name)
                     .ok()?
                 {
-                    let ty = property.value_type;
-                    let read = self.emit_imported_member_property_read(
-                        &property,
-                        receiver.clone(),
-                        *span,
-                    )?;
-                    let write = if property.has_setter() {
-                        WriteCapability::ImportedMemberProperty {
-                            property: Box::new(property),
-                            receiver,
-                            name: name.clone(),
-                        }
-                    } else {
-                        WriteCapability::ReadOnly
-                    };
-                    return Some(ResolvedPlacePlan { read, write, ty });
+                    return self.imported_member_place(property, receiver, name, *span);
                 }
                 match self.resolve_extension_property_read(receiver.clone(), name, sink) {
                     crate::properties::ExtensionPropertyResolution::Resolved(property) => {
