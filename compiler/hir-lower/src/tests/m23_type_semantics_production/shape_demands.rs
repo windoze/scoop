@@ -60,8 +60,7 @@ fn source_only_shape_demands_replay_shared_declarations_before_and_after_concret
             )
             .unwrap();
             let projected =
-                hir::PublicNominalShapeRequirementsV1::from_export_hir(hir.export.module())
-                    .unwrap();
+                hir::PublicNominalShapeRequirementsV1::from_export_hir(&hir.export).unwrap();
             assert_eq!(projected, decoded);
             assert_eq!(
                 projected

@@ -27,11 +27,7 @@ impl CanonicalExportGenericCallableBodiesV1 {
     pub fn from_dependency_hir(
         output: &DependencyHirOutput,
     ) -> Result<Self, GenericTemplateProductionError> {
-        SharedSourceRoots::with_callable_bodies(
-            output.output().export.module(),
-            Some(output.imported_dependencies()),
-        )
-        .map(|(_, bodies)| bodies)
+        Ok(output.output().export.shared_source().bodies.clone())
     }
 }
 

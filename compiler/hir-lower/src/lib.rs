@@ -338,7 +338,7 @@ pub(crate) fn lower_defined_for_test(
     let output_kind = select_cone_output_kind(&export, requested)?;
     let world =
         hir::ImportedSemanticWorld::from_dependencies(export.cone, Vec::new(), Vec::new()).unwrap();
-    finish_output(export, output_kind, warnings, &world)
+    finish_output(export, output_kind, warnings, &world, None)
 }
 
 /// Test fixture adapter using the same input and lowering as production.
@@ -375,15 +375,22 @@ fn finish_output(
     output_kind: hir::ConeOutputKind,
     warnings: Vec<Diagnostic>,
     dependencies: &hir::ImportedSemanticWorld<'_>,
+    selected: Option<&hir::SelectedImportedDependencySet>,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let export = hir::ExportHirOutput::try_new(export, output_kind).map_err(|error| {
+    let export = match selected {
+        Some(selected) => {
+            hir::ExportHirOutput::try_new_with_dependencies(export, output_kind, selected)
+        }
+        None => hir::ExportHirOutput::try_new(export, output_kind),
+    }
+    .map_err(|error| {
         vec![Diagnostic::at(
             Span { start: 0, end: 0 },
             format!("failed to seal Export HIR output: {error}"),
         )]
     })?;
-    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(export.module())
-        .map_err(|error| {
+    let requirements =
+        hir::PublicNominalShapeRequirementsV1::from_export_hir(&export).map_err(|error| {
             vec![Diagnostic::at(
                 Span { start: 0, end: 0 },
                 format!("failed to project public nominal shapes: {error}"),
@@ -496,7 +503,7 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 /// Concretize a checked, output-sealed Export HIR graph while translating the
 /// output branch into the LocalConcrete HIR id domain.
 pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHirOutput {
-    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(export.module())
+    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(export)
         .expect("checked HIR public bindings have valid nominal identities");
     concretize::lower_output(export, &requirements)
         .expect("validated Export HIR has complete automatic nominal roots")

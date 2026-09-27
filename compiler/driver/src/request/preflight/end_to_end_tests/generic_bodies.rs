@@ -7,7 +7,7 @@ fn ordinary_reader_retains_generic_bodies_from_actual_published_libraries() {
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
     let directory = crate::workspace_root().join("tests/fixtures/m23-generic-body-production");
-    for case in ["standalone", "combined", "support"] {
+    for case in ["standalone", "combined", "support", "concrete-support"] {
         let source = std::fs::read_to_string(directory.join(format!("{case}.scoop"))).unwrap();
         let root = sysroot.path().join(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source);
@@ -22,18 +22,19 @@ fn ordinary_reader_retains_generic_bodies_from_actual_published_libraries() {
             .unwrap()
             .identity()
             .unwrap();
-        let mut session = scoop_identity::SemanticIdentitySession::new();
-        let closure = scoop_slib::validate_completed_cross_cone_artifact_closure(
-            identity,
-            target.lir_target_selection(),
-            vec![ConeIdentity::CORE],
-            vec![&core_bytes],
-            &bytes,
+        let closure = scoop_slib::read_cross_cone_layout_artifact_closure(
+            scoop_slib::CrossConeArtifactClosureInput::completed(
+                identity,
+                target.lir_target_selection(),
+                vec![ConeIdentity::CORE],
+                vec![&core_bytes],
+                &bytes,
+            ),
             target.c_bridge_toolchain().profile(),
-            &mut session,
         )
         .unwrap();
-        let interface = closure.current_compile().production().hir_interface();
+        let (sections, _) = closure.artifact(identity).unwrap();
+        let interface = sections.hir_interface();
         let bodies = interface.generic_callable_bodies().records();
         assert!(
             bodies.iter().any(|body| matches!(
@@ -52,6 +53,37 @@ fn ordinary_reader_retains_generic_bodies_from_actual_published_libraries() {
         if case == "support" {
             assert_eq!(interface.nominal_interfaces().support_records().len(), 1);
             assert_eq!(interface.public_bindings().records().len(), 1);
+        }
+        if case == "concrete-support" {
+            assert_eq!(interface.nominal_interfaces().support_records().len(), 1);
+            assert_eq!(interface.public_bindings().records().len(), 1);
+            assert_eq!(bodies.len(), 1);
+            assert_eq!(
+                sections
+                    .hir_type_semantics()
+                    .representation_support()
+                    .records()
+                    .len(),
+                1,
+            );
+            for (kind, stage) in [(StageDumpKind::Mir, "mir"), (StageDumpKind::Lir, "lir")] {
+                let mut request = build_manifest_request(
+                    sysroot.path(),
+                    &target,
+                    &root,
+                    &sysroot.path().join(format!("output/{case}-{stage}.slib")),
+                    Vec::new(),
+                    Vec::new(),
+                );
+                request.emit = StageDumpPolicy::Stage(kind);
+                let output = request.build_and_publish().unwrap();
+                let actual = output.emitted_dump().unwrap().text();
+                let snapshot = directory.join(format!("{case}.{stage}.snap"));
+                if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
+                    std::fs::write(&snapshot, actual).unwrap();
+                }
+                assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
+            }
         }
     }
 }

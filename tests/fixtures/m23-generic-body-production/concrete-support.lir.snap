@@ -1,0 +1,35 @@
+Module
+  enum CoroutineStep<HiddenValue> tagged size=16 align=8 variants=(struct0)@8+4 ()@8+0
+  enum CoroutineSlot<HiddenValue> tagged size=16 align=8 variants=()@8+0 (struct0)@8+4
+  fun @scoop$1$cb$e2c347d9cf2a8459d79eba4cb9c43bdf8d4980cdee09758c25bfbec6a69e3389() -> sret<struct0 size=4 align=4 scan=none>
+    local %0 $argument.0: i32
+    local %1 $parameter.number: i32
+    local %2 $call.1: struct0
+    local %3 $sc.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000029) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn1(local1)
+    store local3 -> local2
+    ret local2
+  fun @scoop$1$cb$b6a14bc1b7ec56e6c787a33e993d6eaf2a3a84313d01926d89d97994923832a7(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  fun @scoop$1$cb$bde790f649a2070972c2ad7c24f8f9b56b76870d20bef7a693d872b4751aabc8(i32) -> sret<struct1 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct1
+    ret t0
+  td td0 g(r=00000006;i=ae3c52f0f30f6340a1eb1bc345b3c0bfe50b4b1b7e73cd33a8d1fb2498a4aa92) @scoop$1$td$758da6152a90a00fa9e19a07899f5b448d1dcb1a1b0fa9cc5c32bcd128e07998 type-id=5001607735555385578 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=dev.example%3Aconcrete-support%3A0.1.0;p=;o=-;k=S;x=HiddenValue) @scoop$1$td$01e0ebc7c726f7f7e40198f84d9aaf47eca7c121ae4a041f0dd0d3625add3860 type-id=6828260907268698086 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 n(c=dev.example%3Aconcrete-support%3A0.1.0;p=;o=-;k=S;x=UnusedValue) @scoop$1$td$7732c5619e5fe317ec5b5555f8ce35ee6f58ffe26e0fa1a8c9dfac47c40dbb20 type-id=9545196727909791670 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000005;i=014c2437f1ebc6b9d24ecccbcb920fcfe4e80ff1b13f0376d0fd132f3f0b89d2) @scoop$1$td$5f6200c3f2630ec70ec51174d5a020d8f37f0d7fe064a609ec442d3b27f9fc44 type-id=9579295329267736868 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td4 g(r=00000007;i=0d309920320cc69f5f9fa39bb6f2a00b433147c45396f32e99e546a2d66f1977) @scoop$1$td$e4123ccefdbdf804d45d1c3b09164858404a4db0ed9ed6cfb01d0523c876c11a type-id=4511306532419476423 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout HiddenValue size=4 align=4 refs=[]
+  layout UnusedValue size=4 align=4 refs=[]
+  layout CoroutineStep<HiddenValue> size=16 align=8 enum-scan=none
+  layout CoroutineSlot<HiddenValue> size=16 align=8 enum-scan=none
+  layout box<HiddenValue> value size=8 align=8 refs=[0]
+  layout box<HiddenValue> size=24 align=8 refs=[]
+  output library

@@ -10,6 +10,7 @@ mod protocols;
 mod templates;
 use index::SourceIndex;
 
+#[derive(Debug)]
 pub(in crate::production) struct SharedSourceRoots {
     pub nominals: CanonicalSourceNominalIdsV1,
     pub top_level_callables: BTreeMap<CallableTemplateOrigin, PublicDeclarationOwnerV1>,

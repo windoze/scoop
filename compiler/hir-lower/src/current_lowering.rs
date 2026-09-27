@@ -30,16 +30,14 @@ pub fn lower_current_cone(
     };
     let (module, warnings, completion) = lowerer.run_with_dependencies(&files, world)?;
     let output_kind = select_cone_output_kind(&module, requested)?;
-    let output = finish_output(module, output_kind, warnings, world)?;
-    hir::DependencyHirOutput::try_new(
-        output,
-        completion.dependencies.finish(),
-        completion.binding_witness_uses,
+    let selected = completion.dependencies.finish();
+    let output = finish_output(module, output_kind, warnings, world, Some(&selected))?;
+    hir::DependencyHirOutput::try_new(output, selected, completion.binding_witness_uses).map_err(
+        |error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to seal dependency-aware HIR: {error}"),
+            )]
+        },
     )
-    .map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to seal dependency-aware HIR: {error}"),
-        )]
-    })
 }

@@ -1,16 +1,17 @@
 use super::*;
 use crate::{
-    CanonicalCallableInterfacesV1, CanonicalNominalInterfacesV1, ExportHir, SourceNominalId,
+    CanonicalCallableInterfacesV1, CanonicalNominalInterfacesV1, ExportHir, ExportHirOutput,
+    SourceNominalId,
 };
 use scoop_wire::WirePath;
 
 mod roots;
 
 impl NominalMaterializationClosure {
-    pub fn from_export_hir(export: &ExportHir) -> Result<Self, PublicNominalShapeProjectionError> {
-        let roots =
-            crate::production::nominal_interfaces::SharedSourceRoots::from_export_hir(export)
-                .map_err(shared_declarations)?;
+    pub fn from_export_hir(
+        export: &ExportHirOutput,
+    ) -> Result<Self, PublicNominalShapeProjectionError> {
+        let roots = &export.shared_source().roots;
         let nominals =
             CanonicalNominalInterfacesV1::declarations_for_required(export, &roots.nominals)
                 .map_err(shared_declarations)?;
@@ -74,7 +75,9 @@ fn resource(error: scoop_wire::WireError) -> PublicNominalShapeProjectionError {
 }
 
 impl PublicNominalShapeRequirementsV1 {
-    pub fn from_export_hir(export: &ExportHir) -> Result<Self, PublicNominalShapeProjectionError> {
+    pub fn from_export_hir(
+        export: &ExportHirOutput,
+    ) -> Result<Self, PublicNominalShapeProjectionError> {
         let closure = NominalMaterializationClosure::from_export_hir(export)?;
         Self::from_sources(export.cone, closure.sources().iter().copied().collect())
     }

@@ -15,11 +15,7 @@ impl CanonicalSourceNominalIdsV1 {
     /// Collects the declarations required by the shared source interface,
     /// including private storage, nested declarations, and default arguments.
     pub fn from_export_hir(output: &ExportHirOutput) -> Result<Self, Error> {
-        Self::from_module(output.module())
-    }
-
-    pub(in crate::production) fn from_module(export: &ExportHir) -> Result<Self, Error> {
-        shared::SharedSourceRoots::collect(export).map(|roots| roots.nominals)
+        Ok(output.shared_source().roots.nominals.clone())
     }
 
     pub(in crate::production::nominal_interfaces) fn from_complete_roots(

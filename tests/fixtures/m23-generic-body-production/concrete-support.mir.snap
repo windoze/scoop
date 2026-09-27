@@ -1,0 +1,44 @@
+Module
+  struct HiddenValue (number: Int)
+  struct UnusedValue (number: Int)
+  enum CoroutineStep<HiddenValue>
+    Completed(value: HiddenValue)
+    Suspended()
+  enum CoroutineSlot<HiddenValue>
+    Empty()
+    Value(value: HiddenValue)
+  class box<HiddenValue> vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=014c2437f1ebc6b9d24ecccbcb920fcfe4e80ff1b13f0376d0fd132f3f0b89d2 exact_id=5f6200c3f2630ec70ec51174d5a020d8f37f0d7fe064a609ec442d3b27f9fc44
+  generated_exact_type get1 location=class0 nominal_id=ae3c52f0f30f6340a1eb1bc345b3c0bfe50b4b1b7e73cd33a8d1fb2498a4aa92 exact_id=758da6152a90a00fa9e19a07899f5b448d1dcb1a1b0fa9cc5c32bcd128e07998
+  generated_exact_type get2 location=enum1 nominal_id=0d309920320cc69f5f9fa39bb6f2a00b433147c45396f32e99e546a2d66f1977 exact_id=e4123ccefdbdf804d45d1c3b09164858404a4db0ed9ed6cfb01d0523c876c11a
+  fun seed @fn0() -> HiddenValue
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $call.1: HiddenValue = @fn1 direct
+        Type Int
+        Local $parameter.number
+      return
+        Type HiddenValue
+        Local $call.1
+  fun ctor.HiddenValue.$c0 @fn1(number: Int) -> HiddenValue <no-gc>
+    bb0 entry
+      return
+        Type HiddenValue
+        StructInit HiddenValue
+          Type Int
+          Local number
+  fun ctor.UnusedValue.$c1 @fn2(number: Int) -> UnusedValue <no-gc>
+    bb0 entry
+      return
+        Type UnusedValue
+        StructInit UnusedValue
+          Type Int
+          Local number
+  coroutine_step cs0 CoroutineStep<HiddenValue> result=HiddenValue
+  coroutine_slot cl0 CoroutineSlot<HiddenValue> value=HiddenValue
+  output library

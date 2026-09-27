@@ -22,12 +22,29 @@ pub use dependencies::*;
 pub struct ExportHirOutput {
     module: ExportHir,
     output_kind: ConeOutputKind,
+    shared_source: std::sync::Arc<crate::production::ExportSharedSource>,
 }
 
 impl ExportHirOutput {
     pub fn try_new(
         module: ExportHir,
         output_kind: ConeOutputKind,
+    ) -> Result<Self, ExportHirOutputError> {
+        Self::with_dependencies(module, output_kind, None)
+    }
+
+    pub fn try_new_with_dependencies(
+        module: ExportHir,
+        output_kind: ConeOutputKind,
+        dependencies: &crate::SelectedImportedDependencySet,
+    ) -> Result<Self, ExportHirOutputError> {
+        Self::with_dependencies(module, output_kind, Some(dependencies))
+    }
+
+    fn with_dependencies(
+        module: ExportHir,
+        output_kind: ConeOutputKind,
+        dependencies: Option<&crate::SelectedImportedDependencySet>,
     ) -> Result<Self, ExportHirOutputError> {
         module
             .export_binding_identities
@@ -41,10 +58,18 @@ impl ExportHirOutput {
                 return Err(ExportHirOutputError::EntryMismatch);
             }
         }
+        let shared_source =
+            crate::production::ExportSharedSource::from_export(&module, dependencies)
+                .map_err(|error| ExportHirOutputError::Templates(Box::new(error)))?;
         Ok(Self {
             module,
             output_kind,
+            shared_source: std::sync::Arc::new(shared_source),
         })
+    }
+
+    pub(crate) fn shared_source(&self) -> &crate::production::ExportSharedSource {
+        &self.shared_source
     }
 
     pub const fn module(&self) -> &ExportHir {
@@ -296,11 +321,12 @@ fn validate_concrete_entry(
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum ExportHirOutputError {
     PublicBindings(HirExportBindingSurfaceValidationError),
     InvalidEntry(LocalExecutableEntryError),
     EntryMismatch,
+    Templates(Box<crate::GenericTemplateProductionError>),
 }
 
 impl fmt::Display for ExportHirOutputError {
@@ -308,6 +334,7 @@ impl fmt::Display for ExportHirOutputError {
         match self {
             Self::PublicBindings(error) => error.fmt(formatter),
             Self::InvalidEntry(error) => error.fmt(formatter),
+            Self::Templates(error) => error.fmt(formatter),
             Self::EntryMismatch => formatter
                 .write_str("the executable entry identity does not match its Export HIR function"),
         }

@@ -23,8 +23,7 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     assert_eq!(source.name, "<core>");
     assert!(source.source.is_empty());
     let requirements =
-        scoop_hir::PublicNominalShapeRequirementsV1::from_export_hir(output.export.module())
-            .unwrap();
+        scoop_hir::PublicNominalShapeRequirementsV1::from_export_hir(&output.export).unwrap();
     let plan = output.local.materialization();
     assert_eq!(plan.roots().len(), requirements.roots().len());
     assert!(
