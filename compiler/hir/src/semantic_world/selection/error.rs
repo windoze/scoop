@@ -142,7 +142,6 @@ pub enum ImportedDependencyCandidateError {
     MissingProperty(PropertyOwner),
     MissingTypeAlias(scoop_identity::PersistentTypeAliasId),
     MissingPropertySetter(PropertyOwner),
-    RestrictedPropertySetter(PropertyOwner),
 }
 
 impl fmt::Display for ImportedDependencyCandidateError {
@@ -183,10 +182,6 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::MissingPropertySetter(property) => {
                 write!(formatter, "imported property {property:?} is read-only")
             }
-            Self::RestrictedPropertySetter(property) => write!(
-                formatter,
-                "setter of imported property {property:?} is not public"
-            ),
         }
     }
 }

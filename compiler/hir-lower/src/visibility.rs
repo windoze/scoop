@@ -4,6 +4,7 @@ use scoop_hir as hir;
 use crate::{Lowerer, Owner};
 
 mod access;
+mod imported;
 mod signatures;
 
 pub(crate) enum MemberSlotAccess {

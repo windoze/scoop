@@ -96,7 +96,7 @@ pub struct ImportedInterfaceMethod {
         scoop_identity::DispatchSlotKey,
     >,
     pub overrides: Vec<scoop_identity::PersistentDispatchSlotId>,
-    pub declaration: CallableInterfaceRecordV1,
+    pub declaration: CallableDeclarationRecordV1,
     pub name: String,
     pub parameters: Vec<(String, TypeId)>,
     pub return_type: TypeId,

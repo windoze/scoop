@@ -158,6 +158,17 @@ impl Lowerer {
         let mut state = self.clone();
         let interface = candidate.interface();
         let kind = candidate.description();
+        if matches!(
+            interface.declaration(),
+            scoop_identity::CallableTemplateOrigin::Constructor(_)
+        ) && !state.imported_callable_is_accessible(interface, None)
+        {
+            state.error(
+                name.span,
+                format!("constructor `{}` is not accessible here", name.text),
+            );
+            return Err(Box::new(state));
+        }
         let expected_type_arguments = interface.type_parameters().binders().len();
         if call.type_args.len() != expected_type_arguments {
             state.error(

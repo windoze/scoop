@@ -43,7 +43,7 @@ pub(crate) fn callable_requirement(
 ) -> ImportedCapabilityRequirement {
     let interface = candidate.interface();
     if matches!(interface.owner(), hir::PublicDeclarationOwnerV1::Nominal(_))
-        || interface.access() == hir::PublicLookupAccessV1::PublicSlot
+        || !interface.slot_relations().is_empty()
     {
         ImportedCapabilityRequirement::Dispatch
     } else if !interface.type_parameters().is_empty()

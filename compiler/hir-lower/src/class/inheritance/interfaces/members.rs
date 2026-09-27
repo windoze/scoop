@@ -174,7 +174,7 @@ impl Lowerer {
                             .dependencies
                             .as_ref()
                             .and_then(|dependencies| dependencies.property_for_accessor(accessor))
-                            .filter(|property| property.capability().setter() == Some(accessor))
+                            .filter(|property| property.accessors().setter() == Some(accessor))
                             .map(|_| method.name.clone()),
                         _ => None,
                     };

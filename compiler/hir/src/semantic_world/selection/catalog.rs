@@ -12,16 +12,16 @@ use super::{
 };
 use crate::semantic_world::{ImportedProvider, ImportedSemanticWorld};
 use crate::{
-    CallableInterfaceRecordV1, CallableSourceInterfaceV1, CanonicalNominalInterfacesV1,
+    CallableDeclarationRecordV1, CallableSourceInterfaceV1, CanonicalNominalInterfacesV1,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    ParamFreeNominalCallableV1, PropertyInterfaceRecordV1, TypeAliasInterfaceRecordV1,
+    ParamFreeNominalCallableV1, PropertyDeclarationRecordV1, TypeAliasInterfaceRecordV1,
 };
 
 #[derive(Clone, Debug)]
 pub(super) struct CallableCatalogEntry {
     pub(super) provider: ConeIdentity,
     pub(super) name: super::intrinsics::CallableCatalogName,
-    pub(super) interface: CallableInterfaceRecordV1,
+    pub(super) interface: CallableDeclarationRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: Option<ParamFreeNominalCallableV1>,
     pub(super) initialization_unit: Option<scoop_identity::PersistentInitializationUnitId>,
@@ -41,7 +41,7 @@ pub(super) struct ConstantCatalogEntry {
 pub(super) struct PropertyCatalogEntry {
     pub(super) provider: ConeIdentity,
     pub(super) name: scoop_identity::CanonicalIdentifier,
-    pub(super) interface: PropertyInterfaceRecordV1,
+    pub(super) interface: PropertyDeclarationRecordV1,
 }
 
 #[derive(Clone, Debug)]
@@ -94,7 +94,11 @@ impl ImportedSemanticWorld<'_> {
                 }
             }
             let definition_sources = Arc::new(imported_definition_sources(provider)?);
-            for callable in provider.interface().callable_interfaces().records() {
+            for callable in provider
+                .interface()
+                .callable_interfaces()
+                .all_declarations()
+            {
                 let declaration = callable.declaration();
                 let initialization_unit = match declaration {
                     CallableTemplateOrigin::Accessor(accessor) => {
@@ -139,7 +143,11 @@ impl ImportedSemanticWorld<'_> {
                     );
                 }
             }
-            for property in provider.interface().property_interfaces().records() {
+            for property in provider
+                .interface()
+                .property_interfaces()
+                .all_declarations()
+            {
                 let declaration = property.declaration();
                 let entry = PropertyCatalogEntry {
                     provider: provider.identity(),

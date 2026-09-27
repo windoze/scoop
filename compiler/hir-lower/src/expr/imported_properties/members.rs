@@ -7,13 +7,13 @@ mod write;
 #[derive(Clone)]
 pub(crate) struct ResolvedImportedMemberProperty {
     getter: hir::ImportedCallableDeclaration,
-    capability: hir::PropertyCapabilityV1,
+    accessors: hir::PropertyAccessorsV1,
     pub(crate) value_type: hir::TypeId,
 }
 
 impl ResolvedImportedMemberProperty {
     pub(crate) fn has_setter(&self) -> bool {
-        self.capability.setter().is_some()
+        self.accessors.setter().is_some()
     }
 }
 
@@ -48,12 +48,12 @@ impl Lowerer {
         else {
             unreachable!("a dependency property getter refers to an accessor")
         };
-        let capability = self
+        let accessors = self
             .dependencies
             .as_ref()
             .and_then(|dependencies| dependencies.property_for_accessor(accessor))
             .expect("the member getter belongs to the selected property")
-            .capability();
+            .accessors();
         let value_type = self
             .imported_property_signature_type(
                 getter.interface().result(),
@@ -63,7 +63,7 @@ impl Lowerer {
             .ok_or(())?;
         Ok(Some(ResolvedImportedMemberProperty {
             getter,
-            capability,
+            accessors,
             value_type,
         }))
     }

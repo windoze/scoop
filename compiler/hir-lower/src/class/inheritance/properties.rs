@@ -198,7 +198,7 @@ impl Lowerer {
                         else {
                             unreachable!("interface properties have nominal owners")
                         };
-                        let mutable = property.capability().setter().is_some();
+                        let mutable = property.accessors().setter().is_some();
                         let owner = self
                             .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
                                 owner,
@@ -304,7 +304,7 @@ impl Lowerer {
             return match kind {
                 crate::properties::PropertyAccessorKind::Getter => true,
                 crate::properties::PropertyAccessorKind::Setter => {
-                    declaration.capability().setter().is_some()
+                    declaration.accessors().setter().is_some()
                 }
             };
         };

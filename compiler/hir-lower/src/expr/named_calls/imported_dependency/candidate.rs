@@ -49,7 +49,7 @@ impl ImportedCallableCandidate {
         if !interface.type_parameters().is_empty()
             || interface.effects().execution() != scoop_identity::Effect::Ordinary
             || interface.modality() != hir::CallableModalityV1::Final
-            || interface.access() != hir::PublicLookupAccessV1::DirectOnly
+            || !interface.slot_relations().is_empty()
         {
             return None;
         }
@@ -93,7 +93,7 @@ impl ImportedCallableCandidate {
 }
 
 impl ImportedCallableSource for ImportedCallableCandidate {
-    fn interface(&self) -> &hir::CallableInterfaceRecordV1 {
+    fn interface(&self) -> &hir::CallableDeclarationRecordV1 {
         self.source().interface()
     }
     fn source_interface(&self) -> Option<&hir::CallableSourceInterfaceV1> {

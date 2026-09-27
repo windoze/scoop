@@ -59,7 +59,7 @@ impl Lowerer {
 
     fn imported_callable_dispatch(
         &mut self,
-        callable: &hir::CallableInterfaceRecordV1,
+        callable: &hir::CallableDeclarationRecordV1,
         kind: MemberCallKind,
     ) -> Result<hir::ImportedDependencyDispatch, hir::ImportedDependencySelectionError> {
         use hir::ImportedDependencyDispatch as Dispatch;

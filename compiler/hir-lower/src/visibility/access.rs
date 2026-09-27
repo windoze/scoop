@@ -73,6 +73,9 @@ impl Lowerer {
             let Some(base_ty) = self.classes[class].base_class else {
                 return false;
             };
+            if matches!(self.types[base_ty], hir::Type::ImportedClass(_)) {
+                return false;
+            }
             let hir::Type::Class(application) = self.types[base_ty] else {
                 unreachable!("resolved class bases are class applications")
             };

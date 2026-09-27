@@ -72,18 +72,11 @@ impl Lowerer {
         name: &ast::Ident,
     ) -> Option<PreparedImportedPropertySetter> {
         let property = self.imported_dependency_property_candidate(binding, name.span)?;
-        let capability = property.interface().capability();
+        let capability = property.interface().accessors();
         if capability.setter().is_none() {
             self.error(
                 name.span,
                 format!("cannot assign to immutable property `{}`", name.text),
-            );
-            return None;
-        }
-        if capability.setter_access() != Some(hir::PropertySetterPublicAccessV1::Public) {
-            self.error(
-                name.span,
-                format!("setter of property `{}` is not accessible", name.text),
             );
             return None;
         }
@@ -94,6 +87,16 @@ impl Lowerer {
             name.span,
         )?;
         let receiver = self.validate_imported_property_receiver(&property, receiver, name.span)?;
+        if !self.imported_callable_is_accessible(
+            candidate.interface(),
+            receiver.as_ref().map(|receiver| receiver.static_type),
+        ) {
+            self.error(
+                name.span,
+                format!("setter of property `{}` is not accessible", name.text),
+            );
+            return None;
+        }
         let value_type = self.imported_property_value_type(&property, name.span)?;
         Some(PreparedImportedPropertySetter {
             candidate,

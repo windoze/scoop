@@ -46,7 +46,7 @@ impl Lowerer {
         )?;
         Some(ImportedDependencyPropertyRead {
             expression,
-            has_setter: property.interface().capability().setter().is_some(),
+            has_setter: property.interface().accessors().setter().is_some(),
         })
     }
 }

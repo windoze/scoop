@@ -3,7 +3,7 @@ use scoop_identity::{CallableTemplateOrigin, CanonicalIdentifier, DeclarationNam
 use super::{ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError};
 use crate::semantic_world::ImportedProvider;
 use crate::{
-    CallableImplementationV1, CallableInterfaceRecordV1, CallableSourceInterfaceV1,
+    CallableDeclarationRecordV1, CallableImplementationV1, CallableSourceInterfaceV1,
     IntrinsicFunctionKind,
 };
 
@@ -72,7 +72,7 @@ pub(super) fn property_catalog_name(
 #[derive(Clone, Copy)]
 pub struct ImportedIntrinsicCallable<'a> {
     name: &'a CanonicalIdentifier,
-    interface: &'a CallableInterfaceRecordV1,
+    interface: &'a CallableDeclarationRecordV1,
     source: &'a CallableSourceInterfaceV1,
 }
 
@@ -81,7 +81,7 @@ impl<'a> ImportedIntrinsicCallable<'a> {
         self.name
     }
 
-    pub const fn interface(self) -> &'a CallableInterfaceRecordV1 {
+    pub const fn interface(self) -> &'a CallableDeclarationRecordV1 {
         self.interface
     }
 

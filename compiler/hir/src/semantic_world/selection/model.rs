@@ -9,9 +9,9 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallableInterfaceRecordV1, CallableSourceInterfaceV1, DirectImportedTargetBinding,
+    CallableDeclarationRecordV1, CallableSourceInterfaceV1, DirectImportedTargetBinding,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedTarget,
-    ParamFreeNominalCallableV1, PropertyInterfaceRecordV1, SourceRecord,
+    ParamFreeNominalCallableV1, PropertyDeclarationRecordV1, SourceRecord,
     TypeAliasInterfaceRecordV1,
 };
 
@@ -59,7 +59,7 @@ impl<'a> ImportedDependencyDefinitionSource<'a> {
 pub struct ImportedDependencyCallableCandidate {
     pub(super) binding: DirectImportedTargetBinding,
     pub(super) provider: ConeIdentity,
-    pub(super) interface: CallableInterfaceRecordV1,
+    pub(super) interface: CallableDeclarationRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: Option<ParamFreeNominalCallableV1>,
     pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
@@ -75,7 +75,7 @@ impl ImportedDependencyCallableCandidate {
         self.provider
     }
 
-    pub const fn interface(&self) -> &CallableInterfaceRecordV1 {
+    pub const fn interface(&self) -> &CallableDeclarationRecordV1 {
         &self.interface
     }
 
@@ -124,7 +124,7 @@ pub struct ImportedDependencyConstantCandidate {
 pub struct ImportedDependencyPropertyCandidate {
     pub(super) binding: DirectImportedTargetBinding,
     pub(super) provider: ConeIdentity,
-    pub(super) interface: PropertyInterfaceRecordV1,
+    pub(super) interface: PropertyDeclarationRecordV1,
 }
 
 /// An owned transparent type-alias candidate reached through one direct
@@ -170,7 +170,7 @@ impl ImportedDependencyPropertyCandidate {
         self.provider
     }
 
-    pub const fn interface(&self) -> &PropertyInterfaceRecordV1 {
+    pub const fn interface(&self) -> &PropertyDeclarationRecordV1 {
         &self.interface
     }
 
@@ -230,7 +230,7 @@ impl ImportedDependencyCallableRef {
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyCallable {
     pub(super) provider: ConeIdentity,
-    pub(super) interface: CallableInterfaceRecordV1,
+    pub(super) interface: CallableDeclarationRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: ParamFreeNominalCallableV1,
     pub(super) initialization_unit: Option<scoop_identity::PersistentInitializationUnitId>,
@@ -248,7 +248,7 @@ impl SelectedImportedDependencyCallable {
         self.provider
     }
 
-    pub const fn interface(&self) -> &CallableInterfaceRecordV1 {
+    pub const fn interface(&self) -> &CallableDeclarationRecordV1 {
         &self.interface
     }
 

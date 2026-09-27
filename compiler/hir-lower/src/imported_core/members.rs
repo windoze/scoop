@@ -136,6 +136,9 @@ impl Lowerer {
                 .member_callable_candidates(hir::SourceNominalId::Concrete(owner), lookup)?
             {
                 let declaration = candidate.interface();
+                if !self.imported_callable_is_accessible(declaration, Some(receiver)) {
+                    continue;
+                }
                 if effective
                     .as_ref()
                     .is_some_and(|methods| !methods.contains(&declaration.declaration()))

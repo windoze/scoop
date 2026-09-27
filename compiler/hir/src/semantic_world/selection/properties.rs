@@ -6,7 +6,7 @@ impl ImportedDependencySelectionPlan {
     pub fn property_declaration(
         &self,
         declaration: crate::PropertyDeclarationId,
-    ) -> Option<&crate::PropertyInterfaceRecordV1> {
+    ) -> Option<&crate::PropertyDeclarationRecordV1> {
         self.catalog
             .properties
             .get(&declaration)
@@ -16,9 +16,9 @@ impl ImportedDependencySelectionPlan {
     pub fn property_for_accessor(
         &self,
         accessor: scoop_identity::PersistentPropertyAccessorId,
-    ) -> Option<&crate::PropertyInterfaceRecordV1> {
+    ) -> Option<&crate::PropertyDeclarationRecordV1> {
         self.catalog.properties.values().find_map(|property| {
-            let capability = property.interface.capability();
+            let capability = property.interface.accessors();
             (capability.getter() == accessor || capability.setter() == Some(accessor))
                 .then_some(&property.interface)
         })
@@ -56,22 +56,14 @@ impl ImportedDependencySelectionPlan {
         let entry = self.catalog.properties.get(&declaration).ok_or(
             ImportedDependencyCandidateError::MissingProperty(declaration),
         )?;
-        let capability = entry.interface.capability();
+        let capability = entry.interface.accessors();
         let accessor = match accessor {
             ImportedDependencyPropertyAccessorKind::Getter => capability.getter(),
-            ImportedDependencyPropertyAccessorKind::Setter => {
-                let setter = capability.setter().ok_or(
-                    ImportedDependencyCandidateError::MissingPropertySetter(
-                        property.interface.declaration(),
-                    ),
-                )?;
-                if capability.setter_access() != Some(crate::PropertySetterPublicAccessV1::Public) {
-                    return Err(ImportedDependencyCandidateError::RestrictedPropertySetter(
-                        property.interface.declaration(),
-                    ));
-                }
-                setter
-            }
+            ImportedDependencyPropertyAccessorKind::Setter => capability.setter().ok_or(
+                ImportedDependencyCandidateError::MissingPropertySetter(
+                    property.interface.declaration(),
+                ),
+            )?,
         };
         self.callable_candidate_for_declaration(
             CallableTemplateOrigin::Accessor(accessor),

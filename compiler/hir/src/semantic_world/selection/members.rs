@@ -12,14 +12,14 @@ use super::{
     ImportedDependencySelectionPlan,
 };
 use crate::{
-    CallableInterfaceRecordV1, CallableOperatorRoleV1, CallableSourceInterfaceV1,
+    CallableDeclarationRecordV1, CallableOperatorRoleV1, CallableSourceInterfaceV1,
     ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ExportDefinitionSourceV1,
     ParamFreeNominalCallableV1, PublicDeclarationOwnerV1, SourceNominalId,
 };
 
 /// Common source metadata used while probing and materializing a call.
 pub trait ImportedCallableSource {
-    fn interface(&self) -> &CallableInterfaceRecordV1;
+    fn interface(&self) -> &CallableDeclarationRecordV1;
     fn source_interface(&self) -> Option<&CallableSourceInterfaceV1>;
     fn default_template(&self, key: ExportDefaultTemplateKeyV1)
     -> Option<&ExportDefaultTemplateV1>;
@@ -30,7 +30,7 @@ pub trait ImportedCallableSource {
 }
 
 impl ImportedCallableSource for ImportedDependencyCallableCandidate {
-    fn interface(&self) -> &CallableInterfaceRecordV1 {
+    fn interface(&self) -> &CallableDeclarationRecordV1 {
         self.interface()
     }
     fn source_interface(&self) -> Option<&CallableSourceInterfaceV1> {
@@ -61,7 +61,7 @@ pub enum ImportedMemberLookup<'a> {
 #[derive(Clone, Debug)]
 pub struct ImportedCallableDeclaration {
     name: CanonicalIdentifier,
-    interface: CallableInterfaceRecordV1,
+    interface: CallableDeclarationRecordV1,
     capability: Option<ParamFreeNominalCallableV1>,
     source: Option<CallableSourceInterfaceV1>,
     defaults: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
@@ -79,7 +79,7 @@ impl ImportedCallableDeclaration {
 }
 
 impl ImportedCallableSource for ImportedCallableDeclaration {
-    fn interface(&self) -> &CallableInterfaceRecordV1 {
+    fn interface(&self) -> &CallableDeclarationRecordV1 {
         &self.interface
     }
     fn source_interface(&self) -> Option<&CallableSourceInterfaceV1> {
@@ -140,7 +140,7 @@ impl ImportedDependencySelectionPlan {
                     .properties
                     .values()
                     .find(|property| {
-                        let accessor = property.interface.capability();
+                        let accessor = property.interface.accessors();
                         declaration
                             == scoop_identity::CallableTemplateOrigin::Accessor(accessor.getter())
                             || accessor.setter().is_some_and(|setter| {
@@ -235,7 +235,7 @@ impl ImportedDependencySelectionPlan {
                     };
                     if entry.interface.declaration()
                         != scoop_identity::CallableTemplateOrigin::Accessor(
-                            property.interface.capability().getter(),
+                            property.interface.accessors().getter(),
                         )
                     {
                         continue;

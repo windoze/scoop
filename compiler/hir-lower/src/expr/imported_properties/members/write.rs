@@ -29,20 +29,13 @@ impl Lowerer {
         span: ast::Span,
         kind: MemberCallKind,
     ) -> Option<hir::StatementKind> {
-        let Some(setter) = property.capability.setter() else {
+        let Some(setter) = property.accessors.setter() else {
             self.error(
                 name.span,
                 format!("cannot assign to immutable property `{}`", name.text),
             );
             return None;
         };
-        if property.capability.setter_access() != Some(hir::PropertySetterPublicAccessV1::Public) {
-            self.error(
-                name.span,
-                format!("setter of property `{}` is not accessible", name.text),
-            );
-            return None;
-        }
         if !self.is_subtype(value.ty, property.value_type) {
             let message = self.with_nominal_invariance_detail(
                 format!(
@@ -69,6 +62,13 @@ impl Lowerer {
                 );
             })
             .ok()?;
+        if !self.imported_callable_is_accessible(candidate.interface(), Some(receiver.ty)) {
+            self.error(
+                name.span,
+                format!("setter of property `{}` is not accessible", name.text),
+            );
+            return None;
+        }
         let value = self.adapt_to(value, property.value_type);
         self.emit_imported_member_accessor(
             candidate,
