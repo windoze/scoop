@@ -120,18 +120,6 @@ fn lower_dependency_callables(
         let target = imported
             .resolve_callable(id)
             .expect("a dependency callable lookup returns an in-bounds MIR callable");
-        if target.implementation() != capability.implementation() {
-            return Err(
-                CurrentConeMirLoweringError::DependencyImplementationMismatch {
-                    index: source_id.into_raw().into_u32(),
-                },
-            );
-        }
-        if target.semantic_signature() != capability.signature() {
-            return Err(CurrentConeMirLoweringError::DependencySignatureMismatch {
-                index: source_id.into_raw().into_u32(),
-            });
-        }
         let effect = match capability.is_no_gc() {
             false => mir::GcEffect::Managed,
             true => mir::GcEffect::NoGc,
@@ -209,12 +197,6 @@ pub enum CurrentConeMirLoweringError {
         actual: mir::ConeIdentity,
     },
     MissingDependencyMirCallable {
-        index: u32,
-    },
-    DependencyImplementationMismatch {
-        index: u32,
-    },
-    DependencySignatureMismatch {
         index: u32,
     },
     InvalidOutput(mir::DependencyMirOutputError),
