@@ -263,6 +263,10 @@ mod tests {
     fn variant_primitives_track_their_operand_use_and_temp_definition() {
         let mut enums = lir::EnumDefs::default();
         let enum_id = enums.alloc(lir::EnumDef {
+            exact_type: crate::tests::test_physical_exact(
+                "Tracked",
+                scoop_identity::SourceNominalKind::Enum,
+            ),
             name: "Tracked".to_string(),
             repr: lir::EnumRepr::Tagged {
                 variants: vec![lir::EnumVariantRepr {

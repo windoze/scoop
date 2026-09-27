@@ -558,6 +558,10 @@ pub(super) fn immortal_string_identity(name: &str) -> scoop_lir::ImmortalObjectI
 }
 
 pub(super) fn test_exact_type(name: &str) -> PersistentExactTypeId {
+    test_physical_exact(name, SourceNominalKind::Class)
+}
+
+pub(crate) fn test_physical_exact(name: &str, kind: SourceNominalKind) -> PersistentExactTypeId {
     let identifier = format!(
         "test{}",
         name.as_bytes()
@@ -575,7 +579,7 @@ pub(super) fn test_exact_type(name: &str) -> PersistentExactTypeId {
     let declaration = SourceDeclarationKey::nominal(
         site,
         CanonicalIdentifier::new(&identifier).unwrap(),
-        SourceNominalKind::Class,
+        kind,
         0,
     );
     let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();

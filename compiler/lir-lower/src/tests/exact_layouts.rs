@@ -5,6 +5,83 @@ use scoop_wire::{decode_canonical, encode};
 mod support;
 use support::{Fixture, exact};
 
+#[test]
+fn equal_physical_nominals_keep_their_distinct_exact_identities() {
+    let mut builder = Builder::new();
+    let first = builder.strukt("Payload", &[("value", LONG)]);
+    let second = builder.strukt("Payload", &[("value", LONG)]);
+    let variant = || test_variant("Ready".into(), true, Vec::new());
+    let first_enum = builder.enums.alloc(mir::EnumDef {
+        name: "State".into(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: vec![variant()],
+    });
+    let second_enum = builder.enums.alloc(mir::EnumDef {
+        name: "State".into(),
+        type_arguments: Vec::new(),
+        gc_free: true,
+        variants: vec![variant()],
+    });
+    let fixture = Fixture::new(builder);
+    let input = fixture.input.module();
+    let output = fixture.output.module();
+    let first = &output.structs[struct_def_id(first)];
+    let second = &output.structs[struct_def_id(second)];
+    assert_eq!(
+        (first.name.as_str(), first.size, first.align),
+        (second.name.as_str(), second.size, second.align)
+    );
+    assert_ne!(first.exact_type, second.exact_type);
+    for (id, definition) in input.structs.iter() {
+        let actual = &output.structs[struct_def_id(id)];
+        assert_eq!(
+            actual.exact_type,
+            exact(input, &definition.physical_type(id))
+        );
+        assert!(
+            output
+                .meta
+                .exact_types
+                .iter()
+                .any(|record| record.id() == actual.exact_type)
+        );
+    }
+    let first = &output.enums[enum_def_id(first_enum)];
+    let second = &output.enums[enum_def_id(second_enum)];
+    assert_eq!(first.name, second.name);
+    let lir::EnumRepr::Tagged { size, align, .. } = &first.repr else {
+        panic!("the first unit enum has a tagged representation")
+    };
+    let lir::EnumRepr::Tagged {
+        size: second_size,
+        align: second_align,
+        ..
+    } = &second.repr
+    else {
+        panic!("the second unit enum has a tagged representation")
+    };
+    assert_eq!((size, align), (second_size, second_align));
+    assert_ne!(first.exact_type, second.exact_type);
+    for (id, definition) in input.enums.iter() {
+        let actual = &output.enums[enum_def_id(id)];
+        assert_eq!(
+            actual.exact_type,
+            exact(
+                input,
+                &mir::Type::Enum(id, definition.type_arguments.clone())
+            )
+        );
+        assert!(
+            output
+                .meta
+                .exact_types
+                .iter()
+                .any(|record| record.id() == actual.exact_type)
+        );
+    }
+}
+
 fn find(
     table: &lir::CanonicalExactLayoutExportsV1,
     exact: PersistentExactTypeId,

@@ -49,6 +49,7 @@ fn global_constant_preflight_rejects_an_inexact_root_type() {
 fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
     let mut module = enum_module();
     let inner = module.structs.alloc_scoop(
+        crate::tests::test_physical_exact("Inner", scoop_identity::SourceNominalKind::Struct),
         "Inner".to_string(),
         8,
         8,
@@ -62,6 +63,7 @@ fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
         }],
     );
     let outer = module.structs.alloc_scoop(
+        crate::tests::test_physical_exact("Outer", scoop_identity::SourceNominalKind::Struct),
         "Outer".to_string(),
         16,
         8,
@@ -161,6 +163,10 @@ fn global_constant_preflight_rejects_a_payload_variant_as_a_unit() {
 fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
     let mut foreign = scoop_lir::EnumDefs::default();
     let foreign_shape = foreign.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignShape",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignShape".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4)
@@ -184,6 +190,7 @@ fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
     let mut module = enum_module();
     let shape = module.enums.iter().next().expect("Shape enum").0;
     let wrapper = module.structs.alloc_scoop(
+        crate::tests::test_physical_exact("ShapeHolder", scoop_identity::SourceNominalKind::Struct),
         "ShapeHolder".to_string(),
         32,
         8,

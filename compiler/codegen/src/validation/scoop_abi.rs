@@ -1485,6 +1485,10 @@ mod tests {
     fn struct_field_offsets_are_revalidated_before_accepting_an_abi_scan() {
         let mut structs = StructDefs::default();
         let id = structs.alloc_scoop(
+            crate::tests::test_physical_exact(
+                "BadOffset",
+                scoop_identity::SourceNominalKind::Struct,
+            ),
             "BadOffset".to_string(),
             16,
             8,
@@ -1512,6 +1516,10 @@ mod tests {
     fn enum_scan_must_match_its_variant_field_offsets() {
         let mut enums = EnumDefs::default();
         let id = enums.alloc(scoop_lir::EnumDef {
+            exact_type: crate::tests::test_physical_exact(
+                "BadScan",
+                scoop_identity::SourceNominalKind::Enum,
+            ),
             name: "BadScan".to_string(),
             repr: EnumRepr::Tagged {
                 variants: vec![scoop_lir::EnumVariantRepr {

@@ -31,6 +31,37 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
+pub(crate) fn test_physical_exact(
+    name: &str,
+    kind: scoop_identity::SourceNominalKind,
+) -> scoop_identity::PersistentExactTypeId {
+    use scoop_identity::{
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
+        PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
+        SourceDeclarationSite,
+    };
+    let identifier = format!(
+        "test{}",
+        name.bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        kind,
+        0,
+    );
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap()
+}
+
 fn test_field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {
     fn identifier(value: &str) -> CanonicalIdentifier {
         let encoded = format!(

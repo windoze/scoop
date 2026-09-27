@@ -155,6 +155,10 @@ fn enum_unit_constant_maps_between_checked_stage_local_refs() {
     let source = mir::MirVariantRef::new(&mir_enums, mir_enum, 0).expect("unit variant");
     let mut lir_enums = lir::EnumDefs::default();
     let lir_enum = lir_enums.alloc(lir::EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Flag",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Flag".to_string(),
         repr: lir::EnumRepr::Tagged {
             variants: vec![lir::EnumVariantRepr {

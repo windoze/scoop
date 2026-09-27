@@ -137,6 +137,15 @@
 
 本项完成完整 callable ObjectDefinition 及 ODR 登记对象叶子。canonical LIR、逐 member ABI/最终 definition 摘要、补丁回填、正式泛型 profile 与泛型单 image 链接运行继续实施，不能据此认定 M23-7 已完成。
 
+## 2026-09-27：物理名义类型保留完整 exact-type 身份
+
+- 最终 LIR 的 `StructDef` 和 `EnumDef` 必需携带 `PersistentExactTypeId`。普通、C 布局和 intrinsic struct 从 MIR 的实际物理类型记录传入；enum 使用完整 application 的 source/generated exact-type record。后续字段与扫描填写保留同一身份，完整 key 继续复用 `LirMeta.exact_types`。
+- 这使 canonical LIR 能从局部表示引用直接取得持久身份；名称、arena 位置和相同布局不承担全局类型判等。已有符号、布局、对象格式和 runtime ABI 保持。
+- 新增相同名称及物理布局的 struct/enum 回归，确认它们仍保留不同 exact-type ID。真实 provider `.slib` 在移走源码后，由四个泛型消费方逐项核对 MIR → LIR 身份及完整 key 的保留；九份 HIR/MIR/LIR golden 在关闭更新开关时验证。
+- `cargo fmt --all` 和 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过且无警告。450 项 LIR、139 项 LIR lowering、301 项 codegen/runtime 和 2 项实际泛型产物回归通过，共 892 项，无失败或忽略。
+
+本项补齐 canonical LIR 编码所需的物理名义类型身份。LIR 内容摘要、逐 member ABI/最终 definition 摘要、回填和泛型产物链接运行继续实施。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；完成逐 member 内容摘要及完整 profile。

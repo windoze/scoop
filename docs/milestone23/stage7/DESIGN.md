@@ -267,6 +267,8 @@ OdrDefinitionFingerprint = DomainSeparatedCborHash(
 
 ### 8.2 复用现有 digest 计算
 
+最终 LIR 的 `StructDef` 与 `EnumDef` 必需保存实际 `PersistentExactTypeId`，lowering 从 MIR 已解析的 exact-type record 直接传入；完整 key 仍由同一份 `LirMeta.exact_types` 保存。session-local 的 `StructDefId` / `EnumDefId` 只用于访问当前表示表，canonical LIR、ABI 和全局引用使用记录中的持久身份。名称、arena 排列、相同布局或字段集合不能替代该身份；表示、扫描和 C ABI refinement 的后续填写必须保留它。泛型实例使用其完整 application 身份，生成 enum 使用已有 generated exact-type record。
+
 保留 `DigestKind::OdrDefinition = 8`。旧 owner variant `OdrDefinition(OdrGroupId) = 8` 退役，新增 `OdrMemberDefinition(OdrMemberId) = 11`；后者映射到 kind 8。其他 owner tag 与 patch field role 不变，不复用退役编号。
 
 每个 ODR node 只汇总该 member 的 LIR、object 和 stackmap leaves。registration 的 `definition_fingerprint` 来自该 registration member；callable 的 `body_definition_fingerprint`、TD 的 descriptor 字段继续来自对应 ObjectDefinition。计算 registration 的对象 leaf 时，其自身最终 ODR slot 归零；已有 body/layout/scan 等上游字段保留。

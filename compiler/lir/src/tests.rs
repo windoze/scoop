@@ -14,6 +14,37 @@ use super::{
     TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
 };
 
+pub(crate) fn test_physical_exact(
+    name: &str,
+    kind: scoop_identity::SourceNominalKind,
+) -> scoop_identity::PersistentExactTypeId {
+    use scoop_identity::{
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
+        PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
+        SourceDeclarationSite,
+    };
+    let identifier = format!(
+        "test{}",
+        name.bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        kind,
+        0,
+    );
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap()
+}
+
 fn abi_value(ty: LirType, size: u64, alignment: u64, scan: RefScan) -> AbiValue {
     AbiValue::new(
         ty,
@@ -94,6 +125,10 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
     };
     let mut enums = EnumDefs::default();
     let mode = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignCallbackMode",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignCallbackMode".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![unit_variant(), unit_variant()],
@@ -103,6 +138,10 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
         scan: RefScan::None,
     });
     let state = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignCallbackState",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignCallbackState".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4).map(|_| unit_variant()).collect(),
@@ -112,6 +151,10 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
         scan: RefScan::None,
     });
     let failure = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<Throwable>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<Throwable>".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Managed,
@@ -213,6 +256,10 @@ fn niche_representation_atomically_preserves_source_pointer_provenance() {
 fn enum_store_is_the_only_checked_variant_and_payload_field_ref_producer() {
     let mut enums = EnumDefs::default();
     let tagged = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Tagged",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Tagged".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![
@@ -240,6 +287,10 @@ fn enum_store_is_the_only_checked_variant_and_payload_field_ref_producer() {
         scan: RefScan::References(vec![8]),
     });
     let niche = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "RawOption",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "RawOption".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Raw,
@@ -972,6 +1023,10 @@ fn exact_c_types_totally_determine_their_lir_storage() {
 
     let mut enums = EnumDefs::default();
     let raw_nullable = enums.alloc_c_nullable_data_pointer_option(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<Ptr<Unit>>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<Ptr<Unit>>".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Raw,
@@ -981,6 +1036,10 @@ fn exact_c_types_totally_determine_their_lir_storage() {
     });
     let raw_nullable_id = raw_nullable;
     let code_nullable = enums.alloc_c_nullable_code_pointer_option(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<FunPtr<() -> Unit>>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<FunPtr<() -> Unit>>".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Code,
@@ -991,6 +1050,7 @@ fn exact_c_types_totally_determine_their_lir_storage() {
     let code_nullable_id = code_nullable;
     let mut structs = StructDefs::default();
     let c_struct = structs.alloc_c(
+        crate::tests::test_physical_exact("CValue", scoop_identity::SourceNominalKind::Struct),
         "CValue".to_string(),
         4,
         4,

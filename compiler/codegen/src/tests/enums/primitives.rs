@@ -274,6 +274,10 @@ fn variant_test_rejects_wrong_enum_and_non_boolean_result() {
 fn variant_references_are_revalidated_against_the_complete_module() {
     let mut foreign = scoop_lir::EnumDefs::default();
     foreign.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "padding",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "padding".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![EnumVariantRepr {
@@ -289,6 +293,10 @@ fn variant_references_are_revalidated_against_the_complete_module() {
         scan: RefScan::None,
     });
     let foreign_option = foreign.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "foreign",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "foreign".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..3)
@@ -329,6 +337,10 @@ fn variant_references_are_revalidated_against_the_complete_module() {
 fn variant_payload_projection_rejects_invalid_field_result_and_provenance() {
     let mut foreign = scoop_lir::EnumDefs::default();
     let foreign_shape = foreign.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "foreign",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "foreign".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![

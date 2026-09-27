@@ -42,6 +42,10 @@ fn enum_module_with(
     // Dot/Circle share the pure-value slot at 8; Rect owns a
     // ref-bearing slot at 16, with its String at offset 24.
     let shape = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Shape",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Shape".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![
@@ -86,6 +90,10 @@ fn enum_module_with(
     });
     // enum Option<String> { None, Some(String) } — niche pointer.
     let option = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<String>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<String>".to_string(),
         repr: EnumRepr::Niche {
             kind: niche_kind,
@@ -586,6 +594,10 @@ fn enum_wrap_validator_rejects_wrong_result_arity_and_invalid_ref() {
 
     let mut foreign = scoop_lir::EnumDefs::default();
     let foreign_id = foreign.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Foreign",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Foreign".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4)

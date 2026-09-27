@@ -9,6 +9,10 @@ fn tagged_module(fields: Vec<scoop_lir::EnumFieldRepr>, referenced: bool) -> (Mo
         RefScan::None
     };
     let id = enums.alloc(scoop_lir::EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "TaggedZst",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "TaggedZst".into(),
         repr: EnumRepr::Tagged {
             variants: vec![scoop_lir::EnumVariantRepr {

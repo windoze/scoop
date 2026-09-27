@@ -182,7 +182,8 @@ pub(crate) fn lower_structs(
 ) -> StorageResult<lir::StructDefs> {
     let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
     let mut structs = lir::StructDefs::default();
-    for (_, definition) in module.structs.iter() {
+    for (id, definition) in module.structs.iter() {
+        let exact_type = exact_type_record(module, &definition.physical_type(id)).id();
         let (_, size, align) = struct_shape(context, module, &enum_shape, definition)?;
         match &definition.representation {
             mir::StructRepresentation::Declared {
@@ -192,6 +193,7 @@ pub(crate) fn lower_structs(
             } => {
                 if let Some(contract) = c_layout {
                     let _ = structs.alloc_c(
+                        exact_type,
                         definition.name.clone(),
                         size,
                         align,
@@ -201,6 +203,7 @@ pub(crate) fn lower_structs(
                     );
                 } else {
                     structs.alloc_scoop(
+                        exact_type,
                         definition.name.clone(),
                         size,
                         align,
@@ -211,6 +214,7 @@ pub(crate) fn lower_structs(
             }
             mir::StructRepresentation::Intrinsic(representation) => {
                 structs.alloc_intrinsic(
+                    exact_type,
                     definition.name.clone(),
                     size,
                     align,

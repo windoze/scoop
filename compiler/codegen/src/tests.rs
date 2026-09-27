@@ -25,6 +25,7 @@ use super::*;
 
 mod support;
 
+pub(crate) use support::test_physical_exact;
 use support::*;
 
 #[path = "runtime_collector_tests.rs"]

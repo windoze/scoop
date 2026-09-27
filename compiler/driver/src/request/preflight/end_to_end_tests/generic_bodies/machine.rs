@@ -119,6 +119,53 @@ fn actual_generic_library_emits_shared_odr_objects() {
             &diagnostics,
         )
         .unwrap();
+        for (id, definition) in mir.strong.module().structs.iter() {
+            let expected = mir
+                .strong
+                .module()
+                .meta
+                .source_exact_types
+                .get(&definition.physical_type(id))
+                .unwrap()
+                .identity_record()
+                .id();
+            let actual =
+                lir.module().structs[scoop_lir::StructDefId::from_raw(id.into_raw())].exact_type;
+            assert_eq!(actual, expected);
+            assert!(
+                lir.module()
+                    .meta
+                    .exact_types
+                    .iter()
+                    .any(|record| record.id() == actual)
+            );
+        }
+        for (id, definition) in mir.strong.module().enums.iter() {
+            let ty = scoop_mir::Type::Enum(id, definition.type_arguments.clone());
+            let expected =
+                if let Some(record) = mir.strong.module().meta.source_exact_types.get(&ty) {
+                    record.identity_record().id()
+                } else {
+                    mir.strong
+                        .module()
+                        .meta
+                        .generated_exact_types
+                        .get(scoop_mir::GeneratedExactTypeLocation::Enum(id))
+                        .unwrap()
+                        .exact_record()
+                        .id()
+                };
+            let actual =
+                lir.module().enums[scoop_lir::EnumDefId::from_raw(id.into_raw())].exact_type;
+            assert_eq!(actual, expected);
+            assert!(
+                lir.module()
+                    .meta
+                    .exact_types
+                    .iter()
+                    .any(|record| record.id() == actual)
+            );
+        }
         let bytes = encode(lir.foundation()).unwrap();
         let decoded = decode_canonical::<scoop_lir::DecodedLirFoundation>(&bytes).unwrap();
         let mut pending = PendingIdentityValidation::from_graph(identities);

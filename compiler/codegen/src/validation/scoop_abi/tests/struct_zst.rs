@@ -12,9 +12,17 @@ fn field(ty: LirType, offset: u64, access_align: u64) -> scoop_lir::StructField 
 
 fn mixed(offset: u64, alignment: u64, pointer_offset: u64) -> (Module, StructDefId) {
     let mut structs = StructDefs::default();
-    let empty = structs.alloc_scoop("Empty".into(), 0, 1, false, vec![]);
+    let empty = structs.alloc_scoop(
+        crate::tests::test_physical_exact("Empty", scoop_identity::SourceNominalKind::Struct),
+        "Empty".into(),
+        0,
+        1,
+        false,
+        vec![],
+    );
     let zst = || LirType::Struct(empty);
     let id = structs.alloc_scoop(
+        crate::tests::test_physical_exact("MixedZst", scoop_identity::SourceNominalKind::Struct),
         "MixedZst".into(),
         16,
         8,

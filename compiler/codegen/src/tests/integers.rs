@@ -112,6 +112,10 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
     let offsets = [0, 2, 4, 8, 16, 18, 20, 24];
     let aligns = [1, 2, 4, 8, 1, 2, 4, 8];
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "AllFixedWidthIntegers",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "AllFixedWidthIntegers".to_string(),
         32,
         8,
@@ -202,6 +206,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
 fn compiler_pointer_shell_cannot_be_emitted_as_an_aggregate_struct() {
     let mut structs = scoop_lir::StructDefs::default();
     let shell = structs.alloc_intrinsic(
+        crate::tests::test_physical_exact("Ptr<Int>", scoop_identity::SourceNominalKind::Struct),
         "Ptr<Int>".to_string(),
         8,
         8,

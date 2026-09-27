@@ -53,6 +53,7 @@ fn static_callback_bridge(module: &mut Module, symbol: &str) -> scoop_lir::NoGcL
 
 fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
     module.structs.alloc_scoop(
+        crate::tests::test_physical_exact(name, scoop_identity::SourceNominalKind::Struct),
         name.to_string(),
         16,
         8,
@@ -78,6 +79,10 @@ fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
 
 fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            name,
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: name.to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4)
@@ -98,6 +103,10 @@ fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
 
 fn callback_mode(module: &mut Module) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignCallbackMode",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignCallbackMode".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..2)
@@ -118,6 +127,10 @@ fn callback_mode(module: &mut Module) -> scoop_lir::EnumDefId {
 
 fn callback_failure(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            name,
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: name.to_string(),
         repr: EnumRepr::Niche {
             kind: scoop_lir::NichePointerKind::Managed,
@@ -133,6 +146,10 @@ fn pointer_niche(
     kind: scoop_lir::NichePointerKind,
 ) -> scoop_lir::EnumDefId {
     let definition = EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            name,
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: name.to_string(),
         repr: EnumRepr::Niche {
             kind,
@@ -281,6 +298,7 @@ fn add_foreign_callback_bridge(
 fn c_layout_matches_llvm_and_generated_c_assertions() {
     let mut structs = scoop_lir::StructDefs::default();
     let inner = structs.alloc_c(
+        crate::tests::test_physical_exact("Inner", scoop_identity::SourceNominalKind::Struct),
         "Inner".to_string(),
         16,
         8,
@@ -310,6 +328,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     );
     let inner_id = inner.definition();
     let outer = structs.alloc_c(
+        crate::tests::test_physical_exact("Outer", scoop_identity::SourceNominalKind::Struct),
         "Outer".to_string(),
         32,
         16,
@@ -348,6 +367,10 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     let outer_id = outer.definition();
     let mut enums = scoop_lir::EnumDefs::default();
     let wrapped = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Wrapped",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Wrapped".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![
@@ -1148,6 +1171,10 @@ fn nullable_data_pointer_ref_rejects_a_mismatched_exact_pointee() {
         .nullable_data_pointer_ref(option, scoop_lir::CDataPointee::OpaqueVoid)
         .expect("test raw-pointer niche");
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "MalformedNullableData",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "MalformedNullableData".to_string(),
         8,
         8,
@@ -1196,6 +1223,10 @@ fn nullable_code_pointer_ref_rejects_a_mismatched_exact_signature() {
         .nullable_code_pointer_ref(option, bound_signature)
         .expect("test code-pointer niche");
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "MalformedNullableCode",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "MalformedNullableCode".to_string(),
         8,
         8,
@@ -1244,6 +1275,10 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
     let raw_type = c_nullable_opaque_pointer(&module.enums, raw);
     let code_type = c_nullable_function_pointer(&module.enums, code);
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "PointerFields",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "PointerFields".to_string(),
         16,
         8,
@@ -1360,6 +1395,7 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
         ("nullable_code", nullable_code),
     ];
     module.structs.alloc_c(
+        crate::tests::test_physical_exact("PointerTree", scoop_identity::SourceNominalKind::Struct),
         "PointerTree".to_string(),
         32,
         8,
@@ -1485,6 +1521,7 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
 fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
     let mut module = values_module();
     let node = module.structs.alloc_c(
+        crate::tests::test_physical_exact("Node", scoop_identity::SourceNominalKind::Struct),
         "Node".to_string(),
         16,
         8,
@@ -1568,6 +1605,7 @@ fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
 fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
     let mut module = values_module();
     let a = module.structs.alloc_c(
+        crate::tests::test_physical_exact("A", scoop_identity::SourceNominalKind::Struct),
         "A".to_string(),
         1,
         1,
@@ -1579,6 +1617,7 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
         Vec::new(),
     );
     let b = module.structs.alloc_c(
+        crate::tests::test_physical_exact("B", scoop_identity::SourceNominalKind::Struct),
         "B".to_string(),
         1,
         1,

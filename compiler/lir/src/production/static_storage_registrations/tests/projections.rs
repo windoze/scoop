@@ -4,7 +4,14 @@ use scoop_wire::{decode_canonical, encode};
 
 fn plan(encoded: bool) -> StrongStaticStorageSemanticPlanV1 {
     let mut structs = crate::StructDefs::default();
-    let empty = structs.alloc_scoop("Empty".to_owned(), 0, 1, false, Vec::new());
+    let empty = structs.alloc_scoop(
+        crate::tests::test_physical_exact("Empty", scoop_identity::SourceNominalKind::Struct),
+        "Empty".to_owned(),
+        0,
+        1,
+        false,
+        Vec::new(),
+    );
     let state = if encoded {
         LirStaticInitialState::EncodedStaticValue {
             payload: LirConstantImage::Struct {

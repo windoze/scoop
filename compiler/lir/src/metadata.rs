@@ -9,6 +9,8 @@ pub use static_storage::StaticStorageLayout;
 
 #[derive(Debug)]
 pub struct StructDef {
+    /// Exact semantic identity, independent of this store's local index.
+    pub exact_type: scoop_identity::PersistentExactTypeId,
     pub name: String,
     pub size: u64,
     pub align: u64,
@@ -27,6 +29,7 @@ pub struct StructDefs {
 impl StructDefs {
     pub fn alloc_scoop(
         &mut self,
+        exact_type: scoop_identity::PersistentExactTypeId,
         name: String,
         size: u64,
         align: u64,
@@ -34,6 +37,7 @@ impl StructDefs {
         fields: Vec<StructField>,
     ) -> StructDefId {
         self.definitions.alloc(StructDef {
+            exact_type,
             name,
             size,
             align,
@@ -42,8 +46,10 @@ impl StructDefs {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn alloc_c(
         &mut self,
+        exact_type: scoop_identity::PersistentExactTypeId,
         name: String,
         size: u64,
         align: u64,
@@ -52,6 +58,7 @@ impl StructDefs {
         fields: Vec<CStructField>,
     ) -> CStructRef {
         let id = self.definitions.alloc(StructDef {
+            exact_type,
             name,
             size,
             align,
@@ -63,12 +70,14 @@ impl StructDefs {
 
     pub fn alloc_intrinsic(
         &mut self,
+        exact_type: scoop_identity::PersistentExactTypeId,
         name: String,
         size: u64,
         align: u64,
         representation: IntrinsicTypeRepresentation,
     ) -> StructDefId {
         self.definitions.alloc(StructDef {
+            exact_type,
             name,
             size,
             align,
@@ -1044,6 +1053,8 @@ impl Global {
 /// An enum definition with its representation fixed by lir-lower.
 #[derive(Debug)]
 pub struct EnumDef {
+    /// Exact semantic identity, including generated and generic applications.
+    pub exact_type: scoop_identity::PersistentExactTypeId,
     pub name: String,
     pub repr: EnumRepr,
     /// Recursive scan program for one inline value of this enum type.

@@ -85,6 +85,7 @@ fn semantic_plans_bind_storage_shape_scan_and_immortal_initializers() {
 fn encoded_integer_templates_preserve_target_bits_and_zero_padding() {
     let mut structs = crate::StructDefs::default();
     let pair = structs.alloc_scoop(
+        crate::tests::test_physical_exact("Pair", scoop_identity::SourceNominalKind::Struct),
         "Pair".to_string(),
         8,
         4,

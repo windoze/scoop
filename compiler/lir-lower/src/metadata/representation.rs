@@ -40,6 +40,11 @@ pub(crate) fn lower_enums(
     let mut enums = lir::EnumDefs::default();
     for ((mir_id, def), repr) in module.enums.iter().zip(reprs) {
         let definition = lir::EnumDef {
+            exact_type: exact_type_record(
+                module,
+                &mir::Type::Enum(mir_id, def.type_arguments.clone()),
+            )
+            .id(),
             name: def.name.clone(),
             repr: repr.ok_or(StorageLoweringError::InvalidRepresentation(
                 "enum representation is incomplete",

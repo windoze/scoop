@@ -6,6 +6,10 @@ fn context() -> LoweringContext {
 
 fn tagged(enums: &mut lir::EnumDefs, size: u64, scan: lir::RefScan) -> lir::LirType {
     lir::LirType::Enum(enums.alloc(lir::EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ScanValue",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ScanValue".to_string(),
         repr: lir::EnumRepr::Tagged {
             variants: Vec::new(),
@@ -19,7 +23,14 @@ fn tagged(enums: &mut lir::EnumDefs, size: u64, scan: lir::RefScan) -> lir::LirT
 #[test]
 fn aggregate_zst_alignment_and_managed_leaves_share_checked_placement() {
     let mut structs = lir::StructDefs::default();
-    let aligned_zst = structs.alloc_scoop("Empty".to_string(), 0, 16, false, Vec::new());
+    let aligned_zst = structs.alloc_scoop(
+        crate::tests::test_physical_exact("Empty", scoop_identity::SourceNominalKind::Struct),
+        "Empty".to_string(),
+        0,
+        16,
+        false,
+        Vec::new(),
+    );
     let enums = lir::EnumDefs::default();
     let fields = vec![
         lir::LirType::I8,
@@ -44,7 +55,14 @@ fn aggregate_zst_alignment_and_managed_leaves_share_checked_placement() {
 fn abi_classification_propagates_invalid_geometry_and_void_value_errors() {
     let mut structs = lir::StructDefs::default();
     let enums = lir::EnumDefs::default();
-    let invalid = structs.alloc_scoop("Invalid".to_string(), 8, 0, false, Vec::new());
+    let invalid = structs.alloc_scoop(
+        crate::tests::test_physical_exact("Invalid", scoop_identity::SourceNominalKind::Struct),
+        "Invalid".to_string(),
+        8,
+        0,
+        false,
+        Vec::new(),
+    );
     assert_eq!(
         crate::abi::classify_argument(&context(), lir::LirType::Struct(invalid), &structs, &enums,),
         Err(StorageLoweringError::Shape(
@@ -67,7 +85,14 @@ fn aggregate_target_extent_and_scan_translation_overflow_return_errors() {
         .target_profile()
         .contract()
         .maximum_managed_object_size();
-    let large = structs.alloc_scoop("Large".to_string(), maximum, 1, false, Vec::new());
+    let large = structs.alloc_scoop(
+        crate::tests::test_physical_exact("Large", scoop_identity::SourceNominalKind::Struct),
+        "Large".to_string(),
+        maximum,
+        1,
+        false,
+        Vec::new(),
+    );
     let ty = lir::LirType::Aggregate(vec![lir::LirType::Struct(large), lir::LirType::I8]);
     assert!(matches!(
         lir_size_align(&context(), &ty, &structs, &enums),
@@ -134,7 +159,14 @@ fn inline_roots_reject_misaligned_and_variable_object_scans() {
 #[test]
 fn recursive_value_roots_return_cycle_error() {
     let mut structs = lir::StructDefs::default();
-    let id = structs.alloc_scoop("Recursive".to_string(), 8, 8, false, Vec::new());
+    let id = structs.alloc_scoop(
+        crate::tests::test_physical_exact("Recursive", scoop_identity::SourceNominalKind::Struct),
+        "Recursive".to_string(),
+        8,
+        8,
+        false,
+        Vec::new(),
+    );
     structs.set_scoop_fields(
         id,
         vec![lir::StructField {
