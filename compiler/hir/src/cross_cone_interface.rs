@@ -10,6 +10,7 @@ mod declaration_references;
 mod default_templates;
 mod definition_sources;
 mod external_references;
+mod generic_templates;
 mod nominal_callables;
 mod nominal_interfaces;
 mod nominal_shapes;
@@ -234,6 +235,7 @@ pub use default_templates::{
     ExportDefaultSingletonReferenceV1, ExportDefaultTypeReferenceV1,
     compare_default_signature_reference_targets,
 };
+pub use generic_templates::*;
 
 pub use default_templates::{
     DefaultSourceNestedCallableDescriptorV1, DefaultSourceNestedCallableOccurrenceV1,

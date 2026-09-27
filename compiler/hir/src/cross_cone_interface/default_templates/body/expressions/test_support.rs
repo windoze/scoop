@@ -24,6 +24,7 @@ use crate::{
 
 pub(crate) struct Fixture {
     pub(crate) function: PersistentFunctionId,
+    pub(crate) generic_function: PersistentGenericFunctionId,
     pub(crate) property: PersistentPropertyId,
     pub(crate) generated: PersistentGeneratedCallableId,
     pub(crate) type_id: PersistentTypeId,
@@ -45,6 +46,15 @@ impl Fixture {
                 0,
                 None,
                 Vec::new(),
+            ))
+            .unwrap();
+        let generic_function =
+            PersistentGenericFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+                top_level_site(),
+                identifier("identity"),
+                1,
+                None,
+                vec![SignatureTypeKey::Binder { depth: 0, index: 0 }],
             ))
             .unwrap();
         let property = PersistentPropertyId::from_source_declaration(
@@ -122,6 +132,7 @@ impl Fixture {
         .unwrap();
         Self {
             function,
+            generic_function,
             property,
             generated,
             type_id: structure_id,
@@ -167,6 +178,7 @@ impl Fixture {
     pub(crate) const fn resolver(&self) -> Resolver {
         Resolver {
             function: Some(self.function),
+            generic_function: Some(self.generic_function),
             property: Some(self.property),
             generated: Some(self.generated),
             type_id: Some(self.type_id),
@@ -182,6 +194,7 @@ impl Fixture {
 
 pub(crate) struct Resolver {
     function: Option<PersistentFunctionId>,
+    generic_function: Option<PersistentGenericFunctionId>,
     property: Option<PersistentPropertyId>,
     generated: Option<PersistentGeneratedCallableId>,
     type_id: Option<PersistentTypeId>,
@@ -197,6 +210,7 @@ impl Resolver {
     pub(crate) const fn rejecting() -> Self {
         Self {
             function: None,
+            generic_function: None,
             property: None,
             generated: None,
             type_id: None,
@@ -249,7 +263,18 @@ macro_rules! reject_identity {
     };
 }
 
-reject_identity!(PersistentGenericFunctionId);
+impl PersistentIdResolver<PersistentGenericFunctionId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentGenericFunctionId>,
+    ) -> Result<PersistentGenericFunctionId, Self::Error> {
+        id.verify(self.generic_function.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
 reject_identity!(PersistentPropertyAccessorId);
 reject_identity!(PersistentGenericTypeId);
 reject_identity!(PersistentCallbackRegistrationId);
