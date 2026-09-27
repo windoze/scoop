@@ -77,10 +77,10 @@ M23-2 不通过把当前 Rust `Module` 直接 serde 化来换取“能 round-tri
 | M23-3 | 当前legacy pipeline与空壳`compiler/slib` | stable identity、container、manifest/member envelope、Graph/Compile reader；由M23-3补strong-only production writer、object/image verifier与Link proof，并拒绝任何ODR production input |
 | M23-5 | HIR identity foundation section | 以新required HIR section加入public/re-export/access/default payload，不改identity key或基础section |
 | M23-6 | exact/layout id、native-boundary witness与LIR foundation section | 以新required MIR/LIR section加入通用、可跨Cone复用的layout/ABI/scan/dispatch proof；不改exact type identity或第5.4节已冻结的extern/callback contract bytes |
-| M23-7 | 已冻结的specialization/group/member identity、callable-body ODR引用与mangle role | 补齐ODR完整member闭包、ABI/definition fingerprint、object materialization与跨Cone member-set/definition一致性验证；不能改identity key或PersistentV1语法 |
+| M23-7 | 已冻结的 specialization/group/member identity、callable-body ODR 引用与 mangle role | 按 [M23-7 设计](../stage7/DESIGN.md) 补齐真实模板、定义与引用闭包、逐 member ABI/definition 和对象物化；允许同组独立成员并集，实体 identity 与 PersistentV1 不变 |
 | M23-8～10 | typed member/purpose/capability、未来Link门禁位置 | 分别加入runtime/image/link/native verifier capability，不增加第二条raw object入口 |
 | M23-11 | 明确隔离的legacy executable shim | 删除legacy shim并让正式single-file orchestration成为唯一fixture路径 |
-| M24 | container v1、identity schema v1、PersistentV1，以及预留的`ReleaseHook=16` ODR member role | 三层wire schema与发生变化的foundation capability/profile major整体升为2、callable-body domain升为v2；旧v1 artifact整体重建 |
+| M24 | container v1、identity schema v1、PersistentV1 及 ReleaseHook role 16 | 三层 outer schema 升为 2、callable-body 升为 v2；foundation major 分别为 HIR 4、MIR 2、LIR 3，后者承接 M23-7 的 LIR /2；旧产物重建 |
 
 ### 1.4 版本时序
 
@@ -93,11 +93,11 @@ M23-2 实现历史顺序上的 M23 baseline，不能把已经写入最终规范�
 | persistent identity schema | 1 | 仍为1 |
 | mangler schema | `persistent-v1` | 不变 |
 | HIR/MIR/LIR outer wire schema | 1/1/1 | 2/2/2，三层必须一致升级 |
-| HIR/MIR/LIR identity-foundation capability major | 1/1/1 | 2/2/2；引用它们的artifact profile也使用新major |
+| HIR/MIR/LIR identity-foundation capability major | M23-2 为 1/1/1；M23-6 为 3/1/1；M23-7 为 3/1/2 | M24 为 4/2/3；完整 generic production profile 从 /1 升至 /2 |
 | callable body identity | `scoop-callable-body-v1`，4个variant | `scoop-callable-body-v2`，增加`ReleaseHook` |
 | runtime metadata ABI prefix | 1 | 仍为1；TypeDescriptor/runtime fingerprint另行变化 |
 
-M24 的升级是规范已经声明的整体不兼容重建，不构成修改 M23-2 frozen tag 的先例。M23 artifact中不能混入body-v2，M24 artifact中也不能保留任何body-v1。outer schema升代不能代替capability major升代：payload shape发生变化的`org.scoop-lang.{hir,mir,lir}/identity-foundation/1`必须分别换成`.../2`，引用这些capability的profile也必须换新id/major，旧handler绝不能用“outer schema已经是2”为理由解释新payload。
+M24 的升级是规范已经声明的整体不兼容重建，不构成修改 M23-2 frozen tag 的先例。M23 artifact中不能混入body-v2，M24 artifact中也不能保留任何body-v1。outer schema升代不能代替capability major升代：foundation capability 必须使用上表的 HIR /4、MIR /2、LIR /3，完整 generic profile 从 /1 升至 /2，旧handler绝不能用“outer schema已经是2”为理由解释新payload。
 
 `PersistentCallableApplicationId`与`OdrGroupId`不含body schema，M24保持不变；primary callable member若以CallableApplication/GeneratedCallable作discriminator也保持其identity。`PersistentCallableBodyId`、其下safepoint site，以及以CallableBody/SafepointSite为discriminator的派生`OdrMemberId`、registration symbol/member set与ODR fingerprint则随body-v2整体重生，不能笼统声称所有ODR member id跨M24不变。
 
@@ -982,13 +982,13 @@ Lexical、Initialization与CallableReferenceInvoke的template id本身没有conc
 
 validator从完整canonical key/typed relation重算上述可达性；producer Cone、object member、symbol、同layout或“当前只有一个候选”都不是provenance。无法回溯到恰好一个root的member拒绝，而不是任意归组。
 
-`ExactOwnerRoot`落到source nominal定义Cone时，同时形成该定义artifact的materialization obligation，而不是授权consumer替别的Cone发Strong定义；该root只决定当前entity的owner，不豁免其typed dependency所需的ODR能力。M23-3对当前Cone已实际使用的param-free source exact subject闭合box/coroutine step/slot等非callable有限shape support；M23-5/6在开放跨Cone surface与LIR bridge时，要求每个可被下游合法请求的param-free exported exact subject把同一非callable有限support closure非可选地包含在定义artifact的production proof中。`ContinuationShell<R>`与`CoroutineStart<R>`因signature依赖`Continuation<R>`/`SuspendTask<R>` nominal application，只能到M23-7随完整ODR definition proof加入callable closure，不能因helper root属于source Cone就把dependency降级成Strong。consumer只能引用该owner，缺失时按required capability失败；不得改由当前Cone发同名Strong、临时Hidden或为source nominal伪造StructuralType组。nominal application和非nominal exact type仍分别由Nominal/Structural ODR组按需物化，不要求template定义Cone穷举应用。
+`ExactOwnerRoot`落到source nominal定义Cone时，同时形成该定义artifact的materialization obligation，而不是授权consumer替别的Cone发Strong定义；该root只决定当前entity的owner，不豁免其typed dependency所需的ODR能力。M23-3对当前Cone已实际使用的param-free source exact subject闭合box/coroutine step/slot等非callable有限shape support；M23-5/6在开放跨Cone surface与LIR bridge时，要求每个可被下游合法请求的param-free exported exact subject把同一非callable有限support closure非可选地包含在定义artifact的production proof中。`ContinuationShell<R>`与`CoroutineStart<R>`因signature依赖`Continuation<R>`/`SuspendTask<R>` nominal application，只能到M23-7随实际 ODR 定义和引用闭包加入 callable closure，不能因helper root属于source Cone就把dependency降级成Strong。consumer只能引用该owner，缺失时按required capability失败；不得改由当前Cone发同名Strong、临时Hidden或为source nominal伪造StructuralType组。nominal application和非nominal exact type仍分别由Nominal/Structural ODR组按需物化，不要求template定义Cone穷举应用。
 
 M24 generic release hook使用`{group = 该owner的Nominal specialization group, role = ReleaseHook, discriminator = ExactType(该owner application)}`。validator必须逐字段证明group的`origin + arguments`与该`PersistentExactTypeId`的`NominalApplication` key一致；每个有release policy的generic exact owner恰有一个该member，hook body的ObjectDefinitionPlan owner就是它，`cb(CallableBodyKeyV2::ReleaseHook(owner))`取`OdrWeak`。另有且只有一个同组`RegistrationRecord/CallableBody(body id)` member供`cr`使用；TD relocation必须命中该`cb` entry，不得再为同一hook制造`CallableBody` member或`od`第二primary，release body也不得有`safepoint/sr`。若body调用verified pure C leaf bridge，canonical definition只引用unit并按前述规则把producer-local atom relocation正规化。
 
-param-free hook不构造ReleaseHook ODR member；其body、callable registration与TD都继承同一个exact source subject，因而可按M23-7完整hidden proof统一为ConeStrong或TemplateSupportHidden。这样M24只启用M23-2已经赋义的role/matrix，不改变`OdrGroupId`、`OdrMemberKey`或`persistent-v1`；但M23 schema v1的artifact profile仍一律拒绝ReleaseHook semantic member。
+param-free hook 不构造 ReleaseHook ODR member；其 body、callable registration 与 TD 继承同一个 exact source subject，按 M23-7 的实际模板引用和普通链接可见性使用 ConeStrong 或 TemplateSupportHidden。这样M24只启用M23-2已经赋义的role/matrix，不改变`OdrGroupId`、`OdrMemberKey`或`persistent-v1`；但M23 schema v1的artifact profile仍一律拒绝ReleaseHook semantic member。
 
-generic specialization 使用既有 typed callable application、`SpecializationKey::Callable`、group/member 与 symbol key。当前完整 Strong 产物拒绝 ODR member/body/symbol，不存在可单独发布或消费的 foundation profile。M23-7 再完成实际 member 闭包、ABI/definition fingerprint、object materialization 和跨 Cone 定义一致性；这些都是链接所需数据，不建立发布资格或来源证明。既有实体身份不使用 FQN、symbol、producer Cone、object 分片或全零值回退。
+generic specialization 使用既有 typed callable application、`SpecializationKey::Callable`、group/member 与 symbol key。当前完整 Strong 产物拒绝 ODR member/body/symbol，不存在可单独发布或消费的 foundation profile。M23-7 再完成实际定义及引用闭包、逐 member ABI/definition fingerprint、object materialization 和跨 Cone 重复定义一致性；这些都是链接所需数据，不建立发布资格或来源证明。既有实体身份不使用 FQN、symbol、producer Cone、object 分片或全零值回退。
 
 ### 5.3 identity record与顺序
 

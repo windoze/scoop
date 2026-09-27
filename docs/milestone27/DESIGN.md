@@ -378,7 +378,7 @@ PersistentContextKeyUseId = H(
 - verifier通过typed owner/use/cell、ODR relation与object relocation定位cell，不能只凭cell地址、TypeDescriptor地址或symbol碰运气；
 - slot空间耗尽，或managed execution开始后仍读取unresolved cell，是稳定runtime/metadata错误，不退化成missing binding。
 
-`ContextKeyUse`是M23 registration prefix下新增的封闭record family，沿用既有单向digest DAG而不得自创循环：canonical LIR/ObjectDefinition是上游leaf；strong use record的`definition_fingerprint`由`StrongRegistration`产生，在计算该record的normalized object bytes时把自身fingerprint slot归零；ODR use record引用owner body既有的`OdrDefinitionFingerprint`，计算该ODR definition所消费的normalized bytes时同样把该record的fingerprint slot归零。`RuntimeImage`最后消费完成的use registration。cell在object中只以canonical unresolved初始bytes参与ObjectDefinition/ODR/registration验证；启动登记写入的live slot值永不进入fingerprint、cache key或后续object revalidation。
+`ContextKeyUse`是M23 registration prefix下新增的封闭record family，沿用既有单向digest DAG而不得自创循环：canonical LIR/ObjectDefinition是上游leaf；strong use record的`definition_fingerprint`由`StrongRegistration`产生，在计算该record的normalized object bytes时把自身fingerprint slot归零；ODR use record 按 M23-7 的逐 member 规则使用自身 registration member 的 `OdrDefinitionFingerprint`，其内容通过实际 typed 引用关联 owner body；计算该 member 的 normalized object bytes 时把自身 fingerprint slot 归零。`RuntimeImage`最后消费完成的use registration。cell在object中只以canonical unresolved初始bytes参与ObjectDefinition/ODR/registration验证；启动登记写入的live slot值永不进入fingerprint、cache key或后续object revalidation。
 
 Context没有独立source key declaration或单独的全局definition record；全局key从exact type确定，runtime materialization是上述code-owner use。generic/abstract contract若未产生concrete code，不制造cell。具体table分片与record字段布局留给wire spec；硬约束是typed关系完整、无nullable尾字段、合法的同key多use与非法的同owner duplicate可结构化区分，也不在lookup时临时解析type关系。
 

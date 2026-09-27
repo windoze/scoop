@@ -266,7 +266,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage2/DESIGN.md`。
 
-- 冻结Cone及kind-specific persistent identity、exact/source/unit/callable application/body/runtime/safepoint id、当前generic body所需的最小ODR group/member identity、`PersistentV1` mangler与session remap。callback source site使用允许binder的`PersistentCallbackRegistrationId`，fully concrete materialization使用`{ registration, CallableMaterializationContext }`的`PersistentCallbackApplicationId`；generic delegated initializer/ensure的local generic owner使用`EnclosingInitializationApplication { unit }`。Initialization generated template只引用声明级unit，application unit只进入materialization context并决定实际body root。box/coroutine step/slot/shell/start统一按`ExactOwnerRoot`归属；该root不豁免helper依赖的generic nominal application/ODR能力。M23-3/6先预物化param-free source nominal的非callable有限shape-support closure，shell/start到M23-7随完整ODR proof加入；consumer不得替定义Cone发Strong定义。
+- 冻结Cone及kind-specific persistent identity、exact/source/unit/callable application/body/runtime/safepoint id、当前generic body所需的最小ODR group/member identity、`PersistentV1` mangler与session remap。callback source site使用允许binder的`PersistentCallbackRegistrationId`，fully concrete materialization使用`{ registration, CallableMaterializationContext }`的`PersistentCallbackApplicationId`；generic delegated initializer/ensure的local generic owner使用`EnclosingInitializationApplication { unit }`。Initialization generated template只引用声明级unit，application unit只进入materialization context并决定实际body root。box/coroutine step/slot/shell/start统一按`ExactOwnerRoot`归属；该root不豁免helper依赖的generic nominal application/ODR能力。M23-3/6先预物化param-free source nominal的非callable有限shape-support closure，shell/start 到 M23-7 随实际 ODR 定义与引用闭包加入；consumer不得替定义Cone发Strong定义。
 - 统一冻结`ByteSpan`、`DomainSeparatedCborHash`与仅供callable body使用的`RuntimeEncode`；`.slib`冻结deterministic container、三层schema-1 metadata envelope、typed member directory、实际输入边界检查、基础Graph/Compile reader与schema演进规则。三条`identity-foundation/1`保存可重算的exact canonical payload；native witness只覆盖extern/callback边界的source nominal闭包，Scoop extern的`GcEffect::{Managed, NoGc}`与ordinary/suspend effect分离，不把foundation冒充通用layout服务。
 - M23-2只持久化`ValidatedLirTargetSelection { lir_target, backend }`；请求级registry原子解析`ResolvedTargetProfile`的`lir_target/backend/c_bridge_toolchain/runtime_build/final_link`五个projection。canonical C signature只描述generated-C source storage，不持久化完整target C classifier；LLVM candidate绑定`ValidatedBackendProfile`，generated-C candidate绑定`ValidatedCBridgeToolchainProfile`。bridge recipe使用producer-independent `GeneratedBridgeUnitId`，实际定义使用producer-specific `GeneratedBridgeAtomId`，LIR/ODR relocation引用unit并由object verifier从atom规范化回unit。
 - member envelope从本阶段起允许任意数量、任意已登记producer的`LinkObject`以及opaque/required blob；成员用途不依赖文件名、扩展名、顺序或object数量。后续语义payload按独立section/capability version加入，不在尚无verifier时宣称最终Link view完成。
@@ -341,10 +341,11 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 - 真实源码生成完整 `.slib`，由本阶段跨 Cone Compile/Link 路径消费，并完成适用链接与运行；覆盖 core 修改、扩展、重建、下游使用，以及类型、成员、dispatch、ABI、ZST 的独立与组合场景。手工 metadata 和证明反例不能替代验收。
 - **M23-6 已完成并验收（2026-09-27）**：实际功能、七项清理和生产调用链核对已完成，变更按功能提交；启用真实配套编译器的全仓测试 5084 项通过。详见 [实际产物验收记录](milestone23/stage6/ACCEPTANCE.md)。ODR、multi-image startup、artifact-only program-link 按 M23-7/8/9 的原阶段安排。
 
-### M23-7 跨Cone generic、ODR与generic delegated extension
+### M23-7 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](milestone23/stage7/DESIGN.md)，设计完成，待实现）
 
-- 消费M23-2已冻结的group/member key，完成consumer-side concretization、generic hidden support closure、完整ODR member closure、ABI/definition digest DAG、root provenance与跨Cone member-set/definition一致性验证、collection-based object materialization，以及exact receiver application唯一的lazy delegated storage；在同一完整ODR proof下为param-free source nominal加入依赖`Continuation<R>`/`SuspendTask<R>` application的`ContinuationShell`与`CoroutineStart` callable shape-support closure。
-- sibling Cone的相同specialization必须产生相同member/fingerprint，冲突由artifact/object合并验证器拒绝；真正地址coalesce与全程序exactly-once留给真实link/runtime阶段。
+- 从共有 `.slib` 模板完成 consumer-side concretization，覆盖泛型函数/名义类型、constructor/member/default/bound、hidden support 与 generic delegate；复用当前 MIR/LIR、对象集合、registration、reader 和发布路径。参数自由 source nominal 的 shell/start 由定义方补齐，所需 generic application 按实际引用闭合，不递归生成全部 helper。
+- 保留四类 specialization 和既有 group/member identity；按重复 member 的完整 ABI、canonical LIR、对象/EH/stackmap 判等，独立 helper 的成员集合取并集。旧“同组全部成员必须相同”规则会拒绝不同源签名到同一目标类型的合法 adapter，现按实际定义与引用修订；不增加授权、预算或证明体系。
+- 正式产物切换到 `cross-cone-generic/1`，模板、定义目录、逐 member fingerprint 与缓存同步迁移；设计规定的新版本尚待实现。完成门包含 provider 源码移走后的下游编译，以及现有单 image 验收入口的真实链接、地址合并、委托初始化/失败共享和移动 GC；生产多 image 启动与正式 program-link 仍留给 M23-8/9。
 
 ### M23-8 runtime multi-image registry与启动
 
@@ -374,7 +375,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 - collector只在逻辑死亡对象真正reclaim前同步claim并调用hook；不复制payload、不建立执行队列。moving只转移ready状态，from-space旧副本绝不触发；
 - best effort不保证GC时机、对象间顺序、执行线程或shutdown调用；但正常collection一旦决定回收ready对象，就必须在poison、复用或unmap其存储前尝试一次；
 - 显式`close`/`release`仍是主路径，并应先把owner字段置为inert state以避免后续hook重复释放。M24不新增公开arm/disarm API、full finalizer、对象复活、ByteBuffer或external-memory accounting。
-- `.slib` container仍为v1，但HIR/MIR/LIR outer schema必须同步升为2，foundation capability分别改为`org.scoop-lang.hir/identity-foundation/4`（承接 M23-6 的 `/3`）、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/2`，包含这些新 section 的完整生产 profile 以 M23-6 的 `/3` 为基线按正常 major 规则升级；已退役的 identity-only artifact profile 不恢复；callable body改用v2 key/domain但继续使用runtime metadata encoder ABI `RuntimeEncode`，旧v1 artifact整体重建，不能以outer schema升级代替capability/profile major升级。
+- `.slib` container仍为v1，但HIR/MIR/LIR outer schema必须同步升为2，foundation capability分别改为`org.scoop-lang.hir/identity-foundation/4`（承接 M23-6 的 `/3`）、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/3`（承接 M23-7 的 `/2`），完整生产 profile 由 M23-7 的 `cross-cone-generic/1` 升至 `/2`；已退役的 identity-only artifact profile 不恢复；callable body改用v2 key/domain但继续使用runtime metadata encoder ABI `RuntimeEncode`，旧v1 artifact整体重建，不能以outer schema升级代替capability/profile major升级。
 
 ### M25 自有异常 ABI 与 libc++abi 退役 ✅（2026-09-05 完成，设计见 `docs/milestone25/DESIGN.md`）
 

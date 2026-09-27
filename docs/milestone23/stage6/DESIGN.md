@@ -888,7 +888,7 @@ Step为 `Completed(T) | Suspended`，Slot为 `Empty | Value(T)`；使用既有ge
 
 owner严格由 `ExactOwnerRoot(subject)`决定：source nominal回定义Cone，application/structural回ODR。consumer请求source-root helper时仅导入provider definition；缺失closure直接使artifact无效，不能本地补Strong或伪造Structural组。
 
-`ContinuationShell`与`CoroutineStart`不在本closure中；它们依赖`Continuation<R>`/`SuspendTask<R>`，到M23-7完整ODR proof后才加入。box/interface语义需要的adjust thunk按MIR dispatch relation独立闭合，不把“非callable shape-support”当作免验证生成任意body的入口。
+`ContinuationShell` 与 `CoroutineStart` 不在本阶段 closure 中；它们依赖 `Continuation<R>`/`SuspendTask<R>`，由 [M23-7](../stage7/DESIGN.md) 在实际 ODR 定义及引用闭包中补齐。box/interface语义需要的adjust thunk按MIR dispatch relation独立闭合，不把“非callable shape-support”当作免验证生成任意body的入口。
 
 ## 8. Scoop typed ABI
 
