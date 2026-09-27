@@ -67,6 +67,41 @@ impl StrongSourceNominalShapeRoot {
     }
 }
 
+/// A source nominal that needs physical definitions in this Cone.
+/// Applications retain the HIR-owned specialization group across the MIR boundary.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SourceNominalShapeRoot {
+    Cone(StrongSourceNominalShapeRoot),
+    Application {
+        ty: Type,
+        exact: PersistentExactTypeId,
+        group: scoop_identity::OdrGroupId,
+    },
+}
+
+impl SourceNominalShapeRoot {
+    pub const fn ty(&self) -> &Type {
+        match self {
+            Self::Cone(root) => root.ty(),
+            Self::Application { ty, .. } => ty,
+        }
+    }
+
+    pub const fn exact(&self) -> PersistentExactTypeId {
+        match self {
+            Self::Cone(root) => root.exact(),
+            Self::Application { exact, .. } => *exact,
+        }
+    }
+
+    pub const fn cone_owned(&self) -> Option<&StrongSourceNominalShapeRoot> {
+        match self {
+            Self::Cone(root) => Some(root),
+            Self::Application { .. } => None,
+        }
+    }
+}
+
 /// One MIR-generated nominal whose exact owner closes back to the current
 /// Cone. ODR-owned generated nominals are rejected before a plan exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -130,7 +165,7 @@ impl StrongGeneratedNominalShapeRoot {
 pub struct ConeMirMaterializationPlan {
     callable_roots: Vec<CallableMaterializationRoot>,
     external_callable_roots: Vec<StrongExternalCallableRoot>,
-    source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
+    source_nominal_shapes: Vec<SourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
     dependency_generated_nominal_shapes: Vec<StrongDependencyGeneratedNominalShapeRoot>,
     shape_support: Vec<StrongSourceShapeSupportRoot>,
@@ -151,11 +186,11 @@ impl ConeMirMaterializationPlan {
         &self.external_callable_roots
     }
 
-    pub fn source_nominal_shapes(&self) -> &[StrongSourceNominalShapeRoot] {
+    pub fn source_nominal_shapes(&self) -> &[SourceNominalShapeRoot] {
         &self.source_nominal_shapes
     }
 
-    pub fn source_nominal_shape(&self, ty: &Type) -> Option<&StrongSourceNominalShapeRoot> {
+    pub fn source_nominal_shape(&self, ty: &Type) -> Option<&SourceNominalShapeRoot> {
         self.source_nominal_shapes
             .iter()
             .find(|root| root.ty() == ty)
@@ -246,20 +281,30 @@ impl ConeMirInput {
             .meta
             .source_exact_types
             .iter()
-            .filter_map(|identity| {
-                let ExactTypeKey::Nominal(source) = identity.identity_record().key() else {
-                    return None;
-                };
-                (identity.owner() == SourceExactTypeOwner::Cone(module.cone)).then(|| {
-                    StrongSourceNominalShapeRoot {
-                        ty: identity.ty().clone(),
-                        source: *source,
-                        exact: identity.identity_record().id(),
+            .filter_map(
+                |identity| match (identity.identity_record().key(), identity.owner()) {
+                    (ExactTypeKey::Nominal(source), SourceExactTypeOwner::Cone(provider))
+                        if provider == module.cone =>
+                    {
+                        Some(SourceNominalShapeRoot::Cone(StrongSourceNominalShapeRoot {
+                            ty: identity.ty().clone(),
+                            source: *source,
+                            exact: identity.identity_record().id(),
+                        }))
                     }
-                })
-            })
+                    (
+                        ExactTypeKey::NominalApplication { .. },
+                        SourceExactTypeOwner::NominalApplication(group),
+                    ) => Some(SourceNominalShapeRoot::Application {
+                        ty: identity.ty().clone(),
+                        exact: identity.identity_record().id(),
+                        group,
+                    }),
+                    _ => None,
+                },
+            )
             .collect::<Vec<_>>();
-        source_nominal_shapes.sort_unstable_by_key(StrongSourceNominalShapeRoot::exact);
+        source_nominal_shapes.sort_unstable_by_key(SourceNominalShapeRoot::exact);
 
         let generated_shapes::Partition {
             local: generated_nominal_shapes,

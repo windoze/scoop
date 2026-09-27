@@ -1,6 +1,6 @@
 use scoop_identity::{
-    DefinitionAtomRole, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentExactTypeId,
-    PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, ObjectDefinitionPlanId, PersistentExactTypeId, PersistentSymbolKey,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{RefScan, StrongTypeRegistrationPlan};
 
@@ -48,12 +48,16 @@ pub(super) fn validate_descriptor<D, C>(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     verified: &VerifiedStrongTypeRegistrationV1,
     plan: &StrongTypeRegistrationPlan<D, C>,
+    definitions: &std::collections::BTreeMap<
+        ObjectDefinitionPlanId,
+        (StrongDefinitionEntity, StrongDefinitionRole),
+    >,
 ) -> Result<(), StrongTypeDependencyFingerprintError>
 where
     D: LinkDescriptorReference,
 {
     validate_descriptor_bytes(actual, plan)?;
-    validate_descriptor_relocations(builtins, verified, plan)
+    validate_descriptor_relocations(builtins, verified, plan, definitions)
 }
 
 fn validate_descriptor_bytes<D: Copy, C>(
@@ -111,6 +115,10 @@ fn validate_descriptor_relocations<D, C>(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     verified: &VerifiedStrongTypeRegistrationV1,
     plan: &StrongTypeRegistrationPlan<D, C>,
+    definitions: &std::collections::BTreeMap<
+        ObjectDefinitionPlanId,
+        (StrongDefinitionEntity, StrongDefinitionRole),
+    >,
 ) -> Result<(), StrongTypeDependencyFingerprintError>
 where
     D: LinkDescriptorReference,
@@ -168,23 +176,23 @@ where
                     VerifiedRelocationTargetV1::StrongDefinition { definition }
                 ) if expected == *definition
             ),
-            72 => strong_target_matches(
+            72 => definition_target_matches(
                 target,
-                builtins.producer(),
+                definitions,
                 StrongDefinitionEntity::scan(plan.semantic().instance_scan()),
                 StrongDefinitionRole::ScanProgram,
             ),
-            88 => strong_target_matches(
+            88 => definition_target_matches(
                 target,
-                builtins.producer(),
+                definitions,
                 StrongDefinitionEntity::dispatch_table(plan.semantic().vtable().table()),
                 StrongDefinitionRole::DispatchTable,
             ),
             96 => descriptor.itable_directory().descriptor_relocation() == Some(relocation),
             80 => match plan.semantic().parent().map(LinkDescriptorReference::kind) {
-                Some(DescriptorReferenceKind::Local(exact)) => strong_target_matches(
+                Some(DescriptorReferenceKind::Local(exact)) => definition_target_matches(
                     target,
-                    builtins.producer(),
+                    definitions,
                     StrongDefinitionEntity::exact_type(exact),
                     StrongDefinitionRole::TypeDescriptor,
                 ),
@@ -203,20 +211,17 @@ where
     Ok(())
 }
 
-fn strong_target_matches(
+fn definition_target_matches(
     target: &VerifiedRelocationTargetV1,
-    producer: scoop_identity::ConeIdentity,
+    definitions: &std::collections::BTreeMap<
+        ObjectDefinitionPlanId,
+        (StrongDefinitionEntity, StrongDefinitionRole),
+    >,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> bool {
-    let Ok(key) = ObjectDefinitionPlanKey::strong(producer, entity, role) else {
-        return false;
-    };
-    let Ok(expected) = ObjectDefinitionPlanId::from_key(&key) else {
-        return false;
-    };
     matches!(target, VerifiedRelocationTargetV1::StrongDefinition { definition }
-        if *definition == expected)
+        if definitions.get(definition) == Some(&(entity, role)))
 }
 
 fn external_target_matches(

@@ -5,17 +5,17 @@ use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
 
-use super::{
-    VerifiedStrongTypeDependencyFingerprintSetV1, VerifiedStrongTypeDependencyFingerprintV1,
-};
+use super::VerifiedStrongTypeRegistrationSetV1;
+use super::dependency_fingerprints::VerifiedStrongTypeDependencyFingerprintV1;
 use crate::link_object::callable_registrations::object_definition::CanonicalDigestInputV1;
 use crate::link_object::{
-    LayoutFingerprintV1, ObjectDefinitionFingerprintV1, StrongRegistrationFingerprintV1,
+    LayoutFingerprintV1, ObjectDefinitionFingerprintV1, OdrShapeFingerprintV1,
+    RegistrationFingerprintV1, ScoopLirObjectCandidateV1, StrongRegistrationFingerprintV1,
+    VerifiedObjectDefinitionRequirementSetV1,
 };
 
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
 const TYPE_REGISTRATION_RECORD_KIND: u32 = 4;
-const STRONG_LINKAGE: u32 = 1;
 const TYPE_DESCRIPTOR_ATOM_ROLE: u32 = 6;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -28,7 +28,7 @@ pub struct VerifiedStrongTypeFingerprintV1 {
     layout_node: DigestNodeId,
     layout: LayoutFingerprintV1,
     registration_node: DigestNodeId,
-    registration: StrongRegistrationFingerprintV1,
+    registration: RegistrationFingerprintV1,
 }
 
 impl VerifiedStrongTypeFingerprintV1 {
@@ -64,7 +64,7 @@ impl VerifiedStrongTypeFingerprintV1 {
         self.registration_node
     }
 
-    pub const fn registration(self) -> StrongRegistrationFingerprintV1 {
+    pub const fn registration(self) -> RegistrationFingerprintV1 {
         self.registration
     }
 }
@@ -74,7 +74,8 @@ pub struct VerifiedStrongTypeFingerprintSetV1<
     D = scoop_lir::StrongTypeDescriptorRefV1,
     C = scoop_lir::StrongTypeDispatchCallableRefV1,
 > {
-    dependencies: VerifiedStrongTypeDependencyFingerprintSetV1<D, C>,
+    registrations: VerifiedStrongTypeRegistrationSetV1<D, C>,
+    shapes: Vec<OdrShapeFingerprintV1>,
     fingerprints: Vec<VerifiedStrongTypeFingerprintV1>,
 }
 
@@ -85,11 +86,15 @@ pub type VerifiedStrongTypeFingerprintSetV2 = VerifiedStrongTypeFingerprintSetV1
 
 impl<D: scoop_lir::StrongDescriptorReference, C: Clone> VerifiedStrongTypeFingerprintSetV1<D, C> {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
-        self.dependencies.producer()
+        self.registrations.producer()
     }
 
-    pub const fn dependencies(&self) -> &VerifiedStrongTypeDependencyFingerprintSetV1<D, C> {
-        &self.dependencies
+    pub const fn registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1<D, C> {
+        &self.registrations
+    }
+
+    pub fn shapes(&self) -> &[OdrShapeFingerprintV1] {
+        &self.shapes
     }
 
     pub fn fingerprints(&self) -> &[VerifiedStrongTypeFingerprintV1] {
@@ -98,69 +103,93 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone> VerifiedStrongTypeFinger
 }
 
 pub fn compute_strong_type_fingerprints_v1(
-    dependencies: VerifiedStrongTypeDependencyFingerprintSetV1,
+    registrations: VerifiedStrongTypeRegistrationSetV1,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
+    requirements: impl Into<VerifiedObjectDefinitionRequirementSetV1>,
+    objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongTypeFingerprintSetV1, StrongTypeFingerprintError> {
-    compute_strong_type_fingerprints(dependencies)
+    compute(registrations, canonical, requirements.into(), objects)
 }
 
 pub fn compute_strong_type_fingerprints_v2(
-    dependencies: super::VerifiedStrongTypeDependencyFingerprintSetV2,
+    registrations: super::VerifiedStrongTypeRegistrationSetV2,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
+    requirements: impl Into<VerifiedObjectDefinitionRequirementSetV1>,
+    objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongTypeFingerprintSetV2, StrongTypeFingerprintError> {
-    compute_strong_type_fingerprints(dependencies)
+    compute(registrations, canonical, requirements.into(), objects)
 }
 
-fn compute_strong_type_fingerprints<D, C>(
-    dependencies: VerifiedStrongTypeDependencyFingerprintSetV1<D, C>,
+fn compute<D, C>(
+    registrations: VerifiedStrongTypeRegistrationSetV1<D, C>,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
+    requirements: VerifiedObjectDefinitionRequirementSetV1,
+    candidates: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongTypeFingerprintSetV1<D, C>, StrongTypeFingerprintError>
 where
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
+    D: super::LinkDescriptorReference,
+    C: super::LinkDispatchCallableReference + Clone,
 {
-    let registration_objects = dependencies.registration_objects();
-    let registrations = registration_objects.registrations();
-    let verified = registrations.registrations();
-    let planned = registrations.plan().registrations();
-    let object_fingerprints = registration_objects.fingerprints();
-    if verified.len() != planned.len()
-        || verified.len() != object_fingerprints.len()
-        || verified.len() != dependencies.fingerprints().len()
-    {
-        return Err(StrongTypeFingerprintError::ProofCoverageMismatch);
+    let builtins = registrations.patch_sites().builtins();
+    let objects = super::physical::validate_objects(builtins, candidates)
+        .map_err(StrongTypeFingerprintError::Objects)?;
+    let closure = builtins.strong_relocations();
+    if !requirements.matches_strong_closure(closure) {
+        return Err(StrongTypeFingerprintError::Requirements);
     }
-
-    let mut fingerprints = Vec::with_capacity(verified.len());
-    for (((verified, plan), registration_object), dependency) in verified
+    let shapes = crate::link_object::shape_fingerprints::compute(
+        canonical,
+        closure,
+        &requirements,
+        &objects,
+    )
+    .map_err(StrongTypeFingerprintError::Shapes)?;
+    let dependencies = super::dependency_fingerprints::compute(&registrations, &objects, &shapes)
+        .map_err(StrongTypeFingerprintError::Dependencies)?;
+    let mut fingerprints = Vec::with_capacity(registrations.registrations().len());
+    for ((verified, plan), dependency) in registrations
+        .registrations()
         .iter()
-        .zip(planned)
-        .zip(object_fingerprints)
-        .zip(dependencies.fingerprints())
+        .zip(registrations.plan().registrations())
+        .zip(&dependencies)
     {
         let exact_type = plan.exact_type();
-        if verified.exact_type() != exact_type
-            || registration_object.exact_type() != exact_type
-            || registration_object.node() != plan.registration_object_node()
-        {
-            return Err(StrongTypeFingerprintError::RegistrationObjectMismatch { exact_type });
-        }
-        if dependency.exact_type() != exact_type
-            || dependency.descriptor_definition_node() != plan.descriptor_definition_node()
-        {
-            return Err(StrongTypeFingerprintError::DescriptorDefinitionMismatch { exact_type });
-        }
-        if dependency.layout_node() != plan.layout_fingerprint_node() {
-            return Err(StrongTypeFingerprintError::LayoutMismatch { exact_type });
-        }
-        let registration = strong_type_registration_fingerprint(
+        let object = objects
+            .get(&verified.member())
+            .copied()
+            .ok_or(StrongTypeFingerprintError::MissingObject(verified.member()))?;
+        let registration_object = super::fingerprints::registration_object(
             plan,
-            registration_object.node(),
-            registration_object.fingerprint(),
+            verified,
             dependency,
+            object,
+            closure,
+            &requirements,
         )
+        .map_err(StrongTypeFingerprintError::RegistrationObject)?;
+        let registration = match plan.definition_owner() {
+            scoop_lir::RegistrationDefinitionOwner::Strong => strong_type_registration_fingerprint(
+                plan,
+                plan.registration_object_node(),
+                registration_object,
+                dependency,
+            )
+            .map(RegistrationFingerprintV1::Strong),
+            scoop_lir::RegistrationDefinitionOwner::Odr { group, member } => {
+                crate::link_object::odr_member_fingerprints::type_registration(
+                    group,
+                    member,
+                    plan,
+                    registration_object,
+                )
+                .map(RegistrationFingerprintV1::Odr)
+            }
+        }
         .map_err(|source| StrongTypeFingerprintError::Hash { exact_type, source })?;
         fingerprints.push(VerifiedStrongTypeFingerprintV1 {
             exact_type,
-            registration_object_node: registration_object.node(),
-            registration_object: registration_object.fingerprint(),
+            registration_object_node: plan.registration_object_node(),
+            registration_object,
             descriptor_definition_node: dependency.descriptor_definition_node(),
             descriptor_definition: dependency.descriptor_definition(),
             layout_node: dependency.layout_node(),
@@ -169,9 +198,9 @@ where
             registration,
         });
     }
-
     Ok(VerifiedStrongTypeFingerprintSetV1 {
-        dependencies,
+        registrations,
+        shapes,
         fingerprints,
     })
 }
@@ -248,11 +277,12 @@ pub(in crate::link_object) fn runtime_encode_strong_type_record_v1(
     layout: &[u8; 32],
 ) -> Result<(), RuntimeEncodeError> {
     encoder.u32(TYPE_REGISTRATION_RECORD_KIND)?;
-    encoder.u32(STRONG_LINKAGE)?;
-    encoder.fixed(exact_type.as_array())?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(registration)?;
+    crate::link_object::registration_identity::runtime_encode_registration_identity(
+        encoder,
+        exact_type.as_array(),
+        scoop_lir::RegistrationDefinitionOwner::Strong,
+        registration,
+    )?;
     encoder.u64(runtime_type)?;
     encoder.u32(TYPE_DESCRIPTOR_ATOM_ROLE)?;
     encoder.fixed(exact_type.as_array())?;
@@ -260,18 +290,35 @@ pub(in crate::link_object) fn runtime_encode_strong_type_record_v1(
     encoder.fixed(layout)
 }
 
+pub(in crate::link_object) fn runtime_encode_type_record_v1<D: Copy, C>(
+    encoder: &mut RuntimeEncoder,
+    plan: &scoop_lir::StrongTypeRegistrationPlan<D, C>,
+    registration: &[u8; 32],
+    descriptor_definition: &[u8; 32],
+    layout: &[u8; 32],
+) -> Result<(), RuntimeEncodeError> {
+    encoder.u32(TYPE_REGISTRATION_RECORD_KIND)?;
+    crate::link_object::registration_identity::runtime_encode_registration_identity(
+        encoder,
+        plan.exact_type().as_array(),
+        plan.definition_owner(),
+        registration,
+    )?;
+    encoder.u64(plan.runtime_type().get())?;
+    encoder.u32(TYPE_DESCRIPTOR_ATOM_ROLE)?;
+    encoder.fixed(plan.exact_type().as_array())?;
+    encoder.fixed(descriptor_definition)?;
+    encoder.fixed(layout)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongTypeFingerprintError {
-    ProofCoverageMismatch,
-    RegistrationObjectMismatch {
-        exact_type: PersistentExactTypeId,
-    },
-    DescriptorDefinitionMismatch {
-        exact_type: PersistentExactTypeId,
-    },
-    LayoutMismatch {
-        exact_type: PersistentExactTypeId,
-    },
+    Objects(super::StrongTypeRegistrationValidationError),
+    MissingObject(crate::SlibMemberId),
+    Requirements,
+    Shapes(crate::link_object::OdrShapeFingerprintError),
+    Dependencies(super::StrongTypeDependencyFingerprintError),
+    RegistrationObject(super::StrongTypeRegistrationObjectFingerprintError),
     Hash {
         exact_type: PersistentExactTypeId,
         source: HashError,

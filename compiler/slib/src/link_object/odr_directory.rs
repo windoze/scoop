@@ -143,14 +143,28 @@ impl CanonicalOdrMemberDirectoryV1 {
             .fingerprints()
             .iter()
             .filter_map(|value| odr_registration(value.registration()));
+        let types = patch_set
+            .types()
+            .fingerprints()
+            .iter()
+            .filter_map(|value| odr_registration(value.registration()));
+        let shapes = patch_set
+            .types()
+            .shapes()
+            .iter()
+            .map(|value| value.member());
         Self::from_members(
             physical,
-            callables.chain(safepoints).map(|value| {
-                (
-                    value.group(),
-                    OdrMemberDirectoryEntryV1::from_fingerprint(value),
-                )
-            }),
+            callables
+                .chain(safepoints)
+                .chain(types)
+                .chain(shapes)
+                .map(|value| {
+                    (
+                        value.group(),
+                        OdrMemberDirectoryEntryV1::from_fingerprint(value),
+                    )
+                }),
         )
     }
 

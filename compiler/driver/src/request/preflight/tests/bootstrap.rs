@@ -63,11 +63,9 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             &production_bytes,
         )
         .unwrap();
-    let odr_free_foundation =
-        scoop_hir::OdrFreeHirFoundation::try_new(output.foundation.clone()).unwrap();
     assert_eq!(
         decoded
-            .validate_against(scoop_identity::ConeIdentity::CORE, &odr_free_foundation)
+            .validate_against(scoop_identity::ConeIdentity::CORE, &output.foundation)
             .unwrap(),
         output.production_section.clone()
     );
@@ -310,15 +308,39 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     }
     let lir_counts = real_lir.foundation().as_canonical().counts();
     assert_eq!(lir_counts.odr_groups, 0);
-    assert_eq!(lir_counts.odr_members, 0);
-    assert!(
-        !real_lir
-            .module()
-            .meta
-            .layouts
-            .iter()
-            .any(|(_, layout)| layout.name.starts_with("Option<"))
+    assert_eq!(lir_counts.odr_members, 7);
+    let applications: Vec<_> = real_lir
+        .module()
+        .meta
+        .type_descriptors
+        .iter()
+        .filter_map(|(_, descriptor)| {
+            descriptor
+                .identity
+                .odr_member_record()
+                .map(|member| (descriptor, member))
+        })
+        .collect();
+    assert_eq!(applications.len(), 1);
+    let (descriptor, member) = applications[0];
+    let source = real_mir
+        .strong
+        .module()
+        .meta
+        .source_exact_types
+        .get_by_identity(descriptor.identity.exact_type())
+        .unwrap();
+    assert_eq!(
+        source.owner(),
+        scoop_mir::SourceExactTypeOwner::NominalApplication(member.key().group())
     );
+    assert_eq!(
+        descriptor.identity.symbol_request().linkage(),
+        scoop_identity::LinkageClass::OdrWeak
+    );
+    assert!(real_lir.module().meta.layouts.iter().any(|(_, layout)| {
+        layout.identity.layout_record().key().exact_type() == descriptor.identity.exact_type()
+    }));
     assert!(
         !real_lir
             .module()
@@ -346,7 +368,19 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
     let hir_counts = output.foundation.counts();
     assert_eq!(hir_counts.callable_applications, 0);
-    assert_eq!(hir_counts.odr_groups, 0);
+    let groups: std::collections::HashSet<_> = output
+        .hir
+        .output()
+        .local
+        .module()
+        .exact_type_identities
+        .nominal_specialization_records()
+        .iter()
+        .map(|record| record.id())
+        .collect();
+    assert!(!groups.is_empty());
+    assert!(groups.contains(&member.key().group()));
+    assert_eq!(hir_counts.odr_groups, groups.len());
     assert_eq!(hir_counts.odr_members, 0);
 }
 

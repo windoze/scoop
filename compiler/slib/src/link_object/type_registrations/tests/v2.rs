@@ -43,14 +43,20 @@ fn nonempty_v2_type_proofs_preserve_descriptor_layout_and_registration_digests()
     .unwrap();
     assert!(!v2.registrations().is_empty());
     assert_eq!(v1.registrations(), v2.registrations());
-    let v1 = compute_strong_type_registration_object_fingerprints_v1(v1, &objects).unwrap();
-    let v2 = compute_strong_type_registration_object_fingerprints_v2(v2, &objects).unwrap();
-    assert_eq!(v1.fingerprints(), v2.fingerprints());
-    let v1 = compute_strong_type_dependency_fingerprints_v1(v1, &objects).unwrap();
-    let v2 = compute_strong_type_dependency_fingerprints_v2(v2, &objects).unwrap();
-    assert_eq!(v1.fingerprints(), v2.fingerprints());
-    let v1 = compute_strong_type_fingerprints_v1(v1).unwrap();
-    let v2 = compute_strong_type_fingerprints_v2(v2).unwrap();
+    let v1 = compute_strong_type_fingerprints_v1(
+        v1,
+        &fixture.canonical_shapes,
+        fixture.undefined_requirements(),
+        &objects,
+    )
+    .unwrap();
+    let v2 = compute_strong_type_fingerprints_v2(
+        v2,
+        &fixture.canonical_shapes,
+        fixture.undefined_requirements(),
+        &objects,
+    )
+    .unwrap();
     assert_eq!(v1.fingerprints(), v2.fingerprints());
 }
 
@@ -96,15 +102,18 @@ fn v2_rejects_descriptor_shape_corruption_before_fingerprinting() {
         &objects,
     )
     .unwrap();
-    let registrations =
-        compute_strong_type_registration_object_fingerprints_v2(registrations, &objects).unwrap();
     assert!(matches!(
-        compute_strong_type_dependency_fingerprints_v2(registrations, &objects),
-        Err(
+        compute_strong_type_fingerprints_v2(
+            registrations,
+            &fixture.canonical_shapes,
+            fixture.undefined_requirements(),
+            &objects
+        ),
+        Err(StrongTypeFingerprintError::Dependencies(
             StrongTypeDependencyFingerprintError::DescriptorByteMismatch {
                 offset_within_descriptor: 16,
                 ..
             }
-        )
+        ))
     ));
 }

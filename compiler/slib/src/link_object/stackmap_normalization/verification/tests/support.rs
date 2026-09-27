@@ -60,6 +60,7 @@ pub(crate) struct Fixture {
     pub(crate) semantic_plan: StrongSafepointSemanticPlanSetV1,
     pub(crate) foundation: ConeLirFoundation,
     pub(crate) canonical_callables: scoop_lir::CanonicalCallableLirDefinitionsV1,
+    pub(crate) canonical_shapes: scoop_lir::CanonicalShapeLirDefinitionsV1,
     pub(crate) digest_plan: DigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
@@ -76,6 +77,11 @@ impl Fixture {
     pub(crate) fn new(corruption: Corruption) -> Self {
         let inputs = semantic::inputs(corruption);
         let canonical_callables = scoop_lir::CanonicalCallableLirDefinitionsV1::from_module(
+            &inputs.module,
+            &inputs.foundation,
+        )
+        .unwrap();
+        let canonical_shapes = scoop_lir::CanonicalShapeLirDefinitionsV1::from_module(
             &inputs.module,
             &inputs.foundation,
         )
@@ -137,6 +143,7 @@ impl Fixture {
             semantic_plan,
             foundation: inputs.foundation,
             canonical_callables,
+            canonical_shapes,
             digest_plan: inputs.digest_plan,
             registration_plan: inputs.registration_plan,
             callable_registration_plan: inputs.callable_registration_plan,

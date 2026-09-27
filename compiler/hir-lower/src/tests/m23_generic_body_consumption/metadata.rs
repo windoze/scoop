@@ -33,10 +33,9 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                 .identity()
                 .unwrap();
             let current = output.output().export.cone;
-            let decoded =
-                [core.source_foundation.as_canonical(), provider, &foundation].map(|source| {
-                    decode_canonical::<hir::DecodedHirFoundation>(&encode(source).unwrap()).unwrap()
-                });
+            let decoded = [core.source_foundation.as_ref(), provider, &foundation].map(|source| {
+                decode_canonical::<hir::DecodedHirFoundation>(&encode(source).unwrap()).unwrap()
+            });
             let cones = [ConeIdentity::CORE, provider_id, current];
             let mut graphs = Vec::new();
             for (index, source) in decoded.iter().enumerate() {

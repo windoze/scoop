@@ -16,6 +16,7 @@ pub(super) fn replay(
         undefined,
         &candidates,
         input.strong.canonical_callable_definitions(),
+        input.strong.canonical_shape_definitions(),
     )?;
 
     let image = verify_cone_image_v1(

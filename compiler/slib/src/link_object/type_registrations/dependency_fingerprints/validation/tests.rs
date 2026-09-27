@@ -1,5 +1,7 @@
 use super::*;
-use scoop_identity::{ConeIdentity, CoreBuiltinNominal, ExactTypeKey, MangledSymbol};
+use scoop_identity::{
+    ConeIdentity, CoreBuiltinNominal, ExactTypeKey, MangledSymbol, ObjectDefinitionPlanKey,
+};
 
 fn exact(nominal: CoreBuiltinNominal) -> PersistentExactTypeId {
     PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal.identity_record().id())).unwrap()
@@ -22,28 +24,39 @@ fn a_local_relocation_cannot_substitute_another_definition_owner_or_role() {
     let producer = ConeIdentity::SINGLE_FILE;
     let entity = StrongDefinitionEntity::exact_type(exact(CoreBuiltinNominal::Unit));
     let role = StrongDefinitionRole::TypeDescriptor;
-    let target = VerifiedRelocationTargetV1::StrongDefinition {
-        definition: ObjectDefinitionPlanId::from_key(
-            &ObjectDefinitionPlanKey::strong(producer, entity, role).unwrap(),
-        )
-        .unwrap(),
-    };
-    assert!(strong_target_matches(&target, producer, entity, role));
-    assert!(!strong_target_matches(
+    let definition = ObjectDefinitionPlanId::from_key(
+        &ObjectDefinitionPlanKey::strong(producer, entity, role).unwrap(),
+    )
+    .unwrap();
+    let target = VerifiedRelocationTargetV1::StrongDefinition { definition };
+    let definitions = [(definition, (entity, role))].into_iter().collect();
+    assert!(definition_target_matches(
         &target,
-        ConeIdentity::CORE,
+        &definitions,
         entity,
         role
     ));
-    assert!(!strong_target_matches(
+    let other = VerifiedRelocationTargetV1::StrongDefinition {
+        definition: ObjectDefinitionPlanId::from_key(
+            &ObjectDefinitionPlanKey::strong(ConeIdentity::CORE, entity, role).unwrap(),
+        )
+        .unwrap(),
+    };
+    assert!(!definition_target_matches(
+        &other,
+        &definitions,
+        entity,
+        role
+    ));
+    assert!(!definition_target_matches(
         &target,
-        producer,
+        &definitions,
         entity,
         StrongDefinitionRole::TypeRegistration
     ));
-    assert!(!strong_target_matches(
+    assert!(!definition_target_matches(
         &target,
-        producer,
+        &definitions,
         StrongDefinitionEntity::exact_type(exact(CoreBuiltinNominal::Any)),
         role,
     ));

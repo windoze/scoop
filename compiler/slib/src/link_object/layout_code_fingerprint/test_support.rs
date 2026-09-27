@@ -86,6 +86,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         EntryProductionSourceV1::Library,
         &[],
         v1.canonical_callable_definitions().clone(),
+        scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap()
     .validate_layout_abi(&layout)

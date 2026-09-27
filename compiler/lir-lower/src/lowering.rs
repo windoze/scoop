@@ -72,7 +72,7 @@ pub(super) fn lower_graph(
         identity_roots
             .source_nominal_shapes()
             .iter()
-            .map(mir::StrongSourceNominalShapeRoot::ty),
+            .map(mir::SourceNominalShapeRoot::ty),
     )?;
     // Classify every final MIR function before any body is lowered. Callee
     // definitions and all statically selected call sites reuse these exact
@@ -327,10 +327,6 @@ fn materialized_exact_types(
         .map(|root| {
             let record = exact_type_record(module, root.ty());
             assert_eq!(record.id(), root.exact());
-            assert_eq!(
-                record.key(),
-                &scoop_identity::ExactTypeKey::Nominal(root.source())
-            );
             record.clone()
         })
         .chain(

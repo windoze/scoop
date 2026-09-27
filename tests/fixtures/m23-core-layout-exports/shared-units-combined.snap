@@ -279,6 +279,7 @@ layout Int [ManagedValue]: size=4 align=4 fields=[] scan=Intrinsic(Integer(Integ
 layout Int16 [ManagedValue]: size=2 align=2 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W16 }))
 layout Int8 [ManagedValue]: size=1 align=1 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W8 }))
 layout Long [ManagedValue]: size=8 align=8 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W64 }))
+layout Option [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout SharedUnitHidden [ManagedObject]: size=24 align=8 fields=[(16, 4)] scan=Plain { scan: None }
 layout SharedUnitHidden value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout SharedUnitOwner [ManagedObject]: size=16 align=8 fields=[] scan=Plain { scan: None }

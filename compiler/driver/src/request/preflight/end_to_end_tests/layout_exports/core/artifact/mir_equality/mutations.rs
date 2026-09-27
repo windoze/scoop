@@ -46,7 +46,6 @@ pub(super) fn check(replay: &Replay<'_>) {
     let metadata = replay.source.metadata();
     let mut missing = metadata.foundation.clone();
     missing.set_generated_callables(vec![]).unwrap();
-    let missing = hir::OdrFreeHirFoundation::try_new(missing).unwrap();
     let missing = replay
         .source
         .section()

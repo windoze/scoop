@@ -63,6 +63,7 @@ impl TypeDescriptorITableDirectoryV1 {
 /// type-registration record.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongTypeRegistrationPlan<D, C> {
+    pub(super) definition_owner: crate::RegistrationDefinitionOwner,
     pub(super) semantic: StrongTypeDescriptorSemanticPlan<D, C>,
     pub(super) runtime_type: RuntimeTypeId,
     pub(super) symbol: PersistentSymbolRequest,
@@ -87,6 +88,10 @@ pub struct StrongTypeRegistrationPlan<D, C> {
 }
 
 impl<D: Copy, C> StrongTypeRegistrationPlan<D, C> {
+    pub const fn definition_owner(&self) -> crate::RegistrationDefinitionOwner {
+        self.definition_owner
+    }
+
     pub const fn semantic(&self) -> &StrongTypeDescriptorSemanticPlan<D, C> {
         &self.semantic
     }

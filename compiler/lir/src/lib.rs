@@ -110,6 +110,10 @@ pub use cone_output::*;
 
 mod canonical_callable;
 pub use canonical_callable::*;
+mod canonical_type;
+
+mod canonical_shape;
+pub use canonical_shape::*;
 
 mod production;
 pub use production::*;

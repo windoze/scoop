@@ -98,7 +98,6 @@ pub(super) fn check(
 
     let mut missing = metadata.foundation.clone();
     missing.set_initialization_units(vec![]).unwrap();
-    let missing = hir::OdrFreeHirFoundation::try_new(missing).unwrap();
     let missing = source
         .section()
         .validate_shared_foundation(

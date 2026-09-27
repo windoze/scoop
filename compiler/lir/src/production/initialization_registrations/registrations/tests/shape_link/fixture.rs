@@ -63,6 +63,7 @@ impl ProviderFixture {
             EntryProductionSourceV1::Library,
             &[],
             crate::canonical_callable::tests::fixture_definitions(&source.foundation),
+            crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &source.foundation).unwrap(),
         )
         .unwrap();
         let layouts =

@@ -17,9 +17,7 @@ use crate::link_object::{
     compute_strong_static_storage_definition_fingerprints_v1,
     compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_registration_object_fingerprints_v1,
-    compute_strong_static_storage_shape_fingerprints_v1,
-    compute_strong_type_dependency_fingerprints_v1, compute_strong_type_fingerprints_v1,
-    compute_strong_type_registration_object_fingerprints_v1,
+    compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
     verify_scoop_lir_digest_patch_sites_v1, verify_strong_callable_registrations_v1,
     verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
     verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
@@ -119,12 +117,7 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         );
     }
 
-    let type_registrations = patched
-        .types()
-        .dependencies()
-        .registration_objects()
-        .registrations()
-        .registrations();
+    let type_registrations = patched.types().registrations().registrations();
     let type_fingerprints = patched.types().fingerprints();
     for (registration, fingerprint) in type_registrations.iter().zip(type_fingerprints) {
         assert_eq!(
@@ -525,11 +518,13 @@ fn verified_type_fingerprints(
         objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_type_registration_object_fingerprints_v1(registrations, objects).unwrap();
-    let dependencies =
-        compute_strong_type_dependency_fingerprints_v1(registration_objects, objects).unwrap();
-    compute_strong_type_fingerprints_v1(dependencies).unwrap()
+    compute_strong_type_fingerprints_v1(
+        registrations,
+        &fixture.canonical_shapes,
+        fixture.undefined_requirements(),
+        objects,
+    )
+    .unwrap()
 }
 
 fn digest_at(bytes: &[u8], offset: u64) -> &[u8] {

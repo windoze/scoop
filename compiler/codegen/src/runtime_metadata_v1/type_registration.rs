@@ -1,11 +1,10 @@
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::AnyType;
-use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
+use inkwell::values::{GlobalValue, UnnamedAddress};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentExactTypeId, StrongTypeRegistrationPlan,
-    StrongTypeRegistrationPlanSet,
+    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    PersistentExactTypeId, StrongTypeRegistrationPlan, StrongTypeRegistrationPlanSet,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -145,17 +144,17 @@ fn prepare_registration<'plan, 'ctx, D: Copy, C>(
 ) -> Result<PreparedTypeRegistrationV1<'plan, 'ctx, D, C>, CodegenError> {
     let registration_request = plan.symbol();
     let registration_symbol = registration_request.symbol();
-    if registration_request.linkage() != LinkageClass::ConeStrong {
+    if registration_request.linkage() != plan.definition_owner().linkage() {
         return Err(CodegenError(format!(
-            "type registration `{registration_symbol}` does not have strong Cone linkage"
+            "type registration `{registration_symbol}` linkage differs from its owner"
         )));
     }
 
     let descriptor_request = plan.descriptor_symbol();
     let descriptor_symbol = descriptor_request.symbol();
-    if descriptor_request.linkage() != LinkageClass::ConeStrong {
+    if descriptor_request.linkage() != plan.definition_owner().linkage() {
         return Err(CodegenError(format!(
-            "type descriptor `{descriptor_symbol}` does not have strong Cone linkage"
+            "type descriptor `{descriptor_symbol}` linkage differs from its registration owner"
         )));
     }
     if llvm.get_function(descriptor_symbol.as_str()).is_some() {
@@ -168,8 +167,12 @@ fn prepare_registration<'plan, 'ctx, D: Copy, C>(
             "type descriptor `{descriptor_symbol}` is not declared in the LLVM module"
         ))
     })?;
+    let descriptor_linkage = match plan.definition_owner() {
+        scoop_lir::RegistrationDefinitionOwner::Strong => Linkage::External,
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. } => Linkage::WeakODR,
+    };
     if type_descriptor.get_value_type() != types.type_descriptor.as_any_type_enum()
-        || type_descriptor.get_linkage() != Linkage::External
+        || type_descriptor.get_linkage() != descriptor_linkage
         || type_descriptor.get_unnamed_address() != UnnamedAddress::None
         || !type_descriptor.is_constant()
     {
@@ -234,14 +237,12 @@ fn emit_registration<'ctx, D: Copy, C>(
         i32.const_int(TYPE_REGISTRATION_DESCRIPTOR_SIZE, false)
             .into(),
     ]);
-    let identity = types.registration_identity.const_named_struct(&[
-        i32.const_int(1, false).into(),
-        i32.const_zero().into(),
-        digest_value(context, types.digest, plan.exact_type().as_array()).into(),
-        zero_digest.into(),
-        zero_digest.into(),
-        zero_digest.into(),
-    ]);
+    let identity = super::registration_identity::registration_identity_value(
+        context,
+        types,
+        plan.exact_type().as_array(),
+        plan.definition_owner(),
+    );
     let value = types.type_registration_descriptor.const_named_struct(&[
         prefix.into(),
         identity.into(),
@@ -253,6 +254,10 @@ fn emit_registration<'ctx, D: Copy, C>(
     ]);
     descriptor.set_constant(true);
     descriptor.set_initializer(&value);
+    descriptor.set_linkage(match plan.definition_owner() {
+        scoop_lir::RegistrationDefinitionOwner::Strong => Linkage::External,
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. } => Linkage::WeakODR,
+    });
 
     let patch = |intent, byte_offset| TypeRegistrationPatchSiteV1 {
         intent,
@@ -274,19 +279,6 @@ fn emit_registration<'ctx, D: Copy, C>(
         ),
         layout_fingerprint_patch: patch(plan.layout_fingerprint_patch(), LAYOUT_FINGERPRINT_OFFSET),
     }
-}
-
-fn digest_value<'ctx>(
-    context: &'ctx Context,
-    digest_type: inkwell::types::StructType<'ctx>,
-    bytes: &[u8; 32],
-) -> StructValue<'ctx> {
-    let i8 = context.i8_type();
-    let values = bytes
-        .iter()
-        .map(|byte| i8.const_int(u64::from(*byte), false))
-        .collect::<Vec<_>>();
-    digest_type.const_named_struct(&[i8.const_array(&values).into()])
 }
 
 #[cfg(test)]

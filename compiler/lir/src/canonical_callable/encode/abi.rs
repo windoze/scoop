@@ -2,28 +2,7 @@ use super::*;
 
 impl Writer<'_, '_> {
     pub(super) fn ty(&mut self, ty: &LirType) -> Result {
-        match ty {
-            LirType::Void => record!(self, 1;),
-            LirType::I1 => record!(self, 2;),
-            LirType::I8 => record!(self, 3;),
-            LirType::I16 => record!(self, 4;),
-            LirType::I32 => record!(self, 5;),
-            LirType::I64 => record!(self, 6;),
-            LirType::MachineScalar(kind) => record!(self, 7; self.machine_kind(*kind)),
-            LirType::Ptr(kind) => record!(self, 8; self.pointer_kind(*kind)),
-            LirType::ExceptionRecord => record!(self, 9;),
-            LirType::Aggregate(elements) => record!(self, 10; self.types(elements)),
-            LirType::Struct(id) => record!(self, 11; self.id(&self.module.structs[*id].exact_type)),
-            LirType::Enum(id) => record!(self, 12; self.id(&self.module.enums[*id].exact_type)),
-        }
-    }
-
-    fn types(&mut self, types: &[LirType]) -> Result {
-        self.e.array(types.len() as u64)?;
-        for ty in types {
-            self.ty(ty)?;
-        }
-        Ok(())
+        crate::canonical_type::encode_type(self.module, ty, self.e)
     }
 
     pub(super) fn abi_value(&mut self, value: &AbiValue) -> Result {
@@ -68,31 +47,14 @@ impl Writer<'_, '_> {
     }
 
     pub(super) fn pointer_kind(&mut self, kind: PointerKind) -> Result {
-        self.u(match kind {
-            PointerKind::Managed => 1,
-            PointerKind::Raw => 2,
-            PointerKind::Code => 3,
-            PointerKind::Metadata => 4,
-        })
+        self.u(crate::canonical_type::pointer_kind(kind))
     }
 
     pub(super) fn machine_kind(&mut self, kind: MachineScalarKind) -> Result {
-        self.u(match kind {
-            MachineScalarKind::ByteSize => 1,
-            MachineScalarKind::EnumTag => 2,
-            MachineScalarKind::InitializationOutcome => 3,
-            MachineScalarKind::CoroutineFrameState => 4,
-            MachineScalarKind::CoroutineAdapterState => 5,
-            MachineScalarKind::ForeignCallbackStatus => 6,
-            MachineScalarKind::PointerElementOffset => 7,
-        })
+        self.u(crate::canonical_type::machine_kind(kind))
     }
 
     pub(super) fn integer_kind(&mut self, kind: IntegerKind) -> Result {
-        let signedness = match kind.signedness() {
-            IntegerSignedness::Signed => 1,
-            IntegerSignedness::Unsigned => 2,
-        };
-        record!(self, signedness; self.u(u64::from(kind.width().bits())))
+        crate::canonical_type::encode_integer(kind, self.e)
     }
 }

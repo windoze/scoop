@@ -65,10 +65,9 @@ fn actual_generic_calls_retain_odr_roots_in_the_shared_machine_input() {
         ));
 
         let decoded_mir = decode_canonical::<mir::DecodedMirFoundation>(&expected).unwrap();
-        let decoded =
-            [core.source_foundation.as_canonical(), provider, &foundation].map(|source| {
-                decode_canonical::<hir::DecodedHirFoundation>(&encode(source).unwrap()).unwrap()
-            });
+        let decoded = [core.source_foundation.as_ref(), provider, &foundation].map(|source| {
+            decode_canonical::<hir::DecodedHirFoundation>(&encode(source).unwrap()).unwrap()
+        });
         let provider_id = ConeCoordinate::new("test", "generic-provider", "1.0.0")
             .unwrap()
             .identity()

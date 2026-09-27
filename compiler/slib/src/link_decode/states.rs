@@ -145,7 +145,7 @@ pub struct RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
     pub(super) safepoints: VerifiedStrongSafepointFingerprintSetV1,
     pub(super) callable_registrations: VerifiedStrongCallableRegistrationSetV1,
-    pub(super) type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    pub(super) type_registrations: VerifiedStrongTypeRegistrationSetV1,
     pub(super) immortal_object_registration_objects:
         VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
     pub(super) static_storage_registration_objects:
@@ -170,7 +170,7 @@ pub struct LinkSymbolCheckedSingleConeLinkSections<'input> {
     pub(super) undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
     pub(super) safepoints: VerifiedStrongSafepointFingerprintSetV1,
     pub(super) callable_registrations: VerifiedStrongCallableRegistrationSetV1,
-    pub(super) type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    pub(super) type_registrations: VerifiedStrongTypeRegistrationSetV1,
     pub(super) immortal_object_registration_objects:
         VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
     pub(super) static_storage_registration_objects:

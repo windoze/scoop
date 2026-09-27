@@ -16,14 +16,10 @@ fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
     .unwrap();
     let input = hir.machine_input();
 
-    let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(
-        scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap(),
-    )
-    .unwrap();
-    let decoded: scoop_hir::DecodedHirFoundation = scoop_wire::decode_canonical(
-        &scoop_wire::encode(source_foundation.as_canonical()).unwrap(),
-    )
-    .unwrap();
+    let source_foundation =
+        scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap();
+    let decoded: scoop_hir::DecodedHirFoundation =
+        scoop_wire::decode_canonical(&scoop_wire::encode(&source_foundation).unwrap()).unwrap();
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending
         .register_authority(input.output.output().export.cone)

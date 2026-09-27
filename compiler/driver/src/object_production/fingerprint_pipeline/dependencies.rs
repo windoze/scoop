@@ -11,8 +11,7 @@ pub struct LinkSymbolVerifiedObjectProductionV1 {
     pub(in crate::object_production) safepoints: VerifiedStrongSafepointFingerprintSetV1,
     pub(in crate::object_production) callable_registrations:
         VerifiedStrongCallableRegistrationSetV1,
-    pub(in crate::object_production) type_registration_objects:
-        VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    pub(in crate::object_production) type_registrations: VerifiedStrongTypeRegistrationSetV1,
     pub(in crate::object_production) immortal_object_registration_objects:
         VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
     pub(in crate::object_production) static_storage_registration_objects:
@@ -46,10 +45,8 @@ impl LinkSymbolVerifiedObjectProductionV1 {
         &self.callable_registrations
     }
 
-    pub const fn type_registration_objects(
-        &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
-        &self.type_registration_objects
+    pub const fn type_registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1 {
+        &self.type_registrations
     }
 
     pub const fn immortal_object_registration_objects(
@@ -80,7 +77,7 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             undefined_symbols,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,
@@ -101,13 +98,13 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             )
             .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
 
-            let type_dependencies = compute_strong_type_dependency_fingerprints_v1(
-                type_registration_objects,
+            let types = compute_strong_type_fingerprints_v1(
+                type_registrations,
+                production.production().canonical_shape_definitions(),
+                undefined_symbols.clone(),
                 &candidates,
             )
-            .map_err(BuiltinObjectProductionError::TypeDependencyFingerprints)?;
-            let types = compute_strong_type_fingerprints_v1(type_dependencies)
-                .map_err(BuiltinObjectProductionError::TypeFingerprints)?;
+            .map_err(BuiltinObjectProductionError::TypeFingerprints)?;
 
             let immortal_object_definitions =
                 compute_strong_immortal_object_definition_fingerprints_v1(

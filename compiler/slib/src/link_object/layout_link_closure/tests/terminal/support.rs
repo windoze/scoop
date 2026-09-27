@@ -146,6 +146,7 @@ pub(super) fn replay_provider_production(
         EntryProductionSourceV1::Library,
         &[],
         provider.production.canonical_callable_definitions().clone(),
+        scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &provider.foundation).unwrap(),
     )
     .unwrap();
     replay(&old, coordinate, &provider.foundation, section)

@@ -1,4 +1,4 @@
-//! Canonical strong layout, scan, dispatch and TypeDescriptor definitions.
+//! Canonical layout, scan, dispatch and TypeDescriptor definitions.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -102,10 +102,10 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
         let symbol = definition.primary_symbol().symbol();
         require_absent_value(llvm, symbol.as_str(), "layout definition")?;
         let global = llvm.add_global(context.i8_type(), None, symbol.as_str());
-        global.set_linkage(Linkage::External);
         global.set_constant(true);
         global.set_alignment(8);
         global.set_initializer(&context.i8_type().const_zero());
+        crate::emission::apply_persistent_linkage(&global, definition.primary_symbol(), true)?;
         emitted.record_atom(definition.primary_atom(), global);
     }
     for (scan, payload) in scans {
@@ -114,27 +114,15 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
             StrongDefinitionEntity::scan(scan),
             StrongDefinitionRole::ScanProgram,
         )?;
-        let (definition, newly_defined) = emit_or_reuse_scan_definition(
-            context,
-            llvm,
-            definition.primary_symbol().symbol().as_str(),
-            &payload,
-        )?;
+        let (global, newly_defined) =
+            emit_or_reuse_scan_definition(context, llvm, definition.primary_symbol(), &payload)?;
         if newly_defined {
-            emitted.record_atom(
-                require_definition(
-                    surface,
-                    StrongDefinitionEntity::scan(scan),
-                    StrongDefinitionRole::ScanProgram,
-                )?
-                .primary_atom(),
-                definition,
-            );
+            emitted.record_atom(definition.primary_atom(), global);
         }
         emitted.scans.insert(
             scan,
             EmittedScanDefinitionV1 {
-                global: definition,
+                global,
                 is_empty: !payload.contains_reference(),
             },
         );
@@ -178,8 +166,8 @@ pub(super) fn emit_dispatch_definition_v1<'ctx>(
         global.set_initializer(&value);
         (global, false)
     };
-    global.set_linkage(Linkage::External);
     global.set_constant(true);
+    crate::emission::apply_persistent_linkage(&global, definition.primary_symbol(), true)?;
     let result = EmittedDispatchDefinitionV1 { global, is_empty };
     if emitted.dispatch_tables.insert(table, result).is_some() {
         return Err(CodegenError(format!(
@@ -338,34 +326,37 @@ fn validate_shape_plan_coverage(
 fn emit_or_reuse_scan_definition<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    symbol: &str,
+    request: scoop_lir::PersistentSymbolRequest,
     scan: &RefScan,
 ) -> Result<(GlobalValue<'ctx>, bool), CodegenError> {
+    let symbol = request.symbol();
+    let symbol = symbol.as_str();
     if llvm.get_function(symbol).is_some() {
         return Err(CodegenError(format!(
             "scan definition `{symbol}` collides with an LLVM function"
         )));
     }
     if let Some(global) = llvm.get_global(symbol) {
-        validate_existing_scan(context, global, symbol, scan)?;
+        validate_existing_scan(context, global, request, scan)?;
         return Ok((global, false));
     }
     let words = scan_words(context, llvm, symbol, scan)?;
     let value = context.i64_type().const_array(&words);
     let global = llvm.add_global(value.get_type(), None, symbol);
-    global.set_linkage(Linkage::External);
     global.set_constant(true);
     global.set_alignment(8);
     global.set_initializer(&value);
+    crate::emission::apply_persistent_linkage(&global, request, true)?;
     Ok((global, true))
 }
 
 fn validate_existing_scan(
     context: &Context,
     global: GlobalValue<'_>,
-    symbol: &str,
+    request: scoop_lir::PersistentSymbolRequest,
     scan: &RefScan,
 ) -> Result<(), CodegenError> {
+    let symbol = request.symbol();
     let expected_words = match scan {
         RefScan::None => vec![context.i64_type().const_zero()],
         RefScan::References(offsets) => {
@@ -386,7 +377,11 @@ fn validate_existing_scan(
     let expected = context.i64_type().const_array(&expected_words);
     let initializer = global.get_initializer();
     if global.get_value_type() != expected.get_type().as_any_type_enum()
-        || global.get_linkage() != Linkage::External
+        || global.get_linkage()
+            != match request.linkage() {
+                scoop_lir::LinkageClass::OdrWeak => Linkage::WeakODR,
+                _ => Linkage::External,
+            }
         || global.get_unnamed_address() != UnnamedAddress::None
         || !global.is_constant()
         || global.get_alignment() != 8
@@ -394,7 +389,7 @@ fn validate_existing_scan(
             != Some(&expected.print_to_string())
     {
         return Err(CodegenError(format!(
-            "predefined scan `{symbol}` does not match its canonical strong definition"
+            "predefined scan `{symbol}` does not match its canonical definition"
         )));
     }
     Ok(())

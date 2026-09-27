@@ -151,11 +151,12 @@ pub(super) fn verify_descriptor_relocation<D: Copy, C>(
                 exact_type: plan.exact_type(),
             },
         )?;
-    let expected_owner = LinkDefinitionOwnerV1::from_strong_primary(
+    let expected_owner = LinkDefinitionOwnerV1::from_definition(
+        descriptor_symbol.definition_owner(),
         StrongDefinitionEntity::exact_type(plan.exact_type()),
         StrongDefinitionRole::TypeDescriptor,
     )
-    .expect("type descriptor is a valid strong definition owner");
+    .expect("type descriptor has a valid definition owner");
     let (target_member, target_definition, target_owner) = match binding.resolution() {
         StrongRelocationResolutionV1::ObjectLocalStrong {
             target_member,

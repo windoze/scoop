@@ -72,15 +72,9 @@ pub(super) fn require_definition(
     &scoop_identity::CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     StrongTypeRegistrationPlanBuildError,
 > {
-    let key = ObjectDefinitionPlanKey::strong(foundation.producer(), entity, role)
-        .map_err(StrongTypeRegistrationPlanBuildError::DefinitionIdentity)?;
     foundation
-        .definition_plans()
-        .iter()
-        .find(|record| record.key() == &key)
-        .ok_or(StrongTypeRegistrationPlanBuildError::MissingDefinition(
-            Box::new(key),
-        ))
+        .definition_for(entity, role)
+        .ok_or(StrongTypeRegistrationPlanBuildError::MissingDefinition { entity, role })
 }
 
 pub(super) fn require_primary_atom(
@@ -104,8 +98,16 @@ pub(super) fn require_primary_atom(
 pub(super) fn require_symbol(
     foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
+    definition: &scoop_identity::CborIdentityRecord<
+        ObjectDefinitionPlanId,
+        ObjectDefinitionPlanKey,
+    >,
 ) -> Result<PersistentSymbolRequest, StrongTypeRegistrationPlanBuildError> {
-    let request = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
+    let linkage = match definition.key().owner() {
+        ObjectDefinitionPlanOwner::Strong { .. } => LinkageClass::ConeStrong,
+        ObjectDefinitionPlanOwner::Odr { .. } => LinkageClass::OdrWeak,
+    };
+    let request = PersistentSymbolRequest::new(key, linkage)
         .map_err(StrongTypeRegistrationPlanBuildError::Symbol)?;
     foundation
         .contains_symbol_request(request)

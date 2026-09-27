@@ -39,9 +39,11 @@ mod digest_fingerprints;
 pub use digest_fingerprints::*;
 
 mod odr_member_fingerprints;
+mod shape_fingerprints;
 pub use odr_member_fingerprints::{
     CallableDefinitionFingerprintV1, OdrMemberFingerprintV1, RegistrationFingerprintV1,
 };
+pub use shape_fingerprints::{OdrShapeFingerprintError, OdrShapeFingerprintV1};
 
 mod odr_directory;
 pub use odr_directory::*;

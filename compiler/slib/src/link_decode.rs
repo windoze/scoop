@@ -57,8 +57,7 @@ use crate::{
     StrongSafepointRegistrationValidationError, StrongStaticStorageDefinitionFingerprintError,
     StrongStaticStorageFingerprintError, StrongStaticStorageRegistrationObjectFingerprintError,
     StrongStaticStorageRegistrationValidationError, StrongStaticStorageShapeFingerprintError,
-    StrongTypeDependencyFingerprintError, StrongTypeFingerprintError,
-    StrongTypeRegistrationObjectFingerprintError, StrongTypeRegistrationValidationError,
+    StrongTypeFingerprintError, StrongTypeRegistrationValidationError,
     SymbolProjectionCheckedLinkIdentityClosureSectionV1,
     UndefinedSymbolRequirementFinalizationError, ValidatedGraphArtifact,
     ValidatedSingleConeStrongProduction, VerifiedBuiltinObjectStrongRelocationSetV1,
@@ -73,11 +72,11 @@ use crate::{
     VerifiedStrongSafepointRegistrationSetV1, VerifiedStrongStaticStorageFingerprintSetV1,
     VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
     VerifiedStrongStaticStorageRegistrationSetV1, VerifiedStrongTypeFingerprintSetV1,
-    VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
-    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
-    lir_identity_foundation_capability, lir_link_identity_closure_capability,
-    lir_strong_production_capability, manifest_single_cone_production_capability,
-    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
+    VerifiedStrongTypeRegistrationSetV1, hir_core_bootstrap_interface_capability,
+    hir_identity_foundation_capability, lir_identity_foundation_capability,
+    lir_link_identity_closure_capability, lir_strong_production_capability,
+    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
+    mir_identity_foundation_capability,
 };
 
 mod states;
@@ -461,7 +460,6 @@ impl std::error::Error for StrongLinkRegistrationObjectError {
 #[derive(Debug)]
 pub enum StrongLinkRegistrationLeafFingerprintError {
     Safepoints(StrongSafepointFingerprintError),
-    Types(StrongTypeRegistrationObjectFingerprintError),
     ImmortalObjects(StrongImmortalObjectRegistrationObjectFingerprintError),
     StaticStorages(StrongStaticStorageRegistrationObjectFingerprintError),
     InitializationUnits(StrongInitializationRegistrationObjectFingerprintError),
@@ -480,7 +478,6 @@ impl std::error::Error for StrongLinkRegistrationLeafFingerprintError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::Safepoints(error) => error,
-            Self::Types(error) => error,
             Self::ImmortalObjects(error) => error,
             Self::StaticStorages(error) => error,
             Self::InitializationUnits(error) => error,
@@ -533,7 +530,6 @@ impl std::error::Error for StrongLinkSymbolRequirementError {
 pub enum StrongLinkRegistrationDependencyFingerprintError {
     CallableBodies(StrongCallableBodyFingerprintError),
     Callables(StrongCallableFingerprintError),
-    TypeDependencies(StrongTypeDependencyFingerprintError),
     Types(StrongTypeFingerprintError),
     ImmortalObjectDefinitions(StrongImmortalObjectDefinitionFingerprintError),
     ImmortalObjects(StrongImmortalObjectFingerprintError),
@@ -696,7 +692,6 @@ impl std::error::Error for StrongLinkRegistrationDependencyFingerprintError {
         Some(match self {
             Self::CallableBodies(error) => error,
             Self::Callables(error) => error,
-            Self::TypeDependencies(error) => error,
             Self::Types(error) => error,
             Self::ImmortalObjectDefinitions(error) => error,
             Self::ImmortalObjects(error) => error,

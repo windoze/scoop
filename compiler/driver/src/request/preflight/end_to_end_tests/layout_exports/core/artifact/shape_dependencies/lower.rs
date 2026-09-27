@@ -54,10 +54,7 @@ pub(super) fn with_mir(
     let (core, _) = read.artifact(ConeIdentity::CORE).unwrap();
     let (identities, _, core_hir) =
         support::identity::identities(&hir.hir, &mir.strong, None, core);
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
-    )
-    .unwrap();
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap();
     let core = closure.direct_provider(ConeIdentity::CORE).unwrap();
     let source = scoop_hir_lower::produce_cross_cone_type_semantics(
         &hir.hir,

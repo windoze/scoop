@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn reachable_generic_array_reports_stable_strong_capability_error() {
+fn generic_array_preserves_application_shape_and_allocation() {
     let mut b = Builder::new();
     let array_int = b.array("Array<Int>", INT);
     let mir::Type::Class(array_class) = array_int else {
@@ -25,31 +25,60 @@ fn reachable_generic_array_reports_stable_strong_capability_error() {
     let mut source = b.finish(main);
     mark_test_nominal_application(&mut source, mir::Type::Class(array_class));
 
-    let error = match try_lower(source) {
-        Err(error) => error,
-        Ok(_) => panic!("reachable generic array must fail strong LIR capability validation"),
-    };
-    assert!(
-        error
-            .to_string()
-            .starts_with(StrongLirCapabilityError::CODE)
+    let identity = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Class(array_class))
+        .unwrap();
+    let exact = identity.identity_record().id();
+    let group = identity.nominal_specialization().unwrap().id();
+    let output = try_lower(source).expect("generic array shapes use their source application");
+    let module = output.module();
+    assert_eq!(
+        array_metadata(module, "Array<Int>").identity,
+        lir::LayoutIdentity::managed_array(
+            exact,
+            module.meta.target_profile,
+            lir::MaterializationRoot::prior_stage_odr(group),
+        )
+        .unwrap()
     );
-    match error {
-        LirLoweringError::Capability(error) => {
-            assert_eq!(error.function(), main);
-            assert_eq!(
-                error.requirement(),
-                &StrongLirMaterializationRequirement::ArrayType(array_class)
-            );
-        }
-        LirLoweringError::Output(lir::ConeLirOutputError::Foundation(_)) => {
-            panic!("capability validation must run before LIR foundation projection")
-        }
-        LirLoweringError::Output(lir::ConeLirOutputError::ShapeSupport(_)) => {
-            panic!("a non-core capability fixture cannot enter core shape sealing")
-        }
-        other => panic!("unexpected strong lowering error: {other}"),
+    let descriptor = module
+        .meta
+        .type_descriptors
+        .iter()
+        .find(|(_, descriptor)| descriptor.identity.exact_type() == exact)
+        .unwrap()
+        .1;
+    assert_eq!(
+        descriptor.identity.symbol_request().linkage(),
+        scoop_identity::LinkageClass::OdrWeak
+    );
+    let shapes = lir::CanonicalShapeLirDefinitionsV1::from_module(module, output.foundation())
+        .expect("array metadata supplies its complete physical shape content");
+    assert_eq!(shapes.definitions().len(), 7);
+    for (role, count) in [
+        (scoop_identity::OdrMemberRole::Layout, 2),
+        (scoop_identity::OdrMemberRole::ScanProgram, 3),
+        (scoop_identity::OdrMemberRole::TypeDescriptor, 1),
+        (scoop_identity::OdrMemberRole::DispatchTable, 1),
+    ] {
+        assert_eq!(
+            shapes
+                .definitions()
+                .iter()
+                .filter(|definition| definition.role() == role)
+                .count(),
+            count,
+        );
     }
+    assert!(
+        shapes
+            .definitions()
+            .iter()
+            .all(|definition| definition.group() == group)
+    );
+    assert!(lir::dump(module).contains("array_alloc array0 (integer<Int>(0x00000001))"));
 }
 
 #[test]

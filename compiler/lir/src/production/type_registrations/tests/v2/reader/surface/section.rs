@@ -1,4 +1,4 @@
-//! Dependency TD/dispatch references traverse the actual nine-field wire.
+//! Dependency TD/dispatch references traverse the actual ten-field wire.
 
 use super::*;
 use crate::{
@@ -27,6 +27,7 @@ fn section(fixture: &Fixture) -> ConeProductionSectionV2 {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
+        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &fixture.foundation).unwrap(),
     )
     .unwrap()
 }
@@ -50,11 +51,11 @@ fn replay_section(
 }
 
 #[test]
-fn nine_field_section_replays_foreign_parent_interface_and_dispatch() {
+fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
-    assert_eq!(bytes[0], 0xa9);
+    assert_eq!(bytes[0], 0xaa);
     let shared: crate::DecodedConeProductionSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
@@ -90,7 +91,7 @@ fn nine_field_section_replays_foreign_parent_interface_and_dispatch() {
 }
 
 #[test]
-fn nine_field_section_rejects_missing_foreign_definitions_and_changed_definition_atoms() {
+fn ten_field_section_rejects_missing_foreign_definitions_and_changed_definition_atoms() {
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
@@ -114,7 +115,7 @@ fn nine_field_section_rejects_missing_foreign_definitions_and_changed_definition
 }
 
 #[test]
-fn nine_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
+fn ten_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
     let fixture = complete_fixture();
     let bytes = crate::production::cone_section::tests::without_image_input(
         &section(&fixture),
@@ -159,6 +160,7 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
+        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &fixture.foundation).unwrap(),
     )
     .unwrap();
     let expected = production.registration_production().types().clone();

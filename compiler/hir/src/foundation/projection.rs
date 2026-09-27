@@ -328,7 +328,12 @@ fn odr_group_records(
     local: &LocalConcreteHir,
 ) -> Result<Vec<OdrGroupRecord>, HirFoundationBuildError> {
     let mut records = BTreeMap::new();
-    for record in local.callable_applications.odr_group_records() {
+    for record in local
+        .callable_applications
+        .odr_group_records()
+        .iter()
+        .chain(local.exact_type_identities.nominal_specialization_records())
+    {
         insert_identity(&mut records, record, HirFoundationTable::OdrGroup)?;
     }
     Ok(records.into_values().collect())

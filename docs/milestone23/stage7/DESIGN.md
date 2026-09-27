@@ -277,11 +277,21 @@ OdrDefinitionFingerprint = DomainSeparatedCborHash(
 
 函数正文的 canonical LIR leaf 使用 `scoop-lir-definition-v1`，从最终 `Function` 的实际 ABI、GC effect、指令、正常/异常控制流与 root plan 计算。块按入口可达 CFG 的固定后继顺序规范化，local/temp 按正文首次出现顺序编号；未使用的 arena 槽、诊断名称和不可达块不进入这个语义投影，实际发射的所有对象 atom 仍由 ObjectDefinition 覆盖。类型、函数、存储、桥和 safepoint 使用已有 typed persistent identity，call target/signature/root-scan 等函数局部表在使用位置编码实际值；不编码 arena ID、dump、LLVM 文本或最终摘要补丁。
 
-production section 新增必需 field 13，保存按 callable-body ID 排序的 records：Strong 使用 `{1=body, 2=canonical LIR fingerprint}`，ODR 必需追加 `3=OdrAbiFingerprint`。此排序独立于 foundation 为解析引用使用的拓扑顺序，并精确覆盖全部 callable-body；其中普通 Strong/ODR 正文与 lowering 已生成的 root/init gateway 均按实际 `Function` 编码，不用空记录或入口计划替代 gateway 正文。body 的实际 Strong/ODR 分类及 ODR group/member/role 直接来自 foundation，wire 不复制身份字段；reader 拒绝 Strong 携带 ODR ABI 或 ODR 缺少 ABI。producer 从同一最终 LIR 计算一次，reader 检查集合、引用、排序和 fingerprint 格式后复用；物理对象仍独立按实际内容验证。当前两种 Strong reference schema 的 production capability 分别由 `/11`、`/12` 升至 `/13`、`/14`，旧产物重建，ODR 发布限制保持；ODR 必需分支属于完整泛型 profile 的 cone-production/1，不改变 Strong record 编码。
+production section 新增必需 field 13，保存按 callable-body ID 排序的 records：Strong 使用 `{1=body, 2=canonical LIR fingerprint}`，ODR 必需追加 `3=OdrAbiFingerprint`。此排序独立于 foundation 为解析引用使用的拓扑顺序，并精确覆盖全部 callable-body；其中普通 Strong/ODR 正文与 lowering 已生成的 root/init gateway 均按实际 `Function` 编码，不用空记录或入口计划替代 gateway 正文。body 的实际 Strong/ODR 分类及 ODR group/member/role 直接来自 foundation，wire 不复制身份字段；reader 拒绝 Strong 携带 ODR ABI 或 ODR 缺少 ABI。producer 从同一最终 LIR 计算一次，reader 检查集合、引用、排序和 fingerprint 格式后复用；物理对象仍独立按实际内容验证。当前两种 Strong reference schema 的 production capability 分别由 `/11`、`/12` 升至 `/13`、`/14`，旧产物重建，ODR 发布限制保持；ODR 必需分支随完整泛型 profile 发布，当前格式为下述 cone-production/2，不改变 Strong callable record 编码。
 
 callable-body member 的 ABI payload 固定为 `{1=GC effect, 2=ScoopAbiSignature}`，与 canonical Function 共用 GC effect、调用约定、参数和返回值的 direct/indirect/ZST、物理类型、布局及 scan 编码。ABI 计算只读取这些完整表示，不遍历函数正文或 CFG；group/member/role 使用该 body 的实际 ODR member key，不能将 adapter 等函数角色统一改为 CallableBody。已有 refined `CallableOdrMemberId` 在构造/解析时保留该 key 的 group 和 role，wire 仍只编码原 member ID；body key 因此可直接复用已解析关系，不要求上游 member key 在 LIR 本地表再次发布，也不再查找或解码原 key。经验证的 canonical callable record 用完整 Strong/ODR sum 保存分类，ODR 分支必需包含 group/member/role 和 ABI 摘要，不能在后续 stage 补猜。
 
 callable-body member 的 definition 使用该正文 primary atom 的唯一 canonical LIR leaf、body ObjectDefinition 节点的唯一 object leaf，以及按 site ID 排序的全部所属 normalized-stackmap leaves；没有 safepoint 时最后一项为空。ObjectDefinition 已覆盖该函数全部关联 atom，汇总不再次解析 EH 或 stackmap。生产与产物读取共用这一计算入口，并复用 production field 13；普通 callee、TD 等引用继续只保存 typed identity，不递归纳入目标定义摘要。Strong body 仍使用其既有 ObjectDefinition；callable registration 的 `body_definition_fingerprint` 对两种 owner 均保留该 ObjectDefinition，不改写为 ODR member definition。
+
+实际启用泛型名义类型的物理生产时，production 增加必需 field 14，保存当前发射的 ODR layout、scan、TD 和 dispatch table 的 canonical 内容摘要，格式为按 member ID 严格递增的 `{1=member, 2=canonical LIR fingerprint, 3=ABI fingerprint}`。group、role、primary atom 与定义计划直接复用 foundation 的已解析记录，不在 wire 重复；该表精确覆盖上述四类实际 ODR 定义。完整泛型格式由 `cone-production/1` 升至 `/2`，同一生产结构的历史 Strong 格式由 `/13` 升至 `/15`；历史 Strong 表为空且继续拒绝 ODR，不增加发布路径。
+
+名义类型 application 的 group 记录由 HIR foundation 从已有 concrete exact type 表发布，与 callable application group 合并去重；后续 stage 沿已有 typed 引用使用它，不在每层重复发布。
+
+shape 的 canonical LIR 从最终 LIR metadata 计算一次：固定 layout 保存 size/alignment、有序 field offset/access alignment、CLayout、内部可变性和实际表示；变长 array 保存元素 exact type、物理类型、完整 instance shape 与最大长度；boxed/abstract instance layout 使用其已有完整 instance shape，不伪造固定字段表。scan 保存实际递归程序；TD 保存 runtime type、instance layout/shape、inline scan、parent、dispatch identity 和诊断字节；dispatch 保存按 ABI 顺序排列的真实 callable 目标。arena index、消费 Cone、显示用 layout 名称和首次使用位置不参与摘要，local/external 引用均归一为同一 typed target。shape ABI 使用相同物理合同，排除 TD 诊断文本；它不能仅散列 member key、符号或大小而遗漏字段偏移。reader 检查表的集合、排序和引用后复用摘要，不重做源码语义或布局。
+
+四类 shape 的 ObjectDefinition 使用现有 relocation 归一化与实际 atom 范围，包含 descriptor 的诊断和 itable directory 等关联 atom。其 ODR definition 各汇总自身一个 LIR leaf、一个 object leaf，stackmap 为空。类型注册先取得 TD ObjectDefinition 与 layout 摘要，再写入其规范化对象内容并计算注册自身的 ODR member；仅自身最终 definition 槽归零。Strong 类型注册保留原算法。最终摘要目录和 image 使用实际 Strong/ODR 分支，普通 TD/dispatch 引用不递归散列目标成员，合法递归类型不会造成摘要环。
+
+类型摘要在生产与读取共用的一个入口内按上述依赖次序计算，保留实际验证过的 registration 与最终 leaves；删除仅为跨函数传递而建立的 registration-object/dependency 包装链。相同对象 bytes 与已解析引用在此计算中只读取核对一次，不在每个内部计算步骤重新验证完整对象。
 
 保留 `DigestKind::OdrDefinition = 8`。旧 owner variant `OdrDefinition(OdrGroupId) = 8` 退役，新增 `OdrMemberDefinition(OdrMemberId) = 11`；后者映射到 kind 8。其他 owner tag 与 patch field role 不变，不复用退役编号。
 
@@ -360,7 +370,7 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 
 实例化局部值的 definition origin 继续指向原模板源码。foundation reader 按 typed owner 从本地产物或实际可达依赖的已验证 canonical foundation 查找声明锚点；不得把外来声明复制为本地记录，也不重复验证未变化的 provider。锚点缺失、来源不符及源码位置范围检查沿用共有规则，不新增 wire 字段。
 
-泛型函数的声明类型位置使用实际 application；核对其原声明与 root 一致，再按原签名检查 receiver、参数下标和 result 位置。局部值保留当前 materialization 与原模板源码位置，完全替换后的类型关系由已有 application、签名及 MIR/LIR 对接检查。
+泛型函数、构造器和属性访问器的声明类型位置使用实际 application；核对其原声明与 root 一致，再按原签名检查 receiver、参数下标和 result 位置。泛型字段保留原名义 owner，class 初始化结果继续核对原构造声明、class/object owner 与定义位置；这两种位置均接受 generic 名义声明。局部值保留当前 materialization 与原模板源码位置，完全替换后的类型关系由已有 application、签名及 MIR/LIR 对接检查。
 
 HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方已有的 ODR callable-body 签名；普通直接调用继续关联真实外部 Strong 定义。完整逻辑参数、receiver、result 及当前 root 的存在性逐次核对，不向 provider 的 Strong 表索取消费方实例，也不新增实例或签名 wire 表。
 
@@ -377,7 +387,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |
 | `org.scoop-lang.lir/cross-cone-layout-link-closure` | `/3` | layout/descriptor/helper 的实际 ODR 引用 |
 | `org.scoop-lang.lir/link-identity-closure` | `/4` | ODR definition、symbol、relocation 与 member-aware materialization |
-| `org.scoop-lang.lir/cone-production` | `/1` | 取代完整 layout 路径的 Strong production `/14`，统一表示完整 Strong/ODR 定义、六类 registration、image 与 digest plan |
+| `org.scoop-lang.lir/cone-production` | `/2` | 取代完整 layout 路径的 Strong production `/14`，统一表示完整 Strong/ODR 定义、六类 registration、image、digest plan 与实际 shape 内容摘要 |
 | `org.scoop-lang.link-object/scoop-lir` | `/3` | 同一 Mach-O verifier 支持并核对实际 ODR 对象与 member 摘要 |
 
 HIR identity-foundation `/3`、MIR identity-foundation `/1`、现有 compiler protocol、参数自由调用桥及 generated-C verifier 的 bytes 合同不变；它们不是另一条 generic 生产路径。三层 outer schema、callable-body-v1、persistent identity schema 和 `persistent-v1` 保持。LIR foundation `/2` 已用于本阶段，因此 M24 对应 major 顺延为 `/3`，其三层 outer schema 升代仍按 M24 设计。

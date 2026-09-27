@@ -1,11 +1,10 @@
-//! Strong persistent materialization roots consumed while building LIR.
+//! Persistent materialization roots consumed while building LIR.
 
 use scoop_lir as lir;
 use scoop_mir as mir;
 
-/// Resolves only the source and generated nominal roots sealed into the MIR
-/// materialization plan. Generic and structural exact types remain available
-/// to physical shape calculation but cannot acquire a persistent LIR entity.
+/// Resolves source and generated nominal roots from the MIR materialization
+/// plan. Source applications inherit their original specialization group.
 pub(crate) struct IdentityRoots<'input> {
     input: &'input mir::ConeMirInput,
 }
@@ -32,7 +31,7 @@ impl<'input> IdentityRoots<'input> {
         })
     }
 
-    pub(crate) fn source_nominal_shapes(&self) -> &[mir::StrongSourceNominalShapeRoot] {
+    pub(crate) fn source_nominal_shapes(&self) -> &[mir::SourceNominalShapeRoot] {
         self.input.materialization().source_nominal_shapes()
     }
 
@@ -41,9 +40,14 @@ impl<'input> IdentityRoots<'input> {
     }
 
     pub(crate) fn for_type(&self, ty: &mir::Type) -> lir::MaterializationRoot {
+        if let Some(mir::SourceNominalShapeRoot::Application { group, .. }) =
+            self.input.materialization().source_nominal_shape(ty)
+        {
+            return lir::MaterializationRoot::prior_stage_odr(*group);
+        }
         assert!(
             self.materializes_type(ty),
-            "the sealed strong plan does not materialize {ty:?}"
+            "the MIR plan does not materialize {ty:?}"
         );
         lir::MaterializationRoot::cone_owned()
     }

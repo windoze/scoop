@@ -32,7 +32,6 @@ pub(in super::super) fn assemble_with_production(
             input.public,
         )
         .unwrap();
-    let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
     let production =
         hir::CoreBootstrapInterfaceSectionV1::from_export(&input.hir.output().export).unwrap();
     let ordinary =

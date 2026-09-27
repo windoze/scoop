@@ -605,12 +605,6 @@ impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
         )
         .map_err(StrongLinkRegistrationLeafFingerprintError::Safepoints)?;
 
-        let type_registration_objects =
-            crate::compute_strong_type_registration_object_fingerprints_v1(
-                type_registrations,
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationLeafFingerprintError::Types)?;
         let immortal_object_registration_objects =
             crate::compute_strong_immortal_object_registration_object_fingerprints_v1(
                 immortal_object_registrations,
@@ -639,7 +633,7 @@ impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
             scoop_objects,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,

@@ -78,7 +78,7 @@ fn with_shared(
         let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
         let graph = identities(
             &[
-                fixture.core.source_foundation.as_canonical(),
+                fixture.core.source_foundation.as_ref(),
                 fixture.source_foundation.as_canonical(),
                 foundation.as_canonical(),
             ],

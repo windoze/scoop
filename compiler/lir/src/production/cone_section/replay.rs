@@ -55,6 +55,10 @@ impl DecodedConeProductionSectionV2 {
             .canonical_callables
             .validate(foundation)
             .map_err(ConeProductionSectionValidationError::CanonicalCallables)?;
+        let canonical_shapes = self
+            .canonical_shapes
+            .validate(foundation)
+            .map_err(ConeProductionSectionValidationError::CanonicalShapes)?;
         let section = ConeProductionSectionV2::from_parts(
             coordinate,
             direct_dependencies,
@@ -64,6 +68,7 @@ impl DecodedConeProductionSectionV2 {
             entry_source,
             shape_sources,
             canonical_callables,
+            canonical_shapes,
         )
         .map_err(ConeProductionSectionValidationError::Expected)?;
         let canonical = encode_canonical_temporary(&section, &path)?;

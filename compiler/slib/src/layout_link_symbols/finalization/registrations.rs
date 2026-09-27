@@ -7,6 +7,7 @@ pub(super) fn replay(
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     candidates: &[ScoopLirObjectCandidateV1<'_>],
     canonical: &lir::CanonicalCallableLirDefinitionsV1,
+    shapes: &lir::CanonicalShapeLirDefinitionsV1,
 ) -> Result<VerifiedStrongRegistrationPatchSetV2, LayoutLinkSymbolUseError> {
     let safepoints =
         compute_strong_safepoint_fingerprints_v1(objects.safepoints().clone(), candidates)
@@ -22,14 +23,13 @@ pub(super) fn replay(
     let callables = compute_strong_callable_fingerprints_v1(callables, canonical)
         .map_err(DependencyError::Callables)?;
 
-    let types = compute_strong_type_registration_object_fingerprints_v2(
+    let types = compute_strong_type_fingerprints_v2(
         objects.types().clone(),
+        shapes,
+        undefined.clone(),
         candidates,
     )
-    .map_err(LeafError::Types)?;
-    let types = compute_strong_type_dependency_fingerprints_v2(types, candidates)
-        .map_err(DependencyError::TypeDependencies)?;
-    let types = compute_strong_type_fingerprints_v2(types).map_err(DependencyError::Types)?;
+    .map_err(DependencyError::Types)?;
 
     let immortals = compute_strong_immortal_object_registration_object_fingerprints_v1(
         objects.immortals().clone(),

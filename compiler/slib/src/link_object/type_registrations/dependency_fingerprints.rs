@@ -3,14 +3,8 @@ use std::fmt;
 use scoop_identity::{DigestNodeId, PersistentExactTypeId};
 use scoop_wire::HashError;
 
-use super::physical::validate_objects;
-use super::{
-    StrongTypeRegistrationValidationError, VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
-};
 use crate::SlibMemberId;
-use crate::link_object::{
-    LayoutFingerprintV1, ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1,
-};
+use crate::link_object::{LayoutFingerprintV1, ObjectDefinitionFingerprintV1};
 
 mod encoding;
 use encoding::{
@@ -51,86 +45,37 @@ impl VerifiedStrongTypeDependencyFingerprintV1 {
     }
 }
 
-/// Descriptor-definition and layout fingerprints rebuilt from the same
-/// registration-object proof, exact object bytes, and complete LIR semantics.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongTypeDependencyFingerprintSetV1<
-    D = scoop_lir::StrongTypeDescriptorRefV1,
-    C = scoop_lir::StrongTypeDispatchCallableRefV1,
-> {
-    registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C>,
-    fingerprints: Vec<VerifiedStrongTypeDependencyFingerprintV1>,
-}
-
-pub type VerifiedStrongTypeDependencyFingerprintSetV2 =
-    VerifiedStrongTypeDependencyFingerprintSetV1<
-        scoop_lir::StrongTypeDescriptorRefV2,
-        scoop_lir::StrongTypeDispatchCallableRefV2,
-    >;
-
-impl<D: scoop_lir::StrongDescriptorReference, C: Clone>
-    VerifiedStrongTypeDependencyFingerprintSetV1<D, C>
-{
-    pub const fn producer(&self) -> scoop_identity::ConeIdentity {
-        self.registration_objects.producer()
-    }
-
-    pub const fn registration_objects(
-        &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C> {
-        &self.registration_objects
-    }
-
-    pub fn fingerprints(&self) -> &[VerifiedStrongTypeDependencyFingerprintV1] {
-        &self.fingerprints
-    }
-}
-
-pub fn compute_strong_type_dependency_fingerprints_v1(
-    registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
-    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> Result<VerifiedStrongTypeDependencyFingerprintSetV1, StrongTypeDependencyFingerprintError> {
-    compute_strong_type_dependency_fingerprints(registration_objects, scoop_objects)
-}
-
-pub fn compute_strong_type_dependency_fingerprints_v2(
-    registration_objects: super::VerifiedStrongTypeRegistrationObjectFingerprintSetV2,
-    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> Result<VerifiedStrongTypeDependencyFingerprintSetV2, StrongTypeDependencyFingerprintError> {
-    compute_strong_type_dependency_fingerprints(registration_objects, scoop_objects)
-}
-
-fn compute_strong_type_dependency_fingerprints<D, C>(
-    registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C>,
-    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> Result<VerifiedStrongTypeDependencyFingerprintSetV1<D, C>, StrongTypeDependencyFingerprintError>
+pub(super) fn compute<D, C>(
+    registrations: &super::VerifiedStrongTypeRegistrationSetV1<D, C>,
+    objects: &std::collections::BTreeMap<SlibMemberId, &[u8]>,
+    shapes: &[crate::link_object::OdrShapeFingerprintV1],
+) -> Result<Vec<VerifiedStrongTypeDependencyFingerprintV1>, StrongTypeDependencyFingerprintError>
 where
     D: super::LinkDescriptorReference,
     C: super::LinkDispatchCallableReference + Clone,
 {
-    let registrations = registration_objects.registrations();
-    let objects = validate_objects(registrations.patch_sites().builtins(), scoop_objects)
-        .map_err(StrongTypeDependencyFingerprintError::ObjectValidation)?;
+    let definitions = registrations
+        .patch_sites()
+        .builtins()
+        .strong_relocations()
+        .members()
+        .iter()
+        .flat_map(|member| member.definitions().symbols())
+        .filter_map(|symbol| match symbol.role() {
+            crate::link_object::PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                definition,
+                owner,
+                definition_role,
+                ..
+            } => Some((definition, (owner, definition_role))),
+            _ => None,
+        })
+        .collect();
     let verified = registrations.registrations();
     let planned = registrations.plan().registrations();
-    let object_fingerprints = registration_objects.fingerprints();
-    if verified.len() != planned.len() || verified.len() != object_fingerprints.len() {
-        return Err(StrongTypeDependencyFingerprintError::ProofCoverageMismatch);
-    }
-
     let mut fingerprints = Vec::with_capacity(verified.len());
-    for ((verified, plan), registration_object) in
-        verified.iter().zip(planned).zip(object_fingerprints)
-    {
+    for (verified, plan) in verified.iter().zip(planned) {
         let exact_type = plan.exact_type();
-        if verified.exact_type() != exact_type
-            || registration_object.exact_type() != exact_type
-            || registration_object.node() != plan.registration_object_node()
-        {
-            return Err(
-                StrongTypeDependencyFingerprintError::RegistrationObjectMismatch { exact_type },
-            );
-        }
         let descriptor_proof = verified.descriptor();
         let object = objects.get(&descriptor_proof.member()).copied().ok_or(
             StrongTypeDependencyFingerprintError::MissingObject(descriptor_proof.member()),
@@ -147,6 +92,7 @@ where
             registrations.patch_sites().builtins(),
             verified,
             plan,
+            &definitions,
         )?;
         let diagnostic_bytes = exact_bytes(
             object,
@@ -196,14 +142,22 @@ where
                 );
             }
         };
-        let descriptor_definition =
-            descriptor_fingerprint(descriptor_bytes, diagnostic_bytes, itable_directory, plan)
-                .map_err(
+        let descriptor_definition = match plan.definition_owner() {
+            scoop_lir::RegistrationDefinitionOwner::Strong => {
+                descriptor_fingerprint(descriptor_bytes, diagnostic_bytes, itable_directory, plan)
+                    .map_err(
                     |source| StrongTypeDependencyFingerprintError::DescriptorHash {
                         exact_type,
                         source,
                     },
-                )?;
+                )?
+            }
+            scoop_lir::RegistrationDefinitionOwner::Odr { .. } => shapes
+                .iter()
+                .find(|shape| shape.canonical().definition() == plan.descriptor_definition_plan())
+                .ok_or(StrongTypeDependencyFingerprintError::MissingDescriptorContent(exact_type))?
+                .object(),
+        };
         let layout = layout_fingerprint(plan).map_err(|source| {
             StrongTypeDependencyFingerprintError::LayoutHash { exact_type, source }
         })?;
@@ -216,10 +170,7 @@ where
         });
     }
 
-    Ok(VerifiedStrongTypeDependencyFingerprintSetV1 {
-        registration_objects,
-        fingerprints,
-    })
+    Ok(fingerprints)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -231,11 +182,7 @@ pub enum TypeDependencyArtifactV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongTypeDependencyFingerprintError {
-    ObjectValidation(StrongTypeRegistrationValidationError),
-    ProofCoverageMismatch,
-    RegistrationObjectMismatch {
-        exact_type: PersistentExactTypeId,
-    },
+    MissingDescriptorContent(PersistentExactTypeId),
     ITableDirectoryProofMismatch {
         exact_type: PersistentExactTypeId,
     },
@@ -281,7 +228,6 @@ impl fmt::Display for StrongTypeDependencyFingerprintError {
 impl std::error::Error for StrongTypeDependencyFingerprintError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::ObjectValidation(source) => Some(source),
             Self::DescriptorHash { source, .. } | Self::LayoutHash { source, .. } => Some(source),
             _ => None,
         }

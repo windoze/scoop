@@ -3,9 +3,8 @@ use scoop_lir::StrongTypeRegistrationPlan;
 use super::StrongTypeRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5054_5950;
-const ABI_VERSION: u32 = 1;
-const STRONG_LINKAGE: u32 = 1;
-pub(super) const DESCRIPTOR_SIZE: usize = 240;
+pub(in crate::link_object) const ABI_VERSION: u32 = 1;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 240;
 
 pub(super) fn validate_record_bytes<D: Copy, C>(
     object: &[u8],
@@ -44,8 +43,12 @@ pub(super) fn expected_record<D: Copy, C>(
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    write_u32(&mut bytes, 16, STRONG_LINKAGE);
-    bytes[24..56].copy_from_slice(plan.exact_type().as_array());
+    bytes[16..152].copy_from_slice(
+        &crate::link_object::registration_identity::provisional_registration_identity(
+            plan.exact_type().as_array(),
+            plan.definition_owner(),
+        ),
+    );
     write_u64(&mut bytes, 152, plan.runtime_type().get());
     bytes
 }

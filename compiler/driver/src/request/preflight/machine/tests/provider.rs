@@ -124,8 +124,8 @@ impl Provider {
             )
             .unwrap();
         let (hir, _, _) = imported.into_parts();
-        scoop_hir::ImportedHirFoundation::from_odr_free(
-            scoop_hir::OdrFreeHirFoundation::try_new(self.foundation.clone()).unwrap(),
+        scoop_hir::ImportedHirFoundation::from_shared(
+            std::rc::Rc::new(self.foundation.clone()),
             hir,
         )
     }

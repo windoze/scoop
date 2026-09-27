@@ -12,7 +12,7 @@ pub(super) fn validate(
     identities: &mut ValidatedIdentityGraph,
 ) {
     let coordinate = ConeCoordinate::new("test", "scoop-hir-lower", "0.0.0").unwrap();
-    let dependencies = [core.source_foundation.as_canonical(), provider];
+    let dependencies = [core.source_foundation.as_ref(), provider];
     let bytes = encode(foundation).unwrap();
     let decoded: hir::DecodedHirFoundation = decode_canonical(&bytes).unwrap();
     let restored = decoded

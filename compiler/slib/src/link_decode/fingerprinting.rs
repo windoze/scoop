@@ -49,10 +49,8 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
         &self.callable_registrations
     }
 
-    pub const fn type_registration_objects(
-        &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
-        &self.type_registration_objects
+    pub const fn type_registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1 {
+        &self.type_registrations
     }
 
     pub const fn immortal_object_registration_objects(
@@ -92,7 +90,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
             scoop_objects,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,
@@ -158,7 +156,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
             undefined_symbols,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,
@@ -224,10 +222,8 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         &self.callable_registrations
     }
 
-    pub const fn type_registration_objects(
-        &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
-        &self.type_registration_objects
+    pub const fn type_registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1 {
+        &self.type_registrations
     }
 
     pub const fn immortal_object_registration_objects(
@@ -269,7 +265,7 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
             undefined_symbols,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,
@@ -291,13 +287,13 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         )
         .map_err(StrongLinkRegistrationDependencyFingerprintError::Callables)?;
 
-        let type_dependencies = crate::compute_strong_type_dependency_fingerprints_v1(
-            type_registration_objects,
+        let types = crate::compute_strong_type_fingerprints_v1(
+            type_registrations,
+            production.lir().canonical_shape_definitions(),
+            undefined_symbols.clone(),
             &scoop_candidates,
         )
-        .map_err(StrongLinkRegistrationDependencyFingerprintError::TypeDependencies)?;
-        let types = crate::compute_strong_type_fingerprints_v1(type_dependencies)
-            .map_err(StrongLinkRegistrationDependencyFingerprintError::Types)?;
+        .map_err(StrongLinkRegistrationDependencyFingerprintError::Types)?;
 
         let immortal_object_definitions =
             crate::compute_strong_immortal_object_definition_fingerprints_v1(

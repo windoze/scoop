@@ -250,6 +250,7 @@ layout Int [ManagedValue]: size=4 align=4 fields=[] scan=Intrinsic(Integer(Integ
 layout Int16 [ManagedValue]: size=2 align=2 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W16 }))
 layout Int8 [ManagedValue]: size=1 align=1 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W8 }))
 layout Long [ManagedValue]: size=8 align=8 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W64 }))
+layout Option [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout SharedUnitLazy [ManagedObject]: size=24 align=8 fields=[(16, 4)] scan=Plain { scan: None }
 layout SharedUnitLazy value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout SourceLocation [ManagedValue]: size=40 align=8 fields=[(0, 8), (8, 8), (16, 8), (24, 8), (32, 8)] scan=Plain { scan: References([0, 24, 32]) }

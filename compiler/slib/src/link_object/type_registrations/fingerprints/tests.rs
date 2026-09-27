@@ -1,8 +1,10 @@
-use super::*;
 use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
-use crate::link_object::{ScoopLirObjectCandidateV1, verify_strong_type_registrations_v1};
+use crate::link_object::{
+    ScoopLirObjectCandidateV1, StrongTypeFingerprintError, StrongTypeRegistrationValidationError,
+    compute_strong_type_fingerprints_v1, verify_strong_type_registrations_v1,
+};
 
 #[test]
 fn computes_the_relocation_aware_registration_object_leaf() {
@@ -18,16 +20,24 @@ fn computes_the_relocation_aware_registration_object_leaf() {
     )
     .unwrap();
 
-    let fingerprints =
-        compute_strong_type_registration_object_fingerprints_v1(registrations, &objects).unwrap();
+    let fingerprints = compute_strong_type_fingerprints_v1(
+        registrations,
+        &fixture.canonical_shapes,
+        fixture.undefined_requirements(),
+        &objects,
+    )
+    .unwrap();
 
     assert_eq!(fingerprints.fingerprints().len(), 1);
     let actual = fingerprints.fingerprints()[0];
     let plan = &fixture.type_registration_plan.registrations()[0];
     assert_eq!(actual.exact_type(), plan.exact_type());
-    assert_eq!(actual.node(), plan.registration_object_node());
     assert_eq!(
-        actual.fingerprint().to_string(),
+        actual.registration_object_node(),
+        plan.registration_object_node()
+    );
+    assert_eq!(
+        actual.registration_object().to_string(),
         "c4f83cef2f1b6a906f5c32b8080d7a9f1989514dccb8bafb8179006564fc839d"
     );
 }
@@ -53,11 +63,14 @@ fn rechecks_object_bytes_before_hashing() {
     )];
 
     assert_eq!(
-        compute_strong_type_registration_object_fingerprints_v1(registrations, &changed),
-        Err(
-            StrongTypeRegistrationObjectFingerprintError::ObjectValidation(
-                StrongTypeRegistrationValidationError::ObjectBytesMismatch(fixture.member)
-            )
-        )
+        compute_strong_type_fingerprints_v1(
+            registrations,
+            &fixture.canonical_shapes,
+            fixture.undefined_requirements(),
+            &changed
+        ),
+        Err(StrongTypeFingerprintError::Objects(
+            StrongTypeRegistrationValidationError::ObjectBytesMismatch(fixture.member)
+        ))
     );
 }

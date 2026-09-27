@@ -148,7 +148,7 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     assert_eq!(leaves.identity(), cone().identity());
     assert!(leaves.safepoints().fingerprints().is_empty());
     assert!(leaves.callable_registrations().registrations().is_empty());
-    assert!(leaves.type_registration_objects().fingerprints().is_empty());
+    assert!(leaves.type_registrations().registrations().is_empty());
     assert!(
         leaves
             .immortal_object_registration_objects()
@@ -1079,6 +1079,7 @@ pub(crate) fn strong_production_fixture(
         EntryProductionSourceV1::Library,
         &[],
         scoop_lir::CanonicalCallableLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+        scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     (canonical, production)
@@ -1306,14 +1307,13 @@ fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let type_objects = crate::compute_strong_type_registration_object_fingerprints_v1(
+    let types = crate::compute_strong_type_fingerprints_v1(
         type_registrations,
+        production.canonical_shape_definitions(),
+        requirements.clone(),
         &objects,
     )
     .unwrap();
-    let type_dependencies =
-        crate::compute_strong_type_dependency_fingerprints_v1(type_objects, &objects).unwrap();
-    let types = crate::compute_strong_type_fingerprints_v1(type_dependencies).unwrap();
     let immortal_registrations = crate::verify_strong_immortal_object_registrations_v1(
         patch_sites.clone(),
         registrations.immortal_objects().clone(),

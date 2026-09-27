@@ -32,13 +32,7 @@ where
         .registrations()
         .plan()
         .registrations();
-    let types = registrations
-        .types()
-        .dependencies()
-        .registration_objects()
-        .registrations()
-        .plan()
-        .registrations();
+    let types = registrations.types().registrations().plan().registrations();
     let safepoints = registrations
         .safepoints()
         .registrations()

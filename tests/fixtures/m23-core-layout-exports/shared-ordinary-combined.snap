@@ -293,8 +293,11 @@ layout Int [ManagedValue]: size=4 align=4 fields=[] scan=Intrinsic(Integer(Integ
 layout Int16 [ManagedValue]: size=2 align=2 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W16 }))
 layout Int8 [ManagedValue]: size=1 align=1 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W8 }))
 layout Long [ManagedValue]: size=8 align=8 fields=[] scan=Intrinsic(Integer(IntegerKind { signedness: Signed, width: W64 }))
+layout Option [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout SharedOrdinaryAccess [ManagedObject]: size=16 align=8 fields=[] scan=Plain { scan: None }
 layout SharedOrdinaryAccess value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SharedOrdinaryBox [ManagedObject]: size=32 align=8 fields=[(16, 8)] scan=Plain { scan: References([16]) }
+layout SharedOrdinaryBox value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout SharedOrdinaryDeferred [ManagedObject]: size=24 align=8 fields=[(16, 8)] scan=Plain { scan: References([16]) }
 layout SharedOrdinaryDeferred value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout SharedOrdinaryDeferredValue [ManagedValue]: size=8 align=8 fields=[(0, 8)] scan=Plain { scan: References([0]) }

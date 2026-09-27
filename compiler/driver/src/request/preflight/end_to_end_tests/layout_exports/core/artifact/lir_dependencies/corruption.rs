@@ -8,10 +8,7 @@ pub(super) fn check(
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     core: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap(),
-    )
-    .unwrap();
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();
     let metadata = hir::SharedTypeMetadataV1 {
         provider: layout.provider(),
         identities: input.identities,

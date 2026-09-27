@@ -99,7 +99,9 @@ impl CanonicalStrongRegistrationFingerprintSetV1 {
                     .types()
                     .fingerprints()
                     .iter()
-                    .map(|fingerprint| entry(fingerprint.exact_type(), fingerprint.registration()))
+                    .filter_map(|fingerprint| {
+                        strong_entry(fingerprint.exact_type(), fingerprint.registration())
+                    })
                     .collect(),
             )?,
             safepoints: canonicalize_table(

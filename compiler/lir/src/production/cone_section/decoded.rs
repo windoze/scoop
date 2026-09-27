@@ -18,11 +18,12 @@ pub struct DecodedConeProductionSection<R> {
     pub(super) shape_support_plan: DecodedParamFreeShapeSupportPlanSetV1,
     pub(super) generated_bridge_plan: DecodedGeneratedBridgePlanSetV1,
     pub(super) canonical_callables: crate::DecodedCanonicalCallableLirDefinitionsV1,
+    pub(super) canonical_shapes: crate::DecodedCanonicalShapeLirDefinitionsV1,
 }
 
 impl<R: WireEncode> WireEncode for DecodedConeProductionSection<R> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(2)?;
         self.canonical_definitions.encode(encoder)?;
         encoder.field(3)?;
@@ -40,13 +41,15 @@ impl<R: WireEncode> WireEncode for DecodedConeProductionSection<R> {
         encoder.field(9)?;
         self.generated_bridge_plan.encode(encoder)?;
         encoder.field(13)?;
-        self.canonical_callables.encode(encoder)
+        self.canonical_callables.encode(encoder)?;
+        encoder.field(14)?;
+        self.canonical_shapes.encode(encoder)
     }
 }
 
 impl<R: WireDecode> WireDecode for DecodedConeProductionSection<R> {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(9)?;
+        decoder.expect_map(10)?;
         Ok(Self {
             canonical_definitions: decoder.field(2, DecodedObjectSymbolSurfaceV1::decode)?,
             object_definition_plans: decoder
@@ -59,6 +62,8 @@ impl<R: WireDecode> WireDecode for DecodedConeProductionSection<R> {
             generated_bridge_plan: decoder.field(9, DecodedGeneratedBridgePlanSetV1::decode)?,
             canonical_callables: decoder
                 .field(13, crate::DecodedCanonicalCallableLirDefinitionsV1::decode)?,
+            canonical_shapes: decoder
+                .field(14, crate::DecodedCanonicalShapeLirDefinitionsV1::decode)?,
         })
     }
 }

@@ -32,14 +32,9 @@ pub(super) fn check(
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     members::check(input, provider_artifact, artifact);
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap(),
-    )
-    .unwrap();
-    let provider_foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(provider.hir).unwrap(),
-    )
-    .unwrap();
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();
+    let provider_foundation =
+        hir::CanonicalHirFoundation::from_type_semantics_output(provider.hir).unwrap();
     let metadata = hir::SharedTypeMetadataV1 {
         provider: input.mir.module().cone,
         identities: input.identities,

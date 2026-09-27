@@ -31,11 +31,9 @@ fn with_production<R>(
     )
     .unwrap();
     let input = hir.machine_input();
-    let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(
-        scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap(),
-    )
-    .unwrap();
-    let hir_foundation: scoop_hir::DecodedHirFoundation = decoded(source_foundation.as_canonical());
+    let source_foundation =
+        scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap();
+    let hir_foundation: scoop_hir::DecodedHirFoundation = decoded(&source_foundation);
     let mir = input
         .lower_selected_mir(scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::CORE))
         .unwrap();

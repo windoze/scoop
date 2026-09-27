@@ -87,10 +87,8 @@ pub(super) fn check<'a, 'p>(
         source_input.identities,
     )
     .unwrap();
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(source_input.hir).unwrap(),
-    )
-    .unwrap();
+    let foundation =
+        hir::CanonicalHirFoundation::from_type_semantics_output(source_input.hir).unwrap();
     scoop_slib::replay_shared_lir_dependency_graph(
         hir::SharedTypeMetadataV1 {
             provider: source_input.mir.module().cone,

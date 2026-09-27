@@ -11,7 +11,7 @@ use crate::link_object::{
     runtime_encode_callable_record_v1, runtime_encode_safepoint_record_v1,
     runtime_encode_strong_immortal_object_record_v1,
     runtime_encode_strong_initialization_record_v1, runtime_encode_strong_static_storage_record_v1,
-    runtime_encode_strong_type_record_v1,
+    runtime_encode_type_record_v1,
 };
 use crate::{CompatibilityRecord, RuntimeImageFingerprint, VerifiedStrongRegistrationPatchSetV1};
 
@@ -244,14 +244,14 @@ where
                 .iter()
                 .map(|entry| entry.registration_node()),
         )
+        .map(|node| (DigestKind::StrongRegistration, node))
         .chain(
             registrations
                 .types()
                 .fingerprints()
                 .iter()
-                .map(|entry| entry.registration_node()),
+                .map(|entry| (entry.registration().kind(), entry.registration_node())),
         )
-        .map(|node| (DigestKind::StrongRegistration, node))
         .chain(
             registrations
                 .safepoints()
@@ -386,18 +386,12 @@ where
 
     fn encode_types(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.types();
-        let plans = fingerprints
-            .dependencies()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
+        let plans = fingerprints.registrations().plan().registrations();
         encoder.sequence_length(plans.len())?;
         for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_strong_type_record_v1(
+            runtime_encode_type_record_v1(
                 encoder,
-                plan.exact_type(),
-                plan.runtime_type().get(),
+                plan,
                 fingerprint.registration().as_array(),
                 fingerprint.descriptor_definition().as_array(),
                 fingerprint.layout().as_array(),

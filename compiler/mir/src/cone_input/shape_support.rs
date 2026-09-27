@@ -41,7 +41,7 @@ impl StrongSourceShapeSupportRoot {
 pub(super) fn validate(
     sources: Vec<SourceDeclarationKey>,
     module: &Module,
-    shapes: &[StrongSourceNominalShapeRoot],
+    shapes: &[SourceNominalShapeRoot],
 ) -> Result<Vec<StrongSourceShapeSupportRoot>, ConeMirInputError> {
     use ConeMirInputError as Error;
 
@@ -70,6 +70,7 @@ pub(super) fn validate(
             .map_err(|error| Error::ShapeSupportExactIdentity { index, error })?;
         let shape = shapes
             .iter()
+            .filter_map(SourceNominalShapeRoot::cone_owned)
             .find(|shape| shape.source() == source && shape.exact() == exact)
             .ok_or(Error::MissingShapeSupportSource { source, exact })?;
         let step = module

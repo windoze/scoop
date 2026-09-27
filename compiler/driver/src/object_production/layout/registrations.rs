@@ -67,12 +67,13 @@ pub(super) fn finalize(
         &candidates,
     )
     .map_err(BuiltinObjectProductionError::TypeRegistrations)?;
-    let types = slib::compute_strong_type_registration_object_fingerprints_v2(types, &candidates)
-        .map_err(BuiltinObjectProductionError::TypeRegistrationObjectFingerprints)?;
-    let types = slib::compute_strong_type_dependency_fingerprints_v2(types, &candidates)
-        .map_err(BuiltinObjectProductionError::TypeDependencyFingerprints)?;
-    let types = slib::compute_strong_type_fingerprints_v2(types)
-        .map_err(BuiltinObjectProductionError::TypeFingerprints)?;
+    let types = slib::compute_strong_type_fingerprints_v2(
+        types,
+        production.canonical_shape_definitions(),
+        undefined.clone(),
+        &candidates,
+    )
+    .map_err(BuiltinObjectProductionError::TypeFingerprints)?;
 
     let immortals = verify_strong_immortal_object_registrations_v1(
         patches.clone(),

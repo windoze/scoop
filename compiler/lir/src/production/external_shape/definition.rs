@@ -20,14 +20,18 @@ impl StrongShapeDefinitionRefV1 {
         subject: ExternalStrongShapeSubjectV1,
         foundation: &crate::ConeLirFoundation,
     ) -> Result<Self, StrongShapeDefinitionError> {
-        let (key, symbol) = subject.expected_definition(foundation.producer())?;
-
-        let definition = foundation
-            .definition_plans()
-            .iter()
-            .find(|record| record.key() == &key)
-            .ok_or(StrongShapeDefinitionError::MissingDefinition(key))?;
-        let symbol = PersistentSymbolRequest::new(symbol, LinkageClass::ConeStrong)
+        let (entity, role, symbol) = subject.definition_parts()?;
+        let definition = foundation.definition_for(entity, role).ok_or_else(|| {
+            subject
+                .expected_definition(foundation.producer())
+                .map(|(key, _)| StrongShapeDefinitionError::MissingDefinition(key))
+                .unwrap_or_else(|error| error)
+        })?;
+        let linkage = match definition.key().owner() {
+            scoop_identity::ObjectDefinitionPlanOwner::Strong { .. } => LinkageClass::ConeStrong,
+            scoop_identity::ObjectDefinitionPlanOwner::Odr { .. } => LinkageClass::OdrWeak,
+        };
+        let symbol = PersistentSymbolRequest::new(symbol, linkage)
             .map_err(StrongShapeDefinitionError::Symbol)?;
 
         if !foundation.contains_symbol_request(symbol) {

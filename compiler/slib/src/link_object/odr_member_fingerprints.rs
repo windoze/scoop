@@ -142,6 +142,50 @@ pub(super) fn callable_registration(
     )
 }
 
+pub(super) fn shape_definition(
+    canonical: scoop_lir::CanonicalShapeLirDefinitionV1,
+    object: ObjectDefinitionFingerprintV1,
+) -> Result<OdrMemberFingerprintV1, HashError> {
+    let object_node = DigestNodeId::from_key(&scoop_identity::DigestNodeKey::object_definition(
+        canonical.primary_atom(),
+    ))?;
+    member_fingerprint(
+        canonical.abi(),
+        DefinitionInput {
+            group: canonical.group(),
+            member: canonical.member(),
+            role: canonical.role(),
+            atom: canonical.primary_atom(),
+            lir: canonical.fingerprint(),
+            object_node,
+            object,
+            stackmaps: &[],
+        },
+    )
+}
+
+pub(super) fn type_registration<D: Copy, C>(
+    group: OdrGroupId,
+    member: OdrMemberId,
+    plan: &scoop_lir::StrongTypeRegistrationPlan<D, C>,
+    object: ObjectDefinitionFingerprintV1,
+) -> Result<OdrMemberFingerprintV1, HashError> {
+    registration(
+        group,
+        member,
+        RegistrationProjection::Type {
+            exact: plan.exact_type(),
+            runtime: plan.runtime_type(),
+            descriptor: plan.descriptor_symbol(),
+            layout: plan.layout(),
+        },
+        plan.primary_atom(),
+        plan.registration_object_node(),
+        object,
+        None,
+    )
+}
+
 pub(super) fn safepoint_registration(
     group: OdrGroupId,
     member: OdrMemberId,

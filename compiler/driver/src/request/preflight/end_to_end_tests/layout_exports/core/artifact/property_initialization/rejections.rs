@@ -7,14 +7,9 @@ pub(super) fn check(
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core: mir::MirTypeBridgeDependencyViewV1<'_>,
 ) {
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap(),
-    )
-    .unwrap();
-    let core_foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(core_input.hir).unwrap(),
-    )
-    .unwrap();
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();
+    let core_foundation =
+        hir::CanonicalHirFoundation::from_type_semantics_output(core_input.hir).unwrap();
     let metadata = hir::SharedTypeMetadataV1 {
         provider: section.provider(),
         identities: input.identities,

@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::{
     DefinitionOwnerAtom, FieldIdentityView, GeneratedNominalKey, InitializationUnitKey,
     NominalDeclarationOwner, PersistentEnumVariantFieldId, PersistentFieldId,
-    PersistentInitializationUnitId, PersistentTypeId, SourceDeclarationKind,
+    PersistentInitializationUnitId, SourceDeclarationKind,
 };
 
 impl Input<'_> {
@@ -13,14 +13,14 @@ impl Input<'_> {
             FieldIdentityView::SourceDeclared { owner, .. }
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. } => {
-                self.nominal(owner, at)?;
+                self.nominal(owner)?;
             }
             FieldIdentityView::Generated { owner, key } => {
                 let generated = self.key(&self.foundation.generated_types, owner)?;
                 let GeneratedNominalKey::ObjectBackingClass { object } = generated else {
                     return Err(Error::StoragePosition(at));
                 };
-                self.nominal(NominalDeclarationOwner::Concrete(*object), at)?;
+                self.nominal(NominalDeclarationOwner::Concrete(*object))?;
                 let property = key
                     .object_backing_property()
                     .ok_or(Error::StoragePosition(at))?;
@@ -39,7 +39,7 @@ impl Input<'_> {
         let key = self.key(&foundation.enum_variant_fields, field)?;
         let variant = self.key(&foundation.enum_variants, key.variant())?;
         let owner = variant.source_owner().ok_or(Error::StoragePosition(at))?;
-        self.nominal(owner, at)?;
+        self.nominal(owner)?;
         self.origin(DefinitionOriginSubject::EnumVariantField(field))
     }
 
@@ -52,18 +52,27 @@ impl Input<'_> {
         let CallableTemplateOwner::Constructor(id) = root.template() else {
             return Err(Error::StoragePosition(at));
         };
-        let key = self.key(&self.foundation.constructors, id)?;
-        let Some(DefinitionOwnerAtom::Type(owner)) = key.owners().owners().last() else {
-            return Err(Error::StoragePosition(at));
+        let (foundation, key) = self.source_record(id, |foundation| &foundation.constructors)?;
+        let owner = match key.owners().owners().last() {
+            Some(DefinitionOwnerAtom::Type(owner)) => self.key(&foundation.types, *owner)?,
+            Some(DefinitionOwnerAtom::GenericType(owner)) => {
+                self.key(&foundation.generic_types, *owner)?
+            }
+            _ => return Err(Error::StoragePosition(at)),
         };
-        let owner = self.nominal(NominalDeclarationOwner::Concrete(*owner), at)?;
         if !matches!(
             owner.declaration_kind(),
             SourceDeclarationKind::Class | SourceDeclarationKind::Object
         ) {
             return Err(Error::StoragePosition(at));
         }
-        self.origin(DefinitionOriginSubject::Constructor(id))
+        let subject = DefinitionOriginSubject::Constructor(id);
+        let origin = foundation
+            .definition_origin(subject)
+            .ok_or(Error::MissingOrigin(subject))?;
+        foundation
+            .validate_definition_origin_location(origin.origin().source().cone(), origin.origin())
+            .map_err(|source| Error::Origin(Box::new(source)))
     }
 
     pub(super) fn initialization(
@@ -80,7 +89,7 @@ impl Input<'_> {
                 self.property(PropertyOwner::ExtensionProperty(*property))?
             }
             InitializationUnitKey::Object(owner) | InitializationUnitKey::Companion(owner) => {
-                let key = self.nominal(NominalDeclarationOwner::Concrete(*owner), at)?;
+                let key = self.nominal(NominalDeclarationOwner::Concrete(*owner))?;
                 if key.declaration_kind() != SourceDeclarationKind::Object {
                     return Err(Error::StoragePosition(at));
                 }
@@ -92,15 +101,13 @@ impl Input<'_> {
         self.origin(DefinitionOriginSubject::InitializationUnit(unit))
     }
 
-    fn nominal(
-        &mut self,
-        owner: NominalDeclarationOwner,
-        at: HirDependencyTypePositionV1,
-    ) -> Result<&SourceDeclarationKey, Error> {
-        let NominalDeclarationOwner::Concrete(owner) = owner else {
-            return Err(Error::StoragePosition(at));
+    fn nominal(&mut self, owner: NominalDeclarationOwner) -> Result<&SourceDeclarationKey, Error> {
+        let key = match owner {
+            NominalDeclarationOwner::Concrete(owner) => self.key(&self.foundation.types, owner)?,
+            NominalDeclarationOwner::GenericTemplate(owner) => {
+                self.key(&self.foundation.generic_types, owner)?
+            }
         };
-        let key = self.key::<PersistentTypeId, _>(&self.foundation.types, owner)?;
         self.source(key)?;
         Ok(key)
     }

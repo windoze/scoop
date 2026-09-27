@@ -76,6 +76,22 @@ impl<'a> Input<'a> {
             {
                 Some(CallableTemplateOrigin::Function(id))
             }
+            CallableTemplateOwner::Constructor(id)
+                if matches!(
+                    root.context(),
+                    CallableMaterializationContext::Application(_)
+                ) =>
+            {
+                Some(CallableTemplateOrigin::Constructor(id))
+            }
+            CallableTemplateOwner::Accessor(id)
+                if matches!(
+                    root.context(),
+                    CallableMaterializationContext::Application(_)
+                ) =>
+            {
+                Some(CallableTemplateOrigin::Accessor(id))
+            }
             _ => None,
         };
         if let Some(source) = applied_source {
@@ -86,36 +102,33 @@ impl<'a> Input<'a> {
             if application.origin() != source {
                 return Err(Error::Materialization(root));
             }
-            let declaration = std::iter::once(self.foundation)
-                .chain(self.dependencies.iter().copied())
-                .find_map(|foundation| match source {
-                    CallableTemplateOrigin::GenericFunction(id) => foundation
-                        .generic_functions
-                        .iter()
-                        .find(|record| record.id() == id)
-                        .map(|record| record.key()),
-                    CallableTemplateOrigin::Function(id) => foundation
-                        .functions
-                        .iter()
-                        .find(|record| record.id() == id)
-                        .map(|record| record.key()),
-                    _ => unreachable!("applied source roots are function declarations"),
-                })
-                .ok_or_else(|| {
-                    let (kind, id) = match source {
-                        CallableTemplateOrigin::GenericFunction(id) => (
-                            std::any::type_name::<scoop_identity::PersistentGenericFunctionId>(),
-                            *id.as_array(),
-                        ),
-                        CallableTemplateOrigin::Function(id) => (
-                            std::any::type_name::<scoop_identity::PersistentFunctionId>(),
-                            *id.as_array(),
-                        ),
-                        _ => unreachable!("applied source roots are function declarations"),
+            return match source {
+                CallableTemplateOrigin::GenericFunction(id) => {
+                    let (_, key) =
+                        self.source_record(id, |foundation| &foundation.generic_functions)?;
+                    signature::source(key, root, position)
+                }
+                CallableTemplateOrigin::Function(id) => {
+                    let (_, key) = self.source_record(id, |foundation| &foundation.functions)?;
+                    signature::source(key, root, position)
+                }
+                CallableTemplateOrigin::Constructor(id) => {
+                    let (_, key) = self.source_record(id, |foundation| &foundation.constructors)?;
+                    signature::source(key, root, position)
+                }
+                CallableTemplateOrigin::Accessor(id) => {
+                    let (foundation, key) =
+                        self.source_record(id, |foundation| &foundation.property_accessors)?;
+                    let property = match key.owner() {
+                        PropertyOwner::Property(id) => self.key(&foundation.properties, id)?,
+                        PropertyOwner::ExtensionProperty(id) => {
+                            self.key(&foundation.extension_properties, id)?
+                        }
                     };
-                    Error::MissingIdentity { kind, id }
-                })?;
-            return signature::source(declaration, root, position);
+                    signature::accessor(property, key.role(), root, position)
+                }
+                CallableTemplateOrigin::VariantConstructor(_) => Err(Error::Materialization(root)),
+            };
         }
         if root.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::Materialization(root));
@@ -199,7 +212,7 @@ impl<'a> Input<'a> {
     }
 
     fn key<'b, I: PersistentId, K>(
-        &mut self,
+        &self,
         records: &'b [CborIdentityRecord<I, K>],
         id: I,
     ) -> Result<&'b K, Error> {
@@ -207,6 +220,25 @@ impl<'a> Input<'a> {
             .iter()
             .find(|record| record.id() == id)
             .map(|record| record.key())
+            .ok_or(Error::MissingIdentity {
+                kind: std::any::type_name::<I>(),
+                id: *id.as_array(),
+            })
+    }
+
+    fn source_record<I: PersistentId + 'a, K>(
+        &self,
+        id: I,
+        records: fn(&CanonicalHirFoundation) -> &[CborIdentityRecord<I, K>],
+    ) -> Result<(&'a CanonicalHirFoundation, &'a K), Error> {
+        std::iter::once(self.foundation)
+            .chain(self.dependencies.iter().copied())
+            .find_map(|foundation| {
+                records(foundation)
+                    .iter()
+                    .find(|record| record.id() == id)
+                    .map(|record| (foundation, record.key()))
+            })
             .ok_or(Error::MissingIdentity {
                 kind: std::any::type_name::<I>(),
                 id: *id.as_array(),

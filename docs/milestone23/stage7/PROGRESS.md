@@ -281,11 +281,28 @@
 
 本项完成构造执行模板的生产与读取，不代表消费方泛型名义类型已完成。实际发布测试已暴露泛型类型描述符、扫描与分发表的 ODR 物理链路缺口，修复继续沿同一对象与摘要入口推进；MIR/LIR golden、产物消费、链接和移动 GC 尚未作为本项验收通过。
 
+## 2026-09-28：泛型名义类型的实际 shape 进入共有 ODR 物理产物
+
+- 当前 Cone 从源码实例化的泛型名义类型沿已有 exact type 与 specialization group 进入 MIR/LIR；core 中已有的 `Option<String>` 也生成其实际 shape 和类型注册。layout、scan、TD、dispatch 和类型注册分别使用实际 member，LLVM 按原 symbol request 发射 WeakODR 定义；HIR 发布已有名义 application group，后续 stage 只引用，不重复复制上游身份。
+- 新增 production 必需 field 14，从最终 LIR metadata 保存实际 ODR shape 的 canonical LIR/ABI 摘要。固定布局包含有序字段偏移、对齐与表示，变长数组包含元素与完整实例表示，扫描包含实际程序，TD 与分发表保留 typed 目标及 ABI 顺序。reader 检查精确成员集合、顺序和引用后复用，不重做语义或布局。
+- shape 对象摘要沿已有 atom 范围和 relocation 归一化计算，包含 TD 诊断及 itable directory 等关联内容。类型注册复用同一摘要入口，依次取得 TD/layout 内容、注册对象与自身 member，最终目录和 image 使用实际 Strong/ODR 分类。删除仅转发中间结果的注册对象和依赖包装链；既有 Strong 类型摘要固定向量保持不变。
+- 构造器和属性访问器的声明类型位置按实际 application 查询原声明；字段和 class 初始化结果接受原泛型名义 owner。补充构造 root/application 混装、非法 receiver/参数位置、缺失声明和 struct 初始化位置反例，保留原来源与位置边界检查。
+- `cone-production` 由 `/1` 升至 `/2`；共用生产结构的历史 `strong-production` 由 `/13` 升至 `/15`，不复用历史 `/14`。required inventory、canonical profile descriptor、固定摘要、旧格式拒绝测试与语言规范、实现规范及设计说明同步；旧产物和缓存需重建，runtime C ABI 保持。
+- 独立和组合源码 fixture 固化四份 MIR/LIR golden，覆盖值构造、class 主次构造、多个 terminal/this 委托、继承、引用字段、普通及委托属性。provider 发布后移走源码，consumer 调用其普通公共入口并再发布、移走源码，下游仅以 `.slib` 编译；两例均完成完整 reader、真实链接、普通运行与移动 GC，并核对实际收集和每个 shape/类型注册的 ODR 目录。该消费路径验证 provider 已物化的泛型类型，不代替消费方从模板新建名义实例的验收。
+- 新增 shape 内容回归验证生产 Cone 与 arena 顺序不影响摘要，字段偏移/扫描/dispatch 顺序影响对应内容，TD 诊断不改变 ABI；reader 拒绝缺少、重复、乱序与未知成员。旧泛型数组拒绝测试改为核对实际分配和七个 shape 成员，其中包含独立的 ArrayElement 扫描。
+- HIR lowering 与 driver 的真实 core 辅助代码改用已有 canonical foundation，移除旧 ODR-free 中间包装。原负例继续检查缺失声明、生成实体和初始化引用；core 新增实例沿实际 ODR 身份检查，其普通导出分区保持原含义。
+
+- 同步并逐份核对145份既有快照：41份增加实际 application 布局，41份反映对应类型注册数量，49份仅摘要字段变化；其余14份记录新增 ODR 摘要节点、类型注册、patch 或 atom 边界符号。两个原有组合 fixture 的泛型 Box 也进入实际物化，其新增布局与源码字段一致；已有普通导出、callable 和 stackmap 记录保持。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过，lint 无警告。分批完成工作区各测试目标的验证：5026项非 driver 测试（含2项文档测试）、121项 driver 库测试、7项 CLI 单测和1项配套编译器能力查询，共5155项独立测试。初次回归的旧 Strong 假设及相应快照均已修正并复验；关闭全部更新开关后的最终30项 driver 回归全部通过，耗时266.28秒，覆盖此前全部25项失败，最终没有未解决失败或忽略。
+- 确认所有构建、测试和编译器进程结束，且 `target` 中没有打开的文件。恢复该目录缺失的标准 Cargo 缓存标记后，执行 `cargo clean --target-dir target`，删除3085个构建文件，回收6.5 GiB。
+
+本项完成当前 Cone 已实例化名义类型的 ODR shape 与类型登记产物闭环。消费方从模板新建名义实例、递归扫描子程序的对象 atom、生成实体与其他物理角色、完整组合和地址合并仍待继续，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
+1. 继续共用可移植节点，完成构造初始化模板的实际消费，以及 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 完成泛型名义类型、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与扫描。
+3. 完成消费方泛型名义类型实例化、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与递归扫描程序的实际对象 atom。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

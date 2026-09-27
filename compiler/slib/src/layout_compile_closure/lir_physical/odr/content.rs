@@ -87,6 +87,26 @@ fn content(
             });
         }
     }
+    for registration in registrations.types().fingerprints() {
+        if let RegistrationFingerprintV1::Odr(value) = registration.registration()
+            && value.member() == member
+        {
+            return Ok(Content {
+                lir: value.lir(),
+                object: registration.registration_object(),
+                stackmaps: Vec::new(),
+            });
+        }
+    }
+    for shape in registrations.types().shapes() {
+        if shape.member().member() == member {
+            return Ok(Content {
+                lir: shape.canonical().fingerprint(),
+                object: shape.object(),
+                stackmaps: Vec::new(),
+            });
+        }
+    }
     Err(OdrDefinitionMergeError::MissingContent {
         provider: artifact.provider(),
         member,

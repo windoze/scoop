@@ -169,7 +169,7 @@ where
     let safepoint_registrations = safepoints.registrations();
     let callable_body_objects = callables.body_objects();
     let callable_registrations = callable_body_objects.registration_objects().registrations();
-    let type_registrations = types.dependencies().registration_objects().registrations();
+    let type_registrations = types.registrations();
     let immortal_registrations = immortal_objects
         .object_definitions()
         .registration_objects()
@@ -299,7 +299,7 @@ where
     {
         return Err(StrongRegistrationPatchError::ProofCoverageMismatch);
     }
-    let type_registrations = types.dependencies().registration_objects().registrations();
+    let type_registrations = types.registrations();
     if type_registrations.registrations().len() != type_registrations.plan().registrations().len()
         || type_registrations.registrations().len() != types.fingerprints().len()
     {
@@ -469,10 +469,7 @@ where
     D: scoop_lir::StrongDescriptorReference,
     C: Clone,
 {
-    let registrations = fingerprints
-        .dependencies()
-        .registration_objects()
-        .registrations();
+    let registrations = fingerprints.registrations();
     for ((verified, plan), computed) in registrations
         .registrations()
         .iter()
@@ -887,8 +884,6 @@ where
         )?;
     }
     for registration in types
-        .dependencies()
-        .registration_objects()
         .registrations()
         .registrations()
         .iter()

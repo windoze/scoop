@@ -18,7 +18,7 @@ use super::super::{
 pub(crate) struct TrustedCoreFixture {
     pub(crate) output: scoop_hir::DependencyHirOutput,
     pub(crate) foundation: scoop_hir::ImportedHirFoundation,
-    pub(crate) source_foundation: scoop_hir::OdrFreeHirFoundation,
+    pub(crate) source_foundation: std::rc::Rc<scoop_hir::CanonicalHirFoundation>,
     general_interface: scoop_hir::CrossConeHirInterfaceSectionV1,
     aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
     pub(crate) interface: scoop_hir::CoreCompilerProtocolSurfaceV1,
@@ -174,9 +174,8 @@ pub(crate) fn trusted_core_from_source(
         )
         .unwrap();
     let (hir, _, _) = imported.into_parts();
-    let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
-    let foundation =
-        scoop_hir::ImportedHirFoundation::from_odr_free(source_foundation.clone(), hir);
+    let source_foundation = std::rc::Rc::new(canonical);
+    let foundation = scoop_hir::ImportedHirFoundation::from_shared(source_foundation.clone(), hir);
     TrustedCoreFixture {
         output: dependency_output,
         general_interface,

@@ -259,7 +259,8 @@ where
             relocation_index += 1;
             validate_itable_relocation_shape(plan, entry_index, slots)?;
             let expected =
-                dispatch_definition(builtins.producer(), itable.table()).map_err(|_| {
+                dispatch_definition(builtins.producer(), plan.definition_owner(), itable.table())
+                    .map_err(|_| {
                     itable_directory_failure(
                         plan,
                         Some(entry_index),
@@ -387,14 +388,28 @@ where
 
 fn dispatch_definition(
     producer: scoop_identity::ConeIdentity,
+    owner: scoop_lir::RegistrationDefinitionOwner,
     table: scoop_identity::PersistentDispatchTableId,
 ) -> Result<ObjectDefinitionPlanId, ()> {
-    let key = ObjectDefinitionPlanKey::strong(
-        producer,
-        StrongDefinitionEntity::dispatch_table(table),
-        StrongDefinitionRole::DispatchTable,
-    )
-    .map_err(|_| ())?;
+    let key = match owner {
+        scoop_lir::RegistrationDefinitionOwner::Strong => ObjectDefinitionPlanKey::strong(
+            producer,
+            StrongDefinitionEntity::dispatch_table(table),
+            StrongDefinitionRole::DispatchTable,
+        )
+        .map_err(|_| ())?,
+        scoop_lir::RegistrationDefinitionOwner::Odr { group, .. } => {
+            let member = scoop_identity::OdrMemberKey::new(
+                group,
+                scoop_identity::OdrMemberRole::DispatchTable,
+                scoop_identity::OdrMemberDiscriminator::DispatchTable(table),
+            )
+            .map_err(|_| ())?;
+            ObjectDefinitionPlanKey::odr(
+                scoop_identity::OdrMemberId::from_key(&member).map_err(|_| ())?,
+            )
+        }
+    };
     ObjectDefinitionPlanId::from_key(&key).map_err(|_| ())
 }
 

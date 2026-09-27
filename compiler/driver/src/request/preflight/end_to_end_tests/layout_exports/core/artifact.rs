@@ -41,7 +41,6 @@ pub(super) fn check(
             input.public,
         )
         .unwrap();
-    let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
     let production =
         hir::CoreBootstrapInterfaceSectionV1::from_export(&input.hir.output().export).unwrap();
     let ordinary =

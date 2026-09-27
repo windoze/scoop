@@ -86,7 +86,14 @@ fn complete_hir_output_projects_one_canonical_foundation() {
     );
     assert_eq!(
         counts.odr_groups,
-        local.callable_applications.odr_group_records().len()
+        local
+            .callable_applications
+            .odr_group_records()
+            .iter()
+            .chain(local.exact_type_identities.nominal_specialization_records())
+            .map(|record| record.id())
+            .collect::<HashSet<_>>()
+            .len()
     );
     assert!(
         !local
@@ -145,7 +152,7 @@ fn complete_hir_output_projects_one_canonical_foundation() {
 }
 
 #[test]
-fn exact_nominal_applications_do_not_mint_odr_materialization_groups() {
+fn exact_nominal_applications_publish_groups_without_physical_members() {
     let output = lower_user_output(file(vec![fun("main", Vec::new())]))
         .expect("the parameter-free HIR fixture must lower");
     let export = output.export.module();
@@ -160,8 +167,19 @@ fn exact_nominal_applications_do_not_mint_odr_materialization_groups() {
         )));
 
     let foundation =
-        hir::OdrFreeHirFoundation::from_modules(export, local, &output.native_boundary_types)
-            .expect("a signature-only nominal application does not require ODR materialization");
-    assert_eq!(foundation.as_canonical().counts().odr_groups, 0);
-    assert_eq!(foundation.as_canonical().counts().odr_members, 0);
+        hir::CanonicalHirFoundation::from_modules(export, local, &output.native_boundary_types)
+            .expect("nominal applications publish their existing source groups");
+    let groups: HashSet<_> = local
+        .exact_type_identities
+        .nominal_specialization_records()
+        .iter()
+        .map(|record| record.id())
+        .collect();
+    assert!(!groups.is_empty());
+    assert_eq!(foundation.counts().odr_groups, groups.len());
+    assert_eq!(foundation.counts().odr_members, 0);
+    assert!(matches!(
+        hir::OdrFreeHirFoundation::try_new(foundation),
+        Err(hir::OdrFreeHirFoundationError::OdrGroup(group)) if groups.contains(&group)
+    ));
 }

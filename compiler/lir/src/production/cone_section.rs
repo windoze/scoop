@@ -43,6 +43,7 @@ pub struct ConeProductionSection<D, C, I> {
     shape_support_plan: ParamFreeShapeSupportPlanSetV1,
     generated_bridge_plan: GeneratedBridgePlanSetV1,
     canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
+    canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
 }
 
 impl ConeProductionSectionV1 {
@@ -56,6 +57,7 @@ impl ConeProductionSectionV1 {
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
         canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
+        canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
     ) -> Result<Self, ConeProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
@@ -66,6 +68,7 @@ impl ConeProductionSectionV1 {
             entry_source,
             shape_sources,
             canonical_callables,
+            canonical_shapes,
         )
     }
 }
@@ -81,6 +84,7 @@ impl ConeProductionSectionV2 {
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
         canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
+        canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
     ) -> Result<Self, ConeProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
@@ -91,6 +95,7 @@ impl ConeProductionSectionV2 {
             entry_source,
             shape_sources,
             canonical_callables,
+            canonical_shapes,
         )
     }
 }
@@ -106,6 +111,7 @@ impl<D, C, I> ConeProductionSection<D, C, I> {
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
         canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
+        canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
     ) -> Result<Self, ConeProductionSectionBuildError> {
         digest_finalization_plan
             .validate_against(foundation)
@@ -148,6 +154,7 @@ impl<D, C, I> ConeProductionSection<D, C, I> {
             shape_support_plan,
             generated_bridge_plan,
             canonical_callables,
+            canonical_shapes,
         })
     }
 
@@ -187,6 +194,10 @@ impl<D, C, I> ConeProductionSection<D, C, I> {
         &self.canonical_callables
     }
 
+    pub const fn canonical_shape_definitions(&self) -> &crate::CanonicalShapeLirDefinitionsV1 {
+        &self.canonical_shapes
+    }
+
     pub const fn generated_bridge_plan(&self) -> &GeneratedBridgePlanSetV1 {
         &self.generated_bridge_plan
     }
@@ -196,7 +207,7 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
     for ConeProductionSection<D, C, I>
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(2)?;
         self.canonical_definitions.encode(encoder)?;
         encoder.field(3)?;
@@ -214,7 +225,9 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
         encoder.field(9)?;
         self.generated_bridge_plan.encode(encoder)?;
         encoder.field(13)?;
-        self.canonical_callables.encode(encoder)
+        self.canonical_callables.encode(encoder)?;
+        encoder.field(14)?;
+        self.canonical_shapes.encode(encoder)
     }
 }
 
@@ -251,6 +264,10 @@ impl DecodedConeProductionSectionV1 {
             .canonical_callables
             .validate(foundation)
             .map_err(ConeProductionSectionValidationError::CanonicalCallables)?;
+        let canonical_shapes = self
+            .canonical_shapes
+            .validate(foundation)
+            .map_err(ConeProductionSectionValidationError::CanonicalShapes)?;
         let expected = ConeProductionSectionV1::new(
             coordinate,
             direct_dependencies,
@@ -260,6 +277,7 @@ impl DecodedConeProductionSectionV1 {
             entry_source,
             shape_sources,
             canonical_callables,
+            canonical_shapes,
         )
         .map_err(ConeProductionSectionValidationError::Expected)?;
         let expected_bytes =
@@ -293,6 +311,7 @@ impl std::error::Error for ConeProductionSectionBuildError {}
 #[derive(Debug)]
 pub enum ConeProductionSectionValidationError {
     CanonicalCallables(crate::CanonicalCallableLirError),
+    CanonicalShapes(crate::CanonicalShapeLirError),
     DigestReplay(Box<crate::DigestPlanReplayError>),
     DigestProjection(Box<crate::DigestProjectionError>),
     DigestMismatch,

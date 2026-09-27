@@ -144,10 +144,7 @@ pub(super) fn with_pair(
     )
     .unwrap();
     let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), front);
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
-    )
-    .unwrap();
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap();
     let core = closure.direct_provider(ConeIdentity::CORE).unwrap();
     let source = scoop_hir_lower::produce_cross_cone_type_semantics(
         &hir.hir,

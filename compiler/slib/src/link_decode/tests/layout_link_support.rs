@@ -42,10 +42,21 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::VerifiedCodeL
         &objects,
     )
     .unwrap();
-    let types =
-        crate::compute_strong_type_registration_object_fingerprints_v2(types, &objects).unwrap();
-    let types = crate::compute_strong_type_dependency_fingerprints_v2(types, &objects).unwrap();
-    let types = crate::compute_strong_type_fingerprints_v2(types).unwrap();
+    let requirements = previous
+        .runtime_images()
+        .fingerprint()
+        .registrations()
+        .callables()
+        .body_objects()
+        .object_definition_requirements()
+        .clone();
+    let types = crate::compute_strong_type_fingerprints_v2(
+        types,
+        production.canonical_shape_definitions(),
+        requirements,
+        &objects,
+    )
+    .unwrap();
     let initializations = crate::verify_strong_initialization_registrations_v2(
         patch_sites.clone(),
         surface.initialization_units().clone(),

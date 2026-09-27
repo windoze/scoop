@@ -8,6 +8,7 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
     digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongTypeRegistrationPlan<D, C>, StrongTypeRegistrationPlanBuildError> {
     let exact_type = semantic.exact_type();
+    let definition_owner = identity.owner();
     let registration_definition = require_definition(
         foundation,
         StrongDefinitionEntity::exact_type(exact_type),
@@ -26,6 +27,7 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
     let symbol = require_symbol(
         foundation,
         PersistentSymbolKey::TypeRegistration(exact_type),
+        registration_definition,
     )?;
 
     let descriptor_definition = require_definition(
@@ -40,8 +42,11 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
         exact_type,
         !semantic.itables().is_empty(),
     )?;
-    let descriptor_symbol =
-        require_symbol(foundation, PersistentSymbolKey::TypeDescriptor(exact_type))?;
+    let descriptor_symbol = require_symbol(
+        foundation,
+        PersistentSymbolKey::TypeDescriptor(exact_type),
+        descriptor_definition,
+    )?;
 
     let runtime_types = foundation
         .runtime_types()
@@ -119,7 +124,11 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
         StrongDefinitionRole::Layout,
     )?;
     let layout_primary_atom = require_primary_atom(foundation, layout_definition.id())?;
-    let layout_symbol = require_symbol(foundation, PersistentSymbolKey::Layout(layout))?;
+    let layout_symbol = require_symbol(
+        foundation,
+        PersistentSymbolKey::Layout(layout),
+        layout_definition,
+    )?;
     let inline_scan = match semantic.inline_scan() {
         TypeDescriptorInlineScanV1::Null => StrongTypeDescriptorInlineScanPlanV1::Null,
         TypeDescriptorInlineScanV1::Defined(scan) => {
@@ -137,7 +146,21 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
 
     let registration_object =
         require_digest_node(digests, DigestNodeKey::object_definition(primary_atom))?;
-    if !registration_object.direct_inputs().is_empty() {
+    let descriptor_definition_node = require_digest_node(
+        digests,
+        DigestNodeKey::object_definition(descriptor_primary_atom),
+    )?;
+    let layout_fingerprint_node = require_digest_node(digests, DigestNodeKey::layout(layout))?;
+    let mut content_inputs = vec![
+        DigestInputRefV1::from_node(descriptor_definition_node),
+        DigestInputRefV1::from_node(layout_fingerprint_node),
+    ];
+    content_inputs.sort_unstable();
+    let expected_object_inputs = match definition_owner {
+        crate::RegistrationDefinitionOwner::Strong => &[][..],
+        crate::RegistrationDefinitionOwner::Odr { .. } => &content_inputs,
+    };
+    if registration_object.direct_inputs() != expected_object_inputs {
         return Err(
             StrongTypeRegistrationPlanBuildError::RegistrationObjectInputs {
                 node: registration_object.id(),
@@ -157,14 +180,9 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
             },
         );
     }
-    let descriptor_definition_node = require_digest_node(
-        digests,
-        DigestNodeKey::object_definition(descriptor_primary_atom),
-    )?;
-    let layout_fingerprint_node = require_digest_node(digests, DigestNodeKey::layout(layout))?;
     let registration_fingerprint = require_digest_node(
         digests,
-        DigestNodeKey::strong_registration(registration_definition.id()),
+        definition_owner.digest_key(registration_definition.id()),
     )?;
     if registration_fingerprint.id() != identity.fingerprint_node() {
         return Err(
@@ -176,11 +194,16 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
         );
     }
 
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(registration_object),
-        DigestInputRefV1::from_node(descriptor_definition_node),
-        DigestInputRefV1::from_node(layout_fingerprint_node),
-    ];
+    let mut expected_inputs = vec![DigestInputRefV1::from_node(registration_object)];
+    match definition_owner {
+        crate::RegistrationDefinitionOwner::Strong => expected_inputs.extend(content_inputs),
+        crate::RegistrationDefinitionOwner::Odr { .. } => {
+            expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
+                digests,
+                DigestNodeKey::lir_definition(primary_atom),
+            )?))
+        }
+    }
     expected_inputs.sort_unstable();
     if registration_fingerprint.direct_inputs() != expected_inputs {
         return Err(StrongTypeRegistrationPlanBuildError::DirectInputs {
@@ -219,6 +242,7 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
     )?;
 
     Ok(StrongTypeRegistrationPlan {
+        definition_owner,
         semantic: semantic.clone(),
         runtime_type,
         symbol,

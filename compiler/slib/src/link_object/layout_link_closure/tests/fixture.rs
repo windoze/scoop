@@ -110,6 +110,7 @@ impl Provider {
             EntryProductionSourceV1::Library,
             &[],
             scoop_lir::CanonicalCallableLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+            scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
         )
         .unwrap();
         let raw: DecodedConeProductionSectionV2 = decode_canonical(&encode(&old).unwrap()).unwrap();

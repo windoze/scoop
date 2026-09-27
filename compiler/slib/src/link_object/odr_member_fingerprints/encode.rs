@@ -7,11 +7,35 @@ type Result = std::result::Result<(), scoop_wire::cbor::EncodeError>;
 pub(super) enum RegistrationProjection {
     Callable(scoop_lir::StrongCallableRegistrationPlanV1),
     Safepoint(scoop_lir::StrongSafepointRegistrationPlanV1),
+    Type {
+        exact: scoop_identity::PersistentExactTypeId,
+        runtime: scoop_identity::RuntimeTypeId,
+        descriptor: scoop_identity::PersistentSymbolRequest,
+        layout: scoop_identity::PersistentLayoutId,
+    },
 }
 
 impl WireEncode for RegistrationProjection {
     fn encode(&self, encoder: &mut Encoder) -> Result {
         match self {
+            Self::Type {
+                exact,
+                runtime,
+                descriptor,
+                layout,
+            } => {
+                encoder.map(5)?;
+                encoder.field(0)?;
+                encoder.unsigned(4)?;
+                encoder.field(1)?;
+                exact.encode(encoder)?;
+                encoder.field(2)?;
+                runtime.encode(encoder)?;
+                encoder.field(3)?;
+                descriptor.encode(encoder)?;
+                encoder.field(4)?;
+                layout.encode(encoder)
+            }
             Self::Callable(plan) => {
                 encoder.map(3)?;
                 encoder.field(0)?;
@@ -57,6 +81,10 @@ impl WireEncode for AbiInput {
         )?;
         encoder.field(4)?;
         let (kind, version, size) = match self.projection {
+            RegistrationProjection::Type { .. } => {
+                use crate::link_object::type_registrations::record;
+                (4, record::ABI_VERSION, record::DESCRIPTOR_SIZE)
+            }
             RegistrationProjection::Callable(_) => {
                 use crate::link_object::callable_registrations::record;
                 (6, record::ABI_VERSION, record::DESCRIPTOR_SIZE)

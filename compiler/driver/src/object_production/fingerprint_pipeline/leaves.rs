@@ -9,8 +9,7 @@ pub struct RegistrationObjectLeafFingerprintedProductionV1 {
     pub(in crate::object_production) safepoints: VerifiedStrongSafepointFingerprintSetV1,
     pub(in crate::object_production) callable_registrations:
         VerifiedStrongCallableRegistrationSetV1,
-    pub(in crate::object_production) type_registration_objects:
-        VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    pub(in crate::object_production) type_registrations: VerifiedStrongTypeRegistrationSetV1,
     pub(in crate::object_production) immortal_object_registration_objects:
         VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
     pub(in crate::object_production) static_storage_registration_objects:
@@ -26,7 +25,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
         symbol_plan: PlannedStrongObjectSymbolSetV1,
         safepoints: VerifiedStrongSafepointFingerprintSetV1,
         callable_registrations: VerifiedStrongCallableRegistrationSetV1,
-        type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+        type_registrations: VerifiedStrongTypeRegistrationSetV1,
         immortal_object_registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
         static_storage_registration_objects: VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
         initialization_registration_objects: VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
@@ -36,7 +35,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
             symbol_plan,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,
@@ -59,10 +58,8 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
         &self.callable_registrations
     }
 
-    pub const fn type_registration_objects(
-        &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
-        &self.type_registration_objects
+    pub const fn type_registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1 {
+        &self.type_registrations
     }
 
     pub const fn immortal_object_registration_objects(
@@ -92,7 +89,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
             symbol_plan,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,
@@ -148,7 +145,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
             undefined_symbols,
             safepoints,
             callable_registrations,
-            type_registration_objects,
+            type_registrations,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,

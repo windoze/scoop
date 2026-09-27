@@ -11,10 +11,7 @@ pub(super) fn check(
     core: mir::MirTypeBridgeDependencyViewV1<'_>,
     shapes: &[(ConeIdentity, scoop_identity::PersistentTypeId)],
 ) {
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap(),
-    )
-    .unwrap();
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();
     let metadata = hir::SharedTypeMetadataV1 {
         provider: section.provider(),
         identities: input.identities,

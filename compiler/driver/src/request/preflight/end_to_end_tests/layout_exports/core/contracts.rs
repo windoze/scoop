@@ -127,6 +127,23 @@ fn source_only_descriptors(
             .meta
             .source_exact_types
             .get_by_identity(exact);
+        if let Some(local) = local
+            && let mir::SourceExactTypeOwner::NominalApplication(group) = local.owner()
+        {
+            assert!(input.bridge.types().get(exact).is_none());
+            assert!(result.descriptors().get(exact).is_none());
+            let member = descriptor.identity.odr_member_record().unwrap();
+            assert_eq!(member.key().group(), group);
+            assert_eq!(
+                member.key().role(),
+                scoop_identity::OdrMemberRole::TypeDescriptor
+            );
+            assert_eq!(
+                descriptor.identity.symbol_request().linkage(),
+                scoop_identity::LinkageClass::OdrWeak
+            );
+            continue;
+        }
         if let Some(local) = local {
             if let ExactTypeKey::Nominal(nominal) = local.identity_record().key() {
                 if public

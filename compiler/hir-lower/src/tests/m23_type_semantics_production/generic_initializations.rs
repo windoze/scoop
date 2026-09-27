@@ -1,6 +1,8 @@
 use super::*;
 use source_dispatch::with_hir_source;
 
+mod positions;
+
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-generic-initialization/standalone.scoop"
@@ -115,6 +117,22 @@ fn generic_initializations_preserve_source_execution_and_roundtrip_shared_nodes(
                     .is_some()
             );
             generic_bodies::roundtrip(output, core, &section);
+            let identities = source_inventory::identity_closure(output);
+            let groups = output
+                .output()
+                .local
+                .exact_type_identities
+                .nominal_specialization_records();
+            assert!(!groups.is_empty());
+            for group in groups {
+                assert_eq!(
+                    identities
+                        .canonical_key::<_, scoop_identity::SpecializationKey>(group.id())
+                        .unwrap()
+                        .as_ref(),
+                    group.key(),
+                );
+            }
             let actual = hir::dump(&output.output().export);
             let snapshot = fixtures.join(format!("{case}.hir.snap"));
             if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {

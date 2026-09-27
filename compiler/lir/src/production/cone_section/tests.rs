@@ -17,7 +17,7 @@ pub(in crate::production) use complete_image::attach_image;
 pub(in crate::production) use digests::without_image_input;
 
 #[test]
-fn strong_section_has_nine_closed_fields_and_round_trips() {
+fn strong_section_has_ten_closed_fields_and_round_trips() {
     let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
 
@@ -36,10 +36,11 @@ fn strong_section_has_nine_closed_fields_and_round_trips() {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&foundation),
+        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     let encoded = encode(&section).unwrap();
-    assert_eq!(encoded[0], 0xa9);
+    assert_eq!(encoded[0], 0xaa);
 
     let decoded: DecodedConeProductionSectionV1 = decode_canonical(&encoded).unwrap();
     let mut identities = identities(&foundation);
@@ -61,7 +62,7 @@ fn strong_section_has_nine_closed_fields_and_round_trips() {
 
 #[test]
 fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
-    for bytes in [vec![0xa7], vec![0xa8], vec![0xaa]] {
+    for bytes in [vec![0xa7], vec![0xa8], vec![0xa9], vec![0xab]] {
         assert!(decode_canonical::<DecodedConeProductionSectionV1>(&bytes).is_err());
     }
 }

@@ -7,10 +7,10 @@ use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey,
     DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner,
-    ObjectDefinitionPlanRole, PersistentLayoutId, PersistentSymbolError, PersistentSymbolKey,
-    PersistentSymbolRequest, RepresentationRole, RuntimeTypeId, StrongDefinitionEntity,
-    StrongDefinitionEntityKind, StrongDefinitionRole, TargetProfileWireId,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, PersistentLayoutId,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, RepresentationRole,
+    RuntimeTypeId, StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
+    TargetProfileWireId,
 };
 
 use crate::{
@@ -51,18 +51,13 @@ impl<D: StrongDescriptorReference, C: Clone> StrongTypeRegistrationPlanSet<D, C>
         let mut expected = foundation
             .definition_plans()
             .iter()
-            .filter_map(
-                |record| match (record.key().owner(), record.key().definition_role()) {
-                    (
-                        ObjectDefinitionPlanOwner::Strong { entity, .. },
-                        ObjectDefinitionPlanRole::Strong(StrongDefinitionRole::TypeDescriptor),
-                    ) => match entity.kind() {
-                        StrongDefinitionEntityKind::ExactType(exact) => Some(exact),
-                        _ => None,
-                    },
+            .filter_map(|record| match foundation.definition_subject(record) {
+                Some((entity, StrongDefinitionRole::TypeDescriptor)) => match entity.kind() {
+                    StrongDefinitionEntityKind::ExactType(exact) => Some(exact),
                     _ => None,
                 },
-            )
+                _ => None,
+            })
             .collect::<Vec<_>>();
         expected.sort_unstable();
         if let Some(pair) = expected.windows(2).find(|pair| pair[0] == pair[1]) {
@@ -144,7 +139,10 @@ pub enum StrongTypeRegistrationPlanBuildError {
         expected: Vec<PersistentExactTypeId>,
         actual: Vec<PersistentExactTypeId>,
     },
-    MissingDefinition(Box<ObjectDefinitionPlanKey>),
+    MissingDefinition {
+        entity: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+    },
     RegistrationDefinitionMismatch {
         exact_type: PersistentExactTypeId,
         expected: ObjectDefinitionPlanId,

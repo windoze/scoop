@@ -22,7 +22,15 @@ pub(super) fn validate_digest_graph<D: Copy, C>(
             Failure::RegistrationObjectDefinitionNodeIdentity,
         );
     }
-    if !registration_object.direct_inputs().is_empty() {
+    let mut expected_object_inputs = match plan.definition_owner() {
+        scoop_lir::RegistrationDefinitionOwner::Strong => Vec::new(),
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. } => vec![
+            DigestInputRefV1::ObjectDefinition(plan.descriptor_definition_node()),
+            DigestInputRefV1::Layout(plan.layout_fingerprint_node()),
+        ],
+    };
+    expected_object_inputs.sort_unstable();
+    if registration_object.direct_inputs() != expected_object_inputs {
         return digest_error(
             plan.exact_type(),
             Failure::RegistrationObjectDefinitionDirectInputs,
@@ -67,7 +75,7 @@ pub(super) fn validate_digest_graph<D: Copy, C>(
     let registration = digest_plan
         .nodes()
         .iter()
-        .find(|node| node.key() == &DigestNodeKey::strong_registration(plan.definition_plan()))
+        .find(|node| *node.key() == plan.definition_owner().digest_key(plan.definition_plan()))
         .ok_or(StrongTypeRegistrationValidationError::DigestPlanMismatch {
             exact_type: plan.exact_type(),
             kind: Failure::MissingRegistrationNode,
@@ -75,11 +83,24 @@ pub(super) fn validate_digest_graph<D: Copy, C>(
     if registration.id() != plan.registration_fingerprint_node() {
         return digest_error(plan.exact_type(), Failure::RegistrationNodeIdentity);
     }
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(registration_object),
-        DigestInputRefV1::from_node(descriptor),
-        DigestInputRefV1::from_node(layout),
-    ];
+    let mut expected_inputs = vec![DigestInputRefV1::from_node(registration_object)];
+    match plan.definition_owner() {
+        scoop_lir::RegistrationDefinitionOwner::Strong => expected_inputs.extend([
+            DigestInputRefV1::from_node(descriptor),
+            DigestInputRefV1::from_node(layout),
+        ]),
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. } => {
+            let lir = digest_plan
+                .nodes()
+                .iter()
+                .find(|node| *node.key() == DigestNodeKey::lir_definition(plan.primary_atom()))
+                .ok_or(StrongTypeRegistrationValidationError::DigestPlanMismatch {
+                    exact_type: plan.exact_type(),
+                    kind: Failure::RegistrationDirectInputs,
+                })?;
+            expected_inputs.push(DigestInputRefV1::from_node(lir));
+        }
+    }
     expected_inputs.sort_unstable();
     if registration.direct_inputs() != expected_inputs {
         return digest_error(plan.exact_type(), Failure::RegistrationDirectInputs);

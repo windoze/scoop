@@ -3,7 +3,7 @@ use super::*;
 pub(super) struct DecodedTypes {
     provider: ConeIdentity,
     identities: ValidatedIdentityGraph,
-    foundation: hir::OdrFreeHirFoundation,
+    foundation: hir::CanonicalHirFoundation,
     public: hir::CrossConeHirInterfaceSectionV1,
     types: CrossConeTypeSemanticsSectionV1,
 }
@@ -44,19 +44,17 @@ impl DecodedTypes {
         }
         foundation.resolve_identities(&mut pending).unwrap();
         let mut identities = pending.finish().unwrap();
-        let foundation = hir::OdrFreeHirFoundation::from_validated(
-            foundation
-                .validate_with_dependency_sources(
-                    coordinate,
-                    &mut identities,
-                    &dependencies
-                        .iter()
-                        .map(|dependency| dependency.metadata().foundation)
-                        .collect::<Vec<_>>(),
-                )
-                .unwrap(),
-        )
-        .unwrap();
+        let foundation = foundation
+            .validate_with_dependency_sources(
+                coordinate,
+                &mut identities,
+                &dependencies
+                    .iter()
+                    .map(|dependency| dependency.metadata().foundation)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .into_canonical();
         let public: hir::DecodedCrossConeHirInterfaceSectionV1 =
             decoded(&input.cross_cone_section.index_for_wire().unwrap());
         let public = public.resolve(&mut identities).unwrap();

@@ -33,10 +33,7 @@ pub(super) fn with_metadata<R>(
 ) -> R {
     let core = trusted_core();
     let identities = source_inventory::identity_closure(output);
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap(),
-    )
-    .unwrap();
+    let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap();
     let metadata = hir::SharedTypeMetadataV1 {
         provider: output.output().export.cone,
         identities: &identities,
