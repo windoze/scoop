@@ -5,7 +5,7 @@ use scoop_hir::{
 };
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{
-    ConeLirFoundation, DecodedCrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV1,
+    ConeLirFoundation, DecodedConeProductionSectionV1, DecodedCrossConeLirBridgeSectionV1,
 };
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
@@ -43,7 +43,7 @@ struct ValidatedSurfaceFront<'input> {
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV1,
+    lir_strong_production: DecodedConeProductionSectionV1,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
 }
 
@@ -124,7 +124,7 @@ macro_rules! impl_surface_front_accessors {
                 &self.0.mir_cross_cone_bridge
             }
 
-            pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+            pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
                 &self.0.lir_strong_production
             }
 

@@ -19,8 +19,7 @@ use scoop_wire::{
 };
 
 use crate::{
-    ConeLirFoundation, DigestInputRefV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, RegistrationIdentitySurfaceV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -103,7 +102,7 @@ pub struct ConeRegistrationTablesV1 {
 }
 
 impl ConeRegistrationTablesV1 {
-    fn from_registrations(registrations: &StrongRegistrationIdentitySurfaceV1) -> Self {
+    fn from_registrations(registrations: &RegistrationIdentitySurfaceV1) -> Self {
         Self {
             static_storages: semantic_ids(registrations.static_storages()),
             immortal_objects: semantic_ids(registrations.immortal_objects()),
@@ -137,67 +136,6 @@ impl ConeRegistrationTablesV1 {
     pub fn callables(&self) -> &[PersistentCallableBodyId] {
         &self.callables
     }
-
-    pub fn static_storage_symbol_requests(
-        &self,
-    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
-        self.static_storages
-            .iter()
-            .copied()
-            .map(PersistentSymbolKey::RootRegistration)
-            .map(strong_symbol_request)
-    }
-
-    pub fn immortal_object_symbol_requests(
-        &self,
-    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
-        self.immortal_objects
-            .iter()
-            .copied()
-            .map(PersistentSymbolKey::ImmortalRegistration)
-            .map(strong_symbol_request)
-    }
-
-    pub fn initialization_unit_symbol_requests(
-        &self,
-    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
-        self.initialization_units
-            .iter()
-            .copied()
-            .map(PersistentSymbolKey::InitializationRegistration)
-            .map(strong_symbol_request)
-    }
-
-    pub fn type_registration_symbol_requests(
-        &self,
-    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
-        self.type_registrations
-            .iter()
-            .copied()
-            .map(PersistentSymbolKey::TypeRegistration)
-            .map(strong_symbol_request)
-    }
-
-    pub fn safepoint_symbol_requests(&self) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
-        self.safepoints
-            .iter()
-            .copied()
-            .map(PersistentSymbolKey::SafepointRegistration)
-            .map(strong_symbol_request)
-    }
-
-    pub fn callable_symbol_requests(&self) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
-        self.callables
-            .iter()
-            .copied()
-            .map(PersistentSymbolKey::CallableRegistration)
-            .map(strong_symbol_request)
-    }
-}
-
-fn strong_symbol_request(key: PersistentSymbolKey) -> PersistentSymbolRequest {
-    PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
-        .expect("registration symbol kinds accept strong Cone linkage")
 }
 
 impl WireEncode for ConeRegistrationTablesV1 {
@@ -306,7 +244,7 @@ impl std::error::Error for ConeImagePlanValidationError {}
 
 fn validate_registration_inputs(
     inputs: &[DigestInputRefV1],
-    registrations: &StrongRegistrationIdentitySurfaceV1,
+    registrations: &RegistrationIdentitySurfaceV1,
 ) -> Result<(), ConeImagePlanBuildError> {
     let mut expected = registrations
         .static_storages()
@@ -344,10 +282,12 @@ fn validate_registration_inputs(
         )
         .collect::<Vec<_>>();
     expected.sort_unstable();
-    if inputs
-        .iter()
-        .any(|input| input.kind() != DigestKind::StrongRegistration)
-    {
+    if inputs.iter().any(|input| {
+        !matches!(
+            input.kind(),
+            DigestKind::StrongRegistration | DigestKind::OdrDefinition
+        )
+    }) {
         return Err(ConeImagePlanBuildError::RegistrationInputs {
             expected,
             actual: inputs.iter().map(|input| input.node()).collect(),
@@ -363,7 +303,7 @@ fn validate_registration_inputs(
 }
 
 fn semantic_ids<I: scoop_identity::PersistentId>(
-    entries: &[crate::StrongRegistrationIdentityV1<I>],
+    entries: &[crate::RegistrationIdentityV1<I>],
 ) -> Vec<I> {
     entries.iter().map(|entry| entry.semantic_id()).collect()
 }

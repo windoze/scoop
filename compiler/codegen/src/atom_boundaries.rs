@@ -11,7 +11,7 @@ use llvm_sys::core::{
     LLVMGetPointerAddressSpace, LLVMGlobalGetValueType, LLVMInt64TypeInContext, LLVMTypeOf,
 };
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
-use scoop_lir::{ObjectDefinitionAtomId, StrongAtomBoundarySymbolsV1, StrongObjectSymbolSurfaceV1};
+use scoop_lir::{AtomBoundarySymbolsV1, ObjectDefinitionAtomId, ObjectSymbolSurfaceV1};
 
 use crate::CodegenError;
 
@@ -30,7 +30,7 @@ impl<'ctx> GlobalAtomMaterializationV1<'ctx> {
 pub(crate) fn emit_global_atom_boundaries_v1<'ctx>(
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     materializations: impl IntoIterator<Item = GlobalAtomMaterializationV1<'ctx>>,
 ) -> Result<(), CodegenError> {
     let boundaries = surface
@@ -70,7 +70,7 @@ pub(crate) fn emit_global_atom_boundaries_v1<'ctx>(
 fn emit_boundary_pair(
     llvm: &LlvmModule<'_>,
     target_data: &TargetData,
-    boundary: StrongAtomBoundarySymbolsV1,
+    boundary: AtomBoundarySymbolsV1,
     owner: GlobalValue<'_>,
 ) -> Result<(), CodegenError> {
     if owner.get_initializer().is_none() {
@@ -99,25 +99,21 @@ fn emit_boundary_pair(
     let end = unsafe { LLVMConstGEP2(value_type, owner_ref, indices.as_mut_ptr(), 1) };
     let start = boundary.start().symbol();
     if owner.get_name().to_bytes() != start.as_str().as_bytes() {
-        add_external_alias(llvm, start.as_str(), value_type, address_space, owner_ref)?;
+        add_external_alias(llvm, boundary.start(), value_type, address_space, owner_ref)?;
     }
-    add_external_alias(
-        llvm,
-        boundary.end().symbol().as_str(),
-        value_type,
-        address_space,
-        end,
-    )?;
+    add_external_alias(llvm, boundary.end(), value_type, address_space, end)?;
     Ok(())
 }
 
 fn add_external_alias(
     llvm: &LlvmModule<'_>,
-    name: &str,
+    request: scoop_lir::PersistentSymbolRequest,
     value_type: LLVMTypeRef,
     address_space: u32,
     aliasee: LLVMValueRef,
 ) -> Result<(), CodegenError> {
+    let symbol = request.symbol();
+    let name = symbol.as_str();
     let c_name = CString::new(name)
         .map_err(|_| CodegenError("strong atom boundary contains NUL".to_string()))?;
     let existing_alias = unsafe {
@@ -141,6 +137,56 @@ fn add_external_alias(
         )
     };
     let alias = unsafe { GlobalValue::new(alias) };
+    // LLVM 22 Mach-O lowers weak aliases to local weak references. Keep the
+    // exact section aliases external here and set their final weak-definition
+    // flags alongside the other native atom-boundary materializations.
     alias.set_linkage(Linkage::External);
     Ok(())
+}
+
+pub(crate) fn materialize_global_linkages_v1(
+    path: &std::path::Path,
+    target: scoop_lir::LirTargetProfile,
+    surface: &ObjectSymbolSurfaceV1,
+    definitions: &[scoop_lir::ObjectDefinitionPlanId],
+) -> Result<(), CodegenError> {
+    let normalization = target.contract().native_symbol_normalization();
+    let mut names = Vec::new();
+    for definition in definitions {
+        let plan = surface
+            .plan(*definition)
+            .ok_or_else(|| CodegenError(format!("missing atom definition {definition}")))?;
+        if plan.primary_symbol().linkage() != scoop_lir::LinkageClass::OdrWeak {
+            continue;
+        }
+        for boundary in plan.atom_boundaries() {
+            if plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
+                && !matches!(
+                    boundary.atom_role(),
+                    scoop_lir::DefinitionAtomRole::RuntimeRecord
+                        | scoop_lir::DefinitionAtomRole::AddressTakenConstant
+                )
+            {
+                continue;
+            }
+            for request in [boundary.start(), boundary.end()] {
+                names.push(
+                    normalization
+                        .compiler_generated_object_symbol(request.symbol().as_str())
+                        .into_bytes(),
+                );
+            }
+        }
+    }
+    if names.is_empty() {
+        return Ok(());
+    }
+    let mut bytes = std::fs::read(path)
+        .map_err(|error| CodegenError(format!("cannot read atom boundaries: {error}")))?;
+    let layout = crate::callable_atom_boundaries::MachOLayout::parse(&bytes)?;
+    for name in names {
+        layout.materialize_odr_definition(&mut bytes, &name)?;
+    }
+    std::fs::write(path, bytes)
+        .map_err(|error| CodegenError(format!("cannot write atom boundary linkage: {error}")))
 }

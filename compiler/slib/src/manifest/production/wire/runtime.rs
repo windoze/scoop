@@ -6,7 +6,7 @@ use crate::{CanonicalStrongRegistrationFingerprintSetV1, VerifiedRuntimeImageFin
 impl DecodedSingleConeProductionManifestV1 {
     pub fn replay_runtime_projection(
         &self,
-        identities: &scoop_lir::StrongRegistrationIdentitySurfaceV1,
+        identities: &scoop_lir::RegistrationIdentitySurfaceV1,
         image: &VerifiedRuntimeImageFingerprintV2,
     ) -> Result<(), RuntimeProductionProjectionError> {
         let registrations = image.registrations();

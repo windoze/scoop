@@ -7,9 +7,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
-use crate::{
-    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
-};
+use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 
 mod validation;
 pub use validation::{EntryProductionPlanBuildError, EntryProductionPlanValidationError};
@@ -142,8 +140,8 @@ impl EntryProductionPlanV1 {
     pub fn new(
         source: EntryProductionSourceV1,
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        registrations: &RegistrationIdentitySurfaceV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, EntryProductionPlanBuildError> {
         match source {
             EntryProductionSourceV1::Library => {
@@ -241,8 +239,8 @@ impl DecodedEntryProductionPlanV1 {
         self,
         source: EntryProductionSourceV1,
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        registrations: &RegistrationIdentitySurfaceV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<EntryProductionPlanV1, EntryProductionPlanValidationError> {
         let actual = encode(&self).map_err(EntryProductionPlanValidationError::Encode)?;
         let expected = EntryProductionPlanV1::new(source, foundation, registrations, digests)

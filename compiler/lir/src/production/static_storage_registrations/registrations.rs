@@ -15,8 +15,8 @@ use super::{
     StrongStaticStorageSemanticPlanV1,
 };
 use crate::{
-    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1,
+    RegistrationIdentitySurfaceV1,
 };
 
 /// Every typed identity and digest writer required to emit one static-storage
@@ -148,9 +148,9 @@ pub struct StrongStaticStorageRegistrationPlanSetV1 {
 impl StrongStaticStorageRegistrationPlanSetV1 {
     pub fn new(
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
+        identities: &RegistrationIdentitySurfaceV1,
         semantics: &StrongStaticStorageSemanticPlanSetV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongStaticStorageRegistrationPlanBuildError> {
         if semantics.producer() != foundation.producer() {
             return Err(
@@ -220,8 +220,8 @@ impl StrongStaticStorageRegistrationPlanSetV1 {
 fn build_registration(
     foundation: &ConeLirFoundation,
     semantic: &StrongStaticStorageSemanticPlanV1,
-    identity: &crate::StrongRegistrationIdentityV1<scoop_identity::PersistentStaticStorageId>,
-    digests: &StrongDigestFinalizationPlanV1,
+    identity: &crate::RegistrationIdentityV1<scoop_identity::PersistentStaticStorageId>,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongStaticStorageRegistrationPlanV1, StrongStaticStorageRegistrationPlanBuildError> {
     let storage = semantic.storage();
     if !foundation.contains_static_storage(storage) {
@@ -573,7 +573,7 @@ fn require_symbol(
 }
 
 fn require_digest_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongStaticStorageRegistrationPlanBuildError> {
     digests
@@ -584,7 +584,7 @@ fn require_digest_node(
 }
 
 fn require_leaf_object_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     atom: ObjectDefinitionAtomId,
     leaf: StaticStorageObjectLeafV1,
 ) -> Result<&DigestNodeV1, StrongStaticStorageRegistrationPlanBuildError> {

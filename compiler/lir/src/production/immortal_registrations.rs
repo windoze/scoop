@@ -12,8 +12,8 @@ use scoop_identity::{
 };
 
 use crate::{
-    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1,
+    RegistrationIdentitySurfaceV1,
 };
 
 mod semantics;
@@ -111,9 +111,9 @@ pub struct StrongImmortalObjectRegistrationPlanSetV1 {
 impl StrongImmortalObjectRegistrationPlanSetV1 {
     pub fn new(
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
+        identities: &RegistrationIdentitySurfaceV1,
         semantics: &StrongImmortalObjectSemanticPlanSetV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongImmortalObjectRegistrationPlanBuildError> {
         if semantics.producer() != foundation.producer() {
             return Err(
@@ -204,8 +204,8 @@ impl StrongImmortalObjectRegistrationPlanSetV1 {
 fn build_registration(
     foundation: &ConeLirFoundation,
     semantic: &StrongImmortalObjectSemanticPlanV1,
-    identity: &crate::StrongRegistrationIdentityV1<PersistentImmortalObjectId>,
-    digests: &StrongDigestFinalizationPlanV1,
+    identity: &crate::RegistrationIdentityV1<PersistentImmortalObjectId>,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongImmortalObjectRegistrationPlanV1, StrongImmortalObjectRegistrationPlanBuildError>
 {
     let object = semantic.object();
@@ -405,7 +405,7 @@ fn require_symbol(
 }
 
 fn require_digest_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongImmortalObjectRegistrationPlanBuildError> {
     digests

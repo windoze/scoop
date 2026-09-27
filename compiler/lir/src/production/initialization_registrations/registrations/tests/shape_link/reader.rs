@@ -28,8 +28,8 @@ fn shape_link_artifact_reader_uses_the_replayed_strong_v2_semantic_plans() {
     );
 }
 
-fn replay(fixture: &ProviderFixture) -> StrongProductionSectionV2 {
-    let raw: DecodedStrongProductionSectionV2 =
+fn replay(fixture: &ProviderFixture) -> ConeProductionSectionV2 {
+    let raw: DecodedConeProductionSectionV2 =
         decode_canonical(&encode(&fixture.section).unwrap()).unwrap();
     let producer = fixture.source.foundation.producer();
     raw.replay(

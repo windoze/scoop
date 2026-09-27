@@ -24,7 +24,7 @@ pub struct PlannedGeneratedCBridgeObjectInputV1 {
 pub struct PlannedBuiltinObjectProductionV1 {
     pub(in crate::object_production) target_selection: ValidatedLirTargetSelection,
     pub(in crate::object_production) foundation: ConeLirFoundation,
-    pub(in crate::object_production) production: StrongProductionSectionV1,
+    pub(in crate::object_production) production: ConeProductionSectionV1,
     pub(in crate::object_production) c_bridge_profile: CBridgeToolchainProfileV1,
     pub(in crate::object_production) c_bridge_production: CBridgeProductionSetV1,
     pub(in crate::object_production) member_plan: PlannedLinkObjectMemberSetV1,
@@ -36,7 +36,7 @@ pub struct PlannedBuiltinObjectProductionV1 {
 
 impl PlannedBuiltinObjectProductionV1 {
     pub fn from_codegen(
-        scoop_lir: &EmittedStrongObjectSetV1,
+        scoop_lir: &EmittedConeObjectSetV1,
         generated_c_bridge: &EmittedGeneratedCBridgeObjectSetV1,
     ) -> Result<Self, BuiltinObjectProductionError> {
         if scoop_lir.production().generated_bridge_plan() != generated_c_bridge.sources().plan() {
@@ -63,7 +63,7 @@ impl PlannedBuiltinObjectProductionV1 {
         })
     }
 
-    pub const fn production(&self) -> &StrongProductionSectionV1 {
+    pub const fn production(&self) -> &ConeProductionSectionV1 {
         &self.production
     }
 

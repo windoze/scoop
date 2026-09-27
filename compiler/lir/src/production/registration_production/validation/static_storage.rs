@@ -6,7 +6,7 @@ pub(super) fn validate_static_storages(
     decoded: Vec<DecodedStrongStaticStorageRegistrationPlanV1>,
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     dependencies: Option<&crate::StrongTypeReferenceDefinitionsV2>,
 ) -> Result<StrongStaticStorageSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     require_length(
@@ -239,7 +239,7 @@ fn validate_scan_program(
 fn validate_initial_state(
     decoded: DecodedStrongStaticStorageInitialStatePlanV1,
     target: LirTargetProfile,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     allocation_extent: u64,
     index: usize,
 ) -> Result<StrongStaticStorageInitialStatePlanV1, StrongRegistrationProductionValidationError> {

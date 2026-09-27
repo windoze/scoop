@@ -16,7 +16,7 @@ pub(super) fn check(
     output: &lir::ConeLirOutput,
     source: PublicationInput<'_, '_>,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    emitted: scoop_codegen::EmittedStrongObjectSetV2,
+    emitted: scoop_codegen::EmittedConeObjectSetV2,
     provider: Provider<'_, '_>,
     destination: Destination<'_>,
 ) {

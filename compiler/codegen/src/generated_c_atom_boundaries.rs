@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use scoop_lir::{
-    DefinitionAtomRole, GeneratedBridgeAtomId, GeneratedBridgeAtomRoleKey,
-    GeneratedBridgeUnitPlanV1, LirTargetProfile, StrongDefinitionEntityKind, StrongDefinitionRole,
-    StrongDefinitionSymbolPlanV1, StrongObjectSymbolSurfaceV1,
+    DefinitionAtomRole, DefinitionSymbolPlanV1, GeneratedBridgeAtomId, GeneratedBridgeAtomRoleKey,
+    GeneratedBridgeUnitPlanV1, LirTargetProfile, ObjectSymbolSurfaceV1, StrongDefinitionEntityKind,
+    StrongDefinitionRole,
 };
 
 use crate::CodegenError;
@@ -17,13 +17,13 @@ pub(crate) fn materialize_v1(
     path: &Path,
     target: LirTargetProfile,
     unit: &GeneratedBridgeUnitPlanV1,
-    symbols: &StrongObjectSymbolSurfaceV1,
+    symbols: &ObjectSymbolSurfaceV1,
 ) -> Result<(), CodegenError> {
     let expected = std::iter::once(unit.primary_atom_authority())
         .chain(unit.materialized_associated_atom_authorities())
         .map(|atom| (atom.id(), atom))
         .collect::<BTreeMap<_, _>>();
-    let mut definitions = BTreeMap::<GeneratedBridgeAtomId, &StrongDefinitionSymbolPlanV1>::new();
+    let mut definitions = BTreeMap::<GeneratedBridgeAtomId, &DefinitionSymbolPlanV1>::new();
     for definition in symbols.plans() {
         let StrongDefinitionEntityKind::GeneratedBridgeAtom(atom) = definition.owner().kind()
         else {
@@ -127,11 +127,13 @@ pub(crate) fn materialize_v1(
             start_name,
             canonical_section.ordinal(),
             canonical_section.address(),
+            scoop_lir::LinkageClass::ConeStrong,
         ));
         additions.push(BoundaryDefinitionV1::new(
             end_name,
             canonical_section.ordinal(),
             end,
+            scoop_lir::LinkageClass::ConeStrong,
         ));
     }
     layout.add_external_definitions(&mut bytes, additions)?;

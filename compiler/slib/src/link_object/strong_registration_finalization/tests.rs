@@ -26,7 +26,7 @@ use crate::link_object::{
     verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
     verify_strong_type_registrations_v1,
 };
-use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
+use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
 #[test]
 fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
@@ -346,8 +346,7 @@ fn rejects_fingerprint_proofs_from_different_digest_graphs() {
             .unwrap()
         })
         .collect();
-    let changed_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let changed_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let changed_patch_sites = verify_scoop_lir_digest_patch_sites_v1(
         fixture.builtins.clone(),
         &fixture.foundation,

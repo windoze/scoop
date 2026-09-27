@@ -3,13 +3,13 @@ use super::*;
 pub(crate) struct ReplayInputs<'a> {
     pub link: &'a crate::DecodedCrossConeLayoutLinkOnlySections,
     pub foundation: &'a lir::ConeLirFoundation,
-    pub strong: &'a lir::StrongProductionSectionV2,
+    pub strong: &'a lir::ConeProductionSectionV2,
     pub ordinary: &'a lir::CrossConeLirBridgeSectionV1,
     pub layout: &'a lir::PhysicalImportsReplayedLayoutAbiSectionV1,
     pub selection: lir::ValidatedLirTargetSelection,
     pub profile: &'a lir::CBridgeToolchainProfileV1,
     pub manifest: &'a crate::BootstrapManifest,
-    pub code_strong: &'a lir::DecodedStrongProductionSectionV2,
+    pub code_strong: &'a lir::DecodedConeProductionSectionV2,
     pub hir_foundation: &'a scoop_hir::OdrFreeHirFoundation,
 }
 

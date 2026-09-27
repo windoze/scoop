@@ -24,7 +24,7 @@ fn borrowed_digest_inputs_keep_wire_and_reject_duplicate_or_missing_intents() {
 
 fn fixture() -> (
     PlannedLinkObjectMemberSetV1,
-    StrongDigestFinalizationPlanV1,
+    DigestFinalizationPlanV1,
     DecodedLinkIdentityClosureSectionV1,
 ) {
     let coordinate = wire_fixture_coordinate();
@@ -32,7 +32,7 @@ fn fixture() -> (
     let (canonical, production) =
         crate::link_decode::strong_production_fixture_for_test(coordinate, &[]);
     let foundation = scoop_lir::ConeLirFoundation::try_new(producer, canonical).unwrap();
-    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let units =
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();

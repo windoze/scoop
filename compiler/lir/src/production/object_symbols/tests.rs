@@ -15,7 +15,7 @@ use crate::CanonicalLirFoundation;
 #[test]
 fn derives_primary_and_every_atom_boundary_from_typed_plans() {
     let fixture = fixture(true);
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     assert_eq!(surface.plans().len(), 1);
     assert_eq!(surface.plan(fixture.plan.id()), Some(&surface.plans()[0]));
 
@@ -51,9 +51,9 @@ fn derives_primary_and_every_atom_boundary_from_typed_plans() {
 #[test]
 fn wire_reader_only_returns_the_independently_rebuilt_surface() {
     let fixture = fixture(true);
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     let encoded = encode(&surface).unwrap();
-    let decoded: DecodedStrongObjectSymbolSurfaceV1 = decode_canonical(&encoded).unwrap();
+    let decoded: DecodedObjectSymbolSurfaceV1 = decode_canonical(&encoded).unwrap();
 
     assert_eq!(decoded.validate(&fixture.foundation), Ok(surface));
 }
@@ -61,16 +61,14 @@ fn wire_reader_only_returns_the_independently_rebuilt_surface() {
 #[test]
 fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
     let fixture = fixture(true);
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     let encoded = encode(&surface).unwrap();
     assert_eq!(encoded[0], 0x81);
     assert_eq!(encoded[1], 0xa6);
 
     let mut missing_definition_field = encoded.clone();
     missing_definition_field[1] = 0xa5;
-    assert!(
-        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(&missing_definition_field,).is_err()
-    );
+    assert!(decode_canonical::<DecodedObjectSymbolSurfaceV1>(&missing_definition_field,).is_err());
 
     let boundary_map = encoded
         .windows(2)
@@ -80,23 +78,75 @@ fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
     assert_eq!(encoded[boundary_map], 0xa4);
     let mut extra_boundary_field = encoded;
     extra_boundary_field[boundary_map] = 0xa5;
-    assert!(
-        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(&extra_boundary_field,).is_err()
-    );
+    assert!(decode_canonical::<DecodedObjectSymbolSurfaceV1>(&extra_boundary_field,).is_err());
 }
 
 #[test]
 fn refuses_a_definition_without_its_foundation_primary_symbol() {
     let fixture = fixture(false);
     assert_eq!(
-        StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation),
-        Err(
-            StrongObjectSymbolSurfaceBuildError::MissingPrimarySymbolRequest {
-                definition_plan: fixture.plan.id(),
-                symbol: PersistentSymbolKey::CallableBody(fixture.body.id()),
-            }
-        )
+        ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation),
+        Err(ObjectSymbolSurfaceBuildError::MissingPrimarySymbolRequest {
+            definition_plan: fixture.plan.id(),
+            symbol: PersistentSymbolKey::CallableBody(fixture.body.id()),
+        })
     );
+}
+
+#[test]
+fn rejects_two_odr_members_claiming_one_registration_symbol() {
+    use scoop_identity::{
+        CoreBuiltinNominal, ExactTypeKey, OdrGroupId, OdrMemberDiscriminator, OdrMemberKey,
+        OdrMemberRole, PersistentExactTypeId, SpecializationKey,
+    };
+    let fixture = fixture(true);
+    let mut members = Vec::new();
+    let mut plans = vec![fixture.plan.clone()];
+    let mut atoms = vec![fixture.primary.clone(), fixture.eh_frame.clone()];
+    for builtin in [CoreBuiltinNominal::Any, CoreBuiltinNominal::Unit] {
+        let exact =
+            PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(builtin.identity_record().id()))
+                .unwrap();
+        let group =
+            OdrGroupId::from_key(&SpecializationKey::StructuralType { exact_type: exact }).unwrap();
+        let member = CborIdentityRecord::from_key(
+            OdrMemberKey::new(
+                group,
+                OdrMemberRole::RegistrationRecord,
+                OdrMemberDiscriminator::CallableBody(fixture.body.id()),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let plan = CborIdentityRecord::from_key(ObjectDefinitionPlanKey::odr(member.id())).unwrap();
+        atoms.push(atom(&plan, DefinitionAtomRole::Primary));
+        plans.push(plan);
+        members.push(member);
+    }
+    let mut canonical = fixture.foundation.as_canonical().clone();
+    canonical.set_odr_members(members).unwrap();
+    canonical.set_definition_plans(plans).unwrap();
+    canonical.set_definition_atoms(atoms).unwrap();
+    canonical.set_symbol_requests(
+        PersistentSymbolRequestTable::new(vec![
+            PersistentSymbolRequest::new(
+                PersistentSymbolKey::CallableBody(fixture.body.id()),
+                LinkageClass::ConeStrong,
+            )
+            .unwrap(),
+            PersistentSymbolRequest::new(
+                PersistentSymbolKey::CallableRegistration(fixture.body.id()),
+                LinkageClass::OdrWeak,
+            )
+            .unwrap(),
+        ])
+        .unwrap(),
+    );
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    assert!(matches!(
+        ObjectSymbolSurfaceV1::from_foundation(&foundation),
+        Err(ObjectSymbolSurfaceBuildError::DuplicatePrimarySymbol { .. })
+    ));
 }
 
 struct Fixture {

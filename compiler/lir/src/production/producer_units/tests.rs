@@ -13,7 +13,7 @@ use crate::{CanonicalLirFoundation, ConeLirFoundation};
 fn partitions_every_definition_by_its_actual_producer() {
     let (foundation, lir_plan, bridge_plan, bridge_unit) = fixture(true);
 
-    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
 
     assert_eq!(partition.producer(), ConeIdentity::CORE);
     assert_eq!(partition.scoop_lir_definition_plans(), &[lir_plan]);
@@ -30,7 +30,7 @@ fn partitions_every_definition_by_its_actual_producer() {
 fn bridge_only_foundation_has_an_explicit_empty_lir_partition() {
     let (foundation, _, bridge_plan, bridge_unit) = fixture(false);
 
-    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
 
     assert!(partition.scoop_lir_definition_plans().is_empty());
     assert_eq!(partition.generated_bridge_units().len(), 1);

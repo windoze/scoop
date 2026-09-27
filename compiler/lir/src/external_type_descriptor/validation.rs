@@ -3,7 +3,7 @@ use super::*;
 impl ExternalTypeDescriptor {
     pub fn validate_definition(
         self,
-        definitions: &crate::StrongObjectSymbolSurfaceV1,
+        definitions: &crate::ObjectSymbolSurfaceV1,
     ) -> Result<(), ExternalTypeDescriptorValidationError> {
         self.validate_contract()?;
         let plan = definitions.plan(self.required_definition).ok_or(

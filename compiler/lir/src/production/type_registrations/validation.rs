@@ -114,7 +114,7 @@ pub(super) fn require_symbol(
 }
 
 pub(super) fn require_digest_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongTypeRegistrationPlanBuildError> {
     digests

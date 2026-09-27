@@ -10,15 +10,14 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
-    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
-    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global, GlobalInit,
-    ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind,
-    LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
+    DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global,
+    GlobalInit, ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity,
+    LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
     LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, PointerKind, RefScan, StaticStorageIdentity,
-    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
-    StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageSemanticPlanSetV1, StructDefs,
-    TypeDescriptorRef, WellKnownTypeDescriptors,
+    NativeGlobalBridges, PointerKind, RefScan, RegistrationIdentitySurfaceV1,
+    StaticStorageIdentity, StrongStaticStorageRegistrationPlanSetV1,
+    StrongStaticStorageSemanticPlanSetV1, StructDefs, TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 {
@@ -175,8 +174,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
         &immortal_object_definition,
         &immortal_registration_definition,
     );
-    let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     StrongStaticStorageRegistrationPlanSetV1::new(&foundation, &identities, &semantics, &digests)
         .unwrap()
 }
@@ -268,7 +266,7 @@ fn digest_plan(
         scoop_identity::ObjectDefinitionPlanId,
         ObjectDefinitionPlanKey,
     >,
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
     for ((semantic, shape), storage) in semantics.storages().iter().zip(shapes).zip(storages) {
@@ -377,7 +375,7 @@ fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn semantic_module() -> Module {

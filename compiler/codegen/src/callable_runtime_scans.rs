@@ -12,7 +12,7 @@ pub(crate) struct CallableRuntimeScanEmitter<'a, 'ctx> {
     context: &'ctx Context,
     llvm: &'a LlvmModule<'ctx>,
     target_data: &'a TargetData,
-    surface: &'a scoop_lir::StrongObjectSymbolSurfaceV1,
+    surface: &'a scoop_lir::ObjectSymbolSurfaceV1,
     plan: &'a scoop_lir::StrongCallableRuntimeScanPlanV1,
     next: usize,
     materializations: Vec<GlobalAtomMaterializationV1<'ctx>>,
@@ -23,7 +23,7 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
         context: &'ctx Context,
         llvm: &'a LlvmModule<'ctx>,
         target_data: &'a TargetData,
-        surface: &'a scoop_lir::StrongObjectSymbolSurfaceV1,
+        surface: &'a scoop_lir::ObjectSymbolSurfaceV1,
         plan: &'a scoop_lir::StrongCallableRuntimeScanPlanV1,
     ) -> Self {
         Self {
@@ -138,7 +138,7 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
         }
         let global: GlobalValue<'ctx> = self.llvm.add_global(value.get_type(), None, name);
         global.set_constant(true);
-        global.set_linkage(inkwell::module::Linkage::External);
+        crate::emission::apply_persistent_linkage(&global, boundary.start(), true)?;
         global.set_initializer(&value);
         self.materializations
             .push(GlobalAtomMaterializationV1::new(planned.atom(), global));

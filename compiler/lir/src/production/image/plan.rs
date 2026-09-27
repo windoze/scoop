@@ -23,8 +23,8 @@ impl ConeImagePlanV1 {
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
-        digest_plan: &StrongDigestFinalizationPlanV1,
+        registrations: &RegistrationIdentitySurfaceV1,
+        digest_plan: &DigestFinalizationPlanV1,
     ) -> Result<Self, ConeImagePlanBuildError> {
         let cone = ConeRecordV1::new(coordinate).map_err(ConeImagePlanBuildError::Hash)?;
         if cone.identity() != foundation.producer() {
@@ -169,8 +169,8 @@ impl DecodedConeImagePlanV1 {
         coordinate: &ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
-        digest_plan: &StrongDigestFinalizationPlanV1,
+        registrations: &RegistrationIdentitySurfaceV1,
+        digest_plan: &DigestFinalizationPlanV1,
     ) -> Result<ConeImagePlanV1, ConeImagePlanValidationError> {
         let actual = encode(&self).map_err(ConeImagePlanValidationError::Encode)?;
         let decoded_coordinate = self

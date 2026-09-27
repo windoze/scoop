@@ -569,7 +569,7 @@ fn callable_runtime_scan_trees_are_emitted_as_closed_strong_atoms() {
     assert_eq!(callable.atoms().len(), 4);
 
     let foundation = scoop_lir::ConeLirFoundation::from_module(&module).unwrap();
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let machine = host_target_machine().unwrap();
     let context = inkwell::context::Context::create();
     let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();

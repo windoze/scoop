@@ -1,7 +1,7 @@
 use super::*;
 use crate::link_object::stackmap_normalization::verification::tests::support::semantic;
 use scoop_lir::{
-    StrongRegistrationIdentitySurfaceV1, StrongTypeDescriptorSemanticPlanSetV2,
+    RegistrationIdentitySurfaceV1, StrongTypeDescriptorSemanticPlanSetV2,
     StrongTypeRegistrationPlanSetV2,
 };
 
@@ -10,7 +10,7 @@ fn plans(corruption: Corruption) -> StrongTypeRegistrationPlanSetV2 {
 
     let semantics = StrongTypeDescriptorSemanticPlanSetV2::from_module(&input.module).unwrap();
     let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&input.foundation, &input.digest_plan)
+        RegistrationIdentitySurfaceV1::from_foundation(&input.foundation, &input.digest_plan)
             .unwrap();
     StrongTypeRegistrationPlanSetV2::new(
         input.module.meta.target_profile,

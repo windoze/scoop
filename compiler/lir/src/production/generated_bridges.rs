@@ -11,9 +11,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::{
-    ConeLirFoundation, StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
-};
+use crate::{ConeLirFoundation, ObjectDefinitionPlanBuildError, ObjectDefinitionPlanSurfaceV1};
 
 pub type GeneratedBridgeUnitAuthorityRecordV1 =
     CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>;
@@ -126,7 +124,7 @@ impl GeneratedBridgePlanSetV1 {
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
     ) -> Result<Self, GeneratedBridgePlanBuildError> {
-        let definition_plans = StrongObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
+        let definition_plans = ObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
             .map_err(GeneratedBridgePlanBuildError::DefinitionSurface)?;
         let bridge_units = foundation
             .bridge_units()
@@ -364,7 +362,7 @@ pub enum GeneratedBridgeAtomSet {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GeneratedBridgePlanBuildError {
-    DefinitionSurface(StrongObjectDefinitionPlanBuildError),
+    DefinitionSurface(ObjectDefinitionPlanBuildError),
     UnknownAtomUnit {
         atom: GeneratedBridgeAtomId,
         unit: GeneratedBridgeUnitId,

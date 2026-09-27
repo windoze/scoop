@@ -11,7 +11,7 @@ use scoop_wire::{HashError, WireError};
 mod local;
 mod selected;
 
-impl StrongProductionSectionV2 {
+impl ConeProductionSectionV2 {
     pub fn validate_layout_abi(
         self,
         layout: &crate::CrossConeLayoutAbiSectionV1<'_>,

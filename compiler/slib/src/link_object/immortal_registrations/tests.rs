@@ -5,7 +5,7 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 use crate::link_object::{
     ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, verify_scoop_lir_digest_patch_sites_v1,
 };
-use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
+use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
 #[test]
 fn verifies_record_object_type_relocations_and_patch_site() {
@@ -143,8 +143,7 @@ fn rejects_a_registration_node_with_the_wrong_direct_inputs() {
             .unwrap()
         })
         .collect();
-    let wrong_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,
@@ -196,8 +195,7 @@ fn rejects_a_non_leaf_immortal_object_definition() {
             .unwrap()
         }))
         .collect();
-    let wrong_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,

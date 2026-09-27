@@ -16,8 +16,8 @@ use super::{
     EntryProductionSourceV1,
 };
 use crate::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestNodeV1,
+    RegistrationIdentitySurfaceV1,
 };
 
 #[test]
@@ -65,7 +65,7 @@ fn library_plan_has_a_closed_empty_wire_branch() {
     let foundation = empty_foundation();
     let digests = image_only_digests(&foundation);
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     let plan = EntryProductionPlanV1::new(
         EntryProductionSourceV1::Library,
         &foundation,
@@ -108,7 +108,7 @@ fn executable_requires_the_derived_root_entities() {
     let foundation = empty_foundation();
     let digests = image_only_digests(&foundation);
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     assert!(matches!(
         EntryProductionPlanV1::new(
             EntryProductionSourceV1::executable(executable_source_entry()),
@@ -156,8 +156,8 @@ struct ExecutableFixture {
     gateway: PersistentCallableBodyId,
     failure_root: PersistentStaticStorageId,
     foundation: ConeLirFoundation,
-    digests: StrongDigestFinalizationPlanV1,
-    registrations: StrongRegistrationIdentitySurfaceV1,
+    digests: DigestFinalizationPlanV1,
+    registrations: RegistrationIdentitySurfaceV1,
 }
 
 fn executable_fixture() -> ExecutableFixture {
@@ -327,9 +327,9 @@ fn executable_fixture() -> ExecutableFixture {
         )
         .unwrap(),
     );
-    let digests = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
+    let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     let source = EntryProductionSourceV1::executable(entry);
     ExecutableFixture {
         source,
@@ -347,8 +347,8 @@ fn empty_foundation() -> ConeLirFoundation {
     ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty()).unwrap()
 }
 
-fn image_only_digests(foundation: &ConeLirFoundation) -> StrongDigestFinalizationPlanV1 {
-    StrongDigestFinalizationPlanV1::new(
+fn image_only_digests(foundation: &ConeLirFoundation) -> DigestFinalizationPlanV1 {
+    DigestFinalizationPlanV1::new(
         vec![
             DigestNodeV1::new(
                 DigestNodeKey::runtime_image(foundation.producer()),

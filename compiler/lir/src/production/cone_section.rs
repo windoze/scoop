@@ -1,4 +1,4 @@
-//! Closed LIR production section for the M23-3 strong-only profile.
+//! Complete per-Cone LIR production definitions, registrations and digest plans.
 
 use std::fmt;
 
@@ -6,38 +6,37 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey, Validat
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
-    ConeLirFoundation, DecodedConeImagePlanV1, DecodedEntryProductionPlanV1,
-    DecodedGeneratedBridgePlanSetV1, DecodedParamFreeShapeSupportPlanSetV1,
-    DecodedStrongDigestFinalizationPlanV1, DecodedStrongObjectDefinitionPlanSurfaceV1,
-    DecodedStrongObjectSymbolSurfaceV1, DecodedStrongRegistrationProductionSurfaceV1,
-    DigestPlanError, EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1,
-    GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, ParamFreeShapeSupportBuildError,
-    ParamFreeShapeSupportPlanSetV1, StrongDigestFinalizationPlanV1,
-    StrongDigestPlanValidationError, StrongObjectDefinitionPlanBuildError,
-    StrongObjectDefinitionPlanSurfaceV1, StrongObjectSymbolSurfaceBuildError,
-    StrongObjectSymbolSurfaceV1, StrongRegistrationProductionSurfaceV1,
-    StrongRegistrationProductionValidationError,
+    ConeLirFoundation, DecodedConeImagePlanV1, DecodedDigestFinalizationPlanV1,
+    DecodedEntryProductionPlanV1, DecodedGeneratedBridgePlanSetV1,
+    DecodedObjectDefinitionPlanSurfaceV1, DecodedObjectSymbolSurfaceV1,
+    DecodedParamFreeShapeSupportPlanSetV1, DecodedStrongRegistrationProductionSurfaceV1,
+    DigestFinalizationPlanV1, DigestPlanError, DigestPlanValidationError,
+    EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1,
+    GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, ObjectDefinitionPlanBuildError,
+    ObjectDefinitionPlanSurfaceV1, ObjectSymbolSurfaceBuildError, ObjectSymbolSurfaceV1,
+    ParamFreeShapeSupportBuildError, ParamFreeShapeSupportPlanSetV1,
+    StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError,
 };
 
 use crate::{ConeImagePlanBuildError, ConeImagePlanV1};
 
-pub type StrongProductionSectionV1 = StrongProductionSection<
+pub type ConeProductionSectionV1 = ConeProductionSection<
     crate::StrongTypeDescriptorRefV1,
     crate::StrongTypeDispatchCallableRefV1,
     scoop_identity::PersistentInitializationUnitId,
 >;
-pub type StrongProductionSectionV2 = StrongProductionSection<
+pub type ConeProductionSectionV2 = ConeProductionSection<
     crate::StrongTypeDescriptorRefV2,
     crate::StrongTypeDispatchCallableRefV2,
     crate::StrongInitializationDependencyRefV2,
 >;
 
-/// Every canonical LIR production input required by the strong-only profile.
+/// Canonical production inputs shared by Strong and ODR materializations.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongProductionSection<D, C, I> {
-    canonical_definitions: StrongObjectSymbolSurfaceV1,
-    object_definition_plans: StrongObjectDefinitionPlanSurfaceV1,
-    digest_finalization_plan: StrongDigestFinalizationPlanV1,
+pub struct ConeProductionSection<D, C, I> {
+    canonical_definitions: ObjectSymbolSurfaceV1,
+    object_definition_plans: ObjectDefinitionPlanSurfaceV1,
+    digest_finalization_plan: DigestFinalizationPlanV1,
     registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
     image_plan: ConeImagePlanV1,
     entry_plan: EntryProductionPlanV1,
@@ -45,17 +44,17 @@ pub struct StrongProductionSection<D, C, I> {
     generated_bridge_plan: GeneratedBridgePlanSetV1,
 }
 
-impl StrongProductionSectionV1 {
+impl ConeProductionSectionV1 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         foundation: &ConeLirFoundation,
-        digest_finalization_plan: StrongDigestFinalizationPlanV1,
+        digest_finalization_plan: DigestFinalizationPlanV1,
         registration_production: StrongRegistrationProductionSurfaceV1,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-    ) -> Result<Self, StrongProductionSectionBuildError> {
+    ) -> Result<Self, ConeProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
             direct_dependencies,
@@ -68,17 +67,17 @@ impl StrongProductionSectionV1 {
     }
 }
 
-impl StrongProductionSectionV2 {
+impl ConeProductionSectionV2 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         foundation: &ConeLirFoundation,
-        digest_finalization_plan: StrongDigestFinalizationPlanV1,
+        digest_finalization_plan: DigestFinalizationPlanV1,
         registration_production: crate::StrongRegistrationProductionSurfaceV2,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-    ) -> Result<Self, StrongProductionSectionBuildError> {
+    ) -> Result<Self, ConeProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
             direct_dependencies,
@@ -91,28 +90,25 @@ impl StrongProductionSectionV2 {
     }
 }
 
-impl<D, C, I> StrongProductionSection<D, C, I> {
+impl<D, C, I> ConeProductionSection<D, C, I> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn from_parts(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         foundation: &ConeLirFoundation,
-        digest_finalization_plan: StrongDigestFinalizationPlanV1,
+        digest_finalization_plan: DigestFinalizationPlanV1,
         registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-    ) -> Result<Self, StrongProductionSectionBuildError> {
+    ) -> Result<Self, ConeProductionSectionBuildError> {
         digest_finalization_plan
             .validate_against(foundation)
-            .map_err(StrongProductionSectionBuildError::DigestPlan)?;
-        let object_definition_plans =
-            StrongObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
-                .map_err(StrongProductionSectionBuildError::ObjectDefinitions)?;
-        let canonical_definitions = StrongObjectSymbolSurfaceV1::from_definition_plans(
-            foundation,
-            &object_definition_plans,
-        )
-        .map_err(StrongProductionSectionBuildError::CanonicalDefinitions)?;
+            .map_err(ConeProductionSectionBuildError::DigestPlan)?;
+        let object_definition_plans = ObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
+            .map_err(ConeProductionSectionBuildError::ObjectDefinitions)?;
+        let canonical_definitions =
+            ObjectSymbolSurfaceV1::from_definition_plans(foundation, &object_definition_plans)
+                .map_err(ConeProductionSectionBuildError::CanonicalDefinitions)?;
         let image_plan = ConeImagePlanV1::new(
             coordinate,
             direct_dependencies,
@@ -120,22 +116,22 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
             registration_production.identities(),
             &digest_finalization_plan,
         )
-        .map_err(StrongProductionSectionBuildError::Image)?;
+        .map_err(ConeProductionSectionBuildError::Image)?;
         let entry_plan = EntryProductionPlanV1::new(
             entry_source,
             foundation,
             registration_production.identities(),
             &digest_finalization_plan,
         )
-        .map_err(StrongProductionSectionBuildError::Entry)?;
+        .map_err(ConeProductionSectionBuildError::Entry)?;
         let shape_support_plan = ParamFreeShapeSupportPlanSetV1::from_sources(
             shape_sources.iter(),
             foundation,
             registration_production.identities(),
         )
-        .map_err(StrongProductionSectionBuildError::ShapeSupport)?;
+        .map_err(ConeProductionSectionBuildError::ShapeSupport)?;
         let generated_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(foundation)
-            .map_err(StrongProductionSectionBuildError::GeneratedBridges)?;
+            .map_err(ConeProductionSectionBuildError::GeneratedBridges)?;
         Ok(Self {
             canonical_definitions,
             object_definition_plans,
@@ -148,15 +144,15 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         })
     }
 
-    pub const fn canonical_definitions(&self) -> &StrongObjectSymbolSurfaceV1 {
+    pub const fn canonical_definitions(&self) -> &ObjectSymbolSurfaceV1 {
         &self.canonical_definitions
     }
 
-    pub const fn object_definition_plans(&self) -> &StrongObjectDefinitionPlanSurfaceV1 {
+    pub const fn object_definition_plans(&self) -> &ObjectDefinitionPlanSurfaceV1 {
         &self.object_definition_plans
     }
 
-    pub const fn digest_finalization_plan(&self) -> &StrongDigestFinalizationPlanV1 {
+    pub const fn digest_finalization_plan(&self) -> &DigestFinalizationPlanV1 {
         &self.digest_finalization_plan
     }
 
@@ -184,7 +180,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
 }
 
 impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> WireEncode
-    for StrongProductionSection<D, C, I>
+    for ConeProductionSection<D, C, I>
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(8)?;
@@ -214,7 +210,7 @@ mod registrations;
 mod replay;
 pub use replay::StrongProductionLayoutJoinError;
 
-impl DecodedStrongProductionSectionV1 {
+impl DecodedConeProductionSectionV1 {
     #[allow(clippy::too_many_arguments)]
     pub fn validate(
         self,
@@ -226,17 +222,17 @@ impl DecodedStrongProductionSectionV1 {
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
         identities: &mut ValidatedIdentityGraph,
-    ) -> Result<StrongProductionSectionV1, StrongProductionSectionValidationError> {
-        let actual = encode(&self).map_err(StrongProductionSectionValidationError::Encode)?;
+    ) -> Result<ConeProductionSectionV1, ConeProductionSectionValidationError> {
+        let actual = encode(&self).map_err(ConeProductionSectionValidationError::Encode)?;
         let digest_finalization_plan = self
             .digest_finalization_plan
             .validate(identities, foundation)
-            .map_err(StrongProductionSectionValidationError::DigestPlan)?;
+            .map_err(ConeProductionSectionValidationError::DigestPlan)?;
         let registration_production = self
             .registration_production
             .validate(target, foundation, &digest_finalization_plan)
-            .map_err(StrongProductionSectionValidationError::Registrations)?;
-        let expected = StrongProductionSectionV1::new(
+            .map_err(ConeProductionSectionValidationError::Registrations)?;
+        let expected = ConeProductionSectionV1::new(
             coordinate,
             direct_dependencies,
             foundation,
@@ -245,20 +241,20 @@ impl DecodedStrongProductionSectionV1 {
             entry_source,
             shape_sources,
         )
-        .map_err(StrongProductionSectionValidationError::Expected)?;
+        .map_err(ConeProductionSectionValidationError::Expected)?;
         let expected_bytes =
-            encode(&expected).map_err(StrongProductionSectionValidationError::Encode)?;
+            encode(&expected).map_err(ConeProductionSectionValidationError::Encode)?;
         if actual != expected_bytes {
-            return Err(StrongProductionSectionValidationError::SectionMismatch);
+            return Err(ConeProductionSectionValidationError::SectionMismatch);
         }
         Ok(expected)
     }
 }
 
 #[derive(Debug)]
-pub enum StrongProductionSectionBuildError {
-    CanonicalDefinitions(StrongObjectSymbolSurfaceBuildError),
-    ObjectDefinitions(StrongObjectDefinitionPlanBuildError),
+pub enum ConeProductionSectionBuildError {
+    CanonicalDefinitions(ObjectSymbolSurfaceBuildError),
+    ObjectDefinitions(ObjectDefinitionPlanBuildError),
     DigestPlan(DigestPlanError),
     Image(ConeImagePlanBuildError),
     Entry(EntryProductionPlanBuildError),
@@ -266,28 +262,28 @@ pub enum StrongProductionSectionBuildError {
     GeneratedBridges(GeneratedBridgePlanBuildError),
 }
 
-impl fmt::Display for StrongProductionSectionBuildError {
+impl fmt::Display for ConeProductionSectionBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "invalid strong production section: {self:?}")
     }
 }
 
-impl std::error::Error for StrongProductionSectionBuildError {}
+impl std::error::Error for ConeProductionSectionBuildError {}
 
 #[derive(Debug)]
-pub enum StrongProductionSectionValidationError {
-    DigestReplay(Box<crate::StrongDigestPlanReplayError>),
-    DigestProjection(Box<crate::StrongDigestProjectionError>),
+pub enum ConeProductionSectionValidationError {
+    DigestReplay(Box<crate::DigestPlanReplayError>),
+    DigestProjection(Box<crate::DigestProjectionError>),
     DigestMismatch,
     Encode(scoop_wire::cbor::EncodeError),
     Resource(WireError),
-    DigestPlan(StrongDigestPlanValidationError),
+    DigestPlan(DigestPlanValidationError),
     Registrations(StrongRegistrationProductionValidationError),
-    Expected(StrongProductionSectionBuildError),
+    Expected(ConeProductionSectionBuildError),
     SectionMismatch,
 }
 
-impl fmt::Display for StrongProductionSectionValidationError {
+impl fmt::Display for ConeProductionSectionValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -296,7 +292,7 @@ impl fmt::Display for StrongProductionSectionValidationError {
     }
 }
 
-impl std::error::Error for StrongProductionSectionValidationError {}
+impl std::error::Error for ConeProductionSectionValidationError {}
 
 #[cfg(test)]
 pub(in crate::production) mod tests;

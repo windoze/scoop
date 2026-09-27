@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) struct ProviderFixture {
     pub source: Fixture,
-    pub section: StrongProductionSectionV2,
+    pub section: ConeProductionSectionV2,
     pub ordinary: CrossConeLirBridgeSectionV1,
     pub layouts: CanonicalExactLayoutExportsV1,
     pub callables: CanonicalExactCallableAbiExportsV1,
@@ -17,7 +17,7 @@ impl ProviderFixture {
             ..Options::default()
         });
         let coordinate = scoop_identity::ConeCoordinate::reserved_single_file();
-        crate::production::strong_section::tests::attach_image(
+        crate::production::cone_section::tests::attach_image(
             &coordinate,
             &mut source.foundation,
             &mut source.digests,
@@ -54,7 +54,7 @@ impl ProviderFixture {
             units,
         )
         .unwrap();
-        let section = StrongProductionSectionV2::from_parts(
+        let section = ConeProductionSectionV2::from_parts(
             coordinate,
             &[],
             &source.foundation,

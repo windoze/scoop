@@ -4,9 +4,9 @@ use super::*;
 
 pub(super) fn require_static_storage(
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     storage: PersistentStaticStorageId,
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<
     StrongInitializationStaticStorageRefPlanV1,
     StrongInitializationUnitRegistrationPlanBuildError,
@@ -66,9 +66,9 @@ pub(super) fn require_static_storage(
 
 pub(super) fn require_callable(
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     body: PersistentCallableBodyId,
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongInitializationCallableRefPlanV1, StrongInitializationUnitRegistrationPlanBuildError>
 {
     if !foundation.contains_callable_body(body) {
@@ -224,7 +224,7 @@ pub(super) fn require_symbol(
 }
 
 pub(super) fn require_digest_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongInitializationUnitRegistrationPlanBuildError> {
     digests
@@ -235,7 +235,7 @@ pub(super) fn require_digest_node(
 }
 
 pub(super) fn require_leaf_object_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     atom: ObjectDefinitionAtomId,
     leaf: InitializationObjectLeafV1,
 ) -> Result<&DigestNodeV1, StrongInitializationUnitRegistrationPlanBuildError> {
@@ -282,7 +282,7 @@ pub(super) fn require_only_patch(
 }
 
 fn gateway_patches(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     registration: ObjectDefinitionPlanId,
 ) -> Vec<(DigestPatchIntentKey, DigestPatchIntentId)> {
     digests
@@ -299,7 +299,7 @@ fn gateway_patches(
 }
 
 pub(super) fn require_gateway_patch(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     registration: ObjectDefinitionPlanId,
     expected: DigestPatchIntentKey,
 ) -> Result<DigestPatchIntentId, StrongInitializationUnitRegistrationPlanBuildError> {
@@ -317,7 +317,7 @@ pub(super) fn require_gateway_patch(
 }
 
 pub(super) fn require_no_gateway_patches(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     registration: ObjectDefinitionPlanId,
 ) -> Result<(), StrongInitializationUnitRegistrationPlanBuildError> {
     let actual = gateway_patches(digests, registration);

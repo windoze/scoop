@@ -91,7 +91,7 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
         &self.lir_foundation
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV2 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV2 {
         &self.lir_strong_production
     }
 
@@ -167,7 +167,7 @@ impl FoundationValidatedCrossConeLayoutCompileSections<'_> {
         &self.mir_type_bridge
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV2 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV2 {
         &self.lir_strong_production
     }
 
@@ -229,7 +229,7 @@ impl ResolvedCrossConeLayoutHirSections<'_> {
         &self.mir_type_bridge
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV2 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV2 {
         &self.lir_strong_production
     }
 
@@ -303,7 +303,7 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
         &self.mir_type_bridge
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV2 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV2 {
         &self.lir_strong_production
     }
 

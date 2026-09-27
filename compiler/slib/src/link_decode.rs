@@ -13,8 +13,8 @@ use scoop_identity::{
 use scoop_lir::{
     CBridgeProductionValidationError, CBridgeToolchainProfileV1,
     CanonicalNativeExternalRequirementBuildError, CanonicalNativeExternalRequirementSurfaceV1,
-    ConeLirFoundation, DecodedLirFoundation, DecodedStrongProductionSectionV1,
-    StrongProducerUnitPartitionError, StrongProducerUnitPartitionV1,
+    ConeLirFoundation, DecodedConeProductionSectionV1, DecodedLirFoundation,
+    ProducerUnitPartitionError, ProducerUnitPartitionV1,
 };
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
 use scoop_wire::{WireDecode, WireError, WirePath, decode_canonical};
@@ -336,7 +336,7 @@ fn require_fingerprint(
 #[derive(Debug)]
 pub enum StrongLinkMaterializationError {
     Resource(WireError),
-    ProducerUnits(StrongProducerUnitPartitionError),
+    ProducerUnits(ProducerUnitPartitionError),
     Closure(LinkObjectMaterializationValidationError),
     UnexpectedObjectMember(SlibMemberId),
     MissingObjectMember(SlibMemberId),
@@ -796,7 +796,7 @@ pub(crate) fn strong_production_fixture_for_test(
     direct_dependencies: &[ConeIdentity],
 ) -> (
     scoop_lir::CanonicalLirFoundation,
-    scoop_lir::StrongProductionSectionV1,
+    scoop_lir::ConeProductionSectionV1,
 ) {
     tests::strong_production_fixture(coordinate, direct_dependencies)
 }

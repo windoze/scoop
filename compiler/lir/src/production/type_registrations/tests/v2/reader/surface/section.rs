@@ -2,14 +2,14 @@
 
 use super::*;
 use crate::{
-    DecodedStrongProductionSectionV2, EntryProductionSourceV1, StrongProductionSectionV2,
-    StrongProductionSectionValidationError as SectionError,
+    ConeProductionSectionV2, ConeProductionSectionValidationError as SectionError,
+    DecodedConeProductionSectionV2, EntryProductionSourceV1,
 };
 use scoop_identity::ConeCoordinate;
 
 fn complete_fixture() -> Fixture {
     let mut fixture = foreign_fixture();
-    crate::production::strong_section::tests::attach_image(
+    crate::production::cone_section::tests::attach_image(
         &ConeCoordinate::reserved_single_file(),
         &mut fixture.foundation,
         &mut fixture.digests,
@@ -17,8 +17,8 @@ fn complete_fixture() -> Fixture {
     fixture
 }
 
-fn section(fixture: &Fixture) -> StrongProductionSectionV2 {
-    StrongProductionSectionV2::from_parts(
+fn section(fixture: &Fixture) -> ConeProductionSectionV2 {
+    ConeProductionSectionV2::from_parts(
         ConeCoordinate::reserved_single_file(),
         &[],
         &fixture.foundation,
@@ -34,8 +34,8 @@ fn replay_section(
     fixture: &Fixture,
     bytes: &[u8],
     definitions: &StrongTypeReferenceDefinitionsV2,
-) -> Result<StrongProductionSectionV2, SectionError> {
-    let decoded: DecodedStrongProductionSectionV2 = decode_canonical(bytes).unwrap();
+) -> Result<ConeProductionSectionV2, SectionError> {
+    let decoded: DecodedConeProductionSectionV2 = decode_canonical(bytes).unwrap();
     decoded.replay(
         ConeCoordinate::reserved_single_file(),
         &[],
@@ -54,7 +54,7 @@ fn eight_field_section_replays_foreign_parent_interface_and_dispatch() {
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
     assert_eq!(bytes[0], 0xa8);
-    let shared: crate::DecodedStrongProductionSectionV1 = decode_canonical(&bytes).unwrap();
+    let shared: crate::DecodedConeProductionSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
     let replayed = replay_section(&fixture, &bytes, &definitions).unwrap();
@@ -115,7 +115,7 @@ fn eight_field_section_rejects_missing_foreign_definitions_and_changed_definitio
 #[test]
 fn eight_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
     let fixture = complete_fixture();
-    let bytes = crate::production::strong_section::tests::without_image_input(
+    let bytes = crate::production::cone_section::tests::without_image_input(
         &section(&fixture),
         &fixture.foundation,
     );
@@ -144,12 +144,12 @@ fn final_layout_join_keeps_dependency_checks_for_unexported_local_types() {
 fn final_layout_join_preserves_complete_private_type_registrations() {
     let mut fixture = Fixture::new(Options::default());
     let coordinate = ConeCoordinate::reserved_single_file();
-    crate::production::strong_section::tests::attach_image(
+    crate::production::cone_section::tests::attach_image(
         &coordinate,
         &mut fixture.foundation,
         &mut fixture.digests,
     );
-    let production = StrongProductionSectionV2::from_parts(
+    let production = ConeProductionSectionV2::from_parts(
         coordinate,
         &[],
         &fixture.foundation,

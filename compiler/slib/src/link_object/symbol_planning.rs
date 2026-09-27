@@ -7,7 +7,7 @@ use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
     PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_lir::{LirTargetProfile, StrongObjectSymbolSurfaceV1};
+use scoop_lir::{LirTargetProfile, ObjectSymbolSurfaceV1};
 
 use super::PlannedLinkObjectMemberSetV1;
 use crate::SlibMemberId;
@@ -83,7 +83,7 @@ pub struct PlannedStrongObjectSymbolSetV1 {
 impl PlannedStrongObjectSymbolSetV1 {
     pub fn new(
         target: LirTargetProfile,
-        surface: &StrongObjectSymbolSurfaceV1,
+        surface: &ObjectSymbolSurfaceV1,
         member_plan: &PlannedLinkObjectMemberSetV1,
     ) -> Result<Self, StrongObjectSymbolPlanningError> {
         let normalization = target.contract().native_symbol_normalization();

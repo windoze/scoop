@@ -72,6 +72,9 @@ mod production;
 pub(crate) use production::emit_strong_runtime_metadata_v1;
 pub use production::{EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1};
 
+mod registration_identity;
+use registration_identity::registration_identity_value;
+
 #[derive(Clone, Copy)]
 struct ExpectedField {
     name: &'static str,

@@ -9,8 +9,8 @@ use scoop_wire::{decode_canonical, encode, encode_runtime};
 
 use super::{ConeImagePlanBuildError, ConeImagePlanV1, ConeRecordV1, DecodedConeImagePlanV1};
 use crate::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
-    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
+    DigestNodeV1, RegistrationIdentitySurfaceV1,
 };
 
 #[test]
@@ -18,7 +18,7 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate.clone(),
         &[scoop_identity::ConeIdentity::CORE],
@@ -66,7 +66,7 @@ fn core_image_preserves_an_explicit_empty_dependency_set() {
     let coordinate = ConeCoordinate::reserved_core();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan =
         ConeImagePlanV1::new(coordinate, &[], &foundation, &registrations, &digest_plan).unwrap();
 
@@ -92,7 +92,7 @@ fn image_requires_every_registration_fingerprint_as_a_direct_input() {
     let exact = unit_exact_type();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), Some(exact), false, true);
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert!(matches!(
         ConeImagePlanV1::new(
@@ -111,7 +111,7 @@ fn reader_rejects_a_coordinate_from_another_cone() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate.clone(),
         &[scoop_identity::ConeIdentity::CORE],
@@ -140,7 +140,7 @@ fn image_rejects_the_obsolete_primary_only_atom_shape() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, false);
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert!(matches!(
         ConeImagePlanV1::new(
@@ -186,9 +186,9 @@ fn image_rejects_non_registration_direct_inputs() {
             .collect(),
     )
     .unwrap();
-    let digest_plan = StrongDigestFinalizationPlanV1::new(vec![extra, image], &foundation).unwrap();
+    let digest_plan = DigestFinalizationPlanV1::new(vec![extra, image], &foundation).unwrap();
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert!(matches!(
         ConeImagePlanV1::new(
@@ -207,7 +207,7 @@ pub(super) fn image_fixture(
     registration: Option<PersistentExactTypeId>,
     image_depends_on_registration: bool,
     include_support_atoms: bool,
-) -> (ConeLirFoundation, StrongDigestFinalizationPlanV1) {
+) -> (ConeLirFoundation, DigestFinalizationPlanV1) {
     let producer = coordinate.identity().unwrap();
     let image_plan_key = ObjectDefinitionPlanKey::strong(
         producer,
@@ -270,7 +270,7 @@ pub(super) fn image_fixture(
     };
     let image_node = DigestNodeV1::new(image_key, inputs, vec![image_patch]).unwrap();
     nodes.push(image_node);
-    let digest_plan = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
+    let digest_plan = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     (foundation, digest_plan)
 }
 

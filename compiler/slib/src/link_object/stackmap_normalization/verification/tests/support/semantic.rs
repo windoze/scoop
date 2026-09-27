@@ -15,20 +15,20 @@ use scoop_identity::{
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
     CanonicalLirFoundation, ConeLirFoundation, DecodedStrongRegistrationProductionSurfaceV1,
-    DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, Function, GcEffect, Global,
-    GlobalInit, ImmortalObjectIdentity, Instruction, IntrinsicTypeRepresentation, Layout,
-    LayoutIdentity, LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile,
-    LirType, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
-    ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
+    DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, Function,
+    GcEffect, Global, GlobalInit, ImmortalObjectIdentity, Instruction, IntrinsicTypeRepresentation,
+    Layout, LayoutIdentity, LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState,
+    LirTargetProfile, LirType, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination,
+    ManagedPollSite, ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
     NativeGlobalBridges, PointerKind, RefScan, RuntimeTypeMappingRecord, SafepointIdentities,
     SafepointIdentity, SafepointMappingRecord, SafepointSiteRef, SafepointSiteRole,
     ScoopAbiSignature, StatepointLiveSet, StaticStorageIdentity,
-    StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
-    StrongImmortalObjectRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanSetV1,
-    StrongRegistrationProductionSurfaceV1, StrongSafepointRegistrationPlanSetV1,
-    StrongStaticStorageRegistrationPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs,
-    Terminator, TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1,
-    VoidCallSignature, VtableRecord, WellKnownTypeDescriptors,
+    StrongCallableRegistrationPlanSetV1, StrongImmortalObjectRegistrationPlanSetV1,
+    StrongInitializationUnitRegistrationPlanSetV1, StrongRegistrationProductionSurfaceV1,
+    StrongSafepointRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
+    StrongTypeRegistrationPlanSetV1, StructDefs, Terminator, TypeDescriptor,
+    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
+    VtableRecord, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
@@ -37,7 +37,7 @@ pub(crate) struct SemanticInputs {
     pub(crate) module: Module,
     pub(crate) foundation: ConeLirFoundation,
     pub(crate) definitions: Vec<ObjectDefinitionPlanId>,
-    pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
+    pub(crate) digest_plan: DigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
@@ -71,7 +71,7 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         module.meta.target_profile,
         &foundation,
         &digest_plan,
-        scoop_lir::StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan)
+        scoop_lir::RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan)
             .unwrap(),
         scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(&module).unwrap(),
         scoop_lir::StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap(),
@@ -819,7 +819,7 @@ fn digest_plan(
     type_registration: &TypeRegistrationArtifacts,
     immortal_registration: &ImmortalRegistrationArtifacts,
     static_storage: &StaticStorageArtifacts,
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
     let mut body_inputs = Vec::new();
@@ -1069,7 +1069,7 @@ fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn definition_plan(owner: scoop_identity::PersistentCallableBodyId) -> ObjectDefinitionPlanId {

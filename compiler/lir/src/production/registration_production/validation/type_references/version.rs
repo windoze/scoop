@@ -32,7 +32,7 @@ pub(in super::super) trait TypeReferences {
 
 pub(in super::super) struct LegacyTypeReferences<'a> {
     pub foundation: &'a ConeLirFoundation,
-    pub identities: &'a StrongRegistrationIdentitySurfaceV1,
+    pub identities: &'a RegistrationIdentitySurfaceV1,
 }
 
 impl TypeReferences for LegacyTypeReferences<'_> {

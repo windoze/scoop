@@ -1025,7 +1025,11 @@ MIR 共有机器输入消费依赖输出中唯一的 canonical foundation；call
 
 `OdrAbiFingerprint` 与 `OdrDefinitionFingerprint` 改为逐 member 内容摘要，分别使用 `scoop-odr-member-abi-v1` 与 `scoop-odr-member-definition-v1`。定义摘要包含 group/member/role、该成员 canonical LIR、按 typed atom/node 排序的对象定义及按 site 排序的 stackmap；不包含同组其他独立成员、producer Cone、`SlibMemberId`、物理分片或最终地址。旧 group 摘要不再生产。`DigestKind::OdrDefinition` 保留 tag 8；旧 `DigestOwnerAndRoleKey::OdrDefinition(OdrGroupId)` 的 owner tag 8 退役，新增 `OdrMemberDefinition(OdrMemberId)` 的 owner tag 11，映射到同一个 digest kind。注册记录的 definition 字段由其自身 registration member 的 ODR node 填写；body/descriptor definition 字段继续使用原 ObjectDefinition node。图只表示实际摘要输入，typed relocation 目标以身份编码，不递归纳入被调用者摘要；正常递归调用、互相引用的 TD 和初始化依赖不会成为摘要环。自身及非上游补丁槽归零，既有对象范围、单写入者和 checked arithmetic 规则保持。
 
+生产定义、符号、registration 和摘要查询使用 foundation 中已有的实际 plan，按其 typed subject 与物理角色关联；不重新假定所有目标属于当前 Cone 的 Strong。源 callable 的 subject 直接取既有完整 callable-body key，其他物理 member 使用其原 ODR key；不再次解码已解析的 key，也不重复发布上游 member。ODR registration 的 ObjectDefinition 先依赖实际写入该记录的上游 body/layout/scan/stackmap 字段，其 ODR node 只汇总该 registration 自身的 LIR、对象和所属 stackmap leaves；对象间的摘要边仅用于这些实际补丁依赖。image 摘要引用六类实际 Strong/ODR registration node。
+
 MIR/LIR 在现有定义与引用上区分定义方拥有的 Strong 和程序内共享的 ODR；物理提供者用于定位 artifact，不是 ODR 语义 owner。codegen 扩展现有对象集合、分区、boundary、关联记录、补丁和六类 image registration 路径，不另建 generic 专用发布器。纯语义的 GeneratedNominal identity/member 留在 IR metadata，不产生空 marker、物理 definition plan 或 manifest 物理定义条目；真正的 TD/layout/callable 各自完整发射。每个 ODR primary 使用既有 kind-specific symbol 和 `OdrWeak`，实际需要存储身份的 global 使用 `weak_odr` 且禁止 `unnamed_addr`、common 或按相同内容合并。读取外部字节时完成一次语义及对象检查并保留结果，当前编译直接发布已完成的输出；跨 artifact 合并只新增重复定义和未解析引用检查。
+
+LLVM 按每个实际对象区分声明与定义：当前对象中的 ODR 定义使用 `weak_odr`，对其它对象中该定义的必需引用使用普通 external declaration，语义 symbol request 保持 `OdrWeak`，不生成可缺失的弱引用。runtime registration 写入真实 group/member，Strong image pointer table 使用对应 registration 的实际符号请求。
 
 generic delegated extension 的 binder 只从 receiver 静态类型求得。source template 不预分配参数自由 global；实际 application 使用既有 `InitializationUnitKey::GenericDelegatedExtensionApplication`，创建完整的 `LazyAccess` concrete unit。`by` 与 `provideDelegate` 不接收某次访问的 receiver 值；get/set 才接收该值。普通赋值先求值 receiver 和 RHS，再进入 setter 的 ensure；复合赋值先通过 getter ensure，再求值 RHS，遵守既有调用求值规则。初始化成功发布 effective delegate，失败保存在同一 application 的 failure root；重入、并发等待与 GC 沿用现有 coordinator，不增加 runtime dictionary 或新的状态机。
 

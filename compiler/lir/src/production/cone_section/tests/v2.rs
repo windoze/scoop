@@ -10,7 +10,7 @@ fn layout_schema_retains_eight_shared_production_fields() {
     let target = LirTargetProfile::DARWIN_AARCH64;
 
     let identities =
-        crate::StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        crate::RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     let registrations = crate::StrongRegistrationProductionSurfaceV2::from_semantics(
         target,
         &foundation,
@@ -31,7 +31,7 @@ fn layout_schema_retains_eight_shared_production_fields() {
         ),
     )
     .unwrap();
-    let current = StrongProductionSectionV2::from_parts(
+    let current = ConeProductionSectionV2::from_parts(
         coordinate.clone(),
         &[],
         &foundation,
@@ -41,7 +41,7 @@ fn layout_schema_retains_eight_shared_production_fields() {
         &[],
     )
     .unwrap();
-    let old = StrongProductionSectionV1::new(
+    let old = ConeProductionSectionV1::new(
         coordinate,
         &[],
         &foundation,
@@ -55,14 +55,14 @@ fn layout_schema_retains_eight_shared_production_fields() {
     super::digests::check(&current, &foundation);
     assert_eq!(bytes[0], 0xa8);
     assert_eq!(bytes, encode(&old).unwrap());
-    let decoded: DecodedStrongProductionSectionV2 = decode_canonical(&bytes).unwrap();
+    let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let mut truncated = bytes.clone();
     truncated.pop();
-    assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&truncated).is_err());
+    assert!(decode_canonical::<DecodedConeProductionSectionV2>(&truncated).is_err());
     for field_count in [0xa7, 0xa9] {
         let mut malformed = bytes.clone();
         malformed[0] = field_count;
-        assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&malformed).is_err());
+        assert!(decode_canonical::<DecodedConeProductionSectionV2>(&malformed).is_err());
     }
 }

@@ -6,7 +6,7 @@ use std::fmt;
 use scoop_identity::{CapabilityId, ConeIdentity};
 use scoop_lir::{
     CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1,
-    CanonicalNativeLibraryRequirementV1, LirTargetProfile, StrongProductionSectionV1,
+    CanonicalNativeLibraryRequirementV1, ConeProductionSectionV1, LirTargetProfile,
     ValidatedLirTargetSelection,
 };
 use scoop_wire::{Digest256, Encoder, HashError, WireEncode, domain_separated_cbor_hash};
@@ -573,7 +573,7 @@ impl CodeFingerprintInputV1<'_> {
             .production()
     }
 
-    fn strong_production(&self) -> &StrongProductionSectionV1 {
+    fn strong_production(&self) -> &ConeProductionSectionV1 {
         self.production.strong_production()
     }
 

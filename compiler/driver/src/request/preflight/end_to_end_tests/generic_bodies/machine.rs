@@ -10,8 +10,11 @@ use scoop_wire::{WirePath, decode_canonical, encode};
 
 use super::*;
 
+mod objects;
+mod reader;
+
 #[test]
-fn actual_generic_library_lowers_to_shared_lir_definitions() {
+fn actual_generic_library_emits_shared_odr_objects() {
     let target = resolved_target().expect("generic machine lowering requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
@@ -126,6 +129,42 @@ fn actual_generic_library_lowers_to_shared_lir_definitions() {
             .validate(lir.module().cone, &mut identities)
             .unwrap();
         assert_eq!(encode(&validated).unwrap(), bytes);
+        let production = lir
+            .build_production_section_v2(
+                coordinates[0].clone(),
+                &[ConeIdentity::CORE, provider_coordinate.identity().unwrap()],
+                scoop_lir::EntryProductionSourceV1::Library,
+                &[],
+            )
+            .unwrap();
+        let objects = scoop_codegen::emit_object_set_v2(
+            &lir,
+            production.clone(),
+            sysroot.path(),
+            scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(objects.members().len(), lir.module().functions.len() + 1);
+        let native_bodies = objects::check(&objects);
+        reader::check(
+            &lir,
+            &production,
+            &coordinates[0],
+            &[ConeIdentity::CORE, provider_coordinate.identity().unwrap()],
+            &dependencies,
+            &selected_layout,
+        );
+        let replayed = scoop_lir::replay_digest_finalization_plan_v2(
+            lir.foundation(),
+            production.registration_production(),
+            &scoop_lir::EntryProductionSourceV1::Library,
+        )
+        .unwrap();
+        assert_eq!(
+            encode(&replayed).unwrap(),
+            encode(production.digest_finalization_plan()).unwrap()
+        );
         let members = identities
             .records::<OdrMemberId, OdrMemberKey>(IdentityLayer::Lir, &WirePath::root())
             .unwrap();
@@ -175,10 +214,34 @@ fn actual_generic_library_lowers_to_shared_lir_definitions() {
                     .any(|plan| { *plan.key() == ObjectDefinitionPlanKey::odr(registration.id()) })
             );
             let mut records = vec![
+                native_bodies.get(&body.id()).unwrap().clone(),
                 encode(body.identity_record()).unwrap(),
                 encode(plan).unwrap(),
                 encode(registration).unwrap(),
+                encode(production.canonical_definitions().plan(plan.id()).unwrap()).unwrap(),
             ];
+            for id in [member, registration.id()] {
+                let node = production
+                    .digest_finalization_plan()
+                    .nodes()
+                    .iter()
+                    .find(|node| {
+                        node.key().owner_and_role()
+                            == scoop_identity::DigestOwnerAndRoleKey::OdrMemberDefinition(id)
+                    })
+                    .unwrap();
+                assert!(
+                    node.direct_inputs()
+                        .iter()
+                        .any(|input| input.kind() == scoop_identity::DigestKind::LirDefinition)
+                );
+                assert!(
+                    node.direct_inputs()
+                        .iter()
+                        .any(|input| input.kind() == scoop_identity::DigestKind::ObjectDefinition)
+                );
+                records.push(encode(node).unwrap());
+            }
             for atom in atoms.iter().filter(|atom| atom.key().plan() == plan.id()) {
                 records.push(encode(atom).unwrap());
             }
@@ -226,7 +289,10 @@ fn actual_generic_library_lowers_to_shared_lir_definitions() {
         let mut shared = 0;
         for (body, records) in &outputs[first] {
             if let Some(other) = outputs[second].get(body) {
-                assert_eq!(records, other);
+                assert!(
+                    records == other,
+                    "shared ODR body {body} differs between consumers {first} and {second}"
+                );
                 shared += 1;
             }
         }

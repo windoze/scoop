@@ -28,18 +28,18 @@ impl GeneratedBridgeProducerUnitV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongProducerUnitPartitionV1 {
+pub struct ProducerUnitPartitionV1 {
     producer: scoop_identity::ConeIdentity,
     scoop_lir_definition_plans: Vec<ObjectDefinitionPlanId>,
     generated_bridge_units: Vec<GeneratedBridgeProducerUnitV1>,
 }
 
-impl StrongProducerUnitPartitionV1 {
+impl ProducerUnitPartitionV1 {
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
-    ) -> Result<Self, StrongProducerUnitPartitionError> {
+    ) -> Result<Self, ProducerUnitPartitionError> {
         let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(foundation)
-            .map_err(StrongProducerUnitPartitionError::GeneratedBridgePlan)?;
+            .map_err(ProducerUnitPartitionError::GeneratedBridgePlan)?;
         let mut unit_definitions = bridge_plan
             .units()
             .iter()
@@ -64,30 +64,30 @@ impl StrongProducerUnitPartitionV1 {
                 ) => {
                     let StrongDefinitionEntityKind::GeneratedBridgeAtom(atom) = entity.kind()
                     else {
-                        return Err(
-                            StrongProducerUnitPartitionError::InvalidGeneratedBridgeOwner(plan),
-                        );
+                        return Err(ProducerUnitPartitionError::InvalidGeneratedBridgeOwner(
+                            plan,
+                        ));
                     };
                     let Some(unit) = atom_units.get(&atom) else {
-                        return Err(
-                            StrongProducerUnitPartitionError::UnplannedGeneratedBridgeAtom {
-                                plan,
-                                atom,
-                            },
-                        );
+                        return Err(ProducerUnitPartitionError::UnplannedGeneratedBridgeAtom {
+                            plan,
+                            atom,
+                        });
                     };
                     unit_definitions
                         .get_mut(unit)
                         .expect("bridge plan initialized every unit")
                         .push(plan);
                 }
-                (ObjectDefinitionPlanOwner::Strong { .. }, ObjectDefinitionPlanRole::Strong(_)) => {
+                (ObjectDefinitionPlanOwner::Strong { .. }, ObjectDefinitionPlanRole::Strong(_))
+                | (
+                    ObjectDefinitionPlanOwner::Odr { .. },
+                    ObjectDefinitionPlanRole::OdrMemberPrimary,
+                ) => {
                     scoop_lir_definition_plans.push(plan);
                 }
                 _ => {
-                    return Err(StrongProducerUnitPartitionError::NonStrongDefinitionPlan(
-                        plan,
-                    ));
+                    return Err(ProducerUnitPartitionError::NonStrongDefinitionPlan(plan));
                 }
             }
         }
@@ -96,9 +96,7 @@ impl StrongProducerUnitPartitionV1 {
         let mut generated_bridge_units = Vec::with_capacity(unit_definitions.len());
         for (unit, mut definition_plans) in unit_definitions {
             if definition_plans.is_empty() {
-                return Err(StrongProducerUnitPartitionError::EmptyGeneratedBridgeUnit(
-                    unit,
-                ));
+                return Err(ProducerUnitPartitionError::EmptyGeneratedBridgeUnit(unit));
             }
             definition_plans.sort_unstable();
             generated_bridge_units.push(GeneratedBridgeProducerUnitV1 {
@@ -140,21 +138,19 @@ fn register_atom_unit(
     atom_units: &mut BTreeMap<GeneratedBridgeAtomId, GeneratedBridgeUnitId>,
     atom: GeneratedBridgeAtomId,
     unit: GeneratedBridgeUnitId,
-) -> Result<(), StrongProducerUnitPartitionError> {
+) -> Result<(), ProducerUnitPartitionError> {
     if let Some(first_unit) = atom_units.insert(atom, unit) {
-        return Err(
-            StrongProducerUnitPartitionError::DuplicateGeneratedBridgeAtom {
-                atom,
-                first_unit,
-                second_unit: unit,
-            },
-        );
+        return Err(ProducerUnitPartitionError::DuplicateGeneratedBridgeAtom {
+            atom,
+            first_unit,
+            second_unit: unit,
+        });
     }
     Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum StrongProducerUnitPartitionError {
+pub enum ProducerUnitPartitionError {
     GeneratedBridgePlan(GeneratedBridgePlanBuildError),
     DuplicateGeneratedBridgeAtom {
         atom: GeneratedBridgeAtomId,
@@ -170,7 +166,7 @@ pub enum StrongProducerUnitPartitionError {
     NonStrongDefinitionPlan(ObjectDefinitionPlanId),
 }
 
-impl fmt::Display for StrongProducerUnitPartitionError {
+impl fmt::Display for ProducerUnitPartitionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -179,7 +175,7 @@ impl fmt::Display for StrongProducerUnitPartitionError {
     }
 }
 
-impl std::error::Error for StrongProducerUnitPartitionError {}
+impl std::error::Error for ProducerUnitPartitionError {}
 
 #[cfg(test)]
 mod tests;

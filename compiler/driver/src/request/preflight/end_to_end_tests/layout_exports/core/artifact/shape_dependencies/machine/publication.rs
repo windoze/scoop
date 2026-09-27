@@ -10,7 +10,7 @@ pub(super) fn check<'a, 'p>(
     source: PublicationInput<'_, '_>,
     coordinates: &[ConeCoordinate],
 ) -> (
-    lir::StrongProductionSectionV2,
+    lir::ConeProductionSectionV2,
     lir::CrossConeLayoutAbiSectionV1<'a>,
     String,
 ) {

@@ -31,7 +31,7 @@ pub(super) fn check(
     lir: &lir::ConeLirOutput,
     mir_section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    objects: scoop_codegen::EmittedStrongObjectSetV2,
+    objects: scoop_codegen::EmittedConeObjectSetV2,
 ) {
     let mut foundation =
         hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();

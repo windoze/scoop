@@ -11,22 +11,22 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention,
-    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
-    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Function, GcEffect, Global,
-    GlobalInit, InitializationSchedule, InitializationUnit, InitializationUnitKind, Layout,
-    LayoutIdentity, LayoutKind, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
-    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, PointerKind, RefScan, SafepointIdentities, ScoopAbiSignature,
-    StaticStorageIdentity, StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanSetV1,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
-    TypeDescriptorRef, WellKnownTypeDescriptors,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
+    DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Function,
+    GcEffect, Global, GlobalInit, InitializationSchedule, InitializationUnit,
+    InitializationUnitKind, Layout, LayoutIdentity, LayoutKind, LirMeta, LirStaticInitialState,
+    LirTargetProfile, LirType, LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot,
+    Module, NativeExternalMetadata, NativeGlobalBridges, PointerKind, RefScan,
+    RegistrationIdentitySurfaceV1, SafepointIdentities, ScoopAbiSignature, StaticStorageIdentity,
+    StrongCallableRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanSetV1,
+    StrongInitializationUnitSemanticPlanSetV1, StrongSafepointSemanticPlanSetV1, StructDefs,
+    Terminator, TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) struct SemanticInputs {
     pub(super) foundation: ConeLirFoundation,
     pub(super) definitions: Vec<ObjectDefinitionPlanId>,
-    pub(super) digest_plan: StrongDigestFinalizationPlanV1,
+    pub(super) digest_plan: DigestFinalizationPlanV1,
     pub(super) plan: StrongInitializationUnitRegistrationPlanSetV1,
     pub(super) callable_plan: StrongCallableRegistrationPlanSetV1,
     pub(super) safepoints: StrongSafepointSemanticPlanSetV1,
@@ -191,7 +191,7 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
         &callables,
     );
     let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let callable_plan = StrongCallableRegistrationPlanSetV1::new(
         &foundation,
         &identities,
@@ -284,7 +284,7 @@ fn digest_plan(
     registration: &DefinitionArtifacts,
     storages: &[StorageArtifacts; 2],
     callables: &[CallableArtifacts],
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let cell_object = object_leaf(cell);
     let descriptor_object = object_leaf(descriptor);
     let registration_object = object_leaf(registration);
@@ -393,7 +393,7 @@ fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn object_leaf(artifacts: &DefinitionArtifacts) -> DigestNodeV1 {

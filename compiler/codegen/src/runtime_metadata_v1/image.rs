@@ -171,6 +171,7 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &ConeImagePlanV1,
+    registrations: &scoop_lir::RegistrationIdentitySurfaceV1,
     array_bounds_message: GlobalValue<'ctx>,
     array_size_overflow_message: GlobalValue<'ctx>,
 ) -> Result<EmittedConeImageV1<'ctx>, CodegenError> {
@@ -252,37 +253,37 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
         llvm,
         types.static_storage_descriptor,
         &format!("{prefix}.static_storages"),
-        tables.static_storage_symbol_requests(),
+        registrations.static_storage_symbol_requests(),
     )?;
     let immortal_objects = emit_registration_table(
         llvm,
         types.immortal_object_descriptor,
         &format!("{prefix}.immortal_objects"),
-        tables.immortal_object_symbol_requests(),
+        registrations.immortal_object_symbol_requests(),
     )?;
     let initialization_units = emit_registration_table(
         llvm,
         types.initialization_unit_descriptor,
         &format!("{prefix}.initialization_units"),
-        tables.initialization_unit_symbol_requests(),
+        registrations.initialization_unit_symbol_requests(),
     )?;
     let type_registrations = emit_registration_table(
         llvm,
         types.type_registration_descriptor,
         &format!("{prefix}.type_registrations"),
-        tables.type_registration_symbol_requests(),
+        registrations.type_registration_symbol_requests(),
     )?;
     let safepoints = emit_registration_table(
         llvm,
         types.safepoint_registration_descriptor,
         &format!("{prefix}.safepoints"),
-        tables.safepoint_symbol_requests(),
+        registrations.safepoint_symbol_requests(),
     )?;
     let callables = emit_registration_table(
         llvm,
         types.callable_registration_descriptor,
         &format!("{prefix}.callables"),
-        tables.callable_symbol_requests(),
+        registrations.callable_symbol_requests(),
     )?;
 
     let i32 = context.i32_type();
@@ -452,16 +453,17 @@ fn emit_registration_table<'ctx>(
     let pointer_type = llvm.get_context().ptr_type(Default::default());
     let mut records = Vec::new();
     for request in requests {
-        if request.linkage() != LinkageClass::ConeStrong {
-            return Err(CodegenError(format!(
-                "registration `{}` does not have strong Cone linkage",
-                request.symbol()
-            )));
-        }
         let symbol = request.symbol();
         let record = if let Some(record) = llvm.get_global(symbol.as_str()) {
+            let expected_linkage = if record.get_initializer().is_some()
+                && request.linkage() == LinkageClass::OdrWeak
+            {
+                Linkage::WeakODR
+            } else {
+                Linkage::External
+            };
             if record.get_value_type() != record_type.as_any_type_enum()
-                || record.get_linkage() != Linkage::External
+                || record.get_linkage() != expected_linkage
             {
                 return Err(CodegenError(format!(
                     "registration `{symbol}` has an incompatible LLVM declaration"
@@ -519,8 +521,8 @@ mod tests {
         StrongDefinitionEntity, StrongDefinitionRole,
     };
     use scoop_lir::{
-        CanonicalLirFoundation, ConeImagePlanV1, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
-        StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+        CanonicalLirFoundation, ConeImagePlanV1, ConeLirFoundation, DigestFinalizationPlanV1,
+        DigestInputRefV1, DigestNodeV1, RegistrationIdentitySurfaceV1,
     };
 
     use super::{DIGEST_SIZE, IMAGE_DESCRIPTOR_SIZE, emit_cone_image_v1};
@@ -530,7 +532,7 @@ mod tests {
         let coordinate = ConeCoordinate::reserved_single_file();
         let (foundation, digests) = image_fixture(coordinate.clone(), Some(unit_exact_type()));
         let registrations =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let plan = ConeImagePlanV1::new(
             coordinate,
             &[scoop_identity::ConeIdentity::CORE],
@@ -543,8 +545,15 @@ mod tests {
         let llvm = context.create_module("image");
         let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
 
-        let emitted =
-            emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message).unwrap();
+        let emitted = emit_cone_image_v1(
+            &context,
+            &llvm,
+            &plan,
+            &registrations,
+            bounds_message,
+            array_size_message,
+        )
+        .unwrap();
 
         assert_eq!(emitted.image().get_linkage(), Linkage::External);
         assert_eq!(emitted.image().get_visibility(), GlobalVisibility::Hidden);
@@ -607,16 +616,31 @@ mod tests {
         let coordinate = ConeCoordinate::reserved_core();
         let (foundation, digests) = image_fixture(coordinate.clone(), None);
         let registrations =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let plan =
             ConeImagePlanV1::new(coordinate, &[], &foundation, &registrations, &digests).unwrap();
         let context = Context::create();
         let llvm = context.create_module("image");
         let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
 
-        emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message).unwrap();
-        let error = emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message)
-            .unwrap_err();
+        emit_cone_image_v1(
+            &context,
+            &llvm,
+            &plan,
+            &registrations,
+            bounds_message,
+            array_size_message,
+        )
+        .unwrap();
+        let error = emit_cone_image_v1(
+            &context,
+            &llvm,
+            &plan,
+            &registrations,
+            bounds_message,
+            array_size_message,
+        )
+        .unwrap_err();
 
         assert!(error.0.contains("already declared"), "{error}");
     }
@@ -626,7 +650,7 @@ mod tests {
         let coordinate = ConeCoordinate::reserved_single_file();
         let (foundation, digests) = image_fixture(coordinate.clone(), None);
         let registrations =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let plan = ConeImagePlanV1::new(
             coordinate,
             &[scoop_identity::ConeIdentity::CORE],
@@ -640,8 +664,15 @@ mod tests {
         let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
         bounds_message.set_initializer(&context.const_string(b"array index out of boundx", true));
 
-        let error = emit_cone_image_v1(&context, &llvm, &plan, bounds_message, array_size_message)
-            .unwrap_err();
+        let error = emit_cone_image_v1(
+            &context,
+            &llvm,
+            &plan,
+            &registrations,
+            bounds_message,
+            array_size_message,
+        )
+        .unwrap_err();
 
         assert!(error.0.contains("canonical strong definition"), "{error}");
         assert!(llvm.get_global(plan.symbol().symbol().as_str()).is_none());
@@ -683,7 +714,7 @@ mod tests {
     fn image_fixture(
         coordinate: ConeCoordinate,
         registration: Option<PersistentExactTypeId>,
-    ) -> (ConeLirFoundation, StrongDigestFinalizationPlanV1) {
+    ) -> (ConeLirFoundation, DigestFinalizationPlanV1) {
         let producer = coordinate.identity().unwrap();
         let image_plan_key = ObjectDefinitionPlanKey::strong(
             producer,
@@ -739,7 +770,7 @@ mod tests {
         );
         let inputs = nodes.iter().map(DigestInputRefV1::from_node).collect();
         nodes.push(DigestNodeV1::new(image_key, inputs, vec![image_patch]).unwrap());
-        let digest_plan = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
+        let digest_plan = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
         (foundation, digest_plan)
     }
 

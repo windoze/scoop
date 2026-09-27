@@ -27,7 +27,7 @@ fn strong_section_has_eight_closed_fields_and_round_trips() {
         &digests,
     )
     .unwrap();
-    let section = StrongProductionSectionV1::new(
+    let section = ConeProductionSectionV1::new(
         coordinate.clone(),
         &[],
         &foundation,
@@ -40,7 +40,7 @@ fn strong_section_has_eight_closed_fields_and_round_trips() {
     let encoded = encode(&section).unwrap();
     assert_eq!(encoded[0], 0xa8);
 
-    let decoded: DecodedStrongProductionSectionV1 = decode_canonical(&encoded).unwrap();
+    let decoded: DecodedConeProductionSectionV1 = decode_canonical(&encoded).unwrap();
     let mut identities = identities(&foundation);
     let validated = decoded
         .validate(
@@ -61,11 +61,11 @@ fn strong_section_has_eight_closed_fields_and_round_trips() {
 #[test]
 fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
     for bytes in [vec![0xa7], vec![0xa9], vec![0xaa]] {
-        assert!(decode_canonical::<DecodedStrongProductionSectionV1>(&bytes).is_err());
+        assert!(decode_canonical::<DecodedConeProductionSectionV1>(&bytes).is_err());
     }
 }
 
-fn fixture(coordinate: &ConeCoordinate) -> (ConeLirFoundation, StrongDigestFinalizationPlanV1) {
+fn fixture(coordinate: &ConeCoordinate) -> (ConeLirFoundation, DigestFinalizationPlanV1) {
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
@@ -98,7 +98,7 @@ fn fixture(coordinate: &ConeCoordinate) -> (ConeLirFoundation, StrongDigestFinal
         DigestSemanticFieldRole::RuntimeImage,
     );
     let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch]).unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
+    let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     (foundation, digests)
 }
 

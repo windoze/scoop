@@ -2,7 +2,7 @@ use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::targets::TargetData;
 use scoop_identity::DefinitionAtomRole;
-use scoop_lir::{StrongDefinitionRole, StrongObjectSymbolSurfaceV1};
+use scoop_lir::{ObjectSymbolSurfaceV1, StrongDefinitionRole};
 
 use super::*;
 
@@ -11,7 +11,7 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
     let module = super::objects::classes_module();
     let foundation = scoop_lir::ConeLirFoundation::from_module(&module)
         .expect("test module has a strong foundation");
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&foundation)
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation)
         .expect("test module has a canonical symbol surface");
     let context = Context::create();
     let llvm = context.create_module("strong-shapes");

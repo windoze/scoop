@@ -178,7 +178,7 @@ pub(super) fn emit_function<'ctx>(
     builder: &inkwell::builder::Builder<'ctx>,
     module_ctx: &ModuleCtx<'_, 'ctx>,
     function: &Function,
-    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
+    surface: &scoop_lir::ObjectSymbolSurfaceV1,
     runtime_scan_plan: &scoop_lir::StrongCallableRuntimeScanPlanV1,
 ) -> Result<(), CodegenError> {
     // Pre-declared in the first pass of the selected object member.

@@ -9,8 +9,8 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, ConeLirFoundation, LirTargetProfile, StrongObjectSymbolSurfaceV1,
-    StrongProducerUnitPartitionV1,
+    CanonicalLirFoundation, ConeLirFoundation, LirTargetProfile, ObjectSymbolSurfaceV1,
+    ProducerUnitPartitionV1,
 };
 
 use super::*;
@@ -271,8 +271,8 @@ fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bo
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
-    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],

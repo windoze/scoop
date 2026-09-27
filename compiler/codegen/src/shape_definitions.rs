@@ -8,9 +8,9 @@ use inkwell::targets::TargetData;
 use inkwell::types::AnyType;
 use inkwell::values::{AnyValue, BasicValueEnum, GlobalValue, PointerValue, UnnamedAddress};
 use scoop_lir::{
-    DefinitionAtomRole, LayoutKind, ObjectDefinitionAtomId, PersistentDispatchTableId,
-    PersistentLayoutId, PersistentScanId, RefScan, StrongDefinitionEntity,
-    StrongDefinitionEntityKind, StrongDefinitionRole, StrongObjectSymbolSurfaceV1,
+    DefinitionAtomRole, LayoutKind, ObjectDefinitionAtomId, ObjectSymbolSurfaceV1,
+    PersistentDispatchTableId, PersistentLayoutId, PersistentScanId, RefScan,
+    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
@@ -80,7 +80,7 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     module: &Module,
     type_globals: crate::type_descriptors::TypeDescriptorGlobals<'_, 'ctx>,
 ) -> Result<(), CodegenError> {
@@ -154,7 +154,7 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
 pub(super) fn emit_dispatch_definition_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     table: PersistentDispatchTableId,
     values: &[PointerValue<'ctx>],
     emitted: &mut EmittedStrongShapeDefinitionsV1<'ctx>,
@@ -280,7 +280,7 @@ fn insert_scan(
 }
 
 fn validate_shape_plan_coverage(
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     layouts: &BTreeSet<PersistentLayoutId>,
     scans: &BTreeMap<PersistentScanId, RefScan>,
     module: &Module,
@@ -462,10 +462,10 @@ fn emit_private_scan<'ctx>(
 }
 
 fn require_definition(
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     owner: StrongDefinitionEntity,
     role: StrongDefinitionRole,
-) -> Result<&scoop_lir::StrongDefinitionSymbolPlanV1, CodegenError> {
+) -> Result<&scoop_lir::DefinitionSymbolPlanV1, CodegenError> {
     let mut matches = surface
         .plans()
         .iter()
@@ -498,7 +498,7 @@ fn require_absent_value(
 }
 
 pub(super) fn descriptor_diagnostic_atom(
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     exact: scoop_lir::PersistentExactTypeId,
 ) -> Result<ObjectDefinitionAtomId, CodegenError> {
     let definition = descriptor_definition(surface, exact)?;
@@ -521,7 +521,7 @@ pub(super) fn descriptor_diagnostic_atom(
 }
 
 pub(super) fn descriptor_itable_directory_atom(
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     exact: scoop_lir::PersistentExactTypeId,
 ) -> Result<ObjectDefinitionAtomId, CodegenError> {
     let definition = descriptor_definition(surface, exact)?;
@@ -544,9 +544,9 @@ pub(super) fn descriptor_itable_directory_atom(
 }
 
 pub(super) fn descriptor_definition(
-    surface: &StrongObjectSymbolSurfaceV1,
+    surface: &ObjectSymbolSurfaceV1,
     exact: scoop_lir::PersistentExactTypeId,
-) -> Result<&scoop_lir::StrongDefinitionSymbolPlanV1, CodegenError> {
+) -> Result<&scoop_lir::DefinitionSymbolPlanV1, CodegenError> {
     require_definition(
         surface,
         StrongDefinitionEntity::exact_type(exact),

@@ -148,7 +148,7 @@ fn exercise_dependency_production(provider: Provider) {
     ));
     let section = produced;
     let bytes = encode(&section).unwrap();
-    let decoded: DecodedStrongProductionSectionV2 = decode_canonical(&bytes).unwrap();
+    let decoded: DecodedConeProductionSectionV2 = decode_canonical(&bytes).unwrap();
     let definitions = [
         StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::TypeDescriptor(provider.exact),

@@ -3,12 +3,12 @@ use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::AnyType;
 use inkwell::values::{GlobalValue, StructValue};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentSafepointSiteId, StrongSafepointRegistrationPlanSetV1,
+    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    PersistentSafepointSiteId, StrongSafepointRegistrationPlanSetV1,
     StrongSafepointRegistrationPlanV1,
 };
 
-use super::RuntimeMetadataV1Types;
+use super::{RuntimeMetadataV1Types, registration_identity_value};
 use crate::CodegenError;
 
 const METADATA_ABI_VERSION: u64 = 1;
@@ -125,11 +125,6 @@ fn emit_registration<'ctx>(
 ) -> Result<EmittedStrongSafepointRegistrationV1<'ctx>, CodegenError> {
     let request = plan.symbol();
     let symbol = request.symbol();
-    if request.linkage() != LinkageClass::ConeStrong {
-        return Err(CodegenError(format!(
-            "safepoint registration `{symbol}` does not have strong Cone linkage"
-        )));
-    }
     if llvm.get_function(symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
             "safepoint registration `{symbol}` collides with an LLVM function"
@@ -169,14 +164,12 @@ fn emit_registration<'ctx>(
         i32.const_int(SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE, false)
             .into(),
     ]);
-    let identity = types.registration_identity.const_named_struct(&[
-        i32.const_int(1, false).into(),
-        i32.const_zero().into(),
-        digest_value(context, types.digest, plan.site().as_array()).into(),
-        zero_digest.into(),
-        zero_digest.into(),
-        zero_digest.into(),
-    ]);
+    let identity = registration_identity_value(
+        context,
+        types,
+        plan.site().as_array(),
+        plan.definition_owner(),
+    );
     let value = types
         .safepoint_registration_descriptor
         .const_named_struct(&[
@@ -191,6 +184,7 @@ fn emit_registration<'ctx>(
         ]);
     descriptor.set_constant(true);
     descriptor.set_initializer(&value);
+    crate::emission::apply_persistent_linkage(&descriptor, request, true)?;
 
     Ok(EmittedStrongSafepointRegistrationV1 {
         site: plan.site(),

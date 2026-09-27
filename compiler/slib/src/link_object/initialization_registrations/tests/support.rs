@@ -4,9 +4,9 @@ mod semantic;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     ConeLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    GeneratedBridgePlanSetV1, LirTargetProfile, StrongCallableRegistrationPlanSetV1,
-    StrongDigestFinalizationPlanV1, StrongInitializationUnitRegistrationPlanSetV1,
-    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1, StrongSafepointSemanticPlanSetV1,
+    DigestFinalizationPlanV1, GeneratedBridgePlanSetV1, LirTargetProfile, ObjectSymbolSurfaceV1,
+    ProducerUnitPartitionV1, StrongCallableRegistrationPlanSetV1,
+    StrongInitializationUnitRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
 };
 
 use crate::SlibMemberId;
@@ -33,7 +33,7 @@ pub(super) enum Corruption {
 pub(super) struct Fixture {
     pub(super) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     pub(super) foundation: ConeLirFoundation,
-    pub(super) digest_plan: StrongDigestFinalizationPlanV1,
+    pub(super) digest_plan: DigestFinalizationPlanV1,
     pub(super) plan: StrongInitializationUnitRegistrationPlanSetV1,
     pub(super) callable_plan: StrongCallableRegistrationPlanSetV1,
     pub(super) safepoints: StrongSafepointSemanticPlanSetV1,
@@ -46,14 +46,14 @@ impl Fixture {
     pub(super) fn new(lazy: bool, corruption: Corruption) -> Self {
         let inputs = semantic::inputs(lazy);
         let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&inputs.foundation).unwrap();
-        let partition = StrongProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
+        let partition = ProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
         let member_plan = PlannedLinkObjectMemberSetV1::new(
             &partition,
             vec![CanonicalScoopLirObjectUnitSetV1::new(inputs.definitions).unwrap()],
             Vec::new(),
         )
         .unwrap();
-        let surface = StrongObjectSymbolSurfaceV1::from_foundation(&inputs.foundation).unwrap();
+        let surface = ObjectSymbolSurfaceV1::from_foundation(&inputs.foundation).unwrap();
         let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
             LirTargetProfile::DARWIN_AARCH64,
             &surface,

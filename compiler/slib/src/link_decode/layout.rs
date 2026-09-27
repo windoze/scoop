@@ -5,8 +5,8 @@ use scoop_hir::{
     DecodedCrossConeTypeSemanticsSectionV1, DecodedHirFoundation,
 };
 use scoop_lir::{
-    DecodedCrossConeLayoutAbiSectionV1, DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
-    DecodedStrongProductionSectionV2,
+    DecodedConeProductionSectionV2, DecodedCrossConeLayoutAbiSectionV1,
+    DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
 };
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1,
@@ -48,7 +48,7 @@ pub struct DecodedCrossConeLayoutLinkSections<'input> {
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
-    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_strong_production: DecodedConeProductionSectionV2,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,

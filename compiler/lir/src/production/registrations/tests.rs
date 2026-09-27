@@ -5,13 +5,12 @@ use scoop_identity::{
 use scoop_wire::{decode_canonical, encode};
 
 use super::{
-    DecodedStrongRegistrationIdentitySurfaceV1, RegistrationTableV1,
-    StrongRegistrationIdentityBuildError, StrongRegistrationIdentitySurfaceV1,
-    StrongRegistrationIdentityValidationError,
+    DecodedRegistrationIdentitySurfaceV1, RegistrationIdentityBuildError,
+    RegistrationIdentitySurfaceV1, RegistrationIdentityValidationError, RegistrationTableV1,
 };
 use crate::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
-    StrongDigestFinalizationPlanV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
+    DigestNodeV1,
 };
 
 #[test]
@@ -19,7 +18,7 @@ fn six_empty_tables_have_a_fixed_wire_shape() {
     let foundation = empty_foundation();
     let digest_plan = digest_plan(&foundation, Vec::new());
     let surface =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert!(surface.static_storages().is_empty());
     assert!(surface.immortal_objects().is_empty());
@@ -57,7 +56,7 @@ fn registration_role_derives_typed_table_plan_and_digest_node() {
     let expected_node = registration.id();
     let digest_plan = digest_plan(&foundation, vec![registration]);
     let surface =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert_eq!(surface.type_registrations().len(), 1);
     let entry = surface.type_registrations()[0];
@@ -66,7 +65,7 @@ fn registration_role_derives_typed_table_plan_and_digest_node() {
     assert_eq!(entry.fingerprint_node(), expected_node);
 
     let bytes = encode(&surface).unwrap();
-    let decoded: DecodedStrongRegistrationIdentitySurfaceV1 = decode_canonical(&bytes).unwrap();
+    let decoded: DecodedRegistrationIdentitySurfaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         encode(&decoded.validate(&foundation, &digest_plan).unwrap()).unwrap(),
         bytes
@@ -91,8 +90,10 @@ fn every_registration_plan_requires_its_own_strong_digest_node() {
     let digest_plan = digest_plan(&foundation, Vec::new());
 
     assert_eq!(
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan),
-        Err(StrongRegistrationIdentityBuildError::MissingFingerprintNode(plan.id()))
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan),
+        Err(RegistrationIdentityBuildError::MissingFingerprintNode(
+            plan.id()
+        ))
     );
 }
 
@@ -119,14 +120,14 @@ fn reader_rebuilds_tables_instead_of_accepting_missing_entries() {
     .unwrap();
     let digest_plan = digest_plan(&foundation, vec![registration]);
     let surface =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
-    let mut decoded: DecodedStrongRegistrationIdentitySurfaceV1 =
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let mut decoded: DecodedRegistrationIdentitySurfaceV1 =
         decode_canonical(&encode(&surface).unwrap()).unwrap();
     decoded.type_registrations.clear();
 
     assert_eq!(
         decoded.validate(&foundation, &digest_plan),
-        Err(StrongRegistrationIdentityValidationError::TableLength {
+        Err(RegistrationIdentityValidationError::TableLength {
             table: RegistrationTableV1::Type,
             expected: 1,
             actual: 0,
@@ -141,7 +142,7 @@ fn empty_foundation() -> ConeLirFoundation {
 fn digest_plan(
     foundation: &ConeLirFoundation,
     registrations: Vec<DigestNodeV1>,
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let inputs = registrations
         .iter()
         .map(DigestInputRefV1::from_node)
@@ -154,7 +155,7 @@ fn digest_plan(
     .unwrap();
     let mut nodes = registrations;
     nodes.push(image);
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn unit_exact_type() -> PersistentExactTypeId {

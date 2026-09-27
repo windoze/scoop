@@ -28,7 +28,7 @@ impl EmittedStrongDigestPatchMaterializationV1 {
 pub(crate) fn resolve_digest_patch_materializations_v1(
     path: &Path,
     target: scoop_lir::LirTargetProfile,
-    canonical_definitions: &scoop_lir::StrongObjectSymbolSurfaceV1,
+    canonical_definitions: &scoop_lir::ObjectSymbolSurfaceV1,
     metadata: &EmittedStrongRuntimeMetadataV1,
 ) -> Result<Vec<EmittedStrongDigestPatchMaterializationV1>, CodegenError> {
     let bytes = std::fs::read(path).map_err(|error| {

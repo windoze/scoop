@@ -1,8 +1,8 @@
 //! Production-manifest projection backed by M23-6 Strong V2 semantics.
 
 use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, StrongProductionSectionV2,
-    StrongRegistrationIdentitySurfaceV1,
+    CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, ConeProductionSectionV2,
+    RegistrationIdentitySurfaceV1,
 };
 use scoop_wire::{Encoder, WireEncode};
 
@@ -18,13 +18,13 @@ use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId, VerifiedCode
 /// ten-field manifest projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV2 {
-    strong_production: StrongProductionSectionV2,
+    strong_production: ConeProductionSectionV2,
     link_objects: VerifiedCodeLinkObjectMemberSetV2,
     projection: SingleConeProductionCodeProjectionV1,
 }
 
 impl VerifiedSingleConeProductionCodeProjectionV2 {
-    pub const fn strong_production(&self) -> &StrongProductionSectionV2 {
+    pub const fn strong_production(&self) -> &ConeProductionSectionV2 {
         &self.strong_production
     }
 
@@ -43,7 +43,7 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
     cone: &ConeRecord,
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
-    strong_production: StrongProductionSectionV2,
+    strong_production: ConeProductionSectionV2,
     link_objects: VerifiedCodeLinkObjectMemberSetV2,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV2, ProductionCodeProjectionError> {
     let dependency_identities = direct_dependencies
@@ -92,7 +92,7 @@ impl CrossConeLayoutProductionManifestV1 {
         self.projection().image_owner_member()
     }
 
-    pub const fn runtime_registration_projection(&self) -> &StrongRegistrationIdentitySurfaceV1 {
+    pub const fn runtime_registration_projection(&self) -> &RegistrationIdentitySurfaceV1 {
         self.projection().runtime_registration_projection()
     }
 

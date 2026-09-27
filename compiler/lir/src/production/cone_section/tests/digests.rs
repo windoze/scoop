@@ -8,7 +8,7 @@ fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
 }
 
 pub(in crate::production) fn without_image_input(
-    section: &StrongProductionSectionV2,
+    section: &ConeProductionSectionV2,
     foundation: &ConeLirFoundation,
 ) -> Vec<u8> {
     let mut nodes = section.digest_finalization_plan().nodes().to_vec();
@@ -27,22 +27,22 @@ pub(in crate::production) fn without_image_input(
             .collect(),
     )
     .unwrap();
-    let graph = StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap();
-    let mut raw: DecodedStrongProductionSectionV2 = decoded(section);
+    let graph = DigestFinalizationPlanV1::new(nodes, foundation).unwrap();
+    let mut raw: DecodedConeProductionSectionV2 = decoded(section);
     raw.digest_finalization_plan = decoded(&graph);
     encode(&raw).unwrap()
 }
 
-pub(super) fn check(section: &StrongProductionSectionV2, foundation: &ConeLirFoundation) {
+pub(super) fn check(section: &ConeProductionSectionV2, foundation: &ConeLirFoundation) {
     let projection = || {
-        crate::replay_strong_digest_finalization_plan_v2(
+        crate::replay_digest_finalization_plan_v2(
             foundation,
             section.registration_production(),
             &EntryProductionSourceV1::Library,
         )
     };
     assert_eq!(&projection().unwrap(), section.digest_finalization_plan());
-    let replay = |raw: DecodedStrongProductionSectionV2| {
+    let replay = |raw: DecodedConeProductionSectionV2| {
         raw.replay(
             ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap(),
             &[],
@@ -67,21 +67,21 @@ pub(super) fn check(section: &StrongProductionSectionV2, foundation: &ConeLirFou
         .id();
     let extra = DigestNodeV1::new(DigestNodeKey::object_definition(atom), vec![], vec![]).unwrap();
     for nodes in [vec![no_patch], vec![image.clone(), extra]] {
-        let graph = StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap();
-        let mut raw: DecodedStrongProductionSectionV2 = decoded(section);
+        let graph = DigestFinalizationPlanV1::new(nodes, foundation).unwrap();
+        let mut raw: DecodedConeProductionSectionV2 = decoded(section);
         raw.digest_finalization_plan = decoded(&graph);
         assert!(matches!(
             replay(raw),
-            Err(StrongProductionSectionValidationError::DigestMismatch)
+            Err(ConeProductionSectionValidationError::DigestMismatch)
         ));
     }
     let foreign = ConeCoordinate::new("test", "foreign-digests", "1.0.0").unwrap();
     let (_, graph) = super::fixture(&foreign);
-    let mut raw: DecodedStrongProductionSectionV2 = decoded(section);
+    let mut raw: DecodedConeProductionSectionV2 = decoded(section);
     raw.digest_finalization_plan = decoded(&graph);
     assert!(matches!(
         replay(raw),
-        Err(StrongProductionSectionValidationError::DigestReplay(_))
+        Err(ConeProductionSectionValidationError::DigestReplay(_))
     ));
     assert!(matches!(
         image.key().owner_and_role(),

@@ -132,7 +132,7 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
         &self.lir_foundation
     }
 
-    pub const fn strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.strong_production
     }
 
@@ -202,7 +202,7 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
         self.identities.declared_identity_count()
     }
 
-    pub const fn strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.strong_production
     }
 
@@ -292,7 +292,7 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
         &self.foundations.lir
     }
 
-    pub const fn strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.production.lir
     }
 

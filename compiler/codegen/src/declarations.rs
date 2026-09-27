@@ -13,6 +13,7 @@ pub(crate) fn declare_function<'ctx>(
     enums: &EnumDefs,
     profile: ValidatedBackendProfile,
     function: &Function,
+    definition: bool,
 ) -> Result<(), CodegenError> {
     let managed_address_space = profile.managed_address_space_contract();
     let fn_ty = abi::function_type(
@@ -23,7 +24,11 @@ pub(crate) fn declare_function<'ctx>(
         &function.signature,
     )?;
     let llvm_function = llvm.add_function(function.symbol(), fn_ty, None);
-    apply_persistent_function_linkage(llvm_function, function.callable_body.symbol_request())?;
+    crate::emission::apply_persistent_linkage(
+        &llvm_function.as_global_value(),
+        function.callable_body.symbol_request(),
+        definition,
+    )?;
     abi::apply_function_attributes(
         context,
         structs,
@@ -63,33 +68,6 @@ pub(crate) fn declare_external_callable<'ctx>(
         callable.signature(),
     )?;
     declaration.set_linkage(inkwell::module::Linkage::External);
-    Ok(())
-}
-
-fn apply_persistent_function_linkage(
-    function: inkwell::values::FunctionValue<'_>,
-    request: scoop_lir::PersistentSymbolRequest,
-) -> Result<(), CodegenError> {
-    use inkwell::GlobalVisibility;
-    use inkwell::module::Linkage;
-    use scoop_lir::LinkageClass;
-
-    match request.linkage() {
-        LinkageClass::ConeStrong => function.set_linkage(Linkage::External),
-        LinkageClass::TemplateSupportHidden => {
-            function.set_linkage(Linkage::External);
-            function
-                .as_global_value()
-                .set_visibility(GlobalVisibility::Hidden);
-        }
-        LinkageClass::OdrWeak => function.set_linkage(Linkage::WeakODR),
-        LinkageClass::RuntimeAbi => {
-            return Err(CodegenError(format!(
-                "persistent symbol `{}` cannot use runtime ABI linkage",
-                request.symbol()
-            )));
-        }
-    }
     Ok(())
 }
 

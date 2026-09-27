@@ -12,8 +12,8 @@ use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
-    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
+    DigestNodeV1, RegistrationIdentitySurfaceV1,
 };
 
 mod providers;
@@ -94,7 +94,7 @@ fn availability_and_empty_plan_have_fixed_wire_shapes() {
 
     let foundation =
         ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty()).unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(
+    let digests = DigestFinalizationPlanV1::new(
         vec![
             DigestNodeV1::new(
                 DigestNodeKey::runtime_image(ConeIdentity::CORE),
@@ -107,7 +107,7 @@ fn availability_and_empty_plan_have_fixed_wire_shapes() {
     )
     .unwrap();
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     let empty = ParamFreeShapeSupportPlanSetV1::from_sources(
         std::iter::empty(),
         &foundation,
@@ -263,7 +263,7 @@ fn foreign_source_cannot_build_a_local_shape_plan() {
     let foundation =
         ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
             .unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(
+    let digests = DigestFinalizationPlanV1::new(
         vec![
             DigestNodeV1::new(
                 DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
@@ -276,7 +276,7 @@ fn foreign_source_cannot_build_a_local_shape_plan() {
     )
     .unwrap();
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     assert!(matches!(
         ParamFreeShapeSupportPlanSetV1::from_sources(
             [&CoreBuiltinNominal::Unit.declaration_key()],
@@ -292,7 +292,7 @@ fn foreign_source_cannot_build_a_local_shape_plan() {
 struct Fixture {
     source: SourceDeclarationKey,
     foundation: ConeLirFoundation,
-    registrations: StrongRegistrationIdentitySurfaceV1,
+    registrations: RegistrationIdentitySurfaceV1,
 }
 
 struct FixtureParts {
@@ -464,9 +464,9 @@ fn finish_fixture(
         )
         .unwrap(),
     );
-    let digests = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
+    let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     Fixture {
         source: parts.source,
         foundation,

@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn validate(
-    production: &StrongProductionSectionV2,
+    production: &ConeProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     validate_descriptors(production, section)?;
@@ -9,7 +9,7 @@ pub(super) fn validate(
 }
 
 fn validate_descriptors(
-    production: &StrongProductionSectionV2,
+    production: &ConeProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     for record in section.descriptors().records() {
@@ -80,7 +80,7 @@ fn validate_descriptors(
 }
 
 fn validate_dispatch(
-    production: &StrongProductionSectionV2,
+    production: &ConeProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     for record in section.dispatch().records() {

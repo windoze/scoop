@@ -76,14 +76,12 @@ pub fn emit_c_bridge_object_set(
             CodegenError(format!("invalid generated-C toolchain projection: {error}"))
         })?;
     let target = input.module().meta.target_profile;
-    let symbol_surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(
-        input.foundation(),
-    )
-    .map_err(|error| {
-        CodegenError(format!(
-            "cannot plan generated-C atom boundary symbols: {error}"
-        ))
-    })?;
+    let symbol_surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation())
+        .map_err(|error| {
+            CodegenError(format!(
+                "cannot plan generated-C atom boundary symbols: {error}"
+            ))
+        })?;
     let sources = render_c_bridge_source_set(input)?;
     emit_source_set_with_compiler(
         sources,

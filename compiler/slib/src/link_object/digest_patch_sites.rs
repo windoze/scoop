@@ -4,7 +4,7 @@ use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestPatchIntentId, DigestSemanticFieldRole,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId,
 };
-use scoop_lir::{ConeLirFoundation, StrongDigestFinalizationPlanV1};
+use scoop_lir::{ConeLirFoundation, DigestFinalizationPlanV1};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{
@@ -145,7 +145,7 @@ impl WireEncode for VerifiedMaterializedPatchSiteV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedScoopLirDigestPatchSiteSetV1 {
     builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
-    digest_plan: StrongDigestFinalizationPlanV1,
+    digest_plan: DigestFinalizationPlanV1,
     sites: Vec<VerifiedMaterializedPatchSiteV1>,
 }
 
@@ -158,7 +158,7 @@ impl VerifiedScoopLirDigestPatchSiteSetV1 {
         &self.builtins
     }
 
-    pub const fn digest_plan(&self) -> &StrongDigestFinalizationPlanV1 {
+    pub const fn digest_plan(&self) -> &DigestFinalizationPlanV1 {
         &self.digest_plan
     }
 
@@ -170,7 +170,7 @@ impl VerifiedScoopLirDigestPatchSiteSetV1 {
 pub fn verify_scoop_lir_digest_patch_sites_v1(
     builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     foundation: &ConeLirFoundation,
-    digest_plan: StrongDigestFinalizationPlanV1,
+    digest_plan: DigestFinalizationPlanV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
     provisional_sites: &[ProvisionalDigestPatchSiteV1],
 ) -> Result<VerifiedScoopLirDigestPatchSiteSetV1, DigestPatchSiteValidationError> {

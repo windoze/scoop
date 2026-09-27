@@ -6,7 +6,7 @@ use scoop_identity::{
     DecodedPersistentId, DefinitionAtomRole, DigestPatchIntentId, GeneratedBridgeUnitId,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentId,
 };
-use scoop_lir::{StrongDigestFinalizationPlanV1, StrongProducerUnitPartitionV1};
+use scoop_lir::{DigestFinalizationPlanV1, ProducerUnitPartitionV1};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 mod digest_inputs;
@@ -369,7 +369,7 @@ impl MaterializationCheckedLinkIdentityClosureSectionV1 {
 
     pub fn validate_digest_patch_inputs(
         self,
-        digest_plan: &StrongDigestFinalizationPlanV1,
+        digest_plan: &DigestFinalizationPlanV1,
     ) -> Result<
         DigestPatchInputCheckedLinkIdentityClosureSectionV1,
         LinkDigestPatchInputValidationError,
@@ -478,7 +478,7 @@ impl SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
 impl DecodedLinkIdentityClosureSectionV1 {
     pub fn validate_materializations(
         self,
-        partition: &StrongProducerUnitPartitionV1,
+        partition: &ProducerUnitPartitionV1,
     ) -> Result<
         MaterializationCheckedLinkIdentityClosureSectionV1,
         LinkObjectMaterializationValidationError,

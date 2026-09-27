@@ -77,7 +77,11 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
     assert_eq!(constant_u64(identity, 1), 0);
     assert_eq!(
         identity.get_field_at_index(2).unwrap().into_struct_value(),
-        super::digest_value(&context, types(&context).digest, expected.body().as_array())
+        super::super::registration_identity::digest_value(
+            &context,
+            types(&context).digest,
+            expected.body().as_array()
+        )
     );
     for index in 3..=5 {
         assert!(

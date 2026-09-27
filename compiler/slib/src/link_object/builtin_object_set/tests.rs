@@ -1,5 +1,5 @@
 use scoop_lir::{
-    CBridgeProductionSetV1, GeneratedBridgePlanSetV1, LirTargetProfile, StrongObjectSymbolSurfaceV1,
+    CBridgeProductionSetV1, GeneratedBridgePlanSetV1, LirTargetProfile, ObjectSymbolSurfaceV1,
 };
 
 use super::*;
@@ -215,7 +215,7 @@ fn symbol_plan(
     foundation: &scoop_lir::ConeLirFoundation,
     members: &PlannedLinkObjectMemberSetV1,
 ) -> PlannedStrongObjectSymbolSetV1 {
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(foundation).unwrap();
     PlannedStrongObjectSymbolSetV1::new(LirTargetProfile::DARWIN_AARCH64, &surface, members)
         .unwrap()
 }

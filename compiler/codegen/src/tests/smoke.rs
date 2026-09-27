@@ -17,15 +17,20 @@ fn emits_non_empty_object_file() {
 }
 
 #[test]
-fn strong_codegen_rejects_odr_callable_bodies() {
+fn shared_codegen_preserves_odr_callable_linkage() {
     let mut module = values_module();
     module.functions[0].callable_body = odr_callable_body("shared_function");
     refresh_test_safepoints(&mut module.functions[0]);
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("the M23-3 backend accepts strong callable bodies only");
-    assert!(error.0.contains("InvalidStrongDefinition"), "{error}");
+    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();
+    let function = llvm.get_function(module.functions[0].symbol()).unwrap();
+    assert_eq!(function.get_linkage(), inkwell::module::Linkage::WeakODR);
+    assert_eq!(
+        function.as_global_value().get_unnamed_address(),
+        inkwell::values::UnnamedAddress::None
+    );
+    llvm.verify().unwrap();
 }
 
 #[test]

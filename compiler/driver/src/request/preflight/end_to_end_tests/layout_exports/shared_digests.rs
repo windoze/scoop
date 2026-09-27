@@ -5,10 +5,10 @@ use super::*;
 pub(super) fn check(
     name: &str,
     foundation: &lir::ConeLirFoundation,
-    production: &lir::StrongProductionSectionV2,
+    production: &lir::ConeProductionSectionV2,
 ) {
     let replay = || {
-        lir::replay_strong_digest_finalization_plan_v2(
+        lir::replay_digest_finalization_plan_v2(
             foundation,
             production.registration_production(),
             &lir::EntryProductionSourceV1::Library,
@@ -16,7 +16,7 @@ pub(super) fn check(
     };
     let expected = replay().unwrap_or_else(|error| panic!("{name}: {error}"));
     assert_eq!(&expected, production.digest_finalization_plan());
-    let raw: lir::DecodedStrongDigestFinalizationPlanV1 = decoded(&expected);
+    let raw: lir::DecodedDigestFinalizationPlanV1 = decoded(&expected);
     assert_eq!(
         raw.resolve_foundation(
             foundation,

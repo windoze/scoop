@@ -22,7 +22,7 @@ fn binds_object_bytes_to_member_ids_only_through_their_canonical_units() {
         StrongDefinitionRole::RootEntryDescriptor,
     );
     let foundation = foundation(&[image.clone(), entry.clone()]);
-    let producer_units = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let producer_units = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let sources = vec![
         UnboundScoopLirObject {
             units: vec![entry.id()],
@@ -79,7 +79,7 @@ fn binds_generated_c_bytes_from_the_actual_singleton_unit_set() {
         vec![unit.clone()],
         vec![bridge_atom],
     );
-    let producer_units = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let producer_units = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
 
     let planned = plan_objects(
         &producer_units,
@@ -119,7 +119,7 @@ fn rejects_one_physical_object_whose_units_resolve_to_different_members() {
         StrongDefinitionRole::RootEntryDescriptor,
     );
     let foundation = foundation(&[image.clone(), entry.clone()]);
-    let producer_units = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let producer_units = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
         &producer_units,
         vec![

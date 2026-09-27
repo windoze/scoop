@@ -1,24 +1,55 @@
 use std::fmt;
 
 use scoop_identity::{
-    DecodedPersistentId, DigestNodeId, DigestOwnerAndRoleKey, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentCallableBodyId,
+    DecodedPersistentId, DigestNodeId, DigestNodeKey, LinkageClass, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId, PersistentCallableBodyId,
     PersistentExactTypeId, PersistentId, PersistentImmortalObjectId,
     PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
-    StrongDefinitionEntityKind, StrongDefinitionRole,
+    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::{ConeLirFoundation, StrongDigestFinalizationPlanV1};
+use crate::{ConeLirFoundation, DigestFinalizationPlanV1};
+
+/// Semantic ownership of a physical runtime registration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RegistrationDefinitionOwner {
+    Strong,
+    Odr {
+        group: OdrGroupId,
+        member: OdrMemberId,
+    },
+}
+
+impl RegistrationDefinitionOwner {
+    pub const fn linkage(self) -> LinkageClass {
+        match self {
+            Self::Strong => LinkageClass::ConeStrong,
+            Self::Odr { .. } => LinkageClass::OdrWeak,
+        }
+    }
+
+    pub const fn digest_key(self, plan: ObjectDefinitionPlanId) -> DigestNodeKey {
+        match self {
+            Self::Strong => DigestNodeKey::strong_registration(plan),
+            Self::Odr { member, .. } => DigestNodeKey::odr_member_definition(member),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct StrongRegistrationIdentityV1<I: PersistentId> {
+pub struct RegistrationIdentityV1<I: PersistentId> {
     semantic_id: I,
     definition_plan: ObjectDefinitionPlanId,
     fingerprint_node: DigestNodeId,
+    owner: RegistrationDefinitionOwner,
 }
 
-impl<I: PersistentId> StrongRegistrationIdentityV1<I> {
+impl<I: PersistentId> RegistrationIdentityV1<I> {
+    pub const fn owner(&self) -> RegistrationDefinitionOwner {
+        self.owner
+    }
+
     pub const fn semantic_id(&self) -> I {
         self.semantic_id
     }
@@ -32,7 +63,7 @@ impl<I: PersistentId> StrongRegistrationIdentityV1<I> {
     }
 }
 
-impl<I: PersistentId + WireEncode> WireEncode for StrongRegistrationIdentityV1<I> {
+impl<I: PersistentId + WireEncode> WireEncode for RegistrationIdentityV1<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -45,13 +76,13 @@ impl<I: PersistentId + WireEncode> WireEncode for StrongRegistrationIdentityV1<I
 }
 
 #[derive(Debug)]
-struct DecodedStrongRegistrationIdentityV1<I: PersistentId> {
+struct DecodedRegistrationIdentityV1<I: PersistentId> {
     semantic_id: DecodedPersistentId<I>,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     fingerprint_node: DecodedPersistentId<DigestNodeId>,
 }
 
-impl<I: PersistentId> WireEncode for DecodedStrongRegistrationIdentityV1<I> {
+impl<I: PersistentId> WireEncode for DecodedRegistrationIdentityV1<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
@@ -63,7 +94,7 @@ impl<I: PersistentId> WireEncode for DecodedStrongRegistrationIdentityV1<I> {
     }
 }
 
-impl<I: PersistentId> WireDecode for DecodedStrongRegistrationIdentityV1<I> {
+impl<I: PersistentId> WireDecode for DecodedRegistrationIdentityV1<I> {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
@@ -75,40 +106,51 @@ impl<I: PersistentId> WireDecode for DecodedStrongRegistrationIdentityV1<I> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongRegistrationIdentitySurfaceV1 {
-    static_storages: Vec<StrongRegistrationIdentityV1<PersistentStaticStorageId>>,
-    immortal_objects: Vec<StrongRegistrationIdentityV1<PersistentImmortalObjectId>>,
-    initialization_units: Vec<StrongRegistrationIdentityV1<PersistentInitializationUnitId>>,
-    type_registrations: Vec<StrongRegistrationIdentityV1<PersistentExactTypeId>>,
-    safepoints: Vec<StrongRegistrationIdentityV1<PersistentSafepointSiteId>>,
-    callables: Vec<StrongRegistrationIdentityV1<PersistentCallableBodyId>>,
+pub struct RegistrationIdentitySurfaceV1 {
+    static_storages: Vec<RegistrationIdentityV1<PersistentStaticStorageId>>,
+    immortal_objects: Vec<RegistrationIdentityV1<PersistentImmortalObjectId>>,
+    initialization_units: Vec<RegistrationIdentityV1<PersistentInitializationUnitId>>,
+    type_registrations: Vec<RegistrationIdentityV1<PersistentExactTypeId>>,
+    safepoints: Vec<RegistrationIdentityV1<PersistentSafepointSiteId>>,
+    callables: Vec<RegistrationIdentityV1<PersistentCallableBodyId>>,
 }
 
-impl StrongRegistrationIdentitySurfaceV1 {
+impl RegistrationIdentitySurfaceV1 {
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
-        digest_plan: &StrongDigestFinalizationPlanV1,
-    ) -> Result<Self, StrongRegistrationIdentityBuildError> {
+        digest_plan: &DigestFinalizationPlanV1,
+    ) -> Result<Self, RegistrationIdentityBuildError> {
         let mut surface = Self::empty();
         for record in foundation.definition_plans() {
-            let ObjectDefinitionPlanOwner::Strong { entity, .. } = record.key().owner() else {
-                return Err(StrongRegistrationIdentityBuildError::OdrPlan(record.id()));
-            };
-            let ObjectDefinitionPlanRole::Strong(role) = record.key().definition_role() else {
-                return Err(StrongRegistrationIdentityBuildError::OdrPlan(record.id()));
-            };
+            let (entity, role) = foundation.definition_subject(record).ok_or(
+                RegistrationIdentityBuildError::UnknownDefinition(record.id()),
+            )?;
             let Some(table) = registration_table(role) else {
                 continue;
+            };
+            let owner = match record.key().owner() {
+                ObjectDefinitionPlanOwner::Strong { .. } => RegistrationDefinitionOwner::Strong,
+                ObjectDefinitionPlanOwner::Odr { member } => {
+                    let key = foundation
+                        .odr_member(member)
+                        .ok_or(RegistrationIdentityBuildError::UnknownDefinition(
+                            record.id(),
+                        ))?
+                        .key();
+                    RegistrationDefinitionOwner::Odr {
+                        group: key.group(),
+                        member,
+                    }
+                }
             };
             let fingerprint_node = digest_plan
                 .nodes()
                 .iter()
-                .find(|node| {
-                    node.key().owner_and_role()
-                        == DigestOwnerAndRoleKey::StrongRegistration(record.id())
-                })
+                .find(|node| *node.key() == owner.digest_key(record.id()))
                 .map(|node| node.id())
-                .ok_or(StrongRegistrationIdentityBuildError::MissingFingerprintNode(record.id()))?;
+                .ok_or(RegistrationIdentityBuildError::MissingFingerprintNode(
+                    record.id(),
+                ))?;
             let plan = record.id();
             match (table, entity.kind()) {
                 (
@@ -117,7 +159,7 @@ impl StrongRegistrationIdentitySurfaceV1 {
                 ) => {
                     surface
                         .static_storages
-                        .push(entry(id, plan, fingerprint_node));
+                        .push(entry(id, plan, fingerprint_node, owner));
                 }
                 (
                     RegistrationTableV1::ImmortalObject,
@@ -125,27 +167,31 @@ impl StrongRegistrationIdentitySurfaceV1 {
                 ) => {
                     surface
                         .immortal_objects
-                        .push(entry(id, plan, fingerprint_node));
+                        .push(entry(id, plan, fingerprint_node, owner));
                 }
                 (
                     RegistrationTableV1::InitializationUnit,
                     StrongDefinitionEntityKind::InitializationUnit(id),
                 ) => surface
                     .initialization_units
-                    .push(entry(id, plan, fingerprint_node)),
+                    .push(entry(id, plan, fingerprint_node, owner)),
                 (RegistrationTableV1::Type, StrongDefinitionEntityKind::ExactType(id)) => {
                     surface
                         .type_registrations
-                        .push(entry(id, plan, fingerprint_node));
+                        .push(entry(id, plan, fingerprint_node, owner));
                 }
                 (RegistrationTableV1::Safepoint, StrongDefinitionEntityKind::SafepointSite(id)) => {
-                    surface.safepoints.push(entry(id, plan, fingerprint_node));
+                    surface
+                        .safepoints
+                        .push(entry(id, plan, fingerprint_node, owner));
                 }
                 (RegistrationTableV1::Callable, StrongDefinitionEntityKind::CallableBody(id)) => {
-                    surface.callables.push(entry(id, plan, fingerprint_node));
+                    surface
+                        .callables
+                        .push(entry(id, plan, fingerprint_node, owner));
                 }
                 _ => {
-                    return Err(StrongRegistrationIdentityBuildError::RoleEntityMismatch {
+                    return Err(RegistrationIdentityBuildError::RoleEntityMismatch {
                         plan,
                         role,
                         entity: entity.kind(),
@@ -168,7 +214,7 @@ impl StrongRegistrationIdentitySurfaceV1 {
         }
     }
 
-    fn sort_and_validate(&mut self) -> Result<(), StrongRegistrationIdentityBuildError> {
+    fn sort_and_validate(&mut self) -> Result<(), RegistrationIdentityBuildError> {
         sort_unique(
             RegistrationTableV1::StaticStorage,
             &mut self.static_storages,
@@ -186,34 +232,95 @@ impl StrongRegistrationIdentitySurfaceV1 {
         sort_unique(RegistrationTableV1::Callable, &mut self.callables)
     }
 
-    pub fn static_storages(&self) -> &[StrongRegistrationIdentityV1<PersistentStaticStorageId>] {
+    pub fn static_storages(&self) -> &[RegistrationIdentityV1<PersistentStaticStorageId>] {
         &self.static_storages
     }
 
-    pub fn immortal_objects(&self) -> &[StrongRegistrationIdentityV1<PersistentImmortalObjectId>] {
+    pub fn immortal_objects(&self) -> &[RegistrationIdentityV1<PersistentImmortalObjectId>] {
         &self.immortal_objects
     }
 
     pub fn initialization_units(
         &self,
-    ) -> &[StrongRegistrationIdentityV1<PersistentInitializationUnitId>] {
+    ) -> &[RegistrationIdentityV1<PersistentInitializationUnitId>] {
         &self.initialization_units
     }
 
-    pub fn type_registrations(&self) -> &[StrongRegistrationIdentityV1<PersistentExactTypeId>] {
+    pub fn type_registrations(&self) -> &[RegistrationIdentityV1<PersistentExactTypeId>] {
         &self.type_registrations
     }
 
-    pub fn safepoints(&self) -> &[StrongRegistrationIdentityV1<PersistentSafepointSiteId>] {
+    pub fn safepoints(&self) -> &[RegistrationIdentityV1<PersistentSafepointSiteId>] {
         &self.safepoints
     }
 
-    pub fn callables(&self) -> &[StrongRegistrationIdentityV1<PersistentCallableBodyId>] {
+    pub fn callables(&self) -> &[RegistrationIdentityV1<PersistentCallableBodyId>] {
         &self.callables
+    }
+    pub fn static_storage_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.static_storages.iter().map(|entry| {
+            registration_symbol(
+                PersistentSymbolKey::RootRegistration(entry.semantic_id()),
+                entry.owner(),
+            )
+        })
+    }
+
+    pub fn immortal_object_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.immortal_objects.iter().map(|entry| {
+            registration_symbol(
+                PersistentSymbolKey::ImmortalRegistration(entry.semantic_id()),
+                entry.owner(),
+            )
+        })
+    }
+
+    pub fn initialization_unit_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.initialization_units.iter().map(|entry| {
+            registration_symbol(
+                PersistentSymbolKey::InitializationRegistration(entry.semantic_id()),
+                entry.owner(),
+            )
+        })
+    }
+
+    pub fn type_registration_symbol_requests(
+        &self,
+    ) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.type_registrations.iter().map(|entry| {
+            registration_symbol(
+                PersistentSymbolKey::TypeRegistration(entry.semantic_id()),
+                entry.owner(),
+            )
+        })
+    }
+
+    pub fn safepoint_symbol_requests(&self) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.safepoints.iter().map(|entry| {
+            registration_symbol(
+                PersistentSymbolKey::SafepointRegistration(entry.semantic_id()),
+                entry.owner(),
+            )
+        })
+    }
+
+    pub fn callable_symbol_requests(&self) -> impl Iterator<Item = PersistentSymbolRequest> + '_ {
+        self.callables.iter().map(|entry| {
+            registration_symbol(
+                PersistentSymbolKey::CallableRegistration(entry.semantic_id()),
+                entry.owner(),
+            )
+        })
     }
 }
 
-impl WireEncode for StrongRegistrationIdentitySurfaceV1 {
+impl WireEncode for RegistrationIdentitySurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         encoder.field(1)?;
@@ -232,25 +339,23 @@ impl WireEncode for StrongRegistrationIdentitySurfaceV1 {
 }
 
 #[derive(Debug)]
-pub struct DecodedStrongRegistrationIdentitySurfaceV1 {
-    static_storages: Vec<DecodedStrongRegistrationIdentityV1<PersistentStaticStorageId>>,
-    immortal_objects: Vec<DecodedStrongRegistrationIdentityV1<PersistentImmortalObjectId>>,
-    initialization_units: Vec<DecodedStrongRegistrationIdentityV1<PersistentInitializationUnitId>>,
-    type_registrations: Vec<DecodedStrongRegistrationIdentityV1<PersistentExactTypeId>>,
-    safepoints: Vec<DecodedStrongRegistrationIdentityV1<PersistentSafepointSiteId>>,
-    callables: Vec<DecodedStrongRegistrationIdentityV1<PersistentCallableBodyId>>,
+pub struct DecodedRegistrationIdentitySurfaceV1 {
+    static_storages: Vec<DecodedRegistrationIdentityV1<PersistentStaticStorageId>>,
+    immortal_objects: Vec<DecodedRegistrationIdentityV1<PersistentImmortalObjectId>>,
+    initialization_units: Vec<DecodedRegistrationIdentityV1<PersistentInitializationUnitId>>,
+    type_registrations: Vec<DecodedRegistrationIdentityV1<PersistentExactTypeId>>,
+    safepoints: Vec<DecodedRegistrationIdentityV1<PersistentSafepointSiteId>>,
+    callables: Vec<DecodedRegistrationIdentityV1<PersistentCallableBodyId>>,
 }
 
-impl DecodedStrongRegistrationIdentitySurfaceV1 {
+impl DecodedRegistrationIdentitySurfaceV1 {
     pub fn validate(
         self,
         foundation: &ConeLirFoundation,
-        digest_plan: &StrongDigestFinalizationPlanV1,
-    ) -> Result<StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityValidationError>
-    {
-        let expected =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digest_plan)
-                .map_err(StrongRegistrationIdentityValidationError::Foundation)?;
+        digest_plan: &DigestFinalizationPlanV1,
+    ) -> Result<RegistrationIdentitySurfaceV1, RegistrationIdentityValidationError> {
+        let expected = RegistrationIdentitySurfaceV1::from_foundation(foundation, digest_plan)
+            .map_err(RegistrationIdentityValidationError::Foundation)?;
         validate_table(
             RegistrationTableV1::StaticStorage,
             self.static_storages,
@@ -285,7 +390,7 @@ impl DecodedStrongRegistrationIdentitySurfaceV1 {
     }
 }
 
-impl WireEncode for DecodedStrongRegistrationIdentitySurfaceV1 {
+impl WireEncode for DecodedRegistrationIdentitySurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         encoder.field(1)?;
@@ -303,7 +408,7 @@ impl WireEncode for DecodedStrongRegistrationIdentitySurfaceV1 {
     }
 }
 
-impl WireDecode for DecodedStrongRegistrationIdentitySurfaceV1 {
+impl WireDecode for DecodedRegistrationIdentitySurfaceV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
@@ -328,8 +433,8 @@ pub enum RegistrationTableV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongRegistrationIdentityBuildError {
-    OdrPlan(ObjectDefinitionPlanId),
+pub enum RegistrationIdentityBuildError {
+    UnknownDefinition(ObjectDefinitionPlanId),
     MissingFingerprintNode(ObjectDefinitionPlanId),
     RoleEntityMismatch {
         plan: ObjectDefinitionPlanId,
@@ -342,7 +447,7 @@ pub enum StrongRegistrationIdentityBuildError {
     },
 }
 
-impl fmt::Display for StrongRegistrationIdentityBuildError {
+impl fmt::Display for RegistrationIdentityBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -351,11 +456,11 @@ impl fmt::Display for StrongRegistrationIdentityBuildError {
     }
 }
 
-impl std::error::Error for StrongRegistrationIdentityBuildError {}
+impl std::error::Error for RegistrationIdentityBuildError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongRegistrationIdentityValidationError {
-    Foundation(StrongRegistrationIdentityBuildError),
+pub enum RegistrationIdentityValidationError {
+    Foundation(RegistrationIdentityBuildError),
     TableLength {
         table: RegistrationTableV1,
         expected: usize,
@@ -367,7 +472,7 @@ pub enum StrongRegistrationIdentityValidationError {
     },
 }
 
-impl fmt::Display for StrongRegistrationIdentityValidationError {
+impl fmt::Display for RegistrationIdentityValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -376,7 +481,7 @@ impl fmt::Display for StrongRegistrationIdentityValidationError {
     }
 }
 
-impl std::error::Error for StrongRegistrationIdentityValidationError {}
+impl std::error::Error for RegistrationIdentityValidationError {}
 
 fn registration_table(role: StrongDefinitionRole) -> Option<RegistrationTableV1> {
     match role {
@@ -392,26 +497,36 @@ fn registration_table(role: StrongDefinitionRole) -> Option<RegistrationTableV1>
     }
 }
 
+fn registration_symbol(
+    key: PersistentSymbolKey,
+    owner: RegistrationDefinitionOwner,
+) -> PersistentSymbolRequest {
+    PersistentSymbolRequest::new(key, owner.linkage())
+        .expect("registration symbol kinds accept their definition linkage")
+}
+
 fn entry<I: PersistentId>(
     semantic_id: I,
     definition_plan: ObjectDefinitionPlanId,
     fingerprint_node: DigestNodeId,
-) -> StrongRegistrationIdentityV1<I> {
-    StrongRegistrationIdentityV1 {
+    owner: RegistrationDefinitionOwner,
+) -> RegistrationIdentityV1<I> {
+    RegistrationIdentityV1 {
         semantic_id,
         definition_plan,
         fingerprint_node,
+        owner,
     }
 }
 
 fn sort_unique<I: PersistentId>(
     table: RegistrationTableV1,
-    entries: &mut [StrongRegistrationIdentityV1<I>],
-) -> Result<(), StrongRegistrationIdentityBuildError> {
-    entries.sort_unstable_by_key(StrongRegistrationIdentityV1::semantic_id);
+    entries: &mut [RegistrationIdentityV1<I>],
+) -> Result<(), RegistrationIdentityBuildError> {
+    entries.sort_unstable_by_key(RegistrationIdentityV1::semantic_id);
     for pair in entries.windows(2) {
         if pair[0].semantic_id == pair[1].semantic_id {
-            return Err(StrongRegistrationIdentityBuildError::DuplicateSemanticId {
+            return Err(RegistrationIdentityBuildError::DuplicateSemanticId {
                 table,
                 bytes: *pair[0].semantic_id.as_array(),
             });
@@ -422,11 +537,11 @@ fn sort_unique<I: PersistentId>(
 
 fn validate_table<I: PersistentId>(
     table: RegistrationTableV1,
-    decoded: Vec<DecodedStrongRegistrationIdentityV1<I>>,
-    expected: &[StrongRegistrationIdentityV1<I>],
-) -> Result<(), StrongRegistrationIdentityValidationError> {
+    decoded: Vec<DecodedRegistrationIdentityV1<I>>,
+    expected: &[RegistrationIdentityV1<I>],
+) -> Result<(), RegistrationIdentityValidationError> {
     if decoded.len() != expected.len() {
-        return Err(StrongRegistrationIdentityValidationError::TableLength {
+        return Err(RegistrationIdentityValidationError::TableLength {
             table,
             expected: expected.len(),
             actual: decoded.len(),
@@ -443,7 +558,7 @@ fn validate_table<I: PersistentId>(
                 .verify(expected.fingerprint_node)
                 .is_err()
         {
-            return Err(StrongRegistrationIdentityValidationError::EntryMismatch { table, index });
+            return Err(RegistrationIdentityValidationError::EntryMismatch { table, index });
         }
     }
     Ok(())
@@ -463,9 +578,9 @@ fn encode_array<T: WireEncode>(
 fn decode_table<I: PersistentId>(
     decoder: &mut Decoder<'_>,
     field: u32,
-) -> Result<Vec<DecodedStrongRegistrationIdentityV1<I>>, WireError> {
+) -> Result<Vec<DecodedRegistrationIdentityV1<I>>, WireError> {
     decoder.field(field, |decoder| {
-        decoder.decode_array(|decoder, _| DecodedStrongRegistrationIdentityV1::decode(decoder))
+        decoder.decode_array(|decoder, _| DecodedRegistrationIdentityV1::decode(decoder))
     })
 }
 

@@ -1,5 +1,5 @@
 use la_arena::Arena;
-use scoop_codegen::StrongScoopLirObjectKindV1;
+use scoop_codegen::ScoopLirObjectKindV1;
 use scoop_identity::{
     CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, PackagePath,
     PersistentCallableBodyId, PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
@@ -165,14 +165,14 @@ pub(super) fn roundtrip(
 }
 
 pub(super) fn check_ir(
-    rendered: &[scoop_codegen::RenderedStrongObjectModuleV1],
+    rendered: &[scoop_codegen::RenderedConeObjectModuleV1],
     module: &Module,
     cases: &[(PersistentCallableBodyId, ExternalTypeDescriptorId, Vec<u64>)],
 ) {
     for (index, (body, descriptor, offsets)) in cases.iter().enumerate() {
         let member = rendered
             .iter()
-            .find(|member| member.units().kind() == StrongScoopLirObjectKindV1::CallableBody(*body))
+            .find(|member| member.units().kind() == ScoopLirObjectKindV1::CallableBody(*body))
             .unwrap();
         let ir = member.llvm_ir();
         let symbol = module.meta.external_type_descriptors[*descriptor]

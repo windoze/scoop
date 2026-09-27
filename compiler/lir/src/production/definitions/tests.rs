@@ -20,7 +20,7 @@ fn definition_plan_surface_has_a_fixed_wire_vector_and_validates() {
         "81a30158203d751943715733e162e06681a6b144db51ce356b498c1964e7f6d0cceb68509602582098437a2d4cdd7cf6dce5fab22a24b7d7c1a913ef1ad362401ac3f40358b7a21603815820c59ceee916c019d90d7490fa770a23888f081460709b4b19f4f0a3601beed02b"
     );
 
-    let decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 =
+    let decoded: DecodedObjectDefinitionPlanSurfaceV1 =
         decode_canonical(&encode(&surface).unwrap()).unwrap();
     assert_eq!(decoded.validate(&mut identities, &foundation), Ok(surface));
 }
@@ -28,7 +28,7 @@ fn definition_plan_surface_has_a_fixed_wire_vector_and_validates() {
 #[test]
 fn definition_plan_reader_rejects_non_closed_products() {
     for bytes in [vec![0x81, 0xa2], vec![0x81, 0xa4]] {
-        assert!(decode_canonical::<DecodedStrongObjectDefinitionPlanSurfaceV1>(&bytes,).is_err());
+        assert!(decode_canonical::<DecodedObjectDefinitionPlanSurfaceV1>(&bytes,).is_err());
     }
 }
 
@@ -39,8 +39,8 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
     let missing = foundation(&records, vec![associated_atom(&records)]);
     let missing = ConeLirFoundation::try_new(ConeIdentity::CORE, missing).unwrap();
     assert_eq!(
-        StrongObjectDefinitionPlanSurfaceV1::from_foundation(&missing),
-        Err(StrongObjectDefinitionPlanBuildError::MissingPrimaryAtom(
+        ObjectDefinitionPlanSurfaceV1::from_foundation(&missing),
+        Err(ObjectDefinitionPlanBuildError::MissingPrimaryAtom(
             records.plan.id()
         ))
     );
@@ -57,8 +57,8 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
     let multiple = foundation(&records, vec![first_primary, other_primary]);
     let multiple = ConeLirFoundation::try_new(ConeIdentity::CORE, multiple).unwrap();
     assert_eq!(
-        StrongObjectDefinitionPlanSurfaceV1::from_foundation(&multiple),
-        Err(StrongObjectDefinitionPlanBuildError::MultiplePrimaryAtoms {
+        ObjectDefinitionPlanSurfaceV1::from_foundation(&multiple),
+        Err(ObjectDefinitionPlanBuildError::MultiplePrimaryAtoms {
             plan: records.plan.id(),
             first: expected_first,
             second: expected_second,
@@ -85,8 +85,8 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
     let invalid = foundation(&records, vec![primary_atom(&records), orphan]);
     let invalid = ConeLirFoundation::try_new(ConeIdentity::CORE, invalid).unwrap();
     assert_eq!(
-        StrongObjectDefinitionPlanSurfaceV1::from_foundation(&invalid),
-        Err(StrongObjectDefinitionPlanBuildError::OrphanAtom {
+        ObjectDefinitionPlanSurfaceV1::from_foundation(&invalid),
+        Err(ObjectDefinitionPlanBuildError::OrphanAtom {
             atom: orphan_id,
             plan: orphan_plan,
         })
@@ -97,20 +97,20 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
 fn validation_rejects_noncanonical_and_semantically_mismatched_atoms() {
     let (surface, mut identities, foundation) = fixture();
     let bytes = encode(&surface).unwrap();
-    let mut decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
+    let mut decoded: DecodedObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
     let duplicate = decoded.plans[0].associated_atoms[0];
     decoded.plans[0].associated_atoms.push(duplicate);
     assert!(matches!(
         decoded.validate(&mut identities, &foundation),
-        Err(StrongObjectDefinitionPlanValidationError::DuplicateAssociatedAtom { .. })
+        Err(ObjectDefinitionPlanValidationError::DuplicateAssociatedAtom { .. })
     ));
 
-    let mut decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
+    let mut decoded: DecodedObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
     let plan = &mut decoded.plans[0];
     std::mem::swap(&mut plan.primary_atom, &mut plan.associated_atoms[0]);
     assert_eq!(
         decoded.validate(&mut identities, &foundation),
-        Err(StrongObjectDefinitionPlanValidationError::PlanMismatch { index: 0 })
+        Err(ObjectDefinitionPlanValidationError::PlanMismatch { index: 0 })
     );
 }
 
@@ -193,7 +193,7 @@ fn foundation(
 }
 
 fn fixture() -> (
-    StrongObjectDefinitionPlanSurfaceV1,
+    ObjectDefinitionPlanSurfaceV1,
     ValidatedIdentityGraph,
     ConeLirFoundation,
 ) {
@@ -221,7 +221,7 @@ fn fixture() -> (
         .validate(ConeIdentity::CORE, &mut identities)
         .unwrap();
     let foundation = ConeLirFoundation::from_validated(validated);
-    let surface = StrongObjectDefinitionPlanSurfaceV1::from_foundation(&foundation).unwrap();
+    let surface = ObjectDefinitionPlanSurfaceV1::from_foundation(&foundation).unwrap();
     (surface, identities, foundation)
 }
 

@@ -15,10 +15,9 @@ use scoop_identity::{
     ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    ConeLirFoundation, ConeLirFoundationError, DecodedLirFoundation,
-    DecodedStrongProductionSectionV1, EntryProductionSourceV1, ImportedLirFoundation,
-    LirFoundationValidationError, StrongProductionSectionV1,
-    StrongProductionSectionValidationError,
+    ConeLirFoundation, ConeLirFoundationError, ConeProductionSectionV1,
+    ConeProductionSectionValidationError, DecodedConeProductionSectionV1, DecodedLirFoundation,
+    EntryProductionSourceV1, ImportedLirFoundation, LirFoundationValidationError,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation,
@@ -51,7 +50,7 @@ pub struct DecodedSingleConeCompileSections<'input> {
     mir_foundation: DecodedMirFoundation,
     mir_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
-    lir_production: DecodedStrongProductionSectionV1,
+    lir_production: DecodedConeProductionSectionV1,
 }
 
 /// Strong-profile Compile sections whose complete HIR-to-LIR identity graph
@@ -65,7 +64,7 @@ pub struct IdentityCheckedSingleConeCompileSections<'input> {
     mir_foundation: DecodedMirFoundation,
     mir_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
-    lir_production: DecodedStrongProductionSectionV1,
+    lir_production: DecodedConeProductionSectionV1,
 }
 
 /// Strong-profile foundations whose local structure and `RejectAll` ODR
@@ -79,7 +78,7 @@ pub struct OdrCheckedSingleConeCompileFoundations<'input> {
     mir_foundation: OdrFreeMirFoundation,
     mir_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: ConeLirFoundation,
-    lir_production: DecodedStrongProductionSectionV1,
+    lir_production: DecodedConeProductionSectionV1,
 }
 
 /// ODR-free foundations whose HIR and MIR production sections are locally
@@ -93,7 +92,7 @@ pub struct LocallyValidatedSingleConeCompileProduction<'input> {
     mir_foundation: OdrFreeMirFoundation,
     mir_production: CoreBootstrapBridgeSectionV1,
     lir_foundation: ConeLirFoundation,
-    lir_production: DecodedStrongProductionSectionV1,
+    lir_production: DecodedConeProductionSectionV1,
 }
 
 /// HIR and MIR production sections proven to describe the same manifest
@@ -116,7 +115,7 @@ pub struct StructurallyValidatedSingleConeCompileProduction<'input> {
     mir_foundation: OdrFreeMirFoundation,
     mir_production: CoreBootstrapBridgeSectionV1,
     lir_foundation: ConeLirFoundation,
-    lir_production: StrongProductionSectionV1,
+    lir_production: ConeProductionSectionV1,
 }
 
 /// Structurally valid strong Compile production whose source and target
@@ -136,7 +135,7 @@ pub(crate) struct OdrFreeStrongFoundationSet {
 pub(crate) struct DecodedStrongProfileProductionSet {
     pub(crate) hir: DecodedCoreBootstrapInterfaceSectionV1,
     pub(crate) mir: DecodedCoreBootstrapBridgeSectionV1,
-    pub(crate) lir: DecodedStrongProductionSectionV1,
+    pub(crate) lir: DecodedConeProductionSectionV1,
 }
 
 /// The validated HIR, MIR, and LIR production surfaces retained by a
@@ -145,7 +144,7 @@ pub(crate) struct DecodedStrongProfileProductionSet {
 pub struct ValidatedSingleConeStrongProduction {
     hir: Rc<CoreBootstrapInterfaceSectionV1>,
     mir: Rc<CoreBootstrapBridgeSectionV1>,
-    lir: Rc<StrongProductionSectionV1>,
+    lir: Rc<ConeProductionSectionV1>,
 }
 
 /// Validate and atomically import the complete Compile view of one
@@ -182,7 +181,7 @@ impl ValidatedSingleConeStrongProduction {
     pub(crate) fn new(
         hir: CoreBootstrapInterfaceSectionV1,
         mir: CoreBootstrapBridgeSectionV1,
-        lir: StrongProductionSectionV1,
+        lir: ConeProductionSectionV1,
     ) -> Self {
         Self {
             hir: Rc::new(hir),
@@ -199,7 +198,7 @@ impl ValidatedSingleConeStrongProduction {
         &self.mir
     }
 
-    pub fn lir(&self) -> &StrongProductionSectionV1 {
+    pub fn lir(&self) -> &ConeProductionSectionV1 {
         &self.lir
     }
 }
@@ -279,7 +278,7 @@ impl<'input> DecodedSingleConeCompileSections<'input> {
         &self.lir_foundation
     }
 
-    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_production
     }
 
@@ -358,7 +357,7 @@ impl<'input> IdentityCheckedSingleConeCompileSections<'input> {
         &self.lir_foundation
     }
 
-    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_production
     }
 
@@ -439,7 +438,7 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
         &self.lir_foundation
     }
 
-    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_production
     }
 
@@ -518,7 +517,7 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
         &self.lir_foundation
     }
 
-    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_production
     }
 
@@ -573,7 +572,7 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
         self.local.lir_foundation()
     }
 
-    pub const fn lir_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         self.local.lir_production_wire()
     }
 
@@ -656,7 +655,7 @@ impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
         &self.lir_foundation
     }
 
-    pub const fn lir_production(&self) -> &StrongProductionSectionV1 {
+    pub const fn lir_production(&self) -> &ConeProductionSectionV1 {
         &self.lir_production
     }
 

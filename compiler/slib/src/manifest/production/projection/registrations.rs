@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) fn registration_identities_match<D, C, I>(
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     registrations: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
 ) -> bool
 where
@@ -110,7 +110,7 @@ where
 }
 
 fn table_matches<I: scoop_identity::PersistentId>(
-    identities: &[StrongRegistrationIdentityV1<I>],
+    identities: &[RegistrationIdentityV1<I>],
     plans: impl IntoIterator<Item = (I, ObjectDefinitionPlanId, DigestNodeId)>,
 ) -> bool {
     identities

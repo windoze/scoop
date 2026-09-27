@@ -4,7 +4,7 @@ use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestPatchIntentId, DigestSemanticFieldRole,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId,
 };
-use scoop_lir::{ConeLirFoundation, StrongDigestFinalizationPlanV1};
+use scoop_lir::{ConeLirFoundation, DigestFinalizationPlanV1};
 
 use super::{
     DigestPatchSiteValidationError, ProvisionalDigestPatchSiteV1,
@@ -26,7 +26,7 @@ pub(super) struct ExpectedPatchSite {
 pub(super) fn derive_expected_sites(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     foundation: &ConeLirFoundation,
-    digest_plan: &StrongDigestFinalizationPlanV1,
+    digest_plan: &DigestFinalizationPlanV1,
 ) -> Result<BTreeMap<DigestPatchIntentId, ExpectedPatchSite>, DigestPatchSiteValidationError> {
     let scoop_members = builtins
         .member_plan()

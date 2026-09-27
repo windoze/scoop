@@ -1,9 +1,7 @@
 //! Resolve unit definitions before constructing their dependency edges.
 
 use super::*;
-use crate::{
-    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
-};
+use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 use scoop_identity::{
     DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanKey, PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
@@ -21,8 +19,8 @@ impl StrongInitializationUnitDefinitionRefV2 {
     pub fn from_foundation(
         unit: PersistentInitializationUnitId,
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        identities: &RegistrationIdentitySurfaceV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, Error> {
         let identity = identities
             .initialization_units()

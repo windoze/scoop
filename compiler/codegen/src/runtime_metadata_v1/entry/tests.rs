@@ -14,8 +14,8 @@ use scoop_identity::{
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestNodeV1, EntryProductionPlanV1,
-    EntryProductionSourceV1, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestNodeV1,
+    EntryProductionPlanV1, EntryProductionSourceV1, RegistrationIdentitySurfaceV1,
 };
 
 use super::{
@@ -317,9 +317,9 @@ fn executable_plan() -> EntryProductionPlanV1 {
         )
         .unwrap(),
     );
-    let digests = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
+    let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     EntryProductionPlanV1::new(
         EntryProductionSourceV1::executable(source),
         &foundation,

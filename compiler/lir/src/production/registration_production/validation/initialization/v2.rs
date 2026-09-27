@@ -15,10 +15,10 @@ pub fn validate_initialization_registration_constituents_v2(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     static_storages: StrongStaticStorageSemanticPlanSetV1,
     definitions: &StrongInitializationDefinitionCatalogV2,
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<
     crate::StrongInitializationUnitSemanticPlanSetV2,
     StrongRegistrationProductionValidationError,

@@ -18,14 +18,21 @@ pub(crate) struct BoundaryDefinitionV1 {
     pub(super) name: Vec<u8>,
     pub(super) section_ordinal: u8,
     pub(super) value: u64,
+    pub(super) linkage: scoop_lir::LinkageClass,
 }
 
 impl BoundaryDefinitionV1 {
-    pub(crate) fn new(name: Vec<u8>, section_ordinal: u8, value: u64) -> Self {
+    pub(crate) fn new(
+        name: Vec<u8>,
+        section_ordinal: u8,
+        value: u64,
+        linkage: scoop_lir::LinkageClass,
+    ) -> Self {
         Self {
             name,
             section_ordinal,
             value,
+            linkage,
         }
     }
 }
@@ -81,7 +88,8 @@ pub(crate) struct MachOSymbol {
 impl MachOSymbol {
     fn is_external_definition(&self) -> bool {
         self.symbol_type == (macho::N_SECT | macho::N_EXT)
-            && self.description & !(macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY) == 0
+            && self.description & !(macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY | macho::N_WEAK_DEF)
+                == 0
     }
 
     pub(crate) const fn section_ordinal(&self) -> u8 {

@@ -5,15 +5,15 @@ use std::fmt;
 pub use scoop_identity::ObjectDefinitionAtomId;
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionIdentityError,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId,
-    PersistentSafepointSiteId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    SafepointId, SafepointSiteRole, StrongDefinitionEntity, StrongDefinitionRole,
+    DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionPlanId,
+    PersistentCallableBodyId, PersistentSafepointSiteId, PersistentSymbolError,
+    PersistentSymbolKey, PersistentSymbolRequest, SafepointId, SafepointSiteRole,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::{
-    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointSemanticPlanSetV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1,
+    RegistrationIdentitySurfaceV1, StrongSafepointSemanticPlanSetV1,
 };
 
 /// All semantic identities and graph writers needed to emit one provisional
@@ -29,12 +29,17 @@ pub struct StrongSafepointRegistrationPlanV1 {
     definition_plan: ObjectDefinitionPlanId,
     primary_atom: ObjectDefinitionAtomId,
     registration_fingerprint_node: DigestNodeId,
+    definition_owner: crate::RegistrationDefinitionOwner,
     normalized_stackmap_fingerprint_node: DigestNodeId,
     registration_definition_patch: DigestPatchIntentId,
     normalized_stackmap_patch: DigestPatchIntentId,
 }
 
 impl StrongSafepointRegistrationPlanV1 {
+    pub const fn definition_owner(self) -> crate::RegistrationDefinitionOwner {
+        self.definition_owner
+    }
+
     pub const fn site(self) -> PersistentSafepointSiteId {
         self.site
     }
@@ -95,9 +100,9 @@ pub struct StrongSafepointRegistrationPlanSetV1 {
 impl StrongSafepointRegistrationPlanSetV1 {
     pub fn new(
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
+        identities: &RegistrationIdentitySurfaceV1,
         semantics: &StrongSafepointSemanticPlanSetV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongSafepointRegistrationPlanBuildError> {
         if semantics.producer() != foundation.producer() {
             return Err(
@@ -150,8 +155,8 @@ impl StrongSafepointRegistrationPlanSetV1 {
 fn build_registration(
     foundation: &ConeLirFoundation,
     semantic: &crate::StrongSafepointSemanticPlanV1,
-    identity: &crate::StrongRegistrationIdentityV1<PersistentSafepointSiteId>,
-    digests: &StrongDigestFinalizationPlanV1,
+    identity: &crate::RegistrationIdentityV1<PersistentSafepointSiteId>,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongSafepointRegistrationPlanV1, StrongSafepointRegistrationPlanBuildError> {
     let site = semantic.site();
     if !foundation.contains_safepoint_site(site) {
@@ -172,19 +177,13 @@ fn build_registration(
         });
     }
 
-    let definition_key = ObjectDefinitionPlanKey::strong(
-        foundation.producer(),
-        StrongDefinitionEntity::safepoint_site(site),
-        StrongDefinitionRole::SafepointRegistration,
-    )
-    .map_err(StrongSafepointRegistrationPlanBuildError::DefinitionIdentity)?;
+    let definition_owner = identity.owner();
     let definition = foundation
-        .definition_plans()
-        .iter()
-        .find(|record| record.key() == &definition_key)
-        .ok_or(
-            StrongSafepointRegistrationPlanBuildError::MissingDefinition(Box::new(definition_key)),
-        )?;
+        .definition_for(
+            StrongDefinitionEntity::safepoint_site(site),
+            StrongDefinitionRole::SafepointRegistration,
+        )
+        .ok_or(StrongSafepointRegistrationPlanBuildError::MissingDefinition(site))?;
     if identity.definition_plan() != definition.id() {
         return Err(
             StrongSafepointRegistrationPlanBuildError::RegistrationDefinitionMismatch {
@@ -215,7 +214,7 @@ fn build_registration(
 
     let symbol = PersistentSymbolRequest::new(
         PersistentSymbolKey::SafepointRegistration(site),
-        LinkageClass::ConeStrong,
+        definition_owner.linkage(),
     )
     .map_err(StrongSafepointRegistrationPlanBuildError::Symbol)?;
     if !foundation.contains_symbol_request(symbol) {
@@ -225,7 +224,14 @@ fn build_registration(
     }
 
     let object = require_digest_node(digests, DigestNodeKey::object_definition(primary_atom))?;
-    if !object.direct_inputs().is_empty() {
+    let stackmap = require_digest_node(digests, DigestNodeKey::stackmap_record(site))?;
+    let expected_object_inputs = match definition_owner {
+        crate::RegistrationDefinitionOwner::Strong => Vec::new(),
+        crate::RegistrationDefinitionOwner::Odr { .. } => {
+            vec![DigestInputRefV1::from_node(stackmap)]
+        }
+    };
+    if object.direct_inputs() != expected_object_inputs {
         return Err(
             StrongSafepointRegistrationPlanBuildError::ObjectDefinitionInputs {
                 node: object.id(),
@@ -245,9 +251,7 @@ fn build_registration(
             },
         );
     }
-    let stackmap = require_digest_node(digests, DigestNodeKey::stackmap_record(site))?;
-    let registration =
-        require_digest_node(digests, DigestNodeKey::strong_registration(definition.id()))?;
+    let registration = require_digest_node(digests, definition_owner.digest_key(definition.id()))?;
     if registration.id() != identity.fingerprint_node() {
         return Err(
             StrongSafepointRegistrationPlanBuildError::RegistrationDigestMismatch {
@@ -258,10 +262,20 @@ fn build_registration(
         );
     }
 
-    let expected_inputs = vec![
+    let mut expected_inputs = vec![
         DigestInputRefV1::from_node(object),
         DigestInputRefV1::from_node(stackmap),
     ];
+    if matches!(
+        definition_owner,
+        crate::RegistrationDefinitionOwner::Odr { .. }
+    ) {
+        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
+            digests,
+            DigestNodeKey::lir_definition(primary_atom),
+        )?));
+    }
+    expected_inputs.sort_unstable();
     if registration.direct_inputs() != expected_inputs {
         return Err(StrongSafepointRegistrationPlanBuildError::DirectInputs {
             node: registration.id(),
@@ -299,6 +313,7 @@ fn build_registration(
         definition_plan: definition.id(),
         primary_atom,
         registration_fingerprint_node: registration.id(),
+        definition_owner,
         normalized_stackmap_fingerprint_node: stackmap.id(),
         registration_definition_patch,
         normalized_stackmap_patch,
@@ -306,7 +321,7 @@ fn build_registration(
 }
 
 fn require_digest_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongSafepointRegistrationPlanBuildError> {
     digests
@@ -332,7 +347,6 @@ fn require_only_patch(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongSafepointRegistrationPlanBuildError {
-    DefinitionIdentity(ObjectDefinitionIdentityError),
     Symbol(PersistentSymbolError),
     ProducerMismatch {
         foundation: ConeIdentity,
@@ -351,7 +365,7 @@ pub enum StrongSafepointRegistrationPlanBuildError {
         site: PersistentSafepointSiteId,
         owner: PersistentCallableBodyId,
     },
-    MissingDefinition(Box<ObjectDefinitionPlanKey>),
+    MissingDefinition(PersistentSafepointSiteId),
     RegistrationDefinitionMismatch {
         site: PersistentSafepointSiteId,
         expected: ObjectDefinitionPlanId,

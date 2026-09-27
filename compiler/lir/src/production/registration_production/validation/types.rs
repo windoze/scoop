@@ -24,9 +24,9 @@ pub(crate) fn validate_types(
     decoded: Vec<DecodedStrongTypeRegistrationPlanV1>,
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
 
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongTypeDescriptorSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     validate_types_with_references(
         decoded,
@@ -50,10 +50,10 @@ pub fn validate_type_registration_constituents_v2(
     decoded: Vec<crate::DecodedStrongTypeRegistrationPlanV2>,
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
 
     definitions: &crate::StrongTypeReferenceDefinitionsV2,
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<crate::StrongTypeDescriptorSemanticPlanSetV2, StrongRegistrationProductionValidationError>
 {
     for actual in [definitions.consumer()] {
@@ -87,8 +87,8 @@ fn validate_types_with_references<R: TypeReferences>(
     decoded: Vec<DecodedTypeFor<R>>,
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
-    digests: &StrongDigestFinalizationPlanV1,
+    identities: &RegistrationIdentitySurfaceV1,
+    digests: &DigestFinalizationPlanV1,
     references: &R,
 ) -> Result<SemanticTypeSetFor<R>, StrongRegistrationProductionValidationError> {
     require_length(

@@ -12,7 +12,7 @@ pub struct LirConstituentsValidatedCrossConeLayoutSections<
     'input,
     L,
     O = lir::CrossConeLirBridgeSectionV1,
-    S = lir::DecodedStrongProductionSectionV2,
+    S = lir::DecodedConeProductionSectionV2,
     M = mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
 > {
     pub(super) prepared: PreparedCrossConeLayoutMirSections<'input>,
@@ -27,7 +27,7 @@ pub struct LirConstituentsValidatedCrossConeLayoutClosure<
     'input,
     L,
     O = lir::CrossConeLirBridgeSectionV1,
-    S = lir::DecodedStrongProductionSectionV2,
+    S = lir::DecodedConeProductionSectionV2,
     M = mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
 > {
     pub(super) current: ConeIdentity,

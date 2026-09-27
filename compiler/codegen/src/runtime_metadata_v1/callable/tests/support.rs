@@ -8,9 +8,8 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
-    StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
+    DigestNodeV1, RegistrationIdentitySurfaceV1, StrongCallableRegistrationPlanSetV1,
 };
 
 pub(super) fn callable_plan() -> StrongCallableRegistrationPlanSetV1 {
@@ -101,13 +100,12 @@ pub(super) fn callable_plan() -> StrongCallableRegistrationPlanSetV1 {
         Vec::new(),
     )
     .unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(
+    let digests = DigestFinalizationPlanV1::new(
         vec![body_node, object_node, registration_node, image],
         &foundation,
     )
     .unwrap();
-    let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     StrongCallableRegistrationPlanSetV1::new(
         &foundation,
         &identities,

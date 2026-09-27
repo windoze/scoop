@@ -4,7 +4,7 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{ProvisionalDigestPatchSiteV1, verify_scoop_lir_digest_patch_sites_v1};
-use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
+use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
 #[test]
 fn verifies_static_storage_registration_and_initial_artifacts() {
@@ -326,8 +326,7 @@ fn rejects_a_registration_node_with_the_wrong_direct_inputs() {
             .unwrap()
         })
         .collect();
-    let wrong_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,

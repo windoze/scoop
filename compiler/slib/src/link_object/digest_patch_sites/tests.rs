@@ -2,9 +2,8 @@ use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey, DigestSemanticFieldRole,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
-    GeneratedBridgePlanSetV1, LirTargetProfile, StrongDigestFinalizationPlanV1,
-    StrongObjectSymbolSurfaceV1,
+    CBridgeProductionSetV1, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
+    DigestInputRefV1, GeneratedBridgePlanSetV1, LirTargetProfile, ObjectSymbolSurfaceV1,
 };
 
 use super::*;
@@ -235,7 +234,7 @@ fn rejects_two_distinct_intents_materialized_over_the_same_bytes() {
     ];
     intents.sort_unstable();
     fixture.digest_plan =
-        StrongDigestFinalizationPlanV1::new(vec![image_node, definition_node], &fixture.foundation)
+        DigestFinalizationPlanV1::new(vec![image_node, definition_node], &fixture.foundation)
             .unwrap();
     let sites = intents.map(|intent| {
         ProvisionalDigestPatchSiteV1::new(
@@ -275,7 +274,7 @@ fn patch_site(fixture: &PatchFixture) -> ProvisionalDigestPatchSiteV1 {
 
 struct PatchFixture {
     foundation: scoop_lir::ConeLirFoundation,
-    digest_plan: StrongDigestFinalizationPlanV1,
+    digest_plan: DigestFinalizationPlanV1,
     builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     bytes: Vec<u8>,
     section_offset: u64,
@@ -289,7 +288,7 @@ fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFi
     let base = fixture(None);
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&base.foundation).unwrap();
     let member_plan = member_plan(&base, &bridge_plan);
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&base.foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&base.foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
         LirTargetProfile::DARWIN_AARCH64,
         &surface,
@@ -352,7 +351,7 @@ fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFi
     );
     let node = scoop_lir::DigestNodeV1::new(key, Vec::new(), vec![patch]).unwrap();
     let intent = node.patch_intents()[0].id();
-    let digest_plan = StrongDigestFinalizationPlanV1::new(vec![node], &base.foundation).unwrap();
+    let digest_plan = DigestFinalizationPlanV1::new(vec![node], &base.foundation).unwrap();
     let atom = base
         .foundation
         .resolve_definition_atom(base.lir_plan, DefinitionAtomRole::Primary)

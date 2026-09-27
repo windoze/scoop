@@ -178,6 +178,13 @@ impl ConeLirFoundation {
             .map(|index| &self.definition_plans()[index])
     }
 
+    pub(crate) fn odr_member(&self, id: OdrMemberId) -> Option<&super::OdrMemberRecord> {
+        self.canonical
+            .odr_members
+            .iter()
+            .find(|record| record.id() == id)
+    }
+
     pub(crate) fn callable_bodies(&self) -> &[super::CallableBodyRecord] {
         &self.canonical.callable_bodies
     }

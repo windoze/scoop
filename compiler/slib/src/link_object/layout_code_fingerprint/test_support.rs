@@ -6,9 +6,10 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CallingConvention, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
-    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, EntryProductionSourceV1,
-    ExternalCallableRootPlan, LirTargetProfile, SelectedDependencyLirCallableV1,
-    StrongProductionSectionV2, StrongRegistrationProductionSurfaceV2, ValidatedLirTargetSelection,
+    ConeProductionSectionV2, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
+    EntryProductionSourceV1, ExternalCallableRootPlan, LirTargetProfile,
+    SelectedDependencyLirCallableV1, StrongRegistrationProductionSurfaceV2,
+    ValidatedLirTargetSelection,
 };
 
 use super::*;
@@ -71,7 +72,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let mismatch_provider =
         crate::link_object::layout_link_closure::tests::fixture::Provider::new();
     let mismatched_layout = mismatch_provider.consumer(producer);
-    let v2 = StrongProductionSectionV2::new(
+    let v2 = ConeProductionSectionV2::new(
         cone.coordinate().clone(),
         v1.image_plan().dependencies(),
         &foundation,

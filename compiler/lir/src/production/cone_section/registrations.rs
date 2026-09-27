@@ -2,12 +2,12 @@
 
 use super::*;
 
-impl StrongProductionSectionV2 {
+impl ConeProductionSectionV2 {
     pub fn provider(&self) -> ConeIdentity {
         self.type_registrations().producer()
     }
 
-    pub fn registration_identities(&self) -> &crate::StrongRegistrationIdentitySurfaceV1 {
+    pub fn registration_identities(&self) -> &crate::RegistrationIdentitySurfaceV1 {
         self.registration_production().identities()
     }
 

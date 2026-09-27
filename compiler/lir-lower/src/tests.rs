@@ -241,7 +241,7 @@ fn lower(module: mir::Module) -> lir::Module {
     try_lower(module).unwrap().into_module()
 }
 
-fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
+fn lower_production(module: mir::Module) -> lir::ConeProductionSectionV1 {
     let input = seal_strong_input(module);
     let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
     let output = lower_test_input(&input).unwrap();

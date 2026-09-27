@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn validate(
-    production: &StrongProductionSectionV2,
+    production: &ConeProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     for record in section.layouts().records() {
@@ -23,7 +23,7 @@ pub(super) fn validate(
 }
 
 pub(super) fn matches_definition(
-    definitions: &crate::StrongObjectSymbolSurfaceV1,
+    definitions: &crate::ObjectSymbolSurfaceV1,
     physical: crate::StrongShapeDefinitionRefV1,
 ) -> bool {
     definitions.plan(physical.definition()).is_some_and(|plan| {

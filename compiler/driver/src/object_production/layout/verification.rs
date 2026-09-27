@@ -1,7 +1,7 @@
 use super::*;
 
 pub(crate) fn prepare(
-    emitted: EmittedStrongObjectSetV2,
+    emitted: EmittedConeObjectSetV2,
     generated: &EmittedGeneratedCBridgeObjectSetV1,
 ) -> Result<PreparedLayoutObjects, BuiltinObjectProductionError> {
     let production = emitted.production();

@@ -81,7 +81,7 @@ impl std::error::Error for StrongProfileLocalProductionError {
 #[derive(Debug)]
 pub enum StrongProfileLirProductionError {
     ShapeSources(PublicNominalShapeProjectionError),
-    Production(StrongProductionSectionValidationError),
+    Production(ConeProductionSectionValidationError),
 }
 
 impl fmt::Display for StrongProfileLirProductionError {

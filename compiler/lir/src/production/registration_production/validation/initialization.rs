@@ -11,7 +11,7 @@ pub(super) fn validate_initialization_units(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     static_storages: StrongStaticStorageSemanticPlanSetV1,
 ) -> Result<StrongInitializationUnitSemanticPlanSetV1, StrongRegistrationProductionValidationError>
 {
@@ -45,7 +45,7 @@ fn replay_units<D: crate::StrongInitializationDependencyReference>(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     target: LirTargetProfile,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     static_storages: StrongStaticStorageSemanticPlanSetV1,
     mut resolve: impl FnMut(
         PersistentInitializationUnitId,

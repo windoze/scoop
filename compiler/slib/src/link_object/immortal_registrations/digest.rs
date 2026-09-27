@@ -1,6 +1,6 @@
 use scoop_identity::{DigestNodeKey, PersistentImmortalObjectId};
 use scoop_lir::{
-    DigestInputRefV1, StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanV1,
+    DigestFinalizationPlanV1, DigestInputRefV1, StrongImmortalObjectRegistrationPlanV1,
 };
 
 use super::{
@@ -8,7 +8,7 @@ use super::{
 };
 
 pub(super) fn validate_digest_graph(
-    digest_plan: &StrongDigestFinalizationPlanV1,
+    digest_plan: &DigestFinalizationPlanV1,
     plan: StrongImmortalObjectRegistrationPlanV1,
 ) -> Result<(), StrongImmortalObjectRegistrationValidationError> {
     use ImmortalObjectRegistrationDigestPlanFailureV1 as Failure;

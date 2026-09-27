@@ -36,13 +36,11 @@ pub(super) fn validate_callable_runtime_scans(
         }
         callables.push(StrongCallableRuntimeScanPlanV1::from_artifact(body, atoms));
     }
-    StrongCallableRuntimeScanPlanSetV1::from_artifact(foundation.producer(), callables).map_err(
-        |error| {
-            StrongRegistrationProductionValidationError::Expected(Box::new(
-                StrongRegistrationProductionBuildError::CallableRuntimeScans(error),
-            ))
-        },
-    )
+    StrongCallableRuntimeScanPlanSetV1::from_artifact(foundation, callables).map_err(|error| {
+        StrongRegistrationProductionValidationError::Expected(Box::new(
+            StrongRegistrationProductionBuildError::CallableRuntimeScans(error),
+        ))
+    })
 }
 
 fn validate_callable_ref_scan(
@@ -91,7 +89,7 @@ fn validate_callable_ref_scan(
 pub(super) fn validate_safepoints(
     decoded: Vec<DecodedStrongSafepointRegistrationPlanV1>,
     foundation: &ConeLirFoundation,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
 ) -> Result<StrongSafepointSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     require_length(
         RegistrationProductionTableV1::Safepoint,

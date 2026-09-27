@@ -7,8 +7,8 @@ use scoop_hir::{
 };
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::{
-    ConeLirFoundation, DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
-    DecodedStrongProductionSectionV1,
+    ConeLirFoundation, DecodedConeProductionSectionV1, DecodedCrossConeLirBridgeSectionV1,
+    DecodedLirFoundation,
 };
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, DecodedMirFoundation,
@@ -96,7 +96,7 @@ impl DecodedCrossConeHirFrontSections<'_> {
         &self.lir_foundation
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_strong_production
     }
 
@@ -150,7 +150,7 @@ impl FoundationValidatedCrossConeHirFrontSections<'_> {
         &self.mir_cross_cone_bridge
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_strong_production
     }
 
@@ -204,7 +204,7 @@ impl ResolvedCrossConeHirFrontSections<'_> {
         &self.mir_cross_cone_bridge
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_strong_production
     }
 
@@ -258,7 +258,7 @@ impl HirProductionValidatedCrossConeHirFrontSections<'_> {
         &self.mir_cross_cone_bridge
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
         &self.lir_strong_production
     }
 

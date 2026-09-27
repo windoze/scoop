@@ -14,8 +14,8 @@ use scoop_identity::{
 };
 
 use crate::{
-    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1, TypeDescriptorInlineScanV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1,
+    RegistrationIdentitySurfaceV1, TypeDescriptorInlineScanV1,
 };
 
 mod semantics;
@@ -32,9 +32,9 @@ impl<D: StrongDescriptorReference, C: Clone> StrongTypeRegistrationPlanSet<D, C>
     pub fn new(
         target: crate::LirTargetProfile,
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
+        identities: &RegistrationIdentitySurfaceV1,
         semantics: &StrongTypeDescriptorSemanticPlanSet<D, C>,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongTypeRegistrationPlanBuildError> {
         if semantics.producer() != foundation.producer() {
             return Err(StrongTypeRegistrationPlanBuildError::ProducerMismatch {

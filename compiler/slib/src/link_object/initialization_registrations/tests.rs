@@ -1,6 +1,6 @@
 mod support;
 
-use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
+use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
 use super::*;
 use crate::link_object::{ProvisionalDigestPatchSiteV1, verify_scoop_lir_digest_patch_sites_v1};
@@ -174,7 +174,7 @@ fn rejects_registration_digest_graph_drift() {
             .unwrap()
         })
         .collect();
-    let digest_plan = StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
         fixture.builtins.clone(),
         &fixture.foundation,

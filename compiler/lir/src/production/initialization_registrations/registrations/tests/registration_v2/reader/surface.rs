@@ -10,7 +10,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             ..Options::default()
         });
         let coordinate = scoop_identity::ConeCoordinate::reserved_single_file();
-        crate::production::strong_section::tests::attach_image(
+        crate::production::cone_section::tests::attach_image(
             &coordinate,
             &mut fixture.foundation,
             &mut fixture.digests,
@@ -71,7 +71,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             &[reference]
         );
 
-        let section = crate::StrongProductionSectionV2::from_parts(
+        let section = crate::ConeProductionSectionV2::from_parts(
             coordinate.clone(),
             &[],
             &fixture.foundation,
@@ -81,7 +81,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             &[],
         )
         .unwrap();
-        let decoded: crate::DecodedStrongProductionSectionV2 =
+        let decoded: crate::DecodedConeProductionSectionV2 =
             decode_canonical(&encode(&section).unwrap()).unwrap();
         let complete = decoded
             .replay(

@@ -174,7 +174,7 @@ impl MirSourceCallablesValidatedCrossConeLayoutSections<'_> {
     pub fn initialization_units(&self) -> &[scoop_mir::MirTypeBridgeInitializationUnitV1] {
         &self.units
     }
-    pub fn lir_strong_production_wire(&self) -> &scoop_lir::DecodedStrongProductionSectionV2 {
+    pub fn lir_strong_production_wire(&self) -> &scoop_lir::DecodedConeProductionSectionV2 {
         &self.lir.strong
     }
     pub fn lir_cross_cone_bridge_wire(&self) -> &scoop_lir::DecodedCrossConeLirBridgeSectionV1 {

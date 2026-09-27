@@ -5,7 +5,7 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 use crate::link_object::{
     ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, verify_scoop_lir_digest_patch_sites_v1,
 };
-use scoop_lir::{DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1};
+use scoop_lir::{DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1};
 
 #[test]
 fn verifies_exact_registration_records_against_stackmaps_and_patch_sites() {
@@ -207,8 +207,7 @@ fn rejects_a_patch_proof_from_a_different_digest_graph() {
             .unwrap()
         })
         .collect();
-    let wrong_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,
@@ -268,8 +267,7 @@ fn rejects_a_non_leaf_registration_object_definition() {
             .unwrap()
         })
         .collect();
-    let wrong_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,
@@ -341,8 +339,7 @@ fn rejects_a_registration_object_definition_with_a_patch_writer() {
             DigestNodeV1::new(*node.key(), node.direct_inputs().to_vec(), patches).unwrap()
         })
         .collect();
-    let wrong_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let mut provisional = fixture
         .provisional_patch_sites
         .iter()

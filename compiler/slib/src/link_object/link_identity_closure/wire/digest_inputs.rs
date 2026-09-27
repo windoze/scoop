@@ -8,7 +8,7 @@ impl DecodedLinkIdentityClosureSectionV1 {
     pub fn replay_digest_patch_inputs(
         &self,
         member_plan: &PlannedLinkObjectMemberSetV1,
-        digest_plan: &StrongDigestFinalizationPlanV1,
+        digest_plan: &DigestFinalizationPlanV1,
     ) -> Result<Vec<ProvisionalDigestPatchSiteV1>, LinkDigestPatchInputValidationError> {
         let path = WirePath::root().field(3);
 

@@ -92,8 +92,8 @@ pub(crate) fn validate_strong_profile_lir_production(
     graph: &ValidatedGraphArtifact<'_>,
     identities: &mut ValidatedIdentityGraph,
     front: StrongProfileSemanticFront<'_>,
-    lir: DecodedStrongProductionSectionV1,
-) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
+    lir: DecodedConeProductionSectionV1,
+) -> Result<ConeProductionSectionV1, StrongProfileLirProductionError> {
     let shape_sources = PublicNominalShapeRequirementsV1::from_direct_surface(
         graph.identity(),
         front.hir_production.direct_public_surface(),
@@ -108,10 +108,10 @@ pub(crate) fn validate_strong_profile_lir_with_shape_sources(
     graph: &ValidatedGraphArtifact<'_>,
     identities: &mut ValidatedIdentityGraph,
     front: StrongProfileSemanticFront<'_>,
-    lir: DecodedStrongProductionSectionV1,
+    lir: DecodedConeProductionSectionV1,
 
     shape_sources: &[scoop_identity::SourceDeclarationKey],
-) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
+) -> Result<ConeProductionSectionV1, StrongProfileLirProductionError> {
     let entry_source = match front.mir_production.entry_bridge() {
         EntryMirBridgeBranchV1::Library => EntryProductionSourceV1::Library,
         EntryMirBridgeBranchV1::Executable(bridge) => {

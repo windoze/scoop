@@ -5,16 +5,16 @@ use scoop_wire::WireError;
 
 use super::*;
 
-impl DecodedStrongDigestFinalizationPlanV1 {
+impl DecodedDigestFinalizationPlanV1 {
     /// Resolves the candidate graph, without claiming canonical role coverage.
     /// The complete graph is replayed after its registration relations pass.
     pub fn resolve_foundation(
         self,
         foundation: &crate::ConeLirFoundation,
         dependencies: &crate::StrongTypeReferenceDefinitionsV2,
-    ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestPlanReplayError> {
+    ) -> Result<DigestFinalizationPlanV1, DigestPlanReplayError> {
         self.validate_resolved(&mut Foundation(foundation, dependencies), foundation)
-            .map_err(StrongDigestPlanReplayError::Validation)
+            .map_err(DigestPlanReplayError::Validation)
     }
 }
 
@@ -114,27 +114,38 @@ impl PersistentIdResolver<OdrMemberId> for Foundation<'_> {
         &mut self,
         decoded: DecodedPersistentId<OdrMemberId>,
     ) -> Result<OdrMemberId, Self::Error> {
-        Err(IdentityReferenceError::Missing {
-            kind: "OdrMemberId",
-            id: *decoded.as_array(),
-        })
+        self.0
+            .definition_plans()
+            .iter()
+            .find_map(|record| match record.key().owner() {
+                ObjectDefinitionPlanOwner::Odr { member }
+                    if member.as_array() == decoded.as_array() =>
+                {
+                    Some(member)
+                }
+                _ => None,
+            })
+            .ok_or(IdentityReferenceError::Missing {
+                kind: "OdrMemberId",
+                id: *decoded.as_array(),
+            })
     }
 }
 
 #[derive(Debug)]
-pub enum StrongDigestPlanReplayError {
-    Validation(StrongDigestPlanValidationError),
+pub enum DigestPlanReplayError {
+    Validation(DigestPlanValidationError),
     Encoding,
     Resource(WireError),
 }
-impl From<WireError> for StrongDigestPlanReplayError {
+impl From<WireError> for DigestPlanReplayError {
     fn from(source: WireError) -> Self {
         Self::Resource(source)
     }
 }
-impl std::fmt::Display for StrongDigestPlanReplayError {
+impl std::fmt::Display for DigestPlanReplayError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "invalid foundation digest graph: {self:?}")
     }
 }
-impl std::error::Error for StrongDigestPlanReplayError {}
+impl std::error::Error for DigestPlanReplayError {}

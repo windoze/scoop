@@ -11,7 +11,7 @@ impl DecodedLinkIdentityClosureSectionV1 {
     /// This proves member assignment only, not object contents or Code identity.
     pub fn replay_materializations(
         &self,
-        partition: &StrongProducerUnitPartitionV1,
+        partition: &ProducerUnitPartitionV1,
     ) -> Result<PlannedLinkObjectMemberSetV1, Error> {
         let path = WirePath::root().field(1);
         let definitions = partition.scoop_lir_definition_plans();

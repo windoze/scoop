@@ -1,7 +1,7 @@
 use super::*;
 
-mod strong;
-pub use strong::*;
+mod objects;
+pub use objects::*;
 
 fn prepare_non_callable_strong_llvm_module<
     'ctx,
@@ -11,7 +11,7 @@ fn prepare_non_callable_strong_llvm_module<
 >(
     context: &'ctx Context,
     module: &Module,
-    production: &scoop_lir::StrongProductionSection<D, C, I>,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
@@ -47,7 +47,7 @@ fn prepare_non_callable_strong_llvm_module<
 fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     context: &'ctx Context,
     module: &Module,
-    production: &scoop_lir::StrongProductionSection<D, C, I>,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
@@ -177,7 +177,7 @@ impl StrongObjectEmissionSelection {
 fn emit_llvm_module_with_surface<'ctx, R>(
     context: &'ctx Context,
     module: &Module,
-    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
+    surface: &scoop_lir::ObjectSymbolSurfaceV1,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     selection: StrongObjectEmissionSelection,
@@ -210,7 +210,11 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         .iter()
         .map(|(_, descriptor)| {
             let global = llvm.add_global(td_ty, None, descriptor.identity.symbol());
-            apply_persistent_linkage(&global, descriptor.identity.symbol_request())?;
+            apply_persistent_linkage(
+                &global,
+                descriptor.identity.symbol_request(),
+                selection.defines_non_callable(),
+            )?;
             global.set_constant(true);
             Ok(global)
         })
@@ -332,7 +336,11 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                         false,
                     ));
                 }
-                apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
+                apply_persistent_linkage(
+                    &llvm_global,
+                    identity.symbol_request(),
+                    selection.defines_non_callable(),
+                )?;
                 globals.push(Some(llvm_global));
             }
             GlobalInit::CString { identity, value } => {
@@ -342,7 +350,11 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 let ty = i8_ty.array_type(bytes.len() as u32 + 1);
                 let llvm_global = llvm.add_global(ty, None, global.symbol());
                 llvm_global.set_constant(true);
-                apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
+                apply_persistent_linkage(
+                    &llvm_global,
+                    identity.symbol_request(),
+                    selection.defines_callable(identity.owner()),
+                )?;
                 if selection.defines_callable(identity.owner()) {
                     llvm_global.set_initializer(&context.const_string(bytes, true));
                 }
@@ -372,7 +384,11 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 let llvm_global = llvm.add_global(storage_ty, None, global.symbol());
                 llvm_global.set_alignment(logical_alignment);
                 llvm_global.set_thread_local(*thread_local);
-                apply_persistent_linkage(&llvm_global, identity.symbol_request())?;
+                apply_persistent_linkage(
+                    &llvm_global,
+                    identity.symbol_request(),
+                    selection.defines_non_callable(),
+                )?;
                 if selection.defines_non_callable() {
                     let section = if logical_size == 0
                         || matches!(initial_state, LirStaticInitialState::ZeroedForRuntimeUnit)
@@ -436,6 +452,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             &module.enums,
             profile,
             function,
+            selection.defines_callable(function.callable_body.id()),
         )?;
     }
     for (_, callable) in module.meta.external_callables.iter() {
@@ -547,7 +564,7 @@ pub(crate) fn emit_cone_trap_message<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     target_data: &inkwell::targets::TargetData,
-    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
+    surface: &scoop_lir::ObjectSymbolSurfaceV1,
     producer: scoop_lir::ConeIdentity,
     message: (scoop_lir::ConeImageSupportRole, &[u8]),
     define: bool,
@@ -586,7 +603,7 @@ pub(crate) fn emit_cone_trap_message<'ctx>(
     let ty = context.i8_type().array_type(bytes.len() as u32 + 1);
     let global = llvm.add_global(ty, None, symbol.as_str());
     global.set_constant(true);
-    apply_persistent_linkage(&global, boundary.start())?;
+    apply_persistent_linkage(&global, boundary.start(), define)?;
     if define {
         global.set_initializer(&context.const_string(bytes, true));
         atom_boundaries::emit_global_atom_boundaries_v1(
@@ -617,7 +634,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     }
     let foundation = scoop_lir::ConeLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation)
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation)
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
     emit_llvm_module_with_surface(
         context,
@@ -648,7 +665,7 @@ fn declare_initialization_unit_globals<'ctx, D, C, I>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     module: &Module,
-    production: &scoop_lir::StrongProductionSection<D, C, I>,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
 ) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
     let plans = production
         .registration_production()
@@ -679,7 +696,7 @@ fn declare_initialization_unit_globals<'ctx, D, C, I>(
             }
             let global = llvm.add_global(ty, None, symbol.as_str());
             global.set_constant(true);
-            apply_persistent_linkage(&global, request)?;
+            apply_persistent_linkage(&global, request, false)?;
             Ok(global)
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -727,9 +744,10 @@ pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(
     Ok(globals)
 }
 
-fn apply_persistent_linkage(
+pub(crate) fn apply_persistent_linkage(
     global: &GlobalValue<'_>,
     request: scoop_lir::PersistentSymbolRequest,
+    definition: bool,
 ) -> Result<(), CodegenError> {
     use inkwell::GlobalVisibility;
     use inkwell::module::Linkage;
@@ -741,7 +759,11 @@ fn apply_persistent_linkage(
             global.set_linkage(Linkage::External);
             global.set_visibility(GlobalVisibility::Hidden);
         }
-        LinkageClass::OdrWeak => global.set_linkage(Linkage::WeakODR),
+        LinkageClass::OdrWeak => global.set_linkage(if definition {
+            Linkage::WeakODR
+        } else {
+            Linkage::External
+        }),
         LinkageClass::RuntimeAbi => {
             return Err(CodegenError(format!(
                 "persistent symbol `{}` cannot use runtime ABI linkage",

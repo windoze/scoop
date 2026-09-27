@@ -12,10 +12,10 @@ pub(super) fn replay(
     coordinate: ConeCoordinate,
     direct: &[ConeIdentity],
     target: lir::LirTargetProfile,
-    strong: lir::DecodedStrongProductionSectionV2,
+    strong: lir::DecodedConeProductionSectionV2,
     parts: PreparedLayoutMirSemanticParts<'_>,
     dependencies: &[&LirStrongProductionReplayedCrossConeLayoutSections<'_>],
-) -> Result<lir::StrongProductionSectionV2, Error> {
+) -> Result<lir::ConeProductionSectionV2, Error> {
     let provider = parts.lir_foundation.producer();
     let (type_definitions, initialization_definitions) =
         super::dependencies::definitions(provider, dependencies)?;

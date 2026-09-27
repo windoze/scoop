@@ -124,7 +124,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
     profile: ValidatedBackendProfile,
-    production: &scoop_lir::StrongProductionSection<D, C, I>,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
     array_bounds_message: GlobalValue<'ctx>,
     array_size_overflow_message: GlobalValue<'ctx>,
 ) -> Result<EmittedStrongRuntimeMetadataModuleV1<'ctx>, CodegenError> {
@@ -165,6 +165,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
         context,
         llvm,
         production.image_plan(),
+        production.registration_production().identities(),
         array_bounds_message,
         array_size_overflow_message,
     )?;
@@ -294,7 +295,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
 
 #[allow(clippy::too_many_arguments)]
 fn runtime_global_atoms<'ctx, D, C, I>(
-    production: &scoop_lir::StrongProductionSection<D, C, I>,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
     safepoints: &super::EmittedStrongSafepointRegistrationSetV1<'ctx>,
     callables: &super::EmittedStrongCallableRegistrationSetV1<'ctx>,
     types: &super::EmittedStrongTypeRegistrationSetV1<'ctx>,
@@ -551,7 +552,7 @@ impl_patch_site_parts!(
 );
 
 fn record_patch<D, C, I>(
-    production: &scoop_lir::StrongProductionSection<D, C, I>,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
     patches: &mut Vec<ProvisionalStrongDigestPatchLocationV1>,
     patch: PatchParts<'_>,
 ) -> Result<(), CodegenError> {
@@ -606,7 +607,7 @@ fn record_patch<D, C, I>(
 }
 
 fn validate_patch_coverage<D, C, I>(
-    production: &scoop_lir::StrongProductionSection<D, C, I>,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
     patches: &[ProvisionalStrongDigestPatchLocationV1],
 ) -> Result<(), CodegenError> {
     let expected = production

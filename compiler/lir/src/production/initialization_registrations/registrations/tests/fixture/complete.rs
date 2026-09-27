@@ -137,13 +137,11 @@ impl Fixture {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
         fixture.foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
         fixture.digests =
-            StrongDigestFinalizationPlanV1::new(nodes.into_values().collect(), &fixture.foundation)
+            DigestFinalizationPlanV1::new(nodes.into_values().collect(), &fixture.foundation)
                 .unwrap();
-        fixture.identities = StrongRegistrationIdentitySurfaceV1::from_foundation(
-            &fixture.foundation,
-            &fixture.digests,
-        )
-        .unwrap();
+        fixture.identities =
+            RegistrationIdentitySurfaceV1::from_foundation(&fixture.foundation, &fixture.digests)
+                .unwrap();
         fixture
     }
 }

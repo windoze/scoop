@@ -1,14 +1,14 @@
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::AnyType;
-use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
+use inkwell::values::{GlobalValue, UnnamedAddress};
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionPlanId, PersistentCallableBodyId, StrongCallableRegistrationPlanSetV1,
     StrongCallableRegistrationPlanV1,
 };
 
-use super::RuntimeMetadataV1Types;
+use super::{RuntimeMetadataV1Types, registration_identity_value};
 use crate::CodegenError;
 
 const METADATA_ABI_VERSION: u64 = 1;
@@ -125,19 +125,8 @@ fn emit_registration<'ctx>(
 ) -> Result<EmittedStrongCallableRegistrationV1<'ctx>, CodegenError> {
     let descriptor_request = plan.symbol();
     let descriptor_symbol = descriptor_request.symbol();
-    if descriptor_request.linkage() != LinkageClass::ConeStrong {
-        return Err(CodegenError(format!(
-            "callable registration `{descriptor_symbol}` does not have strong Cone linkage"
-        )));
-    }
-
     let entry_request = plan.entry_symbol();
     let entry_symbol = entry_request.symbol();
-    if entry_request.linkage() != LinkageClass::ConeStrong {
-        return Err(CodegenError(format!(
-            "callable entry `{entry_symbol}` does not have strong Cone linkage"
-        )));
-    }
     if llvm.get_global(entry_symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
             "callable entry `{entry_symbol}` collides with an LLVM global"
@@ -148,7 +137,14 @@ fn emit_registration<'ctx>(
             "callable entry `{entry_symbol}` is not declared in the LLVM module"
         ))
     })?;
-    if entry.get_linkage() != Linkage::External {
+    let entry_linkage = if entry.get_first_basic_block().is_some()
+        && entry_request.linkage() == LinkageClass::OdrWeak
+    {
+        Linkage::WeakODR
+    } else {
+        Linkage::External
+    };
+    if entry.get_linkage() != entry_linkage {
         return Err(CodegenError(format!(
             "callable entry `{entry_symbol}` does not have external linkage"
         )));
@@ -199,14 +195,12 @@ fn emit_registration<'ctx>(
         i32.const_int(CALLABLE_REGISTRATION_DESCRIPTOR_SIZE, false)
             .into(),
     ]);
-    let identity = types.registration_identity.const_named_struct(&[
-        i32.const_int(1, false).into(),
-        i32.const_zero().into(),
-        digest_value(context, types.digest, plan.body().as_array()).into(),
-        zero_digest.into(),
-        zero_digest.into(),
-        zero_digest.into(),
-    ]);
+    let identity = registration_identity_value(
+        context,
+        types,
+        plan.body().as_array(),
+        plan.definition_owner(),
+    );
     let value = types.callable_registration_descriptor.const_named_struct(&[
         prefix.into(),
         identity.into(),
@@ -215,6 +209,7 @@ fn emit_registration<'ctx>(
     ]);
     descriptor.set_constant(true);
     descriptor.set_initializer(&value);
+    crate::emission::apply_persistent_linkage(&descriptor, descriptor_request, true)?;
 
     Ok(EmittedStrongCallableRegistrationV1 {
         body: plan.body(),
@@ -234,19 +229,6 @@ fn emit_registration<'ctx>(
             byte_offset: BODY_DEFINITION_FINGERPRINT_OFFSET,
         },
     })
-}
-
-fn digest_value<'ctx>(
-    context: &'ctx Context,
-    digest_type: inkwell::types::StructType<'ctx>,
-    bytes: &[u8; 32],
-) -> StructValue<'ctx> {
-    let i8 = context.i8_type();
-    let values = bytes
-        .iter()
-        .map(|byte| i8.const_int(u64::from(*byte), false))
-        .collect::<Vec<_>>();
-    digest_type.const_named_struct(&[i8.const_array(&values).into()])
 }
 
 #[cfg(test)]

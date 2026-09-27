@@ -398,7 +398,7 @@ pub(super) fn type_descriptor_symbol(module: &Module, name: &str) -> String {
 pub(super) fn strong_scan_symbol(module: &Module, scan: scoop_lir::PersistentScanId) -> String {
     let foundation = scoop_lir::ConeLirFoundation::from_module(module)
         .expect("test module has a strong foundation");
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation)
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation)
         .expect("test module has a canonical symbol surface");
     surface
         .plans()
@@ -1212,7 +1212,7 @@ pub(super) fn strong_shape_ir_of(module: &Module) -> String {
 pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenError> {
     let foundation = scoop_lir::ConeLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation)
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation)
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
     let context = Context::create();
     let llvm = context.create_module("strong-shape-test");

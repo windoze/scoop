@@ -5,17 +5,17 @@ use std::fmt;
 use scoop_wire::{Encoder, WireEncode};
 
 use crate::{
-    ConeLirFoundation, ImmortalObjectTypeRegistrationRefV1, Module, RefScan,
+    ConeLirFoundation, DigestFinalizationPlanV1, ImmortalObjectTypeRegistrationRefV1, Module,
+    RefScan, RegistrationIdentityBuildError, RegistrationIdentitySurfaceV1,
     StaticStorageRelocationTableArtifactV1, StrongCallableRegistrationPlanBuildError,
     StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
     StrongCallableRuntimeScanPlanError, StrongCallableRuntimeScanPlanSetV1,
-    StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanBuildError,
-    StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectRegistrationPlanV1,
-    StrongImmortalObjectSemanticPlanBuildError, StrongImmortalObjectSemanticPlanSetV1,
-    StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
-    StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlanBuildError,
+    StrongImmortalObjectRegistrationPlanBuildError, StrongImmortalObjectRegistrationPlanSetV1,
+    StrongImmortalObjectRegistrationPlanV1, StrongImmortalObjectSemanticPlanBuildError,
+    StrongImmortalObjectSemanticPlanSetV1, StrongInitializationCallableRefPlanV1,
+    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationStaticStorageRefPlanV1,
+    StrongInitializationUnitRegistrationPlanBuildError,
     StrongInitializationUnitSemanticPlanBuildError, StrongInitializationUnitSemanticPlanSetV1,
-    StrongRegistrationIdentityBuildError, StrongRegistrationIdentitySurfaceV1,
     StrongSafepointRegistrationPlanBuildError, StrongSafepointRegistrationPlanSetV1,
     StrongSafepointRegistrationPlanV1, StrongSafepointSemanticPlanError,
     StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1,
@@ -40,9 +40,9 @@ impl StrongRegistrationProductionSurfaceV1 {
     pub fn empty(
         target: crate::LirTargetProfile,
         foundation: &ConeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
-        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let type_semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
             foundation.producer(),
@@ -75,8 +75,7 @@ impl StrongRegistrationProductionSurfaceV1 {
         module: &Module,
         foundation: &ConeLirFoundation,
         entry_source: &crate::EntryProductionSourceV1,
-    ) -> Result<(StrongDigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError>
-    {
+    ) -> Result<(DigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError> {
         if module.cone != foundation.producer() {
             return Err(StrongRegistrationProductionBuildError::ProducerMismatch {
                 module: module.cone,
@@ -96,7 +95,7 @@ impl StrongRegistrationProductionSurfaceV1 {
         let callable_runtime_scans = StrongCallableRuntimeScanPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::CallableRuntimeScans)?;
 
-        let digests = crate::project_strong_digest_finalization_plan(
+        let digests = crate::project_digest_finalization_plan(
             foundation,
             entry_source,
             &safepoint_semantics,
@@ -105,7 +104,7 @@ impl StrongRegistrationProductionSurfaceV1 {
             &initialization_semantics,
         )
         .map_err(StrongRegistrationProductionBuildError::Digests)?;
-        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let registrations = Self::from_semantics(
             module.meta.target_profile,
@@ -135,8 +134,8 @@ pub enum StrongRegistrationProductionBuildError {
         module: scoop_identity::ConeIdentity,
         foundation: scoop_identity::ConeIdentity,
     },
-    Digests(crate::StrongDigestProjectionError),
-    Identities(StrongRegistrationIdentityBuildError),
+    Digests(crate::DigestProjectionError),
+    Identities(RegistrationIdentityBuildError),
     CallableRuntimeScans(StrongCallableRuntimeScanPlanError),
     SafepointSemantics(StrongSafepointSemanticPlanError),
     TypeSemantics(StrongTypeDescriptorSemanticPlanBuildError),

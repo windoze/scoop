@@ -212,8 +212,8 @@ struct RegistrationArtifacts {
 
 struct Fixture {
     foundation: ConeLirFoundation,
-    identities: StrongRegistrationIdentitySurfaceV1,
-    digests: StrongDigestFinalizationPlanV1,
+    identities: RegistrationIdentitySurfaceV1,
+    digests: DigestFinalizationPlanV1,
     registrations: Vec<RegistrationArtifacts>,
 }
 
@@ -304,7 +304,7 @@ impl Fixture {
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &registrations, options);
         let identities =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         Self {
             foundation,
             identities,
@@ -393,7 +393,7 @@ fn digest_plan(
     foundation: &ConeLirFoundation,
     registrations: &[RegistrationArtifacts],
     options: Options,
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
     let registration_object_input = options.registration_object_input.then(|| {
@@ -506,5 +506,5 @@ fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }

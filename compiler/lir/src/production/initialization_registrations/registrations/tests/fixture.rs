@@ -37,9 +37,9 @@ pub(super) struct CallableArtifacts {
 
 pub(super) struct Fixture {
     pub(super) foundation: ConeLirFoundation,
-    pub(super) identities: StrongRegistrationIdentitySurfaceV1,
+    pub(super) identities: RegistrationIdentitySurfaceV1,
     pub(super) semantics: StrongInitializationUnitSemanticPlanSetV1,
-    pub(super) digests: StrongDigestFinalizationPlanV1,
+    pub(super) digests: DigestFinalizationPlanV1,
     pub(super) unit: PersistentInitializationUnitId,
     pub(super) storage: PersistentStaticStorageId,
     pub(super) failure_root: PersistentStaticStorageId,
@@ -259,7 +259,7 @@ impl Fixture {
             options,
         );
         let identities =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         Self {
             foundation,
             identities,
@@ -447,6 +447,6 @@ fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {
     PersistentSymbolRequest::new(key, LinkageClass::ConeStrong).unwrap()
 }
 
-pub(super) fn node(plan: &StrongDigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
+pub(super) fn node(plan: &DigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
     plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }

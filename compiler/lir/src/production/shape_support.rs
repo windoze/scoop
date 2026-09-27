@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
-use crate::{ConeLirFoundation, StrongRegistrationIdentitySurfaceV1};
+use crate::{ConeLirFoundation, RegistrationIdentitySurfaceV1};
 
 mod callable;
 mod layout;
@@ -374,7 +374,7 @@ impl ParamFreeShapeSupportPlanSetV1 {
     pub fn from_sources<'source>(
         sources: impl IntoIterator<Item = &'source SourceDeclarationKey>,
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
+        registrations: &RegistrationIdentitySurfaceV1,
     ) -> Result<Self, ParamFreeShapeSupportBuildError> {
         let mut closures = sources
             .into_iter()
@@ -643,7 +643,7 @@ impl DecodedParamFreeShapeSupportPlanSetV1 {
         sources: impl IntoIterator<Item = &'source SourceDeclarationKey>,
         identities: &mut ValidatedIdentityGraph,
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
+        registrations: &RegistrationIdentitySurfaceV1,
     ) -> Result<ParamFreeShapeSupportPlanSetV1, ParamFreeShapeSupportValidationError> {
         let actual = encode(&self).map_err(ParamFreeShapeSupportValidationError::Encode)?;
         for closure in &self.closures {

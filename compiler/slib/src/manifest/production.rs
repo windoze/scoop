@@ -7,8 +7,8 @@ use scoop_identity::{
     PersistentStaticStorageId, SourceSignatureFingerprint,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, EntryProductionPlanV1,
-    StrongProductionSectionV1, StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityV1,
+    CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, ConeProductionSectionV1,
+    EntryProductionPlanV1, RegistrationIdentitySurfaceV1, RegistrationIdentityV1,
 };
 use scoop_wire::{Encoder, WireEncode};
 
@@ -137,7 +137,7 @@ pub struct SingleConeProductionCodeProjectionV1 {
     distribution: ArtifactDistributionClassV1,
     output: SingleConeProductionOutputV1,
     image_owner_member: SlibMemberId,
-    runtime_registration_projection: StrongRegistrationIdentitySurfaceV1,
+    runtime_registration_projection: RegistrationIdentitySurfaceV1,
     strong_registration_set: CanonicalStrongRegistrationFingerprintSetV1,
     runtime_image_fingerprint: RuntimeImageFingerprint,
 }
@@ -155,7 +155,7 @@ impl SingleConeProductionCodeProjectionV1 {
         self.image_owner_member
     }
 
-    pub const fn runtime_registration_projection(&self) -> &StrongRegistrationIdentitySurfaceV1 {
+    pub const fn runtime_registration_projection(&self) -> &RegistrationIdentitySurfaceV1 {
         &self.runtime_registration_projection
     }
 
@@ -190,13 +190,13 @@ impl WireEncode for SingleConeProductionCodeProjectionV1 {
 /// code-sink manifest projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV1 {
-    strong_production: StrongProductionSectionV1,
+    strong_production: ConeProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
     projection: SingleConeProductionCodeProjectionV1,
 }
 
 impl VerifiedSingleConeProductionCodeProjectionV1 {
-    pub const fn strong_production(&self) -> &StrongProductionSectionV1 {
+    pub const fn strong_production(&self) -> &ConeProductionSectionV1 {
         &self.strong_production
     }
 
@@ -237,7 +237,7 @@ impl SingleConeProductionManifestV1 {
         self.projection().image_owner_member()
     }
 
-    pub const fn runtime_registration_projection(&self) -> &StrongRegistrationIdentitySurfaceV1 {
+    pub const fn runtime_registration_projection(&self) -> &RegistrationIdentitySurfaceV1 {
         self.projection().runtime_registration_projection()
     }
 
@@ -302,7 +302,7 @@ pub fn verify_single_cone_production_code_projection_v1(
     cone: &ConeRecord,
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
-    strong_production: StrongProductionSectionV1,
+    strong_production: ConeProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
     let dependency_identities = direct_dependencies
@@ -324,7 +324,7 @@ pub fn verify_cross_cone_production_code_projection_v1(
     cone: &ConeRecord,
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
-    strong_production: StrongProductionSectionV1,
+    strong_production: ConeProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
     verify_single_cone_production_code_projection_v1(
@@ -340,7 +340,7 @@ fn verify_production_code_projection_v1(
     cone: &ConeRecord,
     dependency_identities: &[scoop_identity::ConeIdentity],
     source_count: usize,
-    strong_production: StrongProductionSectionV1,
+    strong_production: ConeProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
     let projection = verify_production_code_projection_common(

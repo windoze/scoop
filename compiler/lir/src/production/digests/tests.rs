@@ -8,9 +8,9 @@ use scoop_identity::{
 use scoop_wire::{decode_canonical, encode};
 
 use super::{
-    DecodedStrongDigestFinalizationPlanV1, DigestInputRefV1, DigestNodeBuildError, DigestNodeV1,
-    DigestPlanError, StrongDigestFinalizationPlanV1, StrongDigestPlanBuildError,
-    StrongDigestPlanValidationError,
+    DecodedDigestFinalizationPlanV1, DigestFinalizationPlanV1, DigestInputRefV1,
+    DigestNodeBuildError, DigestNodeV1, DigestPlanBuildError, DigestPlanError,
+    DigestPlanValidationError,
 };
 use crate::{CanonicalLirFoundation, ConeLirFoundation};
 
@@ -18,9 +18,9 @@ use crate::{CanonicalLirFoundation, ConeLirFoundation};
 fn runtime_image_only_plan_has_canonical_wire_and_round_trips() {
     let foundation = empty_foundation();
     let image = image_node(Vec::new());
-    let plan = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
+    let plan = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let bytes = encode(&plan).unwrap();
-    let decoded: DecodedStrongDigestFinalizationPlanV1 = decode_canonical(&bytes).unwrap();
+    let decoded: DecodedDigestFinalizationPlanV1 = decode_canonical(&bytes).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending
         .register_authority(ConeIdentity::SINGLE_FILE)
@@ -43,7 +43,7 @@ fn trusted_builder_sorts_nodes_and_accepts_only_typed_legal_edges() {
     let layout_node =
         DigestNodeV1::new(DigestNodeKey::layout(layout), Vec::new(), Vec::new()).unwrap();
     let image = image_node(vec![DigestInputRefV1::from_node(&layout_node)]);
-    let plan = StrongDigestFinalizationPlanV1::new(vec![image, layout_node], &foundation).unwrap();
+    let plan = DigestFinalizationPlanV1::new(vec![image, layout_node], &foundation).unwrap();
 
     assert_eq!(plan.nodes()[0].kind(), DigestKind::Layout);
     assert_eq!(plan.nodes()[1].kind(), DigestKind::RuntimeImage);
@@ -52,8 +52,8 @@ fn trusted_builder_sorts_nodes_and_accepts_only_typed_legal_edges() {
     let image_id = image.id();
     let mismatched = image_node(vec![DigestInputRefV1::SourceSignature(image_id)]);
     assert!(matches!(
-        StrongDigestFinalizationPlanV1::new(vec![mismatched], &empty_foundation()),
-        Err(StrongDigestPlanBuildError::Plan(
+        DigestFinalizationPlanV1::new(vec![mismatched], &empty_foundation()),
+        Err(DigestPlanBuildError::Plan(
             DigestPlanError::InputKindMismatch { .. }
         ))
     ));
@@ -62,15 +62,15 @@ fn trusted_builder_sorts_nodes_and_accepts_only_typed_legal_edges() {
         DigestNodeId::from_key(&DigestNodeKey::runtime_image(ConeIdentity::CORE)).unwrap();
     let image = image_node(vec![DigestInputRefV1::RuntimeImage(missing)]);
     assert!(matches!(
-        StrongDigestFinalizationPlanV1::new(vec![image], &empty_foundation()),
-        Err(StrongDigestPlanBuildError::Plan(
+        DigestFinalizationPlanV1::new(vec![image], &empty_foundation()),
+        Err(DigestPlanBuildError::Plan(
             DigestPlanError::MissingInput { .. }
         ))
     ));
 }
 
 #[test]
-fn strong_profile_rejects_odr_nodes_and_requires_its_image() {
+fn digest_plan_requires_physical_odr_owners_and_its_image() {
     let group =
         scoop_identity::OdrGroupId::from_key(&scoop_identity::SpecializationKey::StructuralType {
             exact_type: unit_exact_type(),
@@ -92,14 +92,12 @@ fn strong_profile_rejects_odr_nodes_and_requires_its_image() {
     )
     .unwrap();
     assert!(matches!(
-        StrongDigestFinalizationPlanV1::new(vec![odr, image_node(Vec::new())], &empty_foundation()),
-        Err(StrongDigestPlanBuildError::Plan(
-            DigestPlanError::OdrDefinition(_)
-        ))
+        DigestFinalizationPlanV1::new(vec![odr, image_node(Vec::new())], &empty_foundation()),
+        Err(DigestPlanBuildError::Plan(DigestPlanError::UnknownOwner(_)))
     ));
     assert_eq!(
-        StrongDigestFinalizationPlanV1::new(Vec::new(), &empty_foundation()),
-        Err(StrongDigestPlanBuildError::Plan(
+        DigestFinalizationPlanV1::new(Vec::new(), &empty_foundation()),
+        Err(DigestPlanBuildError::Plan(
             DigestPlanError::MissingRuntimeImage
         ))
     );
@@ -118,7 +116,7 @@ fn patch_intents_bind_one_source_to_one_real_target_atom() {
     );
     let definition = DigestNodeV1::new(key, Vec::new(), vec![patch]).unwrap();
     let image = image_node(vec![DigestInputRefV1::from_node(&definition)]);
-    StrongDigestFinalizationPlanV1::new(vec![definition, image], &foundation).unwrap();
+    DigestFinalizationPlanV1::new(vec![definition, image], &foundation).unwrap();
 
     let invalid = DigestPatchIntentKey::new(
         DigestNodeId::from_key(&DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE)).unwrap(),
@@ -142,8 +140,8 @@ fn reader_rejects_noncanonical_node_order_without_sorting() {
     let layout_node =
         DigestNodeV1::new(DigestNodeKey::layout(layout), Vec::new(), Vec::new()).unwrap();
     let image = image_node(vec![DigestInputRefV1::from_node(&layout_node)]);
-    let plan = StrongDigestFinalizationPlanV1::new(vec![image, layout_node], &foundation).unwrap();
-    let mut decoded: DecodedStrongDigestFinalizationPlanV1 =
+    let plan = DigestFinalizationPlanV1::new(vec![image, layout_node], &foundation).unwrap();
+    let mut decoded: DecodedDigestFinalizationPlanV1 =
         decode_canonical(&encode(&plan).unwrap()).unwrap();
     decoded.nodes.swap(0, 1);
 
@@ -155,7 +153,7 @@ fn reader_rejects_noncanonical_node_order_without_sorting() {
     let mut identities = pending.finish().unwrap();
     assert!(matches!(
         decoded.validate(&mut identities, &foundation),
-        Err(StrongDigestPlanValidationError::NonCanonicalNodeOrder { .. })
+        Err(DigestPlanValidationError::NonCanonicalNodeOrder { .. })
     ));
 }
 

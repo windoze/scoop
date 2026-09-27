@@ -16,7 +16,7 @@ pub enum SharedLirStrongProductionError {
     ShapeDefinition(lir::StrongShapeDefinitionError),
     TypeDefinitions(lir::StrongTypeReferenceResolutionErrorV2),
     InitializationDefinitions(lir::InitializationDependencyResolutionError),
-    Replay(lir::StrongProductionSectionValidationError),
+    Replay(lir::ConeProductionSectionValidationError),
     Resource(WireError),
 }
 
@@ -38,7 +38,7 @@ from_error!(
     lir::InitializationDependencyResolutionError,
     InitializationDefinitions
 );
-from_error!(lir::StrongProductionSectionValidationError, Replay);
+from_error!(lir::ConeProductionSectionValidationError, Replay);
 
 impl std::fmt::Display for SharedLirStrongProductionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

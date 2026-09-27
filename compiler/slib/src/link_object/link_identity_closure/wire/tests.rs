@@ -87,7 +87,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     let (canonical, production) =
         crate::link_decode::strong_production_fixture_for_test(coordinate, &[]);
     let foundation = scoop_lir::ConeLirFoundation::try_new(producer, canonical).unwrap();
-    let partition = scoop_lir::StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let partition = scoop_lir::ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let units =
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();
@@ -270,14 +270,14 @@ pub(crate) fn encoded_link_identity_closure_without_symbol_projection_for_test(
 }
 
 fn materialization_plan() -> (
-    scoop_lir::StrongProducerUnitPartitionV1,
+    scoop_lir::ProducerUnitPartitionV1,
     PlannedLinkObjectMemberSetV1,
 ) {
     let coordinate = wire_fixture_coordinate();
     let producer = coordinate.identity().unwrap();
     let (canonical, _) = crate::link_decode::strong_production_fixture_for_test(coordinate, &[]);
     let foundation = scoop_lir::ConeLirFoundation::try_new(producer, canonical).unwrap();
-    let partition = scoop_lir::StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let partition = scoop_lir::ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let units =
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();

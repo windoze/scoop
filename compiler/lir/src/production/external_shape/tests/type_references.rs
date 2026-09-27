@@ -2,28 +2,21 @@
 
 use super::*;
 use crate::{
-    StrongRegistrationIdentitySurfaceV1, StrongTypeDescriptorRefV2,
-    StrongTypeDispatchCallableRefV2, StrongTypeReferenceDefinitionsV2,
-    StrongTypeReferenceResolutionErrorV2 as Error,
+    RegistrationIdentitySurfaceV1, StrongTypeDescriptorRefV2, StrongTypeDispatchCallableRefV2,
+    StrongTypeReferenceDefinitionsV2, StrongTypeReferenceResolutionErrorV2 as Error,
 };
 
 fn checked(subject: ExternalStrongShapeSubjectV1) -> StrongShapeDefinitionRefV1 {
     StrongShapeDefinitionRefV1::from_foundation(subject, &foundation(subject, true, 1)).unwrap()
 }
 
-fn empty_consumer() -> (
-    crate::ConeLirFoundation,
-    StrongRegistrationIdentitySurfaceV1,
-) {
+fn empty_consumer() -> (crate::ConeLirFoundation, RegistrationIdentitySurfaceV1) {
     consumer_at(ConeIdentity::CORE)
 }
 
 fn consumer_at(
     producer: ConeIdentity,
-) -> (
-    crate::ConeLirFoundation,
-    StrongRegistrationIdentitySurfaceV1,
-) {
+) -> (crate::ConeLirFoundation, RegistrationIdentitySurfaceV1) {
     let foundation =
         crate::ConeLirFoundation::try_new(producer, crate::CanonicalLirFoundation::empty())
             .unwrap();
@@ -33,9 +26,9 @@ fn consumer_at(
         Vec::new(),
     )
     .unwrap();
-    let digests = crate::StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
+    let digests = crate::DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
 
     (foundation, registrations)
 }

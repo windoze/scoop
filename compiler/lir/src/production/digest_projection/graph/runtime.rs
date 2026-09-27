@@ -9,7 +9,7 @@ impl DigestGraphWriter<'_> {
                 scoop_identity::PersistentLayoutId,
             ),
         >,
-    ) -> Result<(), StrongDigestProjectionError> {
+    ) -> Result<(), DigestProjectionError> {
         for (exact, layout) in semantics {
             let registration = self.definition(
                 StrongDefinitionEntity::exact_type(exact),
@@ -48,7 +48,7 @@ impl DigestGraphWriter<'_> {
     pub(super) fn project_immortal_objects(
         &mut self,
         semantics: impl IntoIterator<Item = scoop_identity::PersistentImmortalObjectId>,
-    ) -> Result<(), StrongDigestProjectionError> {
+    ) -> Result<(), DigestProjectionError> {
         for object in semantics {
             let definition = self.definition(
                 StrongDefinitionEntity::immortal_object(object),
@@ -77,7 +77,7 @@ impl DigestGraphWriter<'_> {
                 scoop_identity::PersistentScanId,
             ),
         >,
-    ) -> Result<(), StrongDigestProjectionError> {
+    ) -> Result<(), DigestProjectionError> {
         for (storage, layout, scan) in storages {
             let definition = self.definition(
                 StrongDefinitionEntity::static_storage(storage),
@@ -120,7 +120,7 @@ impl DigestGraphWriter<'_> {
                 StrongInitializationSchedulePlanV1,
             ),
         >,
-    ) -> Result<(), StrongDigestProjectionError> {
+    ) -> Result<(), DigestProjectionError> {
         for (unit, schedule) in semantics {
             let entity = StrongDefinitionEntity::initialization_unit(unit);
             let registration =
@@ -157,7 +157,7 @@ impl DigestGraphWriter<'_> {
         Ok(())
     }
 
-    pub(super) fn project_image(&mut self) -> Result<(), StrongDigestProjectionError> {
+    pub(super) fn project_image(&mut self) -> Result<(), DigestProjectionError> {
         let image = self.definition(
             StrongDefinitionEntity::cone_image(self.foundation.producer()),
             StrongDefinitionRole::ImageDescriptor,

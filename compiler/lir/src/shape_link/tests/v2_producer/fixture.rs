@@ -16,7 +16,7 @@ pub(super) struct Provider {
     pub(super) callable_body: PersistentCallableBodyId,
     pub(super) initialization_unit: PersistentInitializationUnitId,
     pub(super) output: ConeLirOutput,
-    pub(super) section: StrongProductionSectionV2,
+    pub(super) section: ConeProductionSectionV2,
     pub(super) ordinary: CrossConeLirBridgeSectionV1,
     layouts: CanonicalExactLayoutExportsV1,
     descriptors: CanonicalExactDescriptorExportsV1,

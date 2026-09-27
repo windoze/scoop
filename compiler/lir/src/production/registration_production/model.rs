@@ -18,7 +18,7 @@ pub type StrongRegistrationProductionSurfaceV2 = StrongRegistrationProductionSur
 /// and digest graph.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongRegistrationProductionSurface<D, C, I> {
-    pub(super) identities: StrongRegistrationIdentitySurfaceV1,
+    pub(super) identities: RegistrationIdentitySurfaceV1,
     pub(super) safepoints: StrongSafepointRegistrationPlanSetV1,
     pub(super) callables: StrongCallableRegistrationPlanSetV1,
     pub(super) types: crate::StrongTypeRegistrationPlanSet<D, C>,
@@ -28,7 +28,7 @@ pub struct StrongRegistrationProductionSurface<D, C, I> {
 }
 
 impl<D, C, I> StrongRegistrationProductionSurface<D, C, I> {
-    pub const fn identities(&self) -> &StrongRegistrationIdentitySurfaceV1 {
+    pub const fn identities(&self) -> &RegistrationIdentitySurfaceV1 {
         &self.identities
     }
 

@@ -34,7 +34,7 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         immortals: &StrongImmortalObjectSemanticPlanSetV1,
         initialization: &StrongInitializationUnitSemanticPlanSet<I>,
         entry_source: &EntryProductionSourceV1,
-    ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
+    ) -> Result<DigestFinalizationPlanV1, DigestProjectionError> {
         self.project_safepoints(
             safepoints
                 .sites()
@@ -63,6 +63,7 @@ impl<'foundation> DigestGraphWriter<'foundation> {
                 .map(|value| (value.unit(), value.schedule())),
         )?;
         self.project_entry(entry_source)?;
+        self.project_odr_definitions()?;
         self.project_image()?;
         self.finish()
     }
@@ -71,11 +72,36 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         &mut self,
         definition: ObjectDefinitionPlanId,
         inputs: impl IntoIterator<Item = DigestNodeKey>,
-    ) -> Result<(), StrongDigestProjectionError> {
-        let node = DigestNodeKey::strong_registration(definition);
+    ) -> Result<(), DigestProjectionError> {
+        let record = self
+            .foundation
+            .definition_plan(definition)
+            .ok_or(DigestProjectionError::MissingDefinitionPlan(definition))?;
+        let node = self.foundation.registration_digest_key(record);
         self.ensure(node);
-        for input in inputs {
-            self.input(node, input);
+        if node.kind() == DigestKind::OdrDefinition {
+            let (_, primary) = self
+                .foundation
+                .resolve_definition_atom(definition, DefinitionAtomRole::Primary)
+                .map_err(|source| DigestProjectionError::PrimaryAtom {
+                    plan: definition,
+                    source,
+                })?;
+            let object = DigestNodeKey::object_definition(primary);
+            self.input(node, object);
+            self.input(node, DigestNodeKey::lir_definition(primary));
+            for input in inputs {
+                if input != object {
+                    self.input(object, input);
+                    if input.kind() == DigestKind::StackmapRecord {
+                        self.input(node, input);
+                    }
+                }
+            }
+        } else {
+            for input in inputs {
+                self.input(node, input);
+            }
         }
         self.patch(
             node,
@@ -90,21 +116,47 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         &self,
         entity: StrongDefinitionEntity,
         role: StrongDefinitionRole,
-    ) -> Result<StrongDefinition, StrongDigestProjectionError> {
-        let key = ObjectDefinitionPlanKey::strong(self.foundation.producer(), entity, role)
-            .map_err(StrongDigestProjectionError::DefinitionIdentity)?;
+    ) -> Result<StrongDefinition, DigestProjectionError> {
         let plan = self
             .foundation
-            .definition_plans()
-            .iter()
-            .find(|record| record.key() == &key)
+            .definition_for(entity, role)
             .map(|record| record.id())
-            .ok_or(StrongDigestProjectionError::MissingDefinition { entity, role })?;
+            .ok_or(DigestProjectionError::MissingDefinition { entity, role })?;
         let (_, primary) = self
             .foundation
             .resolve_definition_atom(plan, DefinitionAtomRole::Primary)
-            .map_err(|source| StrongDigestProjectionError::PrimaryAtom { plan, source })?;
+            .map_err(|source| DigestProjectionError::PrimaryAtom { plan, source })?;
         Ok(StrongDefinition { plan, primary })
+    }
+
+    fn project_odr_definitions(&mut self) -> Result<(), DigestProjectionError> {
+        for record in self.foundation.definition_plans() {
+            let scoop_identity::ObjectDefinitionPlanOwner::Odr { member } = record.key().owner()
+            else {
+                continue;
+            };
+            let plan = record.id();
+            let (_, primary) = self
+                .foundation
+                .resolve_definition_atom(plan, DefinitionAtomRole::Primary)
+                .map_err(|source| DigestProjectionError::PrimaryAtom { plan, source })?;
+            let node = DigestNodeKey::odr_member_definition(member);
+            let object = DigestNodeKey::object_definition(primary);
+            self.input(node, DigestNodeKey::lir_definition(primary));
+            self.input(node, object);
+            let stackmaps = self
+                .nodes
+                .get(&object)
+                .into_iter()
+                .flat_map(|draft| draft.inputs.iter())
+                .filter(|input| input.kind() == DigestKind::StackmapRecord)
+                .copied()
+                .collect::<Vec<_>>();
+            for stackmap in stackmaps {
+                self.input(node, stackmap);
+            }
+        }
+        Ok(())
     }
 
     fn ensure(&mut self, key: DigestNodeKey) {
@@ -121,9 +173,8 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         node: DigestNodeKey,
         target: ObjectDefinitionPlanId,
         role: DigestSemanticFieldRole,
-    ) -> Result<(), StrongDigestProjectionError> {
-        let source =
-            DigestNodeId::from_key(&node).map_err(StrongDigestProjectionError::Identity)?;
+    ) -> Result<(), DigestProjectionError> {
+        let source = DigestNodeId::from_key(&node).map_err(DigestProjectionError::Identity)?;
         self.nodes
             .entry(node)
             .or_default()
@@ -137,7 +188,7 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         Ok(())
     }
 
-    fn finish(self) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
+    fn finish(self) -> Result<DigestFinalizationPlanV1, DigestProjectionError> {
         let nodes = self
             .nodes
             .into_iter()
@@ -148,11 +199,10 @@ impl<'foundation> DigestGraphWriter<'foundation> {
                     .map(digest_input)
                     .collect::<Result<Vec<_>, _>>()?;
                 DigestNodeV1::new(key, inputs, draft.patches.into_iter().collect())
-                    .map_err(StrongDigestProjectionError::Node)
+                    .map_err(DigestProjectionError::Node)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        StrongDigestFinalizationPlanV1::new(nodes, self.foundation)
-            .map_err(StrongDigestProjectionError::Plan)
+        DigestFinalizationPlanV1::new(nodes, self.foundation).map_err(DigestProjectionError::Plan)
     }
 }
 
@@ -162,8 +212,8 @@ struct StrongDefinition {
     primary: ObjectDefinitionAtomId,
 }
 
-fn digest_input(key: DigestNodeKey) -> Result<DigestInputRefV1, StrongDigestProjectionError> {
-    let id = DigestNodeId::from_key(&key).map_err(StrongDigestProjectionError::Identity)?;
+fn digest_input(key: DigestNodeKey) -> Result<DigestInputRefV1, DigestProjectionError> {
+    let id = DigestNodeId::from_key(&key).map_err(DigestProjectionError::Identity)?;
     Ok(match key.kind() {
         DigestKind::SourceSignature => DigestInputRefV1::SourceSignature(id),
         DigestKind::Layout => DigestInputRefV1::Layout(id),

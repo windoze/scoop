@@ -295,18 +295,18 @@ impl WireDecode for DecodedDigestNodeV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongDigestFinalizationPlanV1 {
+pub struct DigestFinalizationPlanV1 {
     nodes: Vec<DigestNodeV1>,
 }
 
-impl StrongDigestFinalizationPlanV1 {
+impl DigestFinalizationPlanV1 {
     pub fn new(
         mut nodes: Vec<DigestNodeV1>,
         foundation: &crate::ConeLirFoundation,
-    ) -> Result<Self, StrongDigestPlanBuildError> {
+    ) -> Result<Self, DigestPlanBuildError> {
         nodes.sort_unstable_by_key(DigestNodeV1::sort_key);
-        validate_node_order(&nodes).map_err(StrongDigestPlanBuildError::Plan)?;
-        validate_plan(&nodes, foundation).map_err(StrongDigestPlanBuildError::Plan)?;
+        validate_node_order(&nodes).map_err(DigestPlanBuildError::Plan)?;
+        validate_plan(&nodes, foundation).map_err(DigestPlanBuildError::Plan)?;
         Ok(Self { nodes })
     }
 
@@ -322,27 +322,27 @@ impl StrongDigestFinalizationPlanV1 {
     }
 }
 
-impl WireEncode for StrongDigestFinalizationPlanV1 {
+impl WireEncode for DigestFinalizationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.nodes)
     }
 }
 
 #[derive(Debug)]
-pub struct DecodedStrongDigestFinalizationPlanV1 {
+pub struct DecodedDigestFinalizationPlanV1 {
     nodes: Vec<DecodedDigestNodeV1>,
 }
 
 mod reader;
-pub use reader::foundation::StrongDigestPlanReplayError;
+pub use reader::foundation::DigestPlanReplayError;
 
-impl WireEncode for DecodedStrongDigestFinalizationPlanV1 {
+impl WireEncode for DecodedDigestFinalizationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.nodes)
     }
 }
 
-impl WireDecode for DecodedStrongDigestFinalizationPlanV1 {
+impl WireDecode for DecodedDigestFinalizationPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedDigestNodeV1::decode(decoder))
@@ -381,11 +381,11 @@ impl fmt::Display for DigestNodeBuildError {
 impl std::error::Error for DigestNodeBuildError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongDigestPlanBuildError {
+pub enum DigestPlanBuildError {
     Plan(DigestPlanError),
 }
 
-impl fmt::Display for StrongDigestPlanBuildError {
+impl fmt::Display for DigestPlanBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -394,10 +394,10 @@ impl fmt::Display for StrongDigestPlanBuildError {
     }
 }
 
-impl std::error::Error for StrongDigestPlanBuildError {}
+impl std::error::Error for DigestPlanBuildError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum StrongDigestPlanValidationError {
+pub enum DigestPlanValidationError {
     NodeKey(DigestNodeKeyResolutionError<IdentityReferenceError>),
     NodeIdentity(PersistentIdMismatch<DigestNodeId>),
     PatchIdentity(PersistentIdMismatch<DigestPatchIntentId>),
@@ -431,7 +431,7 @@ pub enum StrongDigestPlanValidationError {
     Plan(DigestPlanError),
 }
 
-impl fmt::Display for StrongDigestPlanValidationError {
+impl fmt::Display for DigestPlanValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -440,7 +440,7 @@ impl fmt::Display for StrongDigestPlanValidationError {
     }
 }
 
-impl std::error::Error for StrongDigestPlanValidationError {}
+impl std::error::Error for DigestPlanValidationError {}
 
 fn encode_array<T: WireEncode>(
     encoder: &mut Encoder,

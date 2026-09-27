@@ -6,7 +6,7 @@ pub(super) fn digest_plan(
     foundation: &ConeLirFoundation,
     types: &[TypeArtifacts; 2],
     options: Options,
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
     for (index, artifacts) in types.iter().enumerate() {
@@ -114,5 +114,5 @@ pub(super) fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }

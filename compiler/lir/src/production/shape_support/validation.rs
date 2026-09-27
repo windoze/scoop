@@ -15,12 +15,12 @@ use super::{
     ShapeSupportAvailabilityV1, StrongExactShapeSupportV1, StrongShapeDefinitionV1,
     StrongShapeRegistrationV1,
 };
-use crate::{ConeLirFoundation, StrongRegistrationIdentitySurfaceV1};
+use crate::{ConeLirFoundation, RegistrationIdentitySurfaceV1};
 
 pub(super) fn build_closure(
     source: &SourceDeclarationKey,
     foundation: &ConeLirFoundation,
-    registrations: &StrongRegistrationIdentitySurfaceV1,
+    registrations: &RegistrationIdentitySurfaceV1,
 ) -> Result<ParamFreeShapeSupportClosureV1, ParamFreeShapeSupportBuildError> {
     validate_source(source, foundation.producer())?;
     let source_nominal = PersistentTypeId::from_source_declaration(source)
@@ -99,7 +99,7 @@ fn validate_source(
 fn generated_exact_support(
     key: GeneratedNominalKey,
     foundation: &ConeLirFoundation,
-    registrations: &StrongRegistrationIdentitySurfaceV1,
+    registrations: &RegistrationIdentitySurfaceV1,
 ) -> Result<StrongExactShapeSupportV1, ParamFreeShapeSupportBuildError> {
     let nominal = PersistentTypeId::from_generated_key(&key)
         .map_err(ParamFreeShapeSupportBuildError::GeneratedNominalIdentity)?;
@@ -109,7 +109,7 @@ fn generated_exact_support(
 fn exact_shape_support(
     nominal: PersistentTypeId,
     foundation: &ConeLirFoundation,
-    registrations: &StrongRegistrationIdentitySurfaceV1,
+    registrations: &RegistrationIdentitySurfaceV1,
 ) -> Result<StrongExactShapeSupportV1, ParamFreeShapeSupportBuildError> {
     let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal))
         .map_err(ParamFreeShapeSupportBuildError::Hash)?;
@@ -206,7 +206,7 @@ fn strong_definition<I: PersistentId>(
 fn strong_registration<I: PersistentId>(
     semantic_id: I,
     foundation: &ConeLirFoundation,
-    registrations: &[crate::StrongRegistrationIdentityV1<I>],
+    registrations: &[crate::RegistrationIdentityV1<I>],
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
     symbol_key: PersistentSymbolKey,

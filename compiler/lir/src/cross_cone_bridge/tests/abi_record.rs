@@ -3,7 +3,7 @@
 use super::*;
 use crate::{
     CallableAbiBuildError, CallableAbiDecodeError, CallableAbiRecordV1, CallableAbiValidationError,
-    DecodedCallableAbiRecordV1, StrongObjectSymbolSurfaceV1,
+    DecodedCallableAbiRecordV1, ObjectSymbolSurfaceV1,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -24,8 +24,7 @@ fn shared_abi_decodes_with_the_actual_provider_and_rejects_another_provider() {
             decode_record(&bytes).validate(ConeIdentity::SINGLE_FILE, &mut fixture.identities(&[])),
             Err(CallableAbiDecodeError::RecordMismatch)
         ));
-        let definitions =
-            StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
+        let definitions = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
         record.validate_against(&fixture.foundation).unwrap();
         assert!(matches!(
             record.validate_definition(ConeIdentity::SINGLE_FILE, &definitions),

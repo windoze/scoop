@@ -10,14 +10,13 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
-    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
-    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global, GlobalInit,
-    ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind,
-    LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot,
-    Module, NativeExternalMetadata, NativeGlobalBridges, PointerKind, RefScan,
-    StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
-    StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationIdentitySurfaceV1, StructDefs,
-    TypeDescriptorRef, WellKnownTypeDescriptors,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
+    DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global,
+    GlobalInit, ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity,
+    LayoutKind, LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef,
+    MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges, PointerKind, RefScan,
+    RegistrationIdentitySurfaceV1, StrongImmortalObjectRegistrationPlanSetV1,
+    StrongImmortalObjectSemanticPlanSetV1, StructDefs, TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) fn immortal_plan(object_count: u32) -> StrongImmortalObjectRegistrationPlanSetV1 {
@@ -75,8 +74,7 @@ pub(super) fn immortal_plan(object_count: u32) -> StrongImmortalObjectRegistrati
     );
     let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let digests = digest_plan(&foundation, &artifacts);
-    let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     StrongImmortalObjectRegistrationPlanSetV1::new(&foundation, &identities, &semantics, &digests)
         .unwrap()
 }
@@ -184,7 +182,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
 fn digest_plan(
     foundation: &ConeLirFoundation,
     artifacts: &[ObjectArtifacts],
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
     for item in artifacts {
@@ -228,7 +226,7 @@ fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn definition(

@@ -14,7 +14,7 @@ pub(super) fn check(
     producer: &lir::ConeLirOutput,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     ordinary: &lir::CrossConeLirBridgeSectionV1,
-    production: &lir::StrongProductionSectionV2,
+    production: &lir::ConeProductionSectionV2,
 ) {
     let references = match name {
         "shared-shapes-standalone" => false,

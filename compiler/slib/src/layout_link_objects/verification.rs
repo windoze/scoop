@@ -4,10 +4,10 @@ pub(crate) fn replay<'input>(
     link: &crate::DecodedCrossConeLayoutLinkOnlySections,
     graph: &mut crate::ValidatedGraphArtifact<'input>,
     foundation: &lir::ConeLirFoundation,
-    strong: &lir::StrongProductionSectionV2,
+    strong: &lir::ConeProductionSectionV2,
     profile: &lir::CBridgeToolchainProfileV1,
 ) -> Result<ReplayedLayoutLinkObjectContentsV1, crate::SharedLirPhysicalError> {
-    let partition = lir::StrongProducerUnitPartitionV1::from_foundation(foundation)
+    let partition = lir::ProducerUnitPartitionV1::from_foundation(foundation)
         .map_err(crate::StrongLinkMaterializationError::ProducerUnits)?;
     let wire = link.link_identity_closure_wire();
     let plan = wire

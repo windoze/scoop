@@ -21,7 +21,6 @@ pub enum DigestPlanError {
         expected: scoop_identity::ConeIdentity,
         actual: scoop_identity::ConeIdentity,
     },
-    OdrDefinition(DigestNodeId),
     UnknownOwner(DigestNodeId),
     NonRegistrationPlan {
         node: DigestNodeId,
@@ -191,8 +190,10 @@ fn validate_owner(
             .iter()
             .any(|record| record.id() == id),
         DigestOwnerAndRoleKey::StackmapRecord(id) => foundation.contains_safepoint_site(id),
-        DigestOwnerAndRoleKey::OdrMemberDefinition(_) => {
-            return Err(DigestPlanError::OdrDefinition(node.id()));
+        DigestOwnerAndRoleKey::OdrMemberDefinition(member) => {
+            foundation.definition_plans().iter().any(|record| {
+                record.key().owner() == scoop_identity::ObjectDefinitionPlanOwner::Odr { member }
+            })
         }
         DigestOwnerAndRoleKey::StrongRegistration(plan) => {
             let Some(record) = foundation
@@ -264,7 +265,8 @@ fn allows_input(node: DigestKind, input: DigestKind) -> bool {
         K::StackmapRecord => matches!(input, K::SourceSignature | K::ObjectSupport),
         K::ObjectDefinition => matches!(
             input,
-            K::SourceSignature
+            K::ObjectDefinition
+                | K::SourceSignature
                 | K::Layout
                 | K::Scan
                 | K::LirDefinition
@@ -292,6 +294,7 @@ fn allows_input(node: DigestKind, input: DigestKind) -> bool {
                 | K::ObjectDefinition
                 | K::StackmapRecord
                 | K::StrongRegistration
+                | K::OdrDefinition
         ),
     }
 }

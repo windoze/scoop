@@ -9,8 +9,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CBridgeProductionValidationError, CBridgeToolchainProfileV1,
-    DecodedCBridgeProductionSetV1, DecodedStrongRegistrationIdentitySurfaceV1,
-    GeneratedBridgePlanSetV1,
+    DecodedCBridgeProductionSetV1, DecodedRegistrationIdentitySurfaceV1, GeneratedBridgePlanSetV1,
 };
 use scoop_wire::{
     Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath, encode,
@@ -156,7 +155,7 @@ pub struct DecodedSingleConeProductionManifestV1 {
     distribution: DecodedArtifactDistributionClassV1,
     output: DecodedSingleConeProductionOutputV1,
     image_owner_member: DecodedFixedBytesV1<SlibMemberId>,
-    runtime_registration_projection: DecodedStrongRegistrationIdentitySurfaceV1,
+    runtime_registration_projection: DecodedRegistrationIdentitySurfaceV1,
     strong_registration_set: DecodedCanonicalStrongRegistrationFingerprintSetV1,
     runtime_image_fingerprint: DecodedFixedBytesV1<RuntimeImageFingerprint>,
     code_fingerprint: DecodedFixedBytesV1<CodeFingerprint>,
@@ -272,7 +271,7 @@ impl WireDecode for DecodedSingleConeProductionManifestV1 {
             output: decoder.field(2, DecodedSingleConeProductionOutputV1::decode)?,
             image_owner_member: decoder.field(3, DecodedFixedBytesV1::decode)?,
             runtime_registration_projection: decoder
-                .field(4, DecodedStrongRegistrationIdentitySurfaceV1::decode)?,
+                .field(4, DecodedRegistrationIdentitySurfaceV1::decode)?,
             strong_registration_set: decoder.field(
                 5,
                 DecodedCanonicalStrongRegistrationFingerprintSetV1::decode,

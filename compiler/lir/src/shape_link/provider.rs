@@ -9,7 +9,7 @@ mod types;
 
 pub struct ShapeLinkProviderPartsV1<'a> {
     pub foundation: &'a ConeLirFoundation,
-    pub production: &'a StrongProductionSectionV2,
+    pub production: &'a ConeProductionSectionV2,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layouts: &'a CanonicalExactLayoutExportsV1,
     pub callables: &'a CanonicalExactCallableAbiExportsV1,
@@ -71,7 +71,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
     /// The complete local Strong definition surface used by import replay.
     /// Closure validators use this exact surface for the consumer-side
     /// foreign-definition exclusion; it is not reconstructed from symbols.
-    pub fn canonical_definitions(&self) -> &'a StrongObjectSymbolSurfaceV1 {
+    pub fn canonical_definitions(&self) -> &'a ObjectSymbolSurfaceV1 {
         self.parts.production.canonical_definitions()
     }
 

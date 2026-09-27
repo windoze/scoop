@@ -7,10 +7,10 @@ impl StrongRegistrationProductionSurfaceV2 {
     pub fn empty(
         target: crate::LirTargetProfile,
         foundation: &ConeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
         let producer = foundation.producer();
-        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let callable_runtime_scans =
             StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(foundation)
@@ -41,8 +41,7 @@ impl StrongRegistrationProductionSurfaceV2 {
         foundation: &ConeLirFoundation,
         entry_source: &crate::EntryProductionSourceV1,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
-    ) -> Result<(StrongDigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError>
-    {
+    ) -> Result<(DigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError> {
         if module.cone != foundation.producer() {
             return Err(StrongRegistrationProductionBuildError::ProducerMismatch {
                 module: module.cone,
@@ -58,7 +57,7 @@ impl StrongRegistrationProductionSurfaceV2 {
         let local_initialization =
             StrongInitializationUnitSemanticPlanSetV1::from_module(module)
                 .map_err(StrongRegistrationProductionBuildError::InitializationSemantics)?;
-        let digests = crate::project_strong_digest_finalization_plan(
+        let digests = crate::project_digest_finalization_plan(
             foundation,
             entry_source,
             &safepoint_semantics,
@@ -67,7 +66,7 @@ impl StrongRegistrationProductionSurfaceV2 {
             &local_initialization,
         )
         .map_err(StrongRegistrationProductionBuildError::Digests)?;
-        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let initialization_semantics =
             crate::StrongInitializationUnitSemanticPlanSetV2::from_local_semantics(

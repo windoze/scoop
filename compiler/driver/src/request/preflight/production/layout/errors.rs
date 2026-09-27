@@ -7,7 +7,7 @@ pub enum LayoutProductionError {
     Shape(scoop_lir::ShapeLinkError),
     Selection(scoop_lir::LayoutAbiSectionError),
     Initialization(scoop_lir_lower::StrongProductionV2ProjectionError),
-    Registration(Box<scoop_lir::StrongProductionWriterError>),
+    Registration(Box<scoop_lir::ConeProductionWriterError>),
     LayoutExports(scoop_lir_lower::LayoutAbiExportLoweringError),
     LayoutUses(scoop_lir_lower::LayoutAbiDependencyLoweringError),
     LayoutJoin(scoop_lir::StrongProductionLayoutJoinError),

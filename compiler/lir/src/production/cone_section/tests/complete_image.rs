@@ -5,7 +5,7 @@ use super::*;
 pub(in crate::production) fn attach_image(
     coordinate: &ConeCoordinate,
     foundation: &mut ConeLirFoundation,
-    digests: &mut StrongDigestFinalizationPlanV1,
+    digests: &mut DigestFinalizationPlanV1,
 ) {
     let (image_foundation, image_digests) = fixture(coordinate);
     assert_eq!(foundation.producer(), image_foundation.producer());
@@ -59,5 +59,5 @@ pub(in crate::production) fn attach_image(
             .collect(),
     )
     .unwrap();
-    *digests = StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap();
+    *digests = DigestFinalizationPlanV1::new(nodes, foundation).unwrap();
 }

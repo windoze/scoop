@@ -11,7 +11,7 @@ use scoop_identity::{
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     CanonicalLirFoundation, ConeLirFoundation, DarwinCBridgeDeploymentContractV1,
-    DarwinPackedVersionV1, GeneratedBridgePlanSetV1, StrongProducerUnitPartitionV1,
+    DarwinPackedVersionV1, GeneratedBridgePlanSetV1, ProducerUnitPartitionV1,
 };
 
 use super::*;
@@ -318,7 +318,7 @@ pub(in crate::link_object) fn member_plan(
     fixture: &Fixture,
     bridge_plan: &GeneratedBridgePlanSetV1,
 ) -> PlannedLinkObjectMemberSetV1 {
-    let partition = StrongProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
+    let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let bridge_sets = bridge_plan
         .units()
         .iter()

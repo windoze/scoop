@@ -54,7 +54,7 @@ impl ValidatedCrossConeStrongLinkArtifact {
     pub fn lir_foundation(&self) -> &scoop_lir::ConeLirFoundation {
         self.artifact.lir_foundation()
     }
-    pub fn strong_production(&self) -> &scoop_lir::StrongProductionSectionV2 {
+    pub fn strong_production(&self) -> &scoop_lir::ConeProductionSectionV2 {
         self.artifact.lir_strong_production()
     }
     pub fn defined_symbols(&self) -> &crate::CanonicalDefinedLinkSymbolOwnerSetV1 {

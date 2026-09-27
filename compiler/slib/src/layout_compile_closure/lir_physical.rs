@@ -27,7 +27,7 @@ pub struct PhysicalImportsReplayedCrossConeLayoutSections {
     semantic: crate::layout_compile_decode::LayoutSemanticSections,
     mir: mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     units: Vec<mir::MirTypeBridgeInitializationUnitV1>,
-    strong: lir::StrongProductionSectionV2,
+    strong: lir::ConeProductionSectionV2,
     ordinary: lir::CrossConeLirBridgeSectionV1,
     layout: lir::PhysicalImportsReplayedLayoutAbiSectionV1,
 }
@@ -88,7 +88,7 @@ impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn lir_physical_imports(&self) -> &lir::CanonicalExternalShapeLinkImportsV1 {
         self.layout.physical_imports()
     }
-    pub fn lir_strong_production(&self) -> &lir::StrongProductionSectionV2 {
+    pub fn lir_strong_production(&self) -> &lir::ConeProductionSectionV2 {
         &self.strong
     }
 }

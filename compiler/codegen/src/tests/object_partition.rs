@@ -17,13 +17,12 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
         .collect::<BTreeSet<_>>();
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
 
-    let surface =
-        scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
-    let partition = StrongScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
+    let partition = ScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
 
     assert_eq!(partition.objects().len(), callable_bodies.len() + 1);
     let non_callable = &partition.objects()[0];
-    assert_eq!(non_callable.kind(), StrongScoopLirObjectKindV1::NonCallable);
+    assert_eq!(non_callable.kind(), ScoopLirObjectKindV1::NonCallable);
     assert!(!non_callable.definition_plans().is_empty());
     assert!(non_callable.definition_plans().iter().all(|definition| {
         surface
@@ -39,7 +38,7 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
         .iter()
         .map(|object| {
             assert_eq!(object.definition_plans().len(), 1);
-            let StrongScoopLirObjectKindV1::CallableBody(body) = object.kind() else {
+            let ScoopLirObjectKindV1::CallableBody(body) = object.kind() else {
                 panic!("only the first object may be non-callable");
             };
             body
@@ -54,16 +53,15 @@ fn partition_is_complete_non_overlapping_and_excludes_generated_bridge_units() {
     module.output = scoop_lir::LirOutput::Library;
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     let producer_units =
-        scoop_lir::StrongProducerUnitPartitionV1::from_foundation(input.foundation()).unwrap();
+        scoop_lir::ProducerUnitPartitionV1::from_foundation(input.foundation()).unwrap();
 
-    let surface =
-        scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
-    let partition = StrongScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
+    let partition = ScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
 
     let actual = partition
         .objects()
         .iter()
-        .flat_map(StrongScoopLirObjectUnitSetV1::definition_plans)
+        .flat_map(ScoopLirObjectUnitSetV1::definition_plans)
         .copied()
         .collect::<Vec<_>>();
     assert_eq!(
@@ -123,8 +121,8 @@ fn renders_only_the_callable_selected_by_each_physical_member() {
             .map(|(body, _)| *body)
             .collect::<Vec<_>>();
         match member.units().kind() {
-            StrongScoopLirObjectKindV1::NonCallable => assert!(defined.is_empty()),
-            StrongScoopLirObjectKindV1::CallableBody(body) => assert_eq!(defined, vec![body]),
+            ScoopLirObjectKindV1::NonCallable => assert!(defined.is_empty()),
+            ScoopLirObjectKindV1::CallableBody(body) => assert_eq!(defined, vec![body]),
         }
     }
 }
@@ -161,7 +159,7 @@ fn emitted_object_set_owns_verified_temporary_members() {
     let mut non_callable_members = 0;
     for member in emitted.members() {
         match member.kind() {
-            EmittedStrongObjectMemberKindV1::NonCallable {
+            EmittedConeObjectMemberKindV1::NonCallable {
                 runtime_metadata,
                 digest_patches,
             } => {
@@ -197,7 +195,7 @@ fn emitted_object_set_owns_verified_temporary_members() {
                     .unwrap_err();
                 assert!(error.0.contains("not provisionally zero"), "{error}");
             }
-            EmittedStrongObjectMemberKindV1::CallableBody { .. } => {}
+            EmittedConeObjectMemberKindV1::CallableBody { .. } => {}
         }
     }
     assert_eq!(non_callable_members, 1);
@@ -231,7 +229,7 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
     let mut callable_count = 0;
 
     for member in emitted.members() {
-        let EmittedStrongObjectMemberKindV1::CallableBody { body } = member.kind() else {
+        let EmittedConeObjectMemberKindV1::CallableBody { body } = member.kind() else {
             continue;
         };
         callable_count += 1;

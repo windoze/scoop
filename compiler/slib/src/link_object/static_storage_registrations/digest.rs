@@ -1,7 +1,6 @@
 use scoop_identity::{DigestNodeKey, DigestPatchIntentKey, DigestSemanticFieldRole};
 use scoop_lir::{
-    DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongStaticStorageRegistrationPlanV1,
+    DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1, StrongStaticStorageRegistrationPlanV1,
 };
 
 use super::{
@@ -9,7 +8,7 @@ use super::{
 };
 
 pub(super) fn validate_digest_graph(
-    digest_plan: &StrongDigestFinalizationPlanV1,
+    digest_plan: &DigestFinalizationPlanV1,
     plan: &StrongStaticStorageRegistrationPlanV1,
 ) -> Result<(), StrongStaticStorageRegistrationValidationError> {
     use StaticStorageRegistrationDigestPlanFailureV1 as Failure;
@@ -119,7 +118,7 @@ pub(super) fn validate_digest_graph(
 }
 
 fn require_node<'a>(
-    digest_plan: &'a StrongDigestFinalizationPlanV1,
+    digest_plan: &'a DigestFinalizationPlanV1,
     key: DigestNodeKey,
     plan: &StrongStaticStorageRegistrationPlanV1,
     failure: StaticStorageRegistrationDigestPlanFailureV1,

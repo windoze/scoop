@@ -26,19 +26,19 @@ use super::{
     StrongRegistrationProductionSurfaceV1,
 };
 use crate::{
-    ArrayElementStorageV1, BackendScalarKind, ConeLirFoundation,
+    ArrayElementStorageV1, BackendScalarKind, ConeLirFoundation, DigestFinalizationPlanV1,
     ImmortalObjectTypeRegistrationRefV1, LirTargetProfile, NonEmptyRefScan, PointerKind, RefScan,
+    RegistrationIdentitySurfaceV1, RegistrationIdentityValidationError,
     StaticImmortalRelocationPlanV1, StaticStorageScanKindV1, StrongCallableRuntimeScanAtomV1,
     StrongCallableRuntimeScanPlanSetV1, StrongCallableRuntimeScanPlanV1,
-    StrongDigestFinalizationPlanV1, StrongImmortalObjectSemanticPlanSetV1,
-    StrongImmortalObjectSemanticPlanV1, StrongInitializationSchedulePlanV1,
-    StrongInitializationUnitSemanticPlanSetV1, StrongRegistrationIdentitySurfaceV1,
-    StrongRegistrationIdentityValidationError, StrongSafepointSemanticPlanSetV1,
-    StrongSafepointSemanticPlanV1, StrongStaticStorageInitialStatePlanV1,
-    StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1,
-    StrongTypeDescriptorRefV1, StrongTypeDescriptorSemanticPlanSetV1,
-    StrongTypeDispatchCallableRefV1, TypeDescriptorInlineScanV1, TypeInstanceKindV1,
-    TypeInstanceShapeV1, ValueStorageLayoutV1, generated_unit_body, startup_gateway_body,
+    StrongImmortalObjectSemanticPlanSetV1, StrongImmortalObjectSemanticPlanV1,
+    StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSetV1,
+    StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1,
+    StrongStaticStorageInitialStatePlanV1, StrongStaticStorageSemanticPlanSetV1,
+    StrongStaticStorageSemanticPlanV1, StrongTypeDescriptorRefV1,
+    StrongTypeDescriptorSemanticPlanSetV1, StrongTypeDispatchCallableRefV1,
+    TypeDescriptorInlineScanV1, TypeInstanceKindV1, TypeInstanceShapeV1, ValueStorageLayoutV1,
+    generated_unit_body, startup_gateway_body,
 };
 
 mod callables;
@@ -65,7 +65,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
         self,
         target: LirTargetProfile,
         foundation: &ConeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError>
     {
         let actual = encode(&self).map_err(StrongRegistrationProductionValidationError::Encode)?;
@@ -221,7 +221,7 @@ pub enum StrongRegistrationProductionValidationError {
     TypeReference(crate::StrongTypeReferenceResolutionErrorV2),
     InitializationDependency(crate::InitializationDependencyResolutionError),
     InitializationDefinition(crate::InitializationDefinitionResolutionErrorV2),
-    Identities(StrongRegistrationIdentityValidationError),
+    Identities(RegistrationIdentityValidationError),
     TableLength {
         table: RegistrationProductionTableV1,
         expected: usize,

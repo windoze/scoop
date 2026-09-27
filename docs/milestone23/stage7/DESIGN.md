@@ -32,8 +32,8 @@
 | [`hir-lower/concretize.rs`](../../../compiler/hir-lower/src/concretize.rs) | 本地固定点具体化、独立 concrete ID、外来参数自由引用 | 在同一工作队列中消费外来模板；去除依赖本地声明 arena 的假设 |
 | [`concretize/callables.rs`](../../../compiler/hir-lower/src/concretize/callables.rs) | 本地 bound-call 具体化 | actual 类型和 bound 来自本地或依赖时均通过共有声明及 conformance 查询 |
 | [`globals.rs`](../../../compiler/hir-lower/src/globals.rs) | 普通 extension delegate，显式拒绝 generic delegate | 增加真正的 source template 与 concrete specialization，替换拒绝分支 |
-| [`lir/foundation/strong_profile.rs`](../../../compiler/lir/src/foundation/strong_profile.rs) | 完整 Strong 输出，明确拒绝 ODR | 正式输出直接持有完整 canonical foundation 与 Strong/ODR 定义，不再借用 OdrFree 包装 |
-| [`codegen/emission/strong.rs`](../../../compiler/codegen/src/emission/strong.rs) | 已支持对象集合，分离 callable 与非 callable 对象 | 扩展现有分区、weak 定义和 metadata 发射；不重新搭建多对象基础设施 |
+| [`lir/foundation/cone.rs`](../../../compiler/lir/src/foundation/cone.rs) | 完整 Strong 输出，明确拒绝 ODR | 正式输出直接持有完整 canonical foundation 与 Strong/ODR 定义，不再借用 OdrFree 包装 |
+| [`codegen/emission/objects.rs`](../../../compiler/codegen/src/emission/objects.rs) | 已支持对象集合，分离 callable 与非 callable 对象 | 扩展现有分区、weak 定义和 metadata 发射；不重新搭建多对象基础设施 |
 | [`artifact_production/layout.rs`](../../../compiler/driver/src/artifact_production/layout.rs) 与 [`layout_compile_closure/read.rs`](../../../compiler/slib/src/layout_compile_closure/read.rs) | 真实产物组装、共有 Compile/Link 读取及结果复用 | 接入模板、ODR 定义目录和跨 artifact 重复定义检查 |
 
 M23-2 已有 identity 并不表示模板正文或 ODR 机器能力已实现。M23-6 的泛型相关 compiler/unit 测试也不能代替本阶段的独立 `.slib` 发布和消费。
@@ -219,7 +219,7 @@ MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 cano
 
 ## 7. 对象发射与可复现性
 
-扩展现有 `EmittedStrongObjectSetV2` 所在的对象集合实现，并按其新用途整理命名。每个 `ObjectDefinitionPlan` 只绑定到一个实际 `SlibMemberId`；一个对象可以含多个 plan，一个 group 可以跨对象。目录逻辑 key 仍由排序后的真实 unit set 形成。
+扩展现有 `EmittedConeObjectSetV2` 所在的对象集合实现，并按其新用途整理命名。每个 `ObjectDefinitionPlan` 只绑定到一个实际 `SlibMemberId`；一个对象可以含多个 plan，一个 group 可以跨对象。目录逻辑 key 仍由排序后的真实 unit set 形成。
 
 发射遵循以下约束：
 
@@ -229,6 +229,8 @@ MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 cano
 4. image 和其六类 pointer table 由当前 Cone Strong 持有；table 可以引用共享的 ODR registration atom。table 本身不进入某个 ODR group。
 5. 边界符号、关联 EH/stackmap、relocation、digest patch 沿用当前集合式发射与验证。函数对象只依赖其 canonical body 和完整声明，不能因同模块其他函数是否可见而得到不同优化结果。
 6. member 顺序、capture/field 次序、内部 label 和 safepoint site 从已有 typed identity 与规范化 body 生成。consumer 的 arena 分配、输入顺序、绝对路径和首次使用点不得改变语义对象。
+
+单成员 LLVM 模块中，只有实际定义的 ODR 函数和 global 使用 `weak_odr`；指向其它对象中该定义的声明使用 LLVM 必需的普通 external declaration，其语义 symbol request 仍为 `OdrWeak`，不能改成可缺失的弱引用。registration 的 runtime identity 写入实际 group/member，image 的 Strong pointer table 直接使用这些 registration 的既有符号请求。
 
 同一 member 的 canonical LIR 和规范化对象在同一 target/backend 下必须一致。重排物理对象分片可以改变 Code/Artifact fingerprint，但不改变 ODR member identity 和 definition fingerprint。测试分别比较 canonical 内容与物理目录，不要求不同 Cone 的整个 `.slib` bytes 相同。
 
@@ -266,6 +268,8 @@ OdrDefinitionFingerprint = DomainSeparatedCborHash(
 保留 `DigestKind::OdrDefinition = 8`。旧 owner variant `OdrDefinition(OdrGroupId) = 8` 退役，新增 `OdrMemberDefinition(OdrMemberId) = 11`；后者映射到 kind 8。其他 owner tag 与 patch field role 不变，不复用退役编号。
 
 每个 ODR node 只汇总该 member 的 LIR、object 和 stackmap leaves。registration 的 `definition_fingerprint` 来自该 registration member；callable 的 `body_definition_fingerprint`、TD 的 descriptor 字段继续来自对应 ObjectDefinition。计算 registration 的对象 leaf 时，其自身最终 ODR slot 归零；已有 body/layout/scan 等上游字段保留。
+
+共有生产查询按 typed subject 与物理角色取得 foundation 中的实际 Strong/ODR plan。源 callable 的 subject 使用已解析的 callable-body key，其他物理 member 使用原 ODR key，不重复发布上游 member 或重新解码其 key。ODR registration 的 ObjectDefinition 节点依赖实际写入该记录的上游字段；其 ODR node 只汇总自身 LIR、对象和所属 stackmap leaves。对象间的摘要边仅表达这些实际补丁依赖，image 继续汇总六类实际 registration node。
 
 普通调用和 TD 关系只在 canonical relocation 中保存 typed 目标，不能加入目标 ODR digest 的递归依赖。跨 member 的真实关系在对象/引用边界检查，正常互递归不会形成 digest 环。每个实际 patch 仍有唯一写入者、精确 atom/range/width，初始为零，计算完成后一次回填。
 

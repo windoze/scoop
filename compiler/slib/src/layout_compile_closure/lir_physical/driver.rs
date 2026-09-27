@@ -4,7 +4,7 @@ type PhysicalInput<'input> = LirConstituentsValidatedCrossConeLayoutSections<
     'input,
     lir::PhysicalImportsReplayedLayoutAbiSectionV1,
     lir::CrossConeLirBridgeSectionV1,
-    lir::StrongProductionSectionV2,
+    lir::ConeProductionSectionV2,
     mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
 >;
 

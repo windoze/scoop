@@ -57,7 +57,7 @@ impl<'input> ProductionValidatedSingleConeLinkSections<'input> {
             link_identity_closure,
             production_manifest,
         } = self;
-        let partition = StrongProducerUnitPartitionV1::from_foundation(&foundations.lir)
+        let partition = ProducerUnitPartitionV1::from_foundation(&foundations.lir)
             .map_err(StrongLinkMaterializationError::ProducerUnits)?;
         let link_identity_closure = link_identity_closure
             .validate_materializations(&partition)

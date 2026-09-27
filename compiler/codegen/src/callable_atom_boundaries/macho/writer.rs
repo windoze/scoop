@@ -8,6 +8,34 @@ use super::{BoundaryDefinitionV1, MachOLayout, NLIST_64_SIZE, malformed, read_u3
 use crate::CodegenError;
 
 impl MachOLayout {
+    pub(crate) fn materialize_odr_definition(
+        &self,
+        bytes: &mut [u8],
+        name: &[u8],
+    ) -> Result<(), CodegenError> {
+        let symbol = self.require_external_definition(name)?;
+        let index = self
+            .symbols
+            .iter()
+            .position(|candidate| candidate.name == name)
+            .ok_or_else(malformed)?;
+        let offset = usize::try_from(self.symtab.symbol_offset)
+            .ok()
+            .and_then(|start| {
+                index
+                    .checked_mul(NLIST_64_SIZE)
+                    .and_then(|relative| start.checked_add(relative))
+            })
+            .and_then(|start| start.checked_add(6))
+            .ok_or_else(malformed)?;
+        let flags = symbol.description | macho::N_WEAK_DEF;
+        bytes
+            .get_mut(offset..offset.checked_add(2).ok_or_else(malformed)?)
+            .ok_or_else(malformed)?
+            .copy_from_slice(&flags.to_le_bytes());
+        Ok(())
+    }
+
     pub(crate) fn add_external_definitions(
         &self,
         bytes: &mut Vec<u8>,
@@ -193,7 +221,12 @@ fn encode_additions(
         encoded.extend_from_slice(&string_index.to_le_bytes());
         encoded.push(macho::N_SECT | macho::N_EXT);
         encoded.push(addition.section_ordinal);
-        encoded.extend_from_slice(&0_u16.to_le_bytes());
+        let flags = if addition.linkage == scoop_lir::LinkageClass::OdrWeak {
+            macho::N_WEAK_DEF
+        } else {
+            0
+        };
+        encoded.extend_from_slice(&flags.to_le_bytes());
         encoded.extend_from_slice(&addition.value.to_le_bytes());
     }
     Ok(encoded)

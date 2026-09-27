@@ -102,8 +102,8 @@ pub(crate) use emission::emit_llvm_module;
 #[cfg(test)]
 pub(crate) use emission::host_target_machine;
 pub use emission::{
-    EmittedStrongObjectMemberKindV1, EmittedStrongObjectMemberV1, EmittedStrongObjectSetV1,
-    EmittedStrongObjectSetV2, RenderedStrongObjectModuleV1, emit_object_set, emit_object_set_v2,
+    EmittedConeObjectMemberKindV1, EmittedConeObjectMemberV1, EmittedConeObjectSetV1,
+    EmittedConeObjectSetV2, RenderedConeObjectModuleV1, emit_object_set, emit_object_set_v2,
     render_llvm_ir_members,
 };
 use function::emit_function;
@@ -111,8 +111,8 @@ pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;
 pub use object_materialization::EmittedStrongDigestPatchMaterializationV1;
 pub use object_partition::{
-    StrongScoopLirObjectKindV1, StrongScoopLirObjectPartitionError,
-    StrongScoopLirObjectPartitionV1, StrongScoopLirObjectUnitSetV1,
+    ScoopLirObjectKindV1, ScoopLirObjectPartitionError, ScoopLirObjectPartitionV1,
+    ScoopLirObjectUnitSetV1,
 };
 pub use runtime_metadata_v1::{
     CallableRegistrationPatchSiteV1, EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1,

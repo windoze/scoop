@@ -6,8 +6,8 @@ use scoop_identity::{
     GcEffect, ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    ConeLirFoundation, CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError,
-    StrongProductionSectionV1,
+    ConeLirFoundation, ConeProductionSectionV1, CrossConeLirBridgeSectionV1,
+    CrossConeLirBridgeValidationError,
 };
 use scoop_mir::{CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation};
 
@@ -38,7 +38,7 @@ pub struct LirBridgeValidatedCrossConeHirFrontSections<'input> {
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: CoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: CrossConeMirBridgeSectionV1,
-    lir_strong_production: StrongProductionSectionV1,
+    lir_strong_production: ConeProductionSectionV1,
     lir_cross_cone_bridge: CrossConeLirBridgeSectionV1,
 }
 
@@ -86,7 +86,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         &self.foundations.lir
     }
 
-    pub fn lir_strong_production(&self) -> &StrongProductionSectionV1 {
+    pub fn lir_strong_production(&self) -> &ConeProductionSectionV1 {
         &self.lir_strong_production
     }
 

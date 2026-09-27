@@ -7,9 +7,9 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
-    CanonicalLirFoundation, ConeLirFoundation, DarwinCBridgeDeploymentContractV1,
-    DarwinPackedVersionV1, EntryProductionSourceV1, StrongDigestFinalizationPlanV1,
-    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
+    CanonicalLirFoundation, ConeLirFoundation, ConeProductionSectionV1,
+    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, DigestFinalizationPlanV1,
+    EntryProductionSourceV1, ObjectSymbolSurfaceV1, ProducerUnitPartitionV1,
     ValidatedLirTargetSelection,
 };
 use scoop_wire::{decode_canonical, encode};
@@ -1033,14 +1033,14 @@ fn closure_section() -> MetadataSection {
     .unwrap()
 }
 
-pub(crate) fn strong_production() -> StrongProductionSectionV1 {
+pub(crate) fn strong_production() -> ConeProductionSectionV1 {
     strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]).1
 }
 
 pub(crate) fn strong_production_fixture(
     coordinate: ConeCoordinate,
     direct_dependencies: &[ConeIdentity],
-) -> (CanonicalLirFoundation, StrongProductionSectionV1) {
+) -> (CanonicalLirFoundation, ConeProductionSectionV1) {
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
@@ -1073,7 +1073,7 @@ pub(crate) fn strong_production_fixture(
         DigestSemanticFieldRole::RuntimeImage,
     );
     let image = scoop_lir::DigestNodeV1::new(image_key, Vec::new(), vec![patch]).unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
+    let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
 
     let registrations = scoop_lir::StrongRegistrationProductionSurfaceV1::empty(
         selection().target(),
@@ -1081,7 +1081,7 @@ pub(crate) fn strong_production_fixture(
         &digests,
     )
     .unwrap();
-    let production = StrongProductionSectionV1::new(
+    let production = ConeProductionSectionV1::new(
         coordinate,
         direct_dependencies,
         &foundation,
@@ -1183,7 +1183,7 @@ fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
     let (canonical, _) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let foundation = ConeLirFoundation::try_new(cone().identity(), canonical).unwrap();
-    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let units = crate::CanonicalScoopLirObjectUnitSetV1::new(
         partition.scoop_lir_definition_plans().to_vec(),
     )
@@ -1202,7 +1202,7 @@ fn link_object_fixture() -> LinkObjectFixture {
     let (canonical, production) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let foundation = ConeLirFoundation::try_new(cone().identity(), canonical).unwrap();
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let plan = link_object_plan();
     let symbols =
         PlannedStrongObjectSymbolSetV1::new(selection().target(), &surface, &plan).unwrap();
@@ -1242,7 +1242,7 @@ fn link_object_fixture() -> LinkObjectFixture {
 }
 
 fn finalized_link_object_fixture() -> (
-    StrongProductionSectionV1,
+    ConeProductionSectionV1,
     crate::VerifiedEntryPatchSetV1,
     crate::CanonicalDefinedLinkSymbolOwnerSetV1,
     crate::CanonicalUndefinedSymbolRequirementSetV1,
@@ -1428,7 +1428,7 @@ fn link_object_bytes() -> Vec<u8> {
 fn empty_undefined_requirements(
     patch_sites: &crate::VerifiedScoopLirDigestPatchSiteSetV1,
     foundation: &ConeLirFoundation,
-    production: &StrongProductionSectionV1,
+    production: &ConeProductionSectionV1,
 ) -> crate::CanonicalUndefinedSymbolRequirementSetV1 {
     let strong = patch_sites.builtins().strong_relocations().clone();
     let current = crate::verify_current_cone_undefined_requirements_v1(

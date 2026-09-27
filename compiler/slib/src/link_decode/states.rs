@@ -11,7 +11,7 @@ pub struct DecodedSingleConeLinkSections<'input> {
     pub(super) mir_foundation: DecodedMirFoundation,
     pub(super) mir_production: DecodedCoreBootstrapBridgeSectionV1,
     pub(super) lir_foundation: DecodedLirFoundation,
-    pub(super) strong_production: DecodedStrongProductionSectionV1,
+    pub(super) strong_production: DecodedConeProductionSectionV1,
     pub(super) link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
 }
@@ -27,7 +27,7 @@ pub struct IdentityCheckedSingleConeLinkSections<'input> {
     pub(super) mir_foundation: DecodedMirFoundation,
     pub(super) mir_production: DecodedCoreBootstrapBridgeSectionV1,
     pub(super) lir_foundation: DecodedLirFoundation,
-    pub(super) strong_production: DecodedStrongProductionSectionV1,
+    pub(super) strong_production: DecodedConeProductionSectionV1,
     pub(super) link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
 }

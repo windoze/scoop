@@ -2,8 +2,8 @@ use scoop_identity::{
     DefinitionAtomRole, DigestNodeKey, DigestPatchIntentKey, DigestSemanticFieldRole,
 };
 use scoop_lir::{
-    DigestInputRefV1, StrongDigestFinalizationPlanV1,
-    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlan,
+    DigestFinalizationPlanV1, DigestInputRefV1, StrongInitializationRegistrationSchedulePlanV1,
+    StrongInitializationUnitRegistrationPlan,
 };
 
 use super::{
@@ -11,7 +11,7 @@ use super::{
 };
 
 pub(super) fn validate_digest_graph<D>(
-    digest_plan: &StrongDigestFinalizationPlanV1,
+    digest_plan: &DigestFinalizationPlanV1,
     plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     use InitializationRegistrationDigestPlanFailureV1 as Failure;
@@ -125,7 +125,7 @@ pub(super) fn validate_digest_graph<D>(
 
 #[allow(clippy::too_many_arguments)]
 fn require_leaf<'a, D>(
-    digest_plan: &'a StrongDigestFinalizationPlanV1,
+    digest_plan: &'a DigestFinalizationPlanV1,
     plan: &StrongInitializationUnitRegistrationPlan<D>,
     key: DigestNodeKey,
     expected_id: scoop_identity::DigestNodeId,

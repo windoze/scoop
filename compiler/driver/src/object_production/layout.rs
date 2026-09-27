@@ -1,8 +1,8 @@
 //! Actual V2 object verification and finalization for layout-profile archives.
 
 use super::*;
-use scoop_codegen::EmittedStrongObjectSetV2;
-use scoop_lir::StrongProductionSectionV2;
+use scoop_codegen::EmittedConeObjectSetV2;
+use scoop_lir::ConeProductionSectionV2;
 use scoop_slib as slib;
 
 mod finalization;
@@ -16,7 +16,7 @@ pub(crate) use verification::prepare;
 pub(crate) struct PreparedLayoutObjects {
     pub(crate) target_selection: ValidatedLirTargetSelection,
     pub(crate) foundation: ConeLirFoundation,
-    pub(crate) production: StrongProductionSectionV2,
+    pub(crate) production: ConeProductionSectionV2,
     pub(crate) c_bridge_profile: CBridgeToolchainProfileV1,
     pub(crate) patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,

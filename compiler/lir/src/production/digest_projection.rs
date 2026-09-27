@@ -6,28 +6,28 @@ use std::fmt;
 use scoop_identity::{
     CallableBodyKey, DefinitionAtomRole, DigestKind, DigestNodeId, DigestNodeKey,
     DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionAtomId,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentCallableBodyId, StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, PersistentCallableBodyId,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::HashError;
 
 use crate::{
-    ConeLirFoundation, DefinitionAtomResolutionError, DigestInputRefV1, DigestNodeBuildError,
-    DigestNodeV1, EntryProductionSourceV1, StrongDigestFinalizationPlanV1,
-    StrongDigestPlanBuildError, StrongImmortalObjectSemanticPlanSetV1,
-    StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSet,
-    StrongSafepointSemanticPlanSetV1, StrongTypeDescriptorSemanticPlanSet,
+    ConeLirFoundation, DefinitionAtomResolutionError, DigestFinalizationPlanV1, DigestInputRefV1,
+    DigestNodeBuildError, DigestNodeV1, DigestPlanBuildError, EntryProductionSourceV1,
+    StrongImmortalObjectSemanticPlanSetV1, StrongInitializationSchedulePlanV1,
+    StrongInitializationUnitSemanticPlanSet, StrongSafepointSemanticPlanSetV1,
+    StrongTypeDescriptorSemanticPlanSet,
 };
 
 /// Derives digest inputs from the same runtime semantics used for registrations.
-pub(crate) fn project_strong_digest_finalization_plan<D: Copy, C, I>(
+pub(crate) fn project_digest_finalization_plan<D: Copy, C, I>(
     foundation: &ConeLirFoundation,
     entry_source: &EntryProductionSourceV1,
     safepoints: &StrongSafepointSemanticPlanSetV1,
     types: &StrongTypeDescriptorSemanticPlanSet<D, C>,
     immortals: &StrongImmortalObjectSemanticPlanSetV1,
     initialization: &StrongInitializationUnitSemanticPlanSet<I>,
-) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
+) -> Result<DigestFinalizationPlanV1, DigestProjectionError> {
     DigestGraphWriter::new(foundation).project(
         safepoints,
         types,
@@ -38,8 +38,8 @@ pub(crate) fn project_strong_digest_finalization_plan<D: Copy, C, I>(
 }
 
 mod errors;
-pub use errors::StrongDigestProjectionError;
+pub use errors::DigestProjectionError;
 mod graph;
 use graph::DigestGraphWriter;
 mod replay;
-pub use replay::replay_strong_digest_finalization_plan_v2;
+pub use replay::replay_digest_finalization_plan_v2;

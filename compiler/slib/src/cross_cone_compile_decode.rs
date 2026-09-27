@@ -7,7 +7,7 @@ use scoop_hir::{
 };
 use scoop_identity::ValidatedIdentityGraph;
 use scoop_lir::{
-    DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation, DecodedStrongProductionSectionV1,
+    DecodedConeProductionSectionV1, DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
 };
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, DecodedMirFoundation,
@@ -40,7 +40,7 @@ pub struct DecodedCrossConeHirFrontSections<'input> {
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
-    lir_strong_production: DecodedStrongProductionSectionV1,
+    lir_strong_production: DecodedConeProductionSectionV1,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
 }
 
@@ -55,7 +55,7 @@ pub struct FoundationValidatedCrossConeHirFrontSections<'input> {
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV1,
+    lir_strong_production: DecodedConeProductionSectionV1,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
 }
 
@@ -70,7 +70,7 @@ pub struct ResolvedCrossConeHirFrontSections<'input> {
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV1,
+    lir_strong_production: DecodedConeProductionSectionV1,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
 }
 
@@ -85,7 +85,7 @@ pub struct HirProductionValidatedCrossConeHirFrontSections<'input> {
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV1,
+    lir_strong_production: DecodedConeProductionSectionV1,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
 }
 

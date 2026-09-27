@@ -18,8 +18,8 @@ use scoop_identity::{
     PersistentCallableBodyId, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    DigestInputRefV1, StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
-    StrongDigestFinalizationPlanV1,
+    DigestFinalizationPlanV1, DigestInputRefV1, StrongCallableRegistrationPlanSetV1,
+    StrongCallableRegistrationPlanV1,
 };
 
 const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
@@ -119,7 +119,7 @@ pub fn verify_strong_callable_registrations_v1(
 }
 
 fn validate_digest_graph(
-    digest_plan: &StrongDigestFinalizationPlanV1,
+    digest_plan: &DigestFinalizationPlanV1,
     plan: StrongCallableRegistrationPlanV1,
 ) -> Result<(), StrongCallableRegistrationValidationError> {
     use CallableRegistrationDigestPlanFailureV1 as Failure;

@@ -3,14 +3,14 @@ use super::*;
 impl<'input> PreparedCrossConeLayoutMirSections<'input> {
     pub(crate) fn code_strong_input(
         &mut self,
-    ) -> Result<scoop_lir::DecodedStrongProductionSectionV2, crate::SharedLirPhysicalError> {
+    ) -> Result<scoop_lir::DecodedConeProductionSectionV2, crate::SharedLirPhysicalError> {
         crate::link_decode::layout_code_strong_input(&mut self.graph)
             .map_err(|error| crate::LayoutLinkSymbolUseError::CodeInput(Box::new(error)).into())
     }
 
     pub(crate) fn replay_link_object_contents(
         &mut self,
-        strong: &scoop_lir::StrongProductionSectionV2,
+        strong: &scoop_lir::ConeProductionSectionV2,
         profile: &scoop_lir::CBridgeToolchainProfileV1,
     ) -> Result<crate::ReplayedLayoutLinkObjectContentsV1, crate::SharedLirPhysicalError> {
         let link = self
@@ -31,7 +31,7 @@ impl<'input> PreparedCrossConeLayoutMirSections<'input> {
     ) -> Result<(), crate::StrongLinkMaterializationError> {
         if let Some(link) = self.view.link() {
             let partition =
-                scoop_lir::StrongProducerUnitPartitionV1::from_foundation(&self.foundations.lir)
+                scoop_lir::ProducerUnitPartitionV1::from_foundation(&self.foundations.lir)
                     .map_err(crate::StrongLinkMaterializationError::ProducerUnits)?;
             let plan = link
                 .link_identity_closure_wire()

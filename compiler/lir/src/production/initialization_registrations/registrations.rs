@@ -16,8 +16,8 @@ use super::{
     StrongInitializationUnitSemanticPlanSet,
 };
 use crate::{
-    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1,
+    RegistrationIdentitySurfaceV1,
 };
 
 mod build;
@@ -31,9 +31,9 @@ impl<D: crate::StrongInitializationDependencyReference>
 {
     pub fn new(
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
+        identities: &RegistrationIdentitySurfaceV1,
         semantics: &StrongInitializationUnitSemanticPlanSet<D>,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongInitializationUnitRegistrationPlanBuildError> {
         if semantics.producer() != foundation.producer() {
             return Err(

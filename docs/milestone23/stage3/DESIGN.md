@@ -810,13 +810,13 @@ MIR内存中的`SingleConeStrongMaterializationPlan`由实际module、完整foun
 
 ### 9.3 LIR strong production section
 
-`StrongProductionSectionV1`精确包含：
+`ConeProductionSectionV1`精确包含：
 
 ```text
-StrongProductionSectionV1 {
-    canonical_definitions: StrongObjectSymbolSurfaceV1,
-    object_definition_plans: StrongObjectDefinitionPlanSurfaceV1,
-    digest_finalization_plan: StrongDigestFinalizationPlanV1,
+ConeProductionSectionV1 {
+    canonical_definitions: ObjectSymbolSurfaceV1,
+    object_definition_plans: ObjectDefinitionPlanSurfaceV1,
+    digest_finalization_plan: DigestFinalizationPlanV1,
     registration_production: StrongRegistrationProductionSurfaceV1,
     image_plan: ConeImagePlanV1,
     entry_plan: Library | Executable(ExecutableEntryPlan),
@@ -829,7 +829,7 @@ StrongProductionSectionV1 {
 
 field 5 `StrongRegistrationProductionSurfaceV1`不是仅含identity的摘要，而是artifact-only Link重建
 registration 与 stackmap 检查所需的完整、member-independent 数据。其closed product固定为：
-`1=identities: StrongRegistrationIdentitySurfaceV1`、
+`1=identities: RegistrationIdentitySurfaceV1`、
 `2=safepoints: CanonicalVec<StrongSafepointRegistrationPlanV1>`、
 `3=callables: CanonicalVec<StrongCallableRegistrationPlanV1>`、
 `4=types: CanonicalVec<StrongTypeRegistrationPlanV1>`、
@@ -858,8 +858,8 @@ MIR 的外部调用统一使用 `ExternalCallableUse`；普通调用、初始化
 `object_definition_plans`覆盖每个参与definition/digest的strong primary和associated atom，但不含member assignment。`DigestFinalizationPlan`可使用M23总设计已经冻结的全部kind enum；本profile只允许SourceSignature/Layout/Scan/LirDefinition/ObjectSupport/ObjectDefinition/StackmapRecord/StrongRegistration/RuntimeImage，出现OdrDefinition node即拒绝。
 
 `canonical_definitions`不是另一个开放的LIR body容器；它精确使用从同一ODR-free foundation重建的
-`StrongObjectSymbolSurfaceV1`。顶层按definition plan id严格递增。每个
-`StrongDefinitionSymbolPlanV1`固定为`1=definition_plan`、`2=owner`、
+`ObjectSymbolSurfaceV1`。顶层按definition plan id严格递增。每个
+`DefinitionSymbolPlanV1`固定为`1=definition_plan`、`2=owner`、
 `3=definition_role`、`4=primary_atom`、`5=primary_symbol`、`6=atom_boundaries`；boundary固定为
 `1=atom`、`2=atom_role`、`3=start`、`4=end`并按atom id严格递增。owner、role、primary atom/symbol
 以及每个start/end request都由foundation的typed definition plan/atom唯一重建；reader逐byte比较并
@@ -893,7 +893,7 @@ definition plan、producer不等于当前Cone的strong definition plan，以及p
 generated bridge atom。其全部persistent symbol request必须逐项为`ConeStrong`；
 `TemplateSupportHidden`与`OdrWeak`都在proof构造时直接拒绝。旧的无producer构造入口不存在。
 
-`object_definition_plans`的元素固定为`StrongObjectDefinitionPlanV1` closed product：
+`object_definition_plans`的元素固定为`ObjectDefinitionPlanV1` closed product：
 `1=plan: ObjectDefinitionPlanId`、`2=primary_atom: ObjectDefinitionAtomId`、
 `3=associated_atoms: CanonicalVec<ObjectDefinitionAtomId>`。顶层array按plan id严格递增，
 associated array按atom id严格递增。它必须逐项、全量覆盖同一ODR-free LIR foundation中的
@@ -967,14 +967,14 @@ writer不接受上述八段裸值，reader重建完整expected section并逐byte
 
 为启动object reader，Link可以先消费decoded field 1形成
 `MaterializationCheckedLinkIdentityClosureSectionV1`，但该中间证明必须把每个decoded unit id逐项匹配到
-同producer的`StrongProducerUnitPartitionV1` typed id，重建canonical unit set、member stable key与
+同producer的`ProducerUnitPartitionV1` typed id，重建canonical unit set、member stable key与
 member id，并对完整materialization array做canonical byte等值。它必须继续拥有其余未验证closure字段；
 不能把field 1中的裸id/member bytes直接提升，也不能用该中间状态冒充完整closure proof。最终仍以
 `VerifiedCodeFingerprintV1`重建并核对全部八个字段。
 
 物理digest slot验证前，reader再把decoded field 3收窄为
 `DigestPatchInputCheckedLinkIdentityClosureSectionV1`。该转换只能从已经验证的
-`StrongDigestFinalizationPlanV1`枚举完整intent集合，并沿每个intent的target definition在上述
+`DigestFinalizationPlanV1`枚举完整intent集合，并沿每个intent的target definition在上述
 `PlannedLinkObjectMemberSetV1`中取得唯一Scoop LIR member；decoded intent与member都必须逐byte匹配这些
 typed expected值，数组必须按intent严格递增、无重复且完整覆盖plan。wire只贡献`checked_offset`；slot宽度
 固定由v1协议派生为32，source、semantic role、definition、atom及atom role继续由digest plan与foundation
@@ -989,7 +989,7 @@ byte等值后才形成`ObjectProjectionCheckedLinkIdentityClosureSectionV1`。�
 证明一起只授权closure fields 1--3；definition range、symbol-table index、member或offset不允许从decoded
 carrier直接提升，其余fields 4--8仍保持未验证，最终完整八字段比较不能省略。
 
-它不贡献新的LIR semantic bytes。reader从`StrongProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
+它不贡献新的LIR semantic bytes。reader从`ConeProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
 
 ### 9.5 manifest production section
 
@@ -1011,8 +1011,8 @@ SingleConeProductionManifestV1 {
 ```
 
 field 4不引入另一种registration identity结构；其精确类型就是与
-`StrongProductionSectionV1.registration_production.identities`逐byte相等的
-`StrongRegistrationIdentitySurfaceV1`。field 5为
+`ConeProductionSectionV1.registration_production.identities`逐byte相等的
+`RegistrationIdentitySurfaceV1`。field 5为
 `CanonicalStrongRegistrationFingerprintSetV1`：fields `1..6`依次对应static storage、immortal
 object、initialization unit、type、safepoint、callable六张表；每项固定为
 `1=semantic_id`、`2=fingerprint: StrongRegistrationFingerprintV1`，各表按本表kind-specific
@@ -1062,7 +1062,7 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 `VerifiedCBridgeProductionEnvelopeSetV1`必须拥有它已经验证的
 `GeneratedBridgePlanSetV1`和`CBridgeProductionSetV1`，不能只留下producer摘要；验证入口消费这两个
 值，成功后由proof独占保存。这样manifest/Code构造器才能把C bridge envelopes逐byte绑定回
-`StrongProductionSectionV1.generated_bridge_plan`。旧的借用后丢弃plan的proof结构和构造签名直接
+`ConeProductionSectionV1.generated_bridge_plan`。旧的借用后丢弃plan的proof结构和构造签名直接
 删除，不提供兼容重载。
 
 ### 9.6 wire字段与tag冻结
@@ -1075,7 +1075,7 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 | --- | --- |
 | `CoreBootstrapInterfaceSectionV1` (`/4`) | `2=output_contract`, `3=direct_public_surface`, `5=compiler_protocols`；旧 1、4 退役 |
 | `CoreBootstrapBridgeSectionV1` | `2=entry_bridge`, `3=strong_callable_bridges`；旧 1 退役 |
-| `StrongProductionSectionV1` (`/9`、`/10`) | `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=shape_support_plan`, `9=generated_bridge_plan`；旧 1、10～12 退役 |
+| `ConeProductionSectionV1` (`/9`、`/10`) | `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=shape_support_plan`, `9=generated_bridge_plan`；旧 1、10～12 退役 |
 | `LinkIdentityClosureSectionV1` | `1=materializations`, `2=definition_indexes`, `3=patch_sites`, `4=defined_symbols`, `5=undefined_symbols`, `6=verified_link_objects`, `7=image_owner`, `8=entry_owner` |
 | `SingleConeProductionManifestV1` | `1=distribution`, `2=output`, `3=image_owner_member`, `4=runtime_registration_projection`, `5=strong_registration_set`, `6=runtime_image_fingerprint`, `7=code_fingerprint`, `8=native_contracts`, `9=native_library_requirements`, `10=c_bridge_production` |
 
@@ -1193,7 +1193,7 @@ associated atom独占一个provisional object，其余Scoop LIR definition plan�
 module-level backend section不会把多个callable atom混成需要事后猜测的物理分区。该分类只用于producer选择
 本次发射的definition闭包，不进入logical key或archive role；member身份仍完全由canonical unit set派生，
 不能用“metadata object”、文件名、输出顺序或首个member建立所有权。任一分片必须非空，全部分片的unit并集
-必须逐项等于`StrongProducerUnitPartitionV1`中的Scoop LIR definition集合且互不重叠；generated bridge
+必须逐项等于`ProducerUnitPartitionV1`中的Scoop LIR definition集合且互不重叠；generated bridge
 definition只能由generated C producer分片，不得混入LLVM对象。
 
 Scoop LLVM producer在返回member前，必须把runtime-metadata emitter给出的每个typed
@@ -1227,12 +1227,12 @@ flags一并放宽。`__TEXT,__text`必须含`S_ATTR_PURE_INSTRUCTIONS`，`S_ATTR
 4. 才运行object verifier与digest patch；
 5. 最后以final bytes计算member hash/record。
 
-`StrongProducerUnitPartitionV1`必须保留其`OdrFreeLirFoundation`已经验证的producer，
+`ProducerUnitPartitionV1`必须保留其`OdrFreeLirFoundation`已经验证的producer，
 `PlannedLinkObjectMemberSetV1`只能从该partition取得Cone identity并派生全部member id；构造入口不再
 接受第二个caller-supplied Cone identity。这样跨producer分片从类型结构上不可表达，而不是等后续
 symbol/object validator再比较失败。
 
-driver中的producer adapter必须在同一次构造中接收`EmittedStrongObjectSetV1`与
+driver中的producer adapter必须在同一次构造中接收`EmittedConeObjectSetV1`与
 `EmittedGeneratedCBridgeObjectSetV1`，并证明二者引用同一份完整generated bridge plan。它从前者原子地
 取得production、codegen选定的完整producer unit partition、每个Scoop物理对象的精确unit set与typed
 materialization，从后者取得每个generated-C物理对象的精确unit authority、toolchain profile及
@@ -1435,7 +1435,7 @@ candidate；finalizer重建全部digest后必须与保留的archive副本逐memb
 
 Scoop producer的digest落槽先由`VerifiedScoopLirDigestPatchSiteSetV1`收窄。输入是上述联合object
 proof、同producer的`OdrFreeLirFoundation`、已经对该foundation闭合的
-`StrongDigestFinalizationPlanV1`、同一批按member id严格递增的Scoop object bytes，以及按
+`DigestFinalizationPlanV1`、同一批按member id严格递增的Scoop object bytes，以及按
 `DigestPatchIntentId`严格递增的`ProvisionalDigestPatchSiteV1`。foundation只通过窄的
 `resolve_definition_atom(definition_plan, atom_role)`查询暴露唯一target，不向slib开放内部authority table。
 verifier要求每个intent恰一个site、site member等于definition plan的既定Scoop member、width精确32、
@@ -1805,7 +1805,7 @@ M23-3 只发射实际使用的 image、registration 与 root entry。M23-6 已�
 
 本profile全部`linkage_kind=Strong`，ODR group/member 64 bytes全零。`definition_fingerprint`由相应StrongRegistration node写入；callable的`body_definition_fingerprint`独立取body atom的ObjectDefinition fingerprint。六张表分别按总设计canonical key严格排序，即使为空也在image/hash中保留count 0，并在object中使用typed addressable sentinel。callable表具体按`PersistentCallableBodyId`排序；LIR foundation中的callable-body identity表因`RootGateway -> main`依赖采用稳定拓扑序，两者只能按typed body id做全集相等与join，禁止按相同index位置配对或把拓扑序误当registration wire顺序。
 
-LIR先从strong object-definition plan重建`StrongRegistrationIdentitySurfaceV1`，作为完整
+LIR先从strong object-definition plan重建`RegistrationIdentitySurfaceV1`，作为完整
 registration plan 与 image plan 共用的 typed 引用索引。顶层是fields `1..6`依上表次序排列的六个
 array；每个元素是closed product：`1=semantic_id`（使用该表的kind-specific id）、
 `2=definition_plan: ObjectDefinitionPlanId`、`3=fingerprint_node: DigestNodeId`。六类plan role
@@ -2011,7 +2011,7 @@ managed invoke与native transition为零。后续object verifier只能消费该p
 codegen发射safepoint registration前必须再通过唯一、非wire入口
 `StrongSafepointRegistrationPlanSetV1::new(foundation, identities, semantics, digests)`构造完整生产
 计划。该入口要求semantic plan producer与foundation一致，且semantic site全集与
-`StrongRegistrationIdentitySurfaceV1.safepoints`逐项相等；每个site的foundation runtime mapping、
+`RegistrationIdentitySurfaceV1.safepoints`逐项相等；每个site的foundation runtime mapping、
 owner callable、`SafepointRegistration` strong definition plan、唯一`Primary` atom及
 `ConeStrong SafepointRegistration(site)`符号均必须存在。每项生产计划固定保留
 `site/safepoint/owner/role/root_pair_count`、symbol、definition plan、primary atom、
@@ -2032,7 +2032,7 @@ digest回接到这个object leaf，也不得为同一record保留另一种带inp
 
 callable registration在codegen前同样只能经唯一、非wire入口
 `StrongCallableRegistrationPlanSetV1::new(foundation, identities, digests)`构造完整生产计划。它要求
-foundation中的全部callable body与`StrongRegistrationIdentitySurfaceV1.callables`逐项相等；每个body
+foundation中的全部callable body与`RegistrationIdentitySurfaceV1.callables`逐项相等；每个body
 必须同时存在`ConeStrong CallableBody(body)`入口符号、`ConeStrong CallableRegistration(body)`记录符号、
 各自不同的`CallableBody`/`CallableRegistration` definition plan及唯一`Primary` atom。registration
 Primary的`ObjectDefinition` node固定为无input、无patch的leaf；StrongRegistration node的direct input
@@ -2046,7 +2046,7 @@ digest node及两个patch intent；codegen不得从零散foundation表重新拼�
 type registration在codegen前只能经唯一、非wire入口
 `StrongTypeRegistrationPlanSetV1::new(target, foundation, identities, semantics, digests)`形成完整生产计划。它以当前
 producer全部`TypeDescriptor` strong definition的exact type集合为完备性基准，并要求该集合与
-`StrongRegistrationIdentitySurfaceV1.type_registrations`逐项相等；每个exact type必须恰有一个非零
+`RegistrationIdentitySurfaceV1.type_registrations`逐项相等；每个exact type必须恰有一个非零
 runtime type mapping、一个当前target的`ManagedObject` layout，以及registration、descriptor、layout三套
 definition plan、各自唯一`Primary` atom和`ConeStrong`符号。descriptor definition还必须精确拥有一个
 `AddressTakenConstant + ExactType(exact_type)` diagnostic associated atom；当且仅当descriptor的itable序列非空时，
@@ -2080,7 +2080,7 @@ local/core-external descriptor ref取得exact type，不能由显示名、global
 well-known descriptor或size溢出都在codegen前失败。
 
 随后`StrongImmortalObjectRegistrationPlanSetV1::new(foundation, identities, semantics, digests)`要求semantic
-全集与`StrongRegistrationIdentitySurfaceV1.immortal_objects`逐项相等，并为每个对象闭合当前producer的
+全集与`RegistrationIdentitySurfaceV1.immortal_objects`逐项相等，并为每个对象闭合当前producer的
 `ImmortalObject`/`ImmortalRegistration`两套definition plan、唯一Primary atom、object/registration两个
 ConeStrong符号及typed String type-registration符号；local ref要求当前type-registration表中恰一项，
 core-external ref则禁止当前Cone冒充本地登记。registration Primary的ObjectDefinition固定为无input、
@@ -2442,7 +2442,7 @@ ConeImagePlan {
 本阶段wire中的`ConeRecordV1`是closed product
 `{1=coordinate: ConeCoordinate, 2=identity: ConeIdentity}`，identity必须从coordinate重算且等于
 LIR strong foundation producer。`tables`是fields `1..6`依13.2表顺序排列的六个kind-specific
-semantic-id array，逐项来自已经重建的`StrongRegistrationIdentitySurfaceV1`，不得携带通用
+semantic-id array，逐项来自已经重建的`RegistrationIdentitySurfaceV1`，不得携带通用
 32-byte id。`ConeImagePlan`按上述伪代码顺序编码fields `1..7`；其中field 4编码从
 `PersistentSymbolKey::ImageDescriptor(cone)`唯一派生的`ConeStrong`
 `PersistentSymbolRequest`，field 5必须是当前Cone `ImageDescriptor` strong definition plan。field 6是
@@ -2611,7 +2611,7 @@ packager只有在全部Link-purpose输入就绪后计算：
 NativeLinkRequirementKey>>`、`5=defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1`、
 `6=undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1`、
 `7=native_contracts: CanonicalNativeExternalContractCodeSetV1`、
-`8=strong_production: StrongProductionSectionV1`、
+`8=strong_production: ConeProductionSectionV1`、
 `9=manifest_projection: SingleConeProductionCodeProjectionV1`。M23-3没有known Link extension handler，
 因此field 2必须是空array；出现Link-required extension已在member-set verification处失败，不能产生
 伪造的空贡献。fields 3--9必须与field 1持有的最终object proof具有同一producer、target、digest plan、

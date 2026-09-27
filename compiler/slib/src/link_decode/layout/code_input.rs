@@ -11,7 +11,7 @@ use crate::{
 
 pub(crate) fn layout_code_strong_input(
     graph: &mut ValidatedGraphArtifact<'_>,
-) -> Result<scoop_lir::DecodedStrongProductionSectionV2, SingleConeLinkSectionDecodeError> {
+) -> Result<scoop_lir::DecodedConeProductionSectionV2, SingleConeLinkSectionDecodeError> {
     let location = MetadataLocation::Lir;
     let member = metadata_member_id(graph, location)?;
     let payload = member_payload(graph, location, member)?;

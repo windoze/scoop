@@ -12,8 +12,8 @@ impl<
     pub fn from_semantics(
         target: crate::LirTargetProfile,
         foundation: &ConeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
-        identities: StrongRegistrationIdentitySurfaceV1,
+        digests: &DigestFinalizationPlanV1,
+        identities: RegistrationIdentitySurfaceV1,
         callable_runtime_scans: StrongCallableRuntimeScanPlanSetV1,
         type_semantics: crate::StrongTypeDescriptorSemanticPlanSet<D, C>,
         safepoint_semantics: StrongSafepointSemanticPlanSetV1,

@@ -8,8 +8,8 @@ use scoop_hir::{
 };
 use scoop_identity::ValidatedIdentityGraph;
 use scoop_lir::{
-    DecodedCrossConeLayoutAbiSectionV1, DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
-    DecodedStrongProductionSectionV2,
+    DecodedConeProductionSectionV2, DecodedCrossConeLayoutAbiSectionV1,
+    DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
 };
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1,
@@ -52,7 +52,7 @@ pub struct DecodedCrossConeLayoutCompileSections<'input> {
     pub(crate) mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     pub(crate) mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
     pub(crate) lir_foundation: DecodedLirFoundation,
-    pub(crate) lir_strong_production: DecodedStrongProductionSectionV2,
+    pub(crate) lir_strong_production: DecodedConeProductionSectionV2,
     pub(crate) lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     pub(crate) lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }
@@ -73,7 +73,7 @@ pub struct IdentityCheckedCrossConeLayoutCompileSections<'input> {
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
-    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_strong_production: DecodedConeProductionSectionV2,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }
@@ -92,7 +92,7 @@ pub struct FoundationValidatedCrossConeLayoutCompileSections<'input> {
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_strong_production: DecodedConeProductionSectionV2,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }
@@ -111,7 +111,7 @@ pub struct ResolvedCrossConeLayoutHirSections<'input> {
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_strong_production: DecodedConeProductionSectionV2,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }
@@ -130,7 +130,7 @@ pub struct HirProductionValidatedCrossConeLayoutSections<'input> {
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_strong_production: DecodedConeProductionSectionV2,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }

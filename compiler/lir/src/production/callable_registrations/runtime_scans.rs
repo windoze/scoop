@@ -2,10 +2,9 @@ use std::fmt;
 
 use scoop_identity::{
     CborIdentityRecord, DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PersistentCallableBodyId, StrongDefinitionEntity,
-    StrongDefinitionRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, PersistentCallableBodyId,
+    StrongDefinitionEntity, StrongDefinitionRole, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 use crate::{CallSite, Function, Instruction, InvokeSite, Module, RefScan};
@@ -71,7 +70,7 @@ impl StrongCallableRuntimeScanPlanSetV1 {
             .iter()
             .map(|body| {
                 let body = body.id();
-                let plan = callable_definition_plan(foundation.producer(), body)?;
+                let plan = callable_definition_plan(foundation, body)?;
                 let actual = foundation
                     .definition_atoms()
                     .iter()
@@ -96,7 +95,7 @@ impl StrongCallableRuntimeScanPlanSetV1 {
             })
             .collect::<Result<Vec<_>, _>>()?;
         callables.sort_unstable_by_key(StrongCallableRuntimeScanPlanV1::body);
-        Self::from_artifact(foundation.producer(), callables)
+        Self::from_artifact(foundation, callables)
     }
 
     pub fn from_module(module: &Module) -> Result<Self, StrongCallableRuntimeScanPlanError> {
@@ -121,17 +120,17 @@ impl StrongCallableRuntimeScanPlanSetV1 {
     }
 
     pub(crate) fn from_artifact(
-        producer: scoop_identity::ConeIdentity,
+        foundation: &crate::ConeLirFoundation,
         callables: Vec<StrongCallableRuntimeScanPlanV1>,
     ) -> Result<Self, StrongCallableRuntimeScanPlanError> {
         if !callables.windows(2).all(|pair| pair[0].body < pair[1].body) {
             return Err(StrongCallableRuntimeScanPlanError::NonCanonicalBodyOrder);
         }
         for callable in &callables {
-            validate_artifact_callable(producer, callable)?;
+            validate_artifact_callable(foundation, callable)?;
         }
         Ok(Self {
-            producer,
+            producer: foundation.producer(),
             callables,
         })
     }
@@ -272,10 +271,10 @@ fn append_scan_tree(
 }
 
 fn validate_artifact_callable(
-    producer: scoop_identity::ConeIdentity,
+    foundation: &crate::ConeLirFoundation,
     callable: &StrongCallableRuntimeScanPlanV1,
 ) -> Result<(), StrongCallableRuntimeScanPlanError> {
-    let plan = callable_definition_plan(producer, callable.body)?;
+    let plan = callable_definition_plan(foundation, callable.body)?;
     for (ordinal, atom) in callable.atoms.iter().enumerate() {
         let ordinal = u32::try_from(ordinal)
             .map_err(|_| StrongCallableRuntimeScanPlanError::TooManyAtoms(callable.body))?;
@@ -299,16 +298,16 @@ fn validate_artifact_callable(
 }
 
 fn callable_definition_plan(
-    producer: scoop_identity::ConeIdentity,
+    foundation: &crate::ConeLirFoundation,
     body: PersistentCallableBodyId,
 ) -> Result<ObjectDefinitionPlanId, StrongCallableRuntimeScanPlanError> {
-    let key = ObjectDefinitionPlanKey::strong(
-        producer,
-        StrongDefinitionEntity::callable_body(body),
-        StrongDefinitionRole::CallableBody,
-    )
-    .map_err(StrongCallableRuntimeScanPlanError::DefinitionIdentity)?;
-    ObjectDefinitionPlanId::from_key(&key).map_err(StrongCallableRuntimeScanPlanError::Hash)
+    foundation
+        .definition_for(
+            StrongDefinitionEntity::callable_body(body),
+            StrongDefinitionRole::CallableBody,
+        )
+        .map(|record| record.id())
+        .ok_or(StrongCallableRuntimeScanPlanError::MissingDefinition(body))
 }
 
 fn runtime_scan_atom(
@@ -348,7 +347,7 @@ pub enum StrongCallableRuntimeScanPlanError {
         expected: ObjectDefinitionAtomId,
         actual: ObjectDefinitionAtomId,
     },
-    DefinitionIdentity(ObjectDefinitionIdentityError),
+    MissingDefinition(PersistentCallableBodyId),
     Hash(scoop_wire::HashError),
 }
 
@@ -361,7 +360,6 @@ impl fmt::Display for StrongCallableRuntimeScanPlanError {
 impl std::error::Error for StrongCallableRuntimeScanPlanError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::DefinitionIdentity(source) => Some(source),
             Self::Hash(source) => Some(source),
             _ => None,
         }

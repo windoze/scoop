@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::{
-    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1,
     StrongRegistrationProductionValidationError,
 };
 
@@ -12,8 +12,8 @@ impl StrongInitializationDefinitionCatalogV2 {
     pub(in crate::production) fn with_local_foundation(
         &self,
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        identities: &RegistrationIdentitySurfaceV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionValidationError> {
         if self.producer != foundation.producer() {
             return Err(StrongRegistrationProductionValidationError::ProducerMismatch);

@@ -15,8 +15,8 @@ use scoop_identity::{
     StrongDefinitionRole,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, DigestNodeV1, GeneratedBridgePlanSetV1, LirTargetProfile,
-    StrongDigestFinalizationPlanV1, StrongObjectSymbolSurfaceV1,
+    CBridgeProductionSetV1, DigestFinalizationPlanV1, DigestNodeV1, GeneratedBridgePlanSetV1,
+    LirTargetProfile, ObjectSymbolSurfaceV1,
 };
 
 use super::*;
@@ -386,7 +386,7 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     let fixture = fixture(Some(native_name));
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
-    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
         LirTargetProfile::DARWIN_AARCH64,
         &surface,
@@ -461,8 +461,7 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     );
     let image_node = DigestNodeV1::new(image_key, Vec::new(), vec![image_patch]).unwrap();
     let image_intent = image_node.patch_intents()[0].id();
-    let digest_plan =
-        StrongDigestFinalizationPlanV1::new(vec![image_node], &fixture.foundation).unwrap();
+    let digest_plan = DigestFinalizationPlanV1::new(vec![image_node], &fixture.foundation).unwrap();
     let patch_sites = [ProvisionalDigestPatchSiteV1::new(
         image_intent,
         scoop_member,

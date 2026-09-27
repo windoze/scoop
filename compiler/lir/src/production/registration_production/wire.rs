@@ -9,7 +9,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::DecodedStrongRegistrationIdentitySurfaceV1;
+use crate::DecodedRegistrationIdentitySurfaceV1;
 
 mod projection;
 pub use projection::StrongSemanticProjectionError;

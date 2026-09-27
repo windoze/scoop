@@ -17,7 +17,7 @@ use scoop_identity::{
     PersistentSafepointSiteId,
 };
 use scoop_lir::{
-    DigestInputRefV1, StrongDigestFinalizationPlanV1, StrongSafepointRegistrationPlanSetV1,
+    DigestFinalizationPlanV1, DigestInputRefV1, StrongSafepointRegistrationPlanSetV1,
     StrongSafepointRegistrationPlanV1,
 };
 
@@ -132,7 +132,7 @@ pub fn verify_strong_safepoint_registrations_v1(
 }
 
 fn validate_digest_graph(
-    digest_plan: &StrongDigestFinalizationPlanV1,
+    digest_plan: &DigestFinalizationPlanV1,
     plan: StrongSafepointRegistrationPlanV1,
 ) -> Result<(), StrongSafepointRegistrationValidationError> {
     use SafepointRegistrationDigestPlanFailureV1 as Failure;

@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) fn validate_optional_type_descriptor_ref(
     decoded: DecodedOptionalStrongTypeDescriptorRefV1,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     index: usize,
     field: &'static str,
 ) -> Result<Option<StrongTypeDescriptorRefV1>, StrongRegistrationProductionValidationError> {
@@ -31,7 +31,7 @@ pub(super) fn validate_optional_type_descriptor_ref(
 
 fn resolve_type_descriptor_ref(
     decoded: DecodedStrongTypeDescriptorRefV1,
-    identities: &StrongRegistrationIdentitySurfaceV1,
+    identities: &RegistrationIdentitySurfaceV1,
     index: usize,
     field: &'static str,
 ) -> Result<StrongTypeDescriptorRefV1, StrongRegistrationProductionValidationError> {

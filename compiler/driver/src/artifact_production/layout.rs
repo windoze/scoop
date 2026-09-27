@@ -32,7 +32,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
 
     pub fn assemble(
         self,
-        emitted: scoop_codegen::EmittedStrongObjectSetV2,
+        emitted: scoop_codegen::EmittedConeObjectSetV2,
         generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<slib::AssembledCrossConeLayoutStrongArtifactV1, Error> {

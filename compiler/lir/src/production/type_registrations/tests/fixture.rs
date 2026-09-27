@@ -46,9 +46,9 @@ pub(super) struct TypeArtifacts {
 
 pub(super) struct Fixture {
     pub(super) foundation: ConeLirFoundation,
-    pub(super) identities: StrongRegistrationIdentitySurfaceV1,
+    pub(super) identities: RegistrationIdentitySurfaceV1,
     pub(super) semantics: StrongTypeDescriptorSemanticPlanSetV1,
-    pub(super) digests: StrongDigestFinalizationPlanV1,
+    pub(super) digests: DigestFinalizationPlanV1,
 }
 
 impl Fixture {
@@ -197,7 +197,7 @@ impl Fixture {
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &types, options);
         let identities =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
             ConeIdentity::SINGLE_FILE,
             crate::LirTargetProfile::DARWIN_AARCH64.wire_id(),

@@ -5,7 +5,7 @@ use crate::{
 use scoop_identity::ConeIdentity;
 
 #[derive(Clone, Copy)]
-pub(in crate::production::strong_section::replay::layout_join) enum Selection<'s, 'p> {
+pub(in crate::production::cone_section::replay::layout_join) enum Selection<'s, 'p> {
     Complete(&'s SelectedDependencyLayoutAbiSetV1<'p>),
     Replayed(&'s PhysicalImportsReplayedLayoutAbiSectionV1),
 }

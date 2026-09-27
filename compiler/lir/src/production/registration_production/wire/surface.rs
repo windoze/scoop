@@ -9,7 +9,7 @@ pub type DecodedStrongRegistrationProductionSurfaceV2 =
 
 #[derive(Debug)]
 pub struct DecodedStrongRegistrationProductionSurface<T> {
-    pub(in super::super) identities: DecodedStrongRegistrationIdentitySurfaceV1,
+    pub(in super::super) identities: DecodedRegistrationIdentitySurfaceV1,
     pub(in super::super) safepoints: Vec<DecodedStrongSafepointRegistrationPlanV1>,
     pub(in super::super) callables: Vec<DecodedStrongCallableRegistrationPlanV1>,
     pub(in super::super) types: Vec<T>,
@@ -38,7 +38,7 @@ impl<T: WireDecode> WireDecode for DecodedStrongRegistrationProductionSurface<T>
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Ok(Self {
-            identities: decoder.field(1, DecodedStrongRegistrationIdentitySurfaceV1::decode)?,
+            identities: decoder.field(1, DecodedRegistrationIdentitySurfaceV1::decode)?,
             safepoints: decode_array_field(
                 decoder,
                 2,

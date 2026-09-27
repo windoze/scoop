@@ -1,4 +1,5 @@
 use super::*;
+use crate::foundation::definition_subject::member_subject;
 use scoop_identity::{
     ObjectDefinitionPlanOwner, OdrMemberDiscriminator as D, OdrMemberRole as R,
     StrongDefinitionRole as S,
@@ -185,59 +186,4 @@ impl DefinitionWriter {
         }
         Ok(())
     }
-}
-
-fn member_subject(key: &OdrMemberKey) -> Option<(StrongDefinitionEntity, S)> {
-    let (entity, role) = match (key.role(), key.discriminator()) {
-        (R::Layout, D::Layout(id)) => (StrongDefinitionEntity::layout(*id), S::Layout),
-        (R::ScanProgram, D::Scan(id)) => (StrongDefinitionEntity::scan(*id), S::ScanProgram),
-        (R::TypeDescriptor, D::ExactType(id)) => {
-            (StrongDefinitionEntity::exact_type(*id), S::TypeDescriptor)
-        }
-        (R::DispatchTable, D::DispatchTable(id)) => (
-            StrongDefinitionEntity::dispatch_table(*id),
-            S::DispatchTable,
-        ),
-        (R::StaticStorage, D::StaticStorage(id)) => (
-            StrongDefinitionEntity::static_storage(*id),
-            S::StaticStorage,
-        ),
-        (R::ImmortalObject, D::ImmortalObject(id)) => (
-            StrongDefinitionEntity::immortal_object(*id),
-            S::ImmortalObject,
-        ),
-        (R::InitializationCell, D::InitializationUnit(id)) => (
-            StrongDefinitionEntity::initialization_unit(*id),
-            S::InitializationCell,
-        ),
-        (R::InitializationDescriptor, D::InitializationUnit(id)) => (
-            StrongDefinitionEntity::initialization_unit(*id),
-            S::InitializationDescriptor,
-        ),
-        (R::RegistrationRecord, D::CallableBody(id)) => (
-            StrongDefinitionEntity::callable_body(*id),
-            S::CallableRegistration,
-        ),
-        (R::RegistrationRecord, D::SafepointSite(id)) => (
-            StrongDefinitionEntity::safepoint_site(*id),
-            S::SafepointRegistration,
-        ),
-        (R::RegistrationRecord, D::ExactType(id)) => {
-            (StrongDefinitionEntity::exact_type(*id), S::TypeRegistration)
-        }
-        (R::RegistrationRecord, D::StaticStorage(id)) => (
-            StrongDefinitionEntity::static_storage(*id),
-            S::RootRegistration,
-        ),
-        (R::RegistrationRecord, D::ImmortalObject(id)) => (
-            StrongDefinitionEntity::immortal_object(*id),
-            S::ImmortalRegistration,
-        ),
-        (R::RegistrationRecord, D::InitializationUnit(id)) => (
-            StrongDefinitionEntity::initialization_unit(*id),
-            S::InitializationRegistration,
-        ),
-        _ => return None,
-    };
-    Some((entity, role))
 }

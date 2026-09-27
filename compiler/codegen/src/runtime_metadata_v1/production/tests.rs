@@ -8,10 +8,9 @@ use scoop_identity::{
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestNodeV1, EntryProductionSourceV1,
-    LirTargetProfile, StrongDigestFinalizationPlanV1, StrongProductionSectionV1,
-    StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
-    StrongRegistrationProductionSurfaceV2,
+    CanonicalLirFoundation, ConeLirFoundation, ConeProductionSectionV1, ConeProductionSectionV2,
+    DigestFinalizationPlanV1, DigestNodeV1, EntryProductionSourceV1, LirTargetProfile,
+    StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionSurfaceV2,
 };
 
 use super::emit_strong_runtime_metadata_v1;
@@ -180,7 +179,7 @@ fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
 }
 
 fn production() -> (
-    StrongProductionSectionV1,
+    ConeProductionSectionV1,
     ObjectDefinitionPlanId,
     ObjectDefinitionAtomId,
     scoop_identity::DigestPatchIntentId,
@@ -221,7 +220,7 @@ fn production() -> (
     );
     let patch_intent = scoop_identity::DigestPatchIntentId::from_key(&patch_key).unwrap();
     let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch_key]).unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
+    let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations = StrongRegistrationProductionSurfaceV1::empty(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
@@ -229,7 +228,7 @@ fn production() -> (
     )
     .unwrap();
 
-    let production = StrongProductionSectionV1::new(
+    let production = ConeProductionSectionV1::new(
         coordinate,
         &[scoop_identity::ConeIdentity::CORE],
         &foundation,
@@ -249,7 +248,7 @@ fn production() -> (
 }
 
 fn production_v2() -> (
-    StrongProductionSectionV2,
+    ConeProductionSectionV2,
     ObjectDefinitionPlanId,
     ObjectDefinitionAtomId,
     scoop_identity::DigestPatchIntentId,
@@ -290,7 +289,7 @@ fn production_v2() -> (
     );
     let patch_intent = scoop_identity::DigestPatchIntentId::from_key(&patch_key).unwrap();
     let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch_key]).unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
+    let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations = StrongRegistrationProductionSurfaceV2::empty(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
@@ -298,7 +297,7 @@ fn production_v2() -> (
     )
     .unwrap();
 
-    let production = StrongProductionSectionV2::new(
+    let production = ConeProductionSectionV2::new(
         coordinate,
         &[scoop_identity::ConeIdentity::CORE],
         &foundation,

@@ -24,14 +24,14 @@ pub type LirStrongProductionReplayedCrossConeLayoutSections<'input> =
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::StrongProductionSectionV2,
+        lir::ConeProductionSectionV2,
     >;
 pub type LirStrongProductionReplayedCrossConeLayoutClosure<'input> =
     LirConstituentsValidatedCrossConeLayoutClosure<
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::StrongProductionSectionV2,
+        lir::ConeProductionSectionV2,
     >;
 
 impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
@@ -119,7 +119,7 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
 }
 
 impl LirStrongProductionReplayedCrossConeLayoutSections<'_> {
-    pub const fn lir_strong_production(&self) -> &lir::StrongProductionSectionV2 {
+    pub const fn lir_strong_production(&self) -> &lir::ConeProductionSectionV2 {
         &self.strong
     }
 }

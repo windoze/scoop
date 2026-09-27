@@ -4,14 +4,14 @@ use std::fmt;
 use std::path::PathBuf;
 
 use scoop_codegen::{
-    EmittedGeneratedCBridgeObjectSetV1, EmittedStrongObjectMemberKindV1, EmittedStrongObjectSetV1,
+    EmittedConeObjectMemberKindV1, EmittedConeObjectSetV1, EmittedGeneratedCBridgeObjectSetV1,
     ProvisionalStrongDigestPatchLocationV1,
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CBridgeToolchainProfileV1,
-    CanonicalNativeExternalRequirementBuildError, ConeLirFoundation, GeneratedBridgeUnitId,
-    LirTargetProfile, ObjectDefinitionPlanId, StrongProducerUnitPartitionV1,
-    StrongProductionSectionV1, ValidatedLirTargetSelection,
+    CanonicalNativeExternalRequirementBuildError, ConeLirFoundation, ConeProductionSectionV1,
+    GeneratedBridgeUnitId, LirTargetProfile, ObjectDefinitionPlanId, ProducerUnitPartitionV1,
+    ValidatedLirTargetSelection,
 };
 use scoop_slib::{
     ArtifactCapabilityProfile, BuiltinObjectExternalRequirementClosureError,

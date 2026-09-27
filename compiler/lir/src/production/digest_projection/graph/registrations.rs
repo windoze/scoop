@@ -5,7 +5,7 @@ impl DigestGraphWriter<'_> {
         mut self,
         registrations: &crate::StrongRegistrationProductionSurfaceV2,
         entry: &EntryProductionSourceV1,
-    ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
+    ) -> Result<DigestFinalizationPlanV1, DigestProjectionError> {
         self.project_safepoints(
             registrations
                 .safepoints()
@@ -44,6 +44,7 @@ impl DigestGraphWriter<'_> {
                 .map(|value| (value.semantic().unit(), value.semantic().schedule())),
         )?;
         self.project_entry(entry)?;
+        self.project_odr_definitions()?;
         self.project_image()?;
         self.finish()
     }

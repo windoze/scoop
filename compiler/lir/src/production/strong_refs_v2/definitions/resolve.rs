@@ -1,5 +1,5 @@
 use super::*;
-use crate::{ConeLirFoundation, StrongRegistrationIdentitySurfaceV1};
+use crate::{ConeLirFoundation, RegistrationIdentitySurfaceV1};
 
 type Error = StrongTypeReferenceResolutionErrorV2;
 
@@ -8,7 +8,7 @@ impl StrongTypeReferenceDefinitionsV2 {
         &self,
         decoded: DecodedStrongTypeDescriptorRefV2,
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
+        registrations: &RegistrationIdentitySurfaceV1,
     ) -> Result<StrongTypeDescriptorRefV2, Error> {
         self.check_producer(foundation.producer())?;
 
@@ -49,7 +49,7 @@ impl StrongTypeReferenceDefinitionsV2 {
         &self,
         decoded: DecodedOptionalStrongTypeDescriptorRefV2,
         foundation: &ConeLirFoundation,
-        registrations: &StrongRegistrationIdentitySurfaceV1,
+        registrations: &RegistrationIdentitySurfaceV1,
     ) -> Result<Option<StrongTypeDescriptorRefV2>, Error> {
         self.check_producer(foundation.producer())?;
         let descriptor = match decoded {

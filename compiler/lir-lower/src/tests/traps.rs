@@ -146,7 +146,7 @@ fn trap_calls_branch_to_a_shared_trap_block() {
         )]
     );
     let foundation = lir::ConeLirFoundation::from_module(&module).unwrap();
-    let surface = lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let surface = lir::ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let boundary = surface
         .plans()
         .iter()

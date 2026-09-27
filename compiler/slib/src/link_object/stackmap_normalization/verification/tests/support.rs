@@ -1,12 +1,11 @@
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     ConeLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    GeneratedBridgePlanSetV1, LirTargetProfile, StrongCallableRegistrationPlanSetV1,
-    StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongObjectSymbolSurfaceV1,
-    StrongProducerUnitPartitionV1, StrongSafepointRegistrationPlanSetV1,
-    StrongSafepointSemanticPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
-    StrongTypeRegistrationPlanSetV1,
+    DigestFinalizationPlanV1, GeneratedBridgePlanSetV1, LirTargetProfile, ObjectSymbolSurfaceV1,
+    ProducerUnitPartitionV1, StrongCallableRegistrationPlanSetV1,
+    StrongImmortalObjectRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanSetV1,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
+    StrongStaticStorageRegistrationPlanSetV1, StrongTypeRegistrationPlanSetV1,
 };
 
 use crate::SlibMemberId;
@@ -60,7 +59,7 @@ pub(crate) struct Fixture {
     pub(crate) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     pub(crate) semantic_plan: StrongSafepointSemanticPlanSetV1,
     pub(crate) foundation: ConeLirFoundation,
-    pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
+    pub(crate) digest_plan: DigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
     pub(crate) type_registration_plan: StrongTypeRegistrationPlanSetV1,
@@ -77,14 +76,14 @@ impl Fixture {
         let inputs = semantic::inputs(corruption);
         let semantic_plan = StrongSafepointSemanticPlanSetV1::from_module(&inputs.module).unwrap();
         let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&inputs.foundation).unwrap();
-        let partition = StrongProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
+        let partition = ProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
         let member_plan = PlannedLinkObjectMemberSetV1::new(
             &partition,
             vec![CanonicalScoopLirObjectUnitSetV1::new(inputs.definitions).unwrap()],
             Vec::new(),
         )
         .unwrap();
-        let surface = StrongObjectSymbolSurfaceV1::from_foundation(&inputs.foundation).unwrap();
+        let surface = ObjectSymbolSurfaceV1::from_foundation(&inputs.foundation).unwrap();
         let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
             LirTargetProfile::DARWIN_AARCH64,
             &surface,

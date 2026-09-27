@@ -34,7 +34,7 @@ pub(super) fn type_descriptor_global<'ctx>(
 pub(super) fn emit_strong_type_descriptors_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
+    surface: &scoop_lir::ObjectSymbolSurfaceV1,
     type_globals: TypeDescriptorGlobals<'_, 'ctx>,
     module: &Module,
     shapes: &mut EmittedStrongShapeDefinitionsV1<'ctx>,
@@ -65,7 +65,7 @@ struct TypeDescriptorEmission<'a, 'ctx> {
     byte_span_ty: StructType<'ctx>,
     type_globals: TypeDescriptorGlobals<'a, 'ctx>,
     module: &'a Module,
-    surface: &'a scoop_lir::StrongObjectSymbolSurfaceV1,
+    surface: &'a scoop_lir::ObjectSymbolSurfaceV1,
 }
 
 fn emit_type_descriptor<'ctx>(

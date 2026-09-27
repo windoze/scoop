@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{ConeIdentity, GeneratedBridgeUnitId, ObjectDefinitionPlanId};
-use scoop_lir::StrongProducerUnitPartitionV1;
+use scoop_lir::ProducerUnitPartitionV1;
 
 use super::{
     CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
@@ -55,7 +55,7 @@ pub struct PlannedLinkObjectMemberSetV1 {
 
 impl PlannedLinkObjectMemberSetV1 {
     pub fn new(
-        partition: &StrongProducerUnitPartitionV1,
+        partition: &ProducerUnitPartitionV1,
         scoop_lir_unit_sets: Vec<CanonicalScoopLirObjectUnitSetV1>,
         generated_bridge_unit_sets: Vec<CanonicalGeneratedBridgeObjectUnitSetV1>,
     ) -> Result<Self, LinkObjectMemberSetPlanError> {

@@ -4,8 +4,8 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
     target: crate::LirTargetProfile,
     foundation: &ConeLirFoundation,
     semantic: &StrongTypeDescriptorSemanticPlan<D, C>,
-    identity: &crate::StrongRegistrationIdentityV1<PersistentExactTypeId>,
-    digests: &StrongDigestFinalizationPlanV1,
+    identity: &crate::RegistrationIdentityV1<PersistentExactTypeId>,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongTypeRegistrationPlan<D, C>, StrongTypeRegistrationPlanBuildError> {
     let exact_type = semantic.exact_type();
     let registration_definition = require_definition(

@@ -7,7 +7,7 @@ pub(in crate::link_object::layout_link_closure) const TARGET: LirTargetProfile =
 
 pub(in crate::link_object) struct Provider {
     pub foundation: ConeLirFoundation,
-    pub production: StrongProductionSectionV2,
+    pub production: ConeProductionSectionV2,
     pub ordinary: CrossConeLirBridgeSectionV1,
     pub section: CrossConeLayoutAbiSectionV1<'static>,
     pub layout: PersistentLayoutId,
@@ -101,7 +101,7 @@ impl Provider {
         let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &[]).unwrap();
 
         let digests = image.digest_finalization_plan().clone();
-        let old = StrongProductionSectionV1::new(
+        let old = ConeProductionSectionV1::new(
             coordinate.clone(),
             &[scoop_identity::ConeIdentity::CORE],
             &foundation,
@@ -111,8 +111,7 @@ impl Provider {
             &[],
         )
         .unwrap();
-        let raw: DecodedStrongProductionSectionV2 =
-            decode_canonical(&encode(&old).unwrap()).unwrap();
+        let raw: DecodedConeProductionSectionV2 = decode_canonical(&encode(&old).unwrap()).unwrap();
         let production = raw
             .replay(
                 coordinate,

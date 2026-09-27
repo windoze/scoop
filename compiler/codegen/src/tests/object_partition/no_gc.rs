@@ -69,7 +69,7 @@ fn no_gc_calls_with_elided_results_keep_the_planned_compact_unwind_atoms() {
     for member in emitted.members() {
         if !matches!(
             member.kind(),
-            EmittedStrongObjectMemberKindV1::CallableBody { .. }
+            EmittedConeObjectMemberKindV1::CallableBody { .. }
         ) {
             continue;
         }

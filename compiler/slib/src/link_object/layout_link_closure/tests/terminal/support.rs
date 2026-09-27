@@ -3,10 +3,10 @@ use scoop_identity::{
     LinkageClass, ObjectDefinitionAtomKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, ConeLirFoundation, CrossConeLayoutAbiSectionV1,
-    CrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV2, EntryProductionSourceV1,
-    ExactValueLayoutV1, ScalarRepresentationKindV1, StrongInitializationDefinitionCatalogV2,
-    StrongProductionSectionV1, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, ConeProductionSectionV1, ConeProductionSectionV2,
+    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, DecodedConeProductionSectionV2,
+    EntryProductionSourceV1, ExactValueLayoutV1, ScalarRepresentationKindV1,
+    StrongInitializationDefinitionCatalogV2, StrongRegistrationProductionSurfaceV1,
     StrongTypeReferenceDefinitionsV2,
 };
 use scoop_wire::{decode_canonical, encode};
@@ -67,7 +67,7 @@ impl Fixture {
 
 pub(super) struct Consumer<'provider> {
     foundation: ConeLirFoundation,
-    production: StrongProductionSectionV2,
+    production: ConeProductionSectionV2,
     ordinary: CrossConeLirBridgeSectionV1,
     pub(super) section: CrossConeLayoutAbiSectionV1<'provider>,
     pub(super) defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
@@ -100,7 +100,7 @@ impl<'provider> Consumer<'provider> {
 
 pub(super) fn artifact<'a>(
     provider: &'a Provider,
-    production: &'a StrongProductionSectionV2,
+    production: &'a ConeProductionSectionV2,
     section: &'a CrossConeLayoutAbiSectionV1<'a>,
     owners: &'a CanonicalDefinedLinkSymbolOwnerSetV1,
 ) -> CrossConeLayoutTerminalArtifactV1<'a> {
@@ -133,10 +133,10 @@ pub(super) fn consumer_artifact<'a>(
 pub(super) fn replay_provider_production(
     provider: &Provider,
     section: &CrossConeLayoutAbiSectionV1<'_>,
-) -> StrongProductionSectionV2 {
+) -> ConeProductionSectionV2 {
     let coordinate = ConeCoordinate::new("test", "layout-link-provider", "1.0.0").unwrap();
     let digests = provider.production.digest_finalization_plan().clone();
-    let old = StrongProductionSectionV1::new(
+    let old = ConeProductionSectionV1::new(
         coordinate.clone(),
         &[scoop_identity::ConeIdentity::CORE],
         &provider.foundation,
@@ -151,13 +151,13 @@ pub(super) fn replay_provider_production(
 }
 
 fn replay(
-    old: &StrongProductionSectionV1,
+    old: &ConeProductionSectionV1,
     coordinate: ConeCoordinate,
     foundation: &ConeLirFoundation,
     section: &CrossConeLayoutAbiSectionV1<'_>,
-) -> StrongProductionSectionV2 {
+) -> ConeProductionSectionV2 {
     let producer = foundation.producer();
-    let raw: DecodedStrongProductionSectionV2 = decode_canonical(&encode(old).unwrap()).unwrap();
+    let raw: DecodedConeProductionSectionV2 = decode_canonical(&encode(old).unwrap()).unwrap();
     raw.replay(
         coordinate,
         old.image_plan().dependencies(),
@@ -220,8 +220,8 @@ fn owner_set_for_subject(
         .unwrap(),
     );
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
-    let partition = scoop_lir::StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let partition = scoop_lir::ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],

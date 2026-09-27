@@ -3,8 +3,8 @@
 use super::*;
 
 pub(in crate::object_production) fn plan_codegen_objects(
-    producer_units: &StrongProducerUnitPartitionV1,
-    members: &[scoop_codegen::EmittedStrongObjectMemberV1],
+    producer_units: &ProducerUnitPartitionV1,
+    members: &[scoop_codegen::EmittedConeObjectMemberV1],
     generated_c_bridge: &EmittedGeneratedCBridgeObjectSetV1,
 ) -> Result<PlannedObjectBindings, BuiltinObjectProductionError> {
     let mut scoop_lir_sources = Vec::with_capacity(members.len());
@@ -17,7 +17,7 @@ pub(in crate::object_production) fn plan_codegen_objects(
             }
         })?;
         let digest_patches = match member.kind() {
-            EmittedStrongObjectMemberKindV1::NonCallable { digest_patches, .. } => digest_patches
+            EmittedConeObjectMemberKindV1::NonCallable { digest_patches, .. } => digest_patches
                 .iter()
                 .map(|materialization| {
                     UnboundDigestPatch::from_codegen(
@@ -26,7 +26,7 @@ pub(in crate::object_production) fn plan_codegen_objects(
                     )
                 })
                 .collect(),
-            EmittedStrongObjectMemberKindV1::CallableBody { .. } => Vec::new(),
+            EmittedConeObjectMemberKindV1::CallableBody { .. } => Vec::new(),
         };
         scoop_lir_sources.push(UnboundScoopLirObject {
             units: member.units().definition_plans().to_vec(),

@@ -24,7 +24,7 @@ pub(super) fn snapshot(
     name: &str,
     fixtures: &Path,
     section: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    objects: &scoop_codegen::EmittedStrongObjectSetV2,
+    objects: &scoop_codegen::EmittedConeObjectSetV2,
 ) {
     assert!(!objects.members().is_empty());
     let production = objects.production();

@@ -11,15 +11,13 @@ use scoop_identity::{
 use scoop_wire::HashError;
 
 use super::ExecutableEntryPlanV1;
-use crate::{
-    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
-};
+use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 
 pub(super) fn build_executable(
     source: ExecutableSourceEntryIdentity,
     foundation: &ConeLirFoundation,
-    registrations: &StrongRegistrationIdentitySurfaceV1,
-    digests: &StrongDigestFinalizationPlanV1,
+    registrations: &RegistrationIdentitySurfaceV1,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<ExecutableEntryPlanV1, EntryProductionPlanBuildError> {
     let root_cone = source.root_cone();
     if root_cone != foundation.producer() {
@@ -258,7 +256,7 @@ fn require_primary_atom(
 }
 
 fn require_digest_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     key: DigestNodeKey,
 ) -> Result<&crate::DigestNodeV1, EntryProductionPlanBuildError> {
     let id = DigestNodeId::from_key(&key).map_err(EntryProductionPlanBuildError::Hash)?;
@@ -293,7 +291,7 @@ fn require_patch(
 }
 
 fn require_callable_registration(
-    registrations: &StrongRegistrationIdentitySurfaceV1,
+    registrations: &RegistrationIdentitySurfaceV1,
     body: PersistentCallableBodyId,
 ) -> Result<(), EntryProductionPlanBuildError> {
     registrations
@@ -307,7 +305,7 @@ fn require_callable_registration(
 }
 
 fn require_storage_registration(
-    registrations: &StrongRegistrationIdentitySurfaceV1,
+    registrations: &RegistrationIdentitySurfaceV1,
     storage: PersistentStaticStorageId,
 ) -> Result<(), EntryProductionPlanBuildError> {
     registrations

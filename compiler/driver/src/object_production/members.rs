@@ -58,7 +58,7 @@ pub(super) struct PlannedObjectBindings {
 }
 
 pub(super) fn plan_objects(
-    producer_units: &StrongProducerUnitPartitionV1,
+    producer_units: &ProducerUnitPartitionV1,
     scoop_lir_sources: Vec<UnboundScoopLirObject>,
     generated_c_bridge_sources: Vec<UnboundGeneratedCBridgeObject>,
 ) -> Result<PlannedObjectBindings, BuiltinObjectProductionError> {

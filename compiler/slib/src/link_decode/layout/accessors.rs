@@ -58,7 +58,7 @@ impl DecodedCrossConeLayoutLinkSections<'_> {
         &self.lir_foundation
     }
 
-    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV2 {
+    pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV2 {
         &self.lir_strong_production
     }
 

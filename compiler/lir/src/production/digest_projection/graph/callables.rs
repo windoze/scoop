@@ -9,7 +9,7 @@ impl DigestGraphWriter<'_> {
                 PersistentCallableBodyId,
             ),
         >,
-    ) -> Result<(), StrongDigestProjectionError> {
+    ) -> Result<(), DigestProjectionError> {
         for (site, owner) in semantics {
             let registration = self.definition(
                 StrongDefinitionEntity::safepoint_site(site),
@@ -39,7 +39,7 @@ impl DigestGraphWriter<'_> {
         Ok(())
     }
 
-    pub(super) fn project_callables(&mut self) -> Result<(), StrongDigestProjectionError> {
+    pub(super) fn project_callables(&mut self) -> Result<(), DigestProjectionError> {
         let bodies = self
             .foundation
             .callable_bodies()
@@ -73,12 +73,12 @@ impl DigestGraphWriter<'_> {
     pub(super) fn project_entry(
         &mut self,
         source: &EntryProductionSourceV1,
-    ) -> Result<(), StrongDigestProjectionError> {
+    ) -> Result<(), DigestProjectionError> {
         let EntryProductionSourceV1::Executable(entry) = source else {
             return Ok(());
         };
         if entry.root_cone() != self.foundation.producer() {
-            return Err(StrongDigestProjectionError::EntryProducerMismatch {
+            return Err(DigestProjectionError::EntryProducerMismatch {
                 entry: entry.root_cone(),
                 foundation: self.foundation.producer(),
             });
@@ -99,7 +99,7 @@ impl DigestGraphWriter<'_> {
             entry.root_cone(),
             entry.main(),
         ))
-        .map_err(StrongDigestProjectionError::Identity)?;
+        .map_err(DigestProjectionError::Identity)?;
         let gateway = self.definition(
             StrongDefinitionEntity::callable_body(gateway),
             StrongDefinitionRole::CallableBody,

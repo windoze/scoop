@@ -1,11 +1,12 @@
 //! Complete expected persistent symbols for every strong definition plan.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
     DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongDefinitionEntity,
     LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
-    ObjectDefinitionPlanRole, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
 };
 pub use scoop_identity::{
     DefinitionAtomRole, PersistentDispatchTableId, PersistentLayoutId, StrongDefinitionEntity,
@@ -13,19 +14,17 @@ pub use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
-use crate::{
-    ConeLirFoundation, StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
-};
+use crate::{ConeLirFoundation, ObjectDefinitionPlanBuildError, ObjectDefinitionPlanSurfaceV1};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct StrongAtomBoundarySymbolsV1 {
+pub struct AtomBoundarySymbolsV1 {
     atom: ObjectDefinitionAtomId,
     atom_role: DefinitionAtomRole,
     start: PersistentSymbolRequest,
     end: PersistentSymbolRequest,
 }
 
-impl StrongAtomBoundarySymbolsV1 {
+impl AtomBoundarySymbolsV1 {
     pub const fn atom(self) -> ObjectDefinitionAtomId {
         self.atom
     }
@@ -43,7 +42,7 @@ impl StrongAtomBoundarySymbolsV1 {
     }
 }
 
-impl WireEncode for StrongAtomBoundarySymbolsV1 {
+impl WireEncode for AtomBoundarySymbolsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
@@ -58,16 +57,16 @@ impl WireEncode for StrongAtomBoundarySymbolsV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongDefinitionSymbolPlanV1 {
+pub struct DefinitionSymbolPlanV1 {
     definition_plan: ObjectDefinitionPlanId,
     owner: StrongDefinitionEntity,
     definition_role: StrongDefinitionRole,
     primary_atom: ObjectDefinitionAtomId,
     primary_symbol: PersistentSymbolRequest,
-    atom_boundaries: Vec<StrongAtomBoundarySymbolsV1>,
+    atom_boundaries: Vec<AtomBoundarySymbolsV1>,
 }
 
-impl StrongDefinitionSymbolPlanV1 {
+impl DefinitionSymbolPlanV1 {
     pub const fn definition_plan(&self) -> ObjectDefinitionPlanId {
         self.definition_plan
     }
@@ -88,12 +87,12 @@ impl StrongDefinitionSymbolPlanV1 {
         self.primary_symbol
     }
 
-    pub fn atom_boundaries(&self) -> &[StrongAtomBoundarySymbolsV1] {
+    pub fn atom_boundaries(&self) -> &[AtomBoundarySymbolsV1] {
         &self.atom_boundaries
     }
 }
 
-impl WireEncode for StrongDefinitionSymbolPlanV1 {
+impl WireEncode for DefinitionSymbolPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         encoder.field(1)?;
@@ -112,60 +111,62 @@ impl WireEncode for StrongDefinitionSymbolPlanV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongObjectSymbolSurfaceV1 {
-    plans: Vec<StrongDefinitionSymbolPlanV1>,
+pub struct ObjectSymbolSurfaceV1 {
+    plans: Vec<DefinitionSymbolPlanV1>,
 }
 
-impl StrongObjectSymbolSurfaceV1 {
+impl ObjectSymbolSurfaceV1 {
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
-    ) -> Result<Self, StrongObjectSymbolSurfaceBuildError> {
-        let definitions = StrongObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
-            .map_err(StrongObjectSymbolSurfaceBuildError::DefinitionSurface)?;
+    ) -> Result<Self, ObjectSymbolSurfaceBuildError> {
+        let definitions = ObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
+            .map_err(ObjectSymbolSurfaceBuildError::DefinitionSurface)?;
         Self::from_definition_plans(foundation, &definitions)
     }
 
     pub(crate) fn from_definition_plans(
         foundation: &ConeLirFoundation,
-        definitions: &StrongObjectDefinitionPlanSurfaceV1,
-    ) -> Result<Self, StrongObjectSymbolSurfaceBuildError> {
+        definitions: &ObjectDefinitionPlanSurfaceV1,
+    ) -> Result<Self, ObjectSymbolSurfaceBuildError> {
         let mut plans = Vec::with_capacity(definitions.plans().len());
+        let mut symbol_owners = BTreeMap::new();
         for definition in definitions.plans() {
             let definition_plan = definition.plan();
             let key = foundation
                 .definition_plan(definition_plan)
-                .ok_or(StrongObjectSymbolSurfaceBuildError::MissingDefinitionKey(
+                .ok_or(ObjectSymbolSurfaceBuildError::MissingDefinitionKey(
                     definition_plan,
                 ))?
                 .key();
-            let (
-                ObjectDefinitionPlanOwner::Strong { producer, entity },
-                ObjectDefinitionPlanRole::Strong(definition_role),
-            ) = (key.owner(), key.definition_role())
-            else {
-                return Err(
-                    StrongObjectSymbolSurfaceBuildError::InvalidStrongDefinition(definition_plan),
-                );
+            let record = foundation.definition_plan(definition_plan).ok_or(
+                ObjectSymbolSurfaceBuildError::MissingDefinitionKey(definition_plan),
+            )?;
+            let (entity, definition_role) = foundation.definition_subject(record).ok_or(
+                ObjectSymbolSurfaceBuildError::UnknownDefinitionSubject(definition_plan),
+            )?;
+            let linkage = match key.owner() {
+                ObjectDefinitionPlanOwner::Strong { .. } => LinkageClass::ConeStrong,
+                ObjectDefinitionPlanOwner::Odr { .. } => LinkageClass::OdrWeak,
             };
-            if producer != foundation.producer() {
-                return Err(
-                    StrongObjectSymbolSurfaceBuildError::InvalidStrongDefinition(definition_plan),
-                );
-            }
             let primary_symbol = PersistentSymbolRequest::new(
-                key.primary_symbol_key().ok_or(
-                    StrongObjectSymbolSurfaceBuildError::InvalidStrongDefinition(definition_plan),
+                entity.primary_symbol_key(definition_role).ok_or(
+                    ObjectSymbolSurfaceBuildError::UnknownDefinitionSubject(definition_plan),
                 )?,
-                LinkageClass::ConeStrong,
+                linkage,
             )
-            .map_err(StrongObjectSymbolSurfaceBuildError::Symbol)?;
+            .map_err(ObjectSymbolSurfaceBuildError::Symbol)?;
+            if let Some(first) = symbol_owners.insert(primary_symbol.key(), definition_plan) {
+                return Err(ObjectSymbolSurfaceBuildError::DuplicatePrimarySymbol {
+                    symbol: primary_symbol.key(),
+                    first,
+                    second: definition_plan,
+                });
+            }
             if !foundation.contains_symbol_request(primary_symbol) {
-                return Err(
-                    StrongObjectSymbolSurfaceBuildError::MissingPrimarySymbolRequest {
-                        definition_plan,
-                        symbol: primary_symbol.key(),
-                    },
-                );
+                return Err(ObjectSymbolSurfaceBuildError::MissingPrimarySymbolRequest {
+                    definition_plan,
+                    symbol: primary_symbol.key(),
+                });
             }
 
             let mut atoms = Vec::with_capacity(1 + definition.associated_atoms().len());
@@ -177,16 +178,14 @@ impl StrongObjectSymbolSurfaceV1 {
                 .map(|atom| {
                     let role = foundation
                         .definition_atom(atom)
-                        .ok_or(StrongObjectSymbolSurfaceBuildError::MissingDefinitionAtom(
-                            atom,
-                        ))?
+                        .ok_or(ObjectSymbolSurfaceBuildError::MissingDefinitionAtom(atom))?
                         .key()
                         .role();
-                    boundary_symbols(atom, role)
-                        .map_err(StrongObjectSymbolSurfaceBuildError::Symbol)
+                    boundary_symbols(atom, role, linkage)
+                        .map_err(ObjectSymbolSurfaceBuildError::Symbol)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            plans.push(StrongDefinitionSymbolPlanV1 {
+            plans.push(DefinitionSymbolPlanV1 {
                 definition_plan,
                 owner: entity,
                 definition_role,
@@ -198,14 +197,11 @@ impl StrongObjectSymbolSurfaceV1 {
         Ok(Self { plans })
     }
 
-    pub fn plans(&self) -> &[StrongDefinitionSymbolPlanV1] {
+    pub fn plans(&self) -> &[DefinitionSymbolPlanV1] {
         &self.plans
     }
 
-    pub fn plan(
-        &self,
-        definition_plan: ObjectDefinitionPlanId,
-    ) -> Option<&StrongDefinitionSymbolPlanV1> {
+    pub fn plan(&self, definition_plan: ObjectDefinitionPlanId) -> Option<&DefinitionSymbolPlanV1> {
         self.plans
             .binary_search_by_key(&definition_plan, |plan| plan.definition_plan)
             .ok()
@@ -213,21 +209,21 @@ impl StrongObjectSymbolSurfaceV1 {
     }
 }
 
-impl WireEncode for StrongObjectSymbolSurfaceV1 {
+impl WireEncode for ObjectSymbolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.plans)
     }
 }
 
 #[derive(Debug)]
-struct DecodedStrongAtomBoundarySymbolsV1 {
+struct DecodedAtomBoundarySymbolsV1 {
     atom: DecodedPersistentId<ObjectDefinitionAtomId>,
     atom_role: DefinitionAtomRole,
     start: DecodedPersistentSymbolRequest,
     end: DecodedPersistentSymbolRequest,
 }
 
-impl WireEncode for DecodedStrongAtomBoundarySymbolsV1 {
+impl WireEncode for DecodedAtomBoundarySymbolsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
@@ -241,7 +237,7 @@ impl WireEncode for DecodedStrongAtomBoundarySymbolsV1 {
     }
 }
 
-impl WireDecode for DecodedStrongAtomBoundarySymbolsV1 {
+impl WireDecode for DecodedAtomBoundarySymbolsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
@@ -254,16 +250,16 @@ impl WireDecode for DecodedStrongAtomBoundarySymbolsV1 {
 }
 
 #[derive(Debug)]
-struct DecodedStrongDefinitionSymbolPlanV1 {
+struct DecodedDefinitionSymbolPlanV1 {
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     owner: DecodedStrongDefinitionEntity,
     definition_role: StrongDefinitionRole,
     primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
     primary_symbol: DecodedPersistentSymbolRequest,
-    atom_boundaries: Vec<DecodedStrongAtomBoundarySymbolsV1>,
+    atom_boundaries: Vec<DecodedAtomBoundarySymbolsV1>,
 }
 
-impl WireEncode for DecodedStrongDefinitionSymbolPlanV1 {
+impl WireEncode for DecodedDefinitionSymbolPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         encoder.field(1)?;
@@ -281,7 +277,7 @@ impl WireEncode for DecodedStrongDefinitionSymbolPlanV1 {
     }
 }
 
-impl WireDecode for DecodedStrongDefinitionSymbolPlanV1 {
+impl WireDecode for DecodedDefinitionSymbolPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
@@ -291,57 +287,56 @@ impl WireDecode for DecodedStrongDefinitionSymbolPlanV1 {
             primary_atom: decoder.field(4, DecodedPersistentId::decode)?,
             primary_symbol: decoder.field(5, DecodedPersistentSymbolRequest::decode)?,
             atom_boundaries: decoder.field(6, |decoder| {
-                decoder
-                    .decode_array(|decoder, _| DecodedStrongAtomBoundarySymbolsV1::decode(decoder))
+                decoder.decode_array(|decoder, _| DecodedAtomBoundarySymbolsV1::decode(decoder))
             })?,
         })
     }
 }
 
 #[derive(Debug)]
-pub struct DecodedStrongObjectSymbolSurfaceV1 {
-    plans: Vec<DecodedStrongDefinitionSymbolPlanV1>,
+pub struct DecodedObjectSymbolSurfaceV1 {
+    plans: Vec<DecodedDefinitionSymbolPlanV1>,
 }
 
-impl DecodedStrongObjectSymbolSurfaceV1 {
+impl DecodedObjectSymbolSurfaceV1 {
     pub fn validate(
         self,
         foundation: &ConeLirFoundation,
-    ) -> Result<StrongObjectSymbolSurfaceV1, StrongObjectSymbolSurfaceValidationError> {
-        let actual = encode(&self).map_err(StrongObjectSymbolSurfaceValidationError::Encode)?;
-        let expected = StrongObjectSymbolSurfaceV1::from_foundation(foundation)
-            .map_err(StrongObjectSymbolSurfaceValidationError::Foundation)?;
+    ) -> Result<ObjectSymbolSurfaceV1, ObjectSymbolSurfaceValidationError> {
+        let actual = encode(&self).map_err(ObjectSymbolSurfaceValidationError::Encode)?;
+        let expected = ObjectSymbolSurfaceV1::from_foundation(foundation)
+            .map_err(ObjectSymbolSurfaceValidationError::Foundation)?;
         let expected_bytes =
-            encode(&expected).map_err(StrongObjectSymbolSurfaceValidationError::Encode)?;
+            encode(&expected).map_err(ObjectSymbolSurfaceValidationError::Encode)?;
         if actual != expected_bytes {
-            return Err(StrongObjectSymbolSurfaceValidationError::SurfaceMismatch);
+            return Err(ObjectSymbolSurfaceValidationError::SurfaceMismatch);
         }
         Ok(expected)
     }
 }
 
-impl WireEncode for DecodedStrongObjectSymbolSurfaceV1 {
+impl WireEncode for DecodedObjectSymbolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.plans)
     }
 }
 
-impl WireDecode for DecodedStrongObjectSymbolSurfaceV1 {
+impl WireDecode for DecodedObjectSymbolSurfaceV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
-            .decode_array(|decoder, _| DecodedStrongDefinitionSymbolPlanV1::decode(decoder))
+            .decode_array(|decoder, _| DecodedDefinitionSymbolPlanV1::decode(decoder))
             .map(|plans| Self { plans })
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongObjectSymbolSurfaceValidationError {
-    Foundation(StrongObjectSymbolSurfaceBuildError),
+pub enum ObjectSymbolSurfaceValidationError {
+    Foundation(ObjectSymbolSurfaceBuildError),
     Encode(scoop_wire::cbor::EncodeError),
     SurfaceMismatch,
 }
 
-impl fmt::Display for StrongObjectSymbolSurfaceValidationError {
+impl fmt::Display for ObjectSymbolSurfaceValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -350,7 +345,7 @@ impl fmt::Display for StrongObjectSymbolSurfaceValidationError {
     }
 }
 
-impl std::error::Error for StrongObjectSymbolSurfaceValidationError {
+impl std::error::Error for ObjectSymbolSurfaceValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Foundation(source) => Some(source),
@@ -363,41 +358,47 @@ impl std::error::Error for StrongObjectSymbolSurfaceValidationError {
 fn boundary_symbols(
     atom: ObjectDefinitionAtomId,
     atom_role: DefinitionAtomRole,
-) -> Result<StrongAtomBoundarySymbolsV1, PersistentSymbolError> {
-    Ok(StrongAtomBoundarySymbolsV1 {
+    linkage: LinkageClass,
+) -> Result<AtomBoundarySymbolsV1, PersistentSymbolError> {
+    Ok(AtomBoundarySymbolsV1 {
         atom,
         atom_role,
         start: PersistentSymbolRequest::new(
             PersistentSymbolKey::DefinitionBoundaryStart(atom),
-            LinkageClass::ConeStrong,
+            linkage,
         )?,
         end: PersistentSymbolRequest::new(
             PersistentSymbolKey::DefinitionBoundaryEnd(atom),
-            LinkageClass::ConeStrong,
+            linkage,
         )?,
     })
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongObjectSymbolSurfaceBuildError {
-    DefinitionSurface(StrongObjectDefinitionPlanBuildError),
+pub enum ObjectSymbolSurfaceBuildError {
+    DefinitionSurface(ObjectDefinitionPlanBuildError),
     MissingDefinitionKey(ObjectDefinitionPlanId),
     MissingDefinitionAtom(ObjectDefinitionAtomId),
-    InvalidStrongDefinition(ObjectDefinitionPlanId),
+    UnknownDefinitionSubject(ObjectDefinitionPlanId),
     Symbol(PersistentSymbolError),
+    DuplicatePrimarySymbol {
+        symbol: PersistentSymbolKey,
+        first: ObjectDefinitionPlanId,
+        second: ObjectDefinitionPlanId,
+    },
     MissingPrimarySymbolRequest {
         definition_plan: ObjectDefinitionPlanId,
         symbol: PersistentSymbolKey,
     },
 }
 
-impl fmt::Display for StrongObjectSymbolSurfaceBuildError {
+impl fmt::Display for ObjectSymbolSurfaceBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "invalid strong object symbol surface: {self:?}")
     }
 }
 
-impl std::error::Error for StrongObjectSymbolSurfaceBuildError {}
+impl std::error::Error for ObjectSymbolSurfaceBuildError {}
 
 fn encode_array(
     encoder: &mut Encoder,

@@ -5,8 +5,8 @@ use std::fmt;
 use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey};
 
 use crate::{
-    ConeLirFoundation, ConeLirFoundationProjectionError, EntryProductionSourceV1, Module,
-    StrongProductionSectionBuildError, StrongProductionSectionV1, StrongProductionSectionV2,
+    ConeLirFoundation, ConeLirFoundationProjectionError, ConeProductionSectionBuildError,
+    ConeProductionSectionV1, ConeProductionSectionV2, EntryProductionSourceV1, Module,
     StrongRegistrationProductionBuildError, StrongRegistrationProductionSurfaceV1,
 };
 
@@ -58,14 +58,14 @@ impl ConeLirOutput {
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         entry_source: EntryProductionSourceV1,
-    ) -> Result<StrongProductionSectionV1, StrongProductionWriterError> {
+    ) -> Result<ConeProductionSectionV1, ConeProductionWriterError> {
         let (digests, registrations) = StrongRegistrationProductionSurfaceV1::from_module(
             &self.module,
             &self.foundation,
             &entry_source,
         )
-        .map_err(StrongProductionWriterError::Registrations)?;
-        StrongProductionSectionV1::new(
+        .map_err(ConeProductionWriterError::Registrations)?;
+        ConeProductionSectionV1::new(
             coordinate,
             direct_dependencies,
             &self.foundation,
@@ -74,7 +74,7 @@ impl ConeLirOutput {
             entry_source,
             &self.shape_support.source_declarations(),
         )
-        .map_err(StrongProductionWriterError::Section)
+        .map_err(ConeProductionWriterError::Section)
     }
 
     /// Projects the complete V2 registration and object plans from LIR.
@@ -85,15 +85,15 @@ impl ConeLirOutput {
         direct_dependencies: &[ConeIdentity],
         entry_source: EntryProductionSourceV1,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
-    ) -> Result<StrongProductionSectionV2, StrongProductionWriterError> {
+    ) -> Result<ConeProductionSectionV2, ConeProductionWriterError> {
         let (digests, registrations) = crate::StrongRegistrationProductionSurfaceV2::from_module(
             &self.module,
             &self.foundation,
             &entry_source,
             external_initialization_uses,
         )
-        .map_err(StrongProductionWriterError::Registrations)?;
-        StrongProductionSectionV2::new(
+        .map_err(ConeProductionWriterError::Registrations)?;
+        ConeProductionSectionV2::new(
             coordinate,
             direct_dependencies,
             &self.foundation,
@@ -102,7 +102,7 @@ impl ConeLirOutput {
             entry_source,
             &self.shape_support.source_declarations(),
         )
-        .map_err(StrongProductionWriterError::Section)
+        .map_err(ConeProductionWriterError::Section)
     }
 
     pub fn into_module(self) -> Module {
@@ -135,12 +135,12 @@ impl std::error::Error for ConeLirOutputError {
 }
 
 #[derive(Debug)]
-pub enum StrongProductionWriterError {
+pub enum ConeProductionWriterError {
     Registrations(StrongRegistrationProductionBuildError),
-    Section(StrongProductionSectionBuildError),
+    Section(ConeProductionSectionBuildError),
 }
 
-impl fmt::Display for StrongProductionWriterError {
+impl fmt::Display for ConeProductionWriterError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -149,4 +149,4 @@ impl fmt::Display for StrongProductionWriterError {
     }
 }
 
-impl std::error::Error for StrongProductionWriterError {}
+impl std::error::Error for ConeProductionWriterError {}

@@ -354,7 +354,7 @@ fn stackmap_inputs(
 }
 
 fn exact_stackmap_inputs(
-    digest_plan: &scoop_lir::StrongDigestFinalizationPlanV1,
+    digest_plan: &scoop_lir::DigestFinalizationPlanV1,
     node: DigestNodeId,
     body: PersistentCallableBodyId,
     stackmaps: &BTreeMap<DigestNodeId, (PersistentCallableBodyId, [u8; 32])>,

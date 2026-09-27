@@ -9,7 +9,7 @@ use fixtures::{graph, replayed_provider, view};
 
 pub(super) fn check_join(
     provider: &Provider,
-    consumer: &StrongProductionSectionV2,
+    consumer: &ConeProductionSectionV2,
     layout: &CrossConeLayoutAbiSectionV1<'_>,
 ) {
     let production = replayed_provider(provider);

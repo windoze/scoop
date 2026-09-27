@@ -4,7 +4,7 @@ impl CallableAbiRecordV1 {
     pub fn validate_definition(
         &self,
         producer: ConeIdentity,
-        definitions: &crate::StrongObjectSymbolSurfaceV1,
+        definitions: &crate::ObjectSymbolSurfaceV1,
     ) -> Result<(), CallableAbiValidationError> {
         let (body, symbol, definition) = self.link_contract(producer)?;
         validate_definition_contract(body, symbol, definition, definitions)
@@ -62,7 +62,7 @@ fn validate_definition_contract(
     body: PersistentCallableBodyId,
     symbol: PersistentSymbolRequest,
     definition: ObjectDefinitionPlanId,
-    definitions: &crate::StrongObjectSymbolSurfaceV1,
+    definitions: &crate::ObjectSymbolSurfaceV1,
 ) -> Result<(), CallableAbiValidationError> {
     let plan = definitions
         .plan(definition)

@@ -319,7 +319,7 @@ use artifacts::*;
 mod digests;
 use digests::*;
 
-fn node(plan: &StrongDigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
+fn node(plan: &DigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
     plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }
 

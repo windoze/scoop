@@ -10,18 +10,17 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
-    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
-    ExternFunctions, Function, GcEffect, Instruction, IntrinsicTypeRepresentation, Layout,
-    LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile, LocalFunctionIdentities,
-    LocalFunctionRef, ManagedCallDestination, ManagedLeafPath, ManagedLeafPaths, ManagedPollSite,
-    ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity,
-    SafepointMappingRecord, SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature,
-    StatepointLiveSet, StatepointLiveValue, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanSetV1,
-    StrongSafepointSemanticPlanSetV1, StructDefs, Terminator, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
-    VtableRecord, WellKnownTypeDescriptors,
+    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
+    DigestNodeV1, EnumDefs, ExternFunctions, Function, GcEffect, Instruction,
+    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
+    LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedLeafPath,
+    ManagedLeafPaths, ManagedPollSite, ManagedRuntimeFunction, MaterializationRoot, Module,
+    NativeExternalMetadata, NativeGlobalBridges, RegistrationIdentitySurfaceV1,
+    RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity, SafepointMappingRecord,
+    SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StatepointLiveValue,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
+    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1,
+    VoidCallSignature, VtableRecord, WellKnownTypeDescriptors,
 };
 
 pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
@@ -105,13 +104,10 @@ pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
         Vec::new(),
     )
     .unwrap();
-    let digests = StrongDigestFinalizationPlanV1::new(
-        vec![object, stackmap, registration, image],
-        &foundation,
-    )
-    .unwrap();
-    let identities =
-        StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let digests =
+        DigestFinalizationPlanV1::new(vec![object, stackmap, registration, image], &foundation)
+            .unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     StrongSafepointRegistrationPlanSetV1::new(&foundation, &identities, &semantics, &digests)
         .unwrap()
 }

@@ -6,14 +6,13 @@ pub use scoop_identity::PersistentCallableBodyId;
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
     DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolError, PersistentSymbolKey,
+    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::{
-    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1,
+    RegistrationIdentitySurfaceV1,
 };
 
 mod runtime_scans;
@@ -33,11 +32,16 @@ pub struct StrongCallableRegistrationPlanV1 {
     registration_object_node: DigestNodeId,
     body_definition_node: DigestNodeId,
     registration_fingerprint_node: DigestNodeId,
+    definition_owner: crate::RegistrationDefinitionOwner,
     registration_definition_patch: DigestPatchIntentId,
     body_definition_patch: DigestPatchIntentId,
 }
 
 impl StrongCallableRegistrationPlanV1 {
+    pub const fn definition_owner(self) -> crate::RegistrationDefinitionOwner {
+        self.definition_owner
+    }
+
     pub const fn body(self) -> PersistentCallableBodyId {
         self.body
     }
@@ -99,9 +103,9 @@ pub struct StrongCallableRegistrationPlanSetV1 {
 impl StrongCallableRegistrationPlanSetV1 {
     pub fn new(
         foundation: &ConeLirFoundation,
-        identities: &StrongRegistrationIdentitySurfaceV1,
+        identities: &RegistrationIdentitySurfaceV1,
         runtime_scans: StrongCallableRuntimeScanPlanSetV1,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongCallableRegistrationPlanBuildError> {
         let mut expected = foundation
             .callable_bodies()
@@ -173,6 +177,7 @@ impl StrongCallableRegistrationPlanSetV1 {
                 body,
                 identity.definition_plan(),
                 identity.fingerprint_node(),
+                identity.owner(),
             )?);
         }
         Ok(Self {
@@ -197,10 +202,11 @@ impl StrongCallableRegistrationPlanSetV1 {
 
 fn build_registration(
     foundation: &ConeLirFoundation,
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     body: PersistentCallableBodyId,
     identity_definition: ObjectDefinitionPlanId,
     identity_fingerprint: DigestNodeId,
+    definition_owner: crate::RegistrationDefinitionOwner,
 ) -> Result<StrongCallableRegistrationPlanV1, StrongCallableRegistrationPlanBuildError> {
     let registration_definition = require_definition(
         foundation,
@@ -217,7 +223,11 @@ fn build_registration(
         );
     }
     let primary_atom = require_primary_atom(foundation, registration_definition.id())?;
-    let symbol = require_symbol(foundation, PersistentSymbolKey::CallableRegistration(body))?;
+    let symbol = require_symbol(
+        foundation,
+        PersistentSymbolKey::CallableRegistration(body),
+        definition_owner.linkage(),
+    )?;
 
     let body_definition = require_definition(
         foundation,
@@ -225,11 +235,22 @@ fn build_registration(
         StrongDefinitionRole::CallableBody,
     )?;
     let body_primary_atom = require_primary_atom(foundation, body_definition.id())?;
-    let entry_symbol = require_symbol(foundation, PersistentSymbolKey::CallableBody(body))?;
+    let entry_symbol = require_symbol(
+        foundation,
+        PersistentSymbolKey::CallableBody(body),
+        definition_owner.linkage(),
+    )?;
 
     let registration_object =
         require_digest_node(digests, DigestNodeKey::object_definition(primary_atom))?;
-    if !registration_object.direct_inputs().is_empty() {
+    let expected_object_inputs = match definition_owner {
+        crate::RegistrationDefinitionOwner::Strong => Vec::new(),
+        crate::RegistrationDefinitionOwner::Odr { .. } => vec![DigestInputRefV1::ObjectDefinition(
+            DigestNodeId::from_key(&DigestNodeKey::object_definition(body_primary_atom))
+                .map_err(StrongCallableRegistrationPlanBuildError::Hash)?,
+        )],
+    };
+    if registration_object.direct_inputs() != expected_object_inputs {
         return Err(
             StrongCallableRegistrationPlanBuildError::RegistrationObjectInputs {
                 node: registration_object.id(),
@@ -253,7 +274,7 @@ fn build_registration(
         require_digest_node(digests, DigestNodeKey::object_definition(body_primary_atom))?;
     let registration_fingerprint = require_digest_node(
         digests,
-        DigestNodeKey::strong_registration(registration_definition.id()),
+        definition_owner.digest_key(registration_definition.id()),
     )?;
     if registration_fingerprint.id() != identity_fingerprint {
         return Err(
@@ -265,10 +286,15 @@ fn build_registration(
         );
     }
 
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(registration_object),
-        DigestInputRefV1::from_node(body_definition_node),
-    ];
+    let mut expected_inputs = vec![DigestInputRefV1::from_node(registration_object)];
+    expected_inputs.push(match definition_owner {
+        crate::RegistrationDefinitionOwner::Strong => {
+            DigestInputRefV1::from_node(body_definition_node)
+        }
+        crate::RegistrationDefinitionOwner::Odr { .. } => DigestInputRefV1::from_node(
+            require_digest_node(digests, DigestNodeKey::lir_definition(primary_atom))?,
+        ),
+    });
     expected_inputs.sort_unstable();
     if registration_fingerprint.direct_inputs() != expected_inputs {
         return Err(StrongCallableRegistrationPlanBuildError::DirectInputs {
@@ -308,6 +334,7 @@ fn build_registration(
         registration_object_node: registration_object.id(),
         body_definition_node: body_definition_node.id(),
         registration_fingerprint_node: registration_fingerprint.id(),
+        definition_owner,
         registration_definition_patch,
         body_definition_patch,
     })
@@ -321,15 +348,9 @@ fn require_definition(
     &scoop_identity::CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     StrongCallableRegistrationPlanBuildError,
 > {
-    let key = ObjectDefinitionPlanKey::strong(foundation.producer(), entity, role)
-        .map_err(StrongCallableRegistrationPlanBuildError::DefinitionIdentity)?;
     foundation
-        .definition_plans()
-        .iter()
-        .find(|record| record.key() == &key)
-        .ok_or(StrongCallableRegistrationPlanBuildError::MissingDefinition(
-            Box::new(key),
-        ))
+        .definition_for(entity, role)
+        .ok_or(StrongCallableRegistrationPlanBuildError::MissingDefinition { entity, role })
 }
 
 fn require_primary_atom(
@@ -353,8 +374,9 @@ fn require_primary_atom(
 fn require_symbol(
     foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
+    linkage: LinkageClass,
 ) -> Result<PersistentSymbolRequest, StrongCallableRegistrationPlanBuildError> {
-    let request = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
+    let request = PersistentSymbolRequest::new(key, linkage)
         .map_err(StrongCallableRegistrationPlanBuildError::Symbol)?;
     foundation
         .contains_symbol_request(request)
@@ -365,7 +387,7 @@ fn require_symbol(
 }
 
 fn require_digest_node(
-    digests: &StrongDigestFinalizationPlanV1,
+    digests: &DigestFinalizationPlanV1,
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongCallableRegistrationPlanBuildError> {
     digests
@@ -407,7 +429,7 @@ fn require_patch(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongCallableRegistrationPlanBuildError {
-    DefinitionIdentity(ObjectDefinitionIdentityError),
+    Hash(scoop_wire::HashError),
     Symbol(PersistentSymbolError),
     CallableSet {
         expected: Vec<PersistentCallableBodyId>,
@@ -422,7 +444,10 @@ pub enum StrongCallableRegistrationPlanBuildError {
         expected: Vec<ObjectDefinitionAtomId>,
         actual: Vec<ObjectDefinitionAtomId>,
     },
-    MissingDefinition(Box<ObjectDefinitionPlanKey>),
+    MissingDefinition {
+        entity: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+    },
     RegistrationDefinitionMismatch {
         body: PersistentCallableBodyId,
         expected: ObjectDefinitionPlanId,

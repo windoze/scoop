@@ -6,7 +6,7 @@ use crate::link_object::{
     ScoopLirObjectCandidateV1, compute_strong_callable_registration_object_fingerprints_v1,
     verify_scoop_lir_digest_patch_sites_v1, verify_strong_callable_registrations_v1,
 };
-use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
+use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
 #[test]
 fn hashes_normalized_body_code_relocations_and_stackmap_inputs() {
@@ -105,8 +105,7 @@ fn rejects_body_digest_nodes_without_the_exact_stackmap_inputs() {
             .unwrap()
         })
         .collect();
-    let wrong_digest_plan =
-        StrongDigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
+    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,

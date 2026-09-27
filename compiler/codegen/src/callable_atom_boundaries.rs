@@ -4,8 +4,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use scoop_lir::{
-    DefinitionAtomRole, LirTargetProfile, PersistentCallableBodyId, StrongDefinitionEntityKind,
-    StrongDefinitionSymbolPlanV1,
+    DefinitionAtomRole, DefinitionSymbolPlanV1, LirTargetProfile, PersistentCallableBodyId,
+    StrongDefinitionEntityKind,
 };
 
 pub(crate) use self::macho::{BoundaryDefinitionV1, MachOLayout};
@@ -16,7 +16,7 @@ mod macho;
 pub(crate) fn materialize_v1(
     path: &Path,
     target: LirTargetProfile,
-    plan: &StrongDefinitionSymbolPlanV1,
+    plan: &DefinitionSymbolPlanV1,
     expected_body: PersistentCallableBodyId,
 ) -> Result<(), CodegenError> {
     if plan.definition_role() != scoop_lir::StrongDefinitionRole::CallableBody
@@ -69,11 +69,13 @@ pub(crate) fn materialize_v1(
                     start_name,
                     text.ordinal(),
                     text.address(),
+                    boundary.start().linkage(),
                 ));
                 additions.push(BoundaryDefinitionV1::new(
                     end_name,
                     text.ordinal(),
                     text.checked_end()?,
+                    boundary.end().linkage(),
                 ));
             }
             role @ (DefinitionAtomRole::Stackmap
@@ -87,14 +89,20 @@ pub(crate) fn materialize_v1(
                     start_name,
                     physical.ordinal(),
                     physical.address(),
+                    boundary.start().linkage(),
                 ));
                 additions.push(BoundaryDefinitionV1::new(
                     end_name,
                     physical.ordinal(),
                     physical.checked_end()?,
+                    boundary.end().linkage(),
                 ));
             }
             DefinitionAtomRole::AddressTakenConstant | DefinitionAtomRole::RuntimeRecord => {
+                if plan.primary_symbol().linkage() == scoop_lir::LinkageClass::OdrWeak {
+                    layout.materialize_odr_definition(&mut bytes, &start_name)?;
+                    layout.materialize_odr_definition(&mut bytes, &end_name)?;
+                }
                 layout
                     .require_existing_boundary_pair(&start_name, &end_name)
                     .map_err(|error| {

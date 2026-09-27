@@ -13,7 +13,7 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
         self,
         target: LirTargetProfile,
         foundation: &ConeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
+        digests: &DigestFinalizationPlanV1,
 
         type_definitions: &StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &StrongInitializationDefinitionCatalogV2,

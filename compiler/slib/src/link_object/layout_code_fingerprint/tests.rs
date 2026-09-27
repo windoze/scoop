@@ -1,7 +1,7 @@
 use scoop_identity::ConeCoordinate;
 use scoop_lir::{
-    CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation, EntryProductionSourceV1,
-    LirTargetProfile, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV2,
+    CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation, ConeProductionSectionV2,
+    EntryProductionSourceV1, LirTargetProfile, StrongRegistrationProductionSurfaceV2,
     ValidatedLirTargetSelection,
 };
 use scoop_wire::{decode_canonical, encode};
@@ -36,7 +36,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
     let target = LirTargetProfile::DARWIN_AARCH64;
     let layout = empty_section(producer);
-    let v2 = StrongProductionSectionV2::new(
+    let v2 = ConeProductionSectionV2::new(
         cone.coordinate().clone(),
         v1.image_plan().dependencies(),
         &foundation,

@@ -32,6 +32,7 @@ pub use wire::{
 
 mod bridge_layouts;
 mod cone;
+mod definition_subject;
 mod identities;
 mod imported;
 mod projection;

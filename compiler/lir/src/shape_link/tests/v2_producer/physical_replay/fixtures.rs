@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::*;
 
-pub(super) fn replayed_provider(provider: &Provider) -> StrongProductionSectionV2 {
+pub(super) fn replayed_provider(provider: &Provider) -> ConeProductionSectionV2 {
     let raw = provider
         .output
         .build_production_section_v2(
@@ -13,8 +13,7 @@ pub(super) fn replayed_provider(provider: &Provider) -> StrongProductionSectionV
         .unwrap()
         .validate_layout_abi(&provider.layout_section())
         .unwrap();
-    let decoded: DecodedStrongProductionSectionV2 =
-        decode_canonical(&encode(&raw).unwrap()).unwrap();
+    let decoded: DecodedConeProductionSectionV2 = decode_canonical(&encode(&raw).unwrap()).unwrap();
     decoded
         .replay(
             provider.coordinate.clone(),
@@ -31,7 +30,7 @@ pub(super) fn replayed_provider(provider: &Provider) -> StrongProductionSectionV
 
 pub(super) fn view<'a>(
     provider: &'a Provider,
-    production: &'a StrongProductionSectionV2,
+    production: &'a ConeProductionSectionV2,
     exports: &'a LayoutAbiExportConstituentsV1,
 ) -> ShapeLinkProviderV1<'a> {
     ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {

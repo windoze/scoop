@@ -10,7 +10,7 @@ pub(super) fn digest_plan(
     storages: &[DefinitionArtifacts; 2],
     callables: &[CallableArtifacts],
     options: Options,
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let auxiliary_input = options.cell_object_input.then(|| {
         DigestNodeV1::new(
             DigestNodeKey::source_signature(callables[0].body.id()),
@@ -147,5 +147,5 @@ pub(super) fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }

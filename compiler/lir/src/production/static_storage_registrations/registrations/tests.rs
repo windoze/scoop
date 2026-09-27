@@ -269,9 +269,9 @@ struct ShapeArtifacts {
 
 struct Fixture {
     foundation: ConeLirFoundation,
-    identities: StrongRegistrationIdentitySurfaceV1,
+    identities: RegistrationIdentitySurfaceV1,
     semantics: StrongStaticStorageSemanticPlanSetV1,
-    digests: StrongDigestFinalizationPlanV1,
+    digests: DigestFinalizationPlanV1,
 }
 
 impl Fixture {
@@ -362,7 +362,7 @@ impl Fixture {
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &shape, &storages, options);
         let identities =
-            StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let mut semantic_storages = storages
             .iter()
             .map(|artifacts| StrongStaticStorageSemanticPlanV1 {
@@ -484,7 +484,7 @@ fn digest_plan(
     shape: &ShapeArtifacts,
     storages: &[StorageArtifacts; 2],
     options: Options,
-) -> StrongDigestFinalizationPlanV1 {
+) -> DigestFinalizationPlanV1 {
     let layout_key = DigestNodeKey::layout(shape.layout.id());
     let layout_id = DigestNodeId::from_key(&layout_key).unwrap();
     let scan_key = DigestNodeKey::scan(shape.scan.id());
@@ -605,7 +605,7 @@ fn digest_plan(
         )
         .unwrap(),
     );
-    StrongDigestFinalizationPlanV1::new(nodes, foundation).unwrap()
+    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn definition(
@@ -636,7 +636,7 @@ fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {
     PersistentSymbolRequest::new(key, LinkageClass::ConeStrong).unwrap()
 }
 
-fn node(plan: &StrongDigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
+fn node(plan: &DigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
     plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }
 
