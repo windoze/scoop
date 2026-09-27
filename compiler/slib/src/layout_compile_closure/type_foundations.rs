@@ -40,6 +40,13 @@ impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
             )?;
             checked.push(result);
         }
+        if let Some((root, dependencies)) = checked.split_last() {
+            root.with_inheritance_graph(dependencies, |_| ())
+                .map_err(|source| CrossConeLayoutTypeFoundationError {
+                    provider: root.provider(),
+                    source: Box::new(source),
+                })?;
+        }
         Ok(checked)
     }
 }
@@ -57,7 +64,6 @@ fn validate_provider<'a>(
     scoop_wire::allocation::try_reserve(&mut providers, reachable.len(), &path)?;
     providers.extend(reachable.iter().map(|position| checked[*position]));
     let checked = types.validate_shared_foundation(input, &providers)?;
-    checked.with_inheritance_graph(&providers, |_| ())?;
     checked.validate_materialized_type_uses(&providers)?;
     Ok(checked)
 }

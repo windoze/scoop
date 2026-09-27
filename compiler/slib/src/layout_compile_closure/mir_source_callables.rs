@@ -122,7 +122,7 @@ impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
                 .map_err(|source| CrossConeLayoutMirSourceCallablesError::new(provider, source))?;
             resolved.push(artifact);
         }
-        let units = replay::validate_sources(&mut resolved, &dependency_positions)?;
+        let units = replay::validate_sources(current, &mut resolved, &dependency_positions)?;
         let mut complete = Vec::new();
         for (ResolvedMirSourceSections { prepared, mir, lir }, units) in
             resolved.into_iter().zip(units)

@@ -31,8 +31,9 @@ impl SharedTypeMetadataV1<'_> {
 }
 
 impl CheckedSharedTypeFoundationV1<'_> {
-    /// Replays every supplied provider's complete inheritance inventory against
-    /// its shared declarations. The temporary graph cannot escape this scope.
+    /// Checks the closure's inheritance inventory once against its declarations.
+    /// Each supplied foundation has already resolved its own dependency types.
+    /// All providers can consume the temporary graph in the callback.
     pub fn with_inheritance_graph<R>(
         self,
         dependencies: &[CheckedSharedTypeFoundationV1<'_>],
