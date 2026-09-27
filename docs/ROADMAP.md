@@ -339,7 +339,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 
 - 构建完成节点、prebuilt 与 cache 复用普通 manifest 摘要和不可变归档；父进程不重新读取完整语义/对象或全部依赖。编译器消费边界保留完整类型、ABI、格式与 Link 检查，缓存失效和 child 结果核对继续执行。
 - 真实源码生成完整 `.slib`，由本阶段跨 Cone Compile/Link 路径消费，并完成适用链接与运行；覆盖 core 修改、扩展、重建、下游使用，以及类型、成员、dispatch、ABI、ZST 的独立与组合场景。手工 metadata 和证明反例不能替代验收。
-- 原有可复用实现与测试继续核对；只有实际功能、上述清理和必要验收全部完成且按功能提交，才完成 M23-6。当前仍在实施。ODR、multi-image startup、artifact-only program-link 按 M23-7/8/9 的原阶段安排，不提前承接。
+- **M23-6 已完成并验收（2026-09-27）**：实际功能、七项清理和生产调用链核对已完成，变更按功能提交；启用真实配套编译器的全仓测试 5084 项通过。详见 [实际产物验收记录](milestone23/stage6/ACCEPTANCE.md)。ODR、multi-image startup、artifact-only program-link 按 M23-7/8/9 的原阶段安排。
 
 ### M23-7 跨Cone generic、ODR与generic delegated extension
 

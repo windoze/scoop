@@ -92,7 +92,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 
 2026-09-22：M23-6 明确增加旧 core 专用资格清理完成门，见 [补充设计](stage6/CORE-AUTHORITY-CLEANUP.md)。必须统一 ABI 重放、native-boundary 输入、protocol 引用、String/初始化 bridge 与 Link requirement closure；既有 layout/ABI/dispatch/ZST 和实际消费目标继续执行。历史阶段的专用通道及冻结描述不构成保留理由。
 
-版本：0.6（设计完成，待实现；2026-09-16）
+版本：0.7（M23-6 已验收，后续阶段待实现；2026-09-27）
 
 对应`docs/ROADMAP.md`的M23-1…M23-11。M23系列在M16/M17统一调用决议与default template、M20 exact generic application、M21 typed access domain/全局初始化以及M22非generic typealias之上，把“core源码与用户源码同一编译单元”的过渡模型替换为真正的独立Cone编译：低层编译器`scoopc`每次只把一个Cone编译为可复用`.slib`，umbrella build tool `scoop`负责解析多Cone图、缓存与调度，独立link stage再把依赖闭包中的link input和image descriptor静态链接成最终程序。下游编译只通过版本化metadata消费上游语义接口。本文仍是这些子里程碑的唯一总体设计，避免拆分完整的identity/wire/runtime契约或制造重复真源。
 
@@ -2582,6 +2582,8 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 完成门：direct与transitive可见性、split package、exact/star/alias冲突、链式re-export、public/internal/private access、default origin/evaluation source、non-generic alias和negative lookup observation/cache失效矩阵通过；所有成功用例产生双view有效artifact，所有暂未开放形态在HIR边界有唯一稳定诊断，不产生残缺IR。
 
 ### M23-6：跨Cone layout、typed ABI与ZST
+
+状态：已完成并验收（2026-09-27）。实际功能、七项清理、源码到产物再到跨 Cone 消费及单 image 运行均已完成，变更按功能提交；完整结果见 [实际产物验收记录](stage6/ACCEPTANCE.md)。
 
 已经通过前端检查的 `ForIterationPlan` 在 concretization 中直接消费。不得在这一正常 stage 边界遍历全部函数、构造器与默认值，再执行另一套迭代、类型、effect 或局部定义分析；IR/meta crate 中无产物 reader 调用的整模块验证器及其专用伪造测试退役。实际 reader 的格式、引用与 ABI 检查不受影响。
 
