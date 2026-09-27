@@ -116,12 +116,10 @@ pub enum AssignTarget {
         receiver: Box<Expr>,
         field: FieldRef,
     },
-    /// Direct write through the non-escaping receiver capability while a
-    /// constructor is being checked. Concretization replaces the capability
-    /// with its hidden initializer receiver before LocalConcrete HIR.
+    /// Direct write through the non-escaping constructor receiver.
+    /// Concretization supplies the hidden initializer receiver.
     InitializingClassField {
-        application: ClassApplicationId,
-        field: ClassFieldId,
+        field: InitializingClassFieldRef,
         origin: ExpressionOrigin,
     },
 }
@@ -339,8 +337,7 @@ pub enum ExprKind {
     },
     /// Direct read through the non-escaping class initializer receiver.
     InitializingClassFieldAccess {
-        application: ClassApplicationId,
-        field: ClassFieldId,
+        field: InitializingClassFieldRef,
     },
     /// Direct read from the fully formed struct value owned by a secondary
     /// constructor. The value itself never becomes an expression.
@@ -553,6 +550,28 @@ pub enum BoundCallableSource {
 pub enum Place {
     Local(LocalId),
     Global(GlobalId),
+}
+
+/// A ready backing field reached through the current initializer receiver.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializingClassFieldRef {
+    Declared {
+        application: ClassApplicationId,
+        field: ClassFieldId,
+    },
+    Imported {
+        owner: TypeId,
+        field: scoop_identity::PersistentFieldId,
+    },
+}
+
+impl InitializingClassFieldRef {
+    pub fn owner_type(self, applications: &Arena<ClassApplication>) -> TypeId {
+        match self {
+            Self::Declared { application, .. } => applications[application].canonical_type,
+            Self::Imported { owner, .. } => owner,
+        }
+    }
 }
 
 /// A fully resolved field access.

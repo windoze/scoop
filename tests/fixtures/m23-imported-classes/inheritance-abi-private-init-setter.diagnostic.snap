@@ -1,0 +1,3 @@
+span=165..171
+expression=locked
+cannot assign to immutable property `locked`

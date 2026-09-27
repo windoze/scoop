@@ -349,6 +349,12 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     }
     if cases
         .iter()
+        .any(|case| case.starts_with("inheritance-abi-"))
+    {
+        provider_source.push_str(&source("inheritance-abi-provider"));
+    }
+    if cases
+        .iter()
         .chain(negative_cases)
         .any(|case| case.starts_with("inheritance-access-"))
     {
@@ -449,6 +455,8 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
             "library",
             &source(if *case == "inheritance-published" {
                 "inheritance-downstream"
+            } else if *case == "inheritance-abi-wide" {
+                "inheritance-abi-downstream"
             } else if *case == "initialization-object-reexport" {
                 "initialization-object-downstream"
             } else if *case == "companion-reexport" {

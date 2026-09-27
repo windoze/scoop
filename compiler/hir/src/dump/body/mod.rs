@@ -3,6 +3,25 @@ use super::*;
 mod expr;
 use expr::dump_expr;
 
+fn initializing_field_name(module: &Module, field: InitializingClassFieldRef) -> &str {
+    match field {
+        InitializingClassFieldRef::Declared { field, .. } => {
+            &module.properties[module.class_fields[field].property].name
+        }
+        InitializingClassFieldRef::Imported { owner, field } => {
+            let Type::ImportedClass(class) = &module.types[owner] else {
+                unreachable!("an imported initializing field has a class owner")
+            };
+            &class
+                .fields
+                .iter()
+                .find(|candidate| candidate.identity == field)
+                .expect("a resolved initializing field belongs to its declaring class")
+                .name
+        }
+    }
+}
+
 pub(super) fn dump_statements(
     module: &Module,
     locals: &Arena<Local>,
@@ -57,7 +76,7 @@ pub(super) fn dump_statements(
                     }
                     AssignTarget::InitializingClassField { field, .. } => out.push_str(&format!(
                         "{pad}assign initializing .{}\n",
-                        module.properties[module.class_fields[*field].property].name
+                        initializing_field_name(module, *field)
                     )),
                     AssignTarget::Index { array, index } => {
                         out.push_str(&format!("{pad}assign []\n"));

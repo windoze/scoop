@@ -1,0 +1,161 @@
+Module
+  struct Token ()
+  enum CoroutineStep<Derived>
+    Completed(value: Derived)
+    Suspended()
+  enum CoroutineSlot<Derived>
+    Empty()
+    Value(value: Derived)
+  class Derived vtable=1 itables=0
+  class ZstParent vtable=1 itables=0
+  class Counter vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=3c83f3d6ed224fc1ee5066ec63190e1d0d177447dde6f380772695f567830de0 exact_id=36ebeb392f18477aa9b2627f01d042cdc99767102b060b78c845ac6744e85ead
+  generated_exact_type get1 location=enum0 nominal_id=17c8a25711a06b4add5b78e15b775fa825778f203b582550a5f35429172c00c5 exact_id=aa61db02cb6c30ef6c5964d0633e19df94f6052cdcfb33f8ce083198f572d734
+  fun Derived.echo @fn0(this: Derived, first: Token, value: Long, last: Token) -> Token
+    bb0 entry
+      val $dependency.receiver: ZstParent
+        Type ZstParent
+        Retype ZstParent
+          Type Derived
+          Local this
+      val $dependency.argument.0: Token
+        Type Token
+        Local last
+      val $dependency.argument.1: Long
+        Type Long
+        Local value
+      val $dependency.argument.2: Token
+        Type Token
+        Local first
+      val $dependency.parameter.first: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.last: Token
+        Type Token
+        Local $dependency.argument.2
+      call result: Token = external0 direct
+        Type ZstParent
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.value
+        Type Token
+        Local $dependency.parameter.last
+      call $old.0: Long = external6 direct
+        Type ZstParent
+        Retype ZstParent
+          Type Derived
+          Local this
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external7 direct
+        Type ZstParent
+        Retype ZstParent
+          Type Derived
+          Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      return
+        Type Token
+        Local result
+  fun primary @fn1() -> Counter
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn2 direct
+        Type Derived
+        Local $new.1
+      val value: ZstParent
+        Type ZstParent
+        Retype ZstParent
+          Type Derived
+          Local $new.1
+      val $dependency.receiver: ZstParent
+        Type ZstParent
+        Local value
+      call $dependency.argument.0: Token = external3 direct
+        Type ZstParent
+        Local value
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      call $dependency.argument.2: Token = external1 direct
+      val $dependency.parameter.first: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.last: Token
+        Type Token
+        Local $dependency.argument.2
+      call marker: Token = external0 virtual[0]
+        Type ZstParent
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.value
+        Type Token
+        Local $dependency.parameter.last
+      val $dependency.receiver: ZstParent
+        Type ZstParent
+        Local value
+      val $dependency.argument.0: Token
+        Type Token
+        Local marker
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.0
+      call $dependency.argument.0: Long = external4 direct
+        Type ZstParent
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.marker
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external5 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.Derived.$c0 @fn2(this: Derived) -> Unit
+    bb0 entry
+      call $dependency.argument.0: Token = external1 direct
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.0
+      call external2 direct
+        Type ZstParent
+        Retype ZstParent
+          Type Derived
+          Local this
+        Type Token
+        Local $dependency.parameter.marker
+      return
+  coroutine_step cs0 CoroutineStep<Derived> result=Derived
+  coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
+  output library

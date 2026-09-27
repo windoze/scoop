@@ -369,29 +369,17 @@ impl Concretizer<'_> {
                     field,
                 }
             }
-            export::AssignTarget::InitializingClassField {
-                application,
-                field,
-                origin,
-            } => {
-                let receiver_ty = self.lower_type(
-                    self.source.class_applications[*application].canonical_type,
-                    substitution,
-                );
+            export::AssignTarget::InitializingClassField { field, origin } => {
+                let (receiver_ty, field) =
+                    self.lower_initializing_class_field(*field, substitution);
                 concrete::AssignTarget::Field {
                     receiver: Box::new(concrete::Expr {
                         kind: concrete::ExprKind::ConstructorReceiver,
                         ty: receiver_ty,
-                        span: self.source.class_fields[*field].span,
+                        span: origin.concrete().evaluation.span,
                         origin: origin.concrete(),
                     }),
-                    field: self.lower_field_ref(
-                        export::FieldRef::ClassField {
-                            application: *application,
-                            field: *field,
-                        },
-                        substitution,
-                    ),
+                    field,
                 }
             }
         }

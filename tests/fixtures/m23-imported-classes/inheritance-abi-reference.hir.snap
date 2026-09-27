@@ -1,0 +1,64 @@
+Module
+  class Derived()
+    field0 property0: MutableCell
+    property0 val extra: MutableCell getter0=body(Derived.$get$extra) <stored field0 init=expression>
+  fun primary(): Counter
+    val local0
+      ReferenceUpcast : ReferenceParent
+        ClassInit Derived : Derived
+    val local1
+      Local value : ReferenceParent
+    val local2
+      ImportedDependencyCall #4 : ReferenceAggregate
+        Local value : ReferenceParent
+    val local3
+      Local $dependency.argument.0 : ReferenceAggregate
+    val local4
+      ImportedDependencyCall #5 virtual[0] : ReferenceAggregate
+        Local $dependency.receiver : ReferenceParent
+        Local $dependency.parameter.input : ReferenceAggregate
+    val local5
+      IntegerLiteral 0 : Long
+    val local6
+      Local $dependency.argument.0 : Long
+    val local7
+      ImportedDependencyCall #1 : MutableCell
+        Local $dependency.parameter.value : Long
+    val local8
+      ImportedDependencyCall #6 : Long
+        FieldAccess dependency field dba86924630264cc924c56a54442a6c406ca81b56fe15c1c3b7549c90cdefc36 : MutableCell
+          Local result : ReferenceAggregate
+    val local9
+      ImportedDependencyCall #6 : Long
+        FieldAccess dependency field 09ccc15f3d5ebea80c3096e6b13c00eaf550151ba7fd1e298be7e6c845aab031 : MutableCell
+          Local result : ReferenceAggregate
+    val local10
+      Local $dependency.argument.0 : Long
+    val local11
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local12
+      FieldAccess dependency field 226bd5edf4451eab3d6335c5ec9ac8a19a66328abaf9825157aed6f06ee761e4 : Long
+        Local result : ReferenceAggregate
+    val local13
+      Local $dependency.argument.0 : Long
+    val local14
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local15
+      ImportedDependencyCall #6 : Long
+        Local scratch : MutableCell
+    val local16
+      Local $dependency.argument.0 : Long
+    val local17
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local18
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #7 : Counter
+        Local $dependency.parameter.value : Long
+  output library

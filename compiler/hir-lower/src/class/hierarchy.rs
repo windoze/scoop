@@ -103,46 +103,6 @@ impl Lowerer {
         result
     }
 
-    /// Field lookup on a complete class application. The declaration/layout
-    /// identity remains the declaring `ClassId`, while the returned field type
-    /// is fully substituted through every generic base application.
-    pub(crate) fn find_class_application_field(
-        &mut self,
-        application: hir::ClassApplicationId,
-        name: &str,
-    ) -> Option<(hir::ClassApplicationId, hir::ClassFieldId, TypeId, bool)> {
-        let application_value = self.class_applications[application].clone();
-        let class = application_value.template;
-        if let Some(&property_id) = self.classes[class]
-            .properties
-            .iter()
-            .find(|property| self.properties[**property].name == name)
-        {
-            let property = self.properties[property_id].clone();
-            let hir::PropertyRepresentation::Stored(stored) = property.representation else {
-                return None;
-            };
-            let hir::PropertyBacking::ClassField {
-                field: field_id, ..
-            } = stored.backing
-            else {
-                return None;
-            };
-            let field_ty = property.ty;
-            let ty = self.instantiate_ty(field_ty, &application_value.arguments);
-            let mutable = property.capability.setter().is_some();
-            return Some((application, field_id, ty, mutable));
-        }
-        let base = self.classes[class].base_class?;
-        let base = self.instantiate_ty(base, &application_value.arguments);
-        let base_application = match self.types[base] {
-            Type::Class(application) => application,
-            Type::ImportedClass(_) => return None,
-            _ => unreachable!("resolved class bases have class types"),
-        };
-        self.find_class_application_field(base_application, name)
-    }
-
     pub(crate) fn find_accessible_class_application_property(
         &mut self,
         mut application: hir::ClassApplicationId,

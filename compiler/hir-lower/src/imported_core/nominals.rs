@@ -74,11 +74,11 @@ impl Lowerer {
             .source_shape()
             .declared_fields()
             .iter()
-            .zip(&declaration.field_names)
-            .map(|(field, name)| {
+            .zip(&declaration.field_sources)
+            .map(|(field, source)| {
                 Ok(hir::ImportedNominalField {
                     identity: field.field(),
-                    name: name.clone(),
+                    name: source.name.clone(),
                     ty: self.imported_signature_type(field.value_type())?,
                 })
             })

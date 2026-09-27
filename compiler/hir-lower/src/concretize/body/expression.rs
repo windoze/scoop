@@ -242,11 +242,9 @@ impl Concretizer<'_> {
                     field,
                 }
             }
-            export::ExprKind::InitializingClassFieldAccess { application, field } => {
-                let receiver_ty = self.lower_type(
-                    self.source.class_applications[*application].canonical_type,
-                    substitution,
-                );
+            export::ExprKind::InitializingClassFieldAccess { field } => {
+                let (receiver_ty, field) =
+                    self.lower_initializing_class_field(*field, substitution);
                 concrete::ExprKind::FieldAccess {
                     receiver: Box::new(concrete::Expr {
                         kind: concrete::ExprKind::ConstructorReceiver,
@@ -254,13 +252,7 @@ impl Concretizer<'_> {
                         span: source.span,
                         origin: source.origin.concrete(),
                     }),
-                    field: self.lower_field_ref(
-                        export::FieldRef::ClassField {
-                            application: *application,
-                            field: *field,
-                        },
-                        substitution,
-                    ),
+                    field,
                 }
             }
             export::ExprKind::InitializingStructFieldAccess { application, index } => {

@@ -20,7 +20,7 @@ pub use error::*;
 pub use intrinsics::ImportedIntrinsicCallable;
 pub use members::*;
 pub use model::*;
-pub use nominals::ImportedNominalDeclaration;
+pub use nominals::{ImportedNominalDeclaration, ImportedNominalFieldSource};
 
 use catalog::DependencyCatalog;
 

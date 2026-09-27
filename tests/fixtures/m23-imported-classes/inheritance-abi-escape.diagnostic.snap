@@ -1,0 +1,3 @@
+span=193..197
+expression=this
+initializing receiver cannot escape before construction completes

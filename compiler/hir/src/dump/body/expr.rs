@@ -362,7 +362,7 @@ pub(super) fn dump_expr(
         }
         ExprKind::InitializingClassFieldAccess { field, .. } => out.push_str(&format!(
             "{pad}InitializingClassFieldAccess {} : {ty}\n",
-            module.properties[module.class_fields[*field].property].name
+            initializing_field_name(module, *field)
         )),
         ExprKind::InitializingStructFieldAccess { index, .. } => out.push_str(&format!(
             "{pad}InitializingStructFieldAccess {index} : {ty}\n"

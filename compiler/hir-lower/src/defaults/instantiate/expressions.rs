@@ -164,10 +164,9 @@ impl Lowerer {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                 field: self.instantiate_default_field(*field, context),
             },
-            hir::ExprKind::InitializingClassFieldAccess { application, field } => {
+            hir::ExprKind::InitializingClassFieldAccess { field } => {
                 hir::ExprKind::InitializingClassFieldAccess {
-                    application: self.instantiate_default_class_application(*application, context),
-                    field: *field,
+                    field: self.instantiate_default_initializing_field(*field, context),
                 }
             }
             hir::ExprKind::InitializingStructFieldAccess { application, index } => {

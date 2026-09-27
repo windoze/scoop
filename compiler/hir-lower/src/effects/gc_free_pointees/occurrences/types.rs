@@ -43,8 +43,8 @@ pub(in super::super) fn collect_statement_types(
                     hir::AssignTarget::Local(_)
                     | hir::AssignTarget::Global(_)
                     | hir::AssignTarget::SingletonPublishedRoot(_) => {}
-                    hir::AssignTarget::InitializingClassField { application, .. } => {
-                        out.push(lowerer.class_applications[*application].canonical_type);
+                    hir::AssignTarget::InitializingClassField { field, .. } => {
+                        out.push(field.owner_type(&lowerer.class_applications));
                     }
                 }
                 collect_expr_types(lowerer, value, out);
@@ -492,8 +492,8 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::CallableReference(reference) => {
             collect_callable_reference_types(lowerer, *reference, out);
         }
-        ExprKind::InitializingClassFieldAccess { application, .. } => {
-            out.push(lowerer.class_applications[*application].canonical_type);
+        ExprKind::InitializingClassFieldAccess { field, .. } => {
+            out.push(field.owner_type(&lowerer.class_applications));
         }
         ExprKind::InitializingStructFieldAccess { application, .. } => {
             out.push(lowerer.struct_applications[*application].canonical_type);

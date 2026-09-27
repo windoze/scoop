@@ -1,0 +1,103 @@
+Module
+  enum CoroutineStep<Derived> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Derived> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$6df46265e7ef7091a2f49617dc107f262bca05b6665f4b295dd752b5804f52c1(ptr<managed>, elided-zst<struct0 size=0 align=1>, i64, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1>
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.argument.0: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %2 $dependency.argument.1: i64
+    local %3 $dependency.argument.2: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %4 $dependency.parameter.first: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %5 $dependency.parameter.value: i64
+    local %6 $dependency.parameter.last: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %7 result: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %8 $old.0: i64
+    local %9 $dependency.receiver: i64
+    local %10 $dependency.argument.0: i64
+    local %11 $dependency.parameter.other: i64
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    store param3 -> local1
+    store param2 -> local2
+    store param1 -> local3
+    store local1 -> local4
+    store local2 -> local5
+    store local3 -> local6
+    call managed-elided-zst-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t0 = sig=elided-zst0 (ptr<managed>, elided-zst<struct0 size=0 align=1>, i64, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> external-fn0(local0, elided-zst local4, local5, elided-zst local6)
+    store t0 -> local7
+    call managed-direct-target0 sp<managed-call:1> live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i64 external-fn6(param0)
+    store t1 -> local8
+    store local8 -> local9
+    store integer<Long>(0x0000000000000001) -> local10
+    store local10 -> local11
+    t2 = integer_Add<Long> local9, local11 : i64
+    call managed-void-target0 sp<managed-call:2> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn7(param0, t2)
+    t3 = aggregate () : {}
+    ret local7
+  fun @scoop$1$cb$ec4fbc7e8d753e25cb96b060270697f1e8bfbe3831f4a14b2c11bca6762f2e5a() -> ptr<managed>
+    local %0 value: ptr<managed>
+    local %1 $dependency.receiver: ptr<managed>
+    local %2 $dependency.argument.0: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %3 $dependency.argument.1: i64
+    local %4 $dependency.argument.2: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %5 $dependency.parameter.first: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %6 $dependency.parameter.value: i64
+    local %7 $dependency.parameter.last: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %8 marker: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %9 $dependency.receiver: ptr<managed>
+    local %10 $dependency.argument.0: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %11 $dependency.parameter.marker: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %12 $dependency.argument.0: i64
+    local %13 $dependency.parameter.value: i64
+    local %14 $new.1: ptr<managed>
+    local %15 $new.2: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    store t0 -> local14
+    call managed-void-target0 sp<managed-call:1> live=[local14:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn2(local14)
+    t1 = aggregate () : {}
+    store local14 -> local0
+    store local0 -> local1
+    call managed-elided-zst-target0 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t2 = sig=elided-zst0 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> external-fn3(local0)
+    store t2 -> local2
+    store integer<Long>(0x0000000000000014) -> local3
+    call no-gc-elided-zst-target0 t3 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn1()
+    store t3 -> local4
+    store local2 -> local5
+    store local3 -> local6
+    store local4 -> local7
+    t4 = heap_load local1 +0 : ptr<metadata>
+    t5 = heap_load t4 +88 : ptr<metadata>
+    call managed-elided-zst-target1 sp<managed-call:3> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t6 = sig=elided-zst2 (ptr<managed>, elided-zst<struct0 size=0 align=1>, i64, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:0] t5(local1, elided-zst local5, local6, elided-zst local7)
+    store t6 -> local8
+    store local0 -> local9
+    store local8 -> local10
+    store local10 -> local11
+    call managed-direct-target1 sp<managed-call:4> live=[local9:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> i64 external-fn4(local9, elided-zst local11)
+    store t7 -> local12
+    store local12 -> local13
+    call managed-direct-target2 sp<managed-call:5> live=[] t8 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t8 -> local15
+    call managed-void-target1 sp<managed-call:6> live=[local15:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn5(local15, local13)
+    t9 = aggregate () : {}
+    ret local15
+  fun @scoop$1$cb$047957c7c4d3f75a8a4eb94343471099eae6f051efc77d593dacfb9d32e7b866(ptr<managed>) -> void
+    local %0 $dependency.argument.0: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+    local %1 $dependency.parameter.marker: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn1()
+    store t0 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) external-fn2(param0, elided-zst local1)
+    t1 = aggregate () : {}
+    ret
+  td td0 n(c=dev.example%3Aclasses-inheritance-abi-zst%3A0.1.0;p=;o=-;k=C;x=Derived) @scoop$1$td$b43e351217d551cf4ce6452659d1f0d8238fb6b01eba1a2a62d677cb5254223b type-id=1218098485156521294 shape=FixedObject minimum-size=24 align=8 parent=external-td0 vtable=[local-fn0] itables=[]
+  td td1 g(r=00000007;i=3c83f3d6ed224fc1ee5066ec63190e1d0d177447dde6f380772695f567830de0) @scoop$1$td$36ebeb392f18477aa9b2627f01d042cdc99767102b060b78c845ac6744e85ead type-id=9893683581575316773 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000005;i=17c8a25711a06b4add5b78e15b775fa825778f203b582550a5f35429172c00c5) @scoop$1$td$aa61db02cb6c30ef6c5964d0633e19df94f6052cdcfb33f8ce083198f572d734 type-id=14082765725685659688 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<Derived> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Derived> size=8 align=8 enum-scan=refs[0]
+  layout Derived value size=8 align=8 refs=[0]
+  layout Derived size=24 align=8 refs=[]
+  output library

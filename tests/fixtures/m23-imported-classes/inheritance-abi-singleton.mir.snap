@@ -1,0 +1,405 @@
+Module
+  global0 $singleton$Singleton: Singleton managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Singleton singleton lazy global0 initializer=@fn2 ensure=@fn3 failure=1 deps=[]
+  struct ReferenceAggregate (first: MutableCell, second: MutableCell, tag: Long)
+  enum CoroutineStep<Singleton>
+    Completed(value: Singleton)
+    Suspended()
+  enum CoroutineSlot<Singleton>
+    Empty()
+    Value(value: Singleton)
+  class Singleton vtable=1 itables=0
+  class MutableCell vtable=0 itables=0
+  class ReferenceParent vtable=1 itables=0
+  class Counter vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=4b11410e03a130b7a5a6adb3c0cc54e9fe5f79cca829bc0407fe5f7bd8e3e4ac exact_id=153ae78f6fc4c597a8d16684f130a38231b8ab2620162828ffe09cb5d037555b
+  generated_exact_type get1 location=enum0 nominal_id=238bf6ece2189433ed4991989840247944f5f6be2a564a625f398499f42e903a exact_id=ff70c1f4b9a6ebb35770c24b3db5791a3671ae8b1327870067a379d63db55f24
+  fun Singleton.transfer @fn0(this: Singleton, input: ReferenceAggregate) -> ReferenceAggregate
+    bb0 entry
+      val $dependency.receiver: ReferenceParent
+        Type ReferenceParent
+        Retype ReferenceParent
+          Type Singleton
+          Local this
+      val $dependency.argument.0: ReferenceAggregate
+        Type ReferenceAggregate
+        Local input
+      val $dependency.parameter.input: ReferenceAggregate
+        Type ReferenceAggregate
+        Local $dependency.argument.0
+      call previous: ReferenceAggregate = external0 direct
+        Type ReferenceParent
+        Local $dependency.receiver
+        Type ReferenceAggregate
+        Local $dependency.parameter.input
+      call $dependency.receiver: Long = external6 direct
+        Type MutableCell
+        FieldAccess 0
+          Type ReferenceAggregate
+          Local previous
+      call $call.1: MutableCell = @fn1 direct
+        Type Singleton
+        Local this
+      call $dependency.argument.0: Long = external6 direct
+        Type MutableCell
+        Local $call.1
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: MutableCell
+        Type MutableCell
+        Local $new.2
+      val $dependency.argument.1: MutableCell
+        Type MutableCell
+        FieldAccess 1
+          Type ReferenceAggregate
+          Local previous
+      val $dependency.argument.2: Long
+        Type Long
+        FieldAccess 2
+          Type ReferenceAggregate
+          Local previous
+      val $dependency.parameter.first: MutableCell
+        Type MutableCell
+        Local $dependency.argument.0
+      val $dependency.parameter.second: MutableCell
+        Type MutableCell
+        Local $dependency.argument.1
+      val $dependency.parameter.tag: Long
+        Type Long
+        Local $dependency.argument.2
+      call $call.3: ReferenceAggregate = external2 direct
+        Type MutableCell
+        Local $dependency.parameter.first
+        Type MutableCell
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.tag
+      return
+        Type ReferenceAggregate
+        Local $call.3
+  fun Singleton.$get$extra @fn1(this: Singleton) -> MutableCell
+    bb0 entry
+      return
+        Type MutableCell
+        FieldAccess 1
+          Type Singleton
+          Local this
+  fun $init$body$0 @fn2() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Singleton
+        ClassAlloc Singleton
+      call @fn5 direct
+        Type Singleton
+        Local $new.1
+      global_assign $singleton$Singleton
+        Type Singleton
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn3() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn2 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      call external7 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun primary @fn4() -> Counter
+    bb0 entry
+      call @fn3 direct
+      val first: Singleton
+        Type Singleton
+        GlobalRead $singleton$Singleton
+      call @fn3 direct
+      val second: ReferenceParent
+        Type ReferenceParent
+        Retype ReferenceParent
+          Type Singleton
+          GlobalRead $singleton$Singleton
+      branch bb1 bb2
+        Type Boolean
+        Binary RefNe
+          Type Singleton
+          Local first
+          Type ReferenceParent
+          Local second
+    bb1 if.then.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+    bb2 if.merge.2
+      val $dependency.receiver: ReferenceParent
+        Type ReferenceParent
+        Local second
+      call $dependency.argument.0: ReferenceAggregate = external5 direct
+        Type ReferenceParent
+        Local second
+      val $dependency.parameter.input: ReferenceAggregate
+        Type ReferenceAggregate
+        Local $dependency.argument.0
+      call result: ReferenceAggregate = external0 virtual[0]
+        Type ReferenceParent
+        Local $dependency.receiver
+        Type ReferenceAggregate
+        Local $dependency.parameter.input
+      call $dependency.receiver: Long = external6 direct
+        Type MutableCell
+        FieldAccess 0
+          Type ReferenceAggregate
+          Local result
+      call $dependency.argument.0: Long = external6 direct
+        Type MutableCell
+        FieldAccess 1
+          Type ReferenceAggregate
+          Local result
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type ReferenceAggregate
+          Local result
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.Singleton.$c0 @fn5(this: Singleton) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: MutableCell
+        Type MutableCell
+        Local $new.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.1: MutableCell
+        Type MutableCell
+        Local $new.2
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.first: MutableCell
+        Type MutableCell
+        Local $dependency.argument.0
+      val $dependency.parameter.second: MutableCell
+        Type MutableCell
+        Local $dependency.argument.1
+      val $dependency.parameter.tag: Long
+        Type Long
+        Local $dependency.argument.2
+      call $dependency.argument.0: ReferenceAggregate = external2 direct
+        Type MutableCell
+        Local $dependency.parameter.first
+        Type MutableCell
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.tag
+      val $dependency.parameter.data: ReferenceAggregate
+        Type ReferenceAggregate
+        Local $dependency.argument.0
+      call external3 direct
+        Type ReferenceParent
+        Retype ReferenceParent
+          Type Singleton
+          Local this
+        Type ReferenceAggregate
+        Local $dependency.parameter.data
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      field_set 1
+        Type Singleton
+        Local this
+        Type MutableCell
+        Local $new.3
+      return
+  coroutine_step cs0 CoroutineStep<Singleton> result=Singleton
+  coroutine_slot cl0 CoroutineSlot<Singleton> value=Singleton
+  output library

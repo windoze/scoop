@@ -14,7 +14,7 @@ use crate::{NativeBoundaryCAbiV1, NominalInterfaceRecordV1, SourceNominalId};
 pub struct ImportedNominalDeclaration {
     pub identity: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
     pub interface: NominalInterfaceRecordV1,
-    pub field_names: Vec<String>,
+    pub field_sources: Vec<ImportedNominalFieldSource>,
     pub variant_names: Vec<ImportedEnumVariantNames>,
     pub c_abi: NativeBoundaryCAbiV1,
     pub dispatch_slots: Vec<
@@ -23,6 +23,12 @@ pub struct ImportedNominalDeclaration {
             scoop_identity::DispatchSlotKey,
         >,
     >,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ImportedNominalFieldSource {
+    pub name: String,
+    pub backing_property: Option<scoop_identity::PersistentPropertyId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -104,7 +110,7 @@ pub(super) fn declarations(
                 .find(|record| record.id() == id)
                 .ok_or(Error::MissingNominal(id))?
                 .clone();
-            let field_names = interface
+            let field_sources = interface
                 .source_shape()
                 .declared_fields()
                 .iter()
@@ -112,7 +118,7 @@ pub(super) fn declarations(
                     let (_, key) = canonical
                         .field_by_bytes(field.field().as_array())
                         .ok_or(Error::MissingNominalField(field.field()))?;
-                    Ok(match key.view() {
+                    let name = match key.view() {
                         FieldIdentityView::SourceDeclared { name, .. } => name.as_str().to_owned(),
                         FieldIdentityView::SourcePropertyBacking { property, .. }
                         | FieldIdentityView::SourcePropertyDelegate { property, .. } => {
@@ -125,6 +131,14 @@ pub(super) fn declarations(
                             }
                         }
                         FieldIdentityView::Generated { .. } => format!("{:?}", field.field()),
+                    };
+                    let backing_property = match key.view() {
+                        FieldIdentityView::SourcePropertyBacking { property, .. } => Some(property),
+                        _ => None,
+                    };
+                    Ok(ImportedNominalFieldSource {
+                        name,
+                        backing_property,
                     })
                 })
                 .collect::<Result<Vec<_>, Error>>()?;
@@ -182,7 +196,7 @@ pub(super) fn declarations(
                     .collect::<Result<Vec<_>, _>>()?,
                 identity,
                 interface: interface.clone(),
-                field_names,
+                field_sources,
                 variant_names,
                 c_abi,
             }))

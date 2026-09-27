@@ -22,15 +22,12 @@ impl Lowerer {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                 field: self.instantiate_default_field(*field, context),
             },
-            hir::AssignTarget::InitializingClassField {
-                application,
-                field,
-                origin,
-            } => hir::AssignTarget::InitializingClassField {
-                application: self.instantiate_default_class_application(*application, context),
-                field: *field,
-                origin: instantiate_origin(*origin, context.evaluation),
-            },
+            hir::AssignTarget::InitializingClassField { field, origin } => {
+                hir::AssignTarget::InitializingClassField {
+                    field: self.instantiate_default_initializing_field(*field, context),
+                    origin: instantiate_origin(*origin, context.evaluation),
+                }
+            }
         }
     }
 

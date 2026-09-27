@@ -22,6 +22,7 @@ mod constructor_work;
 mod functions;
 mod imported_nominals;
 mod initialization;
+mod initializing_fields;
 mod interfaces;
 mod nominals;
 mod objects;

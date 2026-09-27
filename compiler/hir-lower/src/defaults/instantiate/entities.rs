@@ -1,6 +1,27 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn instantiate_default_initializing_field(
+        &mut self,
+        source: hir::InitializingClassFieldRef,
+        context: &mut InstantiationContext,
+    ) -> hir::InitializingClassFieldRef {
+        match source {
+            hir::InitializingClassFieldRef::Declared { application, field } => {
+                hir::InitializingClassFieldRef::Declared {
+                    application: self.instantiate_default_class_application(application, context),
+                    field,
+                }
+            }
+            hir::InitializingClassFieldRef::Imported { owner, field } => {
+                hir::InitializingClassFieldRef::Imported {
+                    owner: self.instantiate_method_ty(owner, &context.bindings),
+                    field,
+                }
+            }
+        }
+    }
+
     pub(super) fn instantiate_default_callable(
         &mut self,
         source: hir::Callable,

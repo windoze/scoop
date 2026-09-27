@@ -1,6 +1,25 @@
 use super::*;
 
 #[test]
+fn inherited_class_abi_and_initialization_run_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "inheritance-abi-zst",
+            "inheritance-abi-wide",
+            "inheritance-abi-reference",
+            "inheritance-abi-secondary",
+            "inheritance-abi-singleton",
+        ],
+        &[
+            "inheritance-abi-escape",
+            "inheritance-abi-computed-init",
+            "inheritance-abi-private-init-setter",
+        ],
+    );
+}
+
+#[test]
 fn inherited_class_access_uses_actual_dependency_declarations() {
     check_class_cases(
         "direct",

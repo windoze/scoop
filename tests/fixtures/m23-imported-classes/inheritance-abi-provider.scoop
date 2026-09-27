@@ -1,0 +1,25 @@
+
+public open class ZstParent public constructor(public val marker: Token) {
+    public var count: Long = 0
+    public open fun echo(first: Token, value: Long, last: Token): Token {
+        count = value
+        return last
+    }
+    public fun read(marker: Token): Long = count
+}
+public open class WideParent public constructor(public val base: WideValue) {
+    public open fun transform(input: WideValue, marker: Token): WideValue =
+        WideValue(base.first + input.first, base.second + input.second, base.third + input.third)
+}
+public struct ReferenceAggregate(val first: MutableCell, val second: MutableCell, val tag: Long)
+public open class ReferenceParent public constructor(public val data: ReferenceAggregate) {
+    public open fun transfer(input: ReferenceAggregate): ReferenceAggregate = input
+}
+public open class OrderedParent public constructor(public val trace: MutableCell): Parent() {
+    public var count: Long = 0
+    public var locked: Long = 0
+        private set(next) { field = next }
+    public val computed: Long
+        get() = trace.value
+    init { trace.value = trace.value * 10 + 1 }
+}

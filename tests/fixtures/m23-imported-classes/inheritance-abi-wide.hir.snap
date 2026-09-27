@@ -1,0 +1,63 @@
+Module
+  open class Derived()
+  fun primary(): Counter
+    val local0
+      ReferenceUpcast : WideParent
+        ClassInit Derived : Derived
+    val local7
+      Local value : WideParent
+    val local1
+      IntegerLiteral 0 : Long
+    val local2
+      IntegerLiteral 0 : Long
+    val local3
+      IntegerLiteral 0 : Long
+    val local4
+      Local $dependency.argument.0 : Long
+    val local5
+      Local $dependency.argument.1 : Long
+    val local6
+      Local $dependency.argument.2 : Long
+    val local8
+      ImportedDependencyCall #1 : WideValue
+        Local $dependency.parameter.first : Long
+        Local $dependency.parameter.second : Long
+        Local $dependency.parameter.third : Long
+    val local9
+      ImportedDependencyCall #3 : Token
+    val local10
+      Local $dependency.argument.0 : WideValue
+    val local11
+      Local $dependency.argument.1 : Token
+    val local12
+      ImportedDependencyCall #4 virtual[0] : WideValue
+        Local $dependency.receiver : WideParent
+        Local $dependency.parameter.input : WideValue
+        Local $dependency.parameter.marker : Token
+    val local13
+      FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
+        Local result : WideValue
+    val local14
+      FieldAccess dependency field a154bc246556a30baee37980783da76c9a3268cb6d1c4e7d505aefd389466a83 : Long
+        Local result : WideValue
+    val local15
+      Local $dependency.argument.0 : Long
+    val local16
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local17
+      FieldAccess dependency field b0ea35a45520359d37140037867dfe414a61b077e90b2afec6056a710f3ef1eb : Long
+        Local result : WideValue
+    val local18
+      Local $dependency.argument.0 : Long
+    val local19
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local20
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #5 : Counter
+        Local $dependency.parameter.value : Long
+  output library

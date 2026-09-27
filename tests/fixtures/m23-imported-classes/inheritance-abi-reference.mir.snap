@@ -1,0 +1,317 @@
+Module
+  struct ReferenceAggregate (first: MutableCell, second: MutableCell, tag: Long)
+  enum CoroutineStep<Derived>
+    Completed(value: Derived)
+    Suspended()
+  enum CoroutineSlot<Derived>
+    Empty()
+    Value(value: Derived)
+  class Derived vtable=1 itables=0
+  class MutableCell vtable=0 itables=0
+  class ReferenceParent vtable=1 itables=0
+  class Counter vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=2c2aa80e2e87022d4b60c3dd39358dcf2ecb10075f59a5fc87cf218a4a3b652b exact_id=4539a14b3833bb6565ba438964697688b33b1aad2131813599f30a3d08c98f79
+  generated_exact_type get1 location=enum1 nominal_id=4d3d059792e5b6702f0327fb6710690987985e68e35c11bb2e2d0f300bba4fab exact_id=a0932c668c6675232bbba862d006f9e14796841e7556760b59a386393b8f12e3
+  fun Derived.transfer @fn0(this: Derived, input: ReferenceAggregate) -> ReferenceAggregate
+    bb0 entry
+      val $dependency.receiver: ReferenceParent
+        Type ReferenceParent
+        Retype ReferenceParent
+          Type Derived
+          Local this
+      val $dependency.argument.0: ReferenceAggregate
+        Type ReferenceAggregate
+        Local input
+      val $dependency.parameter.input: ReferenceAggregate
+        Type ReferenceAggregate
+        Local $dependency.argument.0
+      call previous: ReferenceAggregate = external0 direct
+        Type ReferenceParent
+        Local $dependency.receiver
+        Type ReferenceAggregate
+        Local $dependency.parameter.input
+      call $dependency.receiver: Long = external5 direct
+        Type MutableCell
+        FieldAccess 0
+          Type ReferenceAggregate
+          Local previous
+      call $call.1: MutableCell = @fn1 direct
+        Type Derived
+        Local this
+      call $dependency.argument.0: Long = external5 direct
+        Type MutableCell
+        Local $call.1
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val first: MutableCell
+        Type MutableCell
+        Local $new.2
+      call $dependency.argument.0: Long = external5 direct
+        Type MutableCell
+        FieldAccess 1
+          Type ReferenceAggregate
+          Local previous
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      val second: MutableCell
+        Type MutableCell
+        Local $new.3
+      val $dependency.argument.0: MutableCell
+        Type MutableCell
+        Local first
+      val $dependency.argument.1: MutableCell
+        Type MutableCell
+        Local second
+      val $dependency.argument.2: Long
+        Type Long
+        FieldAccess 2
+          Type ReferenceAggregate
+          Local previous
+      val $dependency.parameter.first: MutableCell
+        Type MutableCell
+        Local $dependency.argument.0
+      val $dependency.parameter.second: MutableCell
+        Type MutableCell
+        Local $dependency.argument.1
+      val $dependency.parameter.tag: Long
+        Type Long
+        Local $dependency.argument.2
+      call $call.4: ReferenceAggregate = external2 direct
+        Type MutableCell
+        Local $dependency.parameter.first
+        Type MutableCell
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.tag
+      return
+        Type ReferenceAggregate
+        Local $call.4
+  fun Derived.$get$extra @fn1(this: Derived) -> MutableCell
+    bb0 entry
+      return
+        Type MutableCell
+        FieldAccess 1
+          Type Derived
+          Local this
+  fun primary @fn2() -> Counter
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn3 direct
+        Type Derived
+        Local $new.1
+      val value: ReferenceParent
+        Type ReferenceParent
+        Retype ReferenceParent
+          Type Derived
+          Local $new.1
+      val $dependency.receiver: ReferenceParent
+        Type ReferenceParent
+        Local value
+      call $dependency.argument.0: ReferenceAggregate = external4 direct
+        Type ReferenceParent
+        Local value
+      val $dependency.parameter.input: ReferenceAggregate
+        Type ReferenceAggregate
+        Local $dependency.argument.0
+      call result: ReferenceAggregate = external0 virtual[0]
+        Type ReferenceParent
+        Local $dependency.receiver
+        Type ReferenceAggregate
+        Local $dependency.parameter.input
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val scratch: MutableCell
+        Type MutableCell
+        Local $new.2
+      call $dependency.receiver: Long = external5 direct
+        Type MutableCell
+        FieldAccess 0
+          Type ReferenceAggregate
+          Local result
+      call $dependency.argument.0: Long = external5 direct
+        Type MutableCell
+        FieldAccess 1
+          Type ReferenceAggregate
+          Local result
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type ReferenceAggregate
+          Local result
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Long = external5 direct
+        Type MutableCell
+        Local scratch
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external6 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  fun init.Derived.$c0 @fn3(this: Derived) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: MutableCell
+        Type MutableCell
+        Local $new.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.1: MutableCell
+        Type MutableCell
+        Local $new.2
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.first: MutableCell
+        Type MutableCell
+        Local $dependency.argument.0
+      val $dependency.parameter.second: MutableCell
+        Type MutableCell
+        Local $dependency.argument.1
+      val $dependency.parameter.tag: Long
+        Type Long
+        Local $dependency.argument.2
+      call $dependency.argument.0: ReferenceAggregate = external2 direct
+        Type MutableCell
+        Local $dependency.parameter.first
+        Type MutableCell
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.tag
+      val $dependency.parameter.data: ReferenceAggregate
+        Type ReferenceAggregate
+        Local $dependency.argument.0
+      call external3 direct
+        Type ReferenceParent
+        Retype ReferenceParent
+          Type Derived
+          Local this
+        Type ReferenceAggregate
+        Local $dependency.parameter.data
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external1 direct
+        Type MutableCell
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      field_set 1
+        Type Derived
+        Local this
+        Type MutableCell
+        Local $new.3
+      return
+  coroutine_step cs0 CoroutineStep<Derived> result=Derived
+  coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
+  output library

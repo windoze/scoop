@@ -71,14 +71,10 @@ pub(in super::super) fn collect_statement_type_occurrences(
                         );
                         collect_expr_type_occurrences(lowerer, receiver, out);
                     }
-                    hir::AssignTarget::InitializingClassField {
-                        application,
-                        origin,
-                        ..
-                    } => {
+                    hir::AssignTarget::InitializingClassField { field, origin, .. } => {
                         let evaluation = origin.concrete().evaluation;
                         out.push(TypeOccurrence {
-                            ty: lowerer.class_applications[*application].canonical_type,
+                            ty: field.owner_type(&lowerer.class_applications),
                             file: evaluation.file as usize,
                             span: evaluation.span,
                         });
@@ -591,9 +587,9 @@ pub(in super::super) fn collect_expr_type_occurrences(
             );
             collect_expr_type_occurrences(lowerer, receiver, out);
         }
-        ExprKind::InitializingClassFieldAccess { application, .. } => {
+        ExprKind::InitializingClassFieldAccess { field, .. } => {
             push_type_at_expression(
-                lowerer.class_applications[*application].canonical_type,
+                field.owner_type(&lowerer.class_applications),
                 expression,
                 out,
             );
