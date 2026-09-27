@@ -14,22 +14,22 @@ Module
     poll managed-void-target2 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(16)))
     store t0 -> local8
-    call managed-void-target0 sp<managed-call:1> live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn0(local8)
+    call managed-void-target0 sp<managed-call:1> live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn1(local8)
     t1 = aggregate () : {}
     store local8 -> local0
     store local0 -> local1
-    call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i64 external-fn1(local1)
+    call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i64 external-fn2(local1)
     store t2 -> local2
     store integer<Long>(0x0000000000000001) -> local3
     store local3 -> local4
     t3 = integer_Add<Long> local2, local4 : i64
     store t3 -> local5
-    call managed-direct-target2 sp<managed-call:3> live=[local0:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, i64) -> i64 external-fn2(local0, local5)
+    call managed-direct-target2 sp<managed-call:3> live=[local0:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, i64) -> i64 external-fn3(local0, local5)
     store t4 -> local6
     store local6 -> local7
     call managed-direct-target3 sp<managed-call:4> live=[] t5 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
     store t5 -> local9
-    call managed-void-target1 sp<managed-call:5> live=[local9:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn3(local9, local7)
+    call managed-void-target1 sp<managed-call:5> live=[local9:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn4(local9, local7)
     t6 = aggregate () : {}
     ret local9
   output library

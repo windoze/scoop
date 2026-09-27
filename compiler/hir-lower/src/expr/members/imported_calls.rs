@@ -38,10 +38,15 @@ impl Lowerer {
                 failure.error(name.span, format!("invalid imported member: {error}"));
                 Box::new(failure)
             })?;
+        let class_super = kind == MemberCallKind::DirectSuper
+            && matches!(
+                self.types[receiver],
+                Type::Class(_) | Type::ImportedClass(_)
+            );
         Ok(candidates
             .into_iter()
             .filter(|candidate| {
-                if kind == MemberCallKind::DirectSuper {
+                if class_super {
                     let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(
                         owner,
                     )) = candidate.interface().owner()
