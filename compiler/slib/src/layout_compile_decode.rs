@@ -34,11 +34,11 @@ pub(crate) use mir_semantic::{
 };
 
 /// Canonically decoded payloads from one exact
-/// `cross-cone-layout-strong/1` Compile or Link view.
+/// `cross-cone-generic/1` Compile or Link view.
 ///
 /// These wire values have passed profile inventory and semantic-fingerprint
-/// checks. They still carry no identity, source, selection, layout, or
-/// production authority; later typed transitions must validate those joins.
+/// checks. Subsequent validation joins their typed identities, sources,
+/// selections, layouts, and production records.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutCompileSections<'input> {
     pub(crate) graph: ValidatedGraphArtifact<'input>,

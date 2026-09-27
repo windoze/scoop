@@ -1,4 +1,4 @@
-profile=org.scoop-lang.slib-profile/cross-cone-layout-strong/3
+profile=org.scoop-lang.slib-profile/cross-cone-generic/1
 direct=1 objects=6
 shared-semantics=true
 round-trip=true

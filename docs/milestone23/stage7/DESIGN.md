@@ -369,7 +369,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |
 | `org.scoop-lang.lir/cross-cone-layout-link-closure` | `/3` | layout/descriptor/helper 的实际 ODR 引用 |
 | `org.scoop-lang.lir/link-identity-closure` | `/4` | ODR definition、symbol、relocation 与 member-aware materialization |
-| `org.scoop-lang.lir/cone-production` | `/1` | 取代 Strong production `/12`，统一表示完整 Strong/ODR 定义、六类 registration、image 与 digest plan |
+| `org.scoop-lang.lir/cone-production` | `/1` | 取代完整 layout 路径的 Strong production `/14`，统一表示完整 Strong/ODR 定义、六类 registration、image 与 digest plan |
 | `org.scoop-lang.link-object/scoop-lir` | `/3` | 同一 Mach-O verifier 支持并核对实际 ODR 对象与 member 摘要 |
 
 HIR identity-foundation `/3`、MIR identity-foundation `/1`、现有 compiler protocol、参数自由调用桥及 generated-C verifier 的 bytes 合同不变；它们不是另一条 generic 生产路径。三层 outer schema、callable-body-v1、persistent identity schema 和 `persistent-v1` 保持。LIR foundation `/2` 已用于本阶段，因此 M24 对应 major 顺延为 `/3`，其三层 outer schema 升代仍按 M24 设计。

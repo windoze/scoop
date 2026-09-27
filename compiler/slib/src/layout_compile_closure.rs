@@ -1,4 +1,4 @@
-//! Dependency-graph type state for the M23-6 Compile profile.
+//! Dependency-graph validation for the shared Compile and Link profile.
 
 use std::collections::BTreeMap;
 
@@ -110,7 +110,7 @@ pub use mir_types::{
 };
 pub use type_foundations::CrossConeLayoutTypeFoundationError;
 
-/// Untrusted M23-6 artifacts visible while compiling one current Cone.
+/// Decoded artifacts visible while compiling one current Cone.
 pub struct DecodedCrossConeLayoutCompileClosure<'input> {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
@@ -119,9 +119,8 @@ pub struct DecodedCrossConeLayoutCompileClosure<'input> {
     current_artifact: Option<DecodedCrossConeLayoutCompileSections<'input>>,
 }
 
-/// Exact-layout-profile artifacts whose dependency graph, target, versions,
-/// and direct/support roles agree. No foundation or semantic authority has
-/// been granted.
+/// Artifacts whose dependency graph, target, versions, and direct/support
+/// references agree. Foundation and semantic checks follow.
 pub struct ProfileValidatedCrossConeLayoutCompileClosure<'input> {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
@@ -142,8 +141,8 @@ pub struct IdentityRegisteredCrossConeLayoutCompileClosure<'input> {
     dependency_positions: Vec<Vec<usize>>,
 }
 
-/// Layout-profile artifacts with structurally complete, ODR-free HIR/MIR/LIR
-/// foundations and authenticated imported source metadata.
+/// Artifacts with structurally complete canonical HIR/MIR/LIR foundations
+/// and imported source metadata checked against its original providers.
 pub struct FoundationValidatedCrossConeLayoutCompileClosure<'input> {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,

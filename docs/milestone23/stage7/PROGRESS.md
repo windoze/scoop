@@ -229,9 +229,19 @@
 
 本项完成公共泛型函数和消费方本地值/引用类型的首条真实产物运行闭环。构造和委托模板、其他物理角色、跨产物重复成员合并及全部功能组合仍按原阶段验收继续实施，M23-7 尚未完成。
 
+## 2026-09-28：generic profile 固定向量与旧格式迁移回归
+
+- 同步 `cross-cone-generic/1` 的 canonical descriptor 与固定 fingerprint。逐字段核对本次格式差异仅为 profile ID 和 LIR inventory 中 `strong-production/14` 被 `cone-production/1` 替代，其他字段保持；沿用既有编码和摘要算法。
+- 补齐新旧 production 格式的双向冲突测试：Compile/Link 两种 view 均拒绝混装，旧项或新项标为 optional 也不能绕过冲突检查。旧 layout-strong profile 的 `/1`、`/2`、`/3` 均要求重建；设计中被替代的 Strong production 版本同步修正为实际 `/14`。
+- 同步编译缓存 key 与缓存记录的固定向量。新增旧 profile 缓存记录反例，保留原正例的正确 fingerprint，断言读取明确报告 `UnknownArtifactProfile`，避免以摘要损坏代替旧格式退役的验证。
+- 使用原有真实 fixture 更新45份快照，并逐份比较完整内容：43份仅首行 Artifact fingerprint 改变，2份仅首行 profile 名称改变；Code、RuntimeImage 摘要、语义和物理引用均保持。共有 reader 的注释同步反映 canonical foundation 与实际格式，移除过时的 ODR-free 描述。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 与配套 `scoopc` 构建通过，lint 无警告；16项 profile 回归和23项缓存回归通过。所有快照更新开关关闭后的全工作区测试仍在运行，已完成的17个测试批次共5020项通过，无失败或忽略；driver 中泛型产物发布、下游消费、真实链接与移动 GC 回归也已通过，但尚未取得完整全仓结果。
+
+本次按用户要求提交当前迁移基线。后续构造、委托和类型 application 的真实 payload 仍须同步升级 section 与 inventory；M23-7 尚未完成。全仓测试继续运行，构建目录待相关进程结束后再清理。
+
 ## 剩余主线
 
-1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要、跨产物成员合并与正式 profile。
+1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要和跨产物成员合并，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的泛型函数产物闭环上补齐 hidden helper、默认值与 vararg、宿主和方法两组 binder、bound dispatch、局部函数及 capture 的完整组合。
 3. 完成泛型名义类型、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与扫描。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。

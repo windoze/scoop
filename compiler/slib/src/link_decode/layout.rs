@@ -30,11 +30,11 @@ pub use shared::DecodedCrossConeLayoutLinkOnlySections;
 pub(crate) use shared::DecodedLayoutView;
 
 /// Canonically decoded payloads from one exact
-/// `cross-cone-layout-strong/1` Link view.
+/// `cross-cone-generic/1` Link view.
 ///
-/// The Compile-only payloads are retained because later Link validation must
-/// independently rebuild their identity, production, bridge, and layout
-/// joins. Decoding them here grants no Compile or Link semantic authority.
+/// Compile sections needed for Link relations are retained alongside physical
+/// data. Subsequent validation joins their typed identities, signatures, and
+/// layouts to object definitions.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutLinkSections<'input> {
     graph: ValidatedGraphArtifact<'input>,

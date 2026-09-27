@@ -434,13 +434,13 @@ mod tests {
 
     #[test]
     fn retired_artifact_profiles_require_rebuilding() {
-        for name in [
-            "identity-foundation",
-            "single-cone-strong",
-            "cross-cone-semantics-strong",
-            "cross-cone-layout-strong",
+        for (name, last_major) in [
+            ("identity-foundation", 2),
+            ("single-cone-strong", 2),
+            ("cross-cone-semantics-strong", 2),
+            ("cross-cone-layout-strong", 3),
         ] {
-            for major in 1..=2 {
+            for major in 1..=last_major {
                 let retired =
                     CapabilityId::new("org.scoop-lang.slib-profile", name, major).unwrap();
                 assert!(ArtifactCapabilityProfileId::refine(retired).is_err());

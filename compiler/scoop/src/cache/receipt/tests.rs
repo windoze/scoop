@@ -77,8 +77,34 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
 
     assert_eq!(
         receipt.fingerprint().to_string(),
+        "1877c9e575035e5849b6f14504b1b3c8e1c11e9688f3a1dd582f920952388ae7"
+    );
+}
+
+#[test]
+fn receipt_rejects_retired_layout_profile_with_its_original_fingerprint() {
+    let receipt = receipt_with_warnings(vec![
+        warning("SCOOPC_Z_WARNING", "z warning"),
+        warning("SCOOPC_A_WARNING", "a warning"),
+    ]);
+    let mut decoded: DecodedCacheReceiptV1 = decode_canonical(&encode(&receipt).unwrap()).unwrap();
+    let profile = scoop_identity::CapabilityId::new(
+        "org.scoop-lang.slib-profile",
+        "cross-cone-layout-strong",
+        3,
+    )
+    .unwrap();
+    decoded.body.artifact_profile = decode_canonical(&encode(&profile).unwrap()).unwrap();
+    decoded.fingerprint =
+        domain_separated_cbor_hash(RECEIPT_FINGERPRINT_DOMAIN, &decoded.body).unwrap();
+    assert_eq!(
+        decoded.fingerprint.to_string(),
         "0107ee21dd581bbfabec042263a0f0d11719376e5ae398d8f91b7588b92b2c60"
     );
+    assert!(matches!(
+        decode_cache_receipt_v1(&encode(&decoded).unwrap()),
+        Err(CacheReceiptDecodeError::UnknownArtifactProfile)
+    ));
 }
 
 #[test]
