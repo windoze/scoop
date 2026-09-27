@@ -1,4 +1,4 @@
-//! Source callable replay from the same owned artifacts and provider scopes.
+//! Shared MIR decoding and source agreement within each provider scope.
 
 use std::collections::BTreeMap;
 
@@ -12,7 +12,9 @@ use scoop_mir::{
 };
 use scoop_wire::WirePath;
 
-use super::MirTypesValidatedCrossConeLayoutClosure;
+use super::{
+    HirDeclarationsValidatedCrossConeLayoutClosure, HirProductionValidatedCrossConeLayoutClosure,
+};
 use crate::{
     dependency_reachability::transitive_positions,
     layout_compile_decode::{
@@ -47,7 +49,7 @@ struct ResolvedMirSourceSections<'input> {
     lir: DecodedCrossConeLayoutLirCandidates,
 }
 
-/// Source callables, object initialization, unit contracts and dispatch agree
+/// Types, callables, object initialization, unit contracts and dispatch agree
 /// with shared HIR. Initialization uses, selected uses and LIR remain unvalidated.
 pub struct MirSourceCallablesValidatedCrossConeLayoutSections<'input> {
     pub(super) prepared: PreparedCrossConeLayoutMirSections<'input>,
@@ -65,32 +67,38 @@ pub struct MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
     pub(super) dependency_positions: Vec<Vec<usize>>,
 }
 
-impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
-    pub fn validate_source_callables(
+impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
+    pub fn validate_mir_sources(
         self,
     ) -> Result<
         MirSourceCallablesValidatedCrossConeLayoutClosure<'input>,
         CrossConeLayoutMirSourceCallablesError,
     > {
-        let Self {
+        let HirProductionValidatedCrossConeLayoutClosure {
             current,
             target,
             direct,
             dependency_first,
             positions,
             dependency_positions,
-        } = self;
+        } = self.declarations;
         let mut resolved: Vec<ResolvedMirSourceSections<'input>> = Vec::new();
-        for (position, artifact) in dependency_first.into_iter().enumerate() {
+        for (position, (artifact, aliases)) in
+            dependency_first.into_iter().zip(self.aliases).enumerate()
+        {
             let provider = artifact.identity();
             let resolve = || -> Result<_, Error> {
-                let super::mir_types::MirTypesValidatedCrossConeLayoutSections {
-                    mut prepared,
-                    mir,
-                    lir,
-                } = artifact;
+                let (mut prepared, mir, lir) = artifact.prepare_mir_semantics(aliases)?;
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions)?;
+                let mir = mir.resolve_types(
+                    provider,
+                    parts.mir_foundation,
+                    reachable
+                        .iter()
+                        .map(|position| resolved[*position].mir.types()),
+                    parts.identities,
+                )?;
                 let direct_callables = std::iter::once(parts.mir_ordinary)
                     .chain(
                         reachable

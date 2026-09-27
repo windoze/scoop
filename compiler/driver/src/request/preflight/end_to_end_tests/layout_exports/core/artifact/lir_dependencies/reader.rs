@@ -63,9 +63,7 @@ pub(in super::super) fn read_sections<'a>(
     .validate_hir_declarations()
     .unwrap();
     closure
-        .validate_mir_types()
-        .unwrap()
-        .validate_source_callables()
+        .validate_mir_sources()
         .unwrap()
         .validate_lir_layouts()
         .unwrap()

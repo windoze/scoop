@@ -106,9 +106,7 @@ pub use mir_source_callables::{
     validate_shared_mir_source_callables,
 };
 pub use mir_types::{
-    CrossConeLayoutMirTypesError, MirTypesValidatedCrossConeLayoutClosure,
-    MirTypesValidatedCrossConeLayoutSections, SharedMirTypeComponent, SharedMirTypeValidationError,
-    validate_shared_mir_type_exports,
+    SharedMirTypeComponent, SharedMirTypeValidationError, validate_shared_mir_type_exports,
 };
 pub use type_foundations::CrossConeLayoutTypeFoundationError;
 

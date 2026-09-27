@@ -102,22 +102,9 @@ pub(super) fn check(
     if name == "base" {
         super::type_foundations::dependencies::check(checked[0]);
     }
-    let types = declarations.validate_mir_types().unwrap();
-    assert_eq!(types.current(), ConeIdentity::CORE);
-    assert_eq!(types.target_selection(), artifact.target_selection());
-    assert!(types.direct_providers().is_empty());
-    assert_eq!(types.dependency_count(ConeIdentity::CORE), Some(0));
-    assert_eq!(types.dependency_first().count(), 1);
-    let current = types.artifact(ConeIdentity::CORE).unwrap();
-    assert_eq!(current.types(), mir.types());
-    assert_eq!(current.shape_support(), mir.shape_support());
-    assert_eq!(
-        encode(current.lir_layout_abi_wire()).unwrap(),
-        encode(lir).unwrap()
-    );
-    let callables = types
-        .validate_source_callables()
-        .unwrap_or_else(|error| panic!("{name} shared source callable replay: {error}"));
+    let callables = declarations
+        .validate_mir_sources()
+        .unwrap_or_else(|error| panic!("{name} shared MIR source validation: {error}"));
     assert_eq!(callables.current(), ConeIdentity::CORE);
     assert_eq!(callables.target_selection(), artifact.target_selection());
     assert!(callables.direct_providers().is_empty());

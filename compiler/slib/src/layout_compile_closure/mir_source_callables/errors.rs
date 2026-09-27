@@ -27,6 +27,8 @@ pub enum SharedMirSourceCallableComponent {
 #[derive(Debug)]
 pub enum SharedMirSourceCallableValidationError {
     Resource(WireError),
+    MirFront(Box<crate::CrossConeLayoutMirFrontValidationError>),
+    Types(Box<crate::SharedMirTypeValidationError>),
     Constructors(Box<super::SharedMirConstructorValidationError>),
     Objects(Box<super::SharedMirObjectValidationError>),
     Dispatch(Box<crate::SharedMirDispatchValidationError>),
@@ -75,6 +77,19 @@ impl From<WireError> for SharedMirSourceCallableValidationError {
         Self::Resource(error)
     }
 }
+impl From<crate::CrossConeLayoutMirFrontValidationError>
+    for SharedMirSourceCallableValidationError
+{
+    fn from(error: crate::CrossConeLayoutMirFrontValidationError) -> Self {
+        Self::MirFront(Box::new(error))
+    }
+}
+impl From<crate::SharedMirTypeValidationError> for SharedMirSourceCallableValidationError {
+    fn from(error: crate::SharedMirTypeValidationError) -> Self {
+        Self::Types(Box::new(error))
+    }
+}
+
 impl From<hir::SharedTypeMetadataError> for SharedMirSourceCallableValidationError {
     fn from(error: hir::SharedTypeMetadataError) -> Self {
         Self::Shared(Box::new(error))
@@ -88,7 +103,7 @@ impl From<MirTypeBridgeSectionError> for SharedMirSourceCallableValidationError 
 
 impl std::fmt::Display for SharedMirSourceCallableValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "shared HIR/MIR source callable agreement: {self:?}")
+        write!(f, "shared HIR/MIR source agreement: {self:?}")
     }
 }
 impl std::error::Error for SharedMirSourceCallableValidationError {}
@@ -114,7 +129,7 @@ impl std::fmt::Display for CrossConeLayoutMirSourceCallablesError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "invalid MIR source callables for {}: {}",
+            "invalid MIR source records for {}: {}",
             self.provider, self.source
         )
     }

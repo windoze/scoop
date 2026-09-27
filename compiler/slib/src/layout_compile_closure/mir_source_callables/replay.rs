@@ -46,6 +46,13 @@ pub(super) fn validate_sources(
                 &dependencies,
             )?;
             source.with_inheritance_graph(&dependencies, |graph| {
+                super::super::mir_types::validate_shared_mir_type_exports(
+                    source,
+                    graph,
+                    parts.hir_core,
+                    artifact.mir.types(),
+                    artifact.mir.shape_support(),
+                )?;
                 validate_shared_mir_source_callables(
                     source,
                     &dependencies,

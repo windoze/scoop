@@ -45,15 +45,6 @@ pub fn validate_shared_mir_type_exports(
     comparison.finish()
 }
 
-pub(super) fn validate(
-    source: hir::CheckedSharedTypeFoundationV1<'_>,
-    inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
-    core: &hir::CoreBootstrapInterfaceSectionV1,
-    mir: &mir::TypeResolvedCrossConeMirTypeBridgeSectionV1,
-) -> Result<(), Error> {
-    validate_shared_mir_type_exports(source, inheritance, core, mir.types(), mir.shape_support())
-}
-
 pub(super) struct Comparison<'s, 'g> {
     pub(super) source: hir::CheckedSharedTypeFoundationV1<'s>,
     pub(super) inheritance: &'g hir::CheckedNominalInheritanceGraphV1<'g>,

@@ -1,9 +1,7 @@
 use scoop_hir::{PublicNominalShapeProjectionError, SharedTypeMetadataError};
 use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentTypeId};
-use scoop_mir::{MirShapeSupportError, MirTypeBridgeSectionError};
+use scoop_mir::MirShapeSupportError;
 use scoop_wire::WireError;
-
-use crate::CrossConeLayoutMirFrontValidationError;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SharedMirTypeComponent {
@@ -27,8 +25,6 @@ pub enum SharedMirTypeComponent {
 pub enum SharedMirTypeValidationError {
     Resource(WireError),
     Shared(SharedTypeMetadataError),
-    MirFront(CrossConeLayoutMirFrontValidationError),
-    MirTransport(MirTypeBridgeSectionError),
     ShapeProjection(PublicNominalShapeProjectionError),
     Shape(MirShapeSupportError),
     ShapeProvider {
@@ -60,21 +56,6 @@ impl SharedMirTypeValidationError {
     }
 }
 
-#[derive(Debug)]
-pub struct CrossConeLayoutMirTypesError {
-    pub provider: ConeIdentity,
-    pub source: Box<SharedMirTypeValidationError>,
-}
-
-impl CrossConeLayoutMirTypesError {
-    pub(super) fn new(provider: ConeIdentity, source: SharedMirTypeValidationError) -> Self {
-        Self {
-            provider,
-            source: Box::new(source),
-        }
-    }
-}
-
 macro_rules! from_error {
     ($error:ty, $variant:ident) => {
         impl From<$error> for SharedMirTypeValidationError {
@@ -86,8 +67,6 @@ macro_rules! from_error {
 }
 from_error!(WireError, Resource);
 from_error!(SharedTypeMetadataError, Shared);
-from_error!(CrossConeLayoutMirFrontValidationError, MirFront);
-from_error!(MirTypeBridgeSectionError, MirTransport);
 from_error!(PublicNominalShapeProjectionError, ShapeProjection);
 from_error!(MirShapeSupportError, Shape);
 
@@ -98,19 +77,3 @@ impl std::fmt::Display for SharedMirTypeValidationError {
 }
 
 impl std::error::Error for SharedMirTypeValidationError {}
-
-impl std::fmt::Display for CrossConeLayoutMirTypesError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "invalid MIR types for {}: {}",
-            self.provider, self.source
-        )
-    }
-}
-
-impl std::error::Error for CrossConeLayoutMirTypesError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(self.source.as_ref())
-    }
-}
