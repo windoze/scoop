@@ -13,7 +13,7 @@ use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, DecodedMirFoundation,
 };
 
-use crate::{ValidatedGraphArtifact, strong_compile_decode::OdrFreeStrongFoundationSet};
+use crate::{ValidatedGraphArtifact, strong_compile_decode::CanonicalFoundationSet};
 
 mod decode;
 mod front_accessors;
@@ -50,7 +50,7 @@ pub struct DecodedCrossConeHirFrontSections<'input> {
 pub struct FoundationValidatedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
@@ -65,7 +65,7 @@ pub struct FoundationValidatedCrossConeHirFrontSections<'input> {
 pub struct ResolvedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
@@ -80,7 +80,7 @@ pub struct ResolvedCrossConeHirFrontSections<'input> {
 pub struct HirProductionValidatedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,

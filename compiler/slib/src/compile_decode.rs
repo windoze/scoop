@@ -10,8 +10,8 @@ use crate::ValidatedGraphArtifact;
 mod commit;
 pub(crate) use commit::commit_identity_graph;
 pub use commit::{
-    CompileCapabilityProfile, CompileCommitError, CrossConeLayoutStrongProfile,
-    SingleConeStrongProfile, ValidatedCompileArtifact,
+    CompileCapabilityProfile, CompileCommitError, CrossConeGenericProfile, SingleConeStrongProfile,
+    ValidatedCompileArtifact,
 };
 mod native_boundary;
 pub(crate) use native_boundary::{

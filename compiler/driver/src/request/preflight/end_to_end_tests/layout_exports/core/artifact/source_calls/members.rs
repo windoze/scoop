@@ -5,8 +5,8 @@ use scoop_identity::{AccessorRole, CallableTemplateOrigin, PropertyAccessorKey};
 
 pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    provider_artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider_artifact: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     let reference = input
         .public

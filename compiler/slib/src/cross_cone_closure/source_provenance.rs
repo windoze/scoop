@@ -2,13 +2,12 @@
 
 use std::fmt;
 
-use scoop_hir::OdrFreeHirFoundation;
 use scoop_identity::{ConeIdentity, PersistentSourceContextId, SourceIdentity};
 
 pub(crate) fn validate_imported_source_metadata<'provider>(
     artifact: ConeIdentity,
-    foundation: &OdrFreeHirFoundation,
-    mut provider: impl FnMut(ConeIdentity) -> Option<&'provider OdrFreeHirFoundation>,
+    foundation: &scoop_hir::CanonicalHirFoundation,
+    mut provider: impl FnMut(ConeIdentity) -> Option<&'provider scoop_hir::CanonicalHirFoundation>,
 ) -> Result<(), CrossConeSourceProvenanceError> {
     for record in foundation.source_records() {
         let provider_identity = record.identity().cone();

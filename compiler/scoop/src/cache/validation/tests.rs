@@ -15,7 +15,7 @@ fn cone(coordinate: ConeCoordinate) -> ConeRecord {
 
 fn artifact_summary(producer: &str) -> scoop_slib::ArtifactManifestSummaryV1 {
     let archive = crate::test_artifacts::manifest_archive(
-        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         cone(ConeCoordinate::reserved_core()),
         producer,
         Vec::new(),
@@ -57,7 +57,7 @@ fn receipt_binding_checks_cache_metadata() {
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));
     let current_compiler = compiler(b"compiler");
     let current_cone = cone(ConeCoordinate::reserved_core());
-    let profile = ArtifactCapabilityProfileId::cross_cone_layout_strong();
+    let profile = ArtifactCapabilityProfileId::cross_cone_generic();
     let receipt = CacheReceiptBodyV1::new(
         key,
         first.artifact_fingerprint(),
@@ -163,7 +163,7 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));
     let compiler = compiler(b"compiler");
     let cone = cone(ConeCoordinate::reserved_core());
-    let profile = ArtifactCapabilityProfileId::cross_cone_layout_strong();
+    let profile = ArtifactCapabilityProfileId::cross_cone_generic();
     let receipt = CacheReceiptBodyV1::new(
         key,
         artifact.artifact_fingerprint(),

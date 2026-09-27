@@ -13,7 +13,13 @@ pub(super) fn validate_inventory<S>(
         let capability = capability_of(section);
         let incompatible = expected.iter().find(|required| {
             required.namespace() == capability.namespace()
-                && required.name() == capability.name()
+                && (required.name() == capability.name()
+                    || (required.namespace() == "org.scoop-lang.lir"
+                        && matches!(
+                            (required.name(), capability.name()),
+                            ("cone-production", "strong-production")
+                                | ("strong-production", "cone-production")
+                        )))
                 && *required != capability
         });
         if let Some(required) = incompatible {
@@ -110,10 +116,12 @@ impl fmt::Display for ArtifactProfileInventoryError {
                 actual,
             } => write!(
                 formatter,
-                "{location} section {index} has incompatible {}/{} version {}; profile requires version {} exclusively",
+                "{location} section {index} has incompatible {}/{}/{}; profile requires {}/{}/{} exclusively",
                 actual.namespace(),
                 actual.name(),
                 actual.major_version(),
+                required.namespace(),
+                required.name(),
                 required.major_version(),
             ),
             Self::MissingRequiredCapability {

@@ -18,7 +18,7 @@ pub(super) fn assemble(
     temporary_parent: &Path,
     selected: mir::SelectedExternalMirSet,
     dump: &mut Option<EmittedStageDump>,
-) -> Result<slib::AssembledCrossConeLayoutStrongArtifactV1, CurrentConeProductionFailure> {
+) -> Result<slib::AssembledCrossConeLayoutArtifactV1, CurrentConeProductionFailure> {
     let closure = request.dependencies().semantic();
     let dependencies = closure.layout_dependencies().collect::<Vec<_>>();
     let mir = hir
@@ -38,9 +38,7 @@ pub(super) fn assemble(
         protocols::type_identities(&hir, &mir, closure, cone.coordinate())
             .map_err(CurrentConeLirStageError::Identity)
             .map_err(CurrentConeProductionFailure::Lir)?;
-    let foundation = hir::OdrFreeHirFoundation::try_new(hir.foundation)
-        .map_err(CurrentConeStrongProfileError::HirOdr)
-        .map_err(CurrentConeProductionFailure::StrongProfile)?;
+    let foundation = hir.foundation;
     let source = scoop_hir_lower::produce_cross_cone_type_semantics(
         &hir.hir,
         hir::SharedTypeMetadataV1 {
@@ -234,7 +232,7 @@ pub(super) fn assemble(
     .map_err(Error::Codegen)?;
     let producer = slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
         .map_err(CurrentConeProductionFailure::Producer)?;
-    let metadata = crate::CrossConeStrongArtifactMetadataInputV1::new(
+    let metadata = crate::CrossConeArtifactMetadataInputV1::new(
         producer,
         cone,
         request.dependencies().direct_dependencies().to_vec(),

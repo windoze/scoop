@@ -1,34 +1,33 @@
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
-    CrossConeTypeSemanticsSectionV1, OdrFreeHirFoundation,
+    CrossConeTypeSemanticsSectionV1,
 };
 use scoop_lir::{ConeLirFoundation, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1};
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
-    OdrFreeMirFoundation,
 };
 
-use super::CrossConeLayoutStrongArtifactWriteError;
+use super::CrossConeLayoutArtifactWriteError;
 use crate::strong_artifact::{LayerAssembly, StrongArtifactSectionV1, build_section};
 use crate::{
     CrossConeLayoutLinkClosureSectionV1, CrossConeLinkClosureSectionV1,
     LinkIdentityClosureSectionV1, MemberPurposeSet, MetadataLocation, VerifiedCodeFingerprintV2,
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
     hir_cross_cone_type_semantics_capability, hir_identity_foundation_capability,
-    lir_cross_cone_layout_abi_capability, lir_cross_cone_layout_link_closure_capability,
-    lir_cross_cone_link_closure_capability, lir_cross_cone_param_free_bridge_capability,
-    lir_identity_foundation_capability, lir_link_identity_closure_capability,
-    lir_strong_production_v2_capability, mir_core_bootstrap_bridge_capability,
+    lir_cone_production_capability, lir_cross_cone_layout_abi_capability,
+    lir_cross_cone_layout_link_closure_capability, lir_cross_cone_link_closure_capability,
+    lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
+    lir_link_identity_closure_capability, mir_core_bootstrap_bridge_capability,
     mir_cross_cone_param_free_bridge_capability, mir_cross_cone_type_bridge_capability,
     mir_identity_foundation_capability,
 };
 
 pub(super) struct LayoutMetadataInput<'section, 'ir> {
-    pub hir_foundation: &'section OdrFreeHirFoundation,
+    pub hir_foundation: &'section scoop_hir::CanonicalHirFoundation,
     pub hir_production: &'section CoreBootstrapInterfaceSectionV1,
     pub hir_cross_cone: CrossConeHirInterfaceSectionV1,
     pub hir_type_semantics: &'section CrossConeTypeSemanticsSectionV1,
-    pub mir_foundation: &'section OdrFreeMirFoundation,
+    pub mir_foundation: &'section scoop_mir::CanonicalMirFoundation,
     pub mir_production: &'section CoreBootstrapBridgeSectionV1,
     pub mir_cross_cone: &'section CrossConeMirBridgeSectionV1,
     pub mir_type_bridge: &'section CrossConeMirTypeBridgeSectionV1<'ir>,
@@ -49,11 +48,11 @@ pub(super) struct LayoutMetadataAssembly {
 
 pub(super) fn assemble_metadata(
     mut input: LayoutMetadataInput<'_, '_>,
-) -> Result<LayoutMetadataAssembly, CrossConeLayoutStrongArtifactWriteError> {
+) -> Result<LayoutMetadataAssembly, CrossConeLayoutArtifactWriteError> {
     let hir_cross_cone = input
         .hir_cross_cone
         .index_for_wire()
-        .map_err(CrossConeLayoutStrongArtifactWriteError::HirInterfaceIndex)?;
+        .map_err(CrossConeLayoutArtifactWriteError::HirInterfaceIndex)?;
     let hir = LayerAssembly::new(
         MetadataLocation::Hir,
         vec![
@@ -140,7 +139,7 @@ pub(super) fn assemble_metadata(
             build_section(
                 StrongArtifactSectionV1::LirProduction,
                 MetadataLocation::Lir,
-                lir_strong_production_v2_capability(),
+                lir_cone_production_capability(),
                 MemberPurposeSet::COMPILE_AND_LINK,
                 input.code.production().strong_production(),
             )?,

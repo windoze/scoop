@@ -5,10 +5,10 @@ use super::*;
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView,
     MemberPurposeSet, MetadataLocation, SectionLocation, hir_cross_cone_interface_capability,
-    hir_cross_cone_type_semantics_capability, lir_cross_cone_layout_abi_capability,
-    lir_cross_cone_layout_link_closure_capability, lir_cross_cone_link_closure_capability,
-    lir_cross_cone_param_free_bridge_capability, lir_strong_production_capability,
-    lir_strong_production_v2_capability, mir_cross_cone_param_free_bridge_capability,
+    hir_cross_cone_type_semantics_capability, lir_cone_production_capability,
+    lir_cross_cone_layout_abi_capability, lir_cross_cone_layout_link_closure_capability,
+    lir_cross_cone_link_closure_capability, lir_cross_cone_param_free_bridge_capability,
+    lir_strong_production_capability, mir_cross_cone_param_free_bridge_capability,
     mir_cross_cone_type_bridge_capability,
     strong_compile_decode::tests::{
         build_artifact_for_profile, cone, open_graph, required_sections, section,
@@ -124,7 +124,7 @@ fn layout_link_front_rejects_mixed_strong_production_versions() {
                 actual,
                 ..
             }
-        )) if *required == lir_strong_production_v2_capability()
+        )) if *required == lir_cone_production_capability()
             && *actual == lir_strong_production_capability()
     ));
 }
@@ -155,7 +155,7 @@ fn layout_artifact(
     }
     build_artifact_for_profile(
         cone(),
-        ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         hir,
         mir,
         lir,
@@ -206,7 +206,7 @@ fn layout_sections(
     lir.extend([
         section(
             MetadataLocation::Lir,
-            lir_strong_production_v2_capability(),
+            lir_cone_production_capability(),
             MemberPurposeSet::COMPILE_AND_LINK,
             encode(&production).unwrap(),
         ),

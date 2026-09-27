@@ -35,7 +35,6 @@ pub(super) fn replay(
         &dependencies,
         input
             .hir_foundation
-            .as_canonical()
             .source_count_for_cone(manifest.cone().identity()),
         ProductionPlanInputs::from(input.strong),
         objects,

@@ -197,6 +197,17 @@
 
 本项完成当前已发射物理成员的目录和共有生产/读取投影。其他物理角色的摘要、跨产物重复成员合并、正式 generic profile 和单 image 运行继续实施，M23-7 仍未完成。
 
+## 2026-09-28：保存 generic profile 与共有 foundation 迁移进度
+
+- 正式完整 layout 产物沿原有 producer/reader 迁移到 `cross-cone-generic/1`，production section 改为 `cone-production/1`。required inventory 采用已经实现的 payload；后续构造和委托格式按实际功能升级，规范、设计与路线图同步说明这一迁移顺序。
+- 共有 HIR/MIR 查询、native ABI、源码位置、类型表示和产物装配改为借用 canonical foundation。reader 共享本次已经验证的数据，泛型产物不再经过 `OdrFree` 包装；历史 Strong 格式仍在自身边界检查原有限制。
+- 新增真实 provider、consumer、下游 Cone 的发布与运行回归，复用已有单 image 和 moving-GC harness。实际运行中，provider 发布并移走源码后，standalone 泛型 consumer 已通过正式入口发布，HIR/MIR/LIR 三份现有 golden 均一致。
+- 新增测试 `generic_consumers_publish_reusable_artifacts_and_run_with_moving_gc` 仍失败：下游读取 consumer 的 HIR foundation 时，局部值来源校验报告 `MissingSourceAnchor`。当前 reader 只在本产物查找模板声明的来源锚点，后续需要接入已验证的原 provider foundation 查询。combined 分支、真实链接与 moving-GC 执行尚未运行到，不能视为通过。
+- profile descriptor/fingerprint 的固定向量和受迁移影响的产物 golden 尚未同步；本批未执行全工作区测试。此前5143项全仓通过的记录仅属于上一批物理 ODR 成员目录变更，不适用于当前提交。
+- 提交前 `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 均通过，lint 无警告；已保留失败的真实回归及完整后续路径。
+
+本次按用户要求提交当前工作进度。generic profile 迁移和跨 Cone 泛型发布、消费、运行闭环尚未完成，M23-7 仍在实施中。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要、跨产物成员合并与正式 profile。

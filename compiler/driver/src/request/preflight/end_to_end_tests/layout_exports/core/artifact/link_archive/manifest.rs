@@ -1,7 +1,7 @@
 use super::*;
 
 pub(in super::super) fn rewrite_production(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     change: impl Fn(&[u8]) -> Vec<u8>,
 ) -> Vec<u8> {
     let bytes = artifact.as_bytes();

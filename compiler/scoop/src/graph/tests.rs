@@ -56,7 +56,7 @@ fn coordinate(name: &str, version: &str) -> ConeCoordinate {
 fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let seed = crate::test_artifacts::manifest_archive(
-        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
             ConeKind::Library,
@@ -77,7 +77,7 @@ fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
     )
     .unwrap();
     crate::test_artifacts::manifest_archive(
-        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
         "graph-test",
         vec![core],

@@ -33,7 +33,6 @@ impl Arity<'_, '_> {
                 let key = self.lookup(
                     self.foundation
                         .foundation
-                        .as_canonical()
                         .type_source_initialization_records(),
                     *unit,
                 )?;

@@ -57,7 +57,7 @@ fn variant(
     origin: &ExportDefinitionSourceV1,
     context: &SourceContextKey,
 ) -> Result<(), Error> {
-    let canonical = foundation.foundation.as_canonical();
+    let canonical = foundation.foundation;
     let key = key(
         canonical.type_source_enum_variant_records(),
         variant,

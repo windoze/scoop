@@ -1047,7 +1047,9 @@ generic delegated extension 的 binder 只从 receiver 静态类型求得。sour
 
 共有 production manifest 先沿原生产与读取入口升至 `single-cone-production/2`，在原十字段后增加必需 field 11 的物理 ODR member 目录；field 5 明确为 Strong registration 子集，field 4 仍覆盖全部注册。目录从已完成的 member 摘要构建，与已有对象索引的全部 ODR primary definition 精确匹配；不能遗漏缺少摘要的实际定义，也不为普通外部引用或纯语义 member 建物理条目。group/member 按 ID bytes 严格排序且无重复，group 不得为空，目录整体可为空。member 保存 role 和32-byte ABI/definition，具体 wire 见阶段设计第 10 节。Code 的 manifest 投影保留 field 1～6 并增加同义 field 11，不包含自身 CodeFingerprint。reader 比较已解析目录与本次读取已经重建的 group/member/role/ABI/definition，不重放对象解析或摘要计算。所有当前 production profile 的 inventory、fingerprint 与缓存随 `/2` 迁移；Strong profile 仍在原语义边界拒绝 ODR，其目录为空。
 
-生产最终切到 `org.scoop-lang.slib-profile/cross-cone-generic/1`，以共有源码接口、完整类型/ABI、Strong/ODR production 和逐 member ODR 目录组成一个正式路径。具体 required section 与版本见阶段设计第 10 节；其中 LIR identity-foundation 升为 `/2` 以退役旧 group digest owner，M24 的 LIR foundation 版本相应顺延为 `/3`。三层 outer schema、callable-body-v1、persistent identity schema、mangler 与实际 runtime C ABI 保持；旧 Strong 产物及缓存需重建，旧 profile 不能承载 ODR，也不保留第二条生产管线。
+生产切到 `org.scoop-lang.slib-profile/cross-cone-generic/1`，以共有源码接口、完整类型/ABI、Strong/ODR production 和逐 member ODR 目录组成一个正式路径，替换原完整 layout-strong producer/reader。共有 HIR/MIR 查询和产物装配直接借用 canonical foundation；reader 共享已验证的完整数据，`OdrFree` 只用于历史 Strong 格式边界，不包围泛型输出或依赖。普通参数自由桥从同一 foundation 选择相应 Strong 子集。
+
+profile 的 required inventory 随实际 section 生产分步迁移，具体当前及最终版本见阶段设计第 10 节。第一条泛型函数闭环使用现有 HIR interface `/32` 等完整 section，启用 `cone-production/1` 和对象 verifier `/3`；构造与委托等后续 payload 落地时再升级其 section 和 descriptor fingerprint，不填充假空表或增加临时 profile。LIR identity-foundation `/2` 已退役旧 group digest owner，M24 的 LIR foundation 版本相应顺延为 `/3`。三层 outer schema、callable-body-v1、persistent identity schema、mangler 与实际 runtime C ABI 保持；旧 layout-strong 产物及缓存需重建，旧 profile 不能承载 ODR，也不保留第二条 layout 生产管线。增量格式迁移不缩减本阶段完成门。
 
 完成门包含真实源码生产 `.slib`、移走 provider 源码后的下游编译、重复成员一致性与合法成员并集、现有单 image 测试入口的实际链接运行、地址合并、委托初始化和移动 GC。M23-8 承接生产多 image 登记，M23-9 承接正式 artifact-only program-link，M23-10 承接一般 native provider 解析；本节不提前建立这些入口或来源凭证。
 

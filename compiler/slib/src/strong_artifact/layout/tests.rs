@@ -61,7 +61,7 @@ fn layout_writer_rejects_mismatched_layout_imports() {
     let (result, _) = write_artifact(WriterMutation::LayoutImports);
     assert!(matches!(
         result,
-        Err(CrossConeLayoutStrongArtifactWriteError::LayoutSemanticImportMismatch)
+        Err(CrossConeLayoutArtifactWriteError::LayoutSemanticImportMismatch)
     ));
 }
 
@@ -70,7 +70,7 @@ fn layout_writer_rejects_mismatched_callable_imports() {
     let (result, _) = write_artifact(WriterMutation::CallableImports);
     assert!(matches!(
         result,
-        Err(CrossConeLayoutStrongArtifactWriteError::CallableSemanticImportMismatch)
+        Err(CrossConeLayoutArtifactWriteError::CallableSemanticImportMismatch)
     ));
 }
 
@@ -79,7 +79,7 @@ fn layout_writer_rejects_mismatched_object_bytes() {
     let (result, _) = write_artifact(WriterMutation::ObjectBytes);
     assert!(matches!(
         result,
-        Err(CrossConeLayoutStrongArtifactWriteError::LinkObjectMismatch { .. })
+        Err(CrossConeLayoutArtifactWriteError::LinkObjectMismatch { .. })
     ));
 }
 
@@ -89,7 +89,7 @@ fn layout_writer_rejects_code_proof_for_another_manifest_identity() {
     assert!(matches!(
         result,
         Err(
-            CrossConeLayoutStrongArtifactWriteError::ComponentProducerMismatch {
+            CrossConeLayoutArtifactWriteError::ComponentProducerMismatch {
                 component: "Code",
                 ..
             }
@@ -118,7 +118,7 @@ enum WriterMutation {
 fn write_artifact(
     mutation: WriterMutation,
 ) -> (
-    Result<AssembledCrossConeLayoutStrongArtifactV1, CrossConeLayoutStrongArtifactWriteError>,
+    Result<AssembledCrossConeLayoutArtifactV1, CrossConeLayoutArtifactWriteError>,
     VerifiedCodeFingerprintV2,
 ) {
     with_empty_layout_code_fixture(|lir| {
@@ -131,7 +131,7 @@ fn write_artifact(
 fn write_artifact_from_fixture(
     mut lir: EmptyLayoutCodeFixture<'_>,
     mutation: WriterMutation,
-) -> Result<AssembledCrossConeLayoutStrongArtifactV1, CrossConeLayoutStrongArtifactWriteError> {
+) -> Result<AssembledCrossConeLayoutArtifactV1, CrossConeLayoutArtifactWriteError> {
     let provider = lir.cone.identity();
     let (hir_foundation, hir_production) = hir_foundation_and_production(&lir.cone);
     let hir_type_semantics = empty_hir_type_semantics();
@@ -172,7 +172,7 @@ fn write_artifact_from_fixture(
     } else {
         lir.ordinary
     };
-    AssembledCrossConeLayoutStrongArtifactV1::write(CrossConeLayoutStrongArtifactInputV1::new(
+    AssembledCrossConeLayoutArtifactV1::write(CrossConeLayoutArtifactInputV1::new(
         crate::ProducerRecord::new("layout-writer-test").unwrap(),
         lir.cone,
         lir.dependencies,

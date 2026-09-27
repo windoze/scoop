@@ -222,7 +222,7 @@ impl ArtifactClosurePlan {
                 actual: actual.target_selection(),
             });
         }
-        let expected_profile = ArtifactCapabilityProfileId::cross_cone_layout_strong();
+        let expected_profile = ArtifactCapabilityProfileId::cross_cone_generic();
         if actual.profile() != &expected_profile {
             return Err(ArtifactClosureValidationError::ProfileMismatch {
                 identity,

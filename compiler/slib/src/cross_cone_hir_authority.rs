@@ -40,8 +40,8 @@ pub use source_inventory::{CrossConeHirSourceInventoryError, SourceInventoryDecl
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
     NominalInterfaceSemanticAuthority, NominalInterfaceShapeAuthority,
-    NominalSourceShapeSemanticAuthority, OdrFreeHirFoundation, PublicDeclarationOwnerV1,
-    PublicMemberRefV1, PublicNominalKindV1, PublicNominalShapeV1, SourceNominalId,
+    NominalSourceShapeSemanticAuthority, PublicDeclarationOwnerV1, PublicMemberRefV1,
+    PublicNominalKindV1, PublicNominalShapeV1, SourceNominalId,
 };
 use scoop_identity::{
     BindableEntity, CallableTemplateOrigin, ConeIdentity, DefinitionOwnerAtom, EnumVariantFieldKey,
@@ -60,7 +60,7 @@ use scoop_identity::{
 pub(crate) struct ValidatedNominalProviderView<'a> {
     pub(crate) identity: ConeIdentity,
     pub(crate) identities: &'a ValidatedIdentityGraph,
-    pub(crate) foundation: &'a OdrFreeHirFoundation,
+    pub(crate) foundation: &'a scoop_hir::CanonicalHirFoundation,
     pub(crate) core: &'a CoreBootstrapInterfaceSectionV1,
     pub(crate) interface: &'a CrossConeHirInterfaceSectionV1,
 }
@@ -74,7 +74,7 @@ pub(crate) struct ValidatedNominalProviderView<'a> {
 pub(crate) struct CanonicalCrossConeHirSurfaceAuthority<'a> {
     current: ConeIdentity,
     identities: &'a ValidatedIdentityGraph,
-    current_foundation: &'a OdrFreeHirFoundation,
+    current_foundation: &'a scoop_hir::CanonicalHirFoundation,
     current_interface: &'a CrossConeHirInterfaceSectionV1,
     dependencies: Vec<ValidatedNominalProviderView<'a>>,
 }
@@ -83,7 +83,7 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     pub(crate) fn new(
         current: ConeIdentity,
         identities: &'a ValidatedIdentityGraph,
-        current_foundation: &'a OdrFreeHirFoundation,
+        current_foundation: &'a scoop_hir::CanonicalHirFoundation,
         current_interface: &'a CrossConeHirInterfaceSectionV1,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
     ) -> Self {

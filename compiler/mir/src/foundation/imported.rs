@@ -53,6 +53,17 @@ impl ImportedMirFoundation {
         }
     }
 
+    #[doc(hidden)]
+    pub fn from_shared(
+        canonical: Rc<CanonicalMirFoundation>,
+        identities: ImportedIdentityMap<MirIdentityLayer>,
+    ) -> Self {
+        Self {
+            canonical,
+            identities,
+        }
+    }
+
     pub const fn origin(&self) -> ConeIdentity {
         self.identities.origin()
     }

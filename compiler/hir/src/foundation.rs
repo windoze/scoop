@@ -36,6 +36,7 @@ mod identities;
 mod imported;
 mod imported_protocols;
 mod projection;
+mod source_queries;
 mod strong_profile;
 pub use counts::HirFoundationCounts;
 pub use declaration_type_sites::DeclarationTypeSiteValidationError;
@@ -348,7 +349,7 @@ impl CanonicalHirFoundation {
         })
     }
 
-    pub(crate) fn definition_origin(
+    pub fn definition_origin(
         &self,
         subject: scoop_identity::DefinitionOriginSubject,
     ) -> Option<&DefinitionOriginRecord> {

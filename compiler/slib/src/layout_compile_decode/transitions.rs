@@ -9,7 +9,7 @@ use super::{
 use crate::{
     compile_decode::validate_foundation_identity_graph_with_authorities,
     strong_compile_decode::{
-        StrongProfileFoundationError, validate_cross_cone_strong_profile_foundations,
+        StrongProfileFoundationError, validate_cross_cone_profile_foundations,
     },
 };
 
@@ -90,7 +90,7 @@ impl<'input> IdentityCheckedCrossConeLayoutCompileSections<'input> {
             lir_cross_cone_bridge,
             lir_layout_abi,
         } = self;
-        let foundations = validate_cross_cone_strong_profile_foundations(
+        let foundations = validate_cross_cone_profile_foundations(
             &mut graph,
             &mut identities,
             hir_foundation,

@@ -6,7 +6,7 @@ use super::super::{
 };
 use crate::{
     MetadataLocation, SingleConeLinkSectionDecodeError, ValidatedGraphArtifact,
-    lir_strong_production_v2_capability,
+    lir_cone_production_capability,
 };
 
 pub(crate) fn layout_code_strong_input(
@@ -17,7 +17,7 @@ pub(crate) fn layout_code_strong_input(
     let payload = member_payload(graph, location, member)?;
     let envelope = decode_metadata_envelope(payload, location)?;
 
-    let capability = lir_strong_production_v2_capability();
+    let capability = lir_cone_production_capability();
     let payload = required_metadata_section(&envelope, &capability)?;
     decode_inner(location, capability, payload)
 }

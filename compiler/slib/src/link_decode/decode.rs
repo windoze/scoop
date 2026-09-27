@@ -280,11 +280,11 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
         self.identities.declared_identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 

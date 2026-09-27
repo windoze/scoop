@@ -1,0 +1,4 @@
+import dependency.generics.identity
+import primitive
+
+public fun check(): Int = identity(primitive() + 2)

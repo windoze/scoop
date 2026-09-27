@@ -1,6 +1,6 @@
 //! Per-artifact exported definition-source validation.
 
-use scoop_hir::{ExportDefinitionSourceSetSemanticValidationError, OdrFreeHirFoundation};
+use scoop_hir::ExportDefinitionSourceSetSemanticValidationError;
 use scoop_identity::ConeIdentity;
 use scoop_wire::WireError;
 
@@ -11,7 +11,7 @@ use crate::cross_cone_hir_authority::CrossConeHirDefinitionSourceAuthorityError;
 #[derive(Clone, Copy)]
 pub(crate) struct DefinitionSourceProviderView<'a> {
     pub(crate) identity: ConeIdentity,
-    pub(crate) foundation: &'a OdrFreeHirFoundation,
+    pub(crate) foundation: &'a scoop_hir::CanonicalHirFoundation,
 }
 
 /// One provider whose inline locations are backed by the exact foundation of

@@ -7,14 +7,14 @@ use scoop_lir::{
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError,
-    MirProductionValidationError, OdrFreeMirFoundation,
+    MirProductionValidationError,
 };
 
 use super::{ConstValidatedCrossConeHirFrontSections, ValidatedSurfaceFront};
 use crate::{
     ValidatedGraphArtifact,
     strong_compile_decode::{
-        OdrFreeStrongFoundationSet, StrongProfileRelationError, validate_strong_profile_relations,
+        CanonicalFoundationSet, StrongProfileRelationError, validate_strong_profile_relations,
     },
 };
 
@@ -24,7 +24,7 @@ use crate::{
 pub struct MirBridgeValidatedCrossConeHirFrontSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: ValidatedIdentityGraph,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) hir_core_production: CoreBootstrapInterfaceSectionV1,
     pub(super) hir_interface: CrossConeHirInterfaceSectionV1,
     pub(super) mir_core_production: CoreBootstrapBridgeSectionV1,
@@ -58,7 +58,7 @@ impl MirBridgeValidatedCrossConeHirFrontSections<'_> {
         &self.hir_interface
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 

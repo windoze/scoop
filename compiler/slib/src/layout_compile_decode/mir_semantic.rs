@@ -4,13 +4,13 @@ use std::fmt;
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
-    CrossConeTypeSemanticsSectionV1, OdrFreeHirFoundation,
+    CrossConeTypeSemanticsSectionV1,
 };
 use scoop_identity::ValidatedIdentityGraph;
 use scoop_lir::ConeLirFoundation;
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError,
-    DecodedCrossConeMirTypeBridgeSectionV1, MirProductionValidationError, OdrFreeMirFoundation,
+    DecodedCrossConeMirTypeBridgeSectionV1, MirProductionValidationError,
 };
 
 mod materializations;
@@ -22,7 +22,7 @@ use crate::{
     ValidatedGraphArtifact,
     layout_compile_decode::DecodedCrossConeLayoutLirCandidates,
     strong_compile_decode::{
-        OdrFreeStrongFoundationSet, StrongProfileRelationError, validate_strong_profile_relations,
+        CanonicalFoundationSet, StrongProfileRelationError, validate_strong_profile_relations,
     },
 };
 
@@ -30,7 +30,7 @@ pub(crate) struct PreparedCrossConeLayoutMirSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     view: crate::link_decode::DecodedLayoutView,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     hir_types: CrossConeTypeSemanticsSectionV1,
@@ -41,11 +41,11 @@ pub(crate) struct PreparedCrossConeLayoutMirSections<'input> {
 
 pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
     pub(crate) identities: &'a mut ValidatedIdentityGraph,
-    pub(crate) hir_foundation: &'a OdrFreeHirFoundation,
+    pub(crate) hir_foundation: &'a scoop_hir::CanonicalHirFoundation,
     pub(crate) hir_core: &'a CoreBootstrapInterfaceSectionV1,
     pub(crate) hir_interface: &'a CrossConeHirInterfaceSectionV1,
     pub(crate) hir_types: &'a CrossConeTypeSemanticsSectionV1,
-    pub(crate) mir_foundation: &'a OdrFreeMirFoundation,
+    pub(crate) mir_foundation: &'a scoop_mir::CanonicalMirFoundation,
     pub(crate) mir_core: &'a CoreBootstrapBridgeSectionV1,
     pub(crate) mir_ordinary: &'a CrossConeMirBridgeSectionV1,
     pub(crate) lir_foundation: &'a ConeLirFoundation,

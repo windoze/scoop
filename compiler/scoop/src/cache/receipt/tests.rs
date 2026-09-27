@@ -52,7 +52,7 @@ fn receipt_with_warnings(warnings: Vec<StructuredDiagnosticV1>) -> CacheReceiptV
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
-            ArtifactCapabilityProfileId::cross_cone_layout_strong(),
+            ArtifactCapabilityProfileId::cross_cone_generic(),
             warnings,
         )
         .unwrap(),
@@ -140,7 +140,7 @@ fn receipt_rejects_duplicate_and_conflicting_warning_keys() {
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
-            ArtifactCapabilityProfileId::cross_cone_layout_strong(),
+            ArtifactCapabilityProfileId::cross_cone_generic(),
             vec![duplicate.clone(), duplicate],
         ),
         Err(CacheReceiptValidationError::DuplicateWarningKey(_))
@@ -153,7 +153,7 @@ fn receipt_rejects_duplicate_and_conflicting_warning_keys() {
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
-            ArtifactCapabilityProfileId::cross_cone_layout_strong(),
+            ArtifactCapabilityProfileId::cross_cone_generic(),
             vec![
                 warning("SCOOPC_WARNING", "first"),
                 warning("SCOOPC_WARNING", "second"),
@@ -205,7 +205,7 @@ fn receipt_body_with_warning(
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),
         compiler(),
-        ArtifactCapabilityProfileId::cross_cone_layout_strong(),
+        ArtifactCapabilityProfileId::cross_cone_generic(),
         vec![warning],
     )
 }

@@ -7,7 +7,7 @@ fn source_interface_v32_requires_actual_call_applications() {
         32,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ],
     );
 }
@@ -17,7 +17,7 @@ fn type_semantics_v8_requires_actual_abstract_slot_targets() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
         8,
-        &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG],
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
@@ -29,7 +29,7 @@ fn compiler_protocol_v4_rejects_retired_protocol_wrappers_in_all_views() {
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ],
     );
 }
@@ -81,7 +81,7 @@ fn hir_foundation_v3_rejects_retired_native_witnesses_in_every_profile_and_view(
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ],
     );
 }

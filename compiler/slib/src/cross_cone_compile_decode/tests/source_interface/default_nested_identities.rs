@@ -101,9 +101,9 @@ fn ordinary_nested_identities_require_the_actual_artifact_record_in_addition_to_
     let bytes = fixture.artifact();
     let mut front = declaration_front(&bytes);
     validate(&mut front).unwrap();
-    let mut foundation = front.foundations.hir.as_canonical().clone();
+    let mut foundation = front.foundations.hir.as_ref().clone();
     foundation.set_generic_functions(vec![]).unwrap();
-    front.foundations.hir = OdrFreeHirFoundation::try_new(foundation).unwrap();
+    front.foundations.hir = std::rc::Rc::new(foundation);
     let Err(Error::Template { source, .. }) = validate(&mut front) else {
         panic!("missing artifact key must fail")
     };

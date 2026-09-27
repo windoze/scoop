@@ -31,7 +31,7 @@ pub(super) enum Rewrite {
 }
 
 pub(super) fn rewrite(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     mut change: impl FnMut(&slib::SlibMemberRecord, &[u8]) -> Rewrite,
 ) -> Vec<u8> {
     let bytes = artifact.as_bytes();
@@ -109,7 +109,7 @@ pub(super) fn metadata(
 }
 
 pub(super) fn payloads(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) -> std::collections::BTreeMap<slib::SlibMemberId, &[u8]> {
     let bytes = artifact.as_bytes();
     let archive = object::read::archive::ArchiveFile::parse(bytes).unwrap();

@@ -4,8 +4,8 @@ use super::*;
 use scoop_slib as slib;
 
 pub(super) fn check(
-    provider: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
     let expected_provider = layout.selected().physical_imports().records()[0].provider();
@@ -30,7 +30,7 @@ pub(super) fn check(
 }
 
 fn wrong_link_provider(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     provider: ConeIdentity,
 ) -> Vec<u8> {
     let bytes = artifact.as_bytes();

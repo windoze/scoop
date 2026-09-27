@@ -19,7 +19,7 @@ pub(super) fn validate(
     let requirements = hir::PublicNominalShapeRequirementsV1::from_shared_surface(
         metadata.provider,
         core.direct_public_surface(),
-        metadata.foundation.as_canonical(),
+        metadata.foundation,
         metadata.public.nominal_interfaces(),
         metadata.public.callable_interfaces(),
     )?;

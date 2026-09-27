@@ -633,7 +633,7 @@ mod tests {
         let cone =
             ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap();
         crate::test_artifacts::manifest_archive(
-            scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             cone,
             producer,
             Vec::new(),

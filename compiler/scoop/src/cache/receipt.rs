@@ -571,7 +571,7 @@ fn validate_dependency_order(
 pub(crate) fn validate_profile(
     profile: &ArtifactCapabilityProfileId,
 ) -> Result<(), CacheReceiptValidationError> {
-    if profile != &ArtifactCapabilityProfileId::cross_cone_layout_strong() {
+    if profile != &ArtifactCapabilityProfileId::cross_cone_generic() {
         return Err(CacheReceiptValidationError::UnsupportedArtifactProfile);
     }
     Ok(())

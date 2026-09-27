@@ -1,6 +1,7 @@
 use super::*;
 
 mod machine;
+mod publication;
 
 #[test]
 fn ordinary_reader_retains_generic_bodies_from_actual_published_libraries() {

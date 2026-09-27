@@ -12,7 +12,7 @@ use scoop_mir::{ImportedMirFoundation, ParamFreeMirCallableExportV1};
 
 use super::CrossConeProviderRole;
 use crate::{
-    CompileCommitError, CrossConeLayoutStrongProfile, ValidatedCompileArtifact,
+    CompileCommitError, CrossConeGenericProfile, ValidatedCompileArtifact,
     ValidatedCrossConeSemanticsProduction,
 };
 
@@ -30,7 +30,7 @@ pub struct ValidatedCrossConeSemanticClosure {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
     direct: Vec<ConeIdentity>,
-    dependency_first: Vec<ValidatedCompileArtifact<CrossConeLayoutStrongProfile>>,
+    dependency_first: Vec<ValidatedCompileArtifact<CrossConeGenericProfile>>,
     positions: std::collections::BTreeMap<ConeIdentity, usize>,
     dependency_positions: Vec<Vec<usize>>,
 }
@@ -85,8 +85,8 @@ impl ValidatedCrossConeSemanticClosure {
                 ValidatedCompileArtifact::from_parts(
                     artifact.shared_metadata(),
                     artifact.shared_identity_graph(),
-                    ImportedHirFoundation::from_odr_free(artifact.hir_foundation().clone(), hir),
-                    ImportedMirFoundation::from_odr_free(artifact.mir_foundation().clone(), mir),
+                    ImportedHirFoundation::from_shared(artifact.shared_hir_foundation(), hir),
+                    ImportedMirFoundation::from_shared(artifact.shared_mir_foundation(), mir),
                     ImportedLirFoundation::from_odr_free(artifact.lir_foundation().clone(), lir),
                     ValidatedCrossConeSemanticsProduction::new(std::rc::Rc::clone(artifact)),
                 )
@@ -192,7 +192,7 @@ impl ValidatedCrossConeSemanticClosure {
     fn provider(
         &self,
         identity: ConeIdentity,
-    ) -> Option<&ValidatedCompileArtifact<CrossConeLayoutStrongProfile>> {
+    ) -> Option<&ValidatedCompileArtifact<CrossConeGenericProfile>> {
         if identity == self.current {
             return None;
         }
@@ -203,9 +203,7 @@ impl ValidatedCrossConeSemanticClosure {
 
     /// Returns the completed current artifact when this closure was created
     /// with [`DecodedCrossConeClosure::with_current_artifact`].
-    pub fn current_artifact(
-        &self,
-    ) -> Option<&ValidatedCompileArtifact<CrossConeLayoutStrongProfile>> {
+    pub fn current_artifact(&self) -> Option<&ValidatedCompileArtifact<CrossConeGenericProfile>> {
         self.positions
             .get(&self.current)
             .map(|position| &self.dependency_first[*position])
@@ -214,7 +212,7 @@ impl ValidatedCrossConeSemanticClosure {
     pub(super) fn artifact_at(
         &self,
         position: usize,
-    ) -> &ValidatedCompileArtifact<CrossConeLayoutStrongProfile> {
+    ) -> &ValidatedCompileArtifact<CrossConeGenericProfile> {
         &self.dependency_first[position]
     }
 }
@@ -222,7 +220,7 @@ impl ValidatedCrossConeSemanticClosure {
 /// Enumeration-capable view of one validated direct dependency.
 #[derive(Clone, Copy)]
 pub struct DirectCrossConeSemanticProvider<'closure> {
-    artifact: &'closure ValidatedCompileArtifact<CrossConeLayoutStrongProfile>,
+    artifact: &'closure ValidatedCompileArtifact<CrossConeGenericProfile>,
 }
 
 impl<'closure> DirectCrossConeSemanticProvider<'closure> {
@@ -254,7 +252,7 @@ impl<'closure> DirectCrossConeSemanticProvider<'closure> {
 /// Non-enumerable view of one transitive support provider.
 #[derive(Clone, Copy)]
 pub struct SupportCrossConeSemanticProvider<'closure> {
-    artifact: &'closure ValidatedCompileArtifact<CrossConeLayoutStrongProfile>,
+    artifact: &'closure ValidatedCompileArtifact<CrossConeGenericProfile>,
 }
 
 impl<'closure> SupportCrossConeSemanticProvider<'closure> {

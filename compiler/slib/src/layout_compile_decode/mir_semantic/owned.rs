@@ -7,7 +7,7 @@ pub(crate) struct LayoutSemanticSections {
     pub(crate) metadata: std::rc::Rc<ArtifactMetadata>,
     pub(crate) view: crate::link_decode::DecodedLayoutView,
     pub(crate) identities: std::rc::Rc<ValidatedIdentityGraph>,
-    pub(crate) foundations: OdrFreeStrongFoundationSet,
+    pub(crate) foundations: CanonicalFoundationSet,
     pub(crate) hir_core: CoreBootstrapInterfaceSectionV1,
     pub(crate) hir_interface: CrossConeHirInterfaceSectionV1,
     pub(crate) hir_types: CrossConeTypeSemanticsSectionV1,

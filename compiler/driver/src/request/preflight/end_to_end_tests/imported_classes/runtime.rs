@@ -3,7 +3,10 @@ use scoop_identity::{SourceDeclarationKey, StrongCallableDefinitionOwner};
 use std::path::PathBuf;
 use std::process::Command;
 
-pub(super) fn build(target: &scoop_toolchain::ResolvedTargetProfile, directory: &Path) -> PathBuf {
+pub(in super::super) fn build(
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    directory: &Path,
+) -> PathBuf {
     std::fs::create_dir_all(directory).unwrap();
     let workspace = crate::workspace_root();
     let profile = target.runtime_build();
@@ -33,7 +36,7 @@ pub(super) fn build(target: &scoop_toolchain::ResolvedTargetProfile, directory: 
     archive
 }
 
-pub(super) fn check(
+pub(in super::super) fn check(
     target: &scoop_toolchain::ResolvedTargetProfile,
     artifacts: &[&SingleConeProductionSuccess; 4],
     runtime: &Path,

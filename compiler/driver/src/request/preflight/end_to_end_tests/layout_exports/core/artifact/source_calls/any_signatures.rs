@@ -4,8 +4,8 @@ use super::*;
 use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, PersistentExactTypeId};
 
 pub(in super::super) fn check_link(
-    provider: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
 ) -> String {
     use super::super::lir_dependencies::reader as artifact_reader;
@@ -43,8 +43,8 @@ enum Slot {
 pub(in super::super) fn check(
     path: &Path,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    provider_artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider_artifact: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     let any = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
         CoreBuiltinNominal::Any.identity_record().id(),

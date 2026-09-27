@@ -3,7 +3,7 @@ use super::*;
 mod manifest;
 
 pub(super) fn replace_public(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     mut public: hir::CrossConeHirInterfaceSectionV1,
 ) -> Vec<u8> {
     let replacement = encode(&public.index_for_wire().unwrap()).unwrap();
@@ -15,7 +15,7 @@ pub(super) fn replace_public(
 }
 
 pub(super) fn replace_types(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     types: &hir::CrossConeTypeSemanticsSectionV1,
 ) -> Vec<u8> {
     let replacement = encode(types).unwrap();
@@ -27,7 +27,7 @@ pub(super) fn replace_types(
 }
 
 fn replace_hir_section(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     capability: &scoop_identity::CapabilityId,
     replacement: Vec<u8>,
 ) -> Vec<u8> {

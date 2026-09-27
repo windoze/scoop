@@ -63,7 +63,7 @@ fn a_default_root_requires_artifact_membership_and_the_same_identity_graph() {
     let front = validate_until_type_alias(&bytes);
     let provider = front.nominal_provider_view();
     let template = &front.hir_interface().default_templates().records()[0];
-    let mut missing = provider.foundation.as_canonical().clone();
+    let mut missing = provider.foundation.clone();
     missing.set_functions(vec![]).unwrap();
     let missing = scoop_hir::OdrFreeHirFoundation::try_new(missing).unwrap();
     let empty_graph = scoop_identity::PendingIdentityValidation::new()
@@ -71,7 +71,7 @@ fn a_default_root_requires_artifact_membership_and_the_same_identity_graph() {
         .unwrap();
     for (foundation, identities, identity, expected) in [
         (
-            &missing,
+            missing.as_canonical(),
             provider.identities,
             provider.identity,
             "absent from its provider artifact",

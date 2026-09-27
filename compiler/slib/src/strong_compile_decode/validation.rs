@@ -8,7 +8,7 @@ pub(super) struct StrongProfileLocalProductionSet {
 }
 
 pub(crate) struct StrongProfileSemanticFront<'a> {
-    pub(crate) hir_foundation: &'a OdrFreeHirFoundation,
+    pub(crate) hir_foundation: &'a scoop_hir::CanonicalHirFoundation,
     pub(crate) hir_production: &'a CoreBootstrapInterfaceSectionV1,
     pub(crate) mir_production: &'a CoreBootstrapBridgeSectionV1,
     pub(crate) lir_foundation: &'a ConeLirFoundation,
@@ -17,7 +17,7 @@ pub(crate) struct StrongProfileSemanticFront<'a> {
 pub(crate) fn validate_strong_profile_production(
     graph: &ValidatedGraphArtifact<'_>,
     identities: &mut ValidatedIdentityGraph,
-    foundations: &OdrFreeStrongFoundationSet,
+    foundations: &CanonicalFoundationSet,
     production: DecodedStrongProfileProductionSet,
 ) -> Result<ValidatedSingleConeStrongProduction, StrongProfileProductionError> {
     let local = validate_strong_profile_local_production(
@@ -57,13 +57,13 @@ pub(crate) fn validate_strong_profile_production(
 pub(super) fn validate_strong_profile_local_production(
     artifact: ConeIdentity,
     identities: &mut ValidatedIdentityGraph,
-    hir_foundation: &OdrFreeHirFoundation,
+    hir_foundation: &scoop_hir::CanonicalHirFoundation,
     hir: DecodedCoreBootstrapInterfaceSectionV1,
-    mir_foundation: &OdrFreeMirFoundation,
+    mir_foundation: &scoop_mir::CanonicalMirFoundation,
     mir: DecodedCoreBootstrapBridgeSectionV1,
 ) -> Result<StrongProfileLocalProductionSet, StrongProfileLocalProductionError> {
     let hir = hir
-        .validate_against_strong_foundation(artifact, hir_foundation)
+        .validate_against(artifact, hir_foundation)
         .map_err(StrongProfileLocalProductionError::Hir)?;
     let mir = mir
         .validate_against(artifact, identities, mir_foundation)
@@ -76,13 +76,13 @@ pub(crate) fn validate_strong_profile_relations(
     kind: ConeKind,
     hir: &CoreBootstrapInterfaceSectionV1,
     mir: &CoreBootstrapBridgeSectionV1,
-    foundation: &OdrFreeHirFoundation,
+    foundation: &scoop_hir::CanonicalHirFoundation,
 ) -> Result<(), StrongProfileRelationError> {
     validate_output_relation(kind, hir.output_contract(), mir.entry_bridge())?;
     PublicNominalShapeRequirementsV1::from_direct_surface(
         provider,
         hir.direct_public_surface(),
-        foundation.as_canonical(),
+        foundation,
     )
     .map_err(StrongProfileRelationError::ShapeSources)?;
     validate_protocol_relation(hir.compiler_protocols(), mir.strong_callable_bridges())
@@ -97,9 +97,9 @@ pub(crate) fn validate_strong_profile_lir_production(
     let shape_sources = PublicNominalShapeRequirementsV1::from_direct_surface(
         graph.identity(),
         front.hir_production.direct_public_surface(),
-        front.hir_foundation.as_canonical(),
+        front.hir_foundation,
     )
-    .and_then(|shapes| shapes.source_declarations(front.hir_foundation.as_canonical()))
+    .and_then(|shapes| shapes.source_declarations(front.hir_foundation))
     .map_err(StrongProfileLirProductionError::ShapeSources)?;
     validate_strong_profile_lir_with_shape_sources(graph, identities, front, lir, &shape_sources)
 }
@@ -196,7 +196,7 @@ pub(crate) fn validate_strong_profile_foundations(
     hir: DecodedHirFoundation,
     mir: DecodedMirFoundation,
     lir: DecodedLirFoundation,
-) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
+) -> Result<CanonicalFoundationSet, StrongProfileFoundationError> {
     validate_strong_profile_foundations_with_source_authority(
         graph,
         identities,
@@ -207,13 +207,13 @@ pub(crate) fn validate_strong_profile_foundations(
     )
 }
 
-pub(crate) fn validate_cross_cone_strong_profile_foundations(
+pub(crate) fn validate_cross_cone_profile_foundations(
     graph: &mut ValidatedGraphArtifact<'_>,
     identities: &mut ValidatedIdentityGraph,
     hir: DecodedHirFoundation,
     mir: DecodedMirFoundation,
     lir: DecodedLirFoundation,
-) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
+) -> Result<CanonicalFoundationSet, StrongProfileFoundationError> {
     validate_strong_profile_foundations_with_source_authority(
         graph,
         identities,
@@ -237,7 +237,7 @@ fn validate_strong_profile_foundations_with_source_authority(
     mir: DecodedMirFoundation,
     lir: DecodedLirFoundation,
     source_authority: HirSourceAuthority,
-) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
+) -> Result<CanonicalFoundationSet, StrongProfileFoundationError> {
     let coordinate = graph.coordinate().clone();
     let producer = graph.identity();
 
@@ -254,15 +254,22 @@ fn validate_strong_profile_foundations_with_source_authority(
     let lir = lir
         .validate(producer, identities)
         .map_err(StrongProfileFoundationError::LirStructure)?;
+    let hir = hir.into_canonical();
+    let mir = mir.into_canonical();
     let lir = ConeLirFoundation::from_validated(lir);
-    lir.require_strong()
-        .map_err(StrongProfileFoundationError::LirOdr)?;
-
-    Ok(OdrFreeStrongFoundationSet {
-        hir: OdrFreeHirFoundation::from_validated(hir)
-            .map_err(StrongProfileFoundationError::HirOdr)?,
-        mir: OdrFreeMirFoundation::from_validated(mir)
-            .map_err(StrongProfileFoundationError::MirOdr)?,
+    if graph.envelope.manifest().compatibility().artifact_profile()
+        != &crate::ArtifactCapabilityProfile::CROSS_CONE_GENERIC.id()
+    {
+        hir.require_strong()
+            .map_err(StrongProfileFoundationError::HirOdr)?;
+        mir.require_strong()
+            .map_err(StrongProfileFoundationError::MirOdr)?;
+        lir.require_strong()
+            .map_err(StrongProfileFoundationError::LirOdr)?;
+    }
+    Ok(CanonicalFoundationSet {
+        hir: Rc::new(hir),
+        mir: Rc::new(mir),
         lir,
     })
 }

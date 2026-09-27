@@ -68,14 +68,8 @@ fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
         .unwrap();
     assert_eq!(checked.identity(), cone().identity());
     assert_eq!(checked.identity_count(), 19);
-    assert_eq!(
-        checked.hir_foundation().as_canonical().counts().odr_groups,
-        0
-    );
-    assert_eq!(
-        checked.mir_foundation().as_canonical().counts().odr_groups,
-        0
-    );
+    assert_eq!(checked.hir_foundation().counts().odr_groups, 0);
+    assert_eq!(checked.mir_foundation().counts().odr_groups, 0);
     assert_eq!(
         checked.lir_foundation().as_canonical().counts().odr_groups,
         0

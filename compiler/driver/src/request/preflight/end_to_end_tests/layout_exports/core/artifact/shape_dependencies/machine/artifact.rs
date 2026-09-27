@@ -41,7 +41,7 @@ pub(super) fn check(
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, output)
             .unwrap();
     let dependency = reader::open(provider.artifact).dependency_record();
-    let metadata = crate::CrossConeStrongArtifactMetadataInputV1::new(
+    let metadata = crate::CrossConeArtifactMetadataInputV1::new(
         scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION"))).unwrap(),
         scoop_slib::ConeRecord::new(
             destination.coordinate.clone(),

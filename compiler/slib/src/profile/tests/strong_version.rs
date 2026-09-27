@@ -9,7 +9,7 @@ fn production_manifest_v2_requires_the_physical_odr_directory_in_every_profile()
     for profile in [
         ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-        ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
     ] {
         let descriptor = profile.descriptor();
         assert_eq!(
@@ -43,7 +43,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
             &[
                 ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-                ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+                ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             ][..],
             &[1][..],
         ),
@@ -52,7 +52,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
             &[
                 ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-                ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+                ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             ][..],
             &[1, 2, 3][..],
         ),
@@ -65,18 +65,18 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
             &[1, 2, 3, 4, 6, 11, 12, 14][..],
         ),
         (
-            lir_strong_production_v2_capability(),
-            &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG][..],
-            &[1, 2, 3, 4, 5, 11, 12, 13][..],
+            lir_cone_production_capability(),
+            &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
+            &[2][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),
-            &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG][..],
+            &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
             &[1][..],
         ),
         (
             lir_cross_cone_layout_link_closure_capability(),
-            &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG][..],
+            &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
             &[1][..],
         ),
     ] {

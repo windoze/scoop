@@ -2,7 +2,7 @@ use super::*;
 
 mod conformance;
 mod inheritance;
-mod runtime;
+pub(super) mod runtime;
 
 #[test]
 fn dependency_classes_compile_and_run_through_actual_artifacts() {

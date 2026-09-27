@@ -1,8 +1,8 @@
 use super::*;
 
 pub(super) fn open<'a>(
-    provider_artifact: &'a slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider_artifact: &'a slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     payload: &'a [u8],
     link: bool,
 ) -> slib::HirProductionValidatedCrossConeLayoutClosure<'a> {

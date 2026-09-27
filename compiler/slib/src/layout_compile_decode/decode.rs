@@ -5,8 +5,8 @@ use crate::{
     compile_sections::{decode_compile_metadata_envelopes, decode_compile_section},
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
     hir_cross_cone_type_semantics_capability, hir_identity_foundation_capability,
-    lir_cross_cone_layout_abi_capability, lir_cross_cone_param_free_bridge_capability,
-    lir_identity_foundation_capability, lir_strong_production_v2_capability,
+    lir_cone_production_capability, lir_cross_cone_layout_abi_capability,
+    lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
     mir_core_bootstrap_bridge_capability, mir_cross_cone_param_free_bridge_capability,
     mir_cross_cone_type_bridge_capability, mir_identity_foundation_capability,
 };
@@ -24,7 +24,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
     > {
         let metadata = decode_compile_metadata_envelopes(
             &mut self,
-            ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )?;
 
         let hir_foundation = decode_compile_section(
@@ -75,7 +75,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
         let lir_strong_production = decode_compile_section(
             &metadata,
             MetadataLocation::Lir,
-            lir_strong_production_v2_capability(),
+            lir_cone_production_capability(),
         )?;
         let lir_cross_cone_bridge = decode_compile_section(
             &metadata,

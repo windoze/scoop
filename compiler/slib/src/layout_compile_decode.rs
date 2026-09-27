@@ -17,7 +17,7 @@ use scoop_mir::{
 };
 
 use crate::link_decode::DecodedLayoutView;
-use crate::{ValidatedGraphArtifact, strong_compile_decode::OdrFreeStrongFoundationSet};
+use crate::{ValidatedGraphArtifact, strong_compile_decode::CanonicalFoundationSet};
 
 mod accessors;
 mod decode;
@@ -85,7 +85,7 @@ pub struct FoundationValidatedCrossConeLayoutCompileSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     view: DecodedLayoutView,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,
     hir_type_semantics: DecodedCrossConeTypeSemanticsSectionV1,
@@ -104,7 +104,7 @@ pub struct ResolvedCrossConeLayoutHirSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     view: DecodedLayoutView,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     hir_type_semantics: CrossConeTypeSemanticsSectionV1,
@@ -123,7 +123,7 @@ pub struct HirProductionValidatedCrossConeLayoutSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     view: DecodedLayoutView,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     hir_type_semantics: CrossConeTypeSemanticsSectionV1,

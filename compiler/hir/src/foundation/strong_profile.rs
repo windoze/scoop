@@ -1,10 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use scoop_identity::{
-    DefinitionOriginRecord, DefinitionOriginSubject, OdrGroupId, OdrMemberId,
-    PersistentCallableApplicationId, PersistentSourceContextId, SourceContextKey, SourceIdentity,
-};
+use scoop_identity::{OdrGroupId, OdrMemberId, PersistentCallableApplicationId};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{CanonicalHirFoundation, HirFoundationBuildError};
@@ -33,15 +30,7 @@ impl OdrFreeHirFoundation {
     }
 
     pub fn try_new(foundation: CanonicalHirFoundation) -> Result<Self, OdrFreeHirFoundationError> {
-        if let Some(record) = foundation.callable_applications.first() {
-            return Err(OdrFreeHirFoundationError::CallableApplication(record.id()));
-        }
-        if let Some(record) = foundation.odr_groups.first() {
-            return Err(OdrFreeHirFoundationError::OdrGroup(record.id()));
-        }
-        if let Some(record) = foundation.odr_members.first() {
-            return Err(OdrFreeHirFoundationError::OdrMember(record.id()));
-        }
+        foundation.require_strong()?;
         Ok(Self(Rc::new(foundation)))
     }
 
@@ -53,63 +42,6 @@ impl OdrFreeHirFoundation {
 
     pub fn as_canonical(&self) -> &CanonicalHirFoundation {
         &self.0
-    }
-
-    /// Returns the canonical definition origin for an exact typed subject.
-    pub fn definition_origin(
-        &self,
-        subject: DefinitionOriginSubject,
-    ) -> Option<&DefinitionOriginRecord> {
-        self.0.definition_origin(subject)
-    }
-
-    /// Returns the canonical source record for an exact source identity.
-    pub fn source_record(&self, source: &SourceIdentity) -> Option<&crate::SourceRecord> {
-        self.0
-            .sources
-            .binary_search_by(|record| record.identity().cmp(source))
-            .ok()
-            .map(|index| &self.0.sources[index])
-    }
-
-    /// Returns all canonical source records retained by this artifact.
-    #[doc(hidden)]
-    pub fn source_records(&self) -> &[crate::SourceRecord] {
-        &self.0.sources
-    }
-
-    /// Returns the canonical key for an exact source-context identity.
-    pub fn source_context_key(
-        &self,
-        context: PersistentSourceContextId,
-    ) -> Option<&SourceContextKey> {
-        self.0
-            .source_contexts
-            .binary_search_by_key(&context, |record| record.id())
-            .ok()
-            .map(|index| self.0.source_contexts[index].key())
-    }
-
-    /// Iterates every canonical source-context identity declared by this
-    /// artifact together with its validated key.
-    #[doc(hidden)]
-    pub fn source_context_records(
-        &self,
-    ) -> impl ExactSizeIterator<Item = (PersistentSourceContextId, &SourceContextKey)> {
-        self.0
-            .source_contexts
-            .iter()
-            .map(|record| (record.id(), record.key()))
-    }
-
-    #[doc(hidden)]
-    pub fn source_native_contracts(&self) -> &[scoop_identity::SourceNativeExternalContractRecord] {
-        &self.0.source_native_contracts
-    }
-
-    #[doc(hidden)]
-    pub fn native_boundary_types(&self) -> &[crate::NativeBoundaryTypeDefinitionRecord] {
-        &self.0.native_boundary_types
     }
 
     pub fn into_canonical(self) -> CanonicalHirFoundation {
@@ -126,6 +58,14 @@ impl TryFrom<CanonicalHirFoundation> for OdrFreeHirFoundation {
 
     fn try_from(foundation: CanonicalHirFoundation) -> Result<Self, Self::Error> {
         Self::try_new(foundation)
+    }
+}
+
+impl std::ops::Deref for OdrFreeHirFoundation {
+    type Target = CanonicalHirFoundation;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -203,6 +143,22 @@ impl fmt::Display for HexIdentity<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         for byte in self.0 {
             write!(formatter, "{byte:02x}")?;
+        }
+        Ok(())
+    }
+}
+
+impl CanonicalHirFoundation {
+    /// Applies the historical Strong restriction at its artifact boundary.
+    pub fn require_strong(&self) -> Result<(), OdrFreeHirFoundationError> {
+        if let Some(record) = self.callable_applications.first() {
+            return Err(OdrFreeHirFoundationError::CallableApplication(record.id()));
+        }
+        if let Some(record) = self.odr_groups.first() {
+            return Err(OdrFreeHirFoundationError::OdrGroup(record.id()));
+        }
+        if let Some(record) = self.odr_members.first() {
+            return Err(OdrFreeHirFoundationError::OdrMember(record.id()));
         }
         Ok(())
     }

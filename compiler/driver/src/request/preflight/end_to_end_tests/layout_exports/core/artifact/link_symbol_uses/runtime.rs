@@ -19,7 +19,7 @@ pub(super) enum RuntimeMutation {
 }
 
 pub(super) fn inspect(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
 ) -> String {
     let payloads = link_archive::payloads(artifact);
@@ -85,8 +85,8 @@ fn body_mutation(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> RuntimeMutatio
 
 pub(super) fn check(
     symbols_path: &Path,
-    core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
     cases: Vec<RuntimeMutation>,
     mut dump: String,

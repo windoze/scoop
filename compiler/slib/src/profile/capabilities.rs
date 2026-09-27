@@ -70,8 +70,8 @@ pub fn lir_cross_cone_layout_link_closure_capability() -> CapabilityId {
         .expect("built-in capability id is valid")
 }
 
-pub fn lir_strong_production_v2_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "strong-production", 14)
+pub fn lir_cone_production_capability() -> CapabilityId {
+    CapabilityId::new("org.scoop-lang.lir", "cone-production", 1)
         .expect("built-in capability id is valid")
 }
 

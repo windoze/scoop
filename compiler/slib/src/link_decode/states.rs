@@ -37,7 +37,7 @@ pub struct IdentityCheckedSingleConeLinkSections<'input> {
 pub struct OdrCheckedSingleConeLinkFoundations<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: ValidatedIdentityGraph,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: DecodedStrongProfileProductionSet,
     pub(super) link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
@@ -49,7 +49,7 @@ pub struct OdrCheckedSingleConeLinkFoundations<'input> {
 pub struct ProductionValidatedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
@@ -61,7 +61,7 @@ pub struct ProductionValidatedSingleConeLinkSections<'input> {
 pub struct MaterializationCheckedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: MaterializationCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
@@ -75,7 +75,7 @@ pub struct MaterializationCheckedSingleConeLinkSections<'input> {
 pub struct CBridgeCheckedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: MaterializationCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: Vec<ScoopLirObjectCandidateV1<'input>>,
@@ -90,7 +90,7 @@ pub struct CBridgeCheckedSingleConeLinkSections<'input> {
 pub struct BuiltinObjectCheckedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: crate::DigestPatchInputCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
@@ -104,7 +104,7 @@ pub struct BuiltinObjectCheckedSingleConeLinkSections<'input> {
 pub struct DigestPatchCheckedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: ObjectProjectionCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
@@ -119,7 +119,7 @@ pub struct DigestPatchCheckedSingleConeLinkSections<'input> {
 pub struct RegistrationObjectCheckedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: ObjectProjectionCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
@@ -139,7 +139,7 @@ pub struct RegistrationObjectCheckedSingleConeLinkSections<'input> {
 pub struct RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: ObjectProjectionCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
@@ -162,7 +162,7 @@ pub struct RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
 pub struct LinkSymbolCheckedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: SymbolProjectionCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
@@ -186,7 +186,7 @@ pub struct LinkSymbolCheckedSingleConeLinkSections<'input> {
 pub struct RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: SymbolProjectionCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
@@ -207,7 +207,7 @@ pub struct RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
 pub struct FinalizedStrongLinkObjectSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: SymbolProjectionCheckedLinkIdentityClosureSectionV1,
     pub(super) defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
@@ -222,7 +222,7 @@ pub struct FinalizedStrongLinkObjectSections<'input> {
 pub struct ValidatedSingleConeStrongLinkArtifact<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
-    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) foundations: CanonicalFoundationSet,
     pub(super) production: ValidatedSingleConeStrongProduction,
     pub(super) link_identity_closure: LinkIdentityClosureSectionV1,
     pub(super) production_manifest: SingleConeProductionManifestV1,

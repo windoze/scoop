@@ -53,7 +53,7 @@ pub(super) fn check(
     let generated =
         scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();
-    let metadata = crate::CrossConeStrongArtifactMetadataInputV1::new(
+    let metadata = crate::CrossConeArtifactMetadataInputV1::new(
         scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION"))).unwrap(),
         scoop_slib::ConeRecord::new(
             ConeCoordinate::reserved_core(),

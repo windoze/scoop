@@ -83,8 +83,8 @@ impl<'input> ResolvedCrossConeLayoutHirSections<'input> {
             lir_cross_cone_bridge,
             lir_layout_abi,
         } = self;
-        let hir_core_production = hir_core_production
-            .validate_against_strong_foundation(graph.identity(), &foundations.hir)?;
+        let hir_core_production =
+            hir_core_production.validate_against(graph.identity(), &foundations.hir)?;
         Ok(HirProductionValidatedCrossConeLayoutSections {
             graph,
             view,

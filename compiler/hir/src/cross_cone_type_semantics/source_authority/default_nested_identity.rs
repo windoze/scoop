@@ -17,12 +17,12 @@ type Error = DefaultNestedIdentityValidationError;
 
 struct NestedIdentityInput<'f> {
     provider: ConeIdentity,
-    foundation: &'f OdrFreeHirFoundation,
+    foundation: &'f crate::CanonicalHirFoundation,
 }
 
 /// Checks the actual nested declaration, lexical parent and binder scope.
 pub fn validate_default_nested_callable_identity(
-    foundation: &OdrFreeHirFoundation,
+    foundation: &crate::CanonicalHirFoundation,
     provider: ConeIdentity,
     descriptor: DefaultSourceNestedCallableDescriptorV1<'_>,
     origin: &ExportDefinitionSourceV1,
@@ -38,7 +38,7 @@ pub fn validate_default_nested_callable_identity(
         return Err(failure(identity, Failure::DefinitionSource));
     }
     let definition_path = descriptor.definition_path();
-    let canonical = foundation.foundation.as_canonical();
+    let canonical = foundation.foundation;
     let (key_path, parent) = match identity {
         Identity::LocalFunction(declaration) => {
             let key = match declaration {

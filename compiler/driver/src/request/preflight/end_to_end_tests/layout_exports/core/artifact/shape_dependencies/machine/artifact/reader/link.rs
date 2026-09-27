@@ -5,8 +5,8 @@ use super::*;
 mod corruption;
 
 pub(super) fn check(
-    provider: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     original: &scoop_slib::DecodedCrossConeLayoutLinkSections<'_>,
 ) -> String {

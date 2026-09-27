@@ -6,7 +6,7 @@ mod lir_strong;
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check(
     name: &str,
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,

@@ -45,10 +45,10 @@ impl ValidatedCrossConeStrongLinkArtifact {
     pub fn identity_count(&self) -> usize {
         self.artifact.identity_graph().identity_count()
     }
-    pub fn hir_foundation(&self) -> &scoop_hir::OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         self.artifact.hir_foundation()
     }
-    pub fn mir_foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         self.artifact.mir_foundation()
     }
     pub fn lir_foundation(&self) -> &scoop_lir::ConeLirFoundation {

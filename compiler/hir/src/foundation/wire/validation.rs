@@ -42,7 +42,7 @@ impl ValidatedHirFoundation {
         self.canonical.counts()
     }
 
-    pub(crate) fn into_canonical(self) -> CanonicalHirFoundation {
+    pub fn into_canonical(self) -> CanonicalHirFoundation {
         self.canonical
     }
 

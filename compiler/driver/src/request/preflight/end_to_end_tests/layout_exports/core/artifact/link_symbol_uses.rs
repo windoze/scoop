@@ -39,8 +39,8 @@ enum Mutation {
 
 pub(super) fn check(
     path: &Path,
-    core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let current = reader::open_link(artifact).identity();

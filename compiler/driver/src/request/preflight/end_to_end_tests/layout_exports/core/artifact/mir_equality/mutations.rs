@@ -44,7 +44,7 @@ pub(super) fn check(replay: &Replay<'_>) {
     }
     assert!(count > 0);
     let metadata = replay.source.metadata();
-    let mut missing = metadata.foundation.clone().into_canonical();
+    let mut missing = metadata.foundation.clone();
     missing.set_generated_callables(vec![]).unwrap();
     let missing = hir::OdrFreeHirFoundation::try_new(missing).unwrap();
     let missing = replay

@@ -1,22 +1,18 @@
 //! Per-artifact HIR semantic-surface type-state transitions.
 
-use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, OdrFreeHirFoundation,
-};
+use scoop_hir::{CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1};
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{
     ConeLirFoundation, DecodedConeProductionSectionV1, DecodedCrossConeLirBridgeSectionV1,
 };
-use scoop_mir::{
-    DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
-};
+use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1};
 use scoop_wire::WirePath;
 
 use super::HirProductionValidatedCrossConeHirFrontSections;
 use crate::{
     ValidatedGraphArtifact, cross_cone_hir_authority::ValidatedNominalProviderView,
     hir_interface_validation::HirInterfaceValidationInput,
-    strong_compile_decode::OdrFreeStrongFoundationSet,
+    strong_compile_decode::CanonicalFoundationSet,
 };
 
 mod const_value;
@@ -38,7 +34,7 @@ pub use source_interface::*;
 struct ValidatedSurfaceFront<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
@@ -88,11 +84,11 @@ macro_rules! impl_surface_front_accessors {
                 self.0.graph.identity()
             }
 
-            pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+            pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
                 &self.0.foundations.hir
             }
 
-            pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+            pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
                 &self.0.foundations.mir
             }
 
@@ -164,7 +160,7 @@ impl ConstValidatedCrossConeHirFrontSections<'_> {
 macro_rules! impl_nominal_provider_view {
     ($state:ident) => {
         impl $state<'_> {
-            pub(crate) const fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
+            pub(crate) fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
                 ValidatedNominalProviderView {
                     identity: self.0.graph.identity(),
                     identities: &self.0.identities,

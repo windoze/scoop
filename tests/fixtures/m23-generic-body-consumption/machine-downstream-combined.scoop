@@ -1,0 +1,15 @@
+import primitive
+import localValue
+import relay
+import relayValue
+import recovery
+import defaultValue
+
+public fun check(): Int {
+    if (primitive() != 41) { return 1 }
+    if (localValue() != 42) { return 2 }
+    if (relayValue() != 43) { return 3 }
+    if (recovery() != 44) { return 4 }
+    if (defaultValue() != 45) { return 5 }
+    return relay(42)
+}

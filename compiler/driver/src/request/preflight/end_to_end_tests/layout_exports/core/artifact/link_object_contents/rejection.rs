@@ -2,8 +2,8 @@ use super::super::link_archive::{self, Rewrite};
 use super::*;
 
 pub(super) fn mutation(
-    core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
     provider: ConeIdentity,
     mutation: &Mutation,
@@ -100,8 +100,8 @@ pub(super) fn mutation(
 }
 
 pub(super) fn views_and_profile(
-    core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
     bridge_provider: ConeIdentity,
 ) {

@@ -4,10 +4,10 @@ use scoop_identity::{
     ConeIdentity, DefinitionOrigin, PersistentSourceContextId, SourceIdentity, SourceSpan,
 };
 
-use super::{CanonicalHirFoundation, OdrFreeHirFoundation};
+use super::CanonicalHirFoundation;
 use crate::ExportDefinitionSourceV1;
 
-impl OdrFreeHirFoundation {
+impl CanonicalHirFoundation {
     /// Checks source/context membership and declared byte positions. The caller
     /// selects this already validated foundation from the actual provider graph.
     pub fn validate_definition_source_location(
@@ -24,17 +24,6 @@ impl OdrFreeHirFoundation {
         origin: &DefinitionOrigin,
     ) -> Result<(), DefinitionSourceLocationValidationError> {
         self.validate_source_location(provider, origin.source(), origin.span(), origin.context())
-    }
-
-    pub(super) fn validate_source_location(
-        &self,
-        provider: ConeIdentity,
-        source: &SourceIdentity,
-        span: SourceSpan,
-        context_id: PersistentSourceContextId,
-    ) -> Result<(), DefinitionSourceLocationValidationError> {
-        self.as_canonical()
-            .validate_source_location(provider, source, span, context_id)
     }
 }
 

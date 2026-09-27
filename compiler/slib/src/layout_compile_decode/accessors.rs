@@ -1,6 +1,4 @@
-use scoop_hir::OdrFreeHirFoundation;
 use scoop_lir::ConeLirFoundation;
-use scoop_mir::OdrFreeMirFoundation;
 
 use super::*;
 use crate::{
@@ -123,11 +121,11 @@ impl FoundationValidatedCrossConeLayoutCompileSections<'_> {
         self.graph.identity()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -189,11 +187,11 @@ impl ResolvedCrossConeLayoutHirSections<'_> {
         self.graph.identity()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -263,11 +261,11 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
         self.graph.identity()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -319,7 +317,7 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
         &mut self,
     ) -> (
         &ValidatedIdentityGraph,
-        &OdrFreeHirFoundation,
+        &scoop_hir::CanonicalHirFoundation,
         &CoreBootstrapInterfaceSectionV1,
         &CrossConeHirInterfaceSectionV1,
         &CrossConeTypeSemanticsSectionV1,

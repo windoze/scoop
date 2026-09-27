@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check(
     name: &str,
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     callables: scoop_slib::MirSourceCallablesValidatedCrossConeLayoutClosure<'_>,
     units: &[mir::MirTypeBridgeInitializationUnitV1],
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,

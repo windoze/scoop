@@ -31,7 +31,7 @@ impl ValidatedMirFoundation {
         &self.canonical
     }
 
-    pub(crate) fn into_canonical(self) -> CanonicalMirFoundation {
+    pub fn into_canonical(self) -> CanonicalMirFoundation {
         self.canonical
     }
 

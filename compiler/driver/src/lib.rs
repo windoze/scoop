@@ -8,7 +8,7 @@ mod request;
 mod trusted_core;
 
 pub use artifact_production::{
-    CrossConeLayoutArtifactMetadataInputV1, CrossConeStrongArtifactMetadataInputV1,
+    CrossConeArtifactMetadataInputV1, CrossConeLayoutArtifactMetadataInputV1,
     LayoutArtifactProductionError,
 };
 pub use object_production::{

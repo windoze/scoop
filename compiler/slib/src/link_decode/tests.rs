@@ -50,14 +50,8 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     let odr_free = checked.validate_foundation_structure().unwrap();
     assert_eq!(odr_free.identity(), cone().identity());
     assert_eq!(odr_free.declared_identity_count(), 17);
-    assert_eq!(
-        odr_free.hir_foundation().as_canonical().counts().odr_groups,
-        0
-    );
-    assert_eq!(
-        odr_free.mir_foundation().as_canonical().counts().odr_groups,
-        0
-    );
+    assert_eq!(odr_free.hir_foundation().counts().odr_groups, 0);
+    assert_eq!(odr_free.mir_foundation().counts().odr_groups, 0);
     assert_eq!(
         odr_free.lir_foundation().as_canonical().counts().odr_groups,
         0
@@ -660,7 +654,7 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
             &empty_hir_library_section(),
         )
         .unwrap()
-        .validate_against_strong_foundation(cone().identity(), &hir_proof)
+        .validate_against(cone().identity(), &hir_proof)
         .unwrap();
         let mir_production = scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
             cone().identity(),

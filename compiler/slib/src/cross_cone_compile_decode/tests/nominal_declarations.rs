@@ -36,7 +36,7 @@ fn signature_queries_resolve_actual_local_and_dependency_declarations() {
         } else {
             (
                 scoop_identity::ConeIdentity::SINGLE_FILE,
-                &empty_foundation,
+                empty_foundation.as_canonical(),
                 &empty,
                 vec![provider.nominal_provider_view()],
             )

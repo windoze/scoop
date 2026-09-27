@@ -309,7 +309,7 @@ impl WireEncode for ConeCompileCacheInputV1 {
 }
 
 pub(crate) fn strong_profile_id() -> ArtifactCapabilityProfileId {
-    ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG.id()
+    ArtifactCapabilityProfile::CROSS_CONE_GENERIC.id()
 }
 
 fn encode_requested_kind(

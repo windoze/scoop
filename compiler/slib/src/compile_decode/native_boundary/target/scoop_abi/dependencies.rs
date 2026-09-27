@@ -9,7 +9,7 @@ mod shared;
 pub(crate) struct AbiReplayDependency<'a> {
     pub identity: ConeIdentity,
     pub identities: &'a ValidatedIdentityGraph,
-    pub foundation: &'a OdrFreeHirFoundation,
+    pub foundation: &'a scoop_hir::CanonicalHirFoundation,
     pub nominals: &'a CanonicalNominalInterfacesV1,
 }
 

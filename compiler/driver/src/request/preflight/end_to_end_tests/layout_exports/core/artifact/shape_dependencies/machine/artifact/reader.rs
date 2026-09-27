@@ -11,8 +11,8 @@ mod link;
 pub(super) fn check(
     name: &str,
     fixtures: &Path,
-    provider: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
     let compile = open(artifact);

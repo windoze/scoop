@@ -37,8 +37,8 @@ enum Mutation {
 
 pub(super) fn check(
     name: &str,
-    core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let mut cases = BTreeMap::new();
@@ -113,7 +113,7 @@ pub(super) fn check(
 }
 
 fn check_objects(
-    source: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    source: &slib::AssembledCrossConeLayoutArtifactV1,
     proof: &slib::ReplayedLayoutLinkObjectContentsV1,
 ) {
     let payloads = super::link_archive::payloads(source);

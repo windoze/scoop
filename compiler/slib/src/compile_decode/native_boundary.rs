@@ -3,9 +3,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use scoop_hir::{
-    NativeBoundaryNominalOwner, NativeBoundaryTypeDefinitionRecord, OdrFreeHirFoundation,
-};
+use scoop_hir::{NativeBoundaryNominalOwner, NativeBoundaryTypeDefinitionRecord};
 use scoop_identity::{
     CallableApplicationKey, CallableArguments, CallableInstantiationOwner,
     CallableMaterializationContext, CallbackApplicationKey, CallbackRegistrationKey,
@@ -18,7 +16,7 @@ use scoop_identity::{
     SourceNativeExternalContractRecord, SourceScoopAbiFunctionSignature, ValidatedIdentityGraph,
 };
 use scoop_lir::{CallbackBridgeRecord, ConeLirFoundation};
-use scoop_mir::{CallbackApplicationRecord, OdrFreeMirFoundation};
+use scoop_mir::CallbackApplicationRecord;
 use scoop_wire::{WireError, WirePath};
 
 use crate::ValidatedGraphArtifact;
@@ -40,9 +38,9 @@ pub(crate) struct NativeBoundaryFoundationView<'foundation> {
 }
 
 impl<'foundation> NativeBoundaryFoundationView<'foundation> {
-    pub(crate) fn from_odr_free(
-        hir: &'foundation OdrFreeHirFoundation,
-        mir: &'foundation OdrFreeMirFoundation,
+    pub(crate) fn from_foundations(
+        hir: &'foundation scoop_hir::CanonicalHirFoundation,
+        mir: &'foundation scoop_mir::CanonicalMirFoundation,
         lir: &'foundation ConeLirFoundation,
     ) -> Self {
         Self {

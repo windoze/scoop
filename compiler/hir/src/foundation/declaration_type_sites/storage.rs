@@ -8,7 +8,7 @@ use scoop_identity::{
 impl Input<'_> {
     pub(super) fn field(&mut self, field: PersistentFieldId) -> Result<(), Error> {
         let at = HirDependencyTypePositionV1::FieldStorage(field);
-        let key = self.key(&self.foundation.as_canonical().fields, field)?;
+        let key = self.key(&self.foundation.fields, field)?;
         match key.view() {
             FieldIdentityView::SourceDeclared { owner, .. }
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
@@ -16,7 +16,7 @@ impl Input<'_> {
                 self.nominal(owner, at)?;
             }
             FieldIdentityView::Generated { owner, key } => {
-                let generated = self.key(&self.foundation.as_canonical().generated_types, owner)?;
+                let generated = self.key(&self.foundation.generated_types, owner)?;
                 let GeneratedNominalKey::ObjectBackingClass { object } = generated else {
                     return Err(Error::StoragePosition(at));
                 };
@@ -35,7 +35,7 @@ impl Input<'_> {
         field: PersistentEnumVariantFieldId,
     ) -> Result<(), Error> {
         let at = HirDependencyTypePositionV1::EnumVariantFieldStorage(field);
-        let foundation = self.foundation.as_canonical();
+        let foundation = self.foundation;
         let key = self.key(&foundation.enum_variant_fields, field)?;
         let variant = self.key(&foundation.enum_variants, key.variant())?;
         let owner = variant.source_owner().ok_or(Error::StoragePosition(at))?;
@@ -52,7 +52,7 @@ impl Input<'_> {
         let CallableTemplateOwner::Constructor(id) = root.template() else {
             return Err(Error::StoragePosition(at));
         };
-        let key = self.key(&self.foundation.as_canonical().constructors, id)?;
+        let key = self.key(&self.foundation.constructors, id)?;
         let Some(DefinitionOwnerAtom::Type(owner)) = key.owners().owners().last() else {
             return Err(Error::StoragePosition(at));
         };
@@ -71,7 +71,7 @@ impl Input<'_> {
         unit: PersistentInitializationUnitId,
     ) -> Result<(), Error> {
         let at = HirDependencyTypePositionV1::InitializationCycleMessage(unit);
-        let key = self.key(&self.foundation.as_canonical().initialization_units, unit)?;
+        let key = self.key(&self.foundation.initialization_units, unit)?;
         match key {
             InitializationUnitKey::TopLevelProperty(property) => {
                 self.property(PropertyOwner::Property(*property))?
@@ -100,7 +100,7 @@ impl Input<'_> {
         let NominalDeclarationOwner::Concrete(owner) = owner else {
             return Err(Error::StoragePosition(at));
         };
-        let key = self.key::<PersistentTypeId, _>(&self.foundation.as_canonical().types, owner)?;
+        let key = self.key::<PersistentTypeId, _>(&self.foundation.types, owner)?;
         self.source(key)?;
         Ok(key)
     }

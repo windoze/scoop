@@ -9,7 +9,7 @@ use scoop_lir::{
     ConeLirFoundation, ConeProductionSectionV1, CrossConeLirBridgeSectionV1,
     CrossConeLirBridgeValidationError,
 };
-use scoop_mir::{CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation};
+use scoop_mir::{CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1};
 
 use super::MirBridgeValidatedCrossConeHirFrontSections;
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
         validate_shared_native_boundary_parts,
     },
     strong_compile_decode::{
-        OdrFreeStrongFoundationSet, StrongProfileLirProductionError, StrongProfileSemanticFront,
+        CanonicalFoundationSet, StrongProfileLirProductionError, StrongProfileSemanticFront,
         validate_strong_profile_lir_with_shape_sources,
     },
 };
@@ -33,7 +33,7 @@ mod native_boundary;
 pub struct LirBridgeValidatedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
+    foundations: CanonicalFoundationSet,
     hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: CoreBootstrapBridgeSectionV1,
@@ -70,7 +70,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         &self.hir_interface
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -151,11 +151,11 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
         let shape_sources = scoop_hir::PublicNominalShapeRequirementsV1::from_shared_surface(
             graph.identity(),
             hir_core_production.direct_public_surface(),
-            foundations.hir.as_canonical(),
+            foundations.hir.as_ref(),
             hir_interface.nominal_interfaces(),
             hir_interface.callable_interfaces(),
         )
-        .and_then(|roots| roots.source_declarations(foundations.hir.as_canonical()))
+        .and_then(|roots| roots.source_declarations(foundations.hir.as_ref()))
         .map_err(StrongProfileLirProductionError::ShapeSources)
         .map_err(CrossConeLirFrontValidationError::StrongProduction)?;
         let lir_strong_production = validate_strong_profile_lir_with_shape_sources(

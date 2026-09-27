@@ -59,8 +59,8 @@ pub(super) fn inspect(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> String {
 
 pub(super) fn check(
     symbols_path: &Path,
-    core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
     mut dump: String,
 ) {

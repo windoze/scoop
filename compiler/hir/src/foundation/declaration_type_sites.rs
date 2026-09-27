@@ -1,6 +1,6 @@
 //! Declaration type sites bind to this artifact's existing typed identities.
 
-use super::{CanonicalHirFoundation, OdrFreeHirFoundation};
+use super::CanonicalHirFoundation;
 use crate::{HirCallableTypePositionV1, HirDependencyTypePositionV1};
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
@@ -14,7 +14,7 @@ mod storage;
 pub use errors::DeclarationTypeSiteValidationError;
 type Error = DeclarationTypeSiteValidationError;
 
-impl OdrFreeHirFoundation {
+impl CanonicalHirFoundation {
     pub fn validate_declaration_type_position(
         &self,
         current: ConeIdentity,
@@ -30,7 +30,7 @@ impl OdrFreeHirFoundation {
                 input.root(root, Some(part))
             }
             HirDependencyTypePositionV1::LocalValue(local) => {
-                let key = input.key(&self.as_canonical().local_values, local)?;
+                let key = input.key(&self.local_values, local)?;
                 input.root(key.owner(), None)?;
                 input.origin(DefinitionOriginSubject::LocalValue(local))
             }
@@ -51,7 +51,7 @@ impl OdrFreeHirFoundation {
 }
 
 struct Input<'a> {
-    foundation: &'a OdrFreeHirFoundation,
+    foundation: &'a crate::CanonicalHirFoundation,
     current: ConeIdentity,
 }
 
@@ -64,7 +64,7 @@ impl<'a> Input<'a> {
         if root.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::Materialization(root));
         }
-        let foundation = self.foundation.as_canonical();
+        let foundation = self.foundation;
         match root.template() {
             CallableTemplateOwner::Function(id) => {
                 let key = self.key(&foundation.functions, id)?;
@@ -109,7 +109,7 @@ impl<'a> Input<'a> {
     }
 
     fn property_key(&mut self, property: PropertyOwner) -> Result<&'a SourceDeclarationKey, Error> {
-        let foundation = self.foundation.as_canonical();
+        let foundation = self.foundation;
         let key = match property {
             PropertyOwner::Property(id) => self.key(&foundation.properties, id)?,
             PropertyOwner::ExtensionProperty(id) => {
@@ -132,7 +132,7 @@ impl<'a> Input<'a> {
     }
 
     fn origin(&mut self, subject: DefinitionOriginSubject) -> Result<(), Error> {
-        let foundation: &CanonicalHirFoundation = self.foundation.as_canonical();
+        let foundation: &CanonicalHirFoundation = self.foundation;
 
         let origin = foundation
             .definition_origin(subject)

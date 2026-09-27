@@ -77,11 +77,9 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::VerifiedCodeL
         &objects,
     )
     .unwrap();
-    let compatibility = CompatibilityRecord::new(
-        selection(),
-        ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
-    )
-    .unwrap();
+    let compatibility =
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
+            .unwrap();
     let image = crate::compute_runtime_image_fingerprint_v2(
         previous_image.image().clone(),
         patched,

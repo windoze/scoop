@@ -4,7 +4,7 @@ use super::*;
 mod projection;
 
 pub(super) fn replace(
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     failure: Failure,
 ) -> Vec<u8> {
     let mut changed = false;

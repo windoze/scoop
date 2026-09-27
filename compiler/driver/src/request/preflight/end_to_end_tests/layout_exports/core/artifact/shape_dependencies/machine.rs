@@ -20,7 +20,7 @@ pub(super) struct Provider<'a, 'p> {
     pub layout: &'a lir::LayoutAbiExportConstituentsV1,
     pub target: &'a scoop_toolchain::ResolvedTargetProfile,
     pub string: PersistentExactTypeId,
-    pub artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    pub artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
     pub owners: &'a [scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
 }
 

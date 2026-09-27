@@ -9,7 +9,7 @@ use LayoutArtifactProductionError as Error;
 pub use error::LayoutArtifactProductionError;
 
 pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
-    ordinary: CrossConeStrongArtifactMetadataInputV1<'ir>,
+    ordinary: CrossConeArtifactMetadataInputV1<'ir>,
     hir_types: &'ir scoop_hir::CrossConeTypeSemanticsSectionV1,
     mir_types: &'ir scoop_mir::CrossConeMirTypeBridgeSectionV1<'ir>,
     lir_layout: &'ir scoop_lir::CrossConeLayoutAbiSectionV1<'ir>,
@@ -17,7 +17,7 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
 
 impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
     pub const fn new(
-        ordinary: CrossConeStrongArtifactMetadataInputV1<'ir>,
+        ordinary: CrossConeArtifactMetadataInputV1<'ir>,
         hir_types: &'ir scoop_hir::CrossConeTypeSemanticsSectionV1,
         mir_types: &'ir scoop_mir::CrossConeMirTypeBridgeSectionV1<'ir>,
         lir_layout: &'ir scoop_lir::CrossConeLayoutAbiSectionV1<'ir>,
@@ -35,10 +35,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         emitted: scoop_codegen::EmittedConeObjectSetV2,
         generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
-    ) -> Result<slib::AssembledCrossConeLayoutStrongArtifactV1, Error> {
-        let mir_foundation =
-            scoop_mir::OdrFreeMirFoundation::try_new(self.ordinary.mir_foundation.clone())
-                .map_err(Error::MirProfile)?;
+    ) -> Result<slib::AssembledCrossConeLayoutArtifactV1, Error> {
         let prepared = objects::prepare(emitted, generated)?;
         let strong = prepared.patch_sites.builtins().strong_relocations().clone();
         let defined =
@@ -68,10 +65,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             &undefined,
             &self.ordinary.cone,
             &self.ordinary.direct_dependencies,
-            self.ordinary
-                .hir_foundation
-                .as_canonical()
-                .source_count_for_cone(current),
+            self.ordinary.hir_foundation.source_count_for_cone(current),
         )?;
         let code = slib::compute_cross_cone_layout_code_fingerprint_v1(
             finalized.projection,
@@ -81,8 +75,8 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             &shape,
         )
         .map_err(|error| Error::Code(Box::new(error)))?;
-        let artifact = slib::AssembledCrossConeLayoutStrongArtifactV1::write(
-            slib::CrossConeLayoutStrongArtifactInputV1::new(
+        let artifact = slib::AssembledCrossConeLayoutArtifactV1::write(
+            slib::CrossConeLayoutArtifactInputV1::new(
                 self.ordinary.producer,
                 self.ordinary.cone,
                 self.ordinary.direct_dependencies,
@@ -90,7 +84,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
                 self.ordinary.hir_core,
                 self.ordinary.hir_cross_cone,
                 self.hir_types,
-                &mir_foundation,
+                self.ordinary.mir_foundation,
                 self.ordinary.mir_core,
                 self.ordinary.mir_cross_cone,
                 self.mir_types,

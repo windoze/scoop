@@ -5,14 +5,14 @@ use scoop_identity::{
     NominalDeclarationOwner, PersistentId, SourceContextKey, ValidatedIdentityGraph,
 };
 
-use super::OdrFreeHirFoundation;
+use super::CanonicalHirFoundation;
 use crate::{ExportDefinitionSourceV1, PersistentLexicalRootV1, SourceNominalId};
 
 mod errors;
 pub use errors::DefaultTemplateRootOriginValidationError;
 type Error = DefaultTemplateRootOriginValidationError;
 
-impl OdrFreeHirFoundation {
+impl CanonicalHirFoundation {
     /// Checks artifact membership, canonical identity and the definition's
     /// source/context. Parameter and inherited-provider contracts are separate.
     #[allow(clippy::too_many_arguments)]
@@ -23,7 +23,7 @@ impl OdrFreeHirFoundation {
         root: PersistentLexicalRootV1,
         origin: &ExportDefinitionSourceV1,
     ) -> Result<(), Error> {
-        let canonical = self.as_canonical();
+        let canonical = self;
         let (subject, expected_context, root_provider) = match root {
             PersistentLexicalRootV1::Function(id) => (
                 DefinitionOriginSubject::Function(id),

@@ -12,9 +12,7 @@ use super::{
     DecodedHirOutputContractV1, DirectPublicSurfaceBuildError, DirectPublicSurfaceValidationError,
     HirOutputContractV1, HirOutputContractValidationError,
 };
-use crate::{
-    CanonicalHirFoundation, ExportHirOutput, OdrFreeHirFoundation, ValidatedHirFoundation,
-};
+use crate::{CanonicalHirFoundation, ExportHirOutput, ValidatedHirFoundation};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreBootstrapInterfaceSectionV1 {
@@ -83,15 +81,7 @@ impl DecodedCoreBootstrapInterfaceSectionV1 {
         self.validate_against(foundation.artifact(), foundation.canonical())
     }
 
-    pub fn validate_against_strong_foundation(
-        self,
-        artifact: ConeIdentity,
-        foundation: &OdrFreeHirFoundation,
-    ) -> Result<CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError> {
-        self.validate_against(artifact, foundation.as_canonical())
-    }
-
-    fn validate_against(
+    pub fn validate_against(
         self,
         artifact: ConeIdentity,
         foundation: &CanonicalHirFoundation,
@@ -200,3 +190,6 @@ fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+use crate::OdrFreeHirFoundation;

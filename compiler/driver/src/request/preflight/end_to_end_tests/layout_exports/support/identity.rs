@@ -8,7 +8,7 @@ pub(in super::super) fn identities(
 ) -> (
     ValidatedIdentityGraph,
     lir::ConeLirFoundation,
-    hir::OdrFreeHirFoundation,
+    hir::CanonicalHirFoundation,
 ) {
     let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();
     let provider = mir.module().cone;

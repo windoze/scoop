@@ -25,7 +25,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
     )
     .unwrap();
     let archive = crate::test_artifacts::manifest_archive(
-        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         cone.clone(),
         producer,
         Vec::new(),
@@ -49,7 +49,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
             sha256(b"distribution"),
             sha256(b"build"),
         ),
-        ArtifactCapabilityProfileId::cross_cone_layout_strong(),
+        ArtifactCapabilityProfileId::cross_cone_generic(),
         Vec::new(),
     )
     .unwrap();

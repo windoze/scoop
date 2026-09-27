@@ -7,7 +7,7 @@ pub(super) mod corruption;
 pub(super) mod reader;
 
 pub(super) fn check(
-    core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     core_direct: &mir::CrossConeMirBridgeSectionV1,
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core_lir: &lir::CrossConeLayoutAbiSectionV1<'_>,

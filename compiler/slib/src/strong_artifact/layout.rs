@@ -2,7 +2,7 @@
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
-    CrossConeTypeSemanticsSectionV1, OdrFreeHirFoundation,
+    CrossConeTypeSemanticsSectionV1,
 };
 use scoop_identity::ConeIdentity;
 use scoop_lir::{
@@ -11,7 +11,6 @@ use scoop_lir::{
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
-    OdrFreeMirFoundation,
 };
 use scoop_wire::encode;
 
@@ -26,7 +25,7 @@ use crate::{
 };
 
 mod error;
-pub use error::CrossConeLayoutStrongArtifactWriteError;
+pub use error::CrossConeLayoutArtifactWriteError;
 mod sections;
 use sections::{LayoutMetadataInput, assemble_metadata};
 
@@ -34,15 +33,15 @@ use sections::{LayoutMetadataInput, assemble_metadata};
 ///
 /// Strong V2, Link closures, object coverage, fingerprints, and the production
 /// manifest come from the same completed object production.
-pub struct CrossConeLayoutStrongArtifactInputV1<'ir> {
+pub struct CrossConeLayoutArtifactInputV1<'ir> {
     producer: ProducerRecord,
     cone: ConeRecord,
     direct_dependencies: Vec<DependencyRecord>,
-    hir_foundation: &'ir OdrFreeHirFoundation,
+    hir_foundation: &'ir scoop_hir::CanonicalHirFoundation,
     hir_production: &'ir CoreBootstrapInterfaceSectionV1,
     hir_cross_cone: CrossConeHirInterfaceSectionV1,
     hir_type_semantics: &'ir CrossConeTypeSemanticsSectionV1,
-    mir_foundation: &'ir OdrFreeMirFoundation,
+    mir_foundation: &'ir scoop_mir::CanonicalMirFoundation,
     mir_production: &'ir CoreBootstrapBridgeSectionV1,
     mir_cross_cone: &'ir CrossConeMirBridgeSectionV1,
     mir_type_bridge: &'ir CrossConeMirTypeBridgeSectionV1<'ir>,
@@ -53,17 +52,17 @@ pub struct CrossConeLayoutStrongArtifactInputV1<'ir> {
     link_objects: Vec<SlibMember>,
 }
 
-impl<'ir> CrossConeLayoutStrongArtifactInputV1<'ir> {
+impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         producer: ProducerRecord,
         cone: ConeRecord,
         direct_dependencies: Vec<DependencyRecord>,
-        hir_foundation: &'ir OdrFreeHirFoundation,
+        hir_foundation: &'ir scoop_hir::CanonicalHirFoundation,
         hir_production: &'ir CoreBootstrapInterfaceSectionV1,
         hir_cross_cone: CrossConeHirInterfaceSectionV1,
         hir_type_semantics: &'ir CrossConeTypeSemanticsSectionV1,
-        mir_foundation: &'ir OdrFreeMirFoundation,
+        mir_foundation: &'ir scoop_mir::CanonicalMirFoundation,
         mir_production: &'ir CoreBootstrapBridgeSectionV1,
         mir_cross_cone: &'ir CrossConeMirBridgeSectionV1,
         mir_type_bridge: &'ir CrossConeMirTypeBridgeSectionV1<'ir>,
@@ -96,16 +95,16 @@ impl<'ir> CrossConeLayoutStrongArtifactInputV1<'ir> {
 
 /// Canonical layout-profile bytes and their publication identities.
 #[derive(Debug, Eq, PartialEq)]
-pub struct AssembledCrossConeLayoutStrongArtifactV1 {
+pub struct AssembledCrossConeLayoutArtifactV1 {
     archive: CanonicalSlibArchive,
     summary: crate::CrossConeArtifactSummary,
 }
 
-impl AssembledCrossConeLayoutStrongArtifactV1 {
+impl AssembledCrossConeLayoutArtifactV1 {
     pub fn write(
-        input: CrossConeLayoutStrongArtifactInputV1<'_>,
-    ) -> Result<Self, CrossConeLayoutStrongArtifactWriteError> {
-        let CrossConeLayoutStrongArtifactInputV1 {
+        input: CrossConeLayoutArtifactInputV1<'_>,
+    ) -> Result<Self, CrossConeLayoutArtifactWriteError> {
+        let CrossConeLayoutArtifactInputV1 {
             producer,
             cone,
             direct_dependencies,
@@ -123,9 +122,6 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             layout_code,
             link_objects,
         } = input;
-        lir_foundation
-            .require_strong()
-            .map_err(CrossConeLayoutStrongArtifactWriteError::LirProfile)?;
         let identity = cone.identity();
         let link_object_count = link_objects.len();
         let (code, callable_link_closure, layout_link_closure) = layout_code.into_parts();
@@ -152,15 +148,15 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
 
         let target_selection = code.undefined_symbols().selection();
         if lir_layout_abi.target_profile() != target_selection.target() {
-            return Err(CrossConeLayoutStrongArtifactWriteError::TargetMismatch);
+            return Err(CrossConeLayoutArtifactWriteError::TargetMismatch);
         }
         let compatibility = CompatibilityRecord::new(
             target_selection,
-            ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
-        .map_err(CrossConeLayoutStrongArtifactWriteError::Compatibility)?;
+        .map_err(CrossConeLayoutArtifactWriteError::Compatibility)?;
         let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code)
-            .map_err(CrossConeLayoutStrongArtifactWriteError::LinkIdentityClosure)?;
+            .map_err(CrossConeLayoutArtifactWriteError::LinkIdentityClosure)?;
 
         let metadata = assemble_metadata(LayoutMetadataInput {
             hir_foundation,
@@ -188,7 +184,7 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             &metadata.mir.sections,
             &metadata.lir.sections,
         )
-        .map_err(CrossConeLayoutStrongArtifactWriteError::SemanticFingerprints)?;
+        .map_err(CrossConeLayoutArtifactWriteError::SemanticFingerprints)?;
         let semantic_fingerprints = SemanticFingerprintRecord::from_layout_production_manifest(
             foundation_fingerprints.hir(),
             foundation_fingerprints.mir(),
@@ -199,13 +195,13 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             manifest_single_cone_production_capability(),
             MemberPurposeSet::LINK,
             encode(&production_manifest).map_err(|source| {
-                CrossConeLayoutStrongArtifactWriteError::Encoding {
+                CrossConeLayoutArtifactWriteError::Encoding {
                     section: StrongArtifactSectionV1::ProductionManifest,
                     source,
                 }
             })?,
         )
-        .map_err(CrossConeLayoutStrongArtifactWriteError::ManifestSection)?;
+        .map_err(CrossConeLayoutArtifactWriteError::ManifestSection)?;
 
         let mut members = Vec::with_capacity(3 + link_objects.len());
         members.push(metadata.hir.into_member(identity)?);
@@ -221,7 +217,7 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             semantic_fingerprints,
             vec![manifest_section],
         )
-        .map_err(CrossConeLayoutStrongArtifactWriteError::Manifest)?;
+        .map_err(CrossConeLayoutArtifactWriteError::Manifest)?;
         let summary = crate::CrossConeArtifactSummary::from_layout(
             &manifest,
             production_manifest.code_proof().production().projection(),
@@ -229,7 +225,7 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             target_selection,
         );
         let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members)
-            .map_err(CrossConeLayoutStrongArtifactWriteError::Archive)?;
+            .map_err(CrossConeLayoutArtifactWriteError::Archive)?;
         Ok(Self { archive, summary })
     }
 
@@ -268,7 +264,7 @@ fn validate_producers(
     lir_layout_abi: &CrossConeLayoutAbiSectionV1<'_>,
     callable_link_closure: &crate::CrossConeLinkClosureSectionV1,
     layout_link_closure: &crate::CrossConeLayoutLinkClosureSectionV1<'_>,
-) -> Result<(), CrossConeLayoutStrongArtifactWriteError> {
+) -> Result<(), CrossConeLayoutArtifactWriteError> {
     for (component, actual) in [
         ("Code", code.producer()),
         ("MIR bridge", mir_cross_cone.artifact()),
@@ -281,7 +277,7 @@ fn validate_producers(
     ] {
         if actual != expected {
             return Err(
-                CrossConeLayoutStrongArtifactWriteError::ComponentProducerMismatch {
+                CrossConeLayoutArtifactWriteError::ComponentProducerMismatch {
                     component,
                     expected,
                     actual,
@@ -298,27 +294,27 @@ fn validate_link_projections(
     lir_layout_abi: &CrossConeLayoutAbiSectionV1<'_>,
     callable_link_closure: &crate::CrossConeLinkClosureSectionV1,
     layout_link_closure: &crate::CrossConeLayoutLinkClosureSectionV1<'_>,
-) -> Result<(), CrossConeLayoutStrongArtifactWriteError> {
+) -> Result<(), CrossConeLayoutArtifactWriteError> {
     let callable_imports = CrossConeLinkSemanticImportSetV1::from_lir_bridge(lir_cross_cone)
-        .map_err(CrossConeLayoutStrongArtifactWriteError::CallableSemanticImports)?;
+        .map_err(CrossConeLayoutArtifactWriteError::CallableSemanticImports)?;
     if &callable_imports != callable_link_closure.semantic_imports() {
-        return Err(CrossConeLayoutStrongArtifactWriteError::CallableSemanticImportMismatch);
+        return Err(CrossConeLayoutArtifactWriteError::CallableSemanticImportMismatch);
     }
     let layout_imports =
         encode(lir_layout_abi.selected().physical_imports()).map_err(|source| {
-            CrossConeLayoutStrongArtifactWriteError::Encoding {
+            CrossConeLayoutArtifactWriteError::Encoding {
                 section: StrongArtifactSectionV1::LirCrossConeLayoutAbi,
                 source,
             }
         })?;
     let closure_imports = encode(layout_link_closure.semantic_imports()).map_err(|source| {
-        CrossConeLayoutStrongArtifactWriteError::Encoding {
+        CrossConeLayoutArtifactWriteError::Encoding {
             section: StrongArtifactSectionV1::CrossConeLayoutLinkClosure,
             source,
         }
     })?;
     if layout_imports != closure_imports {
-        return Err(CrossConeLayoutStrongArtifactWriteError::LayoutSemanticImportMismatch);
+        return Err(CrossConeLayoutArtifactWriteError::LayoutSemanticImportMismatch);
     }
     let expected_objects = code.production().link_objects().projection();
     if callable_link_closure
@@ -330,7 +326,7 @@ fn validate_link_projections(
             .verified_link_objects()
             != expected_objects
     {
-        return Err(CrossConeLayoutStrongArtifactWriteError::LinkObjectProjectionMismatch);
+        return Err(CrossConeLayoutArtifactWriteError::LinkObjectProjectionMismatch);
     }
     Ok(())
 }

@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::{DeclarationName, SignatureTypeKey, SourceDeclarationKey};
 
 pub(super) fn check(
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     target: &scoop_toolchain::ResolvedTargetProfile,
 ) {
     let bytes = artifact.as_bytes().to_vec();

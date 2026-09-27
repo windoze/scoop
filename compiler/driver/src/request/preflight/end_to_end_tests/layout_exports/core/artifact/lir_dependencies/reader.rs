@@ -1,7 +1,7 @@
 use super::*;
 
 pub(in super::super) fn open(
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
 ) -> scoop_slib::DecodedCrossConeLayoutCompileSections<'_> {
     DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
         .unwrap()
@@ -12,14 +12,14 @@ pub(in super::super) fn open(
 }
 
 pub(in super::super) fn read<'a>(
-    core: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
 ) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
     read_sections(open(core), open(artifact))
 }
 
 pub(in super::super) fn open_link(
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
 ) -> scoop_slib::DecodedCrossConeLayoutLinkSections<'_> {
     DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
         .unwrap()
@@ -30,8 +30,8 @@ pub(in super::super) fn open_link(
 }
 
 pub(in super::super) fn read_link<'a>(
-    core: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
 ) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
     read_sections(
         open_link(core).into_shared_sections().unwrap(),
@@ -88,8 +88,8 @@ pub(in super::super) fn read_sections<'a>(
 pub(super) fn check(
     name: &str,
     fixtures: &Path,
-    core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
     let closure = read(core, artifact);

@@ -2,11 +2,10 @@ use super::*;
 
 #[derive(Debug)]
 pub enum LayoutArtifactProductionError {
-    MirProfile(scoop_mir::OdrFreeMirFoundationError),
     Objects(Box<ObjectError>),
     Layout(Box<slib::LayoutLinkClosureError>),
     Code(Box<slib::LayoutCodeFingerprintError>),
-    Assembly(Box<slib::CrossConeLayoutStrongArtifactWriteError>),
+    Assembly(Box<slib::CrossConeLayoutArtifactWriteError>),
     TargetSelectionMismatch,
 }
 
@@ -19,7 +18,6 @@ impl From<ObjectError> for LayoutArtifactProductionError {
 impl std::fmt::Display for LayoutArtifactProductionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MirProfile(error) => error.fmt(f),
             Self::Objects(error) => error.fmt(f),
             Self::Layout(error) => error.fmt(f),
             Self::Code(error) => error.fmt(f),
@@ -34,7 +32,6 @@ impl std::fmt::Display for LayoutArtifactProductionError {
 impl std::error::Error for LayoutArtifactProductionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::MirProfile(error) => Some(error),
             Self::Objects(error) => Some(error.as_ref()),
             Self::Layout(error) => Some(error.as_ref()),
             Self::Code(error) => Some(error.as_ref()),

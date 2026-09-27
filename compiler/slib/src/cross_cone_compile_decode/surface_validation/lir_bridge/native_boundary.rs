@@ -30,7 +30,7 @@ impl LirBridgeValidatedCrossConeHirFrontSections<'_> {
             &mut self.graph,
             current,
             &dependencies,
-            &NativeBoundaryFoundationView::from_odr_free(
+            &NativeBoundaryFoundationView::from_foundations(
                 &self.foundations.hir,
                 &self.foundations.mir,
                 &self.foundations.lir,

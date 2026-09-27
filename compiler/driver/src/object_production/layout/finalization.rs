@@ -63,7 +63,7 @@ impl PreparedLayoutObjects {
         let registrations = registrations::finalize(self, undefined)?;
         let compatibility = slib::CompatibilityRecord::new(
             self.target_selection,
-            ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .map_err(BuiltinObjectProductionError::Compatibility)?;
         let image = slib::compute_runtime_image_fingerprint_v2(image, registrations, compatibility)

@@ -27,14 +27,14 @@ pub struct ArtifactCapabilityProfile(ArtifactCapabilityProfileKind);
 enum ArtifactCapabilityProfileKind {
     SingleCone,
     CrossConeSemantics,
-    CrossConeLayout,
+    CrossConeGeneric,
 }
 
 impl ArtifactCapabilityProfile {
     pub const SINGLE_CONE_STRONG: Self = Self(ArtifactCapabilityProfileKind::SingleCone);
     pub const CROSS_CONE_SEMANTICS_STRONG: Self =
         Self(ArtifactCapabilityProfileKind::CrossConeSemantics);
-    pub const CROSS_CONE_LAYOUT_STRONG: Self = Self(ArtifactCapabilityProfileKind::CrossConeLayout);
+    pub const CROSS_CONE_GENERIC: Self = Self(ArtifactCapabilityProfileKind::CrossConeGeneric);
 
     pub fn id(self) -> ArtifactCapabilityProfileId {
         match self.0 {
@@ -44,8 +44,8 @@ impl ArtifactCapabilityProfile {
             ArtifactCapabilityProfileKind::CrossConeSemantics => {
                 ArtifactCapabilityProfileId::cross_cone_semantics_strong()
             }
-            ArtifactCapabilityProfileKind::CrossConeLayout => {
-                ArtifactCapabilityProfileId::cross_cone_layout_strong()
+            ArtifactCapabilityProfileKind::CrossConeGeneric => {
+                ArtifactCapabilityProfileId::cross_cone_generic()
             }
         }
     }
@@ -55,8 +55,8 @@ impl ArtifactCapabilityProfile {
             Some(Self::SINGLE_CONE_STRONG)
         } else if id == &ArtifactCapabilityProfileId::cross_cone_semantics_strong() {
             Some(Self::CROSS_CONE_SEMANTICS_STRONG)
-        } else if id == &ArtifactCapabilityProfileId::cross_cone_layout_strong() {
-            Some(Self::CROSS_CONE_LAYOUT_STRONG)
+        } else if id == &ArtifactCapabilityProfileId::cross_cone_generic() {
+            Some(Self::CROSS_CONE_GENERIC)
         } else {
             None
         }
@@ -64,7 +64,7 @@ impl ArtifactCapabilityProfile {
 
     pub fn descriptor(self) -> ArtifactCapabilityProfileDescriptor {
         match self.0 {
-            ArtifactCapabilityProfileKind::CrossConeLayout => {
+            ArtifactCapabilityProfileKind::CrossConeGeneric => {
                 let mut descriptor = Self::CROSS_CONE_SEMANTICS_STRONG.descriptor();
                 descriptor.id = self.id();
                 descriptor
@@ -79,7 +79,7 @@ impl ArtifactCapabilityProfile {
                 descriptor.required_lir.extend([
                     lir_cross_cone_layout_abi_capability(),
                     lir_cross_cone_layout_link_closure_capability(),
-                    lir_strong_production_v2_capability(),
+                    lir_cone_production_capability(),
                 ]);
                 descriptor.required_hir.sort_unstable();
                 descriptor.required_mir.sort_unstable();

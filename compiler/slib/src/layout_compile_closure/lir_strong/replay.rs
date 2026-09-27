@@ -22,7 +22,7 @@ pub(super) fn replay(
     let roots = PublicNominalShapeRequirementsV1::from_shared_surface(
         provider,
         parts.hir_core.direct_public_surface(),
-        parts.hir_foundation.as_canonical(),
+        parts.hir_foundation,
         parts.hir_interface.nominal_interfaces(),
         parts.hir_interface.callable_interfaces(),
     )?;

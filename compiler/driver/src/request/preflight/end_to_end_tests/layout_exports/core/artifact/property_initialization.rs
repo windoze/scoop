@@ -15,7 +15,7 @@ pub(super) fn check(
     core_input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core_lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    core_artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core_artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     physical::check_provider(core_input);
     let read = scoop_slib::read_cross_cone_layout_artifact_closure(

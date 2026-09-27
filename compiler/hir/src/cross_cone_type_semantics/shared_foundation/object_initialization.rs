@@ -12,11 +12,7 @@ impl SharedTypeMetadataV1<'_> {
         self,
     ) -> Result<BTreeMap<PersistentTypeId, PersistentInitializationUnitId>, Error> {
         let mut units = BTreeMap::new();
-        for record in self
-            .foundation
-            .as_canonical()
-            .type_source_initialization_records()
-        {
+        for record in self.foundation.type_source_initialization_records() {
             let owner = match record.key() {
                 InitializationUnitKey::Object(owner) | InitializationUnitKey::Companion(owner) => {
                     *owner

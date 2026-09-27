@@ -16,7 +16,7 @@ pub(super) use receivers::check as check_receivers;
 
 pub(super) fn publication_mutation(
     public: &hir::CrossConeHirInterfaceSectionV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) -> (Vec<u8>, hir::concrete::ExecutableExpressionPosition) {
     let candidate = candidates::mutations(public).remove(0);
     (
@@ -28,8 +28,8 @@ pub(super) fn publication_mutation(
 pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     provider: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    provider_artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider_artifact: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     members::check(input, provider_artifact, artifact);
     let foundation = hir::OdrFreeHirFoundation::try_new(

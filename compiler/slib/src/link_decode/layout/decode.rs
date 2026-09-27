@@ -2,10 +2,10 @@ use crate::{
     ArtifactCapabilityProfile, MetadataLocation, SingleConeLinkSectionDecodeError,
     ValidatedGraphArtifact, hir_core_bootstrap_interface_capability,
     hir_cross_cone_interface_capability, hir_cross_cone_type_semantics_capability,
-    hir_identity_foundation_capability, lir_cross_cone_layout_abi_capability,
-    lir_cross_cone_layout_link_closure_capability, lir_cross_cone_link_closure_capability,
-    lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
-    lir_link_identity_closure_capability, lir_strong_production_v2_capability,
+    hir_identity_foundation_capability, lir_cone_production_capability,
+    lir_cross_cone_layout_abi_capability, lir_cross_cone_layout_link_closure_capability,
+    lir_cross_cone_link_closure_capability, lir_cross_cone_param_free_bridge_capability,
+    lir_identity_foundation_capability, lir_link_identity_closure_capability,
     mir_core_bootstrap_bridge_capability, mir_cross_cone_param_free_bridge_capability,
     mir_cross_cone_type_bridge_capability, mir_identity_foundation_capability,
 };
@@ -24,8 +24,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
         mut self,
     ) -> Result<DecodedCrossConeLayoutLinkSections<'input>, CrossConeLayoutLinkSectionDecodeError>
     {
-        let profile =
-            require_strong_profile(&self, ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG)?;
+        let profile = require_strong_profile(&self, ArtifactCapabilityProfile::CROSS_CONE_GENERIC)?;
         profile
             .validate_compile_manifest_inventory(self.envelope.manifest().sections())
             .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
@@ -91,7 +90,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
         let lir_strong_production = decode_required(
             &lir,
             MetadataLocation::Lir,
-            lir_strong_production_v2_capability(),
+            lir_cone_production_capability(),
         )?;
         let lir_cross_cone_bridge = decode_required(
             &lir,

@@ -67,10 +67,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_hir::OdrFreeHirFoundation::try_new(output.foundation.clone()).unwrap();
     assert_eq!(
         decoded
-            .validate_against_strong_foundation(
-                scoop_identity::ConeIdentity::CORE,
-                &odr_free_foundation
-            )
+            .validate_against(scoop_identity::ConeIdentity::CORE, &odr_free_foundation)
             .unwrap(),
         output.production_section.clone()
     );
@@ -417,7 +414,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     );
     assert_eq!(
         published.artifact().summary().profile(),
-        &scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG.id()
+        &scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC.id()
     );
     assert!(
         published

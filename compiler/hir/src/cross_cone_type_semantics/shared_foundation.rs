@@ -6,7 +6,7 @@ use scoop_identity::{
 
 use crate::{
     CheckedExactTypeFactsV1, CheckedNominalRepresentationSupportV1, CrossConeHirInterfaceSectionV1,
-    CrossConeTypeSemanticsSectionV1, NominalMaterializationClosure, OdrFreeHirFoundation,
+    CrossConeTypeSemanticsSectionV1, NominalMaterializationClosure,
 };
 
 mod equality_applications;
@@ -28,7 +28,7 @@ pub(crate) use sources::declaration_access;
 pub struct SharedTypeMetadataV1<'a> {
     pub provider: ConeIdentity,
     pub identities: &'a ValidatedIdentityGraph,
-    pub foundation: &'a OdrFreeHirFoundation,
+    pub foundation: &'a crate::CanonicalHirFoundation,
     pub public: &'a CrossConeHirInterfaceSectionV1,
 }
 
@@ -40,9 +40,7 @@ impl<'a> SharedTypeMetadataV1<'a> {
         scoop_identity::PersistentInitializationUnitId,
         scoop_identity::InitializationUnitKey,
     >] {
-        self.foundation
-            .as_canonical()
-            .type_source_initialization_records()
+        self.foundation.type_source_initialization_records()
     }
 
     /// Resolves a parameter-free source signature through this artifact's

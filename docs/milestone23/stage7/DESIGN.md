@@ -342,7 +342,13 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 
 ## 10. wire、profile 与缓存迁移
 
-以下是本设计待实施的版本，不表示当前代码已经支持。正式生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/1`。它从 M23-6 的完整 inventory 继承未变化项，替换以下项；descriptor 仍只有 id 与必需 section 清单。
+以下表格列出本阶段最终需要的 section 版本，不表示所有后续格式已经实现。正式生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/1`。它沿用原完整 layout 产物的同一 producer/reader，替换 `cross-cone-layout-strong/3`；descriptor 仍只有 id 与当前实际必需 section 清单。
+
+第一条泛型函数纵向主线启用该 profile 时，使用已完成的 manifest `/2`、HIR interface `/32`、HIR type semantics `/8`、MIR type bridge `/1`、LIR layout ABI `/3`、callable link closure `/1`、layout link closure `/2`、link identity closure `/4`，并将原 Strong production `/14` 替换为 `cone-production/1`、Scoop 对象 verifier 升至 `/3`。后续构造、委托和类型 application 改变实际 payload 时，再依下表升级对应 section，同步 descriptor fingerprint 与缓存；不为尚未生产的数据预写空表、引入临时 profile 或保留 layout-strong 双轨。profile 的启用不代替第 12、14 节的完整阶段验收。
+
+`cone-production` 与历史 `strong-production` 是同一 production section 的替代格式，同一产物不能同时携带二者；即使旧项标为 optional 也按冲突格式拒绝。旧 layout-strong profile ID 直接退役，不通过新 profile 的名称或版本解析。
+
+共有 HIR/MIR 的查询、native ABI、源码位置、类型表示及产物装配直接借用原 canonical foundation；reader 保存并共享本次已经验证的数据，不要求泛型产物经过 `OdrFree` 包装。历史 Strong 输入的限制仅在其自身格式边界检查。普通参数自由导出仍是完整 foundation 的对应子集；同一产物包含泛型 application 不改变其源声明、Strong ABI、字段布局或实际 provider。
 
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |
@@ -372,7 +378,7 @@ manifest/single-cone-production `/2` 在原十字段 product 后增加必需 fie
 
 目录由共有最终摘要结果构建，并与已有已验证对象索引中的全部 ODR primary definition 做一次成员集合核对；缺少摘要、多余条目或同一 member 重复均为错误。普通外部引用和仅存在于语义 metadata 的成员不进入目录。读取端先解码结构，再把 group/member/role/ABI/definition 与本次对象读取已重建的目录比较；不重新解析对象或重算已完成的摘要。Code 的 manifest 投影相应成为七字段 product，保留 field 1～6，增加同义 field 11，仍不包含 CodeFingerprint 自身。
 
-目录沿既有 producer/reader 迁移，`single-cone-production/1` 退役；全部当前 production profile 的 required inventory、profile fingerprint 和缓存同步改用 `/2`。Strong profile 的完整目录为空，其既有语义边界继续拒绝 ODR；共有生产投影可以处理已完成的 Strong/ODR 定义，但不因此提前开放完整 generic artifact 发布。后续物理角色沿同一摘要与目录入口接入，不增加另一套发布路径。
+目录沿既有 producer/reader 迁移，`single-cone-production/1` 退役；全部当前 production profile 的 required inventory、profile fingerprint 和缓存同步改用 `/2`。历史 Strong profile 的完整目录为空，其既有语义边界继续拒绝 ODR；正式 generic 产物复用同一目录和共有生产投影。后续物理角色沿同一摘要与目录入口接入，不增加另一套发布路径。
 
 `link-identity-closure/4` 的 defined owner 增加 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/3` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
 

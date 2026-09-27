@@ -7,7 +7,7 @@ use scoop_slib as slib;
 mod rejections;
 
 pub(super) fn check_provider(
-    provider: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let input = reader::open(provider);
@@ -27,8 +27,8 @@ pub(super) fn check_provider(
 pub(super) fn check(
     name: &str,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    provider: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let root = tempfile::tempdir().unwrap();
@@ -88,7 +88,7 @@ pub(super) fn check(
 
 fn verify(
     publication: &slib::CrossConeArtifactSummary,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     let source = reader::open(artifact);
     assert_eq!(
@@ -102,7 +102,7 @@ fn verify(
     assert_eq!(publication.target_selection(), artifact.target_selection());
     assert_eq!(
         *publication.profile(),
-        scoop_identity::ArtifactCapabilityProfileId::cross_cone_layout_strong()
+        scoop_identity::ArtifactCapabilityProfileId::cross_cone_generic()
     );
     assert_eq!(publication.dependency_record(), source.dependency_record());
     assert_eq!(

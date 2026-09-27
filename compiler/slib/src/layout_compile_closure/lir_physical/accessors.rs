@@ -24,8 +24,11 @@ impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn identity_graph(&self) -> &scoop_identity::ValidatedIdentityGraph {
         &self.semantic.identities
     }
-    pub fn hir_foundation(&self) -> &scoop_hir::OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.semantic.foundations.hir
+    }
+    pub(crate) fn shared_hir_foundation(&self) -> std::rc::Rc<scoop_hir::CanonicalHirFoundation> {
+        std::rc::Rc::clone(&self.semantic.foundations.hir)
     }
     pub fn hir_production(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
         &self.semantic.hir_core
@@ -39,8 +42,11 @@ impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn type_alias_expansions(&self) -> &scoop_hir::CanonicalTypeAliasExpansionsV1 {
         &self.semantic.hir_aliases
     }
-    pub fn mir_foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.semantic.foundations.mir
+    }
+    pub(crate) fn shared_mir_foundation(&self) -> std::rc::Rc<scoop_mir::CanonicalMirFoundation> {
+        std::rc::Rc::clone(&self.semantic.foundations.mir)
     }
     pub fn mir_production(&self) -> &scoop_mir::CoreBootstrapBridgeSectionV1 {
         &self.semantic.mir_core

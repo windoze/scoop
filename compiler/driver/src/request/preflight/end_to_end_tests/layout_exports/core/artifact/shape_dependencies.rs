@@ -10,7 +10,7 @@ mod mir_reader;
 pub(super) fn check(
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core_lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     target: &scoop_toolchain::ResolvedTargetProfile,
 ) {
     let read = scoop_slib::read_cross_cone_layout_artifact_closure(

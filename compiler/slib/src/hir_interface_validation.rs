@@ -1,8 +1,6 @@
 //! Shared declaration checks over the actual decoded HIR metadata.
 
-use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, OdrFreeHirFoundation,
-};
+use scoop_hir::{CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1};
 use scoop_identity::{ConeIdentity, ValidatedIdentityGraph};
 
 use crate::cross_cone_hir_authority::{
@@ -22,7 +20,7 @@ pub use type_sites::CrossConeHirTypeSiteError;
 pub(crate) struct HirInterfaceValidationInput<'a> {
     pub(crate) current: ConeIdentity,
     pub(crate) identities: &'a ValidatedIdentityGraph,
-    pub(crate) foundation: &'a OdrFreeHirFoundation,
+    pub(crate) foundation: &'a scoop_hir::CanonicalHirFoundation,
     pub(crate) core: &'a CoreBootstrapInterfaceSectionV1,
     pub(crate) interface: &'a CrossConeHirInterfaceSectionV1,
 }

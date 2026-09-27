@@ -15,8 +15,8 @@ enum Failure {
 }
 
 pub(super) fn check(
-    core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
 ) {
     for failure in [
         Failure::Member,
@@ -45,7 +45,7 @@ pub(super) fn check(
 
 fn open<'a>(
     bytes: &'a [u8],
-    source: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    source: &slib::AssembledCrossConeLayoutArtifactV1,
 ) -> slib::DecodedCrossConeLayoutCompileSections<'a> {
     DecodedSlibEnvelope::open(bytes, source.target_selection())
         .unwrap()

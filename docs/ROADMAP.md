@@ -345,7 +345,7 @@ Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专
 
 - 从共有 `.slib` 模板完成 consumer-side concretization，覆盖泛型函数/名义类型、constructor/member/default/bound、hidden support 与 generic delegate；复用当前 MIR/LIR、对象集合、registration、reader 和发布路径。参数自由 source nominal 的 shell/start 由定义方补齐，所需 generic application 按实际引用闭合，不递归生成全部 helper。
 - 保留四类 specialization 和既有 group/member identity；按重复 member 的完整 ABI、canonical LIR、对象/EH/stackmap 判等，独立 helper 的成员集合取并集。旧“同组全部成员必须相同”规则会拒绝不同源签名到同一目标类型的合法 adapter，现按实际定义与引用修订；不增加授权、预算或证明体系。
-- 正式产物切换到 `cross-cone-generic/1`，模板、定义目录、逐 member fingerprint 与缓存同步迁移；设计规定的新版本尚待实现。完成门包含 provider 源码移走后的下游编译，以及现有单 image 验收入口的真实链接、地址合并、委托初始化/失败共享和移动 GC；生产多 image 启动与正式 program-link 仍留给 M23-8/9。
+- 正式产物沿原完整 layout 路径切换到 `cross-cone-generic/1`，模板、定义目录、逐 member fingerprint 与缓存同步迁移；required section 按实际 payload 分步升级，不预填尚未实现的模板或保留平行发布器。完成门包含 provider 源码移走后的下游编译，以及现有单 image 验收入口的真实链接、地址合并、委托初始化/失败共享和移动 GC；生产多 image 启动与正式 program-link 仍留给 M23-8/9。
 
 ### M23-8 runtime multi-image registry与启动
 

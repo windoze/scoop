@@ -2,10 +2,10 @@
 
 use std::fmt;
 
-use scoop_hir::{CoreBootstrapInterfaceSectionV1, OdrFreeHirFoundation};
+use scoop_hir::CoreBootstrapInterfaceSectionV1;
 use scoop_identity::ConeIdentity;
 use scoop_lir::{ConeLirFoundation, ValidatedLirTargetSelection};
-use scoop_mir::{CoreBootstrapBridgeSectionV1, OdrFreeMirFoundation};
+use scoop_mir::CoreBootstrapBridgeSectionV1;
 use scoop_wire::{HashError, encode};
 
 use crate::{
@@ -39,9 +39,9 @@ pub struct SingleConeStrongArtifactInputV1<'ir> {
     producer: ProducerRecord,
     cone: ConeRecord,
     direct_dependencies: Vec<DependencyRecord>,
-    hir_foundation: &'ir OdrFreeHirFoundation,
+    hir_foundation: &'ir scoop_hir::OdrFreeHirFoundation,
     hir_production: &'ir CoreBootstrapInterfaceSectionV1,
-    mir_foundation: &'ir OdrFreeMirFoundation,
+    mir_foundation: &'ir scoop_mir::OdrFreeMirFoundation,
     mir_production: &'ir CoreBootstrapBridgeSectionV1,
     lir_foundation: &'ir ConeLirFoundation,
     production_manifest: SingleConeProductionManifestV1,
@@ -54,9 +54,9 @@ impl<'ir> SingleConeStrongArtifactInputV1<'ir> {
         producer: ProducerRecord,
         cone: ConeRecord,
         direct_dependencies: Vec<DependencyRecord>,
-        hir_foundation: &'ir OdrFreeHirFoundation,
+        hir_foundation: &'ir scoop_hir::OdrFreeHirFoundation,
         hir_production: &'ir CoreBootstrapInterfaceSectionV1,
-        mir_foundation: &'ir OdrFreeMirFoundation,
+        mir_foundation: &'ir scoop_mir::OdrFreeMirFoundation,
         mir_production: &'ir CoreBootstrapBridgeSectionV1,
         lir_foundation: &'ir ConeLirFoundation,
         production_manifest: SingleConeProductionManifestV1,

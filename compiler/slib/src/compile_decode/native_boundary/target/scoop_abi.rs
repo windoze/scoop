@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use scoop_hir::OdrFreeHirFoundation;
 use scoop_identity::{
     CallableApplicationKey, CanonicalScoopAbiFunctionSignature, ExactCallableSignature,
     ExactTypeKey, GcEffect, IdentityLayer, InitializationUnitKey, PersistentCallableApplicationId,
@@ -119,3 +118,6 @@ impl AbiReplayTypes<'_> {
             .map_err(Into::into)
     }
 }
+
+#[cfg(test)]
+use scoop_hir::OdrFreeHirFoundation;

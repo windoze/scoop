@@ -21,11 +21,11 @@ impl<'input> ProductionValidatedSingleConeLinkSections<'input> {
         self.identities.declared_identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -94,11 +94,11 @@ impl<'input> MaterializationCheckedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -183,11 +183,11 @@ impl<'input> CBridgeCheckedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -288,11 +288,11 @@ impl<'input> BuiltinObjectCheckedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -378,11 +378,11 @@ impl<'input> DigestPatchCheckedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -515,11 +515,11 @@ impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 

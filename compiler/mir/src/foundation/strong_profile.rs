@@ -28,32 +28,7 @@ impl OdrFreeMirFoundation {
     pub(crate) fn try_from_shared(
         foundation: Rc<CanonicalMirFoundation>,
     ) -> Result<Self, OdrFreeMirFoundationError> {
-        if let Some(member) = foundation.callable_signatures.iter().find_map(|record| {
-            let CallableSignatureSubject::Odr(member) = record.subject() else {
-                return None;
-            };
-            Some(member.member())
-        }) {
-            return Err(OdrFreeMirFoundationError::CallableSignatureSubject(member));
-        }
-        if let Some(member) = foundation
-            .callback_application_records
-            .iter()
-            .find_map(|record| {
-                let CallableSignatureSubject::Odr(member) = record.managed_adapter() else {
-                    return None;
-                };
-                Some(member.member())
-            })
-        {
-            return Err(OdrFreeMirFoundationError::CallbackAdapterSubject(member));
-        }
-        if let Some(record) = foundation.odr_groups.first() {
-            return Err(OdrFreeMirFoundationError::OdrGroup(record.id()));
-        }
-        if let Some(record) = foundation.odr_members.first() {
-            return Err(OdrFreeMirFoundationError::OdrMember(record.id()));
-        }
+        foundation.require_strong()?;
         Ok(Self(foundation))
     }
 
@@ -180,6 +155,39 @@ impl fmt::Display for HexIdentity<'_> {
             write!(formatter, "{byte:02x}")?;
         }
         Ok(())
+    }
+}
+
+impl CanonicalMirFoundation {
+    /// Applies the historical Strong restriction at its artifact boundary.
+    pub fn require_strong(&self) -> Result<(), OdrFreeMirFoundationError> {
+        if let Some(member) = self.callable_signatures.iter().find_map(|record| {
+            let CallableSignatureSubject::Odr(member) = record.subject() else {
+                return None;
+            };
+            Some(member.member())
+        }) {
+            return Err(OdrFreeMirFoundationError::CallableSignatureSubject(member));
+        }
+        if let Some(member) = self.callback_application_records.iter().find_map(|record| {
+            let CallableSignatureSubject::Odr(member) = record.managed_adapter() else {
+                return None;
+            };
+            Some(member.member())
+        }) {
+            return Err(OdrFreeMirFoundationError::CallbackAdapterSubject(member));
+        }
+        if let Some(record) = self.odr_groups.first() {
+            return Err(OdrFreeMirFoundationError::OdrGroup(record.id()));
+        }
+        if let Some(record) = self.odr_members.first() {
+            return Err(OdrFreeMirFoundationError::OdrMember(record.id()));
+        }
+        Ok(())
+    }
+
+    pub fn callback_application_records(&self) -> &[crate::CallbackApplicationRecord] {
+        &self.callback_application_records
     }
 }
 

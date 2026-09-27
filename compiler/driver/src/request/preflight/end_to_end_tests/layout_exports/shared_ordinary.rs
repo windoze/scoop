@@ -12,7 +12,7 @@ pub(super) use dependencies::check_dependency_uses;
 pub(super) fn check(
     name: &str,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    foundation: &hir::OdrFreeHirFoundation,
+    foundation: &scoop_hir::CanonicalHirFoundation,
     lir: &lir::ConeLirOutput,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     expected: &lir::CrossConeLirBridgeSectionV1,

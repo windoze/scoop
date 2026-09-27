@@ -39,10 +39,10 @@ impl CompileCapabilityProfile for SingleConeStrongProfile {
 
 /// The complete M23-6 type, layout and object profile in one semantic session.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct CrossConeLayoutStrongProfile;
+pub struct CrossConeGenericProfile;
 
-impl profile_seal::Sealed for CrossConeLayoutStrongProfile {}
-impl CompileCapabilityProfile for CrossConeLayoutStrongProfile {
+impl profile_seal::Sealed for CrossConeGenericProfile {}
+impl CompileCapabilityProfile for CrossConeGenericProfile {
     type Production = crate::ValidatedCrossConeSemanticsProduction;
 }
 

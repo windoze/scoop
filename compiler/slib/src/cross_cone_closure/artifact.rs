@@ -77,9 +77,7 @@ impl ValidatedCompletedCrossConeArtifactClosure {
         &self.closure.semantic
     }
 
-    pub fn current_compile(
-        &self,
-    ) -> &ValidatedCompileArtifact<crate::CrossConeLayoutStrongProfile> {
+    pub fn current_compile(&self) -> &ValidatedCompileArtifact<crate::CrossConeGenericProfile> {
         self.closure.semantic.artifact_at(self.current_position)
     }
 

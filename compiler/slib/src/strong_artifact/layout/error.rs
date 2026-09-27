@@ -12,8 +12,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum CrossConeLayoutStrongArtifactWriteError {
-    LirProfile(scoop_lir::ConeLirFoundationError),
+pub enum CrossConeLayoutArtifactWriteError {
     ComponentProducerMismatch {
         component: &'static str,
         expected: ConeIdentity,
@@ -67,7 +66,7 @@ pub enum CrossConeLayoutStrongArtifactWriteError {
     Archive(SlibWriteError),
 }
 
-impl From<StrongArtifactAssemblyError> for CrossConeLayoutStrongArtifactWriteError {
+impl From<StrongArtifactAssemblyError> for CrossConeLayoutArtifactWriteError {
     fn from(error: StrongArtifactAssemblyError) -> Self {
         match error {
             StrongArtifactAssemblyError::LinkObjectCount { expected, actual } => {
@@ -107,7 +106,7 @@ impl From<StrongArtifactAssemblyError> for CrossConeLayoutStrongArtifactWriteErr
     }
 }
 
-impl fmt::Display for CrossConeLayoutStrongArtifactWriteError {
+impl fmt::Display for CrossConeLayoutArtifactWriteError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -116,10 +115,9 @@ impl fmt::Display for CrossConeLayoutStrongArtifactWriteError {
     }
 }
 
-impl std::error::Error for CrossConeLayoutStrongArtifactWriteError {
+impl std::error::Error for CrossConeLayoutArtifactWriteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::LirProfile(source) => Some(source),
             Self::CallableSemanticImports(source) => Some(source),
             Self::LinkObjectFingerprint(source) | Self::Compatibility(source) => Some(source),
             Self::LinkIdentityClosure(source) => Some(source),

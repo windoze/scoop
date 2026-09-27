@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn layout_profile_has_a_fixed_descriptor_and_fingerprint() {
-    let profile = ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG;
+    let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
     let descriptor = profile.descriptor();
     assert_eq!(
         hex(&encode(&descriptor).unwrap()),
@@ -19,7 +19,7 @@ fn layout_profile_has_a_fixed_descriptor_and_fingerprint() {
     assert!(
         descriptor
             .required_lir()
-            .contains(&lir_strong_production_v2_capability())
+            .contains(&lir_cone_production_capability())
     );
     assert!(
         !descriptor
@@ -56,7 +56,7 @@ fn layout_sections_have_distinct_semantic_and_physical_purposes() {
             FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
         ),
         (
-            lir_strong_production_v2_capability(),
+            lir_cone_production_capability(),
             SectionLocation::Lir,
             MemberPurposeSet::COMPILE_AND_LINK,
             FingerprintSinkSet::LIR
@@ -73,7 +73,7 @@ fn layout_sections_have_distinct_semantic_and_physical_purposes() {
 
 #[test]
 fn each_layout_capability_is_required_before_payload_validation() {
-    let profile = ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG;
+    let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
     let descriptor = profile.descriptor();
     for (location, inventory) in [
         (crate::MetadataLocation::Hir, descriptor.required_hir()),
@@ -104,7 +104,7 @@ fn each_layout_capability_is_required_before_payload_validation() {
 
 #[test]
 fn layout_profile_rejects_both_strong_versions_even_when_v1_is_optional() {
-    let descriptor = ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG.descriptor();
+    let descriptor = ArtifactCapabilityProfile::CROSS_CONE_GENERIC.descriptor();
     for view in [ArtifactProfileView::Compile, ArtifactProfileView::Link] {
         for purpose in [MemberPurposeSet::NONE, MemberPurposeSet::COMPILE_AND_LINK] {
             let mut sections = descriptor
@@ -123,14 +123,14 @@ fn layout_profile_rejects_both_strong_versions_even_when_v1_is_optional() {
             assert!(matches!(validate_inventory(view, SectionLocation::Lir,
                 descriptor.required_lir(), &sections, |section| &section.0, |section| section.1),
                 Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. })
-                    if *required == lir_strong_production_v2_capability() && *actual == lir_strong_production_capability()));
+                    if *required == lir_cone_production_capability() && *actual == lir_strong_production_capability()));
         }
     }
 }
 
 #[test]
 fn old_profiles_do_not_gain_new_layout_authority() {
-    let descriptor = ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG.descriptor();
+    let descriptor = ArtifactCapabilityProfile::CROSS_CONE_GENERIC.descriptor();
     for profile in [
         ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

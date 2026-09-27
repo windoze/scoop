@@ -57,7 +57,7 @@ impl<'f> Arity<'_, 'f> {
         key(records, id, self.identity)
     }
     fn callable(&mut self, owner: CallableTemplateOwner) -> Result<u32, Error> {
-        let canonical = self.foundation.foundation.as_canonical();
+        let canonical = self.foundation.foundation;
         let source = match owner {
             CallableTemplateOwner::Function(id) => {
                 self.lookup(canonical.type_source_function_records(), id)?
@@ -106,7 +106,7 @@ impl<'f> Arity<'_, 'f> {
         })
     }
     fn property(&mut self, owner: PropertyOwner) -> Result<u32, Error> {
-        let canonical = self.foundation.foundation.as_canonical();
+        let canonical = self.foundation.foundation;
         let source = match owner {
             PropertyOwner::Property(id) => {
                 self.lookup(canonical.type_source_property_records(), id)?
@@ -118,7 +118,7 @@ impl<'f> Arity<'_, 'f> {
         self.declaration(source)
     }
     fn nominal(&mut self, owner: SourceNominalId) -> Result<u32, Error> {
-        let canonical = self.foundation.foundation.as_canonical();
+        let canonical = self.foundation.foundation;
         let key = match owner {
             SourceNominalId::Concrete(id) => {
                 self.lookup(canonical.type_source_nominal_records(), id)?

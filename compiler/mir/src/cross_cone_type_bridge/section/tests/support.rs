@@ -165,7 +165,7 @@ pub(super) fn graph(fixtures: &[&Fixture]) -> ValidatedIdentityGraph {
 }
 pub(super) fn production(
     provider: ConeIdentity,
-    foundation: &crate::OdrFreeMirFoundation,
+    foundation: &crate::CanonicalMirFoundation,
 ) -> crate::CoreBootstrapBridgeSectionV1 {
     crate::CoreBootstrapBridgeSectionV1::try_new(
         provider,

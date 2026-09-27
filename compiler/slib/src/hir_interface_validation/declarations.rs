@@ -11,11 +11,11 @@ impl<'a> HirInterfaceValidationInput<'a> {
     ) -> Result<(), CrossConeHirNominalSurfaceError> {
         self.interface
             .nominal_interfaces()
-            .validate_declared_field_inventory(self.foundation.as_canonical())
+            .validate_declared_field_inventory(self.foundation)
             .map_err(CrossConeHirNominalSurfaceError::Fields)?;
         self.interface
             .nominal_interfaces()
-            .validate_declared_relation_inventory(self.foundation.as_canonical())
+            .validate_declared_relation_inventory(self.foundation)
             .map_err(CrossConeHirNominalSurfaceError::Relations)?;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             self.current,

@@ -80,6 +80,17 @@ impl ImportedHirFoundation {
         }
     }
 
+    #[doc(hidden)]
+    pub fn from_shared(
+        canonical: Rc<CanonicalHirFoundation>,
+        identities: ImportedIdentityMap<HirIdentityLayer>,
+    ) -> Self {
+        Self {
+            canonical,
+            identities,
+        }
+    }
+
     pub const fn origin(&self) -> ConeIdentity {
         self.identities.origin()
     }

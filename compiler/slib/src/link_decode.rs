@@ -3,9 +3,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use scoop_hir::{
-    DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, OdrFreeHirFoundation,
-};
+use scoop_hir::{DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation};
 use scoop_identity::{
     ArtifactCapabilityProfileId, CapabilityId, ConeCoordinate, ConeIdentity,
     IdentityValidationError, ValidatedIdentityGraph,
@@ -16,12 +14,12 @@ use scoop_lir::{
     ConeLirFoundation, DecodedConeProductionSectionV1, DecodedLirFoundation,
     ProducerUnitPartitionError, ProducerUnitPartitionV1,
 };
-use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
+use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation};
 use scoop_wire::{WireDecode, WireError, WirePath, decode_canonical};
 
 use crate::compile_decode::validate_foundation_identity_graph_with_authorities;
 use crate::strong_compile_decode::{
-    DecodedStrongProfileProductionSet, OdrFreeStrongFoundationSet, StrongProfileFoundationError,
+    CanonicalFoundationSet, DecodedStrongProfileProductionSet, StrongProfileFoundationError,
     StrongProfileProductionError, validate_strong_profile_foundations,
     validate_strong_profile_production,
 };

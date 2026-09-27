@@ -10,7 +10,7 @@ pub(crate) struct ReplayInputs<'a> {
     pub profile: &'a lir::CBridgeToolchainProfileV1,
     pub manifest: &'a crate::BootstrapManifest,
     pub code_strong: &'a lir::DecodedConeProductionSectionV2,
-    pub hir_foundation: &'a scoop_hir::OdrFreeHirFoundation,
+    pub hir_foundation: &'a scoop_hir::CanonicalHirFoundation,
 }
 
 pub(crate) fn replay<'a>(

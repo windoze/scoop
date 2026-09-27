@@ -20,7 +20,7 @@ pub(super) fn hir_foundation_and_production(
         0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x05, 0x80,
     ])
     .unwrap()
-    .validate_against_strong_foundation(cone.identity(), &foundation)
+    .validate_against(cone.identity(), &foundation)
     .unwrap();
     (foundation, production)
 }

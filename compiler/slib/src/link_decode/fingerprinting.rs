@@ -17,11 +17,11 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -184,11 +184,11 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -372,11 +372,11 @@ impl<'input> RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -517,11 +517,11 @@ impl<'input> FinalizedStrongLinkObjectSections<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 
@@ -581,7 +581,7 @@ impl<'input> FinalizedStrongLinkObjectSections<'input> {
             manifest.direct_dependencies(),
             foundations
                 .hir
-                .as_canonical()
+                .as_ref()
                 .source_count_for_cone(manifest.cone().identity()),
             production.lir().clone(),
             link_objects,
@@ -665,11 +665,11 @@ impl ValidatedSingleConeStrongLinkArtifact<'_> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.foundations.hir
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.foundations.mir
     }
 

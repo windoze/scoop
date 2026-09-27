@@ -4,14 +4,14 @@ use super::*;
 pub(in super::super) fn assemble_with_production(
     directory: &Path,
     target: &scoop_toolchain::ResolvedTargetProfile,
-    core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     lir: &lir::ConeLirOutput,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     owners: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     production: lir::ConeProductionSectionV2,
-) -> scoop_slib::AssembledCrossConeLayoutStrongArtifactV1 {
+) -> scoop_slib::AssembledCrossConeLayoutArtifactV1 {
     let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
     let emitted = scoop_codegen::emit_object_set_v2(
         lir,
@@ -38,7 +38,7 @@ pub(in super::super) fn assemble_with_production(
     let ordinary =
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, lir).unwrap();
     let core = reader::open(core);
-    let metadata = crate::CrossConeStrongArtifactMetadataInputV1::new(
+    let metadata = crate::CrossConeArtifactMetadataInputV1::new(
         scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION"))).unwrap(),
         scoop_slib::ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest)
             .unwrap(),

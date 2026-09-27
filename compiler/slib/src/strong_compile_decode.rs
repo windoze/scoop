@@ -7,7 +7,7 @@ use std::rc::Rc;
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
     CoreCompilerProtocolSurfaceV1, DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation,
-    HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation, OdrFreeHirFoundation,
+    HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation,
     OdrFreeHirFoundationError, PublicNominalShapeProjectionError, PublicNominalShapeRequirementsV1,
 };
 use scoop_identity::{
@@ -22,7 +22,7 @@ use scoop_lir::{
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation,
     EntryMirBridgeBranchV1, ImportedMirFoundation, MirFoundationValidationError,
-    MirProductionValidationError, OdrFreeMirFoundation, OdrFreeMirFoundationError,
+    MirProductionValidationError, OdrFreeMirFoundationError,
 };
 
 use crate::{
@@ -73,9 +73,9 @@ pub struct IdentityCheckedSingleConeCompileSections<'input> {
 pub struct OdrCheckedSingleConeCompileFoundations<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    hir_foundation: OdrFreeHirFoundation,
+    hir_foundation: Rc<scoop_hir::CanonicalHirFoundation>,
     hir_production: DecodedCoreBootstrapInterfaceSectionV1,
-    mir_foundation: OdrFreeMirFoundation,
+    mir_foundation: Rc<scoop_mir::CanonicalMirFoundation>,
     mir_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: ConeLirFoundation,
     lir_production: DecodedConeProductionSectionV1,
@@ -87,9 +87,9 @@ pub struct OdrCheckedSingleConeCompileFoundations<'input> {
 pub struct LocallyValidatedSingleConeCompileProduction<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    hir_foundation: OdrFreeHirFoundation,
+    hir_foundation: Rc<scoop_hir::CanonicalHirFoundation>,
     hir_production: CoreBootstrapInterfaceSectionV1,
-    mir_foundation: OdrFreeMirFoundation,
+    mir_foundation: Rc<scoop_mir::CanonicalMirFoundation>,
     mir_production: CoreBootstrapBridgeSectionV1,
     lir_foundation: ConeLirFoundation,
     lir_production: DecodedConeProductionSectionV1,
@@ -110,9 +110,9 @@ pub struct ValidatedSingleConeCompileSemanticFront<'input> {
 pub struct StructurallyValidatedSingleConeCompileProduction<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
-    hir_foundation: OdrFreeHirFoundation,
+    hir_foundation: Rc<scoop_hir::CanonicalHirFoundation>,
     hir_production: CoreBootstrapInterfaceSectionV1,
-    mir_foundation: OdrFreeMirFoundation,
+    mir_foundation: Rc<scoop_mir::CanonicalMirFoundation>,
     mir_production: CoreBootstrapBridgeSectionV1,
     lir_foundation: ConeLirFoundation,
     lir_production: ConeProductionSectionV1,
@@ -126,9 +126,9 @@ pub struct NativeBoundaryValidatedSingleConeCompileProduction<'input> {
 }
 
 #[derive(Clone)]
-pub(crate) struct OdrFreeStrongFoundationSet {
-    pub(crate) hir: OdrFreeHirFoundation,
-    pub(crate) mir: OdrFreeMirFoundation,
+pub(crate) struct CanonicalFoundationSet {
+    pub(crate) hir: Rc<scoop_hir::CanonicalHirFoundation>,
+    pub(crate) mir: Rc<scoop_mir::CanonicalMirFoundation>,
     pub(crate) lir: ConeLirFoundation,
 }
 
@@ -418,7 +418,7 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
         self.identities.declared_identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.hir_foundation
     }
 
@@ -426,7 +426,7 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
         &self.hir_production
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.mir_foundation
     }
 
@@ -497,7 +497,7 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.hir_foundation
     }
 
@@ -505,7 +505,7 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
         &self.hir_production
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.mir_foundation
     }
 
@@ -552,7 +552,7 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
         self.local.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         self.local.hir_foundation()
     }
 
@@ -560,7 +560,7 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
         self.local.hir_production()
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         self.local.mir_foundation()
     }
 
@@ -635,7 +635,7 @@ impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
         &self.hir_foundation
     }
 
@@ -643,7 +643,7 @@ impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
         &self.hir_production
     }
 
-    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
         &self.mir_foundation
     }
 
@@ -665,7 +665,7 @@ impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
         NativeBoundaryValidatedSingleConeCompileProduction<'input>,
         NativeBoundaryCompileError,
     > {
-        let view = NativeBoundaryFoundationView::from_odr_free(
+        let view = NativeBoundaryFoundationView::from_foundations(
             &self.hir_foundation,
             &self.mir_foundation,
             &self.lir_foundation,
@@ -718,8 +718,8 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
         Ok(ValidatedCompileArtifact::from_parts(
             std::rc::Rc::new(graph.into()),
             std::rc::Rc::new(identities),
-            ImportedHirFoundation::from_odr_free(hir_foundation, hir_identities),
-            ImportedMirFoundation::from_odr_free(mir_foundation, mir_identities),
+            ImportedHirFoundation::from_shared(hir_foundation, hir_identities),
+            ImportedMirFoundation::from_shared(mir_foundation, mir_identities),
             ImportedLirFoundation::from_odr_free(lir_foundation, lir_identities),
             production,
         ))
@@ -736,7 +736,7 @@ pub use errors::{
 };
 use validation::validate_strong_profile_local_production;
 pub(crate) use validation::{
-    StrongProfileSemanticFront, validate_cross_cone_strong_profile_foundations,
+    StrongProfileSemanticFront, validate_cross_cone_profile_foundations,
     validate_strong_profile_foundations, validate_strong_profile_lir_production,
     validate_strong_profile_lir_with_shape_sources, validate_strong_profile_production,
     validate_strong_profile_relations,

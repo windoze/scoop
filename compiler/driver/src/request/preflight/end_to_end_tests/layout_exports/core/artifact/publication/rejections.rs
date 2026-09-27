@@ -4,8 +4,8 @@ use slib::CrossConeLayoutArtifactValidationError as Error;
 pub(super) fn check(
     destination: &Path,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    provider: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    provider: &slib::AssembledCrossConeLayoutArtifactV1,
+    artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
     dump: &mut String,
 ) {
@@ -110,7 +110,7 @@ pub(super) fn check(
     dump.push_str("reject RenameDirectory; destination-preserved=true\n");
 }
 
-fn corrupt_code(artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1) -> Vec<u8> {
+fn corrupt_code(artifact: &slib::AssembledCrossConeLayoutArtifactV1) -> Vec<u8> {
     let slib::FingerprintAvailability::Available(code) =
         reader::open(artifact).semantic_fingerprints().code()
     else {

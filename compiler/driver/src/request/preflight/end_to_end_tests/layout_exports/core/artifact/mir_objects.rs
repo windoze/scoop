@@ -96,7 +96,7 @@ pub(super) fn check(
 
     validate(section.callables(), section.object_values()).unwrap();
 
-    let mut missing = metadata.foundation.clone().into_canonical();
+    let mut missing = metadata.foundation.clone();
     missing.set_initialization_units(vec![]).unwrap();
     let missing = hir::OdrFreeHirFoundation::try_new(missing).unwrap();
     let missing = source
