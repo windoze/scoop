@@ -1,0 +1,48 @@
+Module
+  fun primary(): Counter
+    val local0
+      ImportedSingletonValue c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89 : Companion
+    val local1
+      ImportedDependencyCall #0 : Long
+        ImportedSingletonValue 1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5 : CompanionTrace
+    val local2
+      IntegerLiteral 1 : Long
+    val local3
+      Local $dependency.argument.0 : Long
+    if
+      IntegerOperation long.equals <no-gc> : Boolean
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+      assign $result.1
+        ImportedDependencyCall #1 : Long
+    else
+      assign $result.1
+        IntegerLiteral 0 : Long
+    ImportedDependencyCall #2 : Unit
+      Local $property_receiver.0 : Companion
+      Local $result.1 : Long
+    val local5
+      ImportedDependencyCall #0 : Long
+        ImportedSingletonValue 1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5 : CompanionTrace
+    val local6
+      IntegerLiteral 123 : Long
+    val local7
+      Local $dependency.argument.0 : Long
+    if
+      IntegerOperation long.equals <no-gc> : Boolean
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+      assign $result.2
+        ImportedDependencyCall #3 : Long
+          ImportedSingletonValue c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89 : Companion
+    else
+      assign $result.2
+        IntegerLiteral 0 : Long
+    val local9
+      Local $result.2 : Long
+    val local10
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #4 : Counter
+        Local $dependency.parameter.value : Long
+  output library

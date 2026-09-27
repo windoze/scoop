@@ -220,6 +220,17 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
         namespace: BindingNamespace,
         name: &str,
     ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
+        self.direct_binding_group(namespace, name).or_else(|| {
+            self.companion_namespace()?
+                .direct_binding_group(namespace, name)
+        })
+    }
+
+    fn direct_binding_group(
+        &self,
+        namespace: BindingNamespace,
+        name: &str,
+    ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
         let owner = self.owner();
         let provider = self.world.provider(owner.provider())?;
         non_empty_group(
@@ -236,8 +247,37 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
         )
     }
 
+    fn companion_namespace(&self) -> Option<ImportedStaticNamespace<'world, 'input>> {
+        self.bindings()
+            .filter_map(|binding| binding.target().source_nominal())
+            .find(|owner| {
+                self.world.nominal(*owner).is_some_and(|nominal| {
+                matches!(nominal.record().source_shape(), crate::NominalSourceShapeV1::Object(shape)
+                    if shape.object_kind() == crate::ObjectSourceKindV1::Companion)
+            })
+            })
+            .map(|owner| ImportedStaticNamespace {
+                world: self.world,
+                owner,
+            })
+    }
+
     pub fn snapshot(&self) -> Vec<DirectNamedPublicBindingGroup> {
-        named_groups(self.bindings())
+        let mut groups = named_groups(self.bindings());
+        if let Some(companion) = self.companion_namespace() {
+            for group in named_groups(companion.bindings()) {
+                if !groups
+                    .iter()
+                    .any(|own| own.namespace() == group.namespace() && own.name() == group.name())
+                {
+                    groups.push(group);
+                }
+            }
+            groups.sort_by(|left, right| {
+                (left.namespace(), left.name()).cmp(&(right.namespace(), right.name()))
+            });
+        }
+        groups
     }
 }
 

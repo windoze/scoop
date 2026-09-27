@@ -284,7 +284,11 @@ fn object_record(
         hir::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-        hir::NominalSourceShapeV1::Object(hir::ObjectSourceShapeV1::new(value, Default::default())),
+        hir::NominalSourceShapeV1::Object(hir::ObjectSourceShapeV1::new(
+            hir::ObjectSourceKindV1::Standalone,
+            value,
+            Default::default(),
+        )),
     )
     .unwrap()
 }

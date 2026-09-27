@@ -135,6 +135,27 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 .identities
                 .canonical_key::<PersistentExportBindingId, ExportBindingKey>(*binding)
                 .map_err(Error::Identity)?;
+            let member = match binding.target() {
+                BindableEntity::Function(id) => Some(NestedSourceMemberRefV1::Function(id)),
+                BindableEntity::GenericFunction(id) => {
+                    Some(NestedSourceMemberRefV1::GenericFunction(id))
+                }
+                BindableEntity::Property(id) => Some(NestedSourceMemberRefV1::Property(id)),
+                _ => None,
+            };
+            if let Some(member) = member {
+                if !matches!(
+                    record.source_shape(),
+                    scoop_hir::NominalSourceShapeV1::Object(_)
+                ) || !details.members().values().contains(&member)
+                {
+                    return Err(invalid(
+                        owner,
+                        "static member binding has no declared object member",
+                    ));
+                }
+                continue;
+            }
             let child = match binding.target() {
                 BindableEntity::Type(id) => SourceNominalId::Concrete(id),
                 BindableEntity::GenericType(id) => SourceNominalId::GenericTemplate(id),
@@ -162,7 +183,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 _ => {
                     return Err(invalid(
                         owner,
-                        "nested type binding has a non-nominal target",
+                        "static binding has an invalid declaration target",
                     ));
                 }
             };

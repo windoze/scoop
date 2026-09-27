@@ -1,0 +1,3 @@
+span=141..148
+expression=Factory
+type `RestrictedCompanionHost` has no accessible static member `Factory`

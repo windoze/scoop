@@ -27,12 +27,14 @@ impl WireEncode for NominalSourceShapeV1 {
                 encode_sequence(encoder, &shape.variants)
             }
             Self::Object(shape) => {
-                encoder.map(3)?;
-                encode_tag(encoder, 8)?;
+                encoder.map(4)?;
+                encode_tag(encoder, 9)?;
                 encoder.field(1)?;
                 shape.value.encode(encoder)?;
                 encoder.field(2)?;
-                shape.fields.encode(encoder)
+                shape.fields.encode(encoder)?;
+                encoder.field(3)?;
+                shape.kind.encode(encoder)
             }
             Self::Intrinsic(representation) => encode_intrinsic(encoder, *representation),
         }
@@ -69,13 +71,19 @@ impl WireEncode for DecodedNominalSourceShapeV1 {
                 encoder.field(1)?;
                 encode_sequence(encoder, variants)
             }
-            Self::Object { value, fields } => {
-                encoder.map(3)?;
-                encode_tag(encoder, 8)?;
+            Self::Object {
+                kind,
+                value,
+                fields,
+            } => {
+                encoder.map(4)?;
+                encode_tag(encoder, 9)?;
                 encoder.field(1)?;
                 value.encode(encoder)?;
                 encoder.field(2)?;
-                encode_sequence(encoder, fields)
+                encode_sequence(encoder, fields)?;
+                encoder.field(3)?;
+                kind.encode(encoder)
             }
             Self::Intrinsic(representation) => encode_intrinsic(encoder, *representation),
         }
@@ -126,14 +134,15 @@ impl WireDecode for DecodedNominalSourceShapeV1 {
                     })
                     .map(Self::Enum)
             }
-            8 => {
-                expect_sum_length(decoder, fields, 3)?;
+            9 => {
+                expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::Object {
                     value: decoder.field(1, DecodedPersistentId::decode)?,
                     fields: decoder.field(2, |decoder| {
                         decoder
                             .decode_array(|decoder, _| DecodedNominalSourceFieldV1::decode(decoder))
                     })?,
+                    kind: decoder.field(3, ObjectSourceKindV1::decode)?,
                 })
             }
             6 => {
@@ -155,4 +164,23 @@ fn encode_intrinsic(
     encode_tag(encoder, 6)?;
     encoder.field(1)?;
     representation.encode(encoder)
+}
+
+impl WireEncode for ObjectSourceKindV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Standalone => 1,
+            Self::Companion => 2,
+        })
+    }
+}
+
+impl WireDecode for ObjectSourceKindV1 {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::Standalone),
+            2 => Ok(Self::Companion),
+            tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
+        }
+    }
 }

@@ -1,0 +1,3 @@
+import dependency.classes.ConstHost
+
+public fun change() { ConstHost.answer = 42 }

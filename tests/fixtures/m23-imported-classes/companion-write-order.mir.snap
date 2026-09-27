@@ -1,0 +1,96 @@
+Module
+  global0 $singleton$1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5: CompanionTrace imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=f6c8e15bc3b0a14145dbb0fe49526026c79efbaba9782d00920a55c9e3d5a09f
+  global1 $singleton$c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89: Companion imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=6d94e2887c5cfc6f802586bddd13d0eb3ff0e5bbbd36f5bdc96d4b229dee3ffd
+  class Companion vtable=0 itables=0
+  class CompanionTrace vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call external6 direct
+      val $property_receiver.0: Companion
+        Type Companion
+        GlobalRead $singleton$c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89
+      call external5 direct
+      call $dependency.receiver: Long = external0 direct
+        Type CompanionTrace
+        GlobalRead $singleton$1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call $call.1: Long = external1 direct
+      assign $result.1
+        Type Long
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      call external2 direct
+        Type Companion
+        Local $property_receiver.0
+        Type Long
+        Local $result.1
+      call external5 direct
+      call $dependency.receiver: Long = external0 direct
+        Type CompanionTrace
+        GlobalRead $singleton$1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=123 bits=0x000000000000007b
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      call external6 direct
+      call $call.2: Long = external3 direct
+        Type Companion
+        GlobalRead $singleton$c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89
+      assign $result.2
+        Type Long
+        Local $call.2
+      goto bb6
+    bb5 if.else.5
+      assign $result.2
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb6
+    bb6 if.merge.6
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.2
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  output library

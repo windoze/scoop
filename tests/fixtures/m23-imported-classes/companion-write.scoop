@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+import dependency.classes.CompanionHost
+
+public fun primary(): Counter {
+    CompanionHost.current = Counter(21)
+    return CompanionHost.Factory.current
+}

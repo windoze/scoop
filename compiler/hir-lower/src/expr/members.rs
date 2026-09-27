@@ -157,20 +157,8 @@ impl Lowerer {
                 }
             };
         }
-        let imported = self.resolve_imported_enum_qualifier(receiver).ok()?;
-        if let Some(owner) = imported {
-            let Some(index) = self.find_imported_variant(owner, &name.text) else {
-                self.error(
-                    name.span,
-                    format!(
-                        "enum `{}` has no variant `{}`",
-                        self.type_name(owner),
-                        name.text
-                    ),
-                );
-                return None;
-            };
-            return self.lower_imported_variant_construct(owner, index, name, call, sink, expected);
+        if let Some(owner) = self.resolve_imported_nominal_qualifier(receiver).ok()? {
+            return self.lower_imported_qualified_call(owner, name, call, sink, expected);
         }
         let direct_alias = match self.resolve_direct_alias_qualifier(receiver) {
             Ok(alias) => alias,

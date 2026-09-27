@@ -43,8 +43,15 @@ pub(super) fn merge(
     direct: hir::HirExportBindingIdentities,
 ) -> Result<PersistentExportBindings, PersistentExportBindingIdentityError> {
     let overloads = direct_overload_signatures(surface, functions, properties);
-    let nested_owners =
-        nested_binding_owners(lowerer, surface, nominals, enum_members, object_values);
+    let nested_owners = nested_binding_owners(
+        lowerer,
+        surface,
+        nominals,
+        enum_members,
+        object_values,
+        functions,
+        properties,
+    );
     let mut candidates = Vec::with_capacity(direct.len() + lowerer.imports.reexports.len());
     for identity in direct.iter() {
         let target = identity.key().target();
@@ -241,6 +248,8 @@ fn nested_binding_owners(
     nominals: &hir::HirNominalIdentities,
     enum_members: &hir::HirEnumMemberIdentities,
     object_values: &hir::HirObjectValueIdentities,
+    functions: &hir::HirFunctionIdentities,
+    properties: &hir::HirPropertyIdentities,
 ) -> BTreeMap<BindableEntity, DefinitionOwnerAtom> {
     let mut owners = BTreeMap::new();
     for &id in &surface.structs {
@@ -282,6 +291,33 @@ fn nested_binding_owners(
             BindableEntity::ObjectValue(object_values[object.singleton_value].id()),
             owner.clone(),
         );
+    }
+    for function in &surface.functions {
+        if let hir::HirFunctionIdentity::Source(identity) = &functions[*function]
+            && let Some(owner) = identity.declaration().owners().owners().last()
+        {
+            let target = match identity {
+                hir::HirSourceFunctionIdentity::Plain(record) => {
+                    BindableEntity::Function(record.id())
+                }
+                hir::HirSourceFunctionIdentity::Generic(record) => {
+                    BindableEntity::GenericFunction(record.id())
+                }
+            };
+            owners.insert(target, owner.clone());
+        }
+    }
+    for property in &surface.properties {
+        let identity = &properties[*property];
+        if let Some(owner) = identity.declaration().owners().owners().last() {
+            let target = match identity {
+                hir::HirPropertyIdentity::Ordinary(record) => BindableEntity::Property(record.id()),
+                hir::HirPropertyIdentity::Extension(record) => {
+                    BindableEntity::ExtensionProperty(record.id())
+                }
+            };
+            owners.insert(target, owner.clone());
+        }
     }
     owners
 }

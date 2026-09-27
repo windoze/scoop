@@ -4,8 +4,8 @@ use std::collections::HashSet;
 
 use la_arena::{Arena, Idx};
 use scoop_identity::{
-    BindingTarget, BindingTargetError, CborIdentityRecord, DeclarationName, DeclarationScope,
-    ExportBindingKey, PersistentExportBindingId, SourceDeclarationKey,
+    BindingTarget, BindingTargetError, CanonicalIdentifier, CborIdentityRecord, DeclarationName,
+    DeclarationScope, ExportBindingKey, PersistentExportBindingId, SourceDeclarationKey,
 };
 
 use crate::{
@@ -126,7 +126,38 @@ impl HirExportBindingIdentities {
                 raw_index(object),
                 &mut records,
             )?;
+            if matches!(inputs.objects[object].kind, crate::ObjectKind::Companion(_))
+                && inputs.objects[object].name != "Companion"
+            {
+                let name = CanonicalIdentifier::new("Companion")
+                    .expect("the companion alias is an identifier");
+                for target in [
+                    BindingTarget::type_name(declaration),
+                    BindingTarget::object_value(declaration),
+                ] {
+                    push_binding_as(
+                        declaration,
+                        target,
+                        &name,
+                        HirExportBindingEntityKind::Object,
+                        raw_index(object),
+                        &mut records,
+                    )?;
+                }
+            }
         }
+
+        let object_owners = inputs
+            .surface
+            .objects
+            .iter()
+            .map(|object| {
+                inputs.nominal_identities[*object]
+                    .source()
+                    .expect("public object identities were resolved above")
+                    .definition_owner()
+            })
+            .collect::<HashSet<_>>();
 
         for &function in &inputs.surface.functions {
             require_index(
@@ -145,7 +176,12 @@ impl HirExportBindingIdentities {
                 declaration,
                 HirExportBindingEntityKind::Function,
                 raw_index(function),
-            )? {
+            )? && !declaration
+                .owners()
+                .owners()
+                .last()
+                .is_some_and(|owner| object_owners.contains(owner))
+            {
                 continue;
             }
             let target = if declaration.duplicate_signature().receiver_is_present() {
@@ -174,7 +210,12 @@ impl HirExportBindingIdentities {
                 declaration,
                 HirExportBindingEntityKind::Property,
                 raw_index(property),
-            )? {
+            )? && !declaration
+                .owners()
+                .owners()
+                .last()
+                .is_some_and(|owner| object_owners.contains(owner))
+            {
                 continue;
             }
             let target = match identity {
@@ -283,14 +324,25 @@ fn push_binding(
     index: u32,
     records: &mut Vec<HirExportBindingIdentity>,
 ) -> Result<(), HirExportBindingIdentityError> {
+    let DeclarationName::Named(name) = declaration.name() else {
+        return Err(HirExportBindingIdentityError::UnnamedDeclaration { kind, index });
+    };
+    push_binding_as(declaration, target, name, kind, index, records)
+}
+
+fn push_binding_as(
+    declaration: &SourceDeclarationKey,
+    target: Result<BindingTarget, BindingTargetError>,
+    name: &CanonicalIdentifier,
+    kind: HirExportBindingEntityKind,
+    index: u32,
+    records: &mut Vec<HirExportBindingIdentity>,
+) -> Result<(), HirExportBindingIdentityError> {
     let target = target.map_err(|error| HirExportBindingIdentityError::InvalidTarget {
         kind,
         index,
         error,
     })?;
-    let DeclarationName::Named(name) = declaration.name() else {
-        return Err(HirExportBindingIdentityError::UnnamedDeclaration { kind, index });
-    };
     let key = ExportBindingKey::new(
         declaration.origin(),
         declaration.package().clone(),

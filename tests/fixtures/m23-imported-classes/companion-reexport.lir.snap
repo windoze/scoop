@@ -1,0 +1,13 @@
+Module
+  imported_global @scoop$1$ss$c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413 : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
+  fun @scoop$1$cb$8aa306897ad42ab7027f25cbe903059b61a62610c2fd4b79eb20579538dd6058() -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn1()
+    t0 = aggregate () : {}
+    t1 = global_load global0 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn0(t1)
+    store t2 -> local0
+    ret local0
+  output library

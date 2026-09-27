@@ -1,0 +1,3 @@
+import dependency.classes.CompanionHost
+
+public fun change() { CompanionHost.guarded = 42 }

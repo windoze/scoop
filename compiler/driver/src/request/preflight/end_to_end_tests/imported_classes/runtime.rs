@@ -50,7 +50,13 @@ pub(super) fn check(
             .identity()
             .unwrap()
     });
-    let mut direct = identities[..3].to_vec();
+    let mut direct = artifacts[3]
+        .artifact()
+        .summary()
+        .direct_dependencies()
+        .iter()
+        .map(scoop_slib::DependencyRecord::identity)
+        .collect::<Vec<_>>();
     direct.sort_unstable();
     let closure = scoop_slib::read_cross_cone_layout_artifact_closure(
         scoop_slib::CrossConeArtifactClosureInput::completed(

@@ -1,0 +1,18 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 42 : Long
+    val local1
+      IntegerLiteral 2 : Long
+    val local2
+      Local $dependency.argument.0 : Long
+    val local3
+      IntegerOperation long.div <managed> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local4
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #0 : Counter
+        Local $dependency.parameter.value : Long
+  output library

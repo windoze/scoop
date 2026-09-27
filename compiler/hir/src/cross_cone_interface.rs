@@ -304,7 +304,7 @@ pub use nominal_shapes::{
     NominalSourceFieldSemanticError, NominalSourceFieldV1, NominalSourceFieldsV1,
     NominalSourceShapeBuildError, NominalSourceShapeResolutionError, NominalSourceShapeResolver,
     NominalSourceShapeSemanticAuthority, NominalSourceShapeSemanticError, NominalSourceShapeV1,
-    ObjectSourceShapeSemanticError, ObjectSourceShapeV1, StructSourceShapeV1,
+    ObjectSourceKindV1, ObjectSourceShapeSemanticError, ObjectSourceShapeV1, StructSourceShapeV1,
 };
 pub use property_interfaces::{
     CanonicalPropertyInterfacesV1, DecodedCanonicalPropertyInterfacesV1,

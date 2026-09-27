@@ -31,6 +31,18 @@ struct PreparedImportedPropertySetter {
 }
 
 impl Lowerer {
+    pub(crate) fn implicit_imported_property_receiver(
+        &mut self,
+        binding: &hir::DirectImportedTargetBinding,
+        span: ast::Span,
+    ) -> Option<Option<PropertyCallReceiver>> {
+        let property = self.imported_dependency_property_candidate(binding, span)?;
+        if property.interface().representation() == hir::PropertyRepresentationV1::Const {
+            return Some(None);
+        }
+        self.validate_imported_property_receiver(&property, None, span)
+    }
+
     fn imported_dependency_property_candidate(
         &mut self,
         binding: &hir::DirectImportedTargetBinding,
@@ -101,11 +113,53 @@ impl Lowerer {
         match (property.interface().owner(), receiver) {
             (hir::PublicDeclarationOwnerV1::TopLevel, None) => Some(None),
             (hir::PublicDeclarationOwnerV1::Extension, Some(receiver)) => Some(Some(receiver)),
-            (hir::PublicDeclarationOwnerV1::Nominal(_), _) => {
+            (
+                hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)),
+                receiver,
+            ) => {
+                let receiver = match receiver {
+                    Some(receiver) => receiver,
+                    None => {
+                        let Some(value) = self.imported_object_value(owner) else {
+                            self.error(
+                                span,
+                                "dependency member property requires a receiver".into(),
+                            );
+                            return None;
+                        };
+                        let value = self.lower_imported_singleton(value, span)?;
+                        PropertyCallReceiver {
+                            static_type: value.ty,
+                            value,
+                        }
+                    }
+                };
+                let expected = self.imported_property_signature_type(
+                    &scoop_identity::SignatureTypeKey::Nominal(owner),
+                    "dependency property receiver",
+                    span,
+                )?;
+                if !self.is_subtype(receiver.static_type, expected) {
+                    self.error(
+                        span,
+                        format!(
+                            "dependency property expects receiver {}, found {}",
+                            self.type_name(expected),
+                            self.type_name(receiver.static_type)
+                        ),
+                    );
+                    return None;
+                }
+                Some(Some(receiver))
+            }
+            (
+                hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(_)),
+                _,
+            ) => {
                 self.error(
                     span,
-                    ImportedCapabilityRequirement::Dispatch
-                        .diagnostic("dependency property access"),
+                    ImportedCapabilityRequirement::Generic
+                        .diagnostic("dependency property receiver"),
                 );
                 None
             }

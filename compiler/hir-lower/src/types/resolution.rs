@@ -273,6 +273,13 @@ impl Lowerer {
                     if final_segment {
                         return Some(ty);
                     }
+                    if self.imported_nominal_declaration(ty).is_some() {
+                        return self.resolve_imported_qualified_type(
+                            ty,
+                            &path[package_length + 1..],
+                            arguments,
+                        );
+                    }
                     let Some(target) = self.nominal_target_for_type(ty) else {
                         self.error(
                             binding_name.span,
@@ -294,6 +301,13 @@ impl Lowerer {
                     )?;
                     if final_segment {
                         return Some(ty);
+                    }
+                    if self.imported_nominal_declaration(ty).is_some() {
+                        return self.resolve_imported_qualified_type(
+                            ty,
+                            &path[package_length + 1..],
+                            arguments,
+                        );
                     }
                     let Some(target) = self.nominal_target_for_type(ty) else {
                         self.error(
@@ -321,6 +335,9 @@ impl Lowerer {
                         crate::namespace::TopLevelTypeTarget::Alias(alias),
                     )) => {
                         let ty = self.resolve_type_alias_id_reference(alias, first, false)?;
+                        if self.imported_nominal_declaration(ty).is_some() {
+                            return self.resolve_imported_qualified_type(ty, &path[1..], arguments);
+                        }
                         let Some(target) = self.nominal_target_for_type(ty) else {
                             self.error(
                                 first.span,
@@ -336,6 +353,9 @@ impl Lowerer {
                     Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
                         let ty =
                             self.resolve_imported_dependency_type_target(&binding, first, false)?;
+                        if self.imported_nominal_declaration(ty).is_some() {
+                            return self.resolve_imported_qualified_type(ty, &path[1..], arguments);
+                        }
                         let Some(target) = self.nominal_target_for_type(ty) else {
                             self.error(
                                 first.span,

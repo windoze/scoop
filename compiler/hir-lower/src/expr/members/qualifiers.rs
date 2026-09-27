@@ -68,7 +68,13 @@ impl Lowerer {
                         ) => self
                             .resolved_type_alias_target(alias)
                             .and_then(|target| self.nominal_target_for_type(target)),
-                        ExpressionQualifierLookup::Missing
+                        ExpressionQualifierLookup::Unique(
+                            ExpressionQualifierTarget::DependencyObject(_),
+                        )
+                        | ExpressionQualifierLookup::Inaccessible(
+                            ExpressionQualifierTarget::DependencyObject(_),
+                        )
+                        | ExpressionQualifierLookup::Missing
                         | ExpressionQualifierLookup::Value
                         | ExpressionQualifierLookup::Ambiguous
                         | ExpressionQualifierLookup::Unique(

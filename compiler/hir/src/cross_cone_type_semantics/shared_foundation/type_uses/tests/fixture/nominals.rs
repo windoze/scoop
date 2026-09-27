@@ -53,6 +53,7 @@ impl Artifact {
             SourceNominalKind::Object => (
                 PublicNominalKindV1::Object,
                 NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+                    crate::ObjectSourceKindV1::Standalone,
                     scoop_identity::PersistentObjectValueId::from_source_object(identity.key())
                         .unwrap(),
                     Default::default(),

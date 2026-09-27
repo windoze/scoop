@@ -1,5 +1,6 @@
 use scoop_hir as hir;
 
+#[derive(Clone)]
 pub(crate) struct PropertyCallReceiver {
     pub(crate) value: hir::Expr,
     pub(crate) static_type: hir::TypeId,

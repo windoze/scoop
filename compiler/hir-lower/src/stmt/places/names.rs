@@ -186,21 +186,7 @@ impl Lowerer {
                     self.lower_named_value_target(name, value, None)?
                 }
                 crate::imports::lookup::values::ResolvedValueTarget::Dependency(binding) => {
-                    let property =
-                        self.lower_imported_dependency_property_read(&binding, None, name.span)?;
-                    return Some(ResolvedPlacePlan {
-                        ty: property.expression.ty,
-                        read: property.expression,
-                        write: if property.has_setter {
-                            WriteCapability::ImportedDependencyProperty {
-                                binding,
-                                receiver: None,
-                                name: name.clone(),
-                            }
-                        } else {
-                            WriteCapability::ReadOnly
-                        },
-                    });
+                    return self.resolve_imported_property_place(binding, name, sink);
                 }
             };
             return Some(ResolvedPlacePlan {

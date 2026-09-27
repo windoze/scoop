@@ -1,0 +1,9 @@
+import dependency.classes.Counter
+import dependency.classes.WriteHost
+import dependency.classes.CompanionTrace
+import dependency.classes.companionWriteArgument
+
+public fun primary(): Counter {
+    WriteHost.count = if (CompanionTrace.events == 1) { companionWriteArgument() } else { 0 }
+    return Counter(if (CompanionTrace.events == 123) { WriteHost.count } else { 0 })
+}

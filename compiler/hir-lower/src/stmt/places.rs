@@ -2,6 +2,7 @@ use super::*;
 use crate::expr::QualifiedInterfaceProperty;
 use crate::expr::{CallSite, RequiredCallableModifiers};
 
+mod imported_properties;
 mod names;
 
 pub(super) struct ResolvedPlacePlan {
@@ -101,7 +102,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn materialize_place_expr(
+    pub(crate) fn materialize_place_expr(
         &mut self,
         value: hir::Expr,
         label: &str,
@@ -159,6 +160,12 @@ impl Lowerer {
                         write: WriteCapability::ReadOnly,
                         ty,
                     });
+                }
+                if let Some(binding) = self
+                    .resolve_imported_qualified_property(receiver, name)
+                    .ok()?
+                {
+                    return self.resolve_imported_property_place(binding, name, sink);
                 }
                 let forwarding = self
                     .nominal_qualifier_target(receiver)

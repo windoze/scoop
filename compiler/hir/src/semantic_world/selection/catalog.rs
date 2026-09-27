@@ -53,6 +53,8 @@ pub(super) struct TypeAliasCatalogEntry {
 
 #[derive(Debug)]
 pub(super) struct DependencyCatalog {
+    pub(super) static_namespaces:
+        BTreeMap<crate::SourceNominalId, Vec<crate::DirectNamedPublicBindingGroup>>,
     pub(super) nominals:
         BTreeMap<scoop_identity::PersistentTypeId, Arc<super::ImportedNominalDeclaration>>,
     pub(super) consumer: ConeIdentity,
@@ -74,7 +76,15 @@ impl ImportedSemanticWorld<'_> {
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
         let mut nominals = BTreeMap::new();
+        let mut static_namespaces = BTreeMap::new();
         for provider in &self.providers {
+            for nominal in provider.interface().nominal_interfaces().records() {
+                let owner = nominal.declaration();
+                let namespace = self
+                    .imported_static_namespace(owner)
+                    .expect("the dependency world indexes every public static namespace");
+                static_namespaces.insert(owner, namespace.snapshot());
+            }
             for declaration in super::nominals::declarations(provider)? {
                 let id = declaration.identity.id();
                 if nominals.insert(id, declaration).is_some() {
@@ -179,6 +189,7 @@ impl ImportedSemanticWorld<'_> {
         }
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
+                static_namespaces,
                 nominals,
                 consumer: self.current,
                 callables,
@@ -226,4 +237,24 @@ fn imported_definition_sources(
             .or_insert_with(|| context.clone());
     }
     Ok(ImportedDependencyDefinitionSources { records, contexts })
+}
+
+impl ImportedDependencySelectionPlan {
+    /// Resolves a name within the actual declaration's static namespace.
+    pub fn static_bindings(
+        &self,
+        owner: crate::SourceNominalId,
+        namespace: scoop_identity::BindingNamespace,
+        name: &str,
+    ) -> &[crate::DirectImportedTargetBinding] {
+        self.catalog
+            .static_namespaces
+            .get(&owner)
+            .and_then(|groups| {
+                groups
+                    .iter()
+                    .find(|group| group.namespace() == namespace && group.name().as_str() == name)
+            })
+            .map_or(&[], |group| group.targets())
+    }
 }

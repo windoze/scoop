@@ -72,6 +72,7 @@ fn validates_owned_source_shapes_selectors_and_field_types() {
     );
 
     let object = NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+        crate::ObjectSourceKindV1::Standalone,
         fixture.object_value,
         Default::default(),
     ));
@@ -163,6 +164,7 @@ fn rejects_fields_variants_and_object_values_owned_by_other_nominals() {
     ));
 
     let object = NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+        crate::ObjectSourceKindV1::Standalone,
         fixture.foreign_object_value,
         Default::default(),
     ));

@@ -77,6 +77,10 @@ pub(in crate::production::nominal_interfaces) fn object_shape(
         owner,
     )?;
     Ok(NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+        match declaration.kind {
+            crate::ObjectKind::Standalone => crate::ObjectSourceKindV1::Standalone,
+            crate::ObjectKind::Companion(_) => crate::ObjectSourceKindV1::Companion,
+        },
         value.id(),
         fields,
     )))

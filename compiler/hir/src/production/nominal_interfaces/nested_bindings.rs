@@ -16,6 +16,39 @@ pub(super) fn project(
 > {
     let expected_owner = local.owner();
     let mut bindings = Vec::new();
+    if let LocalNominalId::Object(id) = local {
+        let backing = &projection.export.classes[projection.export.objects[id].backing_class];
+        for function in &backing.methods {
+            if projection.public_functions.contains(function)
+                && let crate::HirFunctionIdentity::Source(identity) =
+                    &projection.export.function_identities[*function]
+            {
+                let target = match identity {
+                    crate::HirSourceFunctionIdentity::Plain(record) => {
+                        BindableEntity::Function(record.id())
+                    }
+                    crate::HirSourceFunctionIdentity::Generic(record) => {
+                        BindableEntity::GenericFunction(record.id())
+                    }
+                };
+                collect_target(projection, owner, target, &mut bindings)?;
+            }
+        }
+        for property in &backing.properties {
+            if projection.public_properties.contains(property) {
+                let target = match &projection.export.property_identities[*property] {
+                    crate::HirPropertyIdentity::Ordinary(record) => {
+                        BindableEntity::Property(record.id())
+                    }
+                    crate::HirPropertyIdentity::Extension(record) => {
+                        BindableEntity::ExtensionProperty(record.id())
+                    }
+                };
+                collect_target(projection, owner, target, &mut bindings)?;
+            }
+        }
+    }
+
     if let LocalNominalId::Enum(id) = local
         && projection.export.public_surface.enums.contains(&id)
     {

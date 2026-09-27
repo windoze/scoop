@@ -69,15 +69,34 @@ impl StructSourceShapeV1 {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ObjectSourceKindV1 {
+    Standalone,
+    Companion,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectSourceShapeV1 {
+    kind: ObjectSourceKindV1,
     value: PersistentObjectValueId,
     fields: NominalSourceFieldsV1,
 }
 
 impl ObjectSourceShapeV1 {
-    pub const fn new(value: PersistentObjectValueId, fields: NominalSourceFieldsV1) -> Self {
-        Self { value, fields }
+    pub const fn new(
+        kind: ObjectSourceKindV1,
+        value: PersistentObjectValueId,
+        fields: NominalSourceFieldsV1,
+    ) -> Self {
+        Self {
+            kind,
+            value,
+            fields,
+        }
+    }
+
+    pub const fn object_kind(&self) -> ObjectSourceKindV1 {
+        self.kind
     }
 
     pub const fn value(&self) -> PersistentObjectValueId {
@@ -143,6 +162,7 @@ pub enum DecodedNominalSourceShapeV1 {
     },
     Enum(Vec<DecodedEnumSourceVariantV1>),
     Object {
+        kind: ObjectSourceKindV1,
         value: DecodedPersistentId<PersistentObjectValueId>,
         fields: Vec<DecodedNominalSourceFieldV1>,
     },
@@ -172,13 +192,17 @@ impl DecodedNominalSourceShapeV1 {
             Self::Enum(variants) => {
                 resolve_enum_shape(variants, resolver).map(NominalSourceShapeV1::Enum)
             }
-            Self::Object { value, fields } => {
+            Self::Object {
+                kind,
+                value,
+                fields,
+            } => {
                 let value = resolver
                     .resolve(value)
                     .map_err(NominalSourceShapeResolutionError::ObjectValue)?;
                 let fields = fields::resolve(fields, resolver)?;
                 Ok(NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
-                    value, fields,
+                    kind, value, fields,
                 )))
             }
         }

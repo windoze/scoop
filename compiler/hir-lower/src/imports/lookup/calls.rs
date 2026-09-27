@@ -37,6 +37,7 @@ pub(crate) struct NamedCallBinding {
 pub(crate) enum ExpressionQualifierTarget {
     Type(TopLevelTypeTarget),
     DependencyType(hir::ImportedTarget),
+    DependencyObject(scoop_identity::PersistentObjectValueId),
     Object(hir::ObjectId),
 }
 

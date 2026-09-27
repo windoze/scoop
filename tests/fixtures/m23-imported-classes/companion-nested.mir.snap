@@ -1,0 +1,14 @@
+Module
+  global0 $singleton$4167c4a090aec4c3e1538cc083d70dee606516c594617066a6559df08422b3c7: Nested imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=49bb034d109cc720adce781e825815c834b6ccbfa24bf11530146271116dc399
+  class Counter vtable=0 itables=0
+  class Nested vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call external1 direct
+      call $call.1: Counter = external0 direct
+        Type Nested
+        GlobalRead $singleton$4167c4a090aec4c3e1538cc083d70dee606516c594617066a6559df08422b3c7
+      return
+        Type Counter
+        Local $call.1
+  output library

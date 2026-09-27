@@ -56,6 +56,7 @@ impl ImportedDependencySelectionPlan {
     pub fn empty(consumer: ConeIdentity) -> Self {
         Self {
             catalog: Arc::new(DependencyCatalog {
+                static_namespaces: BTreeMap::new(),
                 nominals: BTreeMap::new(),
                 consumer,
                 callables: BTreeMap::new(),

@@ -40,6 +40,17 @@ impl Lowerer {
                     );
                     return None;
                 }
+                if let Some(binding) = self
+                    .resolve_imported_qualified_property(receiver, name)
+                    .ok()?
+                {
+                    return self.lower_imported_dependency_property_assignment(
+                        &binding,
+                        name,
+                        &assign.value,
+                        out,
+                    );
+                }
                 let mut sink = Vec::new();
                 let forwarding = self
                     .nominal_qualifier_target(receiver)

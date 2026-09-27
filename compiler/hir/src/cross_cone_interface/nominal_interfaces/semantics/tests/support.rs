@@ -389,7 +389,11 @@ pub(super) fn generic_object_record() -> (
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-        NominalSourceShapeV1::Object(crate::ObjectSourceShapeV1::new(value, Default::default())),
+        NominalSourceShapeV1::Object(crate::ObjectSourceShapeV1::new(
+            crate::ObjectSourceKindV1::Standalone,
+            value,
+            Default::default(),
+        )),
     )
     .unwrap();
     (record, declaration, key)

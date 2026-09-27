@@ -4,8 +4,6 @@ use super::*;
 use hir::ImportedCallableSource;
 use scoop_identity::CallableTemplateOrigin;
 
-mod qualifier;
-
 impl Lowerer {
     pub(in crate::expr) fn contextual_imported_variant(
         &self,

@@ -305,6 +305,13 @@ impl Lowerer {
                     ] if types.is_empty() => ExpressionQualifierLookup::Unique(
                         ExpressionQualifierTarget::Object(*object),
                     ),
+                    [ExpressionQualifierValueOrigin::Dependency(hir::ImportedTarget::ObjectValue(value))]
+                        if types.iter().all(|target| matches!(target,
+                            ExpressionQualifierTarget::DependencyType(hir::ImportedTarget::Type(ty))
+                            if self.imported_object_value(ty.persistent()) == Some(value.persistent()))) =>
+                    {
+                        ExpressionQualifierLookup::Unique(ExpressionQualifierTarget::DependencyObject(value.persistent()))
+                    }
                     [] => unreachable!("the value layer is known to be non-empty"),
                     _ => ExpressionQualifierLookup::Value,
                 };

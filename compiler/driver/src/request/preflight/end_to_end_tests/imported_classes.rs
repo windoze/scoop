@@ -187,6 +187,40 @@ fn dependency_singletons_initialize_through_actual_artifacts() {
     );
 }
 
+#[test]
+fn dependency_companions_compile_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "companion-imported",
+            "companion-named",
+            "companion-alias",
+            "companion-forwarded",
+            "companion-call-import",
+            "companion-exported-default",
+            "companion-reexport",
+            "companion-nested",
+            "companion-const",
+            "companion-dispatch",
+            "companion-write",
+            "companion-updates",
+            "companion-imported-update",
+            "companion-write-order",
+            "companion-imported-write-order",
+        ],
+        &[
+            "companion-internal",
+            "companion-wrong-identity",
+            "companion-no-gc",
+            "companion-instance",
+            "companion-constructor",
+            "companion-readonly",
+            "companion-const-write",
+            "companion-private-setter",
+        ],
+    );
+}
+
 fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]) {
     let target =
         resolved_target().expect("the production test requires the configured LLVM target");
@@ -273,6 +307,9 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     }) {
         provider_source.push_str(&source("initialization-provider"));
     }
+    if cases.iter().any(|case| case.starts_with("companion-")) {
+        provider_source.push_str(&source("companion-provider"));
+    }
     write_manifest_cone(
         &provider_root,
         "dev.example",
@@ -339,21 +376,38 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
             "library",
             &source(if *case == "initialization-object-reexport" {
                 "initialization-object-downstream"
+            } else if *case == "companion-reexport" {
+                "companion-downstream"
             } else {
                 "downstream"
             }),
         );
-        write_dependency_manifest(&root, &name, &[&coordinate, &consumer]);
+        if *case == "companion-reexport" {
+            write_dependency_manifest(&root, &name, &[&consumer]);
+        } else {
+            write_dependency_manifest(&root, &name, &[&coordinate, &consumer]);
+        }
+        let (direct, support) = if *case == "companion-reexport" {
+            (
+                vec![output.artifact().path().to_path_buf()],
+                vec![provider.artifact().path().to_path_buf()],
+            )
+        } else {
+            (
+                vec![
+                    provider.artifact().path().to_path_buf(),
+                    output.artifact().path().to_path_buf(),
+                ],
+                vec![],
+            )
+        };
         let downstream = build_manifest_request(
             sysroot.path(),
             &target,
             &root,
             &sysroot.path().join(format!("output/{name}.slib")),
-            vec![
-                provider.artifact().path().to_path_buf(),
-                output.artifact().path().to_path_buf(),
-            ],
-            vec![],
+            direct,
+            support,
         )
         .build_and_publish()
         .unwrap_or_else(|error| panic!("downstream {case}: {error:?}"));

@@ -1,0 +1,3 @@
+span=137..158
+expression=CompanionHost.Factory
+body of `wrong` must be of type Companion, found Factory

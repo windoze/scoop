@@ -166,6 +166,12 @@ fn every_source_shape_round_trips_through_typed_authority() {
             .unwrap(),
         ),
         NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+            crate::ObjectSourceKindV1::Standalone,
+            fixture.object_value.id(),
+            Default::default(),
+        )),
+        NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+            crate::ObjectSourceKindV1::Companion,
             fixture.object_value.id(),
             Default::default(),
         )),
@@ -252,7 +258,7 @@ fn reader_rejects_missing_typed_authority() {
 
 #[test]
 fn reader_rejects_unknown_tags_and_wrong_sum_lengths() {
-    for retired in [1, 5] {
+    for retired in [1, 5, 8] {
         let error =
             decode_canonical::<DecodedNominalSourceShapeV1>(&[0xa1, 0x00, retired]).unwrap_err();
         assert!(
@@ -260,10 +266,16 @@ fn reader_rejects_unknown_tags_and_wrong_sum_lengths() {
         );
     }
     let unknown_shape =
-        decode_canonical::<DecodedNominalSourceShapeV1>(&[0xa1, 0x00, 0x09]).unwrap_err();
+        decode_canonical::<DecodedNominalSourceShapeV1>(&[0xa1, 0x00, 0x0a]).unwrap_err();
     assert!(matches!(
         unknown_shape.kind(),
-        WireErrorKind::UnknownTag { tag: 9 }
+        WireErrorKind::UnknownTag { tag: 10 }
+    ));
+
+    let unknown_object_kind = decode_canonical::<ObjectSourceKindV1>(&[0x03]).unwrap_err();
+    assert!(matches!(
+        unknown_object_kind.kind(),
+        WireErrorKind::UnknownTag { tag: 3 }
     ));
 
     let unknown_style = decode_canonical::<EnumSourceVariantStyleV1>(&[0x05]).unwrap_err();

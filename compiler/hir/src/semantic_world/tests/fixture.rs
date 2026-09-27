@@ -185,6 +185,7 @@ impl ProviderFixture {
                 object_type.id(),
                 PublicNominalKindV1::Object,
                 NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+                    crate::ObjectSourceKindV1::Standalone,
                     object_value.id(),
                     Default::default(),
                 )),

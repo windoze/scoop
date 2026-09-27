@@ -8,8 +8,17 @@ impl Lowerer {
         value: &ast::Expr,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let prepared = self.prepare_imported_property_setter(binding, None, name)?;
+        let mut prepared = self.prepare_imported_property_setter(binding, None, name)?;
         let mut sink = Vec::new();
+        prepared.receiver = prepared.receiver.map(|receiver| PropertyCallReceiver {
+            value: self.materialize_place_expr(
+                receiver.value,
+                "property_receiver",
+                name.span,
+                &mut sink,
+            ),
+            static_type: receiver.static_type,
+        });
         let value = self.lower_expr(value, &mut sink, Some(prepared.value_type))?;
         if !self.is_subtype(value.ty, prepared.value_type) {
             let message = self.with_nominal_invariance_detail(

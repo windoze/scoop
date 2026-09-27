@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v28_requires_explicit_singleton_occurrences() {
+fn source_interface_v29_requires_complete_object_declarations() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        28,
+        29,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

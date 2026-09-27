@@ -5,6 +5,17 @@ use crate::imported_core::ImportedSignatureTypeError;
 use scoop_identity::{PersistentObjectValueId, SignatureTypeKey};
 
 impl Lowerer {
+    pub(crate) fn imported_object_value(
+        &self,
+        owner: scoop_identity::PersistentTypeId,
+    ) -> Option<PersistentObjectValueId> {
+        let declaration = self.dependencies.as_ref()?.nominal(owner)?;
+        match declaration.interface.source_shape() {
+            hir::NominalSourceShapeV1::Object(shape) => Some(shape.value()),
+            _ => None,
+        }
+    }
+
     pub(crate) fn imported_singleton_type(
         &mut self,
         value: PersistentObjectValueId,

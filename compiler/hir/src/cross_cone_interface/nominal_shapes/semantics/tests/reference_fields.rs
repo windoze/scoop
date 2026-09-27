@@ -92,6 +92,7 @@ fn object_source_fields_require_the_actual_backing_class_and_property_role() {
     );
     let build = |value| {
         NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+            crate::ObjectSourceKindV1::Standalone,
             value,
             NominalSourceFieldsV1::try_new(vec![NominalSourceFieldV1::new(
                 field,
