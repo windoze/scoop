@@ -150,9 +150,8 @@ pub struct ValidatedSingleConeStrongProduction {
 /// Validate and atomically import the complete Compile view of one
 /// `SingleConeStrongProfile` artifact.
 ///
-/// This is the only public whole-artifact Compile entry. The intermediate
-/// states remain available for focused verifier tests, but callers cannot
-/// obtain the final proof without replaying every required phase.
+/// Reads the artifact at its input boundary and retains the complete checked
+/// declarations, types, and production data for subsequent consumers.
 pub fn validate_single_cone_strong_compile_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
 
@@ -170,35 +169,6 @@ pub fn validate_single_cone_strong_compile_artifact<'input>(
         .map_err(|error| StrongCompileArtifactValidationError::LocalProduction(Box::new(error)))?
         .validate_cross_layer()
         .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?
-        .validate_lir_production()
-        .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
-        .validate_native_boundary()
-        .map_err(|error| StrongCompileArtifactValidationError::NativeBoundary(Box::new(error)))?
-        .commit(session)
-        .map_err(|error| StrongCompileArtifactValidationError::Commit(Box::new(error)))
-}
-
-/// Validates a previously published artifact without compiler-side IR by
-/// reconstructing its typed external bridge surface from the artifact's
-/// already validated identity graph before replaying the complete Compile
-/// view.
-pub fn validate_self_describing_single_cone_strong_compile_artifact<'input>(
-    graph: ValidatedGraphArtifact<'input>,
-    session: &mut SemanticIdentitySession,
-) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, StrongCompileArtifactValidationError>
-{
-    let front = graph
-        .decode_single_cone_compile_sections()
-        .map_err(|error| StrongCompileArtifactValidationError::Decode(Box::new(error)))?
-        .validate_identities()
-        .map_err(|error| StrongCompileArtifactValidationError::Identities(Box::new(error)))?
-        .validate_foundation_structure()
-        .map_err(|error| StrongCompileArtifactValidationError::Foundations(Box::new(error)))?
-        .validate_local_production()
-        .map_err(|error| StrongCompileArtifactValidationError::LocalProduction(Box::new(error)))?
-        .validate_cross_layer()
-        .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?;
-    front
         .validate_lir_production()
         .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
         .validate_native_boundary()

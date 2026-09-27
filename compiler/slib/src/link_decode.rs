@@ -135,48 +135,6 @@ pub fn validate_single_cone_strong_link_artifact<'input>(
         .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
 }
 
-/// Validates a previously published artifact without compiler-side IR by
-/// reconstructing its typed external bridge surface from the validated Link
-/// identity graph before replaying every remaining Link proof.
-pub fn validate_self_describing_single_cone_strong_link_artifact<'input>(
-    graph: ValidatedGraphArtifact<'input>,
-    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedSingleConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
-    let front = graph
-        .decode_single_cone_link_sections()
-        .map_err(|error| StrongLinkArtifactValidationError::Decode(Box::new(error)))?
-        .validate_identities()
-        .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
-        .validate_foundation_structure()
-        .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?;
-    front
-        .validate_production()
-        .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
-        .validate_materializations()
-        .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?
-        .validate_c_bridge_envelopes(c_bridge_profile)
-        .map_err(|error| StrongLinkArtifactValidationError::CBridge(Box::new(error)))?
-        .validate_builtin_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::BuiltinObjects(Box::new(error)))?
-        .validate_digest_patch_sites()
-        .map_err(|error| StrongLinkArtifactValidationError::DigestPatches(Box::new(error)))?
-        .validate_registration_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::RegistrationObjects(Box::new(error)))?
-        .fingerprint_registration_leaves()
-        .map_err(|error| StrongLinkArtifactValidationError::RegistrationLeaves(Box::new(error)))?
-        .validate_link_symbol_requirements(dependency_owners, c_bridge_profile)
-        .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
-        .fingerprint_registration_dependencies()
-        .map_err(|error| {
-            StrongLinkArtifactValidationError::RegistrationDependencies(Box::new(error))
-        })?
-        .finalize_strong_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::ObjectFinalization(Box::new(error)))?
-        .validate_code_and_closure()
-        .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
-}
-
 pub(crate) fn verify_reconstructed_scoop_objects<D, C, I>(
     normalized: &VerifiedNormalizedProvisionalScoopLirObjectSetV1,
     reconstructed: &VerifiedEntryPatchSetV1<D, C, I>,
