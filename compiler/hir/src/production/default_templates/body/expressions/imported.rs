@@ -23,16 +23,29 @@ impl BodyProjection<'_, '_> {
             .map(|ty| self.type_key(*ty))
             .collect::<Result<Vec<_>, _>>()?;
         let callee = crate::DefaultCallableRefV1::try_new(
-            crate::DefaultCallableDeclarationV1::GenericFunction(template.declaration),
+            template.declaration.body_owner(),
             scoop_identity::OptionalSignatureType::Absent,
             arguments,
         )
         .map_err(crate::DefaultEntityProjectionError::Callable)?;
-        Ok(DefaultExpressionKindV1::Call {
-            callee,
-            receiver: receiver.try_map(|ty| self.type_key(ty))?,
-            arguments: self.expressions(args)?,
-        })
+        match &template.declaration {
+            crate::ImportedCallableTemplateOrigin::Generic(_) => {
+                Ok(DefaultExpressionKindV1::Call {
+                    callee,
+                    receiver: receiver.try_map(|ty| self.type_key(ty))?,
+                    arguments: self.expressions(args)?,
+                })
+            }
+            crate::ImportedCallableTemplateOrigin::Local { descriptor, .. } => {
+                let (captures, arguments) = args.split_at(descriptor.capture_count() as usize);
+                Ok(DefaultExpressionKindV1::LocalFunctionCall {
+                    declaration: descriptor.declaration(),
+                    callee,
+                    captures: self.expressions(captures)?,
+                    arguments: self.expressions(arguments)?,
+                })
+            }
+        }
     }
 
     pub(super) fn imported_call(

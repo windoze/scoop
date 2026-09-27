@@ -21,8 +21,9 @@ impl DefaultEntityProjector<'_> {
             }
             ExportDefaultCallableTarget::ImportedGeneric(application) => {
                 let application = &export.imported_generic_applications[application];
-                let declaration =
-                    export.imported_generic_templates[application.template].declaration;
+                let declaration = export.imported_generic_templates[application.template]
+                    .declaration
+                    .body_owner();
                 let arguments = application
                     .arguments
                     .iter()
@@ -30,7 +31,7 @@ impl DefaultEntityProjector<'_> {
                     .collect::<Result<Vec<_>, _>>()?;
                 ExportDefaultCallableTargetV1::Callable(
                     crate::DefaultCallableRefV1::try_new(
-                        crate::DefaultCallableDeclarationV1::GenericFunction(declaration),
+                        declaration,
                         scoop_identity::OptionalSignatureType::Absent,
                         arguments,
                     )

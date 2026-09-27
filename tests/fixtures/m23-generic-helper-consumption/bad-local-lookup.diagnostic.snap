@@ -1,0 +1,3 @@
+span=33..57
+expression=dependency.helpers.local
+import target is not available in the current compilation unit

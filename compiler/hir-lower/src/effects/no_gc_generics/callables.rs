@@ -43,6 +43,7 @@ impl Lowerer {
             GenericCallable::Function(id) => self.functions[id].type_params(),
             GenericCallable::Imported(id) => self.imported_generic_templates[id]
                 .type_parameters
+                .declarations()
                 .iter()
                 .collect(),
             GenericCallable::ClassConstructor(id) => self.classes

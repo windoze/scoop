@@ -32,7 +32,7 @@ pub(super) fn collect<E>(local: &crate::LocalConcreteHirOutput) -> Result<Vec<Si
         for (index, parameter) in function
             .params
             .iter()
-            .skip(usize::from(receiver.is_some()))
+            .skip(usize::from(receiver.is_some()) + function.capture_parameters.len())
             .enumerate()
         {
             output.signature(root, Part::Parameter(parameter_index(index)?), parameter.ty)?;

@@ -9,6 +9,7 @@ use scoop_identity::{
 
 use super::{DirectImportedTargetBinding, ImportedTarget};
 
+mod bodies;
 mod catalog;
 mod error;
 mod intrinsics;
@@ -16,6 +17,7 @@ mod members;
 mod model;
 mod nominals;
 mod properties;
+pub use bodies::ImportedCallableBody;
 pub use error::*;
 pub use intrinsics::ImportedIntrinsicCallable;
 pub use members::*;
@@ -61,6 +63,7 @@ impl ImportedDependencySelectionPlan {
                 nominal_visibilities: BTreeMap::new(),
                 consumer,
                 callables: BTreeMap::new(),
+                bodies: BTreeMap::new(),
                 properties: BTreeMap::new(),
                 constants: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),

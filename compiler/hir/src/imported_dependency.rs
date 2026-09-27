@@ -17,9 +17,9 @@ impl std::ops::Deref for ImportedGenericCallableTemplate {
 
 #[derive(Debug, Clone)]
 pub struct ImportedGenericCallableSignature {
-    pub declaration: scoop_identity::PersistentGenericFunctionId,
+    pub declaration: ImportedCallableTemplateOrigin,
     pub name: String,
-    pub type_parameters: Vec<crate::TypeParamDecl>,
+    pub type_parameters: ImportedCallableTypeParameters,
     pub no_gc_type_params: Vec<crate::TypeParamId>,
     pub gc_free_pointee_requirements: Vec<crate::RequiresGcFreePointee>,
     pub parameters: Vec<crate::Param>,
@@ -28,6 +28,76 @@ pub struct ImportedGenericCallableSignature {
     pub receiver: Option<crate::TypeId>,
     pub origin: crate::DefinitionOrigin,
     pub span: crate::Span,
+}
+
+/// A lexical body keeps its source declaration and enclosing application.
+/// Inherited binders do not turn an ordinary local declaration into a generic
+/// declaration with a different persistent identity.
+#[derive(Debug, Clone)]
+pub enum ImportedCallableTemplateOrigin {
+    Generic(scoop_identity::PersistentGenericFunctionId),
+    Local {
+        parent: crate::ImportedGenericCallableTemplateId,
+        descriptor: crate::DefaultLocalFunctionV1,
+    },
+}
+
+impl ImportedCallableTemplateOrigin {
+    pub fn declaration(&self) -> scoop_identity::CallableTemplateOrigin {
+        match self {
+            Self::Generic(id) => scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
+            Self::Local { descriptor, .. } => descriptor.declaration(),
+        }
+    }
+
+    pub fn body_owner(&self) -> crate::DefaultCallableDeclarationV1 {
+        match self.declaration() {
+            scoop_identity::CallableTemplateOrigin::Function(id) => {
+                crate::DefaultCallableDeclarationV1::Function(id)
+            }
+            scoop_identity::CallableTemplateOrigin::GenericFunction(id) => {
+                crate::DefaultCallableDeclarationV1::GenericFunction(id)
+            }
+            _ => unreachable!("local descriptors only contain source function declarations"),
+        }
+    }
+}
+
+/// Source candidates need declared bounds for inference. Lexical calls were
+/// resolved by their provider and only need their ordered substitution slots.
+#[derive(Debug, Clone)]
+pub enum ImportedCallableTypeParameters {
+    Declared(Vec<crate::TypeParamDecl>),
+    Substitution(Vec<crate::TypeParamId>),
+}
+
+impl ImportedCallableTypeParameters {
+    pub fn declarations(&self) -> &[crate::TypeParamDecl] {
+        match self {
+            Self::Declared(parameters) => parameters,
+            Self::Substitution(_) => {
+                panic!("a lexical implementation does not participate in source inference")
+            }
+        }
+    }
+
+    pub fn ids(&self) -> Vec<crate::TypeParamId> {
+        match self {
+            Self::Declared(parameters) => parameters.iter().map(|parameter| parameter.id).collect(),
+            Self::Substitution(parameters) => parameters.clone(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Declared(parameters) => parameters.len(),
+            Self::Substitution(parameters) => parameters.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// A source-selected application. Arguments may still name the caller's

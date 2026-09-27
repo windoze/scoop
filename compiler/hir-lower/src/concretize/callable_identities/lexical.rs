@@ -1,6 +1,50 @@
 use super::*;
 
 impl CallableIdentityBuilder<'_> {
+    pub(super) fn imported_materialization(
+        &mut self,
+        declaration: export::ImportedCallableTemplateOrigin,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
+        match declaration {
+            export::ImportedCallableTemplateOrigin::Generic(id) => self.source_materialization(
+                SourceTemplate::GenericFunction(id),
+                CallableInstantiationOwner::NoOwner,
+                arguments,
+            ),
+            export::ImportedCallableTemplateOrigin::Local { parent, descriptor } => {
+                let inherited = descriptor.owner_type_parameter_count() as usize;
+                let parent_key = FunctionKey::Imported {
+                    source: parent,
+                    arguments: arguments[..inherited].to_vec(),
+                };
+                let parent_id = self.concretizer.function_by_key[&parent_key];
+                let parent = self.resolve_function(parent_id.into_raw().into_u32() as usize);
+                let owner = match parent.context() {
+                    CallableMaterializationContext::NoSubstitution => {
+                        CallableInstantiationOwner::NoOwner
+                    }
+                    CallableMaterializationContext::Application(id) => {
+                        CallableInstantiationOwner::EnclosingCallableApplication(id)
+                    }
+                    CallableMaterializationContext::InitializationApplication(id) => {
+                        CallableInstantiationOwner::EnclosingInitializationApplication(id)
+                    }
+                };
+                let template = match descriptor.declaration() {
+                    scoop_identity::CallableTemplateOrigin::Function(id) => {
+                        SourceTemplate::Function(id)
+                    }
+                    scoop_identity::CallableTemplateOrigin::GenericFunction(id) => {
+                        SourceTemplate::GenericFunction(id)
+                    }
+                    _ => unreachable!("local descriptors contain source function declarations"),
+                };
+                self.source_materialization(template, owner, &arguments[inherited..])
+            }
+        }
+    }
+
     pub(super) fn lexical_context(
         &mut self,
         function: export::FunctionId,

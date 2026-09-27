@@ -1,0 +1,9 @@
+package consumer.helpers
+
+import dependency.helpers.retain
+
+public fun <T> mutableCapture(value: T): T {
+    var changing = retain(value)
+    fun local(): T = changing
+    return local()
+}

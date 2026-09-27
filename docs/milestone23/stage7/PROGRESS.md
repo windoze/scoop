@@ -257,10 +257,23 @@
 - 该全仓结果对应成员合并功能之前的迁移基线；`c36f9eb79` 的584项 slib 与5项泛型产物验证另见上一条记录，后续局部函数等变更继续单独验证，不能把本次结果当作尚未完成的 M23-7 总体验收。
 - 确认原全仓验证及新一批定向构建进程全部结束后，执行 `cargo clean --target-dir target`，删除4309个构建文件，回收7.8 GiB。
 
+## 2026-09-28：导入私有 helper、局部函数及多层捕获完成产物运行闭环
+
+- 导入实现目录直接复用共有 callable body 表和定义位置。普通私有 helper 仍调用 provider 的实际定义，泛型私有 helper 与局部函数进入同一具体化队列；词法正文不会成为可按名字导入的源码接口，未调用的局部声明不触发机器实例化。
+- 局部普通函数保持原 `PersistentFunctionId`，有自身参数的局部 generic 函数保持原 `PersistentGenericFunctionId`；继承实参通过 enclosing callable application 表达，自身实参进入独立的 callable 参数组。已经在定义处完成解析的词法正文使用有序替换 binder，与参与源码重载推断的声明参数明确区分，不补造无约束签名。
+- 局部声明标记在导入时消除，实际调用按原 ABI 先传捕获值、再传显式参数。多层捕获继续关联外层真实值及其 application，隐藏参数不取得另一份局部值身份。源码签名的参数下标排除捕获前缀；实际 MIR/LIR ABI 保留前缀，声明位置 reader 同时处理 generic root 和带 enclosing application 的局部普通函数。
+- 新增独立及组合 fixture，覆盖 private ordinary/generic helper、定义处重载绑定、扩展调用、普通及局部递归、局部函数自身类型参数、两层词法捕获、消费方本地引用类型和 provider 引用类型。provider 与消费方发布后移走源码，下游仅以 `.slib` 消费；provider 可以只经 support path 提供。两例均完成正式发布、完整 reader、真实对象链接、普通运行及移动 GC，并检查实际发生收集。
+- provider 自身也从源码生成相同实例，另外两个消费 Cone 以不同调用顺序从产物具体化。真实闭包中至少9个共同 callable-body 成员均有三方物理候选，其中包含三个局部函数实现；ABI、LIR、object、stackmap 及最终 definition 通过同一 ODR 合并入口，实际链接运行通过。
+- 固化6份 HIR/MIR/LIR golden 和5份诊断 golden。反例分别拒绝直接导入 private generic helper、private ordinary helper、局部函数，以及对引用类型实例化 `@NoGC` 和捕获可变局部值；逐项断言源码位置、表达式与信息，且失败时不发布产物。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过，lint 无警告。关闭快照更新开关后，887项 HIR、1247项 HIR lowering、584项 slib 及全部6项泛型产物回归通过，共2724项，无失败或忽略；既有 golden 未修改。本批未重跑全工作区测试，不复用先前迁移基线的全仓结果作为本批验收。
+- 确认所有相关构建及测试进程结束，且 `target` 中没有打开的文件后执行 `cargo clean --target-dir target`，删除2368个构建文件，回收3.5 GiB。本项沿用当前 wire 和 runtime ABI，不新增发布器、验证状态链或语义重放流程。
+
+本项完成导入泛型正文中 helper 与局部直接调用的组合闭环。lambda、匿名函数、callable reference、构造和委托模板及其他阶段验收继续按原设计推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
-2. 在已通过的泛型函数产物闭环上补齐 hidden helper、默认值与 vararg、宿主和方法两组 binder、bound dispatch、局部函数及 capture 的完整组合。
+2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
 3. 完成泛型名义类型、构造、继承、属性、dispatch、ZST/大值/引用 ABI 与扫描。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。

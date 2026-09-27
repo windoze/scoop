@@ -1,7 +1,9 @@
 use scoop_hir as hir;
 use scoop_identity::LocalValueSelector;
 
-use super::{ImportedDefaultContext, ImportedDefaultMaterializationError};
+use super::{
+    ImportedDefaultContext, ImportedDefaultMaterializationError, ImportedTemplateEvaluation,
+};
 use crate::Lowerer;
 
 impl Lowerer {
@@ -9,9 +11,20 @@ impl Lowerer {
         &mut self,
         source: &hir::DefaultStatementV1,
         context: &mut ImportedDefaultContext<'_>,
-    ) -> Result<hir::Statement, ImportedDefaultMaterializationError> {
+    ) -> Result<Option<hir::Statement>, ImportedDefaultMaterializationError> {
         use hir::DefaultStatementKindV1 as Kind;
         let kind = match source.kind() {
+            // Local declarations have no runtime effect. Actual calls request
+            // their provider-owned bodies and pass captures explicitly.
+            Kind::LocalFunction(descriptor) => {
+                let ImportedTemplateEvaluation::Definition(parent) = context.evaluation else {
+                    return Err(ImportedDefaultMaterializationError::InvalidControlFlow(
+                        "local declaration has no enclosing callable template",
+                    ));
+                };
+                self.register_imported_local_function(parent, descriptor);
+                return Ok(None);
+            }
             Kind::Expr(value) => hir::StatementKind::Expr(
                 self.materialize_imported_default_expression(value, context)?,
             ),
@@ -87,7 +100,7 @@ impl Lowerer {
             Kind::Throw(value) => hir::StatementKind::Throw(
                 self.materialize_imported_default_expression(value, context)?,
             ),
-            Kind::InitializationEnsure(_) | Kind::LocalFunction(_) | Kind::For(_) => {
+            Kind::InitializationEnsure(_) | Kind::For(_) => {
                 return Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default statement".to_owned(),
                 ));
@@ -96,7 +109,7 @@ impl Lowerer {
         let span = self
             .imported_default_definition_origin(source.definition_origin(), context)?
             .span;
-        Ok(hir::Statement { kind, span })
+        Ok(Some(hir::Statement { kind, span }))
     }
 
     fn materialize_imported_default_statements(
@@ -106,7 +119,10 @@ impl Lowerer {
     ) -> Result<Vec<hir::Statement>, ImportedDefaultMaterializationError> {
         statements
             .iter()
-            .map(|statement| self.materialize_imported_default_statement(statement, context))
+            .filter_map(|statement| {
+                self.materialize_imported_default_statement(statement, context)
+                    .transpose()
+            })
             .collect()
     }
 

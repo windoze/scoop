@@ -238,9 +238,10 @@ impl Lowerer {
                     callee: GenericCallable::Imported(application.template),
                     arguments: template
                         .type_parameters
-                        .iter()
+                        .ids()
+                        .into_iter()
                         .zip(application.arguments.iter())
-                        .map(|(p, a)| (p.id, *a))
+                        .map(|(p, a)| (p, *a))
                         .collect(),
                     span: expr.span,
                 });

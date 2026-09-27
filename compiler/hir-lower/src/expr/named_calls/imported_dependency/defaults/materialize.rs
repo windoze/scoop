@@ -14,7 +14,7 @@ mod callable;
 mod statements;
 
 struct ImportedDefaultContext<'a> {
-    owner: &'a dyn hir::ImportedCallableSource,
+    owner: ImportedTemplateSource<'a>,
     callables:
         &'a BTreeMap<scoop_identity::CallableTemplateOrigin, hir::ImportedCallableDeclaration>,
     bindings: &'a crate::imported_core::ImportedTypeBindings,
@@ -23,8 +23,25 @@ struct ImportedDefaultContext<'a> {
     evaluation: ImportedTemplateEvaluation,
 }
 
+enum ImportedTemplateSource<'a> {
+    Default(&'a dyn hir::ImportedCallableSource),
+    Callable(&'a crate::imported_generics::PreparedImportedCallableSource),
+}
+
+impl ImportedTemplateSource<'_> {
+    fn definition_source(
+        &self,
+        source: &hir::ExportDefinitionSourceV1,
+    ) -> Option<hir::ImportedDependencyDefinitionSource<'_>> {
+        match self {
+            Self::Default(owner) => owner.definition_source(source),
+            Self::Callable(owner) => owner.definition_source(source),
+        }
+    }
+}
+
 enum ImportedTemplateEvaluation {
-    Definition,
+    Definition(hir::ImportedGenericCallableTemplateId),
     DefaultUse(hir::EvaluationOrigin),
 }
 
@@ -86,7 +103,7 @@ impl Lowerer {
             );
         }
         let mut context = ImportedDefaultContext {
-            owner,
+            owner: ImportedTemplateSource::Default(owner),
             callables: &prepared.callables,
             bindings: &prepared.bindings,
             locals,
@@ -96,7 +113,7 @@ impl Lowerer {
             ),
         };
         for statement in prepared.template.body().statements() {
-            sink.push(self.materialize_imported_default_statement(statement, &mut context)?);
+            sink.extend(self.materialize_imported_default_statement(statement, &mut context)?);
         }
         debug_assert!(context.loop_targets.is_empty());
         self.materialize_imported_default_expression(prepared.template.body().value(), &mut context)
@@ -111,7 +128,9 @@ impl Lowerer {
             self.imported_default_definition_origin(expression.definition_origin(), context)?;
         let span = definition.span;
         let origin = match context.evaluation {
-            ImportedTemplateEvaluation::Definition => hir::ExpressionOrigin::Definition(definition),
+            ImportedTemplateEvaluation::Definition(_) => {
+                hir::ExpressionOrigin::Definition(definition)
+            }
             ImportedTemplateEvaluation::DefaultUse(evaluation) => {
                 hir::ExpressionOrigin::Instantiated(hir::ConcreteExpressionOrigin {
                     definition,
@@ -238,6 +257,22 @@ impl Lowerer {
                     callee,
                     args,
                     receiver,
+                    MemberCallKind::Ordinary,
+                    context,
+                )?
+            }
+            Kind::LocalFunctionCall {
+                callee,
+                captures,
+                arguments,
+                ..
+            } => {
+                let mut args = self.materialize_imported_default_expressions(captures, context)?;
+                args.extend(self.materialize_imported_default_expressions(arguments, context)?);
+                self.imported_template_call_kind(
+                    callee,
+                    args,
+                    hir::SourceCallReceiver::NoReceiver,
                     MemberCallKind::Ordinary,
                     context,
                 )?
@@ -418,7 +453,6 @@ impl Lowerer {
             | Kind::ArraySet { .. }
             | Kind::ArrayLen(_)
             | Kind::ArrayClone(_)
-            | Kind::LocalFunctionCall { .. }
             | Kind::CallableCall { .. }
             | Kind::SomeWrap(_)
             | Kind::NoneLiteral

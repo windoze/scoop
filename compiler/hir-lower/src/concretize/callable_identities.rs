@@ -219,14 +219,11 @@ impl<'a> CallableIdentityBuilder<'a> {
         let source = match key.source() {
             FunctionSource::Local(source) => source,
             FunctionSource::Imported(source) => {
-                let declaration =
-                    self.concretizer.source.imported_generic_templates[source].declaration;
+                let declaration = self.concretizer.source.imported_generic_templates[source]
+                    .declaration
+                    .clone();
                 let arguments = self.concretizer.function_key_arguments(&key);
-                let materialization = self.source_materialization(
-                    SourceTemplate::GenericFunction(declaration),
-                    CallableInstantiationOwner::NoOwner,
-                    &arguments,
-                );
+                let materialization = self.imported_materialization(declaration, &arguments);
                 self.visiting[index] = false;
                 self.materializations[index] = Some(materialization);
                 return materialization;

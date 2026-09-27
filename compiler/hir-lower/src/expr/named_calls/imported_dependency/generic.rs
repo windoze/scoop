@@ -39,8 +39,11 @@ impl Lowerer {
             None => return Err(Box::new(self)),
         };
         let mut session = InferenceSession::new();
-        let environment = session.add_environment(&[], &signature.type_parameters);
-        self.add_declaration_bounds(&mut session, signature.type_parameters.iter());
+        let environment = session.add_environment(&[], signature.type_parameters.declarations());
+        self.add_declaration_bounds(
+            &mut session,
+            signature.type_parameters.declarations().iter(),
+        );
         for (index, argument) in explicit.iter().enumerate() {
             if let ResolvedCallTypeArgument::Explicit { ty, .. } = argument {
                 let variable = session.callable_variables(environment)[index];
@@ -93,6 +96,7 @@ impl Lowerer {
             };
             let bindings = signature
                 .type_parameters
+                .declarations()
                 .iter()
                 .zip(partial.callable)
                 .map(|(p, ty)| {
@@ -129,6 +133,7 @@ impl Lowerer {
         let arguments = solution.arguments_for(&session, environment).callable;
         let bindings = signature
             .type_parameters
+            .declarations()
             .iter()
             .zip(&arguments)
             .map(|(p, a)| (p.id, *a))
@@ -209,12 +214,12 @@ impl Lowerer {
     ) {
         use crate::call_resolution::constraints::ConstraintFailureKind as Kind;
         let parameter = |variable: crate::call_resolution::constraints::InferenceVariableId| {
-            &signature.type_parameters[variable.group_index()].name
+            &signature.type_parameters.declarations()[variable.group_index()].name
         };
         let type_term = |term: TypeTerm| match term {
             TypeTerm::Variable(variable) => parameter(variable).clone(),
             TypeTerm::Type(ty) | TypeTerm::Rigid(ty) => {
-                self.type_name_with_params(ty, &signature.type_parameters)
+                self.type_name_with_params(ty, signature.type_parameters.declarations())
             }
         };
         let message = match &failure.kind {

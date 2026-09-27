@@ -467,20 +467,34 @@ impl Concretizer<'_> {
             } => {
                 let application = &self.source.imported_generic_applications[*application];
                 let source = application.template;
+                let local_body = matches!(
+                    self.source.imported_generic_templates[source].declaration,
+                    export::ImportedCallableTemplateOrigin::Local { .. }
+                );
                 let arguments = application
                     .arguments
                     .iter()
                     .map(|ty| self.lower_type(*ty, substitution))
                     .collect();
                 let callee = self.request_function_key(FunctionKey::Imported { source, arguments });
-                concrete::ExprKind::ImportedGenericCall {
-                    callee,
-                    binding: binding.clone(),
-                    receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
+                let args = args
+                    .iter()
+                    .map(|argument| self.lower_expr(argument, substitution, locals))
+                    .collect();
+                let receiver = receiver.map(|ty| self.lower_type(ty, substitution));
+                if local_body {
+                    concrete::ExprKind::Call {
+                        callee: concrete::Callable::Function(callee),
+                        receiver,
+                        args,
+                    }
+                } else {
+                    concrete::ExprKind::ImportedGenericCall {
+                        callee,
+                        binding: binding.clone(),
+                        receiver,
+                        args,
+                    }
                 }
             }
             export::ExprKind::ImportedDependencyCall {

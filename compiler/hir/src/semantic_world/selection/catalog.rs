@@ -61,6 +61,7 @@ pub(super) struct DependencyCatalog {
     pub(super) nominal_visibilities: BTreeMap<crate::SourceNominalId, crate::DeclaredVisibilityV1>,
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
+    pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
     pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
@@ -74,6 +75,7 @@ impl ImportedSemanticWorld<'_> {
             .nominal_exact_leaf_classifier(&CanonicalNominalInterfacesV1::default())
             .map_err(ImportedDependencySelectionPlanBuildError::NominalClassifier)?;
         let mut callables = BTreeMap::new();
+        let mut bodies = BTreeMap::new();
         let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
@@ -103,6 +105,38 @@ impl ImportedSemanticWorld<'_> {
                 }
             }
             let definition_sources = Arc::new(imported_definition_sources(provider)?);
+            for body in provider.interface().generic_callable_bodies().records() {
+                let declaration = match body.owner() {
+                    crate::DefaultCallableDeclarationV1::Function(id) => {
+                        Some(CallableTemplateOrigin::Function(id))
+                    }
+                    crate::DefaultCallableDeclarationV1::GenericFunction(id) => {
+                        Some(CallableTemplateOrigin::GenericFunction(id))
+                    }
+                    crate::DefaultCallableDeclarationV1::PropertyAccessor(_)
+                    | crate::DefaultCallableDeclarationV1::Generated(_) => None,
+                };
+                let source_name = declaration
+                    .map(|declaration| {
+                        match super::intrinsics::callable_catalog_name(provider, declaration)? {
+                            super::intrinsics::CallableCatalogName::Function(name) => Ok(name),
+                            _ => unreachable!("source function owners have function names"),
+                        }
+                    })
+                    .transpose()?;
+                let source = super::ImportedCallableBody {
+                    body: Arc::new(body.clone()),
+                    definition_sources: Arc::clone(&definition_sources),
+                    source_name,
+                };
+                if bodies.insert(body.owner(), source).is_some() {
+                    return Err(
+                        ImportedDependencySelectionPlanBuildError::DuplicateCallableBody(
+                            body.owner(),
+                        ),
+                    );
+                }
+            }
             for callable in provider
                 .interface()
                 .callable_interfaces()
@@ -158,9 +192,8 @@ impl ImportedSemanticWorld<'_> {
                         CallableTemplateOrigin::Constructor(_)
                         | CallableTemplateOrigin::VariantConstructor(_) => None,
                     }
-                    .and_then(|owner| provider.interface().generic_callable_bodies().get(owner))
-                    .cloned()
-                    .map(Arc::new),
+                    .and_then(|owner| bodies.get(&owner))
+                    .map(|source| Arc::clone(&source.body)),
                 };
                 if callables.insert(declaration, entry).is_some() {
                     return Err(
@@ -227,6 +260,7 @@ impl ImportedSemanticWorld<'_> {
                 nominal_visibilities,
                 consumer: self.current,
                 callables,
+                bodies,
                 properties,
                 constants,
                 type_aliases,

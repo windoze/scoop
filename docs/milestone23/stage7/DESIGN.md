@@ -108,6 +108,10 @@ constructor、field、variant、property accessor、local value、loop target �
 
 lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的类型表，正文读取以该表中的位置引用闭包输入；该位置是当前正文内的 ABI 索引，不是新的全局实体身份。创建嵌套闭包时，捕获来源明确区分当前局部值与外层闭包输入。局部具名函数按现有 ABI 将捕获值作为前置参数，正文投影直接引用这些真实参数。不得将 request-local `BindingId` 写入产物，也不得把闭包输入误当作当前函数尚未定义的局部值。
 
+导入模板中的局部具名函数声明与本地声明一样不产生运行时语句。实际直接调用复用原 typed callee 及完整类型实参，把已解析捕获表达式按原顺序放在显式参数之前，并进入已有导入 callable 的具体化队列；不为声明标记生成 Unit 占位表达式，也不把 provider 的源码函数复制为当前 Cone 的 `FunctionId`。
+
+无自身类型参数的局部声明保持 `PersistentFunctionId`，其继承实参通过 enclosing callable application 表达；局部 generic 声明另外保留自身实参组。词法正文从已有正文表读取，不成为可按名字导入的源码接口。该正文的 binder 已在定义处检查，消费端保存有序替换参数及已有条件约束；它们与需要参与源码推断的声明参数使用不同表示，不能伪造一组无约束声明参数来填充接口。
+
 ### 3.3 默认参数的边界
 
 public default 仍只能直接引用覆盖其完整调用域的实体；generic body 可以引用定义处合法的 narrower 实现。二者共享节点不共享访问规则。private generic helper 自己的默认值按该 helper 的实际调用域检查，不能把正文依赖资格传播给 public default。

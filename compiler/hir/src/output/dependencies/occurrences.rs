@@ -208,14 +208,17 @@ fn validate_origins(
         if side == DependencyCallOrigin::Evaluation
             && projected.origin().source().cone() != export.cone
         {
-            let template = match occurrence.position.root.template() {
-                scoop_identity::CallableTemplateOwner::GenericFunction(identity) => export
-                    .imported_generic_templates
-                    .iter()
-                    .map(|(_, template)| template)
-                    .find(|template| template.declaration == identity),
-                _ => None,
-            };
+            let template = export.imported_generic_templates.iter()
+                .map(|(_, template)| template)
+                .find(|template| matches!(
+                    (occurrence.position.root.template(), template.declaration.declaration()),
+                    (scoop_identity::CallableTemplateOwner::GenericFunction(expected),
+                     scoop_identity::CallableTemplateOrigin::GenericFunction(actual)) if expected == actual
+                ) || matches!(
+                    (occurrence.position.root.template(), template.declaration.declaration()),
+                    (scoop_identity::CallableTemplateOwner::Function(expected),
+                     scoop_identity::CallableTemplateOrigin::Function(actual)) if expected == actual
+                ));
             if template.is_none_or(|template| {
                 export.source_files[template.origin.file as usize].identity
                     != *projected.origin().source()

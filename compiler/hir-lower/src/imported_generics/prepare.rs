@@ -5,7 +5,7 @@ impl Lowerer {
     pub(super) fn prepare_imported_generic(
         &mut self,
         declaration: hir::ImportedCallableDeclaration,
-        identity: PersistentGenericFunctionId,
+        identity: scoop_identity::PersistentGenericFunctionId,
     ) -> Result<PreparedImportedGeneric, String> {
         let body = declaration
             .callable_body()
@@ -42,7 +42,8 @@ impl Lowerer {
                 "dependency callable body parameters do not match its declaration signature".into(),
             );
         }
-        let origin = self.import_generic_definition(&declaration, body.definition_origin())?;
+        let source = PreparedImportedCallableSource::Declaration(Box::new(declaration.clone()));
+        let origin = self.import_generic_definition(&source, body.definition_origin())?;
         let span = origin.span;
         let binders = declaration.interface().type_parameters().binders();
         if binders.len() != body.type_parameters().arguments().len() {
@@ -75,30 +76,7 @@ impl Lowerer {
                 span,
             });
         }
-        let mut locals = Arena::new();
-        let mut selectors = BTreeMap::new();
-        for local in body.locals().records() {
-            let ty = self.imported_generic_type(local.value_type(), &bindings)?;
-            let definition = match local.definition() {
-                hir::TemplateLocalDefinitionV1::Source(source) => {
-                    hir::LocalValueDefinitionSite::Source(
-                        self.import_generic_definition(&declaration, source)?,
-                    )
-                }
-                hir::TemplateLocalDefinitionV1::Synthetic => {
-                    hir::LocalValueDefinitionSite::Synthetic
-                }
-            };
-            let local_id = locals.alloc(hir::Local {
-                binding: self.fresh_binding(),
-                selector: local.selector().clone(),
-                definition,
-                name: format!("$dependency.local.{}", locals.len()),
-                ty,
-                mutable: local.mutable().into(),
-            });
-            selectors.insert(local.selector().clone(), local_id);
-        }
+        let (mut locals, selectors) = self.imported_body_locals(&source, &bindings)?;
         let source_parameters = declaration
             .source_interface()
             .ok_or("dependency callable is missing its source parameters")?
@@ -134,33 +112,12 @@ impl Lowerer {
             .map(|ty| self.imported_generic_type(ty, &bindings))
             .transpose()?;
         let return_type = self.imported_generic_type(body.result(), &bindings)?;
-        let predicate = |key: &scoop_identity::SignatureTypeKey| {
-            let ty = bindings
-                .get(key)
-                .ok_or("dependency predicate names an absent binder")?;
-            match self.types[*ty] {
-                hir::Type::Param(id) => Ok(id),
-                _ => Err("dependency predicate is not a parameter"),
-            }
-        };
-        let no_gc_type_params = body
-            .predicates()
-            .no_gc()
-            .arguments()
-            .iter()
-            .map(predicate)
-            .collect::<Result<_, _>>()?;
-        let gc_free_pointee_requirements = body
-            .predicates()
-            .gc_free_pointees()
-            .arguments()
-            .iter()
-            .map(|key| predicate(key).map(|type_param| hir::RequiresGcFreePointee { type_param }))
-            .collect::<Result<_, _>>()?;
+        let (no_gc_type_params, gc_free_pointee_requirements) =
+            self.imported_body_predicates(body, &bindings)?;
         let signature = hir::ImportedGenericCallableSignature {
-            declaration: identity,
+            declaration: hir::ImportedCallableTemplateOrigin::Generic(identity),
             name: declaration.name().to_owned(),
-            type_parameters,
+            type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
             no_gc_type_params,
             gc_free_pointee_requirements,
             parameters,
@@ -172,14 +129,14 @@ impl Lowerer {
         };
         Ok(PreparedImportedGeneric {
             signature,
-            declaration,
+            source,
             bindings,
             locals,
             statements: None,
         })
     }
 
-    fn imported_generic_type(
+    pub(super) fn imported_generic_type(
         &mut self,
         signature: &scoop_identity::SignatureTypeKey,
         bindings: &ImportedTypeBindings,
@@ -190,9 +147,9 @@ impl Lowerer {
             })
     }
 
-    fn import_generic_definition(
+    pub(super) fn import_generic_definition(
         &mut self,
-        declaration: &hir::ImportedCallableDeclaration,
+        declaration: &PreparedImportedCallableSource,
         source: &hir::ExportDefinitionSourceV1,
     ) -> Result<hir::DefinitionOrigin, String> {
         let definition = declaration
@@ -200,6 +157,75 @@ impl Lowerer {
             .ok_or("dependency body is missing its definition source")?;
         self.import_dependency_definition_origin(source, definition)
             .map_err(|error| error.to_string())
+    }
+
+    pub(super) fn imported_body_locals(
+        &mut self,
+        source: &PreparedImportedCallableSource,
+        bindings: &ImportedTypeBindings,
+    ) -> Result<
+        (
+            Arena<hir::Local>,
+            BTreeMap<scoop_identity::LocalValueSelector, hir::LocalId>,
+        ),
+        String,
+    > {
+        let mut locals = Arena::new();
+        let mut selectors = BTreeMap::new();
+        for local in source.body().locals().records() {
+            let ty = self.imported_generic_type(local.value_type(), bindings)?;
+            let definition = match local.definition() {
+                hir::TemplateLocalDefinitionV1::Source(origin) => {
+                    hir::LocalValueDefinitionSite::Source(
+                        self.import_generic_definition(source, origin)?,
+                    )
+                }
+                hir::TemplateLocalDefinitionV1::Synthetic => {
+                    hir::LocalValueDefinitionSite::Synthetic
+                }
+            };
+            let local_id = locals.alloc(hir::Local {
+                binding: self.fresh_binding(),
+                selector: local.selector().clone(),
+                definition,
+                name: format!("$dependency.local.{}", locals.len()),
+                ty,
+                mutable: local.mutable().into(),
+            });
+            selectors.insert(local.selector().clone(), local_id);
+        }
+        Ok((locals, selectors))
+    }
+
+    pub(super) fn imported_body_predicates(
+        &self,
+        body: &hir::ExportGenericCallableBodyV1,
+        bindings: &ImportedTypeBindings,
+    ) -> Result<(Vec<hir::TypeParamId>, Vec<hir::RequiresGcFreePointee>), String> {
+        let predicate = |key: &scoop_identity::SignatureTypeKey| {
+            let ty = bindings
+                .get(key)
+                .ok_or("dependency predicate names an absent binder")?;
+            match self.types[*ty] {
+                hir::Type::Param(id) => Ok(id),
+                _ => Err("dependency predicate is not a parameter"),
+            }
+        };
+        let no_gc = body
+            .predicates()
+            .no_gc()
+            .arguments()
+            .iter()
+            .map(predicate)
+            .collect::<Result<_, _>>()?;
+        let pointees = body
+            .predicates()
+            .gc_free_pointees()
+            .arguments()
+            .iter()
+            .map(|key| predicate(key).map(|type_param| hir::RequiresGcFreePointee { type_param }))
+            .collect::<Result<_, _>>()?;
+        Ok((no_gc, pointees))
     }
 
     fn imported_generic_nominal_bounds(

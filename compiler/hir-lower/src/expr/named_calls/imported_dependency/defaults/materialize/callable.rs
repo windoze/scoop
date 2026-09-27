@@ -1,14 +1,14 @@
 use super::*;
-use hir::ImportedCallableSource;
 
 impl Lowerer {
     pub(crate) fn materialize_imported_callable_body(
         &mut self,
+        id: hir::ImportedGenericCallableTemplateId,
         template: &crate::imported_generics::PreparedImportedGeneric,
     ) -> Result<hir::Body, ImportedDefaultMaterializationError> {
         let saved_locals = std::mem::replace(&mut self.locals, template.locals.clone());
         let mut context = ImportedDefaultContext {
-            owner: &template.declaration,
+            owner: ImportedTemplateSource::Callable(&template.source),
             callables: &BTreeMap::new(),
             bindings: &template.bindings,
             locals: template
@@ -27,15 +27,17 @@ impl Lowerer {
                 })
                 .collect(),
             loop_targets: Vec::new(),
-            evaluation: ImportedTemplateEvaluation::Definition,
+            evaluation: ImportedTemplateEvaluation::Definition(id),
         };
         let statements = template
-            .declaration
-            .callable_body()
-            .expect("prepared template retains its body")
+            .source
+            .body()
             .statements()
             .iter()
-            .map(|statement| self.materialize_imported_default_statement(statement, &mut context))
+            .filter_map(|statement| {
+                self.materialize_imported_default_statement(statement, &mut context)
+                    .transpose()
+            })
             .collect::<Result<Vec<_>, _>>();
         let locals = std::mem::replace(&mut self.locals, saved_locals);
         statements.map(|statements| hir::Body { locals, statements })
@@ -49,7 +51,16 @@ impl Lowerer {
         kind: MemberCallKind,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        if let hir::DefaultCallableDeclarationV1::GenericFunction(identity) = callee.declaration() {
+        let origin = super::super::plan::default_callable_origin(callee)
+            .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
+        let local = self
+            .request_imported_local_function(origin)
+            .map_err(ImportedDefaultMaterializationError::Plan)?;
+        let template = if let Some(template) = local {
+            Some(template)
+        } else if let hir::DefaultCallableDeclarationV1::GenericFunction(identity) =
+            callee.declaration()
+        {
             let declaration = self
                 .dependencies
                 .as_ref()
@@ -60,9 +71,14 @@ impl Lowerer {
                 .map_err(|error| {
                     ImportedDefaultMaterializationError::DependencySelection(error.to_string())
                 })?;
-            let template = self
-                .request_imported_generic_template(declaration)
-                .map_err(ImportedDefaultMaterializationError::Plan)?;
+            Some(
+                self.request_imported_generic_template(declaration)
+                    .map_err(ImportedDefaultMaterializationError::Plan)?,
+            )
+        } else {
+            None
+        };
+        if let Some(template) = template {
             let arguments = callee
                 .type_arguments()
                 .iter()
@@ -91,8 +107,6 @@ impl Lowerer {
                 receiver,
             });
         }
-        let origin = super::super::plan::default_callable_origin(callee)
-            .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
         self.imported_default_call_kind(origin, args, receiver, kind, context)
     }
 }

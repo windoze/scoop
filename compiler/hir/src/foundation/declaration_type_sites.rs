@@ -64,26 +64,56 @@ impl<'a> Input<'a> {
         root: CallableMaterialization,
         position: Option<HirCallableTypePositionV1>,
     ) -> Result<(), Error> {
-        if let CallableTemplateOwner::GenericFunction(id) = root.template() {
+        let applied_source = match root.template() {
+            CallableTemplateOwner::GenericFunction(id) => {
+                Some(CallableTemplateOrigin::GenericFunction(id))
+            }
+            CallableTemplateOwner::Function(id)
+                if matches!(
+                    root.context(),
+                    CallableMaterializationContext::Application(_)
+                ) =>
+            {
+                Some(CallableTemplateOrigin::Function(id))
+            }
+            _ => None,
+        };
+        if let Some(source) = applied_source {
             let CallableMaterializationContext::Application(application) = root.context() else {
                 return Err(Error::Materialization(root));
             };
             let application = self.key(&self.foundation.callable_applications, application)?;
-            if application.origin() != CallableTemplateOrigin::GenericFunction(id) {
+            if application.origin() != source {
                 return Err(Error::Materialization(root));
             }
             let declaration = std::iter::once(self.foundation)
                 .chain(self.dependencies.iter().copied())
-                .find_map(|foundation| {
-                    foundation
+                .find_map(|foundation| match source {
+                    CallableTemplateOrigin::GenericFunction(id) => foundation
                         .generic_functions
                         .iter()
                         .find(|record| record.id() == id)
-                        .map(|record| record.key())
+                        .map(|record| record.key()),
+                    CallableTemplateOrigin::Function(id) => foundation
+                        .functions
+                        .iter()
+                        .find(|record| record.id() == id)
+                        .map(|record| record.key()),
+                    _ => unreachable!("applied source roots are function declarations"),
                 })
-                .ok_or(Error::MissingIdentity {
-                    kind: std::any::type_name::<scoop_identity::PersistentGenericFunctionId>(),
-                    id: *id.as_array(),
+                .ok_or_else(|| {
+                    let (kind, id) = match source {
+                        CallableTemplateOrigin::GenericFunction(id) => (
+                            std::any::type_name::<scoop_identity::PersistentGenericFunctionId>(),
+                            *id.as_array(),
+                        ),
+                        CallableTemplateOrigin::Function(id) => (
+                            std::any::type_name::<scoop_identity::PersistentFunctionId>(),
+                            *id.as_array(),
+                        ),
+                        _ => unreachable!("applied source roots are function declarations"),
+                    };
+                    Error::MissingIdentity { kind, id }
                 })?;
             return signature::source(declaration, root, position);
         }

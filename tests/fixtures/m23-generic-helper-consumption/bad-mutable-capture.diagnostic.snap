@@ -1,0 +1,3 @@
+span=159..167
+expression=changing
+cannot capture mutable local `changing`; bind its current value to a `val` snapshot or capture explicit reference state

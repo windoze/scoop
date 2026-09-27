@@ -20,6 +20,7 @@ pub enum ImportedDependencySelectionPlanBuildError {
     Classification(NominalCallableClassificationError),
     Initialization(crate::HirInitializationUseError),
     DuplicateCallable(CallableTemplateOrigin),
+    DuplicateCallableBody(crate::DefaultCallableDeclarationV1),
     MissingCallableSourceName(CallableTemplateOrigin),
     DuplicateConstant(PersistentPropertyId),
     DuplicateProperty(PropertyOwner),
@@ -68,6 +69,10 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
             Self::DuplicateCallable(declaration) => write!(
                 formatter,
                 "dependency semantic world contains duplicate callable {declaration:?}"
+            ),
+            Self::DuplicateCallableBody(owner) => write!(
+                formatter,
+                "dependency semantic world contains duplicate callable body {owner:?}"
             ),
             Self::MissingCallableSourceName(declaration) => write!(
                 formatter,
@@ -118,6 +123,7 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             | Self::MissingEnumField(_)
             | Self::DuplicateNominal(_)
             | Self::DuplicateCallable(_)
+            | Self::DuplicateCallableBody(_)
             | Self::MissingCallableSourceName(_)
             | Self::MissingPropertySourceName(_)
             | Self::DuplicateConstant(_)

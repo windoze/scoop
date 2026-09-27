@@ -1,0 +1,14 @@
+package consumer.helpers.peer
+
+import dependency.helpers.Payload
+import dependency.helpers.captured
+import dependency.helpers.nested
+import dependency.helpers.echo
+import dependency.helpers.recursive
+import dependency.helpers.native
+
+public fun retained(): Int {
+    val second = recursive(Payload(native(22)), true)
+    val first = captured(nested(Payload(20))).echo()
+    return first.number + second.number
+}

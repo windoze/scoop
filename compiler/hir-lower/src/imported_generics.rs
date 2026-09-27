@@ -2,6 +2,7 @@
 //! provider declaration ids. Pending statements are lowering scratch state;
 //! the completed Export HIR owns ordinary, structurally complete bodies.
 
+mod local;
 mod prepare;
 
 use std::collections::BTreeMap;
@@ -10,7 +11,7 @@ use std::ops::{Deref, Index};
 use hir::ImportedCallableSource;
 use la_arena::{Arena, Idx, RawIdx};
 use scoop_hir as hir;
-use scoop_identity::PersistentGenericFunctionId;
+use scoop_identity::CallableTemplateOrigin;
 
 use crate::Lowerer;
 use crate::imported_core::ImportedTypeBindings;
@@ -18,16 +19,57 @@ use crate::imported_core::ImportedTypeBindings;
 #[derive(Clone, Default)]
 pub(crate) struct ImportedGenericTemplates {
     templates: Vec<PreparedImportedGeneric>,
-    by_declaration: BTreeMap<PersistentGenericFunctionId, hir::ImportedGenericCallableTemplateId>,
+    by_declaration: BTreeMap<CallableTemplateOrigin, hir::ImportedGenericCallableTemplateId>,
+    local_functions: BTreeMap<CallableTemplateOrigin, ImportedLocalFunctionSource>,
+}
+
+#[derive(Clone)]
+struct ImportedLocalFunctionSource {
+    parent: hir::ImportedGenericCallableTemplateId,
+    descriptor: hir::DefaultLocalFunctionV1,
 }
 
 #[derive(Clone)]
 pub(crate) struct PreparedImportedGeneric {
     pub(crate) signature: hir::ImportedGenericCallableSignature,
-    pub(crate) declaration: hir::ImportedCallableDeclaration,
+    pub(crate) source: PreparedImportedCallableSource,
     pub(crate) bindings: ImportedTypeBindings,
     pub(crate) locals: Arena<hir::Local>,
     statements: Option<Vec<hir::Statement>>,
+}
+
+#[derive(Clone)]
+pub(crate) enum PreparedImportedCallableSource {
+    Declaration(Box<hir::ImportedCallableDeclaration>),
+    Local(hir::ImportedCallableBody),
+}
+
+impl PreparedImportedCallableSource {
+    pub(crate) fn body(&self) -> &hir::ExportGenericCallableBodyV1 {
+        match self {
+            Self::Declaration(declaration) => declaration
+                .callable_body()
+                .expect("prepared source declaration has an implementation"),
+            Self::Local(body) => body.body(),
+        }
+    }
+
+    pub(crate) fn declaration(&self) -> &hir::ImportedCallableDeclaration {
+        match self {
+            Self::Declaration(declaration) => declaration,
+            Self::Local(_) => panic!("lexical bodies are not source lookup candidates"),
+        }
+    }
+
+    pub(crate) fn definition_source(
+        &self,
+        source: &hir::ExportDefinitionSourceV1,
+    ) -> Option<hir::ImportedDependencyDefinitionSource<'_>> {
+        match self {
+            Self::Declaration(declaration) => declaration.definition_source(source),
+            Self::Local(body) => body.definition_source(source),
+        }
+    }
 }
 
 impl Deref for PreparedImportedGeneric {
@@ -66,15 +108,23 @@ impl Lowerer {
         &mut self,
         declaration: hir::ImportedCallableDeclaration,
     ) -> Result<hir::ImportedGenericCallableTemplateId, String> {
-        let scoop_identity::CallableTemplateOrigin::GenericFunction(origin) =
-            declaration.interface().declaration()
+        let CallableTemplateOrigin::GenericFunction(origin) = declaration.interface().declaration()
         else {
             return Err("dependency callable does not name a generic function".into());
         };
-        if let Some(id) = self.imported_generic_templates.by_declaration.get(&origin) {
+        let key = CallableTemplateOrigin::GenericFunction(origin);
+        if let Some(id) = self.imported_generic_templates.by_declaration.get(&key) {
             return Ok(*id);
         }
         let prepared = self.prepare_imported_generic(declaration, origin)?;
+        Ok(self.insert_imported_template(key, prepared))
+    }
+
+    fn insert_imported_template(
+        &mut self,
+        key: CallableTemplateOrigin,
+        prepared: PreparedImportedGeneric,
+    ) -> hir::ImportedGenericCallableTemplateId {
         let id = Idx::from_raw(RawIdx::from(
             u32::try_from(self.imported_generic_templates.templates.len())
                 .expect("dependency template arena fits u32"),
@@ -82,15 +132,16 @@ impl Lowerer {
         self.imported_generic_templates.templates.push(prepared);
         self.imported_generic_templates
             .by_declaration
-            .insert(origin, id);
-        Ok(id)
+            .insert(key, id);
+        id
     }
 
     pub(crate) fn complete_imported_generic_bodies(&mut self) {
         let mut index = 0;
         while index < self.imported_generic_templates.templates.len() {
             let template = self.imported_generic_templates.templates[index].clone();
-            match self.materialize_imported_callable_body(&template) {
+            let id = Idx::from_raw(RawIdx::from(index as u32));
+            match self.materialize_imported_callable_body(id, &template) {
                 Ok(body) => {
                     let target = &mut self.imported_generic_templates.templates[index];
                     target.locals = body.locals;
