@@ -3,8 +3,8 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{
-    ScoopLirObjectCandidateV1, compute_strong_callable_registration_object_fingerprints_v1,
-    verify_scoop_lir_digest_patch_sites_v1, verify_strong_callable_registrations_v1,
+    ScoopLirObjectCandidateV1, verify_scoop_lir_digest_patch_sites_v1,
+    verify_strong_callable_registrations_v1,
 };
 use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
@@ -22,9 +22,7 @@ fn hashes_normalized_body_code_relocations_and_stackmap_inputs() {
         &objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_callable_registration_object_fingerprints_v1(registrations, &objects)
-            .unwrap();
+    let registration_objects = registrations;
 
     let fingerprints = compute_strong_callable_body_object_fingerprints_v1(
         registration_objects,
@@ -41,7 +39,7 @@ fn hashes_normalized_body_code_relocations_and_stackmap_inputs() {
     assert_eq!(actual.node(), plan.body_definition_node());
     assert_eq!(
         actual.fingerprint().to_string(),
-        "6eeb76c33a06bb84eb54a82ec41077df5a5db7d3fd1fb02c429f88bf0f80e728"
+        "bb131b6c73d91fa9683fd97efae30a6e2d09964eca79412bbdfffaccf8a07b14"
     );
 }
 
@@ -59,9 +57,7 @@ fn rechecks_body_object_bytes_before_hashing() {
         &objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_callable_registration_object_fingerprints_v1(registrations, &objects)
-            .unwrap();
+    let registration_objects = registrations;
     let last = fixture.object_bytes.len() - 1;
     fixture.object_bytes[last] ^= 1;
     let changed = [ScoopLirObjectCandidateV1::new(
@@ -125,9 +121,7 @@ fn rejects_body_digest_nodes_without_the_exact_stackmap_inputs() {
         &objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_callable_registration_object_fingerprints_v1(registrations, &objects)
-            .unwrap();
+    let registration_objects = registrations;
 
     assert_eq!(
         compute_strong_callable_body_object_fingerprints_v1(

@@ -50,7 +50,11 @@ pub(crate) fn replay<'a>(
         &dependencies,
         input.ordinary,
     )?;
-    let shape = verify_replayed_external_shape_requirements_v1(&ordinary, input.layout)?;
+    let shape = verify_external_shape_requirements_v1(
+        &ordinary,
+        input.layout.exports().provider(),
+        input.layout.physical_imports(),
+    )?;
     input
         .link
         .cross_cone_link_closure_wire()

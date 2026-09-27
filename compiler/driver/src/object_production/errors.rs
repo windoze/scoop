@@ -22,7 +22,6 @@ pub enum BuiltinObjectProductionError {
     StaticStorageRegistrations(StrongStaticStorageRegistrationValidationError),
     InitializationRegistrations(StrongInitializationRegistrationValidationError),
     SafepointFingerprints(StrongSafepointFingerprintError),
-    CallableRegistrationObjectFingerprints(StrongCallableRegistrationObjectFingerprintError),
     TypeRegistrationObjectFingerprints(StrongTypeRegistrationObjectFingerprintError),
     ImmortalObjectRegistrationObjectFingerprints(
         StrongImmortalObjectRegistrationObjectFingerprintError,
@@ -112,7 +111,6 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::StaticStorageRegistrations(source) => Some(source),
             Self::InitializationRegistrations(source) => Some(source),
             Self::SafepointFingerprints(source) => Some(source),
-            Self::CallableRegistrationObjectFingerprints(source) => Some(source),
             Self::TypeRegistrationObjectFingerprints(source) => Some(source),
             Self::ImmortalObjectRegistrationObjectFingerprints(source) => Some(source),
             Self::StaticStorageRegistrationObjectFingerprints(source) => Some(source),

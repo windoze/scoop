@@ -1,14 +1,22 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{DigestNodeId, PersistentCallableBodyId};
+use scoop_identity::{DigestKind, DigestNodeId, PersistentCallableBodyId};
+use scoop_lir::RegistrationDefinitionOwner;
 use scoop_wire::{HashError, domain_separated_runtime_hash};
 
-use super::object_definition::{CanonicalObjectRelocationV1, ObjectDefinitionFingerprintInputV1};
-use super::physical::validate_objects;
+use super::object_definition::{
+    CanonicalDigestInputV1, ObjectDefinitionFingerprintInputV1,
+    ObjectDefinitionRelocationFailureV1, canonicalize_relocations,
+};
+use super::physical::verified_member;
 use super::record::DESCRIPTOR_SIZE;
-use super::{StrongCallableRegistrationValidationError, VerifiedStrongCallableRegistrationSetV1};
+use super::{
+    StrongCallableRegistrationValidationError, VerifiedStrongCallableBodyObjectFingerprintV1,
+    VerifiedStrongCallableRegistrationSetV1,
+};
 use crate::SlibMemberId;
-use crate::link_object::{ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1};
+use crate::link_object::{ObjectDefinitionFingerprintV1, VerifiedObjectDefinitionRequirementSetV1};
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
 
@@ -55,39 +63,72 @@ impl VerifiedStrongCallableRegistrationObjectFingerprintSetV1 {
     }
 }
 
-pub fn compute_strong_callable_registration_object_fingerprints_v1(
+pub(super) fn compute_registration_object_fingerprints(
     registrations: VerifiedStrongCallableRegistrationSetV1,
-    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+    bodies: &[VerifiedStrongCallableBodyObjectFingerprintV1],
+    objects: &BTreeMap<SlibMemberId, &[u8]>,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
 ) -> Result<
     VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     StrongCallableRegistrationObjectFingerprintError,
 > {
-    let objects = validate_objects(registrations.patch_sites().builtins(), scoop_objects)
-        .map_err(StrongCallableRegistrationObjectFingerprintError::ObjectValidation)?;
-    if registrations.registrations().len() != registrations.plan().registrations().len() {
-        return Err(StrongCallableRegistrationObjectFingerprintError::ProofCoverageMismatch);
-    }
-
+    let builtins = registrations.patch_sites().builtins();
+    debug_assert_eq!(registrations.registrations().len(), bodies.len());
     let mut fingerprints = Vec::with_capacity(registrations.registrations().len());
-    for (verified, plan) in registrations
+    for ((verified, plan), body) in registrations
         .registrations()
         .iter()
         .zip(registrations.plan().registrations())
+        .zip(bodies)
     {
-        if verified.body() != plan.body() {
-            return Err(StrongCallableRegistrationObjectFingerprintError::ProofCoverageMismatch);
-        }
+        debug_assert_eq!(body.body(), plan.body());
         let object = objects.get(&verified.member()).copied().ok_or(
             StrongCallableRegistrationObjectFingerprintError::MissingObject(verified.member()),
         )?;
-        let bytes = registration_record_bytes(object, verified.checked_offset(), plan.body())?;
-        let fingerprint =
-            registration_object_fingerprint(bytes, plan.body()).map_err(|source| {
-                StrongCallableRegistrationObjectFingerprintError::Hash {
-                    body: plan.body(),
-                    source,
-                }
-            })?;
+        let mut bytes =
+            registration_record_bytes(object, verified.checked_offset(), plan.body())?.to_vec();
+        let member = verified_member(builtins, verified.member())
+            .map_err(StrongCallableRegistrationObjectFingerprintError::ObjectValidation)?;
+        let relocations = canonicalize_relocations(
+            &bytes,
+            member,
+            plan.primary_atom(),
+            builtins.strong_relocations(),
+            requirements,
+        )
+        .map_err(|source| {
+            StrongCallableRegistrationObjectFingerprintError::Relocation {
+                body: plan.body(),
+                source,
+            }
+        })?;
+        let mut direct_inputs = Vec::new();
+        if matches!(
+            plan.definition_owner(),
+            RegistrationDefinitionOwner::Odr { .. }
+        ) {
+            bytes[152..184].copy_from_slice(body.fingerprint().as_array());
+            direct_inputs.push(CanonicalDigestInputV1 {
+                kind: DigestKind::ObjectDefinition,
+                node: body.node(),
+                digest: *body.fingerprint().as_array(),
+            });
+        }
+        let fingerprint = domain_separated_runtime_hash(
+            OBJECT_DEFINITION_DOMAIN,
+            &ObjectDefinitionFingerprintInputV1 {
+                bytes: &bytes,
+                relocations: &relocations,
+                direct_inputs: &direct_inputs,
+            },
+        )
+        .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
+        .map_err(
+            |source| StrongCallableRegistrationObjectFingerprintError::Hash {
+                body: plan.body(),
+                source,
+            },
+        )?;
         fingerprints.push(VerifiedStrongCallableRegistrationObjectFingerprintV1 {
             body: plan.body(),
             node: plan.registration_object_node(),
@@ -116,28 +157,15 @@ fn registration_record_bytes(
         .ok_or(StrongCallableRegistrationObjectFingerprintError::RecordRange(body))
 }
 
-fn registration_object_fingerprint(
-    bytes: &[u8],
-    body: PersistentCallableBodyId,
-) -> Result<ObjectDefinitionFingerprintV1, HashError> {
-    let relocations = [CanonicalObjectRelocationV1::callable_entry(body)];
-    domain_separated_runtime_hash(
-        OBJECT_DEFINITION_DOMAIN,
-        &ObjectDefinitionFingerprintInputV1 {
-            bytes,
-            relocations: &relocations,
-            direct_inputs: &[],
-        },
-    )
-    .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongCallableRegistrationObjectFingerprintError {
     ObjectValidation(StrongCallableRegistrationValidationError),
-    ProofCoverageMismatch,
     MissingObject(SlibMemberId),
     RecordRange(PersistentCallableBodyId),
+    Relocation {
+        body: PersistentCallableBodyId,
+        source: ObjectDefinitionRelocationFailureV1,
+    },
     Hash {
         body: PersistentCallableBodyId,
         source: HashError,

@@ -153,12 +153,7 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     let leaves = registrations.fingerprint_registration_leaves().unwrap();
     assert_eq!(leaves.identity(), cone().identity());
     assert!(leaves.safepoints().fingerprints().is_empty());
-    assert!(
-        leaves
-            .callable_registration_objects()
-            .fingerprints()
-            .is_empty()
-    );
+    assert!(leaves.callable_registrations().registrations().is_empty());
     assert!(leaves.type_registration_objects().fingerprints().is_empty());
     assert!(
         leaves
@@ -1296,11 +1291,7 @@ fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let callable_objects = crate::compute_strong_callable_registration_object_fingerprints_v1(
-        callable_registrations,
-        &objects,
-    )
-    .unwrap();
+    let callable_objects = callable_registrations;
     let requirements = empty_undefined_requirements(&patch_sites, &foundation, &production);
     let callable_bodies = crate::compute_strong_callable_body_object_fingerprints_v1(
         callable_objects,

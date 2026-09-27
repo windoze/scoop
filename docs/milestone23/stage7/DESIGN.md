@@ -232,7 +232,7 @@ MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 cano
 
 单成员 LLVM 模块中，只有实际定义的 ODR 函数和 global 使用 `weak_odr`；指向其它对象中该定义的声明使用 LLVM 必需的普通 external declaration，其语义 symbol request 仍为 `OdrWeak`，不能改成可缺失的弱引用。registration 的 runtime identity 写入实际 group/member，image 的 Strong pointer table 直接使用这些 registration 的既有符号请求。
 
-机器对象 reader 从 external section definition 读取实际 Strong/weak 标志，再与已有 plan 逐项比较。局部 weak definition、weak undefined reference、缺失或未计划的定义仍被拒绝；所有真实 range、relocation 和 patch 继续使用同一对象索引。物理符号计划保留 foundation 已解析的实际 definition owner，ODR relocation 的逻辑目标为 member，物理 producer 只用于定位对象。
+机器对象 reader 从 external section definition 读取实际 Strong/weak 标志，再与已有 plan 逐项比较。局部 weak definition、weak undefined reference、缺失或未计划的定义仍被拒绝；所有真实 range、relocation 和 patch 继续使用同一对象索引。物理符号计划保留 foundation 已解析的实际 definition owner，ODR relocation 的逻辑目标为 member，物理 producer 只用于定位对象。 外来 shape 引用分类直接接收实际 consumer identity 与已有的完整 physical imports；生产端和 reader 使用同一入口，不为分类另建导出 section 或重新选择依赖。
 
 同一 member 的 canonical LIR 和规范化对象在同一 target/backend 下必须一致。重排物理对象分片可以改变 Code/Artifact fingerprint，但不改变 ODR member identity 和 definition fingerprint。测试分别比较 canonical 内容与物理目录，不要求不同 Cone 的整个 `.slib` bytes 相同。
 
@@ -272,6 +272,10 @@ OdrDefinitionFingerprint = DomainSeparatedCborHash(
 每个 ODR node 只汇总该 member 的 LIR、object 和 stackmap leaves。registration 的 `definition_fingerprint` 来自该 registration member；callable 的 `body_definition_fingerprint`、TD 的 descriptor 字段继续来自对应 ObjectDefinition。计算 registration 的对象 leaf 时，其自身最终 ODR slot 归零；已有 body/layout/scan 等上游字段保留。
 
 共有生产查询按 typed subject 与物理角色取得 foundation 中的实际 Strong/ODR plan。源 callable 的 subject 使用已解析的 callable-body key，其他物理 member 使用原 ODR key，不重复发布上游 member 或重新解码其 key。ODR registration 的 ObjectDefinition 节点依赖实际写入该记录的上游字段；其 ODR node 只汇总自身 LIR、对象和所属 stackmap leaves。对象间的摘要边仅表达这些实际补丁依赖，image 继续汇总六类实际 registration node。
+
+函数的 ObjectDefinition 规范化 primary text 及全部实际关联 atom：runtime scan、取址常量、LSDA、EH frame、compact unwind 与 LLVM stackmap。关联条目按 atom ID 排序；内部 label 引用转换为所属 atom 与相对 offset，外部引用使用既有 typed target，不能把 section 起点或物理 member 写入摘要。已有 stackmap record 的规范化结果继续作为函数的直接输入，不重做解析。 Mach-O compact unwind 与关联数据中的本地 UNSIGNED 指针按实际 section ordinal 和对象内目标地址定位所属 atom，编码 atom 相对 offset 后清除物理地址；其余真实符号引用继续保留原 relocation 形式与语义 addend。目标不在该定义的实际 atom 范围内时拒绝。
+
+函数正文摘要先于 callable registration 对象摘要计算。ODR registration 的对象 payload 保留真实 group/member，将 body-definition 字段代入刚计算的正文摘要，只把自身最终 definition 槽归零；对应直接输入为该 body ObjectDefinition。入口使用已验证的真实 relocation，不能根据 body ID 重建 Strong 引用。Strong registration 保留原有置零字段和独立正文依赖合同。此前只接通 ODR 对象读取的 verifier `/2` 退役，完整关联对象摘要使用 `/3`，旧对象和缓存重建；runtime C ABI 及摘要字段宽度保持。
 
 普通调用和 TD 关系只在 canonical relocation 中保存 typed 目标，不能加入目标 ODR digest 的递归依赖。跨 member 的真实关系在对象/引用边界检查，正常互递归不会形成 digest 环。每个实际 patch 仍有唯一写入者、精确 atom/range/width，初始为零，计算完成后一次回填。
 
@@ -336,7 +340,7 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 | `org.scoop-lang.lir/cross-cone-layout-link-closure` | `/3` | layout/descriptor/helper 的实际 ODR 引用 |
 | `org.scoop-lang.lir/link-identity-closure` | `/4` | ODR definition、symbol、relocation 与 member-aware materialization |
 | `org.scoop-lang.lir/cone-production` | `/1` | 取代 Strong production `/12`，统一表示完整 Strong/ODR 定义、六类 registration、image 与 digest plan |
-| `org.scoop-lang.link-object/scoop-lir` | `/2` | 同一 Mach-O verifier 支持并核对实际 ODR 对象与 member 摘要 |
+| `org.scoop-lang.link-object/scoop-lir` | `/3` | 同一 Mach-O verifier 支持并核对实际 ODR 对象与 member 摘要 |
 
 HIR identity-foundation `/3`、MIR identity-foundation `/1`、现有 compiler protocol、参数自由调用桥及 generated-C verifier 的 bytes 合同不变；它们不是另一条 generic 生产路径。三层 outer schema、callable-body-v1、persistent identity schema 和 `persistent-v1` 保持。LIR foundation `/2` 已用于本阶段，因此 M24 对应 major 顺延为 `/3`，其三层 outer schema 升代仍按 M24 设计。
 
@@ -350,7 +354,7 @@ HIR cross-cone-interface 的新增字段直接保存三张 canonical 表：field
 
 manifest/single-cone-production `/2` 在原十字段 product 后增加必需 field 11 的 ODR 目录：group record 为 `{1=group, 2=members}`；member record 为 `{1=member, 2=role, 3=abi_fingerprint, 4=definition_fingerprint}`，均严格排序、无重复。materialization 仍在原对象投影中，用 member ID 关联，不把物理 offset 再复制进 ODR 目录。该 section 与 bootstrap manifest 是不同的 product；后者 field 11 继续保存 ArtifactFingerprint，不改其含义。
 
-`link-identity-closure/4` 的 defined owner 增加 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/2` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
+`link-identity-closure/4` 的 defined owner 增加 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/3` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
 
 ReleaseHook role 16 仍只由 M24 启用，本阶段完整 profile 继续拒绝其语义成员。退役字段和 tag 不复用；旧 Strong profile 保持“不支持 ODR”的含义。正式工具链、core、provider 与 consumer 同批重建为新 profile；不把新字段作为旧 section 的 optional 扩展，也不保留长期双轨 reader/publisher。尚未迁移的真实回归入口必须在正式切换前接入共有路径，旧格式仅保留拒绝测试。
 

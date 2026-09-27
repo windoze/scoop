@@ -56,9 +56,12 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             self.ordinary.lir_cross_cone,
         )
         .map_err(ObjectError::DependencyRequirements)?;
-        let shape =
-            slib::verify_external_shape_requirements_v1(&ordinary, self.lir_layout.selected())
-                .map_err(|error| Error::Layout(Box::new(error)))?;
+        let shape = slib::verify_external_shape_requirements_v1(
+            &ordinary,
+            self.lir_layout.selected().consumer(),
+            self.lir_layout.selected().physical_imports(),
+        )
+        .map_err(|error| Error::Layout(Box::new(error)))?;
         let undefined = objects::complete_requirements(&prepared, &native, &shape)?;
         let current = self.ordinary.cone.identity();
         let finalized = prepared.finalize(

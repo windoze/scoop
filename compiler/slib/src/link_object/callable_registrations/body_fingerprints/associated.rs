@@ -10,7 +10,14 @@ pub(super) fn ranges(
     let mut ranges: Vec<_> = definition
         .atoms()
         .iter()
-        .filter(|atom| atom.atom_role() == DefinitionAtomRole::AddressTakenConstant)
+        .filter(|atom| match atom.atom_role() {
+            DefinitionAtomRole::Lsda
+            | DefinitionAtomRole::EhFrame
+            | DefinitionAtomRole::CompactUnwind
+            | DefinitionAtomRole::Stackmap
+            | DefinitionAtomRole::AddressTakenConstant => true,
+            DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
+        })
         .copied()
         .collect();
     ranges.sort_unstable_by_key(|range| range.atom());
@@ -20,23 +27,33 @@ pub(super) fn ranges(
 pub(super) fn fingerprint_atoms(
     object: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,
-    constants: &[VerifiedDefinitionAtomRangeV1],
+    ranges: &[VerifiedDefinitionAtomRangeV1],
     associated: &[VerifiedDefinitionAtomRangeV1],
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     requirements: &VerifiedObjectDefinitionRequirementSetV1,
     body: PersistentCallableBodyId,
 ) -> Result<Vec<AssociatedFingerprintAtom>, StrongCallableBodyFingerprintError> {
-    let mut output = Vec::with_capacity(constants.len());
-    for range in constants {
-        let invalid = || StrongCallableBodyFingerprintError::InvalidConstantAtom {
+    let mut output = Vec::with_capacity(ranges.len());
+    for range in ranges {
+        let invalid = || StrongCallableBodyFingerprintError::InvalidAssociatedAtom {
             body,
             atom: range.atom(),
         };
         let (section, start, end) = atom_file_range(member, *range).map_err(|_| invalid())?;
-        if !matches!(
-            section,
-            BuiltinObjectSectionRoleV1::ReadOnlyData | BuiltinObjectSectionRoleV1::CString
-        ) {
+        let correct_section = match range.atom_role() {
+            DefinitionAtomRole::Lsda => section == BuiltinObjectSectionRoleV1::GccExceptionTable,
+            DefinitionAtomRole::EhFrame => section == BuiltinObjectSectionRoleV1::EhFrame,
+            DefinitionAtomRole::CompactUnwind => {
+                section == BuiltinObjectSectionRoleV1::CompactUnwind
+            }
+            DefinitionAtomRole::Stackmap => section == BuiltinObjectSectionRoleV1::LlvmStackmaps,
+            DefinitionAtomRole::AddressTakenConstant => matches!(
+                section,
+                BuiltinObjectSectionRoleV1::ReadOnlyData | BuiltinObjectSectionRoleV1::CString
+            ),
+            DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
+        };
+        if !correct_section {
             return Err(invalid());
         }
         let start = usize::try_from(start).map_err(|_| invalid())?;

@@ -604,12 +604,7 @@ impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
             &scoop_candidates,
         )
         .map_err(StrongLinkRegistrationLeafFingerprintError::Safepoints)?;
-        let callable_registration_objects =
-            crate::compute_strong_callable_registration_object_fingerprints_v1(
-                callable_registrations,
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationLeafFingerprintError::Callables)?;
+
         let type_registration_objects =
             crate::compute_strong_type_registration_object_fingerprints_v1(
                 type_registrations,
@@ -643,7 +638,7 @@ impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
             link_identity_closure,
             scoop_objects,
             safepoints,
-            callable_registration_objects,
+            callable_registrations,
             type_registration_objects,
             immortal_object_registration_objects,
             static_storage_registration_objects,

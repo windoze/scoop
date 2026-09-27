@@ -19,7 +19,12 @@ fn layout_link_reader_replays_nonempty_uses_without_promoting_wire_fields() {
         .compiler_generated_object_symbol(import.expected_symbol().symbol().as_str());
     let object = fixture_for_producer(consumer.provider(), "wireUse");
     let legacy = dependency_closure(verified_member_with_undefined(&object, symbol.as_bytes()));
-    let verified = verify_external_shape_requirements_v1(&legacy, consumer.selected()).unwrap();
+    let verified = verify_external_shape_requirements_v1(
+        &legacy,
+        consumer.selected().consumer(),
+        consumer.selected().physical_imports(),
+    )
+    .unwrap();
     let bytes = encode(&verified.requirements()[0]).unwrap();
     let decode = || decode_canonical::<DecodedUse>(&bytes).unwrap();
     validate_requirements(&[decode()], verified.requirements()).unwrap();

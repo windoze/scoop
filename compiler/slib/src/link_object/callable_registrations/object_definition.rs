@@ -1,6 +1,6 @@
 use scoop_identity::{
-    DefinitionAtomRole, DigestKind, DigestNodeId, ObjectDefinitionAtomId, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentStaticStorageId, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DigestKind, DigestNodeId, ObjectDefinitionAtomId, PersistentExactTypeId,
+    PersistentStaticStorageId, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::link_object::{
@@ -15,7 +15,12 @@ use crate::link_object::{
 
 const PRIMARY_ATOM_ROLE: u32 = 1;
 
+mod relocations;
 mod runtime_encoding;
+
+pub(in crate::link_object) use relocations::{
+    canonicalize_relocations, canonicalize_relocations_with_associated_atoms,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObjectDefinitionRelocationFailureV1 {
@@ -57,6 +62,7 @@ pub(in crate::link_object) struct CanonicalObjectRelocationV1 {
     offset_within_atom: u64,
     form: VerifiedDarwinArm64RelocationFormV1,
     encoded_value: u64,
+    canonical_value: u64,
     targets: Vec<CanonicalRelocationTargetV1>,
 }
 
@@ -69,18 +75,6 @@ pub(in crate::link_object) enum CanonicalStaticStorageTargetV1 {
 }
 
 impl CanonicalObjectRelocationV1 {
-    pub(super) fn callable_entry(body: PersistentCallableBodyId) -> Self {
-        let owner = StrongDefinitionOwnerV1::new(
-            StrongDefinitionEntity::callable_body(body),
-            StrongDefinitionRole::CallableBody,
-        )
-        .expect("callable bodies are valid strong definition owners");
-        Self::unsigned64(
-            184,
-            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
-        )
-    }
-
     pub(in crate::link_object) fn type_descriptor(exact_type: PersistentExactTypeId) -> Self {
         Self::intra_cone_type_descriptor(168, exact_type)
     }
@@ -109,6 +103,7 @@ impl CanonicalObjectRelocationV1 {
             offset_within_atom,
             form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
             encoded_value: 0,
+            canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
                 target: CanonicalRelocationTargetKindV1::Requirement(
@@ -144,6 +139,7 @@ impl CanonicalObjectRelocationV1 {
             offset_within_atom,
             form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
             encoded_value: 0,
+            canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
                 target: CanonicalRelocationTargetKindV1::Requirement(
@@ -161,6 +157,7 @@ impl CanonicalObjectRelocationV1 {
             offset_within_atom,
             form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
             encoded_value: 0,
+            canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
                 target: CanonicalRelocationTargetKindV1::StaticStorage(target),
@@ -178,6 +175,7 @@ impl CanonicalObjectRelocationV1 {
             offset_within_atom,
             form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
             encoded_value: 0,
+            canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
                 target: CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
@@ -236,7 +234,7 @@ impl CanonicalObjectRelocationV1 {
     ) -> bool {
         self.offset_within_atom == offset_within_atom
             && self.form == VerifiedDarwinArm64RelocationFormV1::Unsigned64
-            && self.encoded_value == 0
+            && self.canonical_value == 0
             && matches!(
                 self.targets.as_slice(),
                 [CanonicalRelocationTargetV1 {
@@ -268,170 +266,6 @@ enum CanonicalRelocationTargetKindV1 {
         role: DefinitionAtomRole,
         offset_within_atom: u64,
     },
-}
-
-pub(in crate::link_object) fn canonicalize_relocations(
-    bytes: &[u8],
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    atom: scoop_identity::ObjectDefinitionAtomId,
-    closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    requirements: &VerifiedObjectDefinitionRequirementSetV1,
-) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
-    canonicalize_relocations_with_associated_atoms(bytes, member, atom, closure, requirements, &[])
-}
-
-pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
-    bytes: &[u8],
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    atom: scoop_identity::ObjectDefinitionAtomId,
-    closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    requirements: &VerifiedObjectDefinitionRequirementSetV1,
-    associated_atoms: &[VerifiedDefinitionAtomRangeV1],
-) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
-    let mut output = Vec::new();
-    for relocation in member
-        .relocations()
-        .iter()
-        .filter(|relocation| relocation.containing_atom() == atom)
-    {
-        let bindings = closure
-            .bindings()
-            .iter()
-            .filter(|binding| {
-                binding.source_member() == member.member()
-                    && binding.containing_atom() == atom
-                    && binding.offset_within_atom() == relocation.offset_within_atom()
-            })
-            .collect::<Vec<_>>();
-        let mut binding_count = 0;
-        let mut targets = Vec::new();
-        for (slot, target) in relocation_targets(relocation.shape()) {
-            let target = match target {
-                VerifiedRelocationTargetV1::LocalDefinition {
-                    owner_atom: Some(target_atom),
-                    section_ordinal,
-                    value,
-                    ..
-                } => {
-                    let range = associated_atoms
-                        .iter()
-                        .find(|range| range.atom() == *target_atom)
-                        .ok_or(
-                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
-                        )?;
-                    if range.section_ordinal() != *section_ordinal
-                        || *value < range.start()
-                        || *value >= range.end()
-                    {
-                        return Err(
-                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
-                        );
-                    }
-                    CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
-                        atom: *target_atom,
-                        role: range.atom_role(),
-                        offset_within_atom: *value - range.start(),
-                    }
-                }
-                VerifiedRelocationTargetV1::LocalDefinition { .. }
-                | VerifiedRelocationTargetV1::SectionBase { .. } => {
-                    return Err(
-                        ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
-                    );
-                }
-                VerifiedRelocationTargetV1::StrongDefinition { .. }
-                | VerifiedRelocationTargetV1::ExternalUndefined { .. } => {
-                    let binding = bindings
-                        .iter()
-                        .find(|binding| binding.target_slot() == slot)
-                        .ok_or(ObjectDefinitionRelocationFailureV1::BindingCount)?;
-                    binding_count += 1;
-                    CanonicalRelocationTargetKindV1::Requirement(canonical_requirement(
-                        binding,
-                        requirements,
-                    )?)
-                }
-            };
-            targets.push(CanonicalRelocationTargetV1 { slot, target });
-        }
-        if bindings.len() != binding_count {
-            return Err(ObjectDefinitionRelocationFailureV1::BindingCount);
-        }
-        targets.sort_unstable_by_key(|target| target.slot);
-        output.push(CanonicalObjectRelocationV1 {
-            offset_within_atom: relocation.offset_within_atom(),
-            form: relocation.shape().form(),
-            encoded_value: relocation.encoded_value(),
-            targets,
-        });
-    }
-    output.sort_unstable_by_key(|relocation| relocation.offset_within_atom);
-    for relocation in &output {
-        let start = usize::try_from(relocation.offset_within_atom)
-            .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
-        let width = match relocation.form {
-            VerifiedDarwinArm64RelocationFormV1::Unsigned64
-            | VerifiedDarwinArm64RelocationFormV1::Subtractor64 => 8,
-            _ => 4,
-        };
-        if bytes.get(start..start + width).is_none() {
-            return Err(ObjectDefinitionRelocationFailureV1::Range);
-        }
-    }
-    Ok(output)
-}
-
-fn relocation_targets(
-    shape: &VerifiedDarwinArm64RelocationShapeV1,
-) -> Vec<(RelocationTargetSlotV1, &VerifiedRelocationTargetV1)> {
-    match shape {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Branch26 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Page21 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::PageOffset12 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
-            vec![(RelocationTargetSlotV1::Single, target)]
-        }
-        VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
-            minuend,
-            subtrahend,
-        } => vec![
-            (RelocationTargetSlotV1::Minuend, minuend),
-            (RelocationTargetSlotV1::Subtrahend, subtrahend),
-        ],
-    }
-}
-
-fn canonical_requirement(
-    binding: &crate::link_object::StrongRelocationBindingV1,
-    requirements: &VerifiedObjectDefinitionRequirementSetV1,
-) -> Result<CanonicalObjectDefinitionRequirementV1, ObjectDefinitionRelocationFailureV1> {
-    match binding.resolution() {
-        StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. } => match owner {
-            LinkDefinitionOwnerV1::OdrDefinition(member) => {
-                Ok(CanonicalObjectDefinitionRequirementV1::Legacy(
-                    FinalUndefinedSymbolRequirementV1::OdrMember { member },
-                ))
-            }
-            LinkDefinitionOwnerV1::StrongDefinition(owner) => {
-                Ok(CanonicalObjectDefinitionRequirementV1::Legacy(
-                    FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
-                ))
-            }
-            _ => Err(ObjectDefinitionRelocationFailureV1::UnsupportedObjectLocalOwner),
-        },
-        StrongRelocationResolutionV1::CurrentConeUndefinedStrong { .. }
-        | StrongRelocationResolutionV1::ExternalCandidate { .. } => {
-            let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
-            requirements
-                .requirement_for(&use_site)
-                .ok_or(ObjectDefinitionRelocationFailureV1::MissingUndefinedRequirement)
-        }
-    }
 }
 
 fn normalize_u32(

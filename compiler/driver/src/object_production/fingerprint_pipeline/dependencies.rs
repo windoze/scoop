@@ -9,8 +9,8 @@ pub struct LinkSymbolVerifiedObjectProductionV1 {
     pub(in crate::object_production) defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     pub(in crate::object_production) undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
     pub(in crate::object_production) safepoints: VerifiedStrongSafepointFingerprintSetV1,
-    pub(in crate::object_production) callable_registration_objects:
-        VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    pub(in crate::object_production) callable_registrations:
+        VerifiedStrongCallableRegistrationSetV1,
     pub(in crate::object_production) type_registration_objects:
         VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
     pub(in crate::object_production) immortal_object_registration_objects:
@@ -42,10 +42,8 @@ impl LinkSymbolVerifiedObjectProductionV1 {
         &self.safepoints
     }
 
-    pub const fn callable_registration_objects(
-        &self,
-    ) -> &VerifiedStrongCallableRegistrationObjectFingerprintSetV1 {
-        &self.callable_registration_objects
+    pub const fn callable_registrations(&self) -> &VerifiedStrongCallableRegistrationSetV1 {
+        &self.callable_registrations
     }
 
     pub const fn type_registration_objects(
@@ -81,7 +79,7 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             defined_symbols,
             undefined_symbols,
             safepoints,
-            callable_registration_objects,
+            callable_registrations,
             type_registration_objects,
             immortal_object_registration_objects,
             static_storage_registration_objects,
@@ -91,7 +89,7 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             let candidates = production.scoop_lir_candidates();
             let stackmaps = safepoints.registrations().stackmaps().clone();
             let callable_bodies = compute_strong_callable_body_object_fingerprints_v1(
-                callable_registration_objects,
+                callable_registrations,
                 stackmaps,
                 undefined_symbols.clone(),
                 &candidates,

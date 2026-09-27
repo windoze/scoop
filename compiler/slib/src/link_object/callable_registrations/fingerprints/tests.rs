@@ -2,7 +2,10 @@ use super::*;
 use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
-use crate::link_object::{ScoopLirObjectCandidateV1, verify_strong_callable_registrations_v1};
+use crate::link_object::{
+    ScoopLirObjectCandidateV1, StrongCallableBodyFingerprintError,
+    compute_strong_callable_body_object_fingerprints_v1, verify_strong_callable_registrations_v1,
+};
 
 #[test]
 fn computes_the_relocation_aware_registration_object_leaf() {
@@ -18,9 +21,14 @@ fn computes_the_relocation_aware_registration_object_leaf() {
     )
     .unwrap();
 
-    let fingerprints =
-        compute_strong_callable_registration_object_fingerprints_v1(registrations, &objects)
-            .unwrap();
+    let bodies = compute_strong_callable_body_object_fingerprints_v1(
+        registrations,
+        fixture.verified_stackmaps(),
+        fixture.undefined_requirements(),
+        &objects,
+    )
+    .unwrap();
+    let fingerprints = bodies.registration_objects();
 
     assert_eq!(fingerprints.fingerprints().len(), 1);
     let actual = fingerprints.fingerprints()[0];
@@ -46,6 +54,8 @@ fn rechecks_object_bytes_before_hashing() {
         &objects,
     )
     .unwrap();
+    let stackmaps = fixture.verified_stackmaps();
+    let requirements = fixture.undefined_requirements();
     let last = fixture.object_bytes.len() - 1;
     fixture.object_bytes[last] ^= 1;
     let changed = [ScoopLirObjectCandidateV1::new(
@@ -54,11 +64,14 @@ fn rechecks_object_bytes_before_hashing() {
     )];
 
     assert_eq!(
-        compute_strong_callable_registration_object_fingerprints_v1(registrations, &changed),
-        Err(
-            StrongCallableRegistrationObjectFingerprintError::ObjectValidation(
-                StrongCallableRegistrationValidationError::ObjectBytesMismatch(fixture.member)
-            )
-        )
+        compute_strong_callable_body_object_fingerprints_v1(
+            registrations,
+            stackmaps,
+            requirements,
+            &changed,
+        ),
+        Err(StrongCallableBodyFingerprintError::ObjectValidation(
+            StrongCallableRegistrationValidationError::ObjectBytesMismatch(fixture.member)
+        ))
     );
 }

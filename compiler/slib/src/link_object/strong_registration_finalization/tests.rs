@@ -7,7 +7,6 @@ use crate::link_object::{
     VerifiedStrongImmortalObjectFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
     VerifiedStrongStaticStorageFingerprintSetV1, VerifiedStrongTypeFingerprintSetV1,
     compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
-    compute_strong_callable_registration_object_fingerprints_v1,
     compute_strong_immortal_object_definition_fingerprints_v1,
     compute_strong_immortal_object_fingerprints_v1,
     compute_strong_immortal_object_registration_object_fingerprints_v1,
@@ -361,11 +360,7 @@ fn rejects_fingerprint_proofs_from_different_digest_graphs() {
         &objects,
     )
     .unwrap();
-    let registration_objects = compute_strong_callable_registration_object_fingerprints_v1(
-        callable_registrations,
-        &objects,
-    )
-    .unwrap();
+    let registration_objects = callable_registrations;
     let body_objects = compute_strong_callable_body_object_fingerprints_v1(
         registration_objects,
         stackmaps,
@@ -425,11 +420,7 @@ fn verified_fingerprints(
         objects,
     )
     .unwrap();
-    let registration_objects = compute_strong_callable_registration_object_fingerprints_v1(
-        callable_registrations,
-        objects,
-    )
-    .unwrap();
+    let registration_objects = callable_registrations;
     let body_objects = compute_strong_callable_body_object_fingerprints_v1(
         registration_objects,
         stackmaps,

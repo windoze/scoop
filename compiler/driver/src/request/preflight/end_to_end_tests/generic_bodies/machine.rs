@@ -110,7 +110,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
         let identities = pending.finish().unwrap();
         let diagnostics =
             scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
-        let (lir, _) = super::super::super::machine::lower_selected_lir(
+        let (lir, lir_public) = super::super::super::machine::lower_selected_lir(
             &mir.strong,
             &mir.public,
             &selected,
@@ -161,7 +161,61 @@ fn actual_generic_library_emits_shared_odr_objects() {
             target.c_bridge_toolchain(),
         )
         .unwrap();
-        objects::verify(objects, &generated, expected_bodies);
+        let owners = request
+            .dependencies()
+            .closure
+            .dependency_symbol_owners()
+            .cloned()
+            .collect::<Vec<_>>();
+        let object_fingerprints = objects::verify(
+            objects,
+            &generated,
+            &lir_public,
+            selected_layout.physical_imports(),
+            &owners,
+            expected_bodies,
+        );
+        if case == "control-flow" {
+            for role in [
+                DefinitionAtomRole::Lsda,
+                DefinitionAtomRole::EhFrame,
+                DefinitionAtomRole::CompactUnwind,
+            ] {
+                let changed = scoop_codegen::emit_object_set_v2(
+                    &lir,
+                    production.clone(),
+                    sysroot.path(),
+                    scoop_codegen::ValidatedBackendProfile::from_selection(
+                        target.lir_target_selection(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+                let changed_body = objects::change_associated_atom(&changed, role);
+                let changed = objects::verify(
+                    changed,
+                    &generated,
+                    &lir_public,
+                    selected_layout.physical_imports(),
+                    &owners,
+                    expected_bodies,
+                );
+                for (body, original) in &object_fingerprints {
+                    if *body == changed_body {
+                        assert_ne!(
+                            original[0], changed[body][0],
+                            "{role:?} must affect its body"
+                        );
+                        assert_ne!(
+                            original[1], changed[body][1],
+                            "{role:?} must affect the ODR registration"
+                        );
+                    } else {
+                        assert_eq!(*original, changed[body]);
+                    }
+                }
+            }
+        }
         let replayed = scoop_lir::replay_digest_finalization_plan_v2(
             lir.foundation(),
             production.registration_production(),
@@ -227,6 +281,11 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 encode(registration).unwrap(),
                 encode(production.canonical_definitions().plan(plan.id()).unwrap()).unwrap(),
             ];
+            records.extend(
+                object_fingerprints[&body.id()]
+                    .iter()
+                    .map(|fingerprint| fingerprint.as_array().to_vec()),
+            );
             for id in [member, registration.id()] {
                 let node = production
                     .digest_finalization_plan()

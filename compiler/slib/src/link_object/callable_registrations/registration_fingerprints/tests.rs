@@ -4,7 +4,6 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 };
 use crate::link_object::{
     ScoopLirObjectCandidateV1, compute_strong_callable_body_object_fingerprints_v1,
-    compute_strong_callable_registration_object_fingerprints_v1,
     verify_strong_callable_registrations_v1,
 };
 
@@ -22,9 +21,7 @@ fn computes_the_canonical_callable_strong_registration_fingerprint() {
         &objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_callable_registration_object_fingerprints_v1(registrations, &objects)
-            .unwrap();
+    let registration_objects = registrations;
     let body_objects = compute_strong_callable_body_object_fingerprints_v1(
         registration_objects,
         stackmaps,
@@ -50,7 +47,7 @@ fn computes_the_canonical_callable_strong_registration_fingerprint() {
     );
     assert_eq!(
         actual.registration().to_string(),
-        "e61ca0ad3136c36d64be30420ebd95a27e26af123fd0b924b8a4ec8693397483"
+        "133edde60aab67c8f3a4e055feb8678bf99a5c98296c03eb4f53104e5d65b2e7"
     );
 }
 

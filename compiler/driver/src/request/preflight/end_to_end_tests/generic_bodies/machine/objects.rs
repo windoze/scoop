@@ -7,11 +7,17 @@ use scoop_identity::{
 use scoop_lir::RegistrationDefinitionOwner;
 use scoop_wire::{decode_canonical, encode};
 
+mod associated;
+pub(super) use associated::change_associated_atom;
+
 pub(super) fn verify(
     emitted: scoop_codegen::EmittedConeObjectSetV2,
     generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
+    public: &scoop_lir::CrossConeLirBridgeSectionV1,
+    imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1,
+    dependencies: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     expected_bodies: usize,
-) {
+) -> BTreeMap<PersistentCallableBodyId, [scoop_slib::ObjectDefinitionFingerprintV1; 2]> {
     let prepared = crate::object_production::layout::prepare(emitted, generated).unwrap();
     let (callables, safepoints) = prepared.verify_callable_metadata().unwrap();
     assert_eq!(
@@ -110,6 +116,39 @@ pub(super) fn verify(
             );
         }
     }
+    let native = scoop_lir::CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
+        prepared.target_selection.target(),
+        &prepared.foundation,
+    )
+    .unwrap();
+    let ordinary = scoop_slib::verify_cross_cone_strong_requirements_v1(
+        prepared.target_selection.target(),
+        closure.clone(),
+        dependencies,
+        public,
+    )
+    .unwrap();
+    let shape =
+        scoop_slib::verify_external_shape_requirements_v1(&ordinary, closure.producer(), imports)
+            .unwrap();
+    let undefined =
+        crate::object_production::layout::complete_requirements(&prepared, &native, &shape)
+            .unwrap();
+    let objects = prepared
+        .fingerprint_callable_objects(callables, &undefined)
+        .unwrap();
+    objects
+        .fingerprints()
+        .iter()
+        .zip(objects.registration_objects().fingerprints())
+        .map(|(body, registration)| {
+            assert_eq!(body.body(), registration.body());
+            (
+                body.body(),
+                [body.fingerprint(), registration.fingerprint()],
+            )
+        })
+        .collect()
 }
 
 pub(super) fn check(

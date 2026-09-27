@@ -123,6 +123,20 @@
 
 本项完成共有 ODR 机器对象读取。逐 member canonical LIR、ABI/definition 内容摘要、最终补丁回填、正式泛型 profile 与单 image 链接运行继续实施。
 
+## 2026-09-27：callable 对象摘要覆盖完整关联数据
+
+- callable 的 ObjectDefinition 统一覆盖 primary text、runtime scan、取址常量、LSDA、EH frame、compact unwind 和 LLVM stackmap；关联 atom 按 ID 排序，已有规范化 stackmap 记录继续作为直接输入，不重复解析。
+- Mach-O 本地 UNSIGNED section 引用根据实际 section ordinal 与对象内目标地址定位同一声明的 atom，摘要保留 atom 相对 offset 并清除物理地址；本地 label 使用已验证的 atom 归属，其余符号继续使用真实 Strong/ODR typed target 和 relocation。范围外的目标仍拒绝。
+- 先计算完整函数正文摘要，再计算 callable registration 对象摘要。ODR 登记保留实际 group/member，代入正文 ObjectDefinition，并把该值列为直接依赖；入口来自真实已验证 relocation。Strong 登记继续使用原有置零字段及独立正文依赖合同。
+- 删除提前计算 callable registration 对象叶子的独立入口。driver 和共有 reader 保留同一份已验证登记记录，随正文计算一次产出两类对象叶子。shape 引用分类直接使用实际 consumer 与完整 physical imports，生产端和 reader 共用入口。
+- 对象 verifier 升为 `scoop-lir/3`，旧对象与缓存重建；`link-identity-closure/4`、persistent identity 和 runtime C ABI 保持。固定正文/Strong 登记摘要及 capability 所影响的物理 member wire 向量同步更新。
+- 四个真实 consumer 使用已发布且移走源码的 provider，比较共享泛型实例的正文及 ODR 登记对象摘要。异常回归分别修改真实 Mach-O 对象中的 LSDA、EH frame 和 compact unwind 非 relocation 数据，确认所属正文与 ODR 登记摘要都改变，其他函数摘要保持。
+- 更新 49 份实际产物快照；逐文件断言只有 Artifact、Code 和 RuntimeImage fingerprint 字段改变，布局、符号、依赖及 HIR/MIR/LIR golden 内容保持。
+- `cargo fmt --all` 和 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过且无警告。576 项 slib、116 项 driver library、7 项 CLI 和 1 项真实编译器 capability 测试通过，共 700 项，无失败或忽略；包含源码编译、完整产物读取、链接与运行。 受快照迁移影响的 25 项布局测试在关闭全部更新开关后复验通过。
+- 确认构建与测试进程结束后执行 `cargo clean`，删除 2533 个构建文件，回收 3.9 GiB。
+
+本项完成完整 callable ObjectDefinition 及 ODR 登记对象叶子。canonical LIR、逐 member ABI/最终 definition 摘要、补丁回填、正式泛型 profile 与泛型单 image 链接运行继续实施，不能据此认定 M23-7 已完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；完成逐 member 内容摘要及完整 profile。

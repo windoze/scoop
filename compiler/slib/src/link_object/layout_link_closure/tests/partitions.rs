@@ -124,7 +124,12 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
         &callable.bridge,
     )
     .unwrap();
-    let shape = verify_external_shape_requirements_v1(&old, layout.selected()).unwrap();
+    let shape = verify_external_shape_requirements_v1(
+        &old,
+        layout.selected().consumer(),
+        layout.selected().physical_imports(),
+    )
+    .unwrap();
     let source = verify_source_external_requirements_after_external_shape_v1(
         &shape,
         native_surface(consumer_id, vec![], vec![]),
@@ -233,8 +238,12 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
         )])
         .unwrap(),
     );
-    let wrong_shape =
-        verify_external_shape_requirements_v1(&wrong_legacy, layout.selected()).unwrap();
+    let wrong_shape = verify_external_shape_requirements_v1(
+        &wrong_legacy,
+        layout.selected().consumer(),
+        layout.selected().physical_imports(),
+    )
+    .unwrap();
     assert_eq!(
         finalize_layout_partitioned_undefined_symbol_requirements_v1(
             verify_current_cone_undefined_requirements_v1(strong, empty_bridge_plan(consumer_id))

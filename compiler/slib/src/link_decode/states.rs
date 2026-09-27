@@ -132,11 +132,10 @@ pub struct RegistrationObjectCheckedSingleConeLinkSections<'input> {
     pub(super) production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 
-/// Link sections whose six registration-object leaves were canonically
-/// fingerprinted from the verified provisional object bytes. Safepoints also
-/// carry their final strong-registration fingerprints because their only
-/// non-object input is the already normalized stackmap proof. Remaining
-/// registration dependency leaves are still unproven.
+/// Link sections with registration leaves from verified provisional objects.
+/// Callable records await their body leaves. Safepoints already carry their
+/// final fingerprints using the normalized stackmaps; other registration
+/// dependencies are computed after resolving object symbols.
 pub struct RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
     pub(super) graph: ValidatedGraphArtifact<'input>,
     pub(super) identities: Rc<ValidatedIdentityGraph>,
@@ -145,8 +144,7 @@ pub struct RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
     pub(super) link_identity_closure: ObjectProjectionCheckedLinkIdentityClosureSectionV1,
     pub(super) scoop_objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
     pub(super) safepoints: VerifiedStrongSafepointFingerprintSetV1,
-    pub(super) callable_registration_objects:
-        VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    pub(super) callable_registrations: VerifiedStrongCallableRegistrationSetV1,
     pub(super) type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
     pub(super) immortal_object_registration_objects:
         VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
@@ -171,8 +169,7 @@ pub struct LinkSymbolCheckedSingleConeLinkSections<'input> {
     pub(super) defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     pub(super) undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
     pub(super) safepoints: VerifiedStrongSafepointFingerprintSetV1,
-    pub(super) callable_registration_objects:
-        VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    pub(super) callable_registrations: VerifiedStrongCallableRegistrationSetV1,
     pub(super) type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
     pub(super) immortal_object_registration_objects:
         VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,

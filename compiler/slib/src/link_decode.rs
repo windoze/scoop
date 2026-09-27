@@ -49,9 +49,8 @@ use crate::{
     SingleConeProductionManifestV1, SingleConeProductionManifestValidationError, SlibMemberId,
     SlibMemberRecord, SlibMemberRole, SourceExternalRequirementValidationError,
     StrongCallableBodyFingerprintError, StrongCallableFingerprintError,
-    StrongCallableRegistrationObjectFingerprintError, StrongCallableRegistrationValidationError,
-    StrongImmortalObjectDefinitionFingerprintError, StrongImmortalObjectFingerprintError,
-    StrongImmortalObjectRegistrationObjectFingerprintError,
+    StrongCallableRegistrationValidationError, StrongImmortalObjectDefinitionFingerprintError,
+    StrongImmortalObjectFingerprintError, StrongImmortalObjectRegistrationObjectFingerprintError,
     StrongImmortalObjectRegistrationValidationError,
     StrongInitializationDefinitionFingerprintError, StrongInitializationFingerprintError,
     StrongInitializationRegistrationObjectFingerprintError,
@@ -68,7 +67,6 @@ use crate::{
     VerifiedCBridgeProductionEnvelopeSetV1, VerifiedEntryPatchSetV1,
     VerifiedNormalizedProvisionalScoopLirObjectSetV1, VerifiedScoopLirDigestPatchSiteSetV1,
     VerifiedScoopLirStackmapSetV1, VerifiedStrongCallableFingerprintSetV1,
-    VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     VerifiedStrongCallableRegistrationSetV1, VerifiedStrongImmortalObjectFingerprintSetV1,
     VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
     VerifiedStrongImmortalObjectRegistrationSetV1, VerifiedStrongInitializationFingerprintSetV1,
@@ -465,7 +463,6 @@ impl std::error::Error for StrongLinkRegistrationObjectError {
 #[derive(Debug)]
 pub enum StrongLinkRegistrationLeafFingerprintError {
     Safepoints(StrongSafepointFingerprintError),
-    Callables(StrongCallableRegistrationObjectFingerprintError),
     Types(StrongTypeRegistrationObjectFingerprintError),
     ImmortalObjects(StrongImmortalObjectRegistrationObjectFingerprintError),
     StaticStorages(StrongStaticStorageRegistrationObjectFingerprintError),
@@ -485,7 +482,6 @@ impl std::error::Error for StrongLinkRegistrationLeafFingerprintError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::Safepoints(error) => error,
-            Self::Callables(error) => error,
             Self::Types(error) => error,
             Self::ImmortalObjects(error) => error,
             Self::StaticStorages(error) => error,

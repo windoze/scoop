@@ -10,11 +10,7 @@ pub(super) fn replay(
     let safepoints =
         compute_strong_safepoint_fingerprints_v1(objects.safepoints().clone(), candidates)
             .map_err(LeafError::Safepoints)?;
-    let callables = compute_strong_callable_registration_object_fingerprints_v1(
-        objects.callables().clone(),
-        candidates,
-    )
-    .map_err(LeafError::Callables)?;
+    let callables = objects.callables().clone();
     let callables = compute_layout_strong_callable_body_object_fingerprints_v1(
         callables,
         objects.stackmaps().clone(),

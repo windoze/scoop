@@ -1,14 +1,14 @@
 use super::*;
 
-/// All six registration-object leaf families fingerprinted from one exact
-/// provisional Scoop object set.
+/// Registration leaves computed from one provisional Scoop object set.
+/// Callable objects retain their verified records until body leaves are ready.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RegistrationObjectLeafFingerprintedProductionV1 {
     pub(in crate::object_production) production: PlannedBuiltinObjectProductionV1,
     pub(in crate::object_production) symbol_plan: PlannedStrongObjectSymbolSetV1,
     pub(in crate::object_production) safepoints: VerifiedStrongSafepointFingerprintSetV1,
-    pub(in crate::object_production) callable_registration_objects:
-        VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    pub(in crate::object_production) callable_registrations:
+        VerifiedStrongCallableRegistrationSetV1,
     pub(in crate::object_production) type_registration_objects:
         VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
     pub(in crate::object_production) immortal_object_registration_objects:
@@ -25,7 +25,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
         production: PlannedBuiltinObjectProductionV1,
         symbol_plan: PlannedStrongObjectSymbolSetV1,
         safepoints: VerifiedStrongSafepointFingerprintSetV1,
-        callable_registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+        callable_registrations: VerifiedStrongCallableRegistrationSetV1,
         type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
         immortal_object_registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
         static_storage_registration_objects: VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
@@ -35,7 +35,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
             production,
             symbol_plan,
             safepoints,
-            callable_registration_objects,
+            callable_registrations,
             type_registration_objects,
             immortal_object_registration_objects,
             static_storage_registration_objects,
@@ -55,10 +55,8 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
         &self.safepoints
     }
 
-    pub const fn callable_registration_objects(
-        &self,
-    ) -> &VerifiedStrongCallableRegistrationObjectFingerprintSetV1 {
-        &self.callable_registration_objects
+    pub const fn callable_registrations(&self) -> &VerifiedStrongCallableRegistrationSetV1 {
+        &self.callable_registrations
     }
 
     pub const fn type_registration_objects(
@@ -93,16 +91,13 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
             production,
             symbol_plan,
             safepoints,
-            callable_registration_objects,
+            callable_registrations,
             type_registration_objects,
             immortal_object_registration_objects,
             static_storage_registration_objects,
             initialization_registration_objects,
         } = self;
-        let patch_sites = callable_registration_objects
-            .registrations()
-            .patch_sites()
-            .clone();
+        let patch_sites = callable_registrations.patch_sites().clone();
         let strong_closure = patch_sites.builtins().strong_relocations().clone();
         let defined_symbols =
             CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong_closure)
@@ -152,7 +147,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
             defined_symbols,
             undefined_symbols,
             safepoints,
-            callable_registration_objects,
+            callable_registrations,
             type_registration_objects,
             immortal_object_registration_objects,
             static_storage_registration_objects,

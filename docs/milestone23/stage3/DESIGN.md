@@ -2,7 +2,7 @@
 
 M23-6 Link 迁移：core 专用 requirement、owner 证明和 CoreStrong tag 2 已退役。当前 `link-identity-closure/3` 通过共有语义引用和真实对象 relocation 解析实际 provider 与 typed owner；退役 tag 不复用，旧产物重建。完整格式见实现规范 2.11 与 M23-6 设计。
 
-M23-7 对象读取迁移：共有路径使用 `link-identity-closure/4` 与 `scoop-lir/2`，按实际定义计划检查 Strong/ODR 符号与 member 引用。完整变更见 [M23-7 设计](../stage7/DESIGN.md)；下文早期版本号保留为 M23-3 的历史基线。
+M23-7 对象读取迁移：共有路径使用 `link-identity-closure/4` 与 `scoop-lir/3`，按实际定义计划检查 Strong/ODR 符号与 member 引用。完整变更见 [M23-7 设计](../stage7/DESIGN.md)；下文早期版本号保留为 M23-3 的历史基线。
 
 2026-09-22 当前整数正规化约定：源码intrinsic调用完成共有成员候选及参数/effect检查后，HIR只保留封闭typed operation、conversion和操作数；导入声明不物化成本地函数，后续IR和default body不保留冗余callee。整数default wire删除该字段，旧格式要求重建；exact identity、witness及extern/callback bytes保持。导入成员复用共有源码调用探测与winner commit，完整规则见实现规范2.10。
 

@@ -26,6 +26,21 @@ impl PreparedLayoutObjects {
         .map_err(BuiltinObjectProductionError::SafepointRegistrations)?;
         Ok((callables, safepoints))
     }
+
+    pub(crate) fn fingerprint_callable_objects(
+        &self,
+        callables: slib::VerifiedStrongCallableRegistrationSetV1,
+        undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
+    ) -> Result<slib::VerifiedStrongCallableBodyObjectFingerprintSetV1, BuiltinObjectProductionError>
+    {
+        slib::compute_layout_strong_callable_body_object_fingerprints_v1(
+            callables,
+            self.stackmaps.clone(),
+            undefined.clone(),
+            &self.candidates(),
+        )
+        .map_err(BuiltinObjectProductionError::CallableBodyFingerprints)
+    }
 }
 
 pub(super) fn finalize(
@@ -39,16 +54,7 @@ pub(super) fn finalize(
     let safepoints = compute_strong_safepoint_fingerprints_v1(safepoints, &candidates)
         .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
 
-    let callables =
-        compute_strong_callable_registration_object_fingerprints_v1(callables, &candidates)
-            .map_err(BuiltinObjectProductionError::CallableRegistrationObjectFingerprints)?;
-    let callables = slib::compute_layout_strong_callable_body_object_fingerprints_v1(
-        callables,
-        input.stackmaps.clone(),
-        undefined.clone(),
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::CallableBodyFingerprints)?;
+    let callables = input.fingerprint_callable_objects(callables, undefined)?;
     let callables = compute_strong_callable_fingerprints_v1(callables)
         .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
 

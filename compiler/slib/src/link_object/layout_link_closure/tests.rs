@@ -45,7 +45,12 @@ fn layout_link_classifies_a_real_layout_import_and_preserves_its_compile_table()
         .native_symbol_normalization()
         .compiler_generated_object_symbol(import.expected_symbol().symbol().as_str());
     let legacy = single_legacy(consumer.provider(), symbol.as_bytes());
-    let verified = verify_external_shape_requirements_v1(&legacy, consumer.selected()).unwrap();
+    let verified = verify_external_shape_requirements_v1(
+        &legacy,
+        consumer.selected().consumer(),
+        consumer.selected().physical_imports(),
+    )
+    .unwrap();
     assert_eq!(verified.requirements().len(), 1);
     assert_eq!(verified.requirements()[0].import_index(), 0);
     assert_eq!(
@@ -68,7 +73,12 @@ fn layout_link_retains_metadata_imports_and_rejects_wrong_consumers() {
     let producer = ConeIdentity::SINGLE_FILE;
     let legacy = single_legacy(producer, b"_native");
     let empty = empty_section(producer);
-    let verified = verify_external_shape_requirements_v1(&legacy, empty.selected()).unwrap();
+    let verified = verify_external_shape_requirements_v1(
+        &legacy,
+        empty.selected().consumer(),
+        empty.selected().physical_imports(),
+    )
+    .unwrap();
     assert!(verified.requirements().is_empty());
     assert_eq!(
         verified.remaining_external_candidates()[0].symbol(),
@@ -76,7 +86,12 @@ fn layout_link_retains_metadata_imports_and_rejects_wrong_consumers() {
     );
     let provider = Provider::new();
     let consumer = provider.consumer(producer);
-    let metadata = verify_external_shape_requirements_v1(&legacy, consumer.selected()).unwrap();
+    let metadata = verify_external_shape_requirements_v1(
+        &legacy,
+        consumer.selected().consumer(),
+        consumer.selected().physical_imports(),
+    )
+    .unwrap();
     assert!(metadata.requirements().is_empty());
     assert_eq!(metadata.semantic_imports().records().len(), 1);
     assert_eq!(
@@ -85,7 +100,11 @@ fn layout_link_retains_metadata_imports_and_rejects_wrong_consumers() {
     );
     let wrong = empty_section(provider.foundation.producer());
     assert!(matches!(
-        verify_external_shape_requirements_v1(&legacy, wrong.selected()),
+        verify_external_shape_requirements_v1(
+            &legacy,
+            wrong.selected().consumer(),
+            wrong.selected().physical_imports()
+        ),
         Err(LayoutLinkClosureError::ConsumerMismatch { .. })
     ));
 }
@@ -105,7 +124,12 @@ fn layout_link_reader_binds_nonempty_final_objects_and_rejects_corruption() {
             .clone(),
     );
     let consumer = empty_section(objects.producer());
-    let verified = verify_external_shape_requirements_v1(&legacy, consumer.selected()).unwrap();
+    let verified = verify_external_shape_requirements_v1(
+        &legacy,
+        consumer.selected().consumer(),
+        consumer.selected().physical_imports(),
+    )
+    .unwrap();
     let section =
         CrossConeLayoutLinkClosureSectionV1::from_verified_requirements(&verified, &objects)
             .unwrap();
@@ -142,7 +166,12 @@ fn layout_link_final_objects_must_come_from_the_classified_relocation_proof() {
         crate::link_decode::tests::layout_link_support::verified_code_link_object_members();
     let consumer = empty_section(objects.producer());
     let wrong = single_legacy(objects.producer(), b"_native");
-    let verified = verify_external_shape_requirements_v1(&wrong, consumer.selected()).unwrap();
+    let verified = verify_external_shape_requirements_v1(
+        &wrong,
+        consumer.selected().consumer(),
+        consumer.selected().physical_imports(),
+    )
+    .unwrap();
     assert!(matches!(
         CrossConeLayoutLinkClosureSectionV1::from_verified_requirements(&verified, &objects),
         Err(LayoutLinkClosureError::ObjectProofMismatch)

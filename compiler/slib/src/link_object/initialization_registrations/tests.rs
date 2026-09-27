@@ -473,12 +473,7 @@ fn callable_body_fingerprints(
         objects,
     )
     .unwrap();
-    let registration_objects =
-        crate::link_object::compute_strong_callable_registration_object_fingerprints_v1(
-            registrations,
-            objects,
-        )
-        .unwrap();
+    let registration_objects = registrations;
     crate::link_object::compute_strong_callable_body_object_fingerprints_v1(
         registration_objects,
         fixture.verified_stackmaps(),

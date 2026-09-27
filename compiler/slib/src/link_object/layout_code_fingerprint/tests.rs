@@ -84,7 +84,12 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let callable = legacy_closure(strong.clone());
-    let shape = verify_external_shape_requirements_v1(&callable, layout.selected()).unwrap();
+    let shape = verify_external_shape_requirements_v1(
+        &callable,
+        layout.selected().consumer(),
+        layout.selected().physical_imports(),
+    )
+    .unwrap();
     let native =
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(target, &foundation).unwrap();
     let source =
@@ -108,8 +113,12 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
     ])
     .unwrap();
     let wrong_callable = legacy_closure(wrong_strong);
-    let wrong_shape =
-        verify_external_shape_requirements_v1(&wrong_callable, layout.selected()).unwrap();
+    let wrong_shape = verify_external_shape_requirements_v1(
+        &wrong_callable,
+        layout.selected().consumer(),
+        layout.selected().physical_imports(),
+    )
+    .unwrap();
     assert!(matches!(
         compute_cross_cone_layout_code_fingerprint_v1(
             production.clone(),

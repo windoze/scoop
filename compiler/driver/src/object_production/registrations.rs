@@ -75,7 +75,7 @@ impl RegistrationObjectVerifiedObjectProductionV1 {
         } = self;
         let (
             safepoints,
-            callable_registration_objects,
+            callable_registrations,
             type_registration_objects,
             immortal_object_registration_objects,
             static_storage_registration_objects,
@@ -85,12 +85,7 @@ impl RegistrationObjectVerifiedObjectProductionV1 {
             let safepoints =
                 compute_strong_safepoint_fingerprints_v1(safepoint_registrations, &candidates)
                     .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
-            let callable_registration_objects =
-                compute_strong_callable_registration_object_fingerprints_v1(
-                    callable_registrations,
-                    &candidates,
-                )
-                .map_err(BuiltinObjectProductionError::CallableRegistrationObjectFingerprints)?;
+
             let type_registration_objects =
                 compute_strong_type_registration_object_fingerprints_v1(
                     type_registrations,
@@ -123,7 +118,7 @@ impl RegistrationObjectVerifiedObjectProductionV1 {
                 )?;
             (
                 safepoints,
-                callable_registration_objects,
+                callable_registrations,
                 type_registration_objects,
                 immortal_object_registration_objects,
                 static_storage_registration_objects,
@@ -136,7 +131,7 @@ impl RegistrationObjectVerifiedObjectProductionV1 {
                 production,
                 symbol_plan,
                 safepoints,
-                callable_registration_objects,
+                callable_registrations,
                 type_registration_objects,
                 immortal_object_registration_objects,
                 static_storage_registration_objects,

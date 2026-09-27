@@ -120,7 +120,12 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let callable = legacy_closure(strong);
-    let shape = verify_external_shape_requirements_v1(&callable, layout.selected()).unwrap();
+    let shape = verify_external_shape_requirements_v1(
+        &callable,
+        layout.selected().consumer(),
+        layout.selected().physical_imports(),
+    )
+    .unwrap();
     let native =
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(target, &foundation).unwrap();
     let source =

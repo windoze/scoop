@@ -14,6 +14,7 @@ use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::{
     StrongCallableRegistrationValidationError,
     VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    VerifiedStrongCallableRegistrationSetV1,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -24,7 +25,7 @@ use crate::link_object::{
     VerifiedScoopLirStackmapSetV1,
 };
 
-mod constants;
+mod associated;
 mod error;
 mod runtime_scans;
 
@@ -95,13 +96,13 @@ impl VerifiedStrongCallableBodyObjectFingerprintSetV1 {
 }
 
 pub fn compute_strong_callable_body_object_fingerprints_v1(
-    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    registrations: VerifiedStrongCallableRegistrationSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     undefined_requirements: CanonicalUndefinedSymbolRequirementSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
     compute_strong_callable_body_object_fingerprints_inner_v1(
-        registration_objects,
+        registrations,
         stackmaps,
         undefined_requirements.into(),
         scoop_objects,
@@ -109,13 +110,13 @@ pub fn compute_strong_callable_body_object_fingerprints_v1(
 }
 
 pub fn compute_cross_cone_strong_callable_body_object_fingerprints_v1(
-    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    registrations: VerifiedStrongCallableRegistrationSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     undefined_requirements: FinalizedUndefinedSymbolRequirementPartitionsV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
     compute_strong_callable_body_object_fingerprints_inner_v1(
-        registration_objects,
+        registrations,
         stackmaps,
         undefined_requirements.into(),
         scoop_objects,
@@ -123,13 +124,13 @@ pub fn compute_cross_cone_strong_callable_body_object_fingerprints_v1(
 }
 
 pub fn compute_layout_strong_callable_body_object_fingerprints_v1(
-    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    registrations: VerifiedStrongCallableRegistrationSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     undefined_requirements: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
     compute_strong_callable_body_object_fingerprints_inner_v1(
-        registration_objects,
+        registrations,
         stackmaps,
         undefined_requirements.into(),
         scoop_objects,
@@ -137,12 +138,11 @@ pub fn compute_layout_strong_callable_body_object_fingerprints_v1(
 }
 
 fn compute_strong_callable_body_object_fingerprints_inner_v1(
-    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    registrations: VerifiedStrongCallableRegistrationSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
-    let registrations = registration_objects.registrations();
     let builtins = registrations.patch_sites().builtins();
     if stackmaps.builtins() != builtins {
         return Err(StrongCallableBodyFingerprintError::ObjectProofMismatch);
@@ -224,9 +224,8 @@ fn compute_strong_callable_body_object_fingerprints_inner_v1(
             })?;
         let runtime_scan_ranges =
             exact_runtime_scan_ranges(definition, runtime_scan_plan, plan.body())?;
-        let constant_ranges = constants::ranges(definition);
-        let mut associated_ranges = runtime_scan_ranges.clone();
-        associated_ranges.extend_from_slice(&constant_ranges);
+        let backend_ranges = associated::ranges(definition);
+        let associated_ranges = definition.atoms();
         let direct_inputs = exact_stackmap_inputs(
             registrations.patch_sites().digest_plan(),
             plan.body_definition_node(),
@@ -239,7 +238,7 @@ fn compute_strong_callable_body_object_fingerprints_inner_v1(
             plan.body_primary_atom(),
             builtins.strong_relocations(),
             &undefined_requirements,
-            &associated_ranges,
+            associated_ranges,
         )
         .map_err(|kind| StrongCallableBodyFingerprintError::Relocation {
             body: plan.body(),
@@ -260,15 +259,16 @@ fn compute_strong_callable_body_object_fingerprints_inner_v1(
             &undefined_requirements,
             plan.body(),
         )?;
-        fingerprint_atoms.extend(constants::fingerprint_atoms(
+        fingerprint_atoms.extend(associated::fingerprint_atoms(
             object,
             verified_member,
-            &constant_ranges,
-            &associated_ranges,
+            &backend_ranges,
+            associated_ranges,
             builtins.strong_relocations(),
             &undefined_requirements,
             plan.body(),
         )?);
+        fingerprint_atoms.sort_unstable_by_key(|atom| atom.atom);
         let associated_atoms = fingerprint_atoms
             .iter()
             .map(|atom| CanonicalAssociatedObjectAtomV1 {
@@ -301,6 +301,13 @@ fn compute_strong_callable_body_object_fingerprints_inner_v1(
         });
     }
 
+    let registration_objects = super::fingerprints::compute_registration_object_fingerprints(
+        registrations,
+        &fingerprints,
+        &objects,
+        &undefined_requirements,
+    )
+    .map_err(StrongCallableBodyFingerprintError::RegistrationObject)?;
     Ok(VerifiedStrongCallableBodyObjectFingerprintSetV1 {
         registration_objects,
         stackmaps,

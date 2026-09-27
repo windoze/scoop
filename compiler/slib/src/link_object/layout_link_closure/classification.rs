@@ -1,7 +1,5 @@
 use scoop_identity::ConeIdentity;
-use scoop_lir::{
-    CanonicalExternalShapeLinkImportsV1, LirTargetProfile, SelectedDependencyLayoutAbiSetV1,
-};
+use scoop_lir::{CanonicalExternalShapeLinkImportsV1, LirTargetProfile};
 use scoop_wire::WirePath;
 
 use super::{ExternalShapeUndefinedUseV1, LayoutLinkClosureError};
@@ -45,25 +43,6 @@ impl<'a> VerifiedExternalShapeRequirementClosureV1<'a> {
 }
 
 pub fn verify_external_shape_requirements_v1<'a>(
-    legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
-    selected: &'a SelectedDependencyLayoutAbiSetV1<'a>,
-) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
-    verify_import_requirements(legacy, selected.consumer(), selected.physical_imports())
-}
-
-/// Classifies shape uses from the reader's complete physical imports.
-pub fn verify_replayed_external_shape_requirements_v1<'a>(
-    legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
-    layout: &'a scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1,
-) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
-    verify_import_requirements(
-        legacy,
-        layout.exports().provider(),
-        layout.physical_imports(),
-    )
-}
-
-fn verify_import_requirements<'a>(
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
     consumer: ConeIdentity,
     imports: &'a CanonicalExternalShapeLinkImportsV1,

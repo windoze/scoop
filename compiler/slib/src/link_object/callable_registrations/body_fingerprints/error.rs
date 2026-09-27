@@ -2,13 +2,14 @@ use super::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongCallableBodyFingerprintError {
-    InvalidConstantAtom {
+    InvalidAssociatedAtom {
         body: PersistentCallableBodyId,
         atom: scoop_identity::ObjectDefinitionAtomId,
     },
     ObjectProofMismatch,
     UndefinedRequirementProofMismatch,
     ObjectValidation(StrongCallableRegistrationValidationError),
+    RegistrationObject(super::super::StrongCallableRegistrationObjectFingerprintError),
     ProofCoverageMismatch,
     MissingDefinitionAssignment {
         body: PersistentCallableBodyId,
@@ -107,6 +108,7 @@ impl std::error::Error for StrongCallableBodyFingerprintError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ObjectValidation(source) => Some(source),
+            Self::RegistrationObject(source) => Some(source),
             Self::StackmapNodeIdentity { source, .. } | Self::Hash { source, .. } => Some(source),
             _ => None,
         }

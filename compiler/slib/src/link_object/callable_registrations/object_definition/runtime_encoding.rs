@@ -51,7 +51,7 @@ impl RuntimeEncode for CanonicalObjectRelocationV1 {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         encoder.u64(self.offset_within_atom)?;
         encode_relocation_form(encoder, self.form)?;
-        encoder.u64(self.encoded_value)?;
+        encoder.u64(self.canonical_value)?;
         encoder.sequence_length(self.targets.len())?;
         for target in &self.targets {
             target.runtime_encode(encoder)?;
