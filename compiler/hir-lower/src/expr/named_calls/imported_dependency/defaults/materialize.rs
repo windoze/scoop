@@ -21,7 +21,7 @@ struct ImportedDefaultContext<'a> {
 }
 
 impl Lowerer {
-    pub(in super::super) fn materialize_imported_default(
+    pub(crate) fn materialize_imported_default(
         &mut self,
         owner: &dyn hir::ImportedCallableSource,
         prepared: &PreparedImportedDefault,
@@ -35,6 +35,10 @@ impl Lowerer {
             let value = receiver
                 .cloned()
                 .ok_or(ImportedDefaultMaterializationError::MissingReceiver)?;
+            let ty = self
+                .imported_default_type(template_receiver.value_type())
+                .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
+            let value = self.adapt_to(value, ty);
             locals.insert(template_receiver.local().clone(), value);
         }
         for parameter in prepared.template.value_parameters().parameters() {
@@ -456,7 +460,7 @@ impl Lowerer {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(in super::super) enum ImportedDefaultMaterializationError {
+pub(crate) enum ImportedDefaultMaterializationError {
     MissingReceiver,
     ParameterIndexOverflow,
     MissingValueParameter { position: u32 },

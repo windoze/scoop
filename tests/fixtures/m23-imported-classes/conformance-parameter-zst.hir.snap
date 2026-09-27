@@ -1,0 +1,29 @@
+Module
+  struct LocalDefaults : ParameterSource
+  fun primary(): Counter
+    val local0
+      StructInit LocalDefaults : LocalDefaults
+    val local1
+      Box : ParameterSource
+        Local $receiver : LocalDefaults
+    val local2
+      ImportedDependencyCall #0 interface[0] : Long
+        Local $dependency.default.local.1 : ParameterSource
+    val local3
+      IntegerLiteral 1 : Long
+    val local4
+      Local $dependency.default.local.3 : Long
+    val local5
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.default.local.2 : Long
+        Local $dependency.default.local.4 : Long
+    val local6
+      MethodCall LocalDefaults.answer : Long
+        Local $receiver : LocalDefaults
+        Local $parameter.value : Long
+    val local7
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

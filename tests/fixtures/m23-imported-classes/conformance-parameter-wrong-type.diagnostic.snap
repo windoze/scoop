@@ -1,0 +1,7 @@
+span=230..270
+expression=Counter(LocalDefaults().answer(Token()))
+no applicable candidate for `Counter` in star import layer:
+  - no applicable candidate for `answer` in member candidate layer:
+  - fun LocalDefaults.answer(value: Long): Long — argument for `value` has type Token, which is not a subtype of Long
+  - no applicable candidate for `answer` in member candidate layer:
+  - fun LocalDefaults.answer(value: Long): Long — argument for `value` has type Token, which is not a subtype of Long

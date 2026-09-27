@@ -122,5 +122,5 @@ fn default_expression(
     else {
         panic!("the fixture parameter has a default expression")
     };
-    &export.export_default_exprs[export.export_default_sources[source].expression]
+    &export.export_default_exprs[export.export_default_sources[source].declared().unwrap().0]
 }

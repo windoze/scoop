@@ -161,7 +161,8 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     else {
         panic!("choose parameter must retain its exported default")
     };
-    let template = &module.export_default_exprs[module.export_default_sources[source].expression];
+    let template =
+        &module.export_default_exprs[module.export_default_sources[source].declared().unwrap().0];
     assert_eq!(template.references.singleton_values.len(), 1);
     assert_eq!(
         template.references.singleton_values[0].target,

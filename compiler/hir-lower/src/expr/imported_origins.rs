@@ -10,7 +10,7 @@ use scoop_identity::{PersistentSourceContextId, SourceContextKey};
 use crate::Lowerer;
 
 impl Lowerer {
-    pub(in crate::expr) fn import_dependency_definition_origin(
+    pub(crate) fn import_dependency_definition_origin(
         &mut self,
         source: &hir::ExportDefinitionSourceV1,
         imported: hir::ImportedDependencyDefinitionSource<'_>,
@@ -107,7 +107,8 @@ impl Lowerer {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(in crate::expr) enum ImportedDefinitionOriginError {
+pub(crate) enum ImportedDefinitionOriginError {
+    Wire(scoop_wire::WireError),
     MissingSource { context: PersistentSourceContextId },
     SpanOverflow,
     ProviderOverflow,
@@ -117,6 +118,7 @@ pub(in crate::expr) enum ImportedDefinitionOriginError {
 impl fmt::Display for ImportedDefinitionOriginError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Wire(error) => error.fmt(formatter),
             Self::MissingSource { context } => write!(
                 formatter,
                 "dependency definition origin context {context:?} has no source metadata"
@@ -135,3 +137,9 @@ impl fmt::Display for ImportedDefinitionOriginError {
 }
 
 impl std::error::Error for ImportedDefinitionOriginError {}
+
+impl From<scoop_wire::WireError> for ImportedDefinitionOriginError {
+    fn from(error: scoop_wire::WireError) -> Self {
+        Self::Wire(error)
+    }
+}

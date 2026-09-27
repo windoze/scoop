@@ -1,0 +1,36 @@
+Module
+  class LocalDefaults() : LocalParameters
+  interface LocalParameters : ParameterSource
+    fun answer(value: Long): Long <default>
+      return
+        Local value : Long
+  fun primary(): Counter
+    val local0
+      ReferenceUpcast : LocalParameters
+        ClassInit LocalDefaults : LocalDefaults
+    val local1
+      Local target : LocalParameters
+    val local2
+      ReferenceUpcast : ParameterSource
+        Local $receiver : LocalParameters
+    val local3
+      ImportedDependencyCall #0 interface[0] : Long
+        Local $dependency.default.local.1 : ParameterSource
+    val local4
+      IntegerLiteral 1 : Long
+    val local5
+      Local $dependency.default.local.3 : Long
+    val local6
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.default.local.2 : Long
+        Local $dependency.default.local.4 : Long
+    val local7
+      MethodCall LocalParameters.answer : Long
+        Local $receiver : LocalParameters
+        Local $parameter.value : Long
+    val local8
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

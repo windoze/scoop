@@ -29,10 +29,11 @@ impl Lowerer {
                 .map(|&parameter| self.intern_type(Type::Param(parameter)))
                 .collect();
             let expression = self.export_default_exprs.alloc(body);
-            self.export_default_sources.alloc(hir::ExportDefaultSource {
-                expression,
-                type_arguments,
-            })
+            self.export_default_sources
+                .alloc(hir::ExportDefaultSource::Declared {
+                    expression,
+                    type_arguments,
+                })
         })
     }
 

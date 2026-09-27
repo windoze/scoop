@@ -69,12 +69,16 @@ impl Lowerer {
                 }
                 crate::defaults::DefaultExprTemplateRef::Export(source) => {
                     let source = self.export_default_sources[source].clone();
-                    let body = self.export_default_exprs[source.expression].clone();
+                    let Some((expression, type_arguments)) = source.declared() else {
+                        // Imported parameter-free bodies have no local generic applications.
+                        continue;
+                    };
+                    let body = self.export_default_exprs[expression].clone();
                     let bindings = body
                         .type_parameters
                         .iter()
                         .copied()
-                        .zip(source.type_arguments)
+                        .zip(type_arguments.iter().copied())
                         .collect();
                     (body, bindings)
                 }

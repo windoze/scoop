@@ -317,6 +317,13 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     {
         provider_source.push_str(&source("super-provider"));
     }
+    if cases
+        .iter()
+        .chain(negative_cases)
+        .any(|case| case.starts_with("conformance-parameter-"))
+    {
+        provider_source.push_str(&source("parameter-provider"));
+    }
     if cases.iter().any(|case| {
         case.starts_with("initialization-object-") || *case == "initialization-imported-object"
     }) {
@@ -404,6 +411,8 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
                 "conformance-interface-property-downstream"
             } else if *case == "conformance-super-default" {
                 "conformance-super-default-downstream"
+            } else if *case == "conformance-parameter-published" {
+                "conformance-parameter-downstream"
             } else if *case == "conformance-abstract-method" {
                 "conformance-abstract-method-downstream"
             } else if matches!(

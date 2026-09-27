@@ -43,20 +43,13 @@ impl CanonicalExportDefinitionSourcesV1 {
         for (wire_index, (template_index, template)) in
             (0_u64..).zip(default_templates.records().iter().enumerate())
         {
-            sources.insert(template.definition_origin().clone());
-            for local in template.locals().records() {
-                if let TemplateLocalDefinitionV1::Source(source) = local.definition() {
-                    sources.insert(source.clone());
-                }
-            }
             template
-                .body()
                 .visit_definition_sources(
-                    &mut |source, _, _| {
+                    &mut |source| {
                         sources.insert(source.clone());
                         Ok(())
                     },
-                    &WirePath::root().field(7).index(wire_index).field(5),
+                    &WirePath::root().field(7).index(wire_index),
                 )
                 .map_err(
                     |source| ExportDefinitionSourceProductionError::DefaultBody {
@@ -64,14 +57,6 @@ impl CanonicalExportDefinitionSourcesV1 {
                         source,
                     },
                 )?;
-
-            let references = template.references();
-            collect_reference_sources(&mut sources, references.callables());
-            collect_reference_sources(&mut sources, references.constructors());
-            collect_reference_sources(&mut sources, references.types());
-            collect_reference_sources(&mut sources, references.globals());
-            collect_reference_sources(&mut sources, references.singleton_values());
-            collect_reference_sources(&mut sources, references.fields());
         }
 
         sources.extend(
@@ -86,15 +71,63 @@ impl CanonicalExportDefinitionSourcesV1 {
     }
 }
 
-fn collect_reference_sources<T>(
-    sources: &mut BTreeSet<ExportDefinitionSourceV1>,
-    references: &[ExportDefaultReferenceV1<T>],
-) {
-    sources.extend(
-        references
+impl crate::ExportDefaultTemplateV1 {
+    /// Visits the source locations retained by this complete typed template.
+    pub fn visit_definition_sources<V, E>(&self, visitor: &mut V, path: &WirePath) -> Result<(), E>
+    where
+        V: FnMut(&ExportDefinitionSourceV1) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        visitor(self.definition_origin())?;
+        for local in self.locals().records() {
+            if let TemplateLocalDefinitionV1::Source(source) = local.definition() {
+                visitor(source)?;
+            }
+        }
+        self.body().visit_definition_sources(
+            &mut |source, _, _| visitor(source),
+            &path.clone().field(5),
+        )?;
+        let references = self.references();
+        for source in references
+            .callables()
             .iter()
-            .map(|reference| reference.definition_origin().clone()),
-    );
+            .map(ExportDefaultReferenceV1::definition_origin)
+            .chain(
+                references
+                    .constructors()
+                    .iter()
+                    .map(ExportDefaultReferenceV1::definition_origin),
+            )
+            .chain(
+                references
+                    .types()
+                    .iter()
+                    .map(ExportDefaultReferenceV1::definition_origin),
+            )
+            .chain(
+                references
+                    .globals()
+                    .iter()
+                    .map(ExportDefaultReferenceV1::definition_origin),
+            )
+            .chain(
+                references
+                    .singleton_values()
+                    .iter()
+                    .map(ExportDefaultReferenceV1::definition_origin),
+            )
+            .chain(
+                references
+                    .fields()
+                    .iter()
+                    .map(ExportDefaultReferenceV1::definition_origin),
+            )
+        {
+            visitor(source)?;
+        }
+        Ok(())
+    }
 }
 
 pub(crate) fn project_definition_source(

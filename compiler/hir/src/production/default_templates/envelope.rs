@@ -3,8 +3,8 @@ use super::{
     entities::DefaultEntityProjector, errors::DefaultTemplateEnvelopeProjectionError, references,
 };
 use crate::{
-    CanonicalCallableInterfacesV1, ExportDefaultSourceId, ExportDefaultTemplateKeyV1,
-    ExportDefaultTemplateV1, ExportHir,
+    CanonicalCallableInterfacesV1, ExportDefaultSource, ExportDefaultSourceId,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ExportHir,
 };
 
 pub(super) mod projection;
@@ -35,7 +35,22 @@ fn project_inner(
     key: ExportDefaultTemplateKeyV1,
     source_id: ExportDefaultSourceId,
 ) -> Result<ExportDefaultTemplateV1, DefaultTemplateEnvelopeProjectionError> {
-    let projected = projection::project_body(export, entities, &owner.binders, source_id)?;
+    let source = super::arena_get(&export.export_default_sources, source_id).ok_or(
+        DefaultTemplateEnvelopeProjectionError::UnknownDefaultSource(super::default_source_id(
+            source_id,
+        )),
+    )?;
+    let (expression, type_arguments) = match source {
+        ExportDefaultSource::Declared {
+            expression,
+            type_arguments,
+        } => (*expression, type_arguments),
+        ExportDefaultSource::Imported { template } => {
+            return Ok(template.as_ref().clone().inherited_at(key));
+        }
+    };
+    let projected =
+        projection::project_body(export, entities, &owner.binders, expression, type_arguments)?;
     callables.declaration(owner.declaration).ok_or(
         DefaultTemplateEnvelopeProjectionError::Provider(
             super::DefaultEntityProjectionError::MissingIdentity {

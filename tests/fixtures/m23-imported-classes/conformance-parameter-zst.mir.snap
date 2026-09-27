@@ -1,0 +1,99 @@
+Module
+  struct LocalDefaults ()
+  enum CoroutineStep<LocalDefaults>
+    Completed(value: LocalDefaults)
+    Suspended()
+  enum CoroutineSlot<LocalDefaults>
+    Empty()
+    Value(value: LocalDefaults)
+  class Counter vtable=0 itables=0
+  class box<LocalDefaults> vtable=0 itables=1
+  interface ParameterSource
+  generated_exact_type get0 location=enum1 nominal_id=332109eecc661d0ff7866928f51f9f472e8a27ad15f1d8ddff0e985f96b1b518 exact_id=0f2df0d2ea3f1ee71e0444b06b9c9a9b6cc45a4aea30ec65d18abf7de8a63701
+  generated_exact_type get1 location=class1 nominal_id=cfb117472cbbaa4ce2148db2297f872f60d3bed77475cd47264458d7c3b10572 exact_id=527cfdbb4bd3a32a07400d6eb57a9871a049e243c68c7c237bad79dbf19a659a
+  generated_exact_type get2 location=enum0 nominal_id=e6bf91397e6c6f556fae98ddb7c96dd703cc71d40d98e3f5a3b4e25fabd0a3ce exact_id=7cb3cdf8a711f463424f7678ad6a0c16aa2751b898703b6cc26266441dd9e9ca
+  generated_callable gc0 function=@fn5 id=9b8bb2e05e8c5eabbf1d616ff78c4c411922929f1a5a27c2967b42ac06ac7a09
+  generated_callable gc1 function=@fn4 id=d03a76d1383ffed29157666e4aea204d2b94daf91d533dc7811924cfe6af9b10
+  fun LocalDefaults.base @fn0(this: LocalDefaults) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+  fun LocalDefaults.answer @fn1(this: LocalDefaults, value: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local value
+  fun primary @fn2() -> Counter
+    bb0 entry
+      call $receiver: LocalDefaults = @fn3 direct
+      val $dependency.default.local.1: ParameterSource
+        Type ParameterSource
+        Box
+          Type LocalDefaults
+          Local $receiver
+      call $dependency.default.local.2: Long = external0 interface ParameterSource[0]
+        Type ParameterSource
+        Local $dependency.default.local.1
+      val $dependency.default.local.3: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.default.local.4: Long
+        Type Long
+        Local $dependency.default.local.3
+      val $parameter.value: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.default.local.2
+          Type Long
+          Local $dependency.default.local.4
+      call $dependency.argument.0: Long = @fn1 direct
+        Type LocalDefaults
+        Local $receiver
+        Type Long
+        Local $parameter.value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  fun ctor.LocalDefaults.$c0 @fn3() -> LocalDefaults <no-gc>
+    bb0 entry
+      return
+        Type LocalDefaults
+        StructInit LocalDefaults
+  fun thunk<LocalDefaults> ParameterSource.base() @fn4(this: ParameterSource) -> Long
+    bb0 entry
+      call $call.1: Long = @fn0 direct
+        Type LocalDefaults
+        Unbox
+          Type ParameterSource
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalDefaults> ParameterSource.answer(Long) @fn5(this: ParameterSource, value: Long) -> Long
+    bb0 entry
+      call $call.1: Long = @fn1 direct
+        Type LocalDefaults
+        Unbox
+          Type ParameterSource
+          Local this
+        Type Long
+        Local value
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalDefaults> result=LocalDefaults
+  coroutine_slot cl0 CoroutineSlot<LocalDefaults> value=LocalDefaults
+  output library

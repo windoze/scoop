@@ -288,7 +288,7 @@ fn producer_rejects_a_constructor_only_expression_in_a_default() {
     else {
         unreachable!()
     };
-    let expression = module.export_default_sources[source].expression;
+    let expression = module.export_default_sources[source].declared().unwrap().0;
     module.export_default_exprs[expression].value.kind =
         hir::ExprKind::ConstructorParam(hir::ConstructorParamId::from_raw(0));
 

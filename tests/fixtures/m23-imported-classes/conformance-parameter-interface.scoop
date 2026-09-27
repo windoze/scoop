@@ -1,0 +1,12 @@
+import dependency.classes.*
+
+public interface LocalParameters: ParameterSource {
+    public override fun answer(value: Long): Long = value
+}
+public class LocalDefaults public constructor(): LocalParameters {
+    public override fun base(): Long = 20
+}
+public fun primary(): Counter {
+    val target: LocalParameters = LocalDefaults()
+    return Counter(target.answer())
+}

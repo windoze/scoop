@@ -717,11 +717,8 @@ pub(crate) struct Lowerer {
     pub(crate) interface_method_entities: Arena<hir::InterfaceMethod>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
-    pub(crate) override_sources: HashMap<FunctionId, Vec<FunctionId>>,
-    /// Exact parent-parameter applications for every validated override edge.
-    /// The values are ordered like the parent signature's type parameters and
-    /// are expressed in the overriding declaration's type scope.
-    pub(crate) override_default_type_arguments: HashMap<(FunctionId, FunctionId), Vec<TypeId>>,
+    /// Actual overridden declarations and their default-parameter applications.
+    pub(crate) override_default_sources: HashMap<FunctionId, Vec<defaults::DefaultOverrideSource>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).

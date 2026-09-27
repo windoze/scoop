@@ -1,0 +1,79 @@
+Module
+  enum CoroutineStep<LocalDefaults>
+    Completed(value: LocalDefaults)
+    Suspended()
+  enum CoroutineSlot<LocalDefaults>
+    Empty()
+    Value(value: LocalDefaults)
+  class LocalDefaults vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  interface ParameterSource
+  generated_exact_type get0 location=enum1 nominal_id=c23750b81f19c853da896f67c1f1332ad64ce56eec782359a1b04cef4ce161e0 exact_id=acad980c899e6d163c845300c569b8b1854315b332ed3013dbb55f41806cbe1d
+  generated_exact_type get1 location=enum0 nominal_id=c984783a07ebc440c43584efa70958ccdd543c242f0c60cb74da542f0ea98975 exact_id=c576323f0555384eba3e3cf2b0038f63af7701af8fe2d543310e942ca25a5d1a
+  fun LocalDefaults.base @fn0(this: LocalDefaults) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+  fun LocalDefaults.answer @fn1(this: LocalDefaults, value: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local value
+  fun primary @fn2() -> Counter
+    bb0 entry
+      assign $new.1
+        Type LocalDefaults
+        ClassAlloc LocalDefaults
+      call @fn3 direct
+        Type LocalDefaults
+        Local $new.1
+      val $receiver: LocalDefaults
+        Type LocalDefaults
+        Local $new.1
+      val $dependency.default.local.1: ParameterSource
+        Type ParameterSource
+        Retype ParameterSource
+          Type LocalDefaults
+          Local $receiver
+      call $dependency.default.local.2: Long = external0 interface ParameterSource[0]
+        Type ParameterSource
+        Local $dependency.default.local.1
+      val $dependency.default.local.3: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.default.local.4: Long
+        Type Long
+        Local $dependency.default.local.3
+      val $parameter.value: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.default.local.2
+          Type Long
+          Local $dependency.default.local.4
+      call $dependency.argument.0: Long = @fn1 direct
+        Type LocalDefaults
+        Local $receiver
+        Type Long
+        Local $parameter.value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.LocalDefaults.$c0 @fn3(this: LocalDefaults) -> Unit
+    bb0 entry
+      return
+  coroutine_step cs0 CoroutineStep<LocalDefaults> result=LocalDefaults
+  coroutine_slot cl0 CoroutineSlot<LocalDefaults> value=LocalDefaults
+  output library

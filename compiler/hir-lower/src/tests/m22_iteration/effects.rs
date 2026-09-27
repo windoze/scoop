@@ -111,7 +111,7 @@ fn iteration_default_regions_keep_structural_suspend_ownership() {
         .flat_map(|interface| &interface.parameters)
         .find_map(|parameter| match parameter.calling {
             hir::ExportParameterCalling::Default { source, .. } => {
-                Some(export.export_default_sources[source].expression)
+                Some(export.export_default_sources[source].declared().unwrap().0)
             }
             _ => None,
         })

@@ -24,7 +24,8 @@ fn defaults_carry_their_own_local_callables_without_requiring_external_lookup() 
         else {
             panic!("expected default source");
         };
-        let body = &export.export_default_exprs[export.export_default_sources[source].expression];
+        let body = &export.export_default_exprs
+            [export.export_default_sources[source].declared().unwrap().0];
         let mut declarations = std::collections::HashSet::new();
         for reference in &body.references.callables {
             if let hir::ExportDefaultCallableTarget::LocalFunction(local) = reference.target {

@@ -117,13 +117,6 @@ impl Lowerer {
             if decl.is_override {
                 self.check_override_access_coverage(id, decl, &matching_overrides);
             }
-            self.override_sources.insert(
-                id,
-                matching_overrides
-                    .iter()
-                    .map(|(candidate, _)| *candidate)
-                    .collect(),
-            );
             for (candidate, arguments) in &matching_overrides {
                 let mut default_type_arguments = arguments.clone();
                 for parameter in &sig.type_params[sig.owner_type_param_count..] {
@@ -133,8 +126,12 @@ impl Lowerer {
                     default_type_arguments.len(),
                     self.signatures[candidate].type_params.len()
                 );
-                self.override_default_type_arguments
-                    .insert((id, *candidate), default_type_arguments);
+                self.override_default_sources.entry(id).or_default().push(
+                    crate::defaults::DefaultOverrideSource::Local {
+                        function: *candidate,
+                        type_arguments: default_type_arguments,
+                    },
+                );
                 let inherited = self.instantiated_signature(
                     *candidate,
                     arguments,
@@ -353,6 +350,11 @@ impl Lowerer {
                     break;
                 }
             }
+            self.override_default_sources.entry(id).or_default().push(
+                crate::defaults::DefaultOverrideSource::Imported(
+                    declaration.interface().declaration(),
+                ),
+            );
         }
     }
 

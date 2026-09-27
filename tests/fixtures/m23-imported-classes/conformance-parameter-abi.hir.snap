@@ -1,0 +1,40 @@
+Module
+  struct LocalDefaults : CompoundParameters
+  fun primary(): Counter
+    val local0
+      StructInit LocalDefaults : LocalDefaults
+    val local1
+      ImportedDependencyCall #0 : Token
+    val local2
+      IntegerLiteral 10 : Long
+    val local3
+      Local $dependency.default.local.2 : Long
+    val local4
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.default.local.3 : Long
+    val local5
+      Local $parameter.input : Counter
+    val local6
+      ImportedDependencyCall #2 : Long
+        Local $dependency.default.local.3 : Counter
+    val local7
+      IntegerLiteral 1 : Long
+    val local8
+      Local $dependency.default.local.5 : Long
+    val local9
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.default.local.4 : Long
+        Local $dependency.default.local.6 : Long
+    val local10
+      FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
+        MethodCall LocalDefaults.answer : WideValue
+          Local $receiver : LocalDefaults
+          Local $parameter.marker : Token
+          Local $parameter.input : Counter
+          Local $parameter.extra : Long
+    val local11
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

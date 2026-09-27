@@ -1,0 +1,96 @@
+Module
+  enum CoroutineStep<LocalDefaults>
+    Completed(value: LocalDefaults)
+    Suspended()
+  enum CoroutineSlot<LocalDefaults>
+    Empty()
+    Value(value: LocalDefaults)
+  class LocalDefaults vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  interface ParameterSource
+  generated_exact_type get0 location=enum1 nominal_id=1ee4061f1a9e82ed991bf37db93928dfb542df31346210b22258fd9a9de553c1 exact_id=d46d7c36bcc514f40b0ac2878c58e64f78571b33644af8bbf89b93501151c39b
+  generated_exact_type get1 location=enum0 nominal_id=d71f2dfeab2db3405816ed554028b8e5cedae19adfbef7f5e0b70294b7157974 exact_id=f95a800d1173c101c2fd475b60888d5f0d4620a1aa49e6308cfd9e7bdd01e715
+  fun LocalDefaults.base @fn0(this: LocalDefaults) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+  fun LocalDefaults.answer @fn1(this: LocalDefaults, renamed: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local renamed
+  fun primary @fn2() -> Counter
+    bb0 entry
+      assign $new.1
+        Type LocalDefaults
+        ClassAlloc LocalDefaults
+      call @fn3 direct
+        Type LocalDefaults
+        Local $new.1
+      val target: LocalDefaults
+        Type LocalDefaults
+        Local $new.1
+      val inherited: ParameterSource
+        Type ParameterSource
+        Retype ParameterSource
+          Type LocalDefaults
+          Local target
+      val $receiver: LocalDefaults
+        Type LocalDefaults
+        Local target
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $parameter.renamed: Long
+        Type Long
+        Local $argument.0
+      call $dependency.receiver: Long = @fn1 direct
+        Type LocalDefaults
+        Local $receiver
+        Type Long
+        Local $parameter.renamed
+      val $dependency.receiver: ParameterSource
+        Type ParameterSource
+        Local inherited
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.argument.0: Long = external0 interface ParameterSource[1]
+        Type ParameterSource
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.LocalDefaults.$c0 @fn3(this: LocalDefaults) -> Unit
+    bb0 entry
+      return
+  coroutine_step cs0 CoroutineStep<LocalDefaults> result=LocalDefaults
+  coroutine_slot cl0 CoroutineSlot<LocalDefaults> value=LocalDefaults
+  output library

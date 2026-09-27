@@ -1,0 +1,36 @@
+Module
+  enum CoroutineStep<LocalDefaults> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<LocalDefaults> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$193094cb37684f779e575d1cdb19e7020b856b5bf1d7bcb9f79de4c11575d4ac(ptr<managed>) -> i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Long>(0x0000000000000014)
+  fun @scoop$1$cb$4e43c813788a8653951cc24780eba5d26c83d4166437f69dd8bf60dc942927f7(ptr<managed>, i64) -> i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$8f8669307116726cf193ca5a867094a734775191ea715e0bb1a1e4ff87bfef64() -> ptr<managed>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.value: i64
+    local %2 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000015) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t0 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn0(local2, local1)
+    t1 = aggregate () : {}
+    ret local2
+  fun @scoop$1$cb$cbd1ec5465dad7353346dfefd0427ee0741970f9d57be1bd53dbe99edf3c5350(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  td td0 n(c=dev.example%3Aclasses-conformance-parameter-published%3A0.1.0;p=;o=-;k=C;x=LocalDefaults) @scoop$1$td$bed3107b805d442bcc0a9951ead2cc62de3f269402ceac99b3a8d8882a027ba2 type-id=6402268240757207645 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[external-td0:[local-fn0, local-fn1]]
+  td td1 g(r=00000007;i=da8cb44f330e13bd604cb5e9fdd8dd6c6a47aae27ac83699a097d8883eea095f) @scoop$1$td$2e7ff5c329386212402877ba8b52afb8919a7ebf534a4327d94cfe3e0298d6de type-id=10202651640776082488 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000005;i=46445eff119a0d136285c860905c2362b6ad1e2b70a61555bc4b47c3243b6b6e) @scoop$1$td$824381fc796359fc033f116b76f4ce2f13ee953caf453c612439818045c01d85 type-id=12339821577007921948 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<LocalDefaults> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<LocalDefaults> size=8 align=8 enum-scan=refs[0]
+  layout LocalDefaults value size=8 align=8 refs=[0]
+  layout LocalDefaults size=16 align=8 refs=[]
+  output library

@@ -1,0 +1,17 @@
+
+public interface ParameterSource {
+    public fun base(): Long
+    public fun answer(value: Long = base() + 1): Long
+}
+public interface ParameterLeft: ParameterSource {
+    public override fun answer(value: Long): Long = value
+}
+public interface ParameterRight: ParameterSource {
+    public override fun answer(value: Long): Long = value
+}
+public interface OtherParameterSource {
+    public fun answer(value: Long = 100): Long
+}
+public interface CompoundParameters {
+    public fun answer(marker: Token = Token(), input: Counter = Counter(10), extra: Long = input.twice() + 1): WideValue
+}

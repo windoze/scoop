@@ -1,0 +1,139 @@
+Module
+  struct LocalDefaults ()
+  struct Token ()
+  struct WideValue (first: Long, second: Long, third: Long)
+  enum CoroutineStep<LocalDefaults>
+    Completed(value: LocalDefaults)
+    Suspended()
+  enum CoroutineSlot<LocalDefaults>
+    Empty()
+    Value(value: LocalDefaults)
+  class Counter vtable=0 itables=0
+  class box<LocalDefaults> vtable=0 itables=1
+  interface CompoundParameters
+  generated_exact_type get0 location=class1 nominal_id=1ef4d85ac539d1e3c2cd594734a1628ca665f59b3370f45413afd0a924100295 exact_id=87b14cb23d102bf923271756d5f58a916c13debab8fc5253d713095f5788846e
+  generated_exact_type get1 location=enum0 nominal_id=db2bc04d6d4cdc73c544344141e893b2b1721ad1f0137d87e3bf556e6c5337ae exact_id=acad115e4bb52bb467e825b1e71c375752f79e209ea2009ce60c2ecbbbaa1ee4
+  generated_exact_type get2 location=enum1 nominal_id=502784d2178558daef167f18f3a034a85d7d841e666999fa63c8d5bcf9dc342e exact_id=bc2607dd069ed927dd4f52f7ffde20b35c580dc36ba79822eebf09c0b93ab795
+  generated_callable gc0 function=@fn3 id=3bf250f4bde06052852cbad841029e9f79c9252affe5ab34ae6386eaef57bc5b
+  fun LocalDefaults.answer @fn0(this: LocalDefaults, marker: Token, input: Counter, extra: Long) -> WideValue
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        Local extra
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call $call.1: WideValue = external3 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      return
+        Type WideValue
+        Local $call.1
+  fun primary @fn1() -> Counter
+    bb0 entry
+      call $receiver: LocalDefaults = @fn2 direct
+      call $parameter.marker: Token = external0 direct
+      val $dependency.default.local.2: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.default.local.3: Long
+        Type Long
+        Local $dependency.default.local.2
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.default.local.3
+      val $parameter.input: Counter
+        Type Counter
+        Local $new.1
+      val $dependency.default.local.3: Counter
+        Type Counter
+        Local $parameter.input
+      call $dependency.default.local.4: Long = external2 direct
+        Type Counter
+        Local $dependency.default.local.3
+      val $dependency.default.local.5: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.default.local.6: Long
+        Type Long
+        Local $dependency.default.local.5
+      val $parameter.extra: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.default.local.4
+          Type Long
+          Local $dependency.default.local.6
+      call $call.2: WideValue = @fn0 direct
+        Type LocalDefaults
+        Local $receiver
+        Type Token
+        Local $parameter.marker
+        Type Counter
+        Local $parameter.input
+        Type Long
+        Local $parameter.extra
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type WideValue
+          Local $call.2
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  fun ctor.LocalDefaults.$c0 @fn2() -> LocalDefaults <no-gc>
+    bb0 entry
+      return
+        Type LocalDefaults
+        StructInit LocalDefaults
+  fun thunk<LocalDefaults> CompoundParameters.answer(Token, Counter, Long) @fn3(this: CompoundParameters, marker: Token, input: Counter, extra: Long) -> WideValue
+    bb0 entry
+      call $call.1: WideValue = @fn0 direct
+        Type LocalDefaults
+        Unbox
+          Type CompoundParameters
+          Local this
+        Type Token
+        Local marker
+        Type Counter
+        Local input
+        Type Long
+        Local extra
+      return
+        Type WideValue
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalDefaults> result=LocalDefaults
+  coroutine_slot cl0 CoroutineSlot<LocalDefaults> value=LocalDefaults
+  output library

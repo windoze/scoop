@@ -8,7 +8,7 @@ pub struct SourceFileMetadata {
     pub identity: scoop_identity::SourceIdentity,
     pub name: String,
     pub source: String,
-    /// Canonical metadata copied from an authenticated dependency artifact.
+    /// Canonical metadata copied from a decoded dependency artifact.
     /// Current-source entries keep this absent and derive the record from
     /// `source`; imported entries need not retain the provider's source text.
     pub canonical_record: Option<SourceRecord>,
@@ -364,7 +364,7 @@ pub struct ExportDefaultExpr {
     pub allows_suspend: bool,
     /// The exact declaration identities referenced by `Type::Param` nodes in
     /// the template. An inherited source relates these to its own static view
-    /// through `ExportDefaultSource::type_arguments`.
+    /// through the type arguments of `ExportDefaultSource::Declared`.
     pub type_parameters: Vec<TypeParamId>,
     pub receiver: Option<ExportDefaultReceiver>,
     pub value_parameters: Vec<ExportDefaultValueParameter>,
@@ -474,13 +474,29 @@ pub struct ExportDefaultFieldRef {
     pub origin: DefinitionOrigin,
 }
 
-/// A typed inheritance/application edge for one default source. The argument
-/// at each position corresponds to the template parameter at the same
-/// position and is expressed in the consuming declaration's type scope.
+/// A complete default source, either declared here or inherited from a dependency.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExportDefaultSource {
-    pub expression: ExportDefaultExprId,
-    pub type_arguments: Vec<TypeId>,
+pub enum ExportDefaultSource {
+    Declared {
+        expression: ExportDefaultExprId,
+        /// Ordered arguments in the consuming declaration's type scope.
+        type_arguments: Vec<TypeId>,
+    },
+    Imported {
+        template: std::sync::Arc<ExportDefaultTemplateV1>,
+    },
+}
+
+impl ExportDefaultSource {
+    pub fn declared(&self) -> Option<(ExportDefaultExprId, &[TypeId])> {
+        match self {
+            Self::Declared {
+                expression,
+                type_arguments,
+            } => Some((*expression, type_arguments)),
+            Self::Imported { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

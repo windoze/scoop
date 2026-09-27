@@ -1,0 +1,17 @@
+Module
+  class LocalDefaults() : Readable
+  fun primary(): Counter
+    val local0
+      ClassInit LocalDefaults : LocalDefaults
+    val local1
+      IntegerLiteral 1 : Long
+    val local2
+      MethodCall LocalDefaults.answer : Long
+        Local $receiver : LocalDefaults
+        Local $parameter.extra : Long
+    val local3
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #0 : Counter
+        Local $dependency.parameter.value : Long
+  output library

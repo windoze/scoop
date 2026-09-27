@@ -60,8 +60,8 @@ fn forward_default_preparation_restores_the_definition_file_and_origin() {
             else {
                 panic!("default");
             };
-            let body =
-                &export.export_default_exprs[export.export_default_sources[source].expression];
+            let body = &export.export_default_exprs
+                [export.export_default_sources[source].declared().unwrap().0];
             assert_eq!(body.origin.file, expected_file);
             assert_eq!(interface.parameters[0].origin.file, expected_file);
             assert_eq!(

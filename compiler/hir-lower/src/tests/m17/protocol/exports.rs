@@ -55,8 +55,11 @@ fn exported_defaults_preserve_kind_typed_references_and_definition_locations() {
     else {
         unreachable!()
     };
-    let template = &output.export.export_default_exprs
-        [output.export.export_default_sources[source].expression];
+    let template = &output.export.export_default_exprs[output.export.export_default_sources
+        [source]
+        .declared()
+        .unwrap()
+        .0];
     assert_eq!(
         template.definition_root,
         hir::LexicalDefinitionRoot::Function(consume)

@@ -94,6 +94,12 @@ impl ExportDefaultTemplateV1 {
         self.key
     }
 
+    /// Associates the unchanged definition with an overriding parameter.
+    pub fn inherited_at(mut self, key: ExportDefaultTemplateKeyV1) -> Self {
+        self.key = key;
+        self
+    }
+
     pub const fn definition_root(&self) -> PersistentLexicalRootV1 {
         self.definition_root
     }

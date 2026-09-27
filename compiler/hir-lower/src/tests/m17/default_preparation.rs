@@ -77,7 +77,8 @@ fn defaults_do_not_prepare_an_unselected_overload_or_an_explicit_argument() {
     else {
         panic!("default");
     };
-    let body = &export.export_default_exprs[export.export_default_sources[source].expression];
+    let body =
+        &export.export_default_exprs[export.export_default_sources[source].declared().unwrap().0];
     assert_eq!(body.references.callables.len(), 1);
     assert_eq!(body.value.ty, value_type);
 }

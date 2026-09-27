@@ -45,10 +45,24 @@ impl Lowerer {
             }
             DefaultExprTemplateRef::Export(source) => {
                 let source = self.export_default_sources[source].clone();
-                let template = self.export_default_exprs[source.expression].clone();
-                assert_eq!(template.type_parameters.len(), source.type_arguments.len());
-                let arguments = source
-                    .type_arguments
+                let (expression, type_arguments) = match source {
+                    hir::ExportDefaultSource::Declared {
+                        expression,
+                        type_arguments,
+                    } => (expression, type_arguments),
+                    hir::ExportDefaultSource::Imported { template } => {
+                        return self.instantiate_inherited_dependency_default(
+                            &template,
+                            receiver,
+                            value_parameters,
+                            call_span,
+                            sink,
+                        );
+                    }
+                };
+                let template = self.export_default_exprs[expression].clone();
+                assert_eq!(template.type_parameters.len(), type_arguments.len());
+                let arguments = type_arguments
                     .into_iter()
                     .map(|argument| self.instantiate_method_ty(argument, bindings))
                     .collect::<Vec<_>>();

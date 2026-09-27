@@ -157,7 +157,10 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
     else {
         panic!("compiler exception source constructor default");
     };
-    let expression = output.export.export_default_sources[source].expression;
+    let expression = output.export.export_default_sources[source]
+        .declared()
+        .unwrap()
+        .0;
     assert_eq!(
         output.export.export_default_exprs[expression].definition_root,
         hir::LexicalDefinitionRoot::ClassConstructor(source_constructor)

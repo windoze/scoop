@@ -14,7 +14,7 @@ pub(in super::super) struct ImportedDefaultPlan {
 }
 
 #[derive(Clone)]
-pub(in super::super) struct PreparedImportedDefault {
+pub(crate) struct PreparedImportedDefault {
     pub(super) template: hir::ExportDefaultTemplateV1,
     pub(super) callables:
         BTreeMap<scoop_identity::CallableTemplateOrigin, hir::ImportedCallableDeclaration>,
@@ -61,7 +61,7 @@ impl Lowerer {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(in super::super) enum ImportedDefaultPlanError {
+pub(crate) enum ImportedDefaultPlanError {
     MissingTemplate(hir::ExportDefaultTemplateKeyV1),
     UnknownLocal(LocalValueSelector),
     InvalidControlFlow(&'static str),

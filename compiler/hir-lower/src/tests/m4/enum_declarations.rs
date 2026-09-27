@@ -339,7 +339,7 @@ fn variant_parameter_interface_keeps_its_checked_owner_identity() {
     else {
         panic!("variant parameter default");
     };
-    let expression = module.export_default_sources[source].expression;
+    let expression = module.export_default_sources[source].declared().unwrap().0;
     assert_eq!(
         module.export_default_exprs[expression].definition_root,
         hir::LexicalDefinitionRoot::VariantConstructor(variant)

@@ -100,6 +100,13 @@ impl ImportedCallableSource for ImportedCallableDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
+    pub fn callable_source_interface(
+        &self,
+        declaration: scoop_identity::CallableTemplateOrigin,
+    ) -> Option<&CallableSourceInterfaceV1> {
+        self.catalog.callables.get(&declaration)?.source.as_ref()
+    }
+
     pub fn callable_for_slot(
         &self,
         owner: SourceNominalId,

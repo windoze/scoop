@@ -27,16 +27,12 @@ pub(in crate::production::default_templates) fn project_body<'a>(
     export: &'a ExportHir,
     entities: &DefaultEntityProjector<'_>,
     target_binders: &[HirSignatureBinder],
-    source_id: ExportDefaultSourceId,
+    expression: ExportDefaultExprId,
+    type_arguments: &[TypeId],
 ) -> Result<ProjectedDefaultBody<'a>, DefaultTemplateEnvelopeProjectionError> {
-    let source = super::super::arena_get(&export.export_default_sources, source_id).ok_or(
-        DefaultTemplateEnvelopeProjectionError::UnknownDefaultSource(
-            super::super::default_source_id(source_id),
-        ),
-    )?;
-    let template = super::super::arena_get(&export.export_default_exprs, source.expression).ok_or(
+    let template = super::super::arena_get(&export.export_default_exprs, expression).ok_or(
         DefaultTemplateEnvelopeProjectionError::UnknownDefaultExpression(super::super::raw_index(
-            source.expression,
+            expression,
         )),
     )?;
     let provider = provider_scope(export, entities, template.definition_root)?;
@@ -54,15 +50,14 @@ pub(in crate::production::default_templates) fn project_body<'a>(
     {
         return Err(DefaultTemplateEnvelopeProjectionError::TypeParameterIdentity { position });
     }
-    if source.type_arguments.len() != provider.flattened.len() {
+    if type_arguments.len() != provider.flattened.len() {
         return Err(DefaultTemplateEnvelopeProjectionError::TypeParameterArity {
             expected: provider.flattened.len(),
-            actual: source.type_arguments.len(),
+            actual: type_arguments.len(),
         });
     }
 
-    let type_parameters = source
-        .type_arguments
+    let type_parameters = type_arguments
         .iter()
         .map(|&argument| {
             entities

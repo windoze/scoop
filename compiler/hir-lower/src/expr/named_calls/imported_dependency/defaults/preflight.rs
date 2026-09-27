@@ -11,7 +11,7 @@ use crate::imported_core::ImportedSignatureTypeError;
 mod statements;
 
 impl Lowerer {
-    pub(super) fn prepare_imported_default(
+    pub(crate) fn prepare_imported_default(
         &mut self,
         owner: &dyn hir::ImportedCallableSource,
         template: hir::ExportDefaultTemplateV1,

@@ -29,13 +29,23 @@ pub(crate) enum DefaultExprTemplateRef {
     Export(hir::ExportDefaultSourceId),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone)]
 enum InheritedDefaultSource {
     Local(LocalDefaultExprId),
     Export {
         expression: hir::ExportDefaultExprId,
         type_arguments: Vec<hir::TypeId>,
     },
+    Imported(std::sync::Arc<hir::ExportDefaultTemplateV1>),
+}
+
+#[derive(Clone)]
+pub(crate) enum DefaultOverrideSource {
+    Local {
+        function: hir::FunctionId,
+        type_arguments: Vec<hir::TypeId>,
+    },
+    Imported(scoop_identity::CallableTemplateOrigin),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

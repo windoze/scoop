@@ -74,13 +74,29 @@ impl Lowerer {
             {
                 return true;
             }
-            pending.extend(
-                self.override_sources
-                    .get(&function)
-                    .into_iter()
-                    .flatten()
-                    .copied(),
-            );
+            for source in self
+                .override_default_sources
+                .get(&function)
+                .into_iter()
+                .flatten()
+            {
+                match source {
+                    DefaultOverrideSource::Local { function, .. } => pending.push(*function),
+                    DefaultOverrideSource::Imported(declaration) => {
+                        if self
+                            .dependencies
+                            .as_ref()
+                            .and_then(|dependencies| {
+                                dependencies.callable_source_interface(*declaration)
+                            })
+                            .and_then(|source| source.parameters().parameters().get(index))
+                            .is_some_and(|parameter| parameter.calling().template().is_some())
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
         }
         false
     }

@@ -11,13 +11,17 @@ impl SourceRoots {
         roots: &mut Roots,
     ) -> Result<(), Error> {
         let source = &export.export_default_sources[source];
-        for ty in &source.type_arguments {
+        let Some((expression, type_arguments)) = source.declared() else {
+            // Dependency declarations remain owned by their actual provider.
+            return Ok(());
+        };
+        for ty in type_arguments {
             roots.require_field_type(export, index, *ty)?;
         }
-        if !insert(&mut self.defaults, source.expression)? {
+        if !insert(&mut self.defaults, expression)? {
             return Ok(());
         }
-        let template = &export.export_default_exprs[source.expression];
+        let template = &export.export_default_exprs[expression];
         let original = match template.definition_root {
             LexicalDefinitionRoot::Function(id) => ExportParameterOwner::Function(id),
             LexicalDefinitionRoot::StructConstructor(id) => {
