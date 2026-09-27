@@ -10,7 +10,7 @@ use crate::{
 
 impl CrossConeHirInterfaceSectionV1 {
     /// Proves that field 9 is exactly the canonical deduplicated set of every
-    /// inline definition source in fields 1 through 8.
+    /// inline definition source in the declarations and templates.
     pub fn validate_definition_source_closure(
         &self,
 
@@ -115,6 +115,20 @@ impl CrossConeHirInterfaceSectionV1 {
             );
         }
 
+        for (body_index, body) in self.generic_callable_bodies().records().iter().enumerate() {
+            body.visit_definition_sources(
+                &mut |source| {
+                    validator.observe(
+                        source,
+                        ExportDefinitionSourceUseSiteV1::GenericCallableBody { body_index },
+                    );
+                    Ok(())
+                },
+                &path.clone().field(11).index(body_index as u64),
+            )
+            .map_err(ExportDefinitionSourceClosureValidationError::Resource)?;
+        }
+
         for (constant_index, constant) in self.constants().records().iter().enumerate() {
             validator.observe(
                 constant.definition_origin(),
@@ -211,6 +225,9 @@ struct MissingDefinitionSource {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExportDefinitionSourceUseSiteV1 {
+    GenericCallableBody {
+        body_index: usize,
+    },
     TypeAlias {
         alias_index: usize,
     },

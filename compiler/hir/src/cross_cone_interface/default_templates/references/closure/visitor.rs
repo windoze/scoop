@@ -6,8 +6,8 @@ use crate::{
     CanonicalTemplateLocalTableV1, DefaultAssignTargetV1, DefaultBindingActionV1,
     DefaultBindingPlanV1, DefaultCaptureV1, DefaultCatchV1, DefaultExpressionV1,
     DefaultForIterationPlanV1, DefaultLocalFunctionV1, DefaultPatternV1, DefaultStatementV1,
-    DefaultWhenArmV1, ExportDefaultBodyV1, ExportDefinitionSourceV1, TemplateLocalDefinitionV1,
-    TemplateLocalRecordV1,
+    DefaultWhenArmV1, ExportDefaultBodyV1, ExportDefinitionSourceV1, ExportGenericCallableBodyV1,
+    TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
 
 pub use super::compare::{
@@ -39,6 +39,7 @@ pub enum DefaultBodyReferenceMetadataV1<'a> {
         local: &'a TemplateLocalRecordV1,
     },
     Body(&'a ExportDefaultBodyV1),
+    CallableBody(&'a ExportGenericCallableBodyV1),
     Statement(&'a DefaultStatementV1),
     Pattern(&'a DefaultPatternV1),
     Assignment(&'a DefaultAssignTargetV1),
@@ -112,23 +113,69 @@ impl ExportDefaultBodyV1 {
                 DefaultBodyReferenceMetadataV1::Body(self),
             ),
         };
+        walker.walk_locals(locals, definition_origin)?;
+        walker.current =
+            DefaultBodyReferenceAttachmentV1::Metadata(DefaultBodyReferenceMetadataV1::Body(self));
+        walker.walk_body(self)
+    }
+}
+
+impl ExportGenericCallableBodyV1 {
+    /// Visits the same typed node references as source defaults, while retaining
+    /// a callable implementation root and its explicit return statements.
+    pub fn visit_direct_references<'body, V: DefaultBodyReferenceVisitorV1<'body>>(
+        &'body self,
+        visitor: &mut V,
+        path: &WirePath,
+    ) -> Result<(), V::Error> {
+        let attachment = DefaultBodyReferenceAttachmentV1::Metadata(
+            DefaultBodyReferenceMetadataV1::CallableBody(self),
+        );
+        let mut walker = ReferenceWalker {
+            visitor,
+            path,
+            next_expression: 0,
+            current: attachment,
+        };
+        walker.observe(
+            DefaultBodyReferenceTargetV1::Type(self.result()),
+            self.definition_origin(),
+            ExportDefaultReferenceOccurrenceSiteV1::CallableBodyHeader { field: 5, index: 0 },
+        )?;
+        for (index, capture_type) in self.capture_types().iter().enumerate() {
+            walker.observe(
+                DefaultBodyReferenceTargetV1::Type(capture_type),
+                self.definition_origin(),
+                ExportDefaultReferenceOccurrenceSiteV1::CallableBodyHeader { field: 10, index },
+            )?;
+        }
+        walker.walk_locals(self.locals(), self.definition_origin())?;
+        walker.current = attachment;
+        walker.walk_statements(self.statements())
+    }
+}
+
+impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
+    fn walk_locals(
+        &mut self,
+        locals: &'body CanonicalTemplateLocalTableV1,
+        definition_origin: &'body ExportDefinitionSourceV1,
+    ) -> Result<(), V::Error> {
         for (index, local) in locals.records().iter().enumerate() {
             let origin = match local.definition() {
                 TemplateLocalDefinitionV1::Source(origin) => origin,
                 TemplateLocalDefinitionV1::Synthetic => definition_origin,
             };
-            walker.current = DefaultBodyReferenceAttachmentV1::Metadata(
+            self.current = DefaultBodyReferenceAttachmentV1::Metadata(
                 DefaultBodyReferenceMetadataV1::TemplateLocal { index, local },
             );
-            walker.observe(
+            self.observe(
                 DefaultBodyReferenceTargetV1::Type(local.value_type()),
                 origin,
                 ExportDefaultReferenceOccurrenceSiteV1::TemplateLocalType { index },
             )?;
         }
-        walker.current =
-            DefaultBodyReferenceAttachmentV1::Metadata(DefaultBodyReferenceMetadataV1::Body(self));
-        walker.walk_body(self)
+        Ok(())
     }
 }
 

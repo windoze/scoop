@@ -10,10 +10,14 @@ use crate::{
     TemplateLocalReferenceResolver, TemplateLocalSelectorResolver,
 };
 
+mod source;
+pub use source::DefaultCaptureSourceV1;
+use source::IndexedCaptureSource;
+
 /// One hidden closure-environment input in provider ABI order.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DefaultCaptureV1 {
-    source: LocalValueSelector,
+    source: DefaultCaptureSourceV1,
     value_type: SignatureTypeKey,
     first_use_origin: ExportDefinitionSourceV1,
 }
@@ -25,13 +29,25 @@ impl DefaultCaptureV1 {
         first_use_origin: ExportDefinitionSourceV1,
     ) -> Self {
         Self {
-            source,
+            source: DefaultCaptureSourceV1::Local(source),
             value_type,
             first_use_origin,
         }
     }
 
-    pub const fn source(&self) -> &LocalValueSelector {
+    pub const fn from_enclosing_capture(
+        index: u32,
+        value_type: SignatureTypeKey,
+        first_use_origin: ExportDefinitionSourceV1,
+    ) -> Self {
+        Self {
+            source: DefaultCaptureSourceV1::EnclosingCapture(index),
+            value_type,
+            first_use_origin,
+        }
+    }
+
+    pub const fn source(&self) -> &DefaultCaptureSourceV1 {
         &self.source
     }
 
@@ -50,9 +66,16 @@ impl DefaultCaptureV1 {
     where
         I: TemplateLocalIndexResolver,
     {
-        let source_index = resolver
-            .resolve_template_local_index(&self.source)
-            .map_err(DefaultCaptureIndexError::Source)?;
+        let source_index = match &self.source {
+            DefaultCaptureSourceV1::Local(selector) => IndexedCaptureSource::Local(
+                resolver
+                    .resolve_template_local_index(selector)
+                    .map_err(DefaultCaptureIndexError::Source)?,
+            ),
+            DefaultCaptureSourceV1::EnclosingCapture(index) => {
+                IndexedCaptureSource::EnclosingCapture(*index)
+            }
+        };
         Ok(IndexedDefaultCaptureV1 {
             capture: self,
             source_index,
@@ -62,7 +85,7 @@ impl DefaultCaptureV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedDefaultCaptureV1 {
-    source_index: u32,
+    source_index: IndexedCaptureSource,
     value_type: DecodedSignatureTypeKey,
     first_use_origin: DecodedExportDefinitionSourceV1,
 }
@@ -78,9 +101,16 @@ impl DecodedDefaultCaptureV1 {
         L: TemplateLocalSelectorResolver,
     {
         Ok(DefaultCaptureV1 {
-            source: locals
-                .resolve_template_local_selector(self.source_index)
-                .map_err(DefaultCaptureResolutionError::Source)?,
+            source: match self.source_index {
+                IndexedCaptureSource::Local(index) => DefaultCaptureSourceV1::Local(
+                    locals
+                        .resolve_template_local_selector(index)
+                        .map_err(DefaultCaptureResolutionError::Source)?,
+                ),
+                IndexedCaptureSource::EnclosingCapture(index) => {
+                    DefaultCaptureSourceV1::EnclosingCapture(index)
+                }
+            },
             value_type: self
                 .value_type
                 .resolve(resolver)
@@ -97,7 +127,7 @@ impl WireEncode for DecodedDefaultCaptureV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
-        encoder.unsigned(u64::from(self.source_index))?;
+        self.source_index.encode(encoder)?;
         encoder.field(2)?;
         self.value_type.encode(encoder)?;
         encoder.field(3)?;
@@ -109,7 +139,7 @@ impl WireDecode for DecodedDefaultCaptureV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
-            source_index: decoder.field(1, Decoder::u32)?,
+            source_index: decoder.field(1, IndexedCaptureSource::decode)?,
             value_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
             first_use_origin: decoder.field(3, DecodedExportDefinitionSourceV1::decode)?,
         })
@@ -119,14 +149,14 @@ impl WireDecode for DecodedDefaultCaptureV1 {
 #[derive(Debug)]
 pub struct IndexedDefaultCaptureV1<'a> {
     capture: &'a DefaultCaptureV1,
-    source_index: u32,
+    source_index: IndexedCaptureSource,
 }
 
 impl WireEncode for IndexedDefaultCaptureV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
-        encoder.unsigned(u64::from(self.source_index))?;
+        self.source_index.encode(encoder)?;
         encoder.field(2)?;
         self.capture.value_type.encode(encoder)?;
         encoder.field(3)?;

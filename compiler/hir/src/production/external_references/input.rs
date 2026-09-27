@@ -1,6 +1,7 @@
 use crate::{
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
-    CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1, CanonicalNominalInterfacesV1,
+    CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1,
+    CanonicalExportGenericCallableBodiesV1, CanonicalNominalInterfacesV1,
     CanonicalPropertyInterfacesV1, CanonicalPublicExportBindingsV1, CanonicalTypeAliasInterfacesV1,
     DependencyBindingWitnessV1, ExternalHirReferenceRoleV1, ExternalHirTargetV1,
 };
@@ -17,6 +18,7 @@ pub struct ExternalHirReferenceProductionInput<'a> {
     pub(super) source_interfaces: &'a CanonicalCallableSourceInterfacesV1,
     pub(super) default_templates: &'a CanonicalExportDefaultTemplatesV1,
     pub(super) constants: &'a CanonicalExportConstValuesV1,
+    pub(super) generic_callable_bodies: &'a CanonicalExportGenericCallableBodiesV1,
 }
 
 impl<'a> ExternalHirReferenceProductionInput<'a> {
@@ -30,6 +32,7 @@ impl<'a> ExternalHirReferenceProductionInput<'a> {
         source_interfaces: &'a CanonicalCallableSourceInterfacesV1,
         default_templates: &'a CanonicalExportDefaultTemplatesV1,
         constants: &'a CanonicalExportConstValuesV1,
+        generic_callable_bodies: &'a CanonicalExportGenericCallableBodiesV1,
     ) -> Self {
         Self {
             public_bindings,
@@ -40,6 +43,7 @@ impl<'a> ExternalHirReferenceProductionInput<'a> {
             source_interfaces,
             default_templates,
             constants,
+            generic_callable_bodies,
         }
     }
 }

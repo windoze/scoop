@@ -90,6 +90,7 @@ pub(super) fn replace(
         interface.constants().clone(),
         CanonicalExportDefinitionSourcesV1::try_new(locations).unwrap(),
         interface.external_references().clone(),
+        interface.generic_callable_bodies().clone(),
     );
     index
 }

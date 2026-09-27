@@ -123,6 +123,7 @@ impl DecodedDefaultExpressionKindV1 {
                         .map_err(DefaultExpressionResolutionError::VariantField)?,
                 }
             }
+            Self::Capture(index) => DefaultExpressionKindV1::Capture(index),
             Self::Local(local_index) => DefaultExpressionKindV1::Local(
                 locals
                     .resolve_template_local_selector(local_index)

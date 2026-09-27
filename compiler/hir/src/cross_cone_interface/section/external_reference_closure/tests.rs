@@ -219,6 +219,7 @@ fn empty_section(references: CanonicalExternalHirReferencesV1) -> CrossConeHirIn
         CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         references,
+        Default::default(),
     )
 }
 

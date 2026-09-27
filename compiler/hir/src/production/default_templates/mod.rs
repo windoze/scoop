@@ -1,4 +1,4 @@
-//! Projection of declaration-bound HIR defaults into portable templates.
+//! Shared typed-node projection for declaration defaults and generic bodies.
 
 use crate::{
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
@@ -12,6 +12,9 @@ mod body;
 mod entities;
 mod envelope;
 mod errors;
+mod generic;
+pub(in crate::production) use generic::GenericBodyProducer;
+pub use generic::GenericTemplateProductionError;
 mod locals;
 mod references;
 mod source_callable_keys;

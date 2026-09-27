@@ -274,6 +274,10 @@ fn expected_subjects(module: &hir::Module) -> Vec<DefinitionOriginSubject> {
         append_nominal(&mut subjects, &module.nominal_identities[id]);
     }
     for (id, _) in module.functions.iter() {
+        if let hir::HirFunctionIdentity::LexicalGenerated(record) = &module.function_identities[id]
+        {
+            subjects.push(DefinitionOriginSubject::GeneratedCallable(record.id()));
+        }
         if let Some(identity) = module.function_identities[id].source_identity() {
             subjects.push(match identity {
                 hir::HirSourceFunctionIdentity::Plain(record) => {

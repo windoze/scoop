@@ -12,6 +12,7 @@ use crate::{
     TemplateLocalLookupError,
 };
 
+mod captures;
 mod decode;
 pub use decode::*;
 
@@ -29,6 +30,7 @@ pub struct ExportGenericCallableBodyV1 {
     type_parameters: CanonicalBinderUseListV1,
     predicates: GenericTemplatePredicatesV1,
     definition_origin: ExportDefinitionSourceV1,
+    capture_types: Vec<SignatureTypeKey>,
 }
 
 impl ExportGenericCallableBodyV1 {
@@ -43,6 +45,7 @@ impl ExportGenericCallableBodyV1 {
         type_parameters: CanonicalBinderUseListV1,
         predicates: GenericTemplatePredicatesV1,
         definition_origin: ExportDefinitionSourceV1,
+        capture_types: Vec<SignatureTypeKey>,
     ) -> Result<Self, GenericCallableBodyBuildError> {
         if effects.implementation() != CallableImplementationV1::Scoop {
             return Err(GenericCallableBodyBuildError::BodylessImplementation(
@@ -66,7 +69,9 @@ impl ExportGenericCallableBodyV1 {
                 });
             }
         }
-        Ok(Self {
+        u32::try_from(capture_types.len())
+            .map_err(|_| GenericCallableBodyBuildError::TooManyCaptures)?;
+        let body = Self {
             owner,
             locals,
             parameters,
@@ -76,7 +81,10 @@ impl ExportGenericCallableBodyV1 {
             type_parameters,
             predicates,
             definition_origin,
-        })
+            capture_types,
+        };
+        captures::validate(&body)?;
+        Ok(body)
     }
 
     pub const fn owner(&self) -> DefaultCallableDeclarationV1 {
@@ -113,6 +121,10 @@ impl ExportGenericCallableBodyV1 {
 
     pub const fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
         &self.definition_origin
+    }
+
+    pub fn capture_types(&self) -> &[SignatureTypeKey] {
+        &self.capture_types
     }
 
     pub fn index_locals(
@@ -158,7 +170,7 @@ pub struct IndexedExportGenericCallableBodyV1<'a> {
 
 impl WireEncode for IndexedExportGenericCallableBodyV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.body.owner.encode(encoder)?;
         encoder.field(2)?;
@@ -178,7 +190,13 @@ impl WireEncode for IndexedExportGenericCallableBodyV1<'_> {
         encoder.field(8)?;
         self.body.predicates.encode(encoder)?;
         encoder.field(9)?;
-        self.body.definition_origin.encode(encoder)
+        self.body.definition_origin.encode(encoder)?;
+        encoder.field(10)?;
+        encoder.array(self.body.capture_types.len() as u64)?;
+        for value_type in &self.body.capture_types {
+            value_type.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
@@ -198,6 +216,12 @@ fn encode_parameter_indices(
 pub enum GenericCallableBodyBuildError {
     BodylessImplementation(CallableImplementationV1),
     TooManyParameters,
+    TooManyCaptures,
+    CaptureIndex {
+        index: u32,
+        count: usize,
+    },
+    CaptureReferences(scoop_wire::WireError),
     MissingParameter {
         index: usize,
         selector: LocalValueSelector,
@@ -218,6 +242,12 @@ impl fmt::Display for GenericCallableBodyBuildError {
             Self::TooManyParameters => {
                 formatter.write_str("generic body parameter count exceeds u32")
             }
+            Self::TooManyCaptures => formatter.write_str("generic body capture count exceeds u32"),
+            Self::CaptureIndex { index, count } => write!(
+                formatter,
+                "generic body reads capture {index}, but has {count} capture inputs"
+            ),
+            Self::CaptureReferences(error) => error.fmt(formatter),
             Self::MissingParameter { index, selector } => write!(
                 formatter,
                 "generic body parameter {index} names missing local {selector:?}"
@@ -232,7 +262,7 @@ impl fmt::Display for GenericCallableBodyBuildError {
 
 impl std::error::Error for GenericCallableBodyBuildError {}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct GenericCallableBodyIndexError {
     pub index: usize,
     pub source: Box<DefaultStatementIndexError<TemplateLocalLookupError>>,

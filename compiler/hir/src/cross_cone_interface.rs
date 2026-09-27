@@ -146,7 +146,7 @@ pub use default_templates::{
     DefaultCallableReferenceIndexError, DefaultCallableReferenceResolutionError,
     DefaultCallableReferenceResolver, DefaultCallableReferenceTargetV1,
     DefaultCallableReferenceTargetViewV1, DefaultCallableReferenceV1, DefaultCaptureIndexError,
-    DefaultCaptureResolutionError, DefaultCaptureV1, DefaultCatchV1,
+    DefaultCaptureResolutionError, DefaultCaptureSourceV1, DefaultCaptureV1, DefaultCatchV1,
     DefaultClassConstructorIdResolver, DefaultClassConstructorIdV1,
     DefaultConstructorRefResolutionError, DefaultConstructorRefV1,
     DefaultConstructorReferenceResolver, DefaultConstructorReferenceTargetViewV1,

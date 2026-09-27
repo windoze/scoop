@@ -94,6 +94,8 @@ pub enum DefaultExpressionKindV1 {
         field: DefaultEnumVariantFieldRefV1,
     },
     Local(LocalValueSelector),
+    /// Definition-order input in the current lexical closure body.
+    Capture(u32),
     GlobalRead(PersistentPropertyId),
     SingletonValue(PersistentObjectValueId),
     Lambda(DefaultLambdaV1),
@@ -439,6 +441,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::VariantTest { .. }
         | DefaultExpressionKindV1::VariantPayloadProject { .. }
         | DefaultExpressionKindV1::Local(_)
+        | DefaultExpressionKindV1::Capture(_)
         | DefaultExpressionKindV1::GlobalRead(_)
         | DefaultExpressionKindV1::SingletonValue(_)
         | DefaultExpressionKindV1::Lambda(_)

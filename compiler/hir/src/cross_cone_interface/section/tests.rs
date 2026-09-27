@@ -134,7 +134,7 @@ fn empty_section_has_fixed_wire_and_resolves() {
 
     assert_eq!(
         hex(&bytes),
-        "aa018002a20180028003a20180028004a201800280058006800780088009800a80"
+        "ab018002a20180028003a20180028004a201800280058006800780088009800a800b80"
     );
 
     let decoded: DecodedCrossConeHirInterfaceSectionV1 = decode_canonical(&bytes).unwrap();
@@ -158,11 +158,11 @@ fn empty_section_has_fixed_wire_and_resolves() {
 #[test]
 fn reader_rejects_open_or_reordered_top_level_maps() {
     let reordered = vec![
-        0xaa, 0x02, 0x80, 0x01, 0x80, 0x03, 0x80, 0x04, 0x80, 0x05, 0x80, 0x06, 0x80, 0x07, 0x80,
-        0x08, 0x80, 0x09, 0x80, 0x0a, 0x80,
+        0xab, 0x02, 0x80, 0x01, 0x80, 0x03, 0x80, 0x04, 0x80, 0x05, 0x80, 0x06, 0x80, 0x07, 0x80,
+        0x08, 0x80, 0x09, 0x80, 0x0a, 0x80, 0x0b, 0x80,
     ];
 
-    for bytes in [vec![0xa9], vec![0xab], reordered] {
+    for bytes in [vec![0xaa], vec![0xac], reordered] {
         assert!(decode_canonical::<DecodedCrossConeHirInterfaceSectionV1>(&bytes,).is_err());
     }
 }
@@ -358,6 +358,7 @@ fn closure_section(
             constants,
             CanonicalExportDefinitionSourcesV1::try_new(declared).unwrap(),
             CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+            Default::default(),
         ),
         expected,
     )

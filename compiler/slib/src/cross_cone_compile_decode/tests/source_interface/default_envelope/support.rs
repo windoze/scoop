@@ -95,5 +95,6 @@ pub(in super::super) fn replace_contents(
         interface.constants().clone(),
         interface.definition_sources().clone(),
         interface.external_references().clone(),
+        interface.generic_callable_bodies().clone(),
     );
 }

@@ -7,7 +7,7 @@ pub use captures::{
     DecodedDefaultCallableBodyTypeArgumentsV1, DecodedDefaultCaptureV1,
     DefaultCallableBodyTypeArgumentsBuildError, DefaultCallableBodyTypeArgumentsResolutionError,
     DefaultCallableBodyTypeArgumentsV1, DefaultCaptureIndexError, DefaultCaptureResolutionError,
-    DefaultCaptureV1, IndexedDefaultCaptureV1,
+    DefaultCaptureSourceV1, DefaultCaptureV1, IndexedDefaultCaptureV1,
 };
 pub use identity::{
     DefaultNestedCallableBodyArgumentsV1, DefaultNestedCallableIdentityV1,

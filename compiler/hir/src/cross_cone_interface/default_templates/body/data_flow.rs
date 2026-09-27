@@ -565,6 +565,7 @@ pub enum DefaultBindingShapeDataFlowValidationError<E> {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExportDefaultLocalDataFlowValidationError<E> {
+    UnboundCapture(u32),
     Local {
         site: DefaultLocalDataFlowSiteV1,
         selector: Box<LocalValueSelector>,
@@ -653,6 +654,9 @@ impl<E: fmt::Display> fmt::Display for DefaultBindingShapeDataFlowValidationErro
 impl<E: fmt::Display> fmt::Display for ExportDefaultLocalDataFlowValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnboundCapture(index) => {
+                write!(formatter, "default root has no closure input {index}")
+            }
             Self::Local {
                 site,
                 selector,

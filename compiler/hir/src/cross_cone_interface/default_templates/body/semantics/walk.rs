@@ -69,6 +69,22 @@ where
     .run(body)
 }
 
+pub(super) fn visit_statement_sources<V, E>(
+    statements: &[DefaultStatementV1],
+    visitor: &mut V,
+    path: &WirePath,
+) -> Result<(), E>
+where
+    V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
+    E: From<WireError>,
+{
+    Validator {
+        mode: origin::DefinitionSourceVisitor { visitor },
+        path,
+    }
+    .run_nodes(statements.iter().map(BodyNode::Statement))
+}
+
 pub(super) trait BodyWalkMode {
     type Error;
 
@@ -119,11 +135,17 @@ where
     M: BodyWalkMode,
 {
     fn run(&mut self, body: &ExportDefaultBodyV1) -> Result<(), M::Error> {
+        self.run_nodes(std::iter::once(BodyNode::Body(body)))
+    }
+
+    fn run_nodes<'body>(
+        &mut self,
+        nodes: impl DoubleEndedIterator<Item = BodyNode<'body>>,
+    ) -> Result<(), M::Error> {
         let mut pending = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path).map_err(M::resource)?;
-        pending.push(WorkItem::Body {
-            node: BodyNode::Body(body),
-        });
+        for node in nodes.rev() {
+            self.push_child(&mut pending, node)?;
+        }
 
         while let Some(work) = pending.pop() {
             match work {

@@ -224,6 +224,7 @@ fn interface(bindings: Vec<PublicExportBindingRecordV1>) -> CrossConeHirInterfac
         CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
     )
 }
 

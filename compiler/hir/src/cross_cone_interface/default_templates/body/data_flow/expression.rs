@@ -47,8 +47,16 @@ where
                     self.process_expression(expression, pending, available, reachable)?;
                 }
                 LocalWork::Capture { capture, index } => {
+                    let source = match capture.source() {
+                        crate::DefaultCaptureSourceV1::Local(source) => source,
+                        crate::DefaultCaptureSourceV1::EnclosingCapture(index) => {
+                            return Err(ExportDefaultLocalDataFlowValidationError::UnboundCapture(
+                                *index,
+                            ));
+                        }
+                    };
                     let local_index = self.use_local(
-                        capture.source(),
+                        source,
                         Some(capture.value_type()),
                         DefaultLocalDataFlowSiteV1::Capture { index },
                         available,
@@ -74,6 +82,9 @@ where
         reachable: bool,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         match expression.kind() {
+            DefaultExpressionKindV1::Capture(index) => Err(
+                ExportDefaultLocalDataFlowValidationError::UnboundCapture(*index),
+            ),
             DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)

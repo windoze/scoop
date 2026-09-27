@@ -2,7 +2,7 @@ use super::visitor::{
     DefaultBodyReferenceAttachmentV1, DefaultBodyReferenceTargetV1 as Target,
     DefaultBodyReferenceVisitorV1, ReferenceWalker,
 };
-use crate::ExportDefaultBodyV1;
+use crate::{DefaultStatementV1, ExportDefaultBodyV1};
 
 mod model;
 mod schedule;
@@ -14,14 +14,24 @@ mod statement;
 
 impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
     pub(super) fn walk_body(&mut self, body: &'body ExportDefaultBodyV1) -> Result<(), V::Error> {
+        self.walk_nodes(std::iter::once(BodyNode::Body(body)))
+    }
+
+    pub(super) fn walk_statements(
+        &mut self,
+        statements: &'body [DefaultStatementV1],
+    ) -> Result<(), V::Error> {
+        self.walk_nodes(statements.iter().map(BodyNode::Statement))
+    }
+
+    fn walk_nodes(
+        &mut self,
+        nodes: impl DoubleEndedIterator<Item = BodyNode<'body>>,
+    ) -> Result<(), V::Error> {
         let mut pending = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path).map_err(V::Error::from)?;
-        pending.push(ScheduledWork {
-            work: WorkItem::Body {
-                node: BodyNode::Body(body),
-            },
-            attachment: self.current,
-        });
+        for node in nodes.rev() {
+            self.push_child(&mut pending, node)?;
+        }
 
         while let Some(ScheduledWork { work, attachment }) = pending.pop() {
             self.current = attachment;

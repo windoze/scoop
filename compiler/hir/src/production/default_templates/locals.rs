@@ -6,25 +6,26 @@ use scoop_identity::LocalValueSelector;
 
 use super::{entities::DefaultEntityProjector, errors::DefaultTemplateEnvelopeProjectionError};
 use crate::{
-    CanonicalBooleanV1, CanonicalTemplateLocalTableV1, ExportDefaultExpr, HirSignatureBinder,
-    LocalId, LocalValueDefinitionSite, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
+    CanonicalBooleanV1, CanonicalTemplateLocalTableV1, HirSignatureBinder, Local, LocalId,
+    LocalValueDefinitionSite, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
 
 pub(super) struct TemplateLocalProjection {
     selectors: Vec<LocalValueSelector>,
     bindings: HashMap<crate::BindingId, LocalValueSelector>,
+    captures: HashMap<crate::BindingId, crate::DefaultCaptureSourceV1>,
 }
 
 impl TemplateLocalProjection {
     pub(super) fn project(
         entities: &DefaultEntityProjector<'_>,
-        template: &ExportDefaultExpr,
+        locals: &la_arena::Arena<Local>,
         binders: &[HirSignatureBinder],
     ) -> Result<(Self, CanonicalTemplateLocalTableV1), DefaultTemplateEnvelopeProjectionError> {
-        let mut selectors = Vec::with_capacity(template.locals.len());
-        let mut bindings = HashMap::with_capacity(template.locals.len());
-        let mut records = Vec::with_capacity(template.locals.len());
-        for (local_id, local) in template.locals.iter() {
+        let mut selectors = Vec::with_capacity(locals.len());
+        let mut bindings = HashMap::with_capacity(locals.len());
+        let mut records = Vec::with_capacity(locals.len());
+        for (local_id, local) in locals.iter() {
             let selector = local.selector.clone();
             if bindings.insert(local.binding, selector.clone()).is_some() {
                 return Err(
@@ -66,6 +67,7 @@ impl TemplateLocalProjection {
             Self {
                 selectors,
                 bindings,
+                captures: HashMap::new(),
             },
             table,
         ))
@@ -82,14 +84,25 @@ impl TemplateLocalProjection {
         Ok(selector.clone())
     }
 
-    pub(super) fn binding_selector(
+    pub(super) fn capture_source(
         &self,
         binding: crate::BindingId,
-    ) -> Result<LocalValueSelector, super::DefaultBodyProjectionError> {
+    ) -> Result<crate::DefaultCaptureSourceV1, super::DefaultBodyProjectionError> {
+        if let Some(source) = self.captures.get(&binding) {
+            return Ok(source.clone());
+        }
         let selector = self.bindings.get(&binding).ok_or(
             super::DefaultBodyProjectionError::UnknownBinding(binding.into_raw()),
         )?;
 
-        Ok(selector.clone())
+        Ok(crate::DefaultCaptureSourceV1::Local(selector.clone()))
+    }
+
+    pub(super) fn bind_capture(
+        &mut self,
+        binding: crate::BindingId,
+        source: crate::DefaultCaptureSourceV1,
+    ) {
+        self.captures.insert(binding, source);
     }
 }

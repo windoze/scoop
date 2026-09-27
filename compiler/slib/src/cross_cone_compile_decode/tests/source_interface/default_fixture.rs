@@ -144,6 +144,7 @@ pub(super) fn fixture(case: Case) -> CallableSourceSurface {
         interface.constants().clone(),
         interface.definition_sources().clone(),
         interface.external_references().clone(),
+        interface.generic_callable_bodies().clone(),
     );
     fixture
 }
@@ -177,6 +178,7 @@ pub(super) fn replace_references(
         interface.source_interfaces(),
         &templates,
         interface.constants(),
+        &Default::default(),
     )
     .unwrap();
     fixture.interface = CrossConeHirInterfaceSectionV1::new(
@@ -190,5 +192,6 @@ pub(super) fn replace_references(
         interface.constants().clone(),
         sources,
         interface.external_references().clone(),
+        interface.generic_callable_bodies().clone(),
     );
 }

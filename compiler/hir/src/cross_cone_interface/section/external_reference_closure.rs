@@ -13,8 +13,8 @@ use crate::{
 };
 
 impl CrossConeHirInterfaceSectionV1 {
-    /// Validates every external reference record and the six export roles
-    /// that can be reconstructed from fields 1 through 8.
+    /// Validates external records and the export roles reconstructed from the
+    /// shared declarations and templates.
     ///
     /// `ConcreteSelectedUse` is intentionally not reconstructed here. Its
     /// explicit selected edge is validated with the later MIR/LIR bridges.
@@ -47,6 +47,10 @@ impl CrossConeHirInterfaceSectionV1 {
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::Defaults(Box::new(error))
             })?;
+        self.validate_generic_body_reference_closure(authority, path)
+            .map_err(|error| {
+                CrossConeHirExternalReferenceValidationError::GenericBodies(Box::new(error))
+            })?;
         self.validate_const_type_reference_closure(authority, path)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::ConstTypes(Box::new(error))
@@ -65,6 +69,7 @@ pub enum CrossConeHirExternalReferenceValidationError<E> {
     Signatures(Box<ExternalHirSignatureClosureValidationError<E>>),
     Aliases(Box<ExternalHirAliasClosureValidationError<E>>),
     Defaults(Box<ExternalHirDefaultClosureValidationError<E>>),
+    GenericBodies(Box<ExternalHirDefaultClosureValidationError<E>>),
     ConstTypes(Box<ExternalHirConstTypeClosureValidationError<E>>),
     Inheritance(Box<ExternalHirInheritanceClosureValidationError<E>>),
 }
@@ -77,6 +82,7 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirExternalReferenceValidationEr
             Self::Signatures(error) => ("signature closure", error.as_ref()),
             Self::Aliases(error) => ("type-alias closure", error.as_ref()),
             Self::Defaults(error) => ("default dependency closure", error.as_ref()),
+            Self::GenericBodies(error) => ("generic body dependency closure", error.as_ref()),
             Self::ConstTypes(error) => ("constant type closure", error.as_ref()),
             Self::Inheritance(error) => ("inheritance dependency closure", error.as_ref()),
         };

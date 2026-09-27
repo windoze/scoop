@@ -64,6 +64,7 @@ impl Lowerer {
 pub(crate) enum ImportedDefaultPlanError {
     MissingTemplate(hir::ExportDefaultTemplateKeyV1),
     UnknownLocal(LocalValueSelector),
+    UnboundCapture(u32),
     InvalidControlFlow(&'static str),
     Callable {
         callee: scoop_identity::CallableTemplateOrigin,
@@ -78,6 +79,10 @@ pub(crate) enum ImportedDefaultPlanError {
 impl fmt::Display for ImportedDefaultPlanError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnboundCapture(index) => write!(
+                formatter,
+                "dependency default root has no closure input {index}"
+            ),
             Self::MissingTemplate(key) => {
                 write!(
                     formatter,

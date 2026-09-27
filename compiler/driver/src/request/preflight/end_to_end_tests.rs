@@ -20,6 +20,7 @@ mod default_value_access;
 mod dependency_preflight;
 mod executable_callables;
 mod executable_type_sites;
+mod generic_bodies;
 mod heap_zst;
 mod image_dependencies;
 mod imported_classes;

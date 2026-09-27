@@ -1,0 +1,18 @@
+Module
+  class Box<T>(item: T0)
+    field0 property0: T0
+    property0 val item: T0 getter0=storage <stored field0 init=parameter0>
+  fun echo<T>(this: T0): T0
+    return
+      Local this : T0
+  fun captured<T>(value: T0): () -> T0
+    LocalFunction local0 body=$local.0.local captures=1
+    return
+      Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
+        capture value binding2 : T0
+  fun nested<T>(value: T0): () -> () -> T0
+    return
+      Lambda lambda2 invoke=$lambda.1 captures=1 : () -> () -> T0
+        capture value binding5 : T0
+  output library
+  instance $local.0.local<T0>

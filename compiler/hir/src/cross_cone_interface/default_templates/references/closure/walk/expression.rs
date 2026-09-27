@@ -36,6 +36,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | DefaultExpressionKindV1::BooleanLiteral(_)
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::Local(_)
+            | DefaultExpressionKindV1::Capture(_)
             | DefaultExpressionKindV1::NoneLiteral => Ok(()),
             DefaultExpressionKindV1::GlobalRead(property) => self.push_global(
                 pending,

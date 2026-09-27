@@ -179,6 +179,7 @@ impl Loaded {
             self.public.constants().clone(),
             self.public.definition_sources().clone(),
             self.public.external_references().clone(),
+            self.public.generic_callable_bodies().clone(),
         );
     }
 }

@@ -9,18 +9,20 @@ use scoop_wire::{WireError, WirePath};
 use crate::{
     CanonicalCallableSourceInterfacesV1, CanonicalExportConstValuesV1,
     CanonicalExportDefaultTemplatesV1, CanonicalExportDefinitionSourcesV1,
-    CanonicalTypeAliasInterfacesV1, ExportDefaultReferenceV1, ExportDefinitionSourceSetBuildError,
-    ExportDefinitionSourceV1, ExportHir, IntrinsicProviderId, TemplateLocalDefinitionV1,
+    CanonicalExportGenericCallableBodiesV1, CanonicalTypeAliasInterfacesV1,
+    ExportDefaultReferenceV1, ExportDefinitionSourceSetBuildError, ExportDefinitionSourceV1,
+    ExportHir, IntrinsicProviderId, TemplateLocalDefinitionV1,
 };
 
 impl CanonicalExportDefinitionSourcesV1 {
     /// Collects the exact canonical set of definition sources embedded in
-    /// cross-Cone interface fields 1 through 8.
+    /// cross-Cone interface declarations and templates.
     pub fn from_interface_parts(
         type_aliases: &CanonicalTypeAliasInterfacesV1,
         source_interfaces: &CanonicalCallableSourceInterfacesV1,
         default_templates: &CanonicalExportDefaultTemplatesV1,
         constants: &CanonicalExportConstValuesV1,
+        generic_callable_bodies: &CanonicalExportGenericCallableBodiesV1,
     ) -> Result<Self, ExportDefinitionSourceProductionError> {
         let mut sources = BTreeSet::new();
 
@@ -57,6 +59,19 @@ impl CanonicalExportDefinitionSourcesV1 {
                         source,
                     },
                 )?;
+        }
+
+        for (index, body) in generic_callable_bodies.records().iter().enumerate() {
+            body.visit_definition_sources(
+                &mut |source| {
+                    sources.insert(source.clone());
+                    Ok(())
+                },
+                &WirePath::root().field(11).index(index as u64),
+            )
+            .map_err(
+                |source| ExportDefinitionSourceProductionError::GenericBody { index, source },
+            )?;
         }
 
         sources.extend(
@@ -247,6 +262,10 @@ impl std::error::Error for HirDefinitionSourceProjectionError {}
 
 #[derive(Debug)]
 pub enum ExportDefinitionSourceProductionError {
+    GenericBody {
+        index: usize,
+        source: WireError,
+    },
     DefaultBody {
         template_index: usize,
         source: WireError,
@@ -257,6 +276,10 @@ pub enum ExportDefinitionSourceProductionError {
 impl fmt::Display for ExportDefinitionSourceProductionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::GenericBody { index, source } => write!(
+                formatter,
+                "cannot collect definition sources from generic body {index}: {source}"
+            ),
             Self::DefaultBody {
                 template_index,
                 source,

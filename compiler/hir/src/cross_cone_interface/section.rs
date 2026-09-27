@@ -26,6 +26,12 @@ use super::{
     TypeAliasInterfaceSetValidationError,
 };
 
+use crate::{
+    CanonicalExportGenericCallableBodiesV1, DecodedCanonicalExportGenericCallableBodiesV1,
+    GenericCallableBodiesResolutionError, GenericCallableBodyIndexError,
+    IndexedExportGenericCallableBodiesV1,
+};
+
 mod alias_reference_closure;
 mod const_type_reference_closure;
 mod default_reference_closure;
@@ -68,6 +74,7 @@ pub struct CrossConeHirInterfaceSectionV1 {
     constants: CanonicalExportConstValuesV1,
     definition_sources: CanonicalExportDefinitionSourcesV1,
     external_references: CanonicalExternalHirReferencesV1,
+    generic_callable_bodies: CanonicalExportGenericCallableBodiesV1,
 }
 
 impl CrossConeHirInterfaceSectionV1 {
@@ -88,6 +95,7 @@ impl CrossConeHirInterfaceSectionV1 {
         constants: CanonicalExportConstValuesV1,
         definition_sources: CanonicalExportDefinitionSourcesV1,
         external_references: CanonicalExternalHirReferencesV1,
+        generic_callable_bodies: CanonicalExportGenericCallableBodiesV1,
     ) -> Self {
         Self {
             public_bindings,
@@ -100,6 +108,7 @@ impl CrossConeHirInterfaceSectionV1 {
             constants,
             definition_sources,
             external_references,
+            generic_callable_bodies,
         }
     }
 
@@ -143,6 +152,10 @@ impl CrossConeHirInterfaceSectionV1 {
         &self.external_references
     }
 
+    pub const fn generic_callable_bodies(&self) -> &CanonicalExportGenericCallableBodiesV1 {
+        &self.generic_callable_bodies
+    }
+
     pub fn index_for_wire(
         &mut self,
     ) -> Result<IndexedCrossConeHirInterfaceSectionV1<'_>, CrossConeHirInterfaceIndexError> {
@@ -154,6 +167,10 @@ impl CrossConeHirInterfaceSectionV1 {
             .default_templates
             .index_locals()
             .map_err(CrossConeHirInterfaceIndexError::DefaultTemplates)?;
+        let generic_callable_bodies = self
+            .generic_callable_bodies
+            .index_locals()
+            .map_err(CrossConeHirInterfaceIndexError::GenericCallableBodies)?;
         Ok(IndexedCrossConeHirInterfaceSectionV1 {
             public_bindings: &self.public_bindings,
             nominal_interfaces: &self.nominal_interfaces,
@@ -165,6 +182,7 @@ impl CrossConeHirInterfaceSectionV1 {
             constants: &self.constants,
             definition_sources: &self.definition_sources,
             external_references: &self.external_references,
+            generic_callable_bodies,
         })
     }
 }
@@ -180,11 +198,12 @@ pub struct IndexedCrossConeHirInterfaceSectionV1<'a> {
     constants: &'a CanonicalExportConstValuesV1,
     definition_sources: &'a CanonicalExportDefinitionSourcesV1,
     external_references: &'a CanonicalExternalHirReferencesV1,
+    generic_callable_bodies: IndexedExportGenericCallableBodiesV1<'a>,
 }
 
 impl WireEncode for IndexedCrossConeHirInterfaceSectionV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.public_bindings.encode(encoder)?;
         encoder.field(2)?;
@@ -204,7 +223,9 @@ impl WireEncode for IndexedCrossConeHirInterfaceSectionV1<'_> {
         encoder.field(9)?;
         self.definition_sources.encode(encoder)?;
         encoder.field(10)?;
-        self.external_references.encode(encoder)
+        self.external_references.encode(encoder)?;
+        encoder.field(11)?;
+        self.generic_callable_bodies.encode(encoder)
     }
 }
 
@@ -220,6 +241,7 @@ pub struct DecodedCrossConeHirInterfaceSectionV1 {
     constants: DecodedCanonicalExportConstValuesV1,
     definition_sources: DecodedCanonicalExportDefinitionSourcesV1,
     external_references: DecodedCanonicalExternalHirReferencesV1,
+    generic_callable_bodies: DecodedCanonicalExportGenericCallableBodiesV1,
 }
 
 impl DecodedCrossConeHirInterfaceSectionV1 {
@@ -254,7 +276,7 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
             .map_err(|error| CrossConeHirInterfaceResolutionError::TypeAliases(Box::new(error)))?;
         let mut default_templates = self
             .default_templates
-            .resolve_at(resolver, &scoop_wire::WirePath::root().field(10))
+            .resolve_at(resolver, &scoop_wire::WirePath::root().field(7))
             .map_err(|error| {
                 CrossConeHirInterfaceResolutionError::DefaultTemplates(Box::new(error))
             })?;
@@ -273,11 +295,17 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
         })?;
         let external_references = self
             .external_references
-            .resolve_at(resolver, &scoop_wire::WirePath::root().field(7))
+            .resolve_at(resolver, &scoop_wire::WirePath::root().field(10))
             .map_err(|error| {
                 CrossConeHirInterfaceResolutionError::ExternalReferences(Box::new(error))
             })?;
 
+        let generic_callable_bodies =
+            self.generic_callable_bodies
+                .resolve(resolver)
+                .map_err(|error| {
+                    CrossConeHirInterfaceResolutionError::GenericCallableBodies(Box::new(error))
+                })?;
         Ok(CrossConeHirInterfaceSectionV1 {
             public_bindings,
             nominal_interfaces,
@@ -289,13 +317,14 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
             constants,
             definition_sources,
             external_references,
+            generic_callable_bodies,
         })
     }
 }
 
 impl WireEncode for DecodedCrossConeHirInterfaceSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.public_bindings.encode(encoder)?;
         encoder.field(2)?;
@@ -315,13 +344,15 @@ impl WireEncode for DecodedCrossConeHirInterfaceSectionV1 {
         encoder.field(9)?;
         self.definition_sources.encode(encoder)?;
         encoder.field(10)?;
-        self.external_references.encode(encoder)
+        self.external_references.encode(encoder)?;
+        encoder.field(11)?;
+        self.generic_callable_bodies.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCrossConeHirInterfaceSectionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(11)?;
         Ok(Self {
             public_bindings: decoder.field(1, DecodedCanonicalPublicExportBindingsV1::decode)?,
             nominal_interfaces: decoder.field(2, DecodedCanonicalNominalInterfacesV1::decode)?,
@@ -337,6 +368,8 @@ impl WireDecode for DecodedCrossConeHirInterfaceSectionV1 {
                 .field(9, DecodedCanonicalExportDefinitionSourcesV1::decode)?,
             external_references: decoder
                 .field(10, DecodedCanonicalExternalHirReferencesV1::decode)?,
+            generic_callable_bodies: decoder
+                .field(11, DecodedCanonicalExportGenericCallableBodiesV1::decode)?,
         })
     }
 }
@@ -369,6 +402,7 @@ impl<R, E> CrossConeHirInterfaceResolver<E> for R where
 pub enum CrossConeHirInterfaceIndexError {
     SourceInterfaces(CallableSourceInterfaceSetIndexError<ExportDefaultTemplateLookupError>),
     DefaultTemplates(ExportDefaultTemplateSetIndexError),
+    GenericCallableBodies(GenericCallableBodyIndexError),
 }
 
 impl fmt::Display for CrossConeHirInterfaceIndexError {
@@ -379,6 +413,9 @@ impl fmt::Display for CrossConeHirInterfaceIndexError {
                     formatter,
                     "cannot index callable source interfaces: {error}"
                 )
+            }
+            Self::GenericCallableBodies(error) => {
+                write!(formatter, "cannot index generic callable bodies: {error}")
             }
             Self::DefaultTemplates(error) => {
                 write!(formatter, "cannot index default templates: {error}")
@@ -400,6 +437,7 @@ pub enum CrossConeHirInterfaceResolutionError<E> {
         Box<CallableSourceInterfaceSetValidationError<E, ExportDefaultTemplateLookupError>>,
     ),
     DefaultTemplates(Box<ExportDefaultTemplateSetValidationError<E>>),
+    GenericCallableBodies(Box<GenericCallableBodiesResolutionError<E>>),
     Constants(Box<ExportConstValueSetValidationError<E>>),
     DefinitionSources(Box<ExportDefinitionSourceSetValidationError<E>>),
     ExternalReferences(Box<ExternalHirReferenceSetValidationError<E>>),
@@ -415,6 +453,7 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirInterfaceResolutionError<E> {
             Self::TypeAliases(error) => ("type aliases", error),
             Self::SourceInterfaces(error) => ("callable source interfaces", error),
             Self::DefaultTemplates(error) => ("default templates", error),
+            Self::GenericCallableBodies(error) => ("generic callable bodies", error),
             Self::Constants(error) => ("constants", error),
             Self::DefinitionSources(error) => ("definition sources", error),
             Self::ExternalReferences(error) => ("external references", error),

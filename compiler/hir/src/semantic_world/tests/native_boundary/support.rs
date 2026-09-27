@@ -91,6 +91,7 @@ pub(super) fn set_shape(fixture: &mut ProviderFixture, shape: NominalSourceShape
         CanonicalExportConstValuesV1::default(),
         CanonicalExportDefinitionSourcesV1::default(),
         CanonicalExternalHirReferencesV1::default(),
+        Default::default(),
     );
 }
 pub(super) fn structure(

@@ -1,4 +1,4 @@
-//! Recursive projection of one typed HIR default body.
+//! Shared projection of typed HIR statements and expressions for portable bodies.
 
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
@@ -21,16 +21,20 @@ pub(super) fn project(
     statements: &[crate::Statement],
     value: &crate::Expr,
 ) -> Result<ExportDefaultBodyV1, super::DefaultBodyProjectionError> {
-    let mut projection = BodyProjection {
-        entities,
-        locals,
-        binders,
-        template_origin,
-        loops: Vec::new(),
-    };
+    let mut projection = BodyProjection::new(entities, locals, binders, template_origin);
     let statements = projection.statements(statements)?;
     let value = projection.expression(value)?;
     ExportDefaultBodyV1::try_new(statements, value).map_err(super::DefaultBodyProjectionError::Body)
+}
+
+pub(super) fn project_statements(
+    entities: &DefaultEntityProjector<'_>,
+    locals: &TemplateLocalProjection,
+    binders: &[HirSignatureBinder],
+    template_origin: crate::DefinitionOrigin,
+    statements: &[crate::Statement],
+) -> Result<Vec<DefaultStatementV1>, super::DefaultBodyProjectionError> {
+    BodyProjection::new(entities, locals, binders, template_origin).statements(statements)
 }
 
 pub(super) struct BodyProjection<'a, 'hir> {
@@ -41,7 +45,22 @@ pub(super) struct BodyProjection<'a, 'hir> {
     loops: Vec<crate::LoopId>,
 }
 
-impl BodyProjection<'_, '_> {
+impl<'a, 'hir> BodyProjection<'a, 'hir> {
+    fn new(
+        entities: &'a DefaultEntityProjector<'hir>,
+        locals: &'a TemplateLocalProjection,
+        binders: &'a [HirSignatureBinder],
+        template_origin: crate::DefinitionOrigin,
+    ) -> Self {
+        Self {
+            entities,
+            locals,
+            binders,
+            template_origin,
+            loops: Vec::new(),
+        }
+    }
+
     pub(super) fn type_key(
         &self,
         ty: TypeId,

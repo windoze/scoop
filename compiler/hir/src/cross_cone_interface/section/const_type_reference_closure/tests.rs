@@ -198,6 +198,7 @@ fn section(
         constants,
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         references,
+        Default::default(),
     )
 }
 

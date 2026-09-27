@@ -164,10 +164,12 @@ impl BodyProjection<'_, '_> {
         &self,
         capture: &crate::Capture,
     ) -> Result<DefaultCaptureV1, super::super::DefaultBodyProjectionError> {
-        let selector = match &capture.source.kind {
-            crate::ExprKind::Local(local) => self.local(*local)?,
+        let source = match &capture.source.kind {
+            crate::ExprKind::Local(local) => {
+                crate::DefaultCaptureSourceV1::Local(self.local(*local)?)
+            }
             crate::ExprKind::Capture(binding) if *binding == capture.binding => {
-                self.locals.binding_selector(*binding)?
+                self.locals.capture_source(*binding)?
             }
             _ => return Err(super::super::DefaultBodyProjectionError::InvalidCaptureSource),
         };
@@ -177,11 +179,15 @@ impl BodyProjection<'_, '_> {
         }
         let mut origin = capture.source.origin.definition();
         origin.span = capture.first_use_span;
-        Ok(DefaultCaptureV1::new(
-            selector,
-            value_type,
-            self.origin(origin)?,
-        ))
+        let origin = self.origin(origin)?;
+        Ok(match source {
+            crate::DefaultCaptureSourceV1::Local(selector) => {
+                DefaultCaptureV1::new(selector, value_type, origin)
+            }
+            crate::DefaultCaptureSourceV1::EnclosingCapture(index) => {
+                DefaultCaptureV1::from_enclosing_capture(index, value_type, origin)
+            }
+        })
     }
 
     fn local_function_record(

@@ -112,6 +112,7 @@ pub(super) fn section(nominals: Vec<NominalInterfaceRecordV1>) -> CrossConeHirIn
         CanonicalExportConstValuesV1::try_new(vec![]).unwrap(),
         CanonicalExportDefinitionSourcesV1::try_new(vec![]).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(vec![]).unwrap(),
+        Default::default(),
     )
 }
 

@@ -98,6 +98,7 @@ impl CallableProviderFixture {
             CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
             CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
             CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+            Default::default(),
         );
         Self {
             coordinate,

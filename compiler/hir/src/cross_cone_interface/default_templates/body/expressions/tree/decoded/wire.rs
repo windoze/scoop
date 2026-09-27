@@ -77,6 +77,7 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
                 encode_two(encoder, 11, operand.as_ref(), field)
             }
             Self::Local(local_index) => encode_one(encoder, 12, &U32Wire(*local_index)),
+            Self::Capture(index) => encode_one(encoder, 59, &U32Wire(*index)),
             Self::GlobalRead(property) => encode_one(encoder, 13, property),
             Self::SingletonValue(value) => encode_one(encoder, 14, value),
             Self::Lambda(lambda) => encode_one(encoder, 15, lambda),
@@ -302,6 +303,7 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
                 })
             }
             12 => decode_one(decoder, fields, |decoder| decoder.u32()).map(Self::Local),
+            59 => decode_one(decoder, fields, |decoder| decoder.u32()).map(Self::Capture),
             13 => decode_one(decoder, fields, DecodedPersistentId::decode).map(Self::GlobalRead),
             14 => {
                 decode_one(decoder, fields, DecodedPersistentId::decode).map(Self::SingletonValue)

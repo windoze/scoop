@@ -52,6 +52,27 @@ impl ExportDefaultBodyV1 {
     }
 }
 
+impl crate::ExportGenericCallableBodyV1 {
+    /// Visits the actual definition locations in a callable template root.
+    pub fn visit_definition_sources<V, E>(&self, visitor: &mut V, path: &WirePath) -> Result<(), E>
+    where
+        V: FnMut(&ExportDefinitionSourceV1) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        visitor(self.definition_origin())?;
+        for local in self.locals().records() {
+            if let crate::TemplateLocalDefinitionV1::Source(origin) = local.definition() {
+                visitor(origin)?;
+            }
+        }
+        walk::visit_statement_sources(
+            self.statements(),
+            &mut |source, _, _| visitor(source),
+            &path.clone().field(4),
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultBodyOriginSiteV1 {
     Statement,

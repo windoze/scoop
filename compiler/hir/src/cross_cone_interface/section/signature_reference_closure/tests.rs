@@ -354,6 +354,7 @@ impl Fixture {
             CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
             CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
             references,
+            Default::default(),
         );
 
         let mut origins = BTreeMap::new();

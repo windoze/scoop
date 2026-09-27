@@ -138,6 +138,7 @@ struct EmptyParts {
     source_interfaces: CanonicalCallableSourceInterfacesV1,
     default_templates: CanonicalExportDefaultTemplatesV1,
     constants: CanonicalExportConstValuesV1,
+    generic_callable_bodies: crate::CanonicalExportGenericCallableBodiesV1,
 }
 
 impl EmptyParts {
@@ -151,6 +152,7 @@ impl EmptyParts {
             source_interfaces: CanonicalCallableSourceInterfacesV1::try_new(Vec::new()).unwrap(),
             default_templates: CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap(),
             constants: CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
+            generic_callable_bodies: Default::default(),
         }
     }
 
@@ -164,6 +166,7 @@ impl EmptyParts {
             &self.source_interfaces,
             &self.default_templates,
             &self.constants,
+            &self.generic_callable_bodies,
         )
     }
 }

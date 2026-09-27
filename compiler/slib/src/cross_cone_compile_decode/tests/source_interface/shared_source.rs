@@ -68,6 +68,7 @@ fn support(default: bool) -> CallableSourceSurface {
         i.constants().clone(),
         i.definition_sources().clone(),
         i.external_references().clone(),
+        i.generic_callable_bodies().clone(),
     );
     fixture
 }
@@ -83,6 +84,7 @@ fn replace(
         &protocols,
         &templates,
         i.constants(),
+        &Default::default(),
     )
     .unwrap();
     fixture.interface = CrossConeHirInterfaceSectionV1::new(
@@ -96,5 +98,6 @@ fn replace(
         i.constants().clone(),
         sources,
         i.external_references().clone(),
+        i.generic_callable_bodies().clone(),
     );
 }

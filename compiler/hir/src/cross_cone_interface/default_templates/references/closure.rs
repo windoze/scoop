@@ -145,6 +145,7 @@ fn check_extras(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExportDefaultReferenceOccurrenceSiteV1 {
+    CallableBodyHeader { field: u8, index: usize },
     TemplateLocalType { index: usize },
     BodyType(DefaultBodyProviderTypeSiteV1),
     Expression,

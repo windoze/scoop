@@ -59,6 +59,7 @@ impl Fixture {
             section.constants().clone(),
             section.definition_sources().clone(),
             section.external_references().clone(),
+            section.generic_callable_bodies().clone(),
         );
         Self {
             foundation,
@@ -94,6 +95,7 @@ impl Fixture {
             section.constants().clone(),
             section.definition_sources().clone(),
             section.external_references().clone(),
+            section.generic_callable_bodies().clone(),
         )
     }
 }

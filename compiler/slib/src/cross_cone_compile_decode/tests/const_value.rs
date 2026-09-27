@@ -357,6 +357,7 @@ impl ConstSurface {
             )])
             .unwrap(),
             CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+            Default::default(),
         );
 
         Self {

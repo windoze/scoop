@@ -68,7 +68,7 @@ pub(in crate::production::default_templates) fn project_body<'a>(
     let type_parameters = CanonicalBinderUseListV1::try_new(type_parameters)
         .map_err(DefaultTemplateEnvelopeProjectionError::BinderUse)?;
     let (locals, local_table) =
-        TemplateLocalProjection::project(entities, template, &provider.binders)?;
+        TemplateLocalProjection::project(entities, &template.locals, &provider.binders)?;
     let body = body::project(
         entities,
         &locals,

@@ -12,6 +12,34 @@ use crate::{
 };
 
 impl CrossConeHirInterfaceSectionV1 {
+    pub(super) fn validate_generic_body_reference_closure<A, E>(
+        &self,
+        authority: &mut A,
+        path: &WirePath,
+    ) -> Result<(), ExternalHirDefaultClosureValidationError<E>>
+    where
+        A: ExternalHirReferenceSemanticAuthority<E>,
+    {
+        let mut validator = DefaultReferenceClosureValidator::new(
+            self.external_references(),
+            authority,
+            &path.clone().field(10),
+        )?;
+        validator.role = ExternalHirReferenceRoleV1::TemplateDependency;
+        for (body_index, body) in self.generic_callable_bodies().records().iter().enumerate() {
+            body.visit_declaration_targets(
+                &mut |target| {
+                    validator.observe(
+                        target,
+                        ExternalHirDefaultUseSiteV1::GenericBody { body_index },
+                    )
+                },
+                &path.clone().field(11).index(body_index as u64),
+            )?;
+        }
+        validator.finish()
+    }
+
     /// Validates that `DefaultDependency` is exactly the set of foreign
     /// declaration and nominal targets in field 7 reference sets.
     pub fn validate_default_reference_closure<A, E>(
@@ -109,6 +137,7 @@ impl CrossConeHirInterfaceSectionV1 {
 }
 
 struct DefaultReferenceClosureValidator<'references, 'validation, A> {
+    role: ExternalHirReferenceRoleV1,
     references: &'references CanonicalExternalHirReferencesV1,
     seen: Vec<bool>,
     current: scoop_identity::ConeIdentity,
@@ -130,6 +159,7 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
             .map_err(ExternalHirDefaultClosureValidationError::Resource)?;
         seen.resize(references.records().len(), false);
         Ok(Self {
+            role: ExternalHirReferenceRoleV1::DefaultDependency,
             references,
             seen,
             current: authority.current_cone(),
@@ -195,10 +225,7 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
                 }),
             ));
         }
-        if !record
-            .roles()
-            .contains(ExternalHirReferenceRoleV1::DefaultDependency)
-        {
+        if !record.roles().contains(self.role) {
             return Err(ExternalHirDefaultClosureValidationError::MissingRole {
                 site,
                 record_index,
@@ -211,11 +238,7 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
 
     fn finish<E>(self) -> Result<(), ExternalHirDefaultClosureValidationError<E>> {
         for (record_index, record) in self.references.records().iter().enumerate() {
-            if record
-                .roles()
-                .contains(ExternalHirReferenceRoleV1::DefaultDependency)
-                && !self.seen[record_index]
-            {
+            if record.roles().contains(self.role) && !self.seen[record_index] {
                 return Err(ExternalHirDefaultClosureValidationError::ExtraRole {
                     record_index,
                     target: record.target(),
@@ -310,6 +333,9 @@ const fn field_target(field: &DefaultFieldRefV1) -> Option<ExternalHirTargetV1> 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExternalHirDefaultUseSiteV1 {
+    GenericBody {
+        body_index: usize,
+    },
     Callable {
         template_index: usize,
         reference_index: usize,
@@ -395,14 +421,14 @@ impl<E: fmt::Display> fmt::Display for ExternalHirDefaultClosureValidationError<
                 target,
             } => write!(
                 formatter,
-                "default dependency target {target:?} used at {site:?} uses external record {record_index} without DefaultDependency role"
+                "template dependency target {target:?} used at {site:?} uses external record {record_index} without its required dependency role"
             ),
             Self::ExtraRole {
                 record_index,
                 target,
             } => write!(
                 formatter,
-                "external record {record_index} for target {target:?} has DefaultDependency role without a default-template reference use in field 7"
+                "external record {record_index} for target {target:?} has a template dependency role without a corresponding template reference"
             ),
             Self::Resource(error) => write!(
                 formatter,
@@ -415,6 +441,12 @@ impl<E: fmt::Display> fmt::Display for ExternalHirDefaultClosureValidationError<
 impl<E: std::error::Error + 'static> std::error::Error
     for ExternalHirDefaultClosureValidationError<E>
 {
+}
+
+impl<E> From<WireError> for ExternalHirDefaultClosureValidationError<E> {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
 }
 
 #[cfg(test)]

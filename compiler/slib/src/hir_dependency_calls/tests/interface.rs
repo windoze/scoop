@@ -20,5 +20,6 @@ pub(super) fn empty_interface(
         CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(references).unwrap(),
+        Default::default(),
     )
 }

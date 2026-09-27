@@ -111,11 +111,14 @@ impl BodyProjection<'_, '_> {
             ExprKind::ImportedSingletonValue(value) => {
                 DefaultExpressionKindV1::SingletonValue(*value)
             }
-            ExprKind::Capture(_) => {
-                return Err(
-                    super::super::DefaultBodyProjectionError::UnsupportedExpression("capture"),
-                );
-            }
+            ExprKind::Capture(binding) => match self.locals.capture_source(*binding)? {
+                crate::DefaultCaptureSourceV1::Local(selector) => {
+                    DefaultExpressionKindV1::Local(selector)
+                }
+                crate::DefaultCaptureSourceV1::EnclosingCapture(index) => {
+                    DefaultExpressionKindV1::Capture(index)
+                }
+            },
             ExprKind::Lambda(lambda) => DefaultExpressionKindV1::Lambda(self.lambda(*lambda)?),
             ExprKind::AnonymousFunction(function) => {
                 DefaultExpressionKindV1::AnonymousFunction(self.anonymous_function(*function)?)

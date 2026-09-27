@@ -60,6 +60,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
         field: &'a DefaultEnumVariantFieldRefV1,
     },
     Local(u32),
+    Capture(u32),
     GlobalRead(&'a scoop_identity::PersistentPropertyId),
     SingletonValue(&'a scoop_identity::PersistentObjectValueId),
     Lambda(IndexedDefaultLambdaV1<'a>),
@@ -281,6 +282,9 @@ impl DefaultExpressionV1 {
                     operand: index_child(operand, resolver, 11, 1)?,
                     field,
                 }
+            }
+            DefaultExpressionKindV1::Capture(index) => {
+                IndexedDefaultExpressionKindV1::Capture(*index)
             }
             DefaultExpressionKindV1::Local(local) => IndexedDefaultExpressionKindV1::Local(
                 resolver

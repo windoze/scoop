@@ -17,7 +17,7 @@ fn capture_uses_canonical_local_index_and_round_trips() {
     let mut locals = LocalResolver::new(vec![LocalValueSelector::This, parameter(0)]);
     let bytes = encode(&capture.index_local(&mut locals).unwrap()).unwrap();
 
-    assert_eq!(&bytes[..3], &[0xa3, 0x01, 0x01]);
+    assert_eq!(&bytes[..7], &[0xa3, 0x01, 0xa2, 0x00, 0x01, 0x01, 0x01]);
     let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver::without_nominal(), &mut locals),
@@ -42,6 +42,27 @@ fn capture_reports_local_index_and_type_resolution_failures() {
         decoded.resolve(&mut Resolver::without_nominal(), &mut locals),
         Err(DefaultCaptureResolutionError::ValueType(ResolutionError))
     );
+}
+
+#[test]
+fn enclosing_capture_source_uses_its_own_index_space() {
+    let capture = DefaultCaptureV1::from_enclosing_capture(3, binder(0), origin());
+    let mut locals = LocalResolver::new(Vec::new());
+    let bytes = encode(&capture.index_local(&mut locals).unwrap()).unwrap();
+    assert_eq!(&bytes[..7], &[0xa3, 0x01, 0xa2, 0x00, 0x02, 0x01, 0x03]);
+    let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(
+        decoded.resolve(&mut Resolver::without_nominal(), &mut locals),
+        Ok(capture)
+    );
+    let mut unknown_kind = bytes;
+    unknown_kind[4] = 3;
+    assert!(matches!(
+        decode_canonical::<DecodedDefaultCaptureV1>(&unknown_kind)
+            .unwrap_err()
+            .kind(),
+        WireErrorKind::UnknownTag { tag: 3 }
+    ));
 }
 
 #[test]

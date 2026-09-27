@@ -324,6 +324,7 @@ fn interface(
         CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
         CanonicalExportDefinitionSourcesV1::try_new(definitions).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(references).unwrap(),
+        Default::default(),
     )
 }
 

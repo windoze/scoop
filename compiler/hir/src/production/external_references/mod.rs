@@ -49,6 +49,19 @@ impl CanonicalExternalHirReferencesV1 {
         dispatch::collect(input, &mut accumulator)?;
         surface::collect_aliases(input, &mut accumulator)?;
         defaults::collect(input, &mut accumulator)?;
+        for (index, body) in input.generic_callable_bodies.records().iter().enumerate() {
+            body.visit_declaration_targets(
+                &mut |target| {
+                    accumulator
+                        .observe(
+                            target,
+                            crate::ExternalHirReferenceRoleV1::TemplateDependency,
+                        )
+                        .map(|_| ())
+                },
+                &scoop_wire::WirePath::root().field(11).index(index as u64),
+            )?;
+        }
         surface::collect_constants(input, &mut accumulator)?;
         for use_ in witness_uses {
             accumulator.add_witness_use(use_)?;
@@ -60,6 +73,12 @@ impl CanonicalExternalHirReferencesV1 {
         }
 
         accumulator.finish()
+    }
+}
+
+impl<E> From<scoop_wire::WireError> for ExternalHirReferenceProductionError<E> {
+    fn from(error: scoop_wire::WireError) -> Self {
+        Self::Resource(error)
     }
 }
 

@@ -70,6 +70,7 @@ enum DecodedDefaultExpressionKindV1 {
         field: DecodedDefaultEnumVariantFieldRefV1,
     },
     Local(u32),
+    Capture(u32),
     GlobalRead(DecodedPersistentId<PersistentPropertyId>),
     SingletonValue(DecodedPersistentId<PersistentObjectValueId>),
     Lambda(DecodedDefaultLambdaV1),

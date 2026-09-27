@@ -24,6 +24,7 @@ pub struct DecodedExportGenericCallableBodyV1 {
     type_parameters: DecodedCanonicalBinderUseListV1,
     predicates: DecodedGenericTemplatePredicatesV1,
     definition_origin: DecodedExportDefinitionSourceV1,
+    capture_types: Vec<DecodedSignatureTypeKey>,
 }
 
 impl DecodedExportGenericCallableBodyV1 {
@@ -74,6 +75,16 @@ impl DecodedExportGenericCallableBodyV1 {
             .definition_origin
             .resolve(resolver)
             .map_err(Error::Origin)?;
+        let capture_types = self
+            .capture_types
+            .into_iter()
+            .enumerate()
+            .map(|(index, value_type)| {
+                value_type
+                    .resolve(resolver)
+                    .map_err(|source| Error::CaptureType { index, source })
+            })
+            .collect::<Result<_, _>>()?;
         ExportGenericCallableBodyV1::try_new(
             owner,
             locals,
@@ -84,6 +95,7 @@ impl DecodedExportGenericCallableBodyV1 {
             type_parameters,
             predicates,
             definition_origin,
+            capture_types,
         )
         .map_err(Error::Record)
     }
@@ -91,7 +103,7 @@ impl DecodedExportGenericCallableBodyV1 {
 
 impl WireEncode for DecodedExportGenericCallableBodyV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.owner.encode(encoder)?;
         encoder.field(2)?;
@@ -111,13 +123,19 @@ impl WireEncode for DecodedExportGenericCallableBodyV1 {
         encoder.field(8)?;
         self.predicates.encode(encoder)?;
         encoder.field(9)?;
-        self.definition_origin.encode(encoder)
+        self.definition_origin.encode(encoder)?;
+        encoder.field(10)?;
+        encoder.array(self.capture_types.len() as u64)?;
+        for value_type in &self.capture_types {
+            value_type.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedExportGenericCallableBodyV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(9)?;
+        decoder.expect_map(10)?;
         Ok(Self {
             owner: decoder.field(1, DecodedDefaultCallableDeclarationV1::decode)?,
             locals: decoder.field(2, DecodedCanonicalTemplateLocalTableV1::decode)?,
@@ -132,6 +150,9 @@ impl WireDecode for DecodedExportGenericCallableBodyV1 {
             type_parameters: decoder.field(7, DecodedCanonicalBinderUseListV1::decode)?,
             predicates: decoder.field(8, DecodedGenericTemplatePredicatesV1::decode)?,
             definition_origin: decoder.field(9, DecodedExportDefinitionSourceV1::decode)?,
+            capture_types: decoder.field(10, |decoder| {
+                decoder.decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
+            })?,
         })
     }
 }
@@ -153,6 +174,10 @@ pub enum GenericCallableBodyResolutionError<E> {
     TypeParameters(BinderUseListValidationError<E>),
     Predicates(BinderUseListValidationError<E>),
     Origin(SourceOriginResolutionError<E>),
+    CaptureType {
+        index: usize,
+        source: E,
+    },
     Record(GenericCallableBodyBuildError),
 }
 
@@ -171,6 +196,9 @@ impl<E: fmt::Display> fmt::Display for GenericCallableBodyResolutionError<E> {
             Self::Effects(source) => source.fmt(formatter),
             Self::TypeParameters(source) | Self::Predicates(source) => source.fmt(formatter),
             Self::Origin(source) => source.fmt(formatter),
+            Self::CaptureType { index, source } => {
+                write!(formatter, "invalid generic capture type {index}: {source}")
+            }
             Self::Record(source) => source.fmt(formatter),
         }
     }

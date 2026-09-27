@@ -50,16 +50,19 @@ impl DefinitionOriginBuilder<'_> {
         identities: &hir::HirFunctionIdentities,
     ) -> Result<(), PersistentDefinitionOriginError> {
         for (id, declaration) in self.lowerer.functions.iter() {
-            let Some(identity) = identities[id].source_identity() else {
-                continue;
-            };
-            let subject = match identity {
-                hir::HirSourceFunctionIdentity::Plain(record) => {
+            let subject = match &identities[id] {
+                hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(record)) => {
                     DefinitionOriginSubject::Function(record.id())
                 }
-                hir::HirSourceFunctionIdentity::Generic(record) => {
-                    DefinitionOriginSubject::GenericFunction(record.id())
+                hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Generic(
+                    record,
+                )) => DefinitionOriginSubject::GenericFunction(record.id()),
+                hir::HirFunctionIdentity::LexicalGenerated(record) => {
+                    DefinitionOriginSubject::GeneratedCallable(record.id())
                 }
+                hir::HirFunctionIdentity::PropertyAccessor(_)
+                | hir::HirFunctionIdentity::Initialization { .. }
+                | hir::HirFunctionIdentity::DerivedEquality(_) => continue,
             };
             let file = self.source_file(
                 subject,

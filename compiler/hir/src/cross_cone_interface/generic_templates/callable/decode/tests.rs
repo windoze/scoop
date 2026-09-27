@@ -2,6 +2,7 @@ use scoop_identity::{Effect, GcEffect, LocalValueSelector, SignatureTypeKey};
 use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
+mod captures;
 use crate::cross_cone_interface::default_templates::expression_test_support::{
     Fixture, ResolutionError, Resolver,
 };
@@ -21,7 +22,7 @@ fn generic_return_body_round_trips_without_a_default_parameter_owner() {
     let fixture = Fixture::new();
     let expected = body(&fixture, vec![fixture.local()]).unwrap();
     let bytes = encode(&expected.index_locals().unwrap()).unwrap();
-    assert_eq!(bytes[0], 0xa9);
+    assert_eq!(bytes[0], 0xaa);
 
     let decoded: DecodedExportGenericCallableBodyV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
@@ -153,12 +154,12 @@ fn body_reader_preserves_a_missing_typed_owner_error() {
 }
 
 #[test]
-fn body_decoder_requires_all_nine_fields() {
+fn body_decoder_requires_all_ten_fields() {
     let error = decode_canonical::<DecodedExportGenericCallableBodyV1>(&[0xa0]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 9,
+            expected: 10,
             actual: 0
         }
     );
@@ -239,6 +240,7 @@ fn body(
         binders(vec![fixture.value_type()]),
         GenericTemplatePredicatesV1::new(binders(Vec::new()), binders(Vec::new())),
         fixture.origin(),
+        Vec::new(),
     )
 }
 

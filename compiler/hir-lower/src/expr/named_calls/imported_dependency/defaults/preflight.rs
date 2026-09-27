@@ -65,6 +65,7 @@ impl Lowerer {
         self.imported_default_type(expression.result_type())?;
         use hir::DefaultExpressionKindV1 as Kind;
         match expression.kind() {
+            Kind::Capture(index) => Err(ImportedDefaultPlanError::UnboundCapture(*index)),
             Kind::ReferenceUpcast(operand) | Kind::Box(operand) | Kind::Unbox(operand) => self
                 .preflight_imported_default_expression(owner, template, operand, locals, callables),
             Kind::IsInstance {

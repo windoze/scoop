@@ -40,6 +40,7 @@ pub(super) fn replace_root(
         interface.constants().clone(),
         CanonicalExportDefinitionSourcesV1::try_new(origins).unwrap(),
         interface.external_references().clone(),
+        interface.generic_callable_bodies().clone(),
     );
 }
 

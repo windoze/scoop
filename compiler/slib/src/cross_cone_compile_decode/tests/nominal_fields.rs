@@ -44,6 +44,7 @@ fn ordinary_reader_rejects_missing_source_fields_after_canonical_bytes_are_resto
         interface.constants().clone(),
         interface.definition_sources().clone(),
         interface.external_references().clone(),
+        interface.generic_callable_bodies().clone(),
     );
     let bytes = encode(&corrupt.index_for_wire().unwrap()).unwrap();
     let artifact = cross_cone_artifact_for_with_hir_foundation(cone, vec![], &foundation, bytes);

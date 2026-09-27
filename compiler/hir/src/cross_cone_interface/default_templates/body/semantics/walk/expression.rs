@@ -43,6 +43,7 @@ where
             | DefaultExpressionKindV1::BooleanLiteral(_)
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::Local(_)
+            | DefaultExpressionKindV1::Capture(_)
             | DefaultExpressionKindV1::GlobalRead(_)
             | DefaultExpressionKindV1::SingletonValue(_)
             | DefaultExpressionKindV1::AddressOf(_)

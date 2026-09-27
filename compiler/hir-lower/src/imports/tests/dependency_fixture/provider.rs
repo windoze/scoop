@@ -346,6 +346,7 @@ fn interface(
         hir::CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
     )
 }
 

@@ -7,6 +7,7 @@ mod defaults;
 mod identity;
 mod index;
 mod protocols;
+mod templates;
 use index::SourceIndex;
 
 pub(in crate::production) struct SharedSourceRoots {
@@ -28,6 +29,22 @@ impl SharedSourceRoots {
     }
 
     pub(super) fn collect(export: &ExportHir) -> Result<Self, Error> {
+        let mut collection = SourceCollection::new(export)?;
+        collection.expand()?;
+        collection.snapshot()
+    }
+}
+
+struct SourceCollection<'a> {
+    export: &'a ExportHir,
+    index: super::Index,
+    source_index: SourceIndex<'a>,
+    nominals: Roots,
+    sources: SourceRoots,
+}
+
+impl<'a> SourceCollection<'a> {
+    fn new(export: &'a ExportHir) -> Result<Self, Error> {
         let index = super::Index::new(export)?;
         let source_index = SourceIndex::new(export)?;
         let mut nominals = Roots {
@@ -59,17 +76,34 @@ impl SharedSourceRoots {
         for property in &export.public_surface.properties {
             sources.property(export, *property, &mut nominals)?;
         }
+        Ok(Self {
+            export,
+            index,
+            source_index,
+            nominals,
+            sources,
+        })
+    }
+
+    fn expand(&mut self) -> Result<(), Error> {
+        let Self {
+            export,
+            index,
+            source_index,
+            nominals,
+            sources,
+        } = self;
         loop {
-            while let Some(owner) = nominals.expand_next(export, &index)? {
+            while let Some(owner) = nominals.expand_next(export, index)? {
                 if let Some(members) = source_index.members.get(&owner) {
                     for member in members {
                         match *member {
                             SourceWork::Callable(id) => {
                                 let protocol = source_index.protocol(id)?;
-                                sources.callable(export, protocol.owner, &mut nominals)?;
+                                sources.callable(export, protocol.owner, nominals)?;
                             }
                             SourceWork::Property(id) => {
-                                sources.property(export, id, &mut nominals)?;
+                                sources.property(export, id, nominals)?;
                             }
                         }
                     }
@@ -77,14 +111,11 @@ impl SharedSourceRoots {
             }
             while let Some(next) = sources.pending.pop() {
                 match next {
-                    SourceWork::Callable(id) => sources.protocol(
-                        export,
-                        source_index.protocol(id)?,
-                        &index,
-                        &mut nominals,
-                    )?,
+                    SourceWork::Callable(id) => {
+                        sources.protocol(export, source_index.protocol(id)?, index, nominals)?
+                    }
                     SourceWork::Property(id) => {
-                        sources.property_types(export, id, &index, &mut nominals)?;
+                        sources.property_types(export, id, index, nominals)?;
                     }
                 }
             }
@@ -92,19 +123,21 @@ impl SharedSourceRoots {
                 break;
             }
         }
-        let mut required = Vec::new();
-        scoop_wire::allocation::try_reserve(
-            &mut required,
-            nominals.required.len(),
-            &WirePath::root(),
-        )
-        .map_err(resource)?;
-        required.extend(nominals.required.into_keys());
-        Ok(Self {
-            nominals: CanonicalSourceNominalIdsV1::try_new(required)
-                .map_err(Error::SourceInventory)?,
-            top_level_callables: sources.top_level_callables,
-            top_level_properties: sources.top_level_properties,
+        Ok(())
+    }
+
+    fn has_pending(&self) -> bool {
+        !self.nominals.pending.is_empty() || !self.sources.pending.is_empty()
+    }
+
+    fn snapshot(&self) -> Result<SharedSourceRoots, Error> {
+        Ok(SharedSourceRoots {
+            nominals: CanonicalSourceNominalIdsV1::try_new(
+                self.nominals.required.keys().copied().collect(),
+            )
+            .map_err(Error::SourceInventory)?,
+            top_level_callables: self.sources.top_level_callables.clone(),
+            top_level_properties: self.sources.top_level_properties.clone(),
         })
     }
 }

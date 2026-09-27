@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v30_requires_actual_abstract_dispatch_targets() {
+fn source_interface_v31_requires_generic_bodies_and_scoped_capture_sources() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        30,
+        31,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

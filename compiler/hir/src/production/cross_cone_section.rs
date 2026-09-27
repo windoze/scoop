@@ -12,7 +12,8 @@ use crate::{
     ExportConstValueBuildError, ExportDefinitionSourceProductionError, ExportHir,
     ExternalHirBindingWitnessUse, ExternalHirReferenceProductionError,
     ExternalHirReferenceProductionInput, ExternalHirReferenceSemanticAuthority,
-    NominalInterfaceBuildError, PropertyInterfaceBuildError, TypeAliasInterfaceBuildError,
+    GenericTemplateProductionError, NominalInterfaceBuildError, PropertyInterfaceBuildError,
+    TypeAliasInterfaceBuildError,
 };
 
 impl CrossConeHirInterfaceSectionV1 {
@@ -67,8 +68,12 @@ impl CrossConeHirInterfaceSectionV1 {
         let imported_dependencies =
             dependency_output.map(DependencyHirOutput::imported_dependencies);
 
-        let roots = super::nominal_interfaces::SharedSourceRoots::from_export_hir(export)
-            .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
+        let (roots, generic_callable_bodies) =
+            super::nominal_interfaces::SharedSourceRoots::with_callable_bodies(
+                export,
+                imported_dependencies,
+            )
+            .map_err(CrossConeHirInterfaceProductionError::GenericBodies)?;
         let nominal_interfaces =
             CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(export, &roots)
                 .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
@@ -107,6 +112,7 @@ impl CrossConeHirInterfaceSectionV1 {
             &source_interfaces,
             &default_templates,
             &constants,
+            &generic_callable_bodies,
         )
         .map_err(CrossConeHirInterfaceProductionError::DefinitionSources)?;
         let external_references =
@@ -120,6 +126,7 @@ impl CrossConeHirInterfaceSectionV1 {
                     &source_interfaces,
                     &default_templates,
                     &constants,
+                    &generic_callable_bodies,
                 ),
                 witness_uses,
                 dependency_output,
@@ -138,6 +145,7 @@ impl CrossConeHirInterfaceSectionV1 {
             constants,
             definition_sources,
             external_references,
+            generic_callable_bodies,
         ))
     }
 }
@@ -150,6 +158,7 @@ pub enum CrossConeHirInterfaceProductionError<E> {
     TypeAliases(TypeAliasInterfaceBuildError),
     SourceInterfaces(CallableSourceInterfaceProductionError),
     Defaults(DefaultTemplateProductionError),
+    GenericBodies(GenericTemplateProductionError),
     Constants(ExportConstValueBuildError),
     DefinitionSources(ExportDefinitionSourceProductionError),
     ExternalReferences(ExternalHirReferenceProductionError<E>),
@@ -164,6 +173,7 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirInterfaceProductionError<E> {
             Self::TypeAliases(source) => ("type-alias interfaces", source),
             Self::SourceInterfaces(source) => ("source-call interfaces", source),
             Self::Defaults(source) => ("default templates", source),
+            Self::GenericBodies(source) => ("generic callable bodies", source),
             Self::Constants(source) => ("constant values", source),
             Self::DefinitionSources(source) => ("definition sources", source),
             Self::ExternalReferences(source) => ("external references", source),

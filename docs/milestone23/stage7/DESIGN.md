@@ -102,6 +102,8 @@ bound member 节点保存实际 class/interface bound 与原 slot/callable ident
 
 constructor、field、variant、property accessor、local value、loop target 和 callback registration 分别使用其原 typed ID。loop/cleanup、`try`/`finally`、enum pattern、callable reference、receiver adaptation 与 source location 都沿用既有 HIR 语义。
 
+lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的类型表，正文读取以该表中的位置引用闭包输入；该位置是当前正文内的 ABI 索引，不是新的全局实体身份。创建嵌套闭包时，捕获来源明确区分当前局部值与外层闭包输入。局部具名函数按现有 ABI 将捕获值作为前置参数，正文投影直接引用这些真实参数。不得将 request-local `BindingId` 写入产物，也不得把闭包输入误当作当前函数尚未定义的局部值。
+
 ### 3.3 默认参数的边界
 
 public default 仍只能直接引用覆盖其完整调用域的实体；generic body 可以引用定义处合法的 narrower 实现。二者共享节点不共享访问规则。private generic helper 自己的默认值按该 helper 的实际调用域检查，不能把正文依赖资格传播给 public default。
@@ -307,7 +309,7 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
-| `org.scoop-lang.hir/cross-cone-interface` | `/31` | 原 field 1～10 保持；必需 field 11 承载 generic body、constructor initialization 与 delegate template |
+| `org.scoop-lang.hir/cross-cone-interface` | `/33` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/9` | exact application 的完整 facts、继承和 actual type uses；不增加来源资格 |
 | `org.scoop-lang.mir/cross-cone-type-bridge` | `/2` | exact specialized type/callable、生成实体与 Strong/ODR 定义引用 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
@@ -320,7 +322,11 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 
 HIR identity-foundation `/3`、MIR identity-foundation `/1`、现有 compiler protocol、参数自由调用桥及 generated-C verifier 的 bytes 合同不变；它们不是另一条 generic 生产路径。三层 outer schema、callable-body-v1、persistent identity schema 和 `persistent-v1` 保持。LIR foundation `/2` 已用于本阶段，因此 M24 对应 major 顺延为 `/3`，其三层 outer schema 升代仍按 M24 设计。
 
-HIR cross-cone-interface field 11 的 closed product 固定为：field 1=按 typed callable owner 排序的 body records，field 2=按 nominal/constructor owner 排序的 common/delegation initialization records，field 3=按 extension property ID 排序的 delegate templates。每条记录引用共有声明、签名和定义位置，内含完整 body/sequence 与该记录实际需要的 predicates；无对应内容时表为空。禁止用空 body 表示 abstract、intrinsic 或缺失实现。
+HIR cross-cone-interface 的新增字段直接保存三张 canonical 表：field 11=按 typed callable owner 排序的 body records，field 12=按 nominal/constructor owner 排序的 common/delegation initialization records，field 13=按 extension property ID 排序的 delegate templates。每条记录引用共有声明、签名和定义位置，内含完整 body/sequence 与该记录实际需要的 predicates；无对应内容时表为空。禁止用空 body 表示 abstract、intrinsic 或缺失实现。
+
+生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 增加必需 field 12，`/33` 增加必需 field 13；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
+
+共有 external reference 的 `TemplateDependency` 使用新 role tag 10，保存模板中实际外来声明及类型引用；旧 tag 9 保持退役。该 role 不携带消费方 lookup observation 或绑定路径，只在 reader 边界核对正文引用、实际 provider 与声明记录的一致性。
 
 manifest/single-cone-production `/2` 在原十字段 product 后增加必需 field 11 的 ODR 目录：group record 为 `{1=group, 2=members}`；member record 为 `{1=member, 2=role, 3=abi_fingerprint, 4=definition_fingerprint}`，均严格排序、无重复。materialization 仍在原对象投影中，用 member ID 关联，不把物理 offset 再复制进 ODR 目录。该 section 与 bootstrap manifest 是不同的 product；后者 field 11 继续保存 ArtifactFingerprint，不改其含义。
 
