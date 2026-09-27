@@ -56,7 +56,7 @@ fn derived_parameters_reject_fabricated_source_origins() {
             } else {
                 Vec::new()
             };
-            let result = validate_records(ConeIdentity::CORE, &[], requirements, &origins);
+            let result = validate_records(ConeIdentity::CORE, &[], requirements, &origins, &[]);
             if fabricated {
                 assert!(matches!(result, Err(HirFoundationValidationError::Origin(
                     DefinitionOriginValidationError::UnexpectedSubject { subject: actual }
@@ -113,7 +113,7 @@ fn ordinary_receiver_still_requires_a_source_origin() {
     let mut requirements = OriginRequirements::new(&[], 1, &path).unwrap();
     requirements.local_value(&local, &path).unwrap();
     assert!(matches!(
-        validate_records(ConeIdentity::CORE, &[], requirements, &[]),
+        validate_records(ConeIdentity::CORE, &[], requirements, &[], &[]),
         Err(HirFoundationValidationError::Origin(DefinitionOriginValidationError::MissingSubject { subject }))
             if subject == DefinitionOriginSubject::LocalValue(local.id())
     ));

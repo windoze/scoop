@@ -17,6 +17,9 @@ impl HirInterfaceValidationInput<'_> {
 
         scoop_wire::allocation::try_reserve(&mut providers, dependencies.len(), &path)?;
         providers.extend(dependencies.iter().map(|view| view.identity));
+        let mut foundations = Vec::new();
+        scoop_wire::allocation::try_reserve(&mut foundations, dependencies.len(), &path)?;
+        foundations.extend(dependencies.iter().map(|view| view.foundation));
         self.interface
             .external_references()
             .validate_type_site_relations(self.current, self.identities, &providers)
@@ -29,7 +32,11 @@ impl HirInterfaceValidationInput<'_> {
                         .map_err(|error| CrossConeHirTypeSiteError::Origin(Box::new(error)))?,
                     _ => self
                         .foundation
-                        .validate_declaration_type_position(self.current, site.position())
+                        .validate_declaration_type_position(
+                            self.current,
+                            site.position(),
+                            &foundations,
+                        )
                         .map_err(|error| CrossConeHirTypeSiteError::Declaration(Box::new(error)))?,
                 }
                 self.generated_type_site(reference.origin(), site, dependencies)?;

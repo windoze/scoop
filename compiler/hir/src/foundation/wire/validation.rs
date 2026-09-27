@@ -83,22 +83,26 @@ impl DecodedHirFoundation {
             coordinate,
             identities,
             SourceIdentityAuthority::CurrentArtifact,
+            &[],
         )
     }
 
     /// Validates a cross-Cone foundation whose source table may contain exact
-    /// metadata copied from an already validated dependency artifact.
+    /// metadata copied from an already validated dependency artifact. Template
+    /// source anchors are read from those dependencies without copying declarations.
     #[doc(hidden)]
     pub fn validate_with_dependency_sources(
         self,
         coordinate: &ConeCoordinate,
         identities: &mut ValidatedIdentityGraph,
+        dependencies: &[&CanonicalHirFoundation],
     ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
         validate_foundation(
             self,
             coordinate,
             identities,
             SourceIdentityAuthority::DependencyClosure,
+            dependencies,
         )
     }
 }
@@ -115,6 +119,7 @@ fn validate_foundation(
     identities: &mut ValidatedIdentityGraph,
 
     source_authority: SourceIdentityAuthority,
+    dependencies: &[&CanonicalHirFoundation],
 ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
     let original = encode_canonical_temporary(&foundation, &WirePath::root())
         .map_err(HirFoundationValidationError::Resource)?;
@@ -321,6 +326,7 @@ fn validate_foundation(
         &callback_registrations,
         &contracts,
         &origins,
+        dependencies,
     )?;
 
     let mut boundary_types = Vec::new();

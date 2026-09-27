@@ -1049,6 +1049,10 @@ generic delegated extension 的 binder 只从 receiver 静态类型求得。sour
 
 生产切到 `org.scoop-lang.slib-profile/cross-cone-generic/1`，以共有源码接口、完整类型/ABI、Strong/ODR production 和逐 member ODR 目录组成一个正式路径，替换原完整 layout-strong producer/reader。共有 HIR/MIR 查询和产物装配直接借用 canonical foundation；reader 共享已验证的完整数据，`OdrFree` 只用于历史 Strong 格式边界，不包围泛型输出或依赖。普通参数自由桥从同一 foundation 选择相应 Strong 子集。
 
+泛型实例化局部值保留原模板的 definition origin。HIR foundation reader 按其实际 typed owner 查询来源锚点：本产物中的声明使用本地记录，外来模板使用实际可达依赖中已验证的 canonical foundation。消费方不复制 provider 的声明或改写源码归属；缺失锚点、与模板来源不符、未知 source 及越界位置仍按已有来源规则报错。依赖按原图顺序完成一次验证后供下游借用，不为来源查询重新解码、重放 provider 验证或增加产物字段。
+
+声明类型位置中的泛型函数 root 使用原 `CallableMaterialization` 和真实 application。reader 核对 application 指向同一 typed 泛型声明，再从本地或可达 provider 的原声明检查 receiver、参数下标和 result 位置；局部值仍属于当前 materialization，其源码位置保留模板来源。该位置检查不另建替换后的签名，实际 exact 类型及 MIR/LIR 对接继续使用共有的 application 和签名检查。
+
 profile 的 required inventory 随实际 section 生产分步迁移，具体当前及最终版本见阶段设计第 10 节。第一条泛型函数闭环使用现有 HIR interface `/32` 等完整 section，启用 `cone-production/1` 和对象 verifier `/3`；构造与委托等后续 payload 落地时再升级其 section 和 descriptor fingerprint，不填充假空表或增加临时 profile。LIR identity-foundation `/2` 已退役旧 group digest owner，M24 的 LIR foundation 版本相应顺延为 `/3`。三层 outer schema、callable-body-v1、persistent identity schema、mangler 与实际 runtime C ABI 保持；旧 layout-strong 产物及缓存需重建，旧 profile 不能承载 ODR，也不保留第二条 layout 生产管线。增量格式迁移不缩减本阶段完成门。
 
 完成门包含真实源码生产 `.slib`、移走 provider 源码后的下游编译、重复成员一致性与合法成员并集、现有单 image 测试入口的实际链接运行、地址合并、委托初始化和移动 GC。M23-8 承接生产多 image 登记，M23-9 承接正式 artifact-only program-link，M23-10 承接一般 native provider 解析；本节不提前建立这些入口或来源凭证。

@@ -54,6 +54,7 @@ impl<'input> DecodedCrossConeHirFrontSections<'input> {
             hir_foundation,
             mir_foundation,
             lir_foundation,
+            &[],
         )?;
         Ok(FoundationValidatedCrossConeHirFrontSections {
             graph,

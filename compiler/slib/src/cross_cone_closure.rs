@@ -20,6 +20,7 @@ pub(crate) mod source_provenance;
 pub use source_provenance::CrossConeSourceProvenanceError;
 
 mod surface_validation;
+pub(crate) use surface_validation::transitive_dependency_positions;
 pub use surface_validation::*;
 
 pub(crate) mod route_validation;

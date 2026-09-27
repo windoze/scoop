@@ -16,6 +16,7 @@ use crate::{
 mod const_value;
 mod definition_source;
 mod dependency_views;
+pub(crate) use dependency_views::transitive_dependency_positions;
 mod errors;
 mod source_interface;
 
@@ -24,9 +25,9 @@ pub use definition_source::*;
 pub use errors::*;
 pub use source_interface::*;
 
+pub(super) use dependency_views::nominal_dependencies;
 #[cfg(test)]
 pub(super) use dependency_views::transitive_positions_for_test;
-pub(super) use dependency_views::{nominal_dependencies, transitive_dependency_positions};
 
 /// Shared graph carrier behind each consuming surface-validation state.
 struct ValidatedSurfaceClosure<T> {

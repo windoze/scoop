@@ -208,6 +208,16 @@
 
 本次按用户要求提交当前工作进度。generic profile 迁移和跨 Cone 泛型发布、消费、运行闭环尚未完成，M23-7 仍在实施中。
 
+## 2026-09-28：泛型消费产物的 HIR 来源与声明位置读取
+
+- HIR foundation 的依赖读取入口接收实际可达 provider 的 canonical foundation。实例化局部值的来源锚点先查本地声明，再借用已验证依赖中的原模板记录；不复制外来声明，也不重新解码或验证 provider。layout reader 按原依赖顺序提供这一闭包，原来源缺失、错配和位置范围检查保持。
+- 声明类型位置接受泛型函数的真实 application，核对其 typed 原声明与 root 一致，再从当前或依赖的原声明检查 receiver、参数下标和 result。局部值继续保存消费方 materialization 和 provider 源码位置；普通函数、存储和构造位置的原有检查保持。
+- 增加外来泛型参数来源的反例，覆盖缺少 provider 锚点、来源被替换和未声明的源码位置；真实泛型消费 fixture 补充完整 HIR foundation 编解码验证，以及缺少声明、错误 application、缺失 application context、非法 receiver 和参数下标检查。
+- `cargo fmt --all` 与 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过且无警告。887项 HIR 测试、7项真实泛型消费回归、5项声明位置回归和9项完整 layout reader 回归通过，共908项，无失败或忽略，现有 golden 未修改。
+- 真实三 Cone 发布测试已越过此前的 `MissingSourceAnchor` 和声明位置 `Materialization` 错误，当前失败推进到 MIR 调用对接的 `UnmaterializedHirSelection`：读取方仍把泛型调用当作外部 Strong 定义查找。尚未执行到最终链接和 moving GC；profile 固定向量及受影响的产物 golden 仍待同步，本批未运行全工作区测试。
+
+本项完成泛型消费产物的这两处 HIR 读取缺口。继续沿同一发布、消费和运行回归接通 MIR 中已有的 ODR 定义，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；补齐其他物理角色的内容摘要、跨产物成员合并与正式 profile。

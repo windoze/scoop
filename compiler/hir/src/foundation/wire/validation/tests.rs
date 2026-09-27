@@ -137,6 +137,7 @@ fn validate_origins_only(fixture: &Fixture) -> Result<(), HirFoundationValidatio
         &foundation.callback_registrations,
         &foundation.source_native_contracts,
         &foundation.definition_origins,
+        &[],
     )
 }
 
@@ -210,7 +211,7 @@ fn dependency_source_mode_resolves_an_external_source_identity() {
         [ConeIdentity::CORE, coordinate.identity().unwrap(), provider],
     );
     let validated = decoded
-        .validate_with_dependency_sources(&coordinate, &mut identities)
+        .validate_with_dependency_sources(&coordinate, &mut identities, &[])
         .unwrap();
     assert_eq!(encode(&validated).unwrap(), encode(&canonical).unwrap());
 }

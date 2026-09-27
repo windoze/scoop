@@ -15,7 +15,7 @@ use super::super::super::{
     LocalValueRecord, PropertyAccessorRecord, PropertyRecord, TypeAliasRecord, TypeRecord,
 };
 use super::HirFoundationValidationError;
-use crate::SourceRecord;
+use crate::{CanonicalHirFoundation, SourceRecord};
 
 #[derive(Clone, Copy, Debug)]
 enum OriginExpectation<'a> {
@@ -73,6 +73,7 @@ pub(super) fn validate(
     callback_registrations: &[CallbackRegistrationRecord],
     native_contracts: &[SourceNativeExternalContractRecord],
     origins: &[DefinitionOriginRecord],
+    dependencies: &[&CanonicalHirFoundation],
 ) -> Result<(), HirFoundationValidationError> {
     let path = WirePath::root().field(29);
     let mut source_variants = HashSet::new();
@@ -229,7 +230,7 @@ pub(super) fn validate(
         }
     }
 
-    validate_records(artifact, sources, requirements, origins)
+    validate_records(artifact, sources, requirements, origins, dependencies)
 }
 
 fn checked_sum(

@@ -120,7 +120,14 @@ impl Artifact {
         let mut identities = pending.finish().unwrap();
         let foundation = OdrFreeHirFoundation::from_validated(
             decoded
-                .validate_with_dependency_sources(&self.coordinate, &mut identities)
+                .validate_with_dependency_sources(
+                    &self.coordinate,
+                    &mut identities,
+                    &dependencies
+                        .iter()
+                        .map(|dependency| dependency.foundation.as_canonical())
+                        .collect::<Vec<_>>(),
+                )
                 .unwrap(),
         )
         .unwrap();

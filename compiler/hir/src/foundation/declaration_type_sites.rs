@@ -3,9 +3,9 @@
 use super::CanonicalHirFoundation;
 use crate::{HirCallableTypePositionV1, HirDependencyTypePositionV1};
 use scoop_identity::{
-    CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
-    CborIdentityRecord, ConeIdentity, DefinitionOriginSubject, PersistentId, PropertyOwner,
-    SourceDeclarationKey,
+    CallableMaterialization, CallableMaterializationContext, CallableTemplateOrigin,
+    CallableTemplateOwner, CborIdentityRecord, ConeIdentity, DefinitionOriginSubject, PersistentId,
+    PropertyOwner, SourceDeclarationKey,
 };
 
 mod errors;
@@ -19,10 +19,12 @@ impl CanonicalHirFoundation {
         &self,
         current: ConeIdentity,
         position: HirDependencyTypePositionV1,
+        dependencies: &[&CanonicalHirFoundation],
     ) -> Result<(), Error> {
         let mut input = Input {
             foundation: self,
             current,
+            dependencies,
         };
         match position {
             HirDependencyTypePositionV1::Expression(..) => Err(Error::ExpressionPosition),
@@ -53,6 +55,7 @@ impl CanonicalHirFoundation {
 struct Input<'a> {
     foundation: &'a crate::CanonicalHirFoundation,
     current: ConeIdentity,
+    dependencies: &'a [&'a CanonicalHirFoundation],
 }
 
 impl<'a> Input<'a> {
@@ -61,6 +64,29 @@ impl<'a> Input<'a> {
         root: CallableMaterialization,
         position: Option<HirCallableTypePositionV1>,
     ) -> Result<(), Error> {
+        if let CallableTemplateOwner::GenericFunction(id) = root.template() {
+            let CallableMaterializationContext::Application(application) = root.context() else {
+                return Err(Error::Materialization(root));
+            };
+            let application = self.key(&self.foundation.callable_applications, application)?;
+            if application.origin() != CallableTemplateOrigin::GenericFunction(id) {
+                return Err(Error::Materialization(root));
+            }
+            let declaration = std::iter::once(self.foundation)
+                .chain(self.dependencies.iter().copied())
+                .find_map(|foundation| {
+                    foundation
+                        .generic_functions
+                        .iter()
+                        .find(|record| record.id() == id)
+                        .map(|record| record.key())
+                })
+                .ok_or(Error::MissingIdentity {
+                    kind: std::any::type_name::<scoop_identity::PersistentGenericFunctionId>(),
+                    id: *id.as_array(),
+                })?;
+            return signature::source(declaration, root, position);
+        }
         if root.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::Materialization(root));
         }
@@ -138,7 +164,7 @@ impl<'a> Input<'a> {
             .definition_origin(subject)
             .ok_or(Error::MissingOrigin(subject))?;
         self.foundation
-            .validate_definition_origin_location(self.current, origin.origin())
+            .validate_definition_origin_location(origin.origin().source().cone(), origin.origin())
             .map_err(|source| Error::Origin(Box::new(source)))
     }
 

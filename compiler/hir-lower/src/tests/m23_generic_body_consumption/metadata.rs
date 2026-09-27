@@ -2,6 +2,8 @@ use super::*;
 use scoop_identity::{ConeIdentity, PendingIdentityValidation};
 use scoop_wire::{WirePath, decode_canonical, encode};
 
+mod origins;
+
 #[test]
 fn actual_generic_calls_publish_applications_and_definition_locations() {
     with_consumer(
@@ -52,6 +54,7 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                 graphs.push(pending.finish().unwrap());
             }
             let mut identities = graphs.pop().unwrap();
+            origins::validate(&output, &foundation, provider, core, &mut identities);
             let provider_types = hir::OdrFreeHirFoundation::try_new(provider.clone()).unwrap();
             let calls = output.committed_dependency_call_occurrences().unwrap();
             let mut observed = 0;

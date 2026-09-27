@@ -4,6 +4,7 @@ use super::*;
 use crate::{
     CrossConeClosureFoundationError, CrossConeClosureIdentityError,
     cross_cone_closure::source_provenance::validate_imported_source_metadata,
+    cross_cone_closure::transitive_dependency_positions,
 };
 
 impl<'input> ProfileValidatedCrossConeLayoutCompileClosure<'input> {
@@ -64,8 +65,8 @@ impl<'input> ProfileValidatedCrossConeLayoutCompileClosure<'input> {
 }
 
 impl<'input> IdentityRegisteredCrossConeLayoutCompileClosure<'input> {
-    /// Validates every ODR-free foundation and authenticates source metadata
-    /// copied from an earlier terminal provider in the exact closure.
+    /// Validates each foundation against its template providers and checks
+    /// copied source metadata against the already validated dependency records.
     pub fn validate_foundation_structure(
         self,
     ) -> Result<
@@ -90,12 +91,25 @@ impl<'input> IdentityRegisteredCrossConeLayoutCompileClosure<'input> {
 
         for (position, front) in dependency_first.into_iter().enumerate() {
             let identity = front.identity();
-            let artifact = front.validate_foundation_structure().map_err(|source| {
-                CrossConeClosureFoundationError::Artifact {
-                    identity,
-                    source: Box::new(source),
-                }
-            })?;
+            let reachable = transitive_dependency_positions(position, &dependency_positions);
+            let mut dependencies = Vec::new();
+            dependencies
+                .try_reserve_exact(reachable.len())
+                .map_err(|_| CrossConeClosureFoundationError::Allocation {
+                    requested_slots: reachable.len(),
+                })?;
+            dependencies.extend(
+                reachable
+                    .into_iter()
+                    .map(|dependency| validated[dependency].hir_foundation()),
+            );
+            let artifact =
+                front
+                    .validate_foundation_structure(&dependencies)
+                    .map_err(|source| CrossConeClosureFoundationError::Artifact {
+                        identity,
+                        source: Box::new(source),
+                    })?;
             validate_imported_source_metadata(identity, artifact.hir_foundation(), |provider| {
                 positions
                     .get(&provider)

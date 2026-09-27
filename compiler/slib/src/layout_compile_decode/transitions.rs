@@ -65,10 +65,11 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
 }
 
 impl<'input> IdentityCheckedCrossConeLayoutCompileSections<'input> {
-    /// Validates all three foundation structures and the profile's
-    /// `RejectAll` ODR policy as one transition.
+    /// Validates all three foundation structures, borrowing template source
+    /// anchors from the artifact's already validated dependencies.
     pub fn validate_foundation_structure(
         self,
+        dependencies: &[&scoop_hir::CanonicalHirFoundation],
     ) -> Result<
         FoundationValidatedCrossConeLayoutCompileSections<'input>,
         StrongProfileFoundationError,
@@ -96,6 +97,7 @@ impl<'input> IdentityCheckedCrossConeLayoutCompileSections<'input> {
             hir_foundation,
             mir_foundation,
             lir_foundation,
+            dependencies,
         )?;
         Ok(FoundationValidatedCrossConeLayoutCompileSections {
             graph,

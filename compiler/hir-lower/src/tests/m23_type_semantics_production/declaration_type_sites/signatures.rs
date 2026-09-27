@@ -22,6 +22,7 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
             foundation.validate_declaration_type_position(
                 local.cone,
                 Position::CallableSignature(root, part),
+                &[],
             )
         };
         for site in interface
@@ -40,7 +41,7 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
                     .unwrap();
             } else {
                 foundation
-                    .validate_declaration_type_position(local.cone, site.position())
+                    .validate_declaration_type_position(local.cone, site.position(), &[])
                     .unwrap();
             }
         }

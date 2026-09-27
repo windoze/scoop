@@ -5,16 +5,22 @@ use std::collections::HashMap;
 use scoop_identity::{ConeIdentity, DefinitionOriginRecord};
 use scoop_wire::WirePath;
 
+use crate::CanonicalHirFoundation;
+
 use super::{
     DefinitionOriginValidationError, HirFoundationValidationError, OriginExpectation,
     OriginRequirements, SourceRecord,
 };
+
+#[cfg(test)]
+mod tests;
 
 pub(super) fn validate_records(
     artifact: ConeIdentity,
     sources: &[SourceRecord],
     requirements: OriginRequirements<'_>,
     origins: &[DefinitionOriginRecord],
+    dependencies: &[&CanonicalHirFoundation],
 ) -> Result<(), HirFoundationValidationError> {
     let source_path = WirePath::root().field(1);
     let mut source_records = HashMap::new();
@@ -87,7 +93,12 @@ pub(super) fn validate_records(
                 }
             }
             OriginExpectation::SameSource(anchor) => {
-                let Some(anchor_record) = actual.get(anchor) else {
+                let anchor_record = actual.get(anchor).copied().or_else(|| {
+                    dependencies
+                        .iter()
+                        .find_map(|foundation| foundation.definition_origin(*anchor))
+                });
+                let Some(anchor_record) = anchor_record else {
                     return Err(
                         DefinitionOriginValidationError::MissingSourceAnchor { subject }.into(),
                     );

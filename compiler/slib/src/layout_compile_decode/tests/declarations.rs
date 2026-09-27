@@ -10,7 +10,7 @@ fn prepared(bytes: &[u8]) -> HirProductionValidatedCrossConeLayoutSections<'_> {
         .unwrap()
         .validate_foundation_identities([])
         .unwrap()
-        .validate_foundation_structure()
+        .validate_foundation_structure(&[])
         .unwrap()
         .resolve_hir_sections()
         .unwrap()

@@ -49,7 +49,7 @@ fn unread_parameters_keep_complete_signature_and_local_value_type_sites() {
         .unwrap();
         for site in sites {
             foundation
-                .validate_declaration_type_position(local.cone, site.position())
+                .validate_declaration_type_position(local.cone, site.position(), &[])
                 .unwrap();
         }
     });
@@ -70,8 +70,9 @@ fn declaration_type_sites_reject_missing_identities_wrong_providers_and_invalid_
             hir::CanonicalHirFoundation::from_dependency_output(output).unwrap(),
         )
         .unwrap();
-        let validate =
-            |current, position| foundation.validate_declaration_type_position(current, position);
+        let validate = |current, position| {
+            foundation.validate_declaration_type_position(current, position, &[])
+        };
         for part in [Part::Parameter(99), Part::Receiver] {
             let invalid = Position::CallableSignature(root, part);
             assert!(matches!(

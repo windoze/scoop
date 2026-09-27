@@ -350,6 +350,10 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 
 共有 HIR/MIR 的查询、native ABI、源码位置、类型表示及产物装配直接借用原 canonical foundation；reader 保存并共享本次已经验证的数据，不要求泛型产物经过 `OdrFree` 包装。历史 Strong 输入的限制仅在其自身格式边界检查。普通参数自由导出仍是完整 foundation 的对应子集；同一产物包含泛型 application 不改变其源声明、Strong ABI、字段布局或实际 provider。
 
+实例化局部值的 definition origin 继续指向原模板源码。foundation reader 按 typed owner 从本地产物或实际可达依赖的已验证 canonical foundation 查找声明锚点；不得把外来声明复制为本地记录，也不重复验证未变化的 provider。锚点缺失、来源不符及源码位置范围检查沿用共有规则，不新增 wire 字段。
+
+泛型函数的声明类型位置使用实际 application；核对其原声明与 root 一致，再按原签名检查 receiver、参数下标和 result 位置。局部值保留当前 materialization 与原模板源码位置，完全替换后的类型关系由已有 application、签名及 MIR/LIR 对接检查。
+
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |

@@ -48,7 +48,7 @@ fn layout_profile_validates_all_foundations_before_exposing_new_payloads() {
         .unwrap()
         .validate_foundation_identities(std::iter::empty())
         .unwrap()
-        .validate_foundation_structure()
+        .validate_foundation_structure(&[])
         .unwrap();
 
     assert_eq!(sections.coordinate(), cone().coordinate());
@@ -80,7 +80,7 @@ fn layout_profile_resolves_both_hir_transports_with_one_identity_graph() {
         .unwrap()
         .validate_foundation_identities(std::iter::empty())
         .unwrap()
-        .validate_foundation_structure()
+        .validate_foundation_structure(&[])
         .unwrap()
         .resolve_hir_sections()
         .unwrap();
@@ -136,7 +136,7 @@ fn layout_profile_replays_the_legacy_hir_production_before_new_semantics() {
         .unwrap()
         .validate_foundation_identities(std::iter::empty())
         .unwrap()
-        .validate_foundation_structure()
+        .validate_foundation_structure(&[])
         .unwrap()
         .resolve_hir_sections()
         .unwrap()

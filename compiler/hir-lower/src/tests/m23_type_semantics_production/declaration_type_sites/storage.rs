@@ -38,11 +38,15 @@ fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
                 };
                 counts[index] += 1;
                 foundation
-                    .validate_declaration_type_position(local.cone, site.position())
+                    .validate_declaration_type_position(local.cone, site.position(), &[])
                     .unwrap();
                 assert!(
                     foundation
-                        .validate_declaration_type_position(ConeIdentity::CORE, site.position())
+                        .validate_declaration_type_position(
+                            ConeIdentity::CORE,
+                            site.position(),
+                            &[]
+                        )
                         .is_err()
                 );
                 let bytes = scoop_wire::encode(site).unwrap();
@@ -106,7 +110,8 @@ fn initializer_type_position_rejects_a_function_and_a_value_constructor() {
                 foundation
                     .validate_declaration_type_position(
                         local.cone,
-                        Position::ConstructorInitializerResult(root)
+                        Position::ConstructorInitializerResult(root),
+                        &[],
                     )
                     .is_err()
             );

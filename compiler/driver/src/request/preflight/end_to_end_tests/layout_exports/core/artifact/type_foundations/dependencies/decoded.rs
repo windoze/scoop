@@ -46,7 +46,14 @@ impl DecodedTypes {
         let mut identities = pending.finish().unwrap();
         let foundation = hir::OdrFreeHirFoundation::from_validated(
             foundation
-                .validate_with_dependency_sources(coordinate, &mut identities)
+                .validate_with_dependency_sources(
+                    coordinate,
+                    &mut identities,
+                    &dependencies
+                        .iter()
+                        .map(|dependency| dependency.metadata().foundation)
+                        .collect::<Vec<_>>(),
+                )
                 .unwrap(),
         )
         .unwrap();

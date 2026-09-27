@@ -204,6 +204,7 @@ pub(crate) fn validate_strong_profile_foundations(
         mir,
         lir,
         HirSourceAuthority::CurrentArtifact,
+        &[],
     )
 }
 
@@ -213,6 +214,7 @@ pub(crate) fn validate_cross_cone_profile_foundations(
     hir: DecodedHirFoundation,
     mir: DecodedMirFoundation,
     lir: DecodedLirFoundation,
+    dependencies: &[&scoop_hir::CanonicalHirFoundation],
 ) -> Result<CanonicalFoundationSet, StrongProfileFoundationError> {
     validate_strong_profile_foundations_with_source_authority(
         graph,
@@ -221,6 +223,7 @@ pub(crate) fn validate_cross_cone_profile_foundations(
         mir,
         lir,
         HirSourceAuthority::DependencyClosure,
+        dependencies,
     )
 }
 
@@ -237,6 +240,7 @@ fn validate_strong_profile_foundations_with_source_authority(
     mir: DecodedMirFoundation,
     lir: DecodedLirFoundation,
     source_authority: HirSourceAuthority,
+    dependencies: &[&scoop_hir::CanonicalHirFoundation],
 ) -> Result<CanonicalFoundationSet, StrongProfileFoundationError> {
     let coordinate = graph.coordinate().clone();
     let producer = graph.identity();
@@ -244,7 +248,7 @@ fn validate_strong_profile_foundations_with_source_authority(
     let hir = match source_authority {
         HirSourceAuthority::CurrentArtifact => hir.validate(&coordinate, identities),
         HirSourceAuthority::DependencyClosure => {
-            hir.validate_with_dependency_sources(&coordinate, identities)
+            hir.validate_with_dependency_sources(&coordinate, identities, dependencies)
         }
     }
     .map_err(StrongProfileFoundationError::HirStructure)?;
