@@ -502,6 +502,8 @@ slot合同wire为field1～7的product：`slot, declaration_owner, declaration, s
 
 ### 4.3 protected access 与 default
 
+前端在名称查找、override coverage 和 signature exposure 的负责位置执行访问域检查；成功后直接保留 typed 声明引用、实际继承/override 关系及最终 lookup/slot 域。删除 `LookupAccessWitness`、`OverrideAccessWitness`、`PropertyOverrideAccessWitness`、`SignatureExposureWitness` 及仅携带这些记录的候选资格状态。后续候选物化、IR 与产物生成不复制访问域证明，不用 witness 的有无替代实际声明关系。可见性错误、protected 接收者规则、签名泄露检查和独立 setter 槽规则保持；不改变 wire、profile、runtime C ABI 或 String 表示。
+
 前端依据语言规范 9.1.5 检查 protected：词法位置必须在声明 class 或其 subclass body，显式 receiver 的静态类型必须是当前访问 subclass 或其 subclass；只知道运行时对象可能为 derived 不满足规则。static nested、companion 和 object 的词法/继承关系按真实 typed owner 查询，不凭借 lookup 名称授予访问。property 读取与赋值分别检查 getter 和 setter 域，setter 不可见立即诊断。
 
 constructor delegation、implicit this、explicit receiver 与 super 保留实际 typed target 和 receiver；成员使用的 identity、slot、签名、effect 与继承关系完整。必要 support 不能作为普通 import，public re-export 不能扩大 protected 可见性。

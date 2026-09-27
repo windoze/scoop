@@ -73,7 +73,6 @@ impl Lowerer {
         let function = self.functions.alloc(hir::Function {
             name: format!("$local.{local_number}.{}", decl.name.text),
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             modifiers: hir::CallableModifiers::default(),

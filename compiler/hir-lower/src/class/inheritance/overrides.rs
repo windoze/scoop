@@ -289,7 +289,6 @@ impl Lowerer {
             self.functions[id].access.slot = Some(provided.clone());
         }
 
-        let mut witnesses = Vec::new();
         for (candidate, _) in inherited {
             let Some(required) = self.functions[*candidate].access.slot.clone() else {
                 continue;
@@ -305,14 +304,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            witnesses.push(hir::OverrideAccessWitness {
-                overriding: id,
-                inherited: *candidate,
-                required,
-                provided: provided.clone(),
-            });
         }
-        self.functions[id].override_access = witnesses;
     }
 
     pub(super) fn check_member_access_contract(

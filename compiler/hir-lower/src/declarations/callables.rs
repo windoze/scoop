@@ -71,7 +71,6 @@ impl Lowerer {
         let id = self.functions.alloc(Function {
             name,
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             modifiers: hir::CallableModifiers::default(),
@@ -171,7 +170,6 @@ impl Lowerer {
         let id = self.functions.alloc(Function {
             name: decl.name.text.clone(),
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             modifiers: hir::CallableModifiers::default(),

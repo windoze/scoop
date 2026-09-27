@@ -58,8 +58,8 @@ impl Lowerer {
             &format!("target of typealias `{}`", alias.name),
             &mut visited,
         );
-        let mut access = alias.access;
-        access.signature = self.signature_exposure_witnesses(
+        let access = alias.access;
+        self.check_signature_exposure(
             &access,
             &[target.expanded],
             alias.origin.span,

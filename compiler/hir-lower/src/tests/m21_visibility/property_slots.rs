@@ -11,7 +11,7 @@ const NEGATIVE: &str = include_str!(concat!(
 ));
 
 #[test]
-fn explicit_setters_preserve_independent_slot_contracts_and_override_witnesses() {
+fn explicit_setters_preserve_independent_slot_contracts_and_override_relations() {
     let output = parse_and_lower(POSITIVE).unwrap();
     let module = output.export.module();
     let mut rows = Vec::new();
@@ -46,25 +46,31 @@ fn explicit_setters_preserve_independent_slot_contracts_and_override_witnesses()
             .collect::<Vec<_>>()
             .join(" & ");
         rows.push(format!(
-            "{owner_name}.{}: {:?}, slot={}, witnesses={}\n",
+            "{owner_name}.{}: {:?}, slot={}\n",
             property.name,
             function.access.declared,
             if slot.0.is_universal() {
                 "Public"
             } else {
                 &domain
-            },
-            function.override_access.len()
+            }
         ));
         if owner_name == "Child" {
             assert!(!function.access.lookup.0.is_universal());
-            let [witness] = function.override_access.as_slice() else {
-                panic!("one inherited setter contract");
+            let [inherited_property] = property.overrides.as_slice() else {
+                panic!("one overridden property");
             };
-            assert_eq!(witness.overriding, function_id);
-            assert_eq!(&witness.provided, slot);
-            let inherited = &module.functions[witness.inherited];
-            assert_eq!(inherited.access.slot.as_ref(), Some(&witness.required));
+            let setter = module.properties[*inherited_property]
+                .capability
+                .setter()
+                .expect("the inherited property is mutable");
+            let hir::PropertyAccessorImplementation::Body(inherited) =
+                module.property_setters[setter].implementation
+            else {
+                panic!("the inherited setter has a body");
+            };
+            let inherited = &module.functions[inherited];
+            assert_eq!(inherited.access.slot.as_ref(), Some(slot));
             let hir::MethodDispatch::Virtual(family) = inherited.method.unwrap().dispatch else {
                 panic!("base setter owns a virtual family");
             };

@@ -100,11 +100,7 @@ impl Lowerer {
                     continue;
                 };
                 (
-                    crate::CallableCandidate::function(
-                        function,
-                        Vec::new(),
-                        state.function_lookup_witness(function),
-                    ),
+                    crate::CallableCandidate::function(function, Vec::new()),
                     NamedCallReceiver::Extension(receiver),
                     NamedFunctionCommit::TopLevel,
                 )
@@ -120,9 +116,6 @@ impl Lowerer {
                         state.method_owner_application(crate::Owner::Object(object), Vec::new()),
                     ),
                     source: crate::CallableCandidateSource::Direct,
-                    access: crate::CallableCandidateAccess::Lookup(
-                        state.function_lookup_witness(function),
-                    ),
                 };
                 (
                     candidate,
@@ -131,11 +124,7 @@ impl Lowerer {
                 )
             } else {
                 (
-                    crate::CallableCandidate::function(
-                        function,
-                        Vec::new(),
-                        state.function_lookup_witness(function),
-                    ),
+                    crate::CallableCandidate::function(function, Vec::new()),
                     NamedCallReceiver::None,
                     NamedFunctionCommit::TopLevel,
                 )

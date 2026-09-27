@@ -282,6 +282,8 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-6 跨Cone layout、typed ABI与ZST
 
+前端在名称查找、override coverage 和 signature exposure 的负责位置执行访问域检查；成功后直接保留 typed 声明引用、实际继承/override 关系及最终 lookup/slot 域。删除 `LookupAccessWitness`、`OverrideAccessWitness`、`PropertyOverrideAccessWitness`、`SignatureExposureWitness` 及仅携带这些记录的候选资格状态。后续候选物化、IR 与产物生成不复制访问域证明，不用 witness 的有无替代实际声明关系。可见性错误、protected 接收者规则、签名泄露检查和独立 setter 槽规则保持；不改变 wire、profile、runtime C ABI 或 String 表示。
+
 外来 object 的实际消费须覆盖类型和值导入、普通成员、初始化中的读取、转导出或默认参数，以及再次发布后的下游消费。源码访问调用提供方的实际 ensure 并读取同一 published-root，链接与移动 GC 验证唯一实例和正常根登记；不复制 foreign storage，也不以额外来源资格替代该闭环。 共有 HIR `/28` 使用新的 SingletonValue 角色 tag 7 保留真实求值位置，旧 `/27` 产物和缓存重建；MIR、LIR 与 runtime 继续消费既有 object/unit/storage 格式。
 
 清理 concretizer 入口的整模块迭代语义重放及其独立 IR/meta 验证实现，删除仅服务该通道的伪造 HIR 测试和修改工厂。保留真实源码的 iterator 选择、类型、effect、默认值、解构和循环控制回归；正常格式与引用检查仍由实际产物边界负责。

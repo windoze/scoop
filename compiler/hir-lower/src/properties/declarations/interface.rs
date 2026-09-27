@@ -93,7 +93,6 @@ impl Lowerer {
             },
             is_override: declaration.is_override,
             overrides: Vec::new(),
-            override_access: Vec::new(),
             ty,
             capability,
             representation: hir::PropertyRepresentation::AccessorOnly,

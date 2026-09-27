@@ -6,7 +6,6 @@ use super::*;
 pub struct Function {
     pub name: String,
     pub access: DeclarationAccess,
-    pub override_access: Vec<OverrideAccessWitness>,
     /// Complete declaration identity. Generic functions carry their distinct
     /// template id directly; consumers never recover it by scanning the
     /// `generic_functions` arena or by inspecting `type_params`.
@@ -315,7 +314,6 @@ mod tests {
         Function {
             name: "Int.plus".to_string(),
             access: DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: CallableModifiers::default(),

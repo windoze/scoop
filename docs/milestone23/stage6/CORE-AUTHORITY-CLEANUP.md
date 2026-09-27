@@ -124,6 +124,8 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 
 ### 2.6 重复证明与完整验证
 
+前端在名称查找、override coverage 和 signature exposure 的负责位置执行访问域检查；成功后直接保留 typed 声明引用、实际继承/override 关系及最终 lookup/slot 域。删除 `LookupAccessWitness`、`OverrideAccessWitness`、`PropertyOverrideAccessWitness`、`SignatureExposureWitness` 及仅携带这些记录的候选资格状态。后续候选物化、IR 与产物生成不复制访问域证明，不用 witness 的有无替代实际声明关系。可见性错误、protected 接收者规则、签名泄露检查和独立 setter 槽规则保持；不改变 wire、profile、runtime C ABI 或 String 表示。
+
 共有 HIR 类型位置的结构、foreign nominal 分发、真实 provider 与定义/求值位置在 HIR reader 边界检查一次。后续物化查询和 MIR/LIR 消费同一未变化的 typed 记录，不重新完整检查这组 HIR 关系，不建立额外验证状态或凭证；实际类型表示、签名、ABI、对象与传递引用仍由相应边界检查。外部字节重新读入或相关数据发生变化时重新验证受影响部分。这一职责调整不改变 wire、内容 fingerprint 的字段组成或 runtime C ABI。
 
 删除 `validate_iteration_plans` 及 concretizer 两个入口的整模块调用。该通道重新检查全部函数、构造器、默认值的迭代协议、类型、effect 和局部定义，没有实际 artifact reader 消费；其独立语义实现、伪造 HIR 测试和修改辅助函数一并退役。前端产生完整 `IterationCore`、`ForIterationPlan`、binding plan 与 typed loop target，后续直接消费；保留真实源码和正常产物的正确性回归。

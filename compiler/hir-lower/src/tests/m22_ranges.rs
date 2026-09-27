@@ -529,11 +529,6 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
             &format!("Iterator<{element}>"),
             (Some(hir::OperatorKind::Iterator), false),
         );
-        assert!(
-            !module.functions[iterator].override_access.is_empty(),
-            "{}.iterator must carry its exact override witness",
-            case.range
-        );
         assert_plain_public_method(
             &module,
             class_method(&module, class_id, "step"),

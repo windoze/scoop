@@ -34,7 +34,6 @@ fn property(capability: PropertyCapability) -> Property {
         modifier: MethodModifier::Final,
         is_override: false,
         overrides: Vec::new(),
-        override_access: Vec::new(),
         ty: crate::TypeId::from_raw(0_u32.into()),
         capability,
         representation: PropertyRepresentation::AccessorOnly,

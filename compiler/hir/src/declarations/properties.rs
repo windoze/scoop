@@ -11,7 +11,6 @@ pub struct Property {
     pub modifier: MethodModifier,
     pub is_override: bool,
     pub overrides: Vec<PropertyId>,
-    pub override_access: Vec<PropertyOverrideAccessWitness>,
     pub ty: TypeId,
     pub capability: PropertyCapability,
     pub representation: PropertyRepresentation,

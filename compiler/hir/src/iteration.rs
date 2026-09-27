@@ -56,7 +56,6 @@ impl IterationCore {
             || function.is_suspend
             || function.modifiers != CallableModifiers::default()
             || function.attributes != FunctionAttributes::default()
-            || !function.override_access.is_empty()
             || function.params.len() != 1
         {
             return None;

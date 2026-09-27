@@ -129,6 +129,8 @@ M23-2结束后不再为后续实现便利修改persistent identity、mangler、`
 
 ## 1. Cone identity、manifest与构建图
 
+前端在名称查找、override coverage 和 signature exposure 的负责位置执行访问域检查；成功后直接保留 typed 声明引用、实际继承/override 关系及最终 lookup/slot 域。删除 `LookupAccessWitness`、`OverrideAccessWitness`、`PropertyOverrideAccessWitness`、`SignatureExposureWitness` 及仅携带这些记录的候选资格状态。后续候选物化、IR 与产物生成不复制访问域证明，不用 witness 的有无替代实际声明关系。可见性错误、protected 接收者规则、签名泄露检查和独立 setter 槽规则保持；不改变 wire、profile、runtime C ABI 或 String 表示。
+
 ### 1.1 三种身份不得混用
 
 M23先冻结全协议共用的两种字节原语；后文没有另一套同名“canonical”编码：
@@ -328,7 +330,7 @@ re-export不生成wrapper、forwarder、第二个TypeDescriptor、第二个typea
 ### 2.5 visibility、inheritance、default与alias
 
 - 跨Cone普通lookup只看public lookup surface；internal精确限制在origin Cone，file/member private不因metadata closure存在而可见；
-- public open/abstract class、public interface及其可继承contract还导出独立inheritance/slot surface，其中可包含合法protected constructor/member、abstract obligation、interface default source与override relation。它们只在下游subclass/implementation上下文通过M21 inheritance witness访问，不进入top-level import或普通member候选；
+- public open/abstract class、public interface及其可继承contract还导出独立inheritance/slot surface，其中可包含合法protected constructor/member、abstract obligation、interface default source与override relation。它们只在下游 subclass/implementation 上下文按 M21 的实际访问域与接收者规则访问，不进入top-level import或普通member候选；
 - public slot由narrower owner中的实现填充时，MIR metadata可以引用该实现symbol，但这不会把实现声明加入HIR lookup surface；
 - exported generic template的private/internal helper进入hidden support closure，仅供typed template concretization；reader不给resolver暴露其名称。link-visible hidden support symbol不等于语言public；
 - exported default template仍只能含M17 refined export-interface refs。decoder只重映射这些typed refs与definition origin；调用方的import、alias、同名声明或re-export路径不能重新解析default body；
@@ -1457,7 +1459,7 @@ reader 检查归档和成员的实际输入范围、长度运算溢出、目录�
 不能直接序列化当前`ExportHir = Module`别名。packager从typed root建立封闭图，并在wire上标出互斥角色：
 
 1. `PublicLookupSurface`：源码显式public且effective lookup domain允许跨Cone的声明、public alias，以及resolved re-export binding；
-2. `InheritanceSurface`：公开可继承owner需要的protected constructor/member、slot/default/override contract和typed access witness；
+2. `InheritanceSurface`：公开可继承owner需要的protected constructor/member、slot/default/override contract 和实际 typed 声明及继承引用；
 3. `TemplateSupportClosure`：公开generic nominal/callable/property template body及其递归typed hidden dependency、template-owned lambda/local function、derived body与concretization predicate；只有仍需substitution/concretization的generic或template-owned body进入闭包，origin Cone已经发射的param-free private/internal helper只导出typed signature、persistent target与link requirement，不复制其body；
 4. `InterfaceDependencyClosure`：上述表面的签名type、exact ancestry/conformance、annotation、const、default source和well-known core relation；
 5. `SourceInterfaceTemplates`：M17 parameter shape与只使用refined export-interface ref的default template；

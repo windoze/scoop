@@ -214,7 +214,6 @@ impl Lowerer {
             let function = self.functions.alloc(hir::Function {
                 name: self.current_fn_name.clone(),
                 access,
-                override_access: Vec::new(),
                 genericity: hir::FunctionGenericity::Plain,
                 is_suspend,
                 modifiers: hir::CallableModifiers::default(),

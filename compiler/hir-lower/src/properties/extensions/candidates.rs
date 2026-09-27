@@ -44,11 +44,7 @@ impl Lowerer {
                         suppressed = true;
                         continue;
                     }
-                    let candidate = crate::CallableCandidate::function(
-                        function,
-                        Vec::new(),
-                        self.function_lookup_witness(function),
-                    );
+                    let candidate = crate::CallableCandidate::function(function, Vec::new());
                     match self.probe_named_callable(
                         &name.text,
                         candidate,

@@ -664,7 +664,6 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             modifier: hir::MethodModifier::Final,
             is_override: false,
             overrides: Vec::new(),
-            override_access: Vec::new(),
             ty,
             capability: hir::PropertyCapability::ReadOnly { getter },
             representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {

@@ -65,11 +65,7 @@ impl Lowerer {
                         first_failure.get_or_insert(Box::new(state));
                         continue;
                     };
-                    let candidate = crate::CallableCandidate::function(
-                        *function,
-                        Vec::new(),
-                        state.function_lookup_witness(*function),
-                    );
+                    let candidate = crate::CallableCandidate::function(*function, Vec::new());
                     match state.probe_named_callable(
                         &name.text,
                         candidate,

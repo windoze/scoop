@@ -74,7 +74,7 @@ private typealias Count = Int
 - alias声明有独立`TypeAliasId`、visibility与source origin；使用处在类型检查前透明展开到目标type id；
 - alias可出现在所有类型位置，也可作为构造器、companion或static nested member的type qualifier；最终候选仍属于真实目标实体；
 - alias不产生新的nominal application、constructor、成员、layout、TypeDescriptor、RTTI、boxing种类、FFI classifier或单态化实例；
-- alias展开图中的直接或间接环是定义处错误；完全展开目标type tree中每个被引用声明的effective access domain都必须覆盖alias自身的effective domain，并保存M21 signature-exposure witness。该规则同样约束internal alias，不能借它把file-private目标泄漏到Cone其他文件；
+- alias展开图中的直接或间接环是定义处错误；完全展开目标type tree中每个被引用声明的effective access domain都必须覆盖alias自身的effective domain，由前端完成 M21 signature-exposure 检查，不保存重复证明记录。该规则同样约束internal alias，不能借它把file-private目标泄漏到Cone其他文件；
 - Export HIR保存“alias声明→typed目标”的语义接口；真实`.slib`编码、跨Cone环检测与re-export由M23落地。generic alias继续按既有backlog拒绝。
 
 ### 1.2 字面量词法与定型

@@ -82,11 +82,7 @@ impl Lowerer {
                 unreachable!("extension properties use concrete accessor functions")
             }
         };
-        let candidate = crate::CallableCandidate::function(
-            function,
-            Vec::new(),
-            self.function_lookup_witness(function),
-        );
+        let candidate = crate::CallableCandidate::function(function, Vec::new());
         let callee = self.materialize_candidate_callable(&candidate, type_args);
         self.check_call_effects(callee, span);
         Some(hir::StatementKind::Expr(hir::Expr {

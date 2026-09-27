@@ -113,11 +113,7 @@ impl Lowerer {
                             first_failure.get_or_insert(Box::new(state));
                             continue;
                         };
-                        let target = crate::CallableCandidate::function(
-                            function,
-                            Vec::new(),
-                            state.function_lookup_witness(function),
-                        );
+                        let target = crate::CallableCandidate::function(function, Vec::new());
                         match state.probe_named_callable(
                             "invoke",
                             target,

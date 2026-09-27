@@ -337,7 +337,6 @@ fn public_override_in_internal_owner_preserves_public_slot_contract() {
             .as_ref()
             .is_some_and(|slot| slot.0.is_universal())
     );
-    assert_eq!(function.override_access.len(), 1);
     assert!(!module.public_surface.functions.contains(&derived_method));
     let callables = hir::CanonicalCallableInterfacesV1::from_export_hir(&module).unwrap();
     let hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(identity)) =

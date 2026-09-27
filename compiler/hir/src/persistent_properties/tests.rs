@@ -50,7 +50,6 @@ fn property(owner: PropertyOwner, getter: crate::PropertyGetterId) -> Property {
         modifier: MethodModifier::Final,
         is_override: false,
         overrides: Vec::new(),
-        override_access: Vec::new(),
         ty: crate::TypeId::from_raw(0_u32.into()),
         capability: PropertyCapability::ReadOnly { getter },
         representation: PropertyRepresentation::AccessorOnly,

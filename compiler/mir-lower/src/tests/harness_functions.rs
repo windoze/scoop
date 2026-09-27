@@ -44,7 +44,6 @@ impl Harness {
         let id = self.functions.alloc(hir::Function {
             name: name.to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -103,7 +102,6 @@ impl Harness {
         let continuation_resume = self.functions.alloc(hir::Function {
             name: "Continuation.resume".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -130,7 +128,6 @@ impl Harness {
         let continuation_resume_with_exception = self.functions.alloc(hir::Function {
             name: "Continuation.resumeWithException".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -206,7 +203,6 @@ impl Harness {
         let suspend_task_run = self.functions.alloc(hir::Function {
             name: "SuspendTask.run".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: true,
             modifiers: hir::CallableModifiers::default(),
@@ -247,7 +243,6 @@ impl Harness {
         let suspend_registration_register = self.functions.alloc(hir::Function {
             name: "SuspendRegistration.register".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -284,7 +279,6 @@ impl Harness {
         let start_coroutine = self.functions.alloc(hir::Function {
             name: "startCoroutine".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -301,7 +295,6 @@ impl Harness {
         let suspend_coroutine = self.functions.alloc(hir::Function {
             name: "suspendCoroutine".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: true,
             modifiers: hir::CallableModifiers::default(),

@@ -87,7 +87,6 @@ impl Harness {
                 modifier: hir::MethodModifier::Final,
                 is_override: false,
                 overrides: Vec::new(),
-                override_access: Vec::new(),
                 ty: parameter.ty,
                 capability: hir::PropertyCapability::ReadOnly { getter },
                 representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {

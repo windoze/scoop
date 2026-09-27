@@ -124,7 +124,6 @@ struct Candidate {
     function: FunctionId,
     owner: crate::CallableCandidateOwner,
     source: CallableCandidateSource,
-    access: crate::CallableCandidateAccess,
     params: Vec<TypeId>,
     return_ty: TypeId,
     /// Parameters declared by the function/method itself. Owner-only
@@ -150,18 +149,6 @@ impl Lowerer {
         &mut self,
         resolved: &ResolvedCallee,
     ) -> hir::Callable {
-        match &resolved.target.access {
-            crate::CallableCandidateAccess::Lookup(witness) => {
-                debug_assert_eq!(
-                    witness.declaration,
-                    hir::AccessDeclaration::Function(resolved.target.function)
-                );
-            }
-            crate::CallableCandidateAccess::CompilerGenerated => {}
-            crate::CallableCandidateAccess::Inheritance => {
-                unreachable!("only accessible lookup candidates reach call materialization")
-            }
-        }
         self.materialize_candidate_callable(&resolved.target, &resolved.type_args)
     }
 
@@ -192,13 +179,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| {
-                CallableCandidate::function(
-                    function,
-                    receiver_type_args.to_vec(),
-                    self.function_lookup_witness(function),
-                )
-            })
+            .map(|function| CallableCandidate::function(function, receiver_type_args.to_vec()))
             .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
@@ -318,13 +299,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| {
-                CallableCandidate::function(
-                    function,
-                    Vec::new(),
-                    self.function_lookup_witness(function),
-                )
-            })
+            .map(|function| CallableCandidate::function(function, Vec::new()))
             .collect::<Vec<_>>();
         let LoweredOverloadCall {
             explicit_type_args,

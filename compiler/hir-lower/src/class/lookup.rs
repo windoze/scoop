@@ -105,7 +105,7 @@ impl Lowerer {
                         .copied()
                         .map(|function| {
                             (
-                                crate::CallableCandidate::inheritance_method(
+                                crate::CallableCandidate::method(
                                     function,
                                     hir::MethodOwnerApplication::Struct(application),
                                 ),
@@ -120,7 +120,7 @@ impl Lowerer {
                     let application = self.struct_application_id(owner, vec![pointee]);
                     declared.extend(self.structs[owner].methods.iter().copied().map(|function| {
                         (
-                            crate::CallableCandidate::inheritance_method(
+                            crate::CallableCandidate::method(
                                 function,
                                 hir::MethodOwnerApplication::Struct(application),
                             ),
@@ -140,7 +140,7 @@ impl Lowerer {
                         .copied()
                         .map(|function| {
                             (
-                                crate::CallableCandidate::inheritance_method(
+                                crate::CallableCandidate::method(
                                     function,
                                     hir::MethodOwnerApplication::Enum(application),
                                 ),
@@ -224,7 +224,6 @@ impl Lowerer {
                         function,
                         owner: crate::CallableCandidateOwner::Method(owner_application),
                         source,
-                        access: crate::CallableCandidateAccess::Inheritance,
                     },
                     depth,
                     root,
@@ -265,7 +264,7 @@ impl Lowerer {
         mut matches: impl FnMut(&Self, &crate::CallableCandidate) -> bool,
     ) -> Vec<crate::CallableCandidate> {
         let mut visible = Vec::new();
-        for (mut candidate, depth, root) in declared {
+        for (candidate, depth, root) in declared {
             if !self.function_is_accessible(candidate.function, Some(receiver_ty))
                 || !matches(self, &candidate)
             {
@@ -282,9 +281,6 @@ impl Lowerer {
                 }
             }
             if !duplicate {
-                candidate.access = crate::CallableCandidateAccess::Lookup(
-                    self.function_lookup_witness(candidate.function),
-                );
                 visible.push((candidate, depth, root));
             }
         }
@@ -316,13 +312,12 @@ impl Lowerer {
                 hir::MethodOwnerApplication::Class(self.classes[owner].self_application),
             ),
         };
-        out.extend(methods.iter().copied().map(|function| {
-            (
-                crate::CallableCandidate::inheritance_method(function, owner),
-                0,
-                0,
-            )
-        }));
+        out.extend(
+            methods
+                .iter()
+                .copied()
+                .map(|function| (crate::CallableCandidate::method(function, owner), 0, 0)),
+        );
     }
 
     fn collect_interface_method_candidates(
@@ -356,7 +351,6 @@ impl Lowerer {
                                     hir::MethodOwnerApplication::Interface(application),
                                 ),
                                 source: crate::CallableCandidateSource::Direct,
-                                access: crate::CallableCandidateAccess::Inheritance,
                             },
                             depth,
                             root,
@@ -383,7 +377,6 @@ impl Lowerer {
                         hir::MethodOwnerApplication::Interface(application),
                     ),
                     source,
-                    access: crate::CallableCandidateAccess::Inheritance,
                 },
                 depth,
                 root,

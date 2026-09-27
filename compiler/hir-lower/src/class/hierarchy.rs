@@ -80,7 +80,7 @@ impl Lowerer {
                     .iter()
                     .copied()
                     .map(|function| {
-                        crate::CallableCandidate::inheritance_method(
+                        crate::CallableCandidate::method(
                             function,
                             hir::MethodOwnerApplication::Class(base_application),
                         )

@@ -240,9 +240,7 @@ impl Lowerer {
                     continue;
                 }
                 valid_override = true;
-                if let Some(witness) = self.check_property_override_access(property, inherited) {
-                    self.properties[property].override_access.push(witness);
-                }
+                self.check_property_override_access(property, inherited);
                 if !self.properties[property].overrides.contains(&inherited) {
                     self.properties[property].overrides.push(inherited);
                 }
@@ -338,7 +336,7 @@ impl Lowerer {
         &mut self,
         property: hir::PropertyId,
         inherited: hir::PropertyId,
-    ) -> Option<hir::PropertyOverrideAccessWitness> {
+    ) {
         let Some(mut provided) = self.properties[property].access.slot.clone() else {
             unreachable!("an overriding property owns a slot contract")
         };
@@ -348,7 +346,9 @@ impl Lowerer {
             provided = required;
             self.properties[property].access.slot = Some(provided.clone());
         }
-        let required = self.properties[inherited].access.slot.clone()?;
+        let Some(required) = self.properties[inherited].access.slot.clone() else {
+            return;
+        };
         if !self.access_domain_is_subset(&required.0, &provided.0) {
             self.error(
                 self.properties[property].span,
@@ -357,14 +357,7 @@ impl Lowerer {
                     self.properties[property].name
                 ),
             );
-            return None;
         }
-        Some(hir::PropertyOverrideAccessWitness {
-            overriding: property,
-            inherited,
-            required,
-            provided,
-        })
     }
 
     fn property_accessor_function(

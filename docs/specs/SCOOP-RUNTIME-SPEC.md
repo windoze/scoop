@@ -140,6 +140,8 @@ scan program v1的word编码固定为：null表示empty；普通节点为`[count
 
 scan的canonical typed bytes使用2.8的scalar/count规则且没有pointer：`None = u32(0)`；`References = u32(1) || u64(count) || each u64(offset)`；`Sequence = u32(2) || u64(child_count) || each canonical child`；`Array = u32(3) || u64(length_offset) || u64(first_element_offset) || u64(stride) || canonical element`。`ScanFingerprint = SHA-256(ByteSpan("scoop-scan-v1") || canonical typed bytes)`；共享物理 child 的语义编码保持不变，编码长度做溢出检查；比较不必重新展开整棵语义树。static storage的None scan使用canonical `[0]`非null sentinel；该sentinel不是合法Recursive root，TypeDescriptor empty scan按shape矩阵使用null。
 
+访问域、override 和签名可见性由前端检查，runtime 不消费 lookup/override/signature-exposure witness；删除这些 HIR 记录不改变 runtime C ABI、String 表示或 GC 契约。
+
 不可变 TypeDescriptor、instance shape 与 scan 在负责其输入的边界完成完整验证。M23-6 的编译器验证 typed LIR，外部产物 reader 验证完整静态表示；runtime 正常分配、装箱、数组和 GC 路径消费这些已验证常量，只检查当前 pointer/TD、对象范围、动态 length/size 溢出、payload 对齐及具体 GC/root 契约。完整静态交叉核对保留为 `scoop_shape_validate`，并可用 `SCOOP_VERIFY_METADATA=1` 编译 runtime，在操作入口显式启用；不为此增加静态登记表或指针缓存，也不提前实现 M23-8 的多 image 登记。M23-8 引入外部静态 image 的实际登记边界时，完整检查在该边界进行一次，结果供正常操作复用。
 
 ### 2.3 装箱

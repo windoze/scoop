@@ -177,17 +177,6 @@ impl Lowerer {
         )
     }
 
-    pub(crate) fn function_lookup_witness(
-        &self,
-        function: hir::FunctionId,
-    ) -> hir::LookupAccessWitness {
-        hir::LookupAccessWitness {
-            declaration: hir::AccessDeclaration::Function(function),
-            domain: self.functions[function].access.lookup.clone(),
-            site: self.visibility_file(self.current_file),
-        }
-    }
-
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
             hir::Type::ImportedStruct(ref structure) => {

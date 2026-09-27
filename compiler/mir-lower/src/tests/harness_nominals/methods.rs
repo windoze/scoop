@@ -104,7 +104,6 @@ impl Harness {
         let function = self.functions.alloc(hir::Function {
             name: name.to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),

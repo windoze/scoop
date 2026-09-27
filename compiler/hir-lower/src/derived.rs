@@ -100,7 +100,6 @@ impl Lowerer {
         let function = self.functions.alloc(Function {
             name: format!("{}.equals", owner.describe_name(self)),
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers {
@@ -191,7 +190,7 @@ impl Lowerer {
                 &mut Vec::new(),
             )?;
             return Ok(Some(DerivedEqualityCandidate::Nominal {
-                overload: CallableCandidate::compiler_generated_method(function, owner),
+                overload: CallableCandidate::method(function, owner),
                 application,
             }));
         }
@@ -242,7 +241,6 @@ impl Lowerer {
         let function = self.functions.alloc(Function {
             name: format!("{}.equals", self.type_name(owner_ty)),
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers {

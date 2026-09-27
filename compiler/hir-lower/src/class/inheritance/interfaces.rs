@@ -68,9 +68,7 @@ impl Lowerer {
                     .methods
                     .iter()
                     .copied()
-                    .map(|function| {
-                        crate::CallableCandidate::inheritance_method(function, own_owner)
-                    })
+                    .map(|function| crate::CallableCandidate::method(function, own_owner))
                     .collect::<Vec<_>>();
                 candidates.extend(self.base_chain_methods(id));
                 let implemented = candidates.into_iter().find(|candidate| {

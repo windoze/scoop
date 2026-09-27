@@ -277,7 +277,6 @@ fn failed_named_property_write_does_not_commit_rhs_sink() {
         modifier: hir::MethodModifier::Final,
         is_override: false,
         overrides: Vec::new(),
-        override_access: Vec::new(),
         ty: state.boolean,
         capability,
         representation: hir::PropertyRepresentation::Const {

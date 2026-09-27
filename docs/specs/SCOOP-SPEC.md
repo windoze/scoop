@@ -1517,7 +1517,9 @@ ImportSelector = QualifiedName | QualifiedName . *
 
 对callable层，每层独立执行8.6的shape filter、candidate-local applicability与MSC，只选择第一个至少含一个适用候选的层；某个高层只有不适用同名callable时继续到下一层。callable-value hard shadow等既有词法规则不变。type、object、property name等非overloadable lookup在同层出现多个不同origin时直接歧义。visibility在applicability前按9.1.5产生typed access witness；声明顺序、dependency枚举、re-export链长与artifact加载顺序都不能作为tie-break。
 
-跨Cone普通lookup只枚举public lookup surface。public open/abstract owner所需的protected constructor/member、abstract obligation、interface default source与override relation属于独立inheritance/slot surface，只能在合法subclass/implementation上下文经相应access witness使用；generic template的internal/private hidden support也不进入普通import或名称候选。
+跨Cone普通lookup只枚举public lookup surface。public open/abstract owner所需的protected constructor/member、abstract obligation、interface default source与override relation属于独立inheritance/slot surface，只能由前端在合法 subclass/implementation 上下文按实际声明、继承关系和接收者类型检查后使用；generic template的internal/private hidden support也不进入普通import或名称候选。
+
+前端在名称查找、override coverage 和 signature exposure 的负责位置执行访问域检查；成功后直接保留 typed 声明引用、实际继承/override 关系及最终 lookup/slot 域。删除 `LookupAccessWitness`、`OverrideAccessWitness`、`PropertyOverrideAccessWitness`、`SignatureExposureWitness` 及仅携带这些记录的候选资格状态。后续候选物化、IR 与产物生成不复制访问域证明，不用 witness 的有无替代实际声明关系。可见性错误、protected 接收者规则、签名泄露检查和独立 setter 槽规则保持；不改变 wire、profile、runtime C ABI 或 String 表示。
 
 #### 12.4.4 编译单元与entry
 
@@ -1575,7 +1577,7 @@ required schema、language/runtime ABI、identity schema、完整`ManglingSchema
 Export HIR metadata逻辑上区分：
 
 1. **public lookup surface**：可供普通跨Cone lookup的显式public声明、public non-generic typealias与resolved re-export binding；
-2. **inheritance/slot surface**：public可继承owner需要的protected constructor/member、slot/default/override contract与typed access witness；
+2. **inheritance/slot surface**：public可继承owner需要的protected constructor/member、slot/default/override contract与实际 typed 声明及继承引用；
 3. **generic hidden support closure**：公开generic nominal/callable/property中依赖consumer type arguments的template-owned body、lambda/local function、predicate与其他必须在下游具体化的递归typed依赖；
 4. **interface dependency closure**：上述表面的signature type、exact ancestry/conformance、annotation、const、default source与well-known core relation；
 5. **source interface templates**：M17参数形态及只使用refined export-interface reference的hygienic default template；

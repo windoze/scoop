@@ -85,7 +85,6 @@ fn stored_property(owner: ClassId, field: ClassFieldId, name: &str) -> Property 
         modifier: MethodModifier::Final,
         is_override: false,
         overrides: Vec::new(),
-        override_access: Vec::new(),
         ty: TypeId::from_raw(0_u32.into()),
         capability: PropertyCapability::ReadOnly {
             getter: PropertyGetterId::from_raw(0_u32.into()),

@@ -1,4 +1,4 @@
-use crate::{ClassId, EnumId, FunctionId, InterfaceId, StructId, TypeId};
+use crate::{ClassId, EnumId, FunctionId, InterfaceId, StructId};
 use scoop_identity::{ConeIdentity, SourceIdentity};
 
 /// Source visibility after AST omission has been normalized. There is no
@@ -149,19 +149,10 @@ pub struct InheritanceDomain(pub AccessDomain);
 pub struct SlotContractDomain(pub AccessDomain);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PropertyOverrideAccessWitness {
-    pub overriding: crate::PropertyId,
-    pub inherited: crate::PropertyId,
-    pub required: SlotContractDomain,
-    pub provided: SlotContractDomain,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationAccess {
     pub declared: DeclaredVisibility,
     pub lookup: EffectiveLookupDomain,
     pub slot: Option<SlotContractDomain>,
-    pub signature: Vec<SignatureExposureWitness>,
 }
 
 impl DeclarationAccess {
@@ -170,7 +161,6 @@ impl DeclarationAccess {
             declared: DeclaredVisibility::Public,
             lookup: EffectiveLookupDomain(AccessDomain::universal()),
             slot: None,
-            signature: Vec::new(),
         }
     }
 }
@@ -180,7 +170,6 @@ pub struct NominalAccess {
     pub declared: DeclaredVisibility,
     pub lookup: EffectiveLookupDomain,
     pub inheritance: InheritanceDomain,
-    pub signature: Vec<SignatureExposureWitness>,
 }
 
 impl NominalAccess {
@@ -189,46 +178,8 @@ impl NominalAccess {
             declared: DeclaredVisibility::Public,
             lookup: EffectiveLookupDomain(AccessDomain::universal()),
             inheritance: InheritanceDomain(AccessDomain::universal()),
-            signature: Vec::new(),
         }
     }
-}
-
-/// Proof stored on a successful direct lookup. The declaration id stays
-/// separate so this witness cannot be reused as an override proof.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LookupAccessWitness {
-    pub declaration: AccessDeclaration,
-    pub domain: EffectiveLookupDomain,
-    pub site: SourceIdentity,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum AccessDeclaration {
-    Function(FunctionId),
-    TypeAlias(crate::ExportTypeAliasId),
-    Class(ClassId),
-    Interface(InterfaceId),
-    Struct(StructId),
-    Enum(EnumId),
-}
-
-/// Proof that an override declaration covers one inherited slot contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OverrideAccessWitness {
-    pub overriding: FunctionId,
-    pub inherited: FunctionId,
-    pub required: SlotContractDomain,
-    pub provided: SlotContractDomain,
-}
-
-/// Proof that one signature dependency covers both direct lookup and slot
-/// consumers. It is distinct from lookup/default witnesses by construction.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SignatureExposureWitness {
-    pub dependency: TypeId,
-    pub required: AccessDomain,
-    pub provided: AccessDomain,
 }
 
 #[cfg(test)]

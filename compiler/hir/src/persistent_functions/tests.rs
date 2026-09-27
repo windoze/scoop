@@ -217,7 +217,6 @@ fn function(name: &str) -> Function {
     Function {
         name: name.to_string(),
         access: DeclarationAccess::public(),
-        override_access: Vec::new(),
         genericity: FunctionGenericity::Plain,
         is_suspend: false,
         modifiers: CallableModifiers::default(),

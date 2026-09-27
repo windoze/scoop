@@ -114,11 +114,7 @@ impl Lowerer {
             }
             let mut state = self.clone();
             let extension = state.extension_receivers.contains_key(&function);
-            let candidate = crate::CallableCandidate::function(
-                function,
-                Vec::new(),
-                state.function_lookup_witness(function),
-            );
+            let candidate = crate::CallableCandidate::function(function, Vec::new());
             let view = state.callable_view(&candidate, extension);
             let ineligible = if state.functions[function].method.is_some() {
                 Some(NativeReferenceFailureKind::Member)

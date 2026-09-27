@@ -132,7 +132,6 @@ impl Lowerer {
             modifier: hir::MethodModifier::Final,
             is_override: false,
             overrides: Vec::new(),
-            override_access: Vec::new(),
             ty: property_ty,
             capability,
             representation: hir::PropertyRepresentation::Delegated {

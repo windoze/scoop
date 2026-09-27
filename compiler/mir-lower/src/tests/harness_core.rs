@@ -143,7 +143,6 @@ impl Harness {
         let id = self.functions.alloc(hir::Function {
             name: "write".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -180,7 +179,6 @@ impl Harness {
         let id = self.functions.alloc(hir::Function {
             name: "coreLongToString".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),
@@ -216,7 +214,6 @@ impl Harness {
         let id = self.functions.alloc(hir::Function {
             name: "coreBooleanToString".to_string(),
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),

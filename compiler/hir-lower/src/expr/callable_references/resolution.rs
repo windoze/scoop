@@ -57,13 +57,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| {
-                crate::CallableCandidate::function(
-                    function,
-                    owner_type_args.to_vec(),
-                    self.function_lookup_witness(function),
-                )
-            })
+            .map(|function| crate::CallableCandidate::function(function, owner_type_args.to_vec()))
             .collect::<Vec<_>>();
         self.resolve_reference_candidate_set(&candidates, context)
     }

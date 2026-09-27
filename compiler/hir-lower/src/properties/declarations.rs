@@ -438,7 +438,6 @@ impl Lowerer {
             modifier,
             is_override: parameter.is_override,
             overrides: Vec::new(),
-            override_access: Vec::new(),
             ty,
             capability,
             representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
@@ -635,7 +634,6 @@ impl Lowerer {
             modifier,
             is_override: declaration.is_override,
             overrides: Vec::new(),
-            override_access: Vec::new(),
             ty,
             capability,
             representation,
@@ -718,7 +716,6 @@ impl Lowerer {
             modifier: hir::MethodModifier::Final,
             is_override: declaration.is_override,
             overrides: Vec::new(),
-            override_access: Vec::new(),
             ty,
             capability,
             representation: hir::PropertyRepresentation::AccessorOnly,
@@ -931,7 +928,6 @@ impl Lowerer {
         let function = self.functions.alloc(Function {
             name,
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
             modifiers: hir::CallableModifiers::default(),

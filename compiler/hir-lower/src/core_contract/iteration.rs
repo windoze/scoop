@@ -116,7 +116,6 @@ impl Lowerer {
             && relation.overrides.is_empty()
             && function.name.rsplit('.').next() == Some("iterator")
             && function.access.declared == hir::DeclaredVisibility::Public
-            && function.override_access.is_empty()
             && !function.is_suspend
             && function.attributes == hir::FunctionAttributes::default()
             && function.modifiers
