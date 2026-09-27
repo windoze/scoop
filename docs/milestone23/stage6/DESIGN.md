@@ -153,9 +153,9 @@ ExactOwnerRoot == SourceCone != exemption from dependency ODR requirements
 
 | 使用 | M23-6 结果 | 所需信息与检查 |
 | --- | --- | --- |
-| M23-5 已成功的 const、top-level/extension callable | 继续成功 | 旧 route/bridge 原样保留 |
+| M23-5 已成功的 const、top-level/extension callable | 继续成功 | 共有声明、实际 callable 与完整 ABI |
 | param-free public struct/enum 参数、返回、构造、模式、copy update | 成功 | public representation + MIR shape + LIR layout/ABI |
-| param-free class allocation、base constructor、member/accessor | 成功 | constructor access、完整 object shape、initializer bridge |
+| param-free class allocation、base constructor、member/accessor | 成功 | constructor access、完整 object shape、实际 typed initializer |
 | param-free interface/default/virtual dispatch、`is/as` | 成功 | 完整 ancestry、slot contract、唯一 implementation 与 TD |
 | public object/companion value及 runtime property | 成功 | provider ensure/value/accessor target 与初始化 ownership |
 | subclass 中合法 protected member/constructor/nested type 使用 | 成功 | 实际继承关系、前端可见性检查与完整调用表示 |
@@ -198,11 +198,11 @@ Stage 7 只补物化和一致性证明，不能再修改本阶段冻结的零尺
 
 ```text
 scoop-hir       type facts / inheritance interface / selected use / lookup and slot domains
-scoop-hir-lower 语义检查、receiver proof、完整外部请求与 winner commit
+scoop-hir-lower 名称解析、类型与可见性检查、完整 typed 声明和调用选择
 scoop-mir       representation-neutral type/callable/slot bridge
 scoop-mir-lower 外部构造、ensure、dispatch 和 helper 的机械 lowering
-scoop-lir       layout/ABI/scan/descriptor DTO、proof、wire 与 verifier
-scoop-lir-lower 唯一 target layout producer、外部 proof 消费与 root/place plan
+scoop-lir       完整 layout/ABI/scan/descriptor 数据、格式与引用检查
+scoop-lir-lower target layout 生成、依赖布局与 ABI 消费、root/place plan
 scoop-codegen   完整 LIR -> LLVM/object，不推导语言行为或缺失布局
 scoop-slib      section/profile、原子 closure 验证、双 view 与 publication
 scoopc          selected metadata 投影、stage 编排
@@ -210,11 +210,11 @@ scoop           accepted profile/cache key 更新
 runtime         既定 shape ABI 下的 box/array/scan 执行与防御验证
 ```
 
-不新增 stage 实现间依赖。导入算法需要的通用验证逻辑放在对应 IR crate；不能让 `scoop-slib` 调用 `hir-lower` 或 `lir-lower` 来重编译上游。target-aware layout 的纯数据验证与重放 API 由 `scoop-lir` 提供，lowering 调用相同构造器。
+不新增 stage 实现间依赖。IR crate 保存完整数据及必要的格式、引用和表示不变量，前端负责语言语义；不能让 `scoop-slib` 调用 `hir-lower` 或 `lir-lower` 重编译上游，也不能在 IR/meta 中另建语言语义实现。target-aware layout 的数据检查与计算由 `scoop-lir` 提供，lowering 和外部产物 reader 复用同一算法。
 
-ordinary callable 的 canonical ABI 校验对 core 与普通 provider 无差别执行。旧 callable bridge 借用当前 artifact 与其实际可达依赖的 native-boundary witness，重复 owner 必须完整一致；layout profile 在完整本地和依赖 section 通过后，按 exact type 查询唯一的 ManagedValue layout，不回退到 witness。两条路径使用 LIR 共有的 direct/indirect/ZST 分类，逐项核对 logical signature、GC effect、参数次序与结果；缺失、重复或不匹配的 layout 拒绝，此处共有 ABI 重放不代替 native-boundary 专用外来类型入口与固定 core 身份识别的后续迁移。
+ordinary callable 的 canonical ABI 校验对 core 与普通 provider 无差别执行。旧 callable bridge 借用当前 artifact 与其实际可达依赖的 native-boundary witness，重复 owner 必须完整一致；layout profile 在完整本地和依赖 section 通过后，按 exact type 查询唯一的 ManagedValue layout，不回退到 witness。两条路径使用 LIR 共有的 direct/indirect/ZST 分类，逐项核对 logical signature、GC effect、参数次序与结果；缺失、重复或不匹配的 layout 拒绝，native-boundary 同样通过实际依赖声明和表示查询，不保留专用外来类型入口或后端固定 core 身份恢复。
 
-native-boundary reader 在同一 validated identity graph 中解析本地与外来声明，统一重建 owner、kind、参数个数、binder 及成员关系；不保留 external-core 的零字段/Reference 特许恢复分支。完整性查询共享当前和依赖图的 canonical field、variant 与 variant-field records，依赖 key 以共享引用读取，不加入本地定义 inventory。缺少 canonical 声明或遗漏实际成员必须失败，generic 声明的结构解析不授予 generic application 执行或 ODR 物化能力；profile 的既有 gate 继续检查。producer 的外来类型输入按下述共有 world 规则闭合；后端 typed 表示与通用 layout/ABI 查询的连接仍须按清理设计完成。
+native-boundary reader 在同一 validated identity graph 中解析本地与外来声明，统一重建 owner、kind、参数个数、binder 及成员关系；不保留 external-core 的零字段/Reference 特许恢复分支。完整性查询共享当前和依赖图的 canonical field、variant 与 variant-field records，依赖 key 以共享引用读取，不加入本地定义 inventory。缺少 canonical 声明或遗漏实际成员必须失败，generic 声明的结构解析不授予 generic application 执行或 ODR 物化能力；profile 的既有 gate 继续检查。producer 的外来类型输入按下述共有 world 规则闭合，后端消费同一真实声明的 typed 表示及共有 layout/ABI。
 
 共有 struct source shape 在 `cross-cone-interface/4` 中精确为 `{ 0: 3, 1: source-order fields, 2: NominalCLayoutPolicyV1 }`；policy 使用 type-semantics 的既有闭合编码，由实际 HIR `@CLayout` 属性投影。公开 source shape、nominal source contract 与 nested source support 共享该结构，representation join 必须同时比较字段与 policy。intrinsic source shape 使用新增 tag 6 明确保存完整 family，并与 representation 比对，不能使用普通 struct/class shape 代替。旧 `/1`、`/2`、`/3` section 及旧两字段 struct shape 直接拒绝并重建产物，profile fingerprint、inventory 和 HIR fingerprint 随之更新，不回改 native-boundary witness 或 C ABI。本次扩展只补齐声明事实，不以 source shape 授予 layout、scan 或物化能力。
 
@@ -256,7 +256,7 @@ MIR 类型与 LIR layout/ABI 选择保存经过依赖闭包检查的完整记录
 org.scoop-lang.slib-profile/cross-cone-layout-strong/3
 ```
 
-其 required inventory 从 M23-5 `cross-cone-semantics-strong/3` 出发，移除 `org.scoop-lang.lir/strong-production/11`，替换为 `/12`，再加入下表前四项；`code_requirement`、`runtime_requirement`、publication、extra-section policy 和实际 Link 数据要求沿用共有规则；旧 decode-cost model 字段 3 退役，`odr = RejectAll`。
+其 required inventory 从 M23-5 `cross-cone-semantics-strong/3` 出发，将 `org.scoop-lang.lir/strong-production/11` 替换为 `/12`，再加入下表前四项。profile descriptor 仅保存 id 与 manifest/HIR/MIR/LIR 必需 section 清单；完整生产产物的 Code、RuntimeImage 必须 Available，Strong 输入边界拒绝本阶段未开放的 ODR。旧 availability、publication、Link proof、ODR policy 字段和 decode-cost model 均退役，不保留策略包装或成本计量。
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
@@ -845,9 +845,9 @@ producer 规范化后直接供后续 stage 使用。reader 在外部产物进入
 
 ### 7.1 descriptor record
 
-M23-6 的共有 Compile reader 从已核验 MIR 类型角色及继承关系、同一闭包已重放的 layout/dispatch 重建完整 TD 导出。ObjectBacking 仅供形状，其余实际类型各有一项 descriptor；class/object/String 使用实际基类，原始值类型、interface 与有限 coroutine helper 无 parent，box helper 按自身已验证基类关系处理。interface directory 精确来自已重放的 dispatch table 集合，按 interface exact id 严格递增；producer 在 LIR 封存前采用相同顺序，reader 不替候选数据排序或修补，表内 slot 顺序保持原 schema。parent/interface 引用从实际本地类型或可达依赖 descriptor 确定 Local/DependencyExternal 及 provider，不按 CORE、名称或同布局推断。value/instance layout、shape、object/inline scan、diagnostic name、definition 与 registration/fingerprint 均从共有 checked constituents、identity graph 和 foundation 重算；Strong semantic plan 必须使用真实完整的已重放 dispatch entries，不能构造虚假空表。原 producer 继续验证实际 registration plan，reader 的组成状态保留其余原始 wire，并在最终验证拒绝替换任何已检查表。该步骤不授予 selected-use、machine body 或对象资格；完整有序 TD wire与后续 Strong/object/双 view 关联仍须全部通过。不改变 runtime C ABI、persistent identity、wire 字段或 capability kind；接口目录顺序通过既有 fingerprint 字段影响产物，并要求不满足 canonical 顺序的旧候选重建。
+M23-6 的共有 Compile reader 从已核验 MIR 类型角色及继承关系、同一闭包已重放的 layout/dispatch 重建完整 TD 导出。ObjectBacking 仅供形状，其余实际类型各有一项 descriptor；class/object/String 使用实际基类，原始值类型、interface 与有限 coroutine helper 无 parent，box helper 按自身已验证基类关系处理。interface directory 精确来自已重放的 dispatch table 集合，按 interface exact id 严格递增；producer 在 LIR 封存前采用相同顺序，reader 不替候选数据排序或修补，表内 slot 顺序保持原 schema。parent/interface 引用从实际本地类型或可达依赖 descriptor 确定 Local/DependencyExternal 及 provider，不按 CORE、名称或同布局推断。value/instance layout、shape、object/inline scan、diagnostic name、definition 与 registration/fingerprint 均从共有 checked constituents、identity graph 和 foundation 重算；Strong semantic plan 必须使用真实完整的已重放 dispatch entries，不能构造虚假空表。producer 保存同次 LIR 的实际 registration plan；reader 将已检查的完整 TD 表直接交给后续消费者。Strong、selected-use 和对象关联在各自边界核对实际引用，Compile/Link 复用同一 TD 数据，不另保存用于防替换的表副本或资格状态。不改变 runtime C ABI、persistent identity、wire 字段或 capability kind；接口目录顺序通过既有 fingerprint 字段影响产物，并要求不满足 canonical 顺序的旧候选重建。
 
-M23-6 的共有 Compile reader 从已核验的 MIR 类型角色与 dispatch schema、同一闭包已重放的 callable ABI/layout 重建 LIR dispatch 导出。除 ObjectBacking 仅供源码形状外，每个实际类型必须具有自身 vtable；普通值类型、interface 和 CoroutineStep/CoroutineSlot 的物理 vtable 按既有表示规则为空，class、object 与 String 使用原源码 class schema，BoxedValue 沿实际 payload 使用其完整 schema 与 boxing adjustment。只有具有实例 dispatch 的 class/object/String/BoxedValue 导出 schema 中的完整 interface table 集合；值类型的接口实现由对应 box helper 承载，不能从候选 TD/table 的存在与否反推集合。每条输入保留原 position、typed slot、完整调用签名、implementation kind 与 receiver adjustment，从唯一实际 provider 的 callable ABI 取得 body 引用；本地与外来 target 使用相同规则，不按 CORE 来源分支。共有 canonical 重放核对 target、签名、GC effect、receiver layout、foundation key 和 Strong definition；原 producer 在此结果上继续逐项核对实际 LIR slots 和物理 callable 引用。reader 按所有权保留其余 wire，完整有序 dispatch 表与重放结果必须一致，漏表、多表、重复、错序、目标或签名漂移均拒绝；后续验证也不能替换已检查的表。该组成表状态不代替 descriptor、selected-use、Strong registration 或机器对象关联，不修改 wire、capability 版本或 runtime ABI。
+M23-6 的共有 Compile reader 从已核验的 MIR 类型角色与 dispatch schema、同一闭包已重放的 callable ABI/layout 重建 LIR dispatch 导出。除 ObjectBacking 仅供源码形状外，每个实际类型必须具有自身 vtable；普通值类型、interface 和 CoroutineStep/CoroutineSlot 的物理 vtable 按既有表示规则为空，class、object 与 String 使用原源码 class schema，BoxedValue 沿实际 payload 使用其完整 schema 与 boxing adjustment。只有具有实例 dispatch 的 class/object/String/BoxedValue 导出 schema 中的完整 interface table 集合；值类型的接口实现由对应 box helper 承载，不能从候选 TD/table 的存在与否反推集合。每条输入保留原 position、typed slot、完整调用签名、implementation kind 与 receiver adjustment，从唯一实际 provider 的 callable ABI 取得 body 引用；本地与外来 target 使用相同规则，不按 CORE 来源分支。共有 canonical 重放核对 target、签名、GC effect、receiver layout、foundation key 和 Strong definition；原 producer 在此结果上继续逐项核对实际 LIR slots 和物理 callable 引用。reader 核对完整有序 dispatch 表，拒绝漏表、多表、重复、错序及目标或签名漂移，后续直接复用其完整记录。descriptor、selected-use、Strong registration 和机器对象各自检查实际引用，不另建防替换副本；wire、capability 版本和 runtime ABI 不变。
 
 `ExactDescriptorExportV1` 保存 `{ exact, value_layout, instance_layout, shape, object_scan, ancestry, dispatch, diagnostic_name, definition, registration }`。两个layout引用分别指向该exact的ManagedValue与ManagedObject记录；shape/object_scan是跨record关系证明，必须与instance layout逐字段相等，不是可独立修改的第二authority。shape只接受下列checked sum；ancestry/table edge使用 typed external/local ref，不保存地址。
 
@@ -869,7 +869,7 @@ abstract class仍有完整FixedObject instance布局供derived prefix和initiali
 
 ### 7.2 普通 Cone shape-support
 
-M23-6 的共有 Compile reader 继续从已通过 HIR 声明关联的 MIR 有限 shape-support 源码根重建 LIR 八角色表。每个 source 的 canonical declaration key 从同一已验证 identity graph 按 typed id 查询，保留实际 provider；不扫描候选 LIR 表、foundation 清单或无关类型 arena 来补根。共有重放从已检查的 layout、TD 与 definition 重算 SourceNominal、ValueLayout、RefScan、TypeDescriptor、TypeRegistration、BoxedValue、CoroutineStep、CoroutineSlot，逐项验证 helper 的 generated nominal/variant/field identity、payload layout、ZST、GC scan 与 registration；helper 不再成为新的 source root。reference nominal 仅允许既有的无需装箱角色，value nominal 必须具有完整 box。完整有序 wire、provider、target 与八个角色必须精确一致，漏项、多项、重复、错序或换用其他类型的角色均拒绝。此步骤按所有权汇合五张已检查 LIR 导出表，保留原始 selected/physical transport；后续最终验证不得替换任何已检查表，Strong V2、实际使用、对象与双 view 关联仍须继续完成。不增加授权表、调用方 factory、wire 字段或 runtime ABI。
+M23-6 的共有 Compile reader 继续从已通过 HIR 声明关联的 MIR 有限 shape-support 源码根重建 LIR 八角色表。每个 source 的 canonical declaration key 从同一已验证 identity graph 按 typed id 查询，保留实际 provider；不扫描候选 LIR 表、foundation 清单或无关类型 arena 来补根。共有重放从已检查的 layout、TD 与 definition 重算 SourceNominal、ValueLayout、RefScan、TypeDescriptor、TypeRegistration、BoxedValue、CoroutineStep、CoroutineSlot，逐项验证 helper 的 generated nominal/variant/field identity、payload layout、ZST、GC scan 与 registration；helper 不再成为新的 source root。reference nominal 仅允许既有的无需装箱角色，value nominal 必须具有完整 box。完整有序 wire、provider、target 与八个角色必须精确一致，漏项、多项、重复、错序或换用其他类型的角色均拒绝。此步骤汇合五张已检查 LIR 导出表及实际 selected/physical 引用；Strong V2、对象与 Compile/Link 直接使用这些完整数据，在各自边界检查引用一致性，不复制导出表建立防替换凭证。不增加授权表、调用方 factory、wire 字段或 runtime ABI。
 
 所有 producer 的 `ParamFreeShapeSupportExportV1` 共用 M23-3 八 role 的 closed product，语义和 field 顺序不变；provider 从实际 typed source 声明及同一产物的 MIR/LIR 组成表核对。core 与普通 Cone 使用同一完整表，不保留独立 core root/role 副本或空表豁免：
 
@@ -1228,7 +1228,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 
 - [M23 过度设计清理设计](CORE-AUTHORITY-CLEANUP.md) 的七组清理与验收矩阵全部完成；不存在按 CORE 身份授予额外协议/native-boundary/bridge/Link 资格或跳过 canonical ABI 检查的路径；也不存在通用计量、来源凭证、重复完整重放及只为这些机制存在的生产接口。必要 identity、签名、GC、布局、可见性、依赖与 object 验证已迁入共有入口；仅改名或删除旧 token/receipt 不足以完成。
 
-- 完整共有 HIR 声明、source/access/inheritance、实际 selected use、MIR relation、LIR layout/ABI/scan/TD 与 actual object use 形成可从最终 artifact bytes 重建的完整校验链；reader 不需要独立来源授权 section、源码、compiler token、symbol/FQN 或 host layout fallback。
+- 最终 artifact bytes 完整保存共有 HIR 声明与继承、实际 selected use、MIR relation、LIR layout/ABI/scan/TD 及 actual object use。外部 reader 在各自数据边界完成格式、引用、类型、ABI 和对象一致性检查并复用结果；前端已完成的源码访问规则不重复推导。读取不需要独立来源授权 section、源码、compiler token、symbol/FQN 或 host layout fallback。
 - param-free跨Cone构造、value/member/object使用、inheritance/dispatch/protected成功矩阵全部能生成新profile双view有效artifact，未选中的foreign body不复制。
 - 每个合法source subject在定义Cone拥有完整有限shape-support；consumer只引用external typed definition，全部ODR生产继续拒绝。
 - ZST logical semantics、typed ABI、place/static token、box/array/Ptr/C边界及scan/TD矩阵全部锁定；codegen/runtime不再从size0或空LLVM struct猜语义。
