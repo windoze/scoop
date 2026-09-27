@@ -2,7 +2,7 @@ use scoop_identity::ConeCoordinate;
 
 use super::m23_ordinary_core_only::support::{TrustedCoreFixture, parsed_ordinary, trusted_core};
 use super::m23_ordinary_dependencies::support::{
-    certificate, empty_alias_expansions, exact_import, project_dependency_without_default_roles,
+    empty_alias_expansions, exact_import, project_dependency_without_default_roles,
 };
 use super::{
     Decl, Expr, Statement, TypeRef, assign, assign_field, block, bool_lit, extension_expr, field,
@@ -67,16 +67,15 @@ impl DependencyPropertyFixture {
         ordinary: &scoop_ast::CurrentConeParsedSources,
         inspect: impl FnOnce(Result<scoop_hir::DependencyHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
     ) -> R {
-        let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+        let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
             ordinary.cone(),
             vec![
                 self.core.provider(),
-                scoop_hir::DirectImportedProviderInput::from_validated(
-                    certificate(&self.coordinate, 57),
-                    &self.foundation,
-                    &self.interface,
-                    &self.aliases,
-                ),
+                scoop_hir::ImportedProviderInput {
+                    foundation: &self.foundation,
+                    interface: &self.interface,
+                    alias_expansions: &self.aliases,
+                },
             ],
             Vec::new(),
         )

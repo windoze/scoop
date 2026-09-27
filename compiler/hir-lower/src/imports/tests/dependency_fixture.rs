@@ -143,31 +143,20 @@ impl DependencyWorldFixture {
     }
 
     pub(super) fn world(&self, current: ConeIdentity) -> hir::ImportedSemanticWorld<'_> {
-        hir::ImportedSemanticWorld::from_validated_closure(
+        hir::ImportedSemanticWorld::from_dependencies(
             current,
-            std::iter::once(hir::DirectImportedProviderInput::from_validated(
-                certificate(self.core.coordinate(), 31),
-                &self.core_foundation,
-                self.core.interface(),
-                &self.aliases,
+            std::iter::once(hir::ImportedProviderInput {
+                foundation: &self.core_foundation,
+                interface: self.core.interface(),
+                alias_expansions: &self.aliases,
+            })
+            .chain(self.direct.iter().zip(&self.direct_foundations).map(
+                |(provider, foundation)| hir::ImportedProviderInput {
+                    foundation,
+                    interface: provider.interface(),
+                    alias_expansions: &self.aliases,
+                },
             ))
-            .chain(
-                self.direct
-                    .iter()
-                    .zip(&self.direct_foundations)
-                    .enumerate()
-                    .map(|(index, (provider, foundation))| {
-                        hir::DirectImportedProviderInput::from_validated(
-                            certificate(
-                                provider.coordinate(),
-                                37 + u8::try_from(index).expect("dependency fixture count fits u8"),
-                            ),
-                            foundation,
-                            provider.interface(),
-                            &self.aliases,
-                        )
-                    }),
-            )
             .collect(),
             Vec::new(),
         )
@@ -210,16 +199,4 @@ fn empty_alias_expansions() -> hir::CanonicalTypeAliasExpansionsV1 {
         .unwrap()
         .expand_alias_closure(&[], &WirePath::root())
         .unwrap()
-}
-
-fn certificate(coordinate: &ConeCoordinate, fingerprint: u8) -> hir::ImportedProviderCertificate {
-    hir::ImportedProviderCertificate::from_validated(
-        coordinate.clone(),
-        coordinate.identity().unwrap(),
-        SemanticOriginFingerprint::new(
-            [fingerprint; 32],
-            [fingerprint.wrapping_add(1); 32],
-            [fingerprint.wrapping_add(2); 32],
-        ),
-    )
 }

@@ -96,7 +96,7 @@ impl PendingCallSite<'_> {
         for source in binding.sources() {
             let index = witnesses
                 .witnesses()
-                .binary_search(source.witness().dependency())
+                .binary_search(source)
                 .map_err(|_| Error::MissingCallWitness(position))?;
             indices.push(u32::try_from(index).map_err(|_| Error::MissingCallWitness(position))?);
         }

@@ -95,15 +95,6 @@ impl ImportedDependencySelectionPlan {
         let entry = self.catalog.callables.get(&declaration).ok_or(
             ImportedDependencyCandidateError::MissingCallable(declaration),
         )?;
-        if binding.sources().any(|source| {
-            source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.provider
-        }) {
-            return Err(ImportedDependencyCandidateError::TerminalProviderMismatch {
-                declaration,
-                expected: entry.provider,
-            });
-        }
         Ok(ImportedDependencyCallableCandidate {
             binding: binding.clone(),
             provider: entry.provider,
@@ -128,17 +119,6 @@ impl ImportedDependencySelectionPlan {
             .constants
             .get(&property)
             .ok_or(ImportedDependencyCandidateError::MissingConstant(property))?;
-        if binding.sources().any(|source| {
-            source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.provider
-        }) {
-            return Err(
-                ImportedDependencyCandidateError::ConstantTerminalProviderMismatch {
-                    property,
-                    expected: entry.provider,
-                },
-            );
-        }
         Ok(ImportedDependencyConstantCandidate {
             binding: binding.clone(),
             provider: entry.provider,
@@ -161,17 +141,6 @@ impl ImportedDependencySelectionPlan {
             .type_aliases
             .get(&alias)
             .ok_or(ImportedDependencyCandidateError::MissingTypeAlias(alias))?;
-        if binding.sources().any(|source| {
-            source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.provider
-        }) {
-            return Err(
-                ImportedDependencyCandidateError::TypeAliasTerminalProviderMismatch {
-                    alias,
-                    expected: entry.provider,
-                },
-            );
-        }
         Ok(ImportedDependencyTypeAliasCandidate {
             binding: binding.clone(),
             provider: entry.provider,

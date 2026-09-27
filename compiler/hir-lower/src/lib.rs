@@ -337,8 +337,7 @@ pub(crate) fn lower_defined_for_test(
         .run_defined(&files)?;
     let output_kind = select_cone_output_kind(&export, requested)?;
     let world =
-        hir::ImportedSemanticWorld::from_validated_closure(export.cone, Vec::new(), Vec::new())
-            .unwrap();
+        hir::ImportedSemanticWorld::from_dependencies(export.cone, Vec::new(), Vec::new()).unwrap();
     finish_output(export, output_kind, warnings, &world)
 }
 
@@ -347,9 +346,8 @@ pub(crate) fn lower_defined_for_test(
 pub(crate) fn lower_core_bootstrap(
     input: &ast::CurrentConeParsedSources,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let world =
-        hir::ImportedSemanticWorld::from_validated_closure(input.cone(), Vec::new(), Vec::new())
-            .unwrap();
+    let world = hir::ImportedSemanticWorld::from_dependencies(input.cone(), Vec::new(), Vec::new())
+        .unwrap();
     let sources =
         CurrentConeSources::try_new(input, CoreProtocolInput::CurrentDeclarations, &world).unwrap();
     lower_current_cone(scoop_identity::RequestedConeKind::Library, &sources)

@@ -1,5 +1,5 @@
 use scoop_hir as hir;
-use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticOriginFingerprint};
+use scoop_identity::ConeIdentity;
 
 use super::TrustedCoreFixture;
 
@@ -9,25 +9,16 @@ impl TrustedCoreFixture {
     }
 
     pub(crate) fn world(&self, current: ConeIdentity) -> hir::ImportedSemanticWorld<'_> {
-        hir::ImportedSemanticWorld::from_validated_closure(
-            current,
-            vec![self.provider()],
-            Vec::new(),
-        )
-        .unwrap()
+        hir::ImportedSemanticWorld::from_dependencies(current, vec![self.provider()], Vec::new())
+            .unwrap()
     }
 
-    pub(crate) fn provider(&self) -> hir::DirectImportedProviderInput<'_> {
-        hir::DirectImportedProviderInput::from_validated(
-            hir::ImportedProviderCertificate::from_validated(
-                ConeCoordinate::reserved_core(),
-                ConeIdentity::CORE,
-                SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
-            ),
-            &self.foundation,
-            &self.general_interface,
-            &self.aliases,
-        )
+    pub(crate) fn provider(&self) -> hir::ImportedProviderInput<'_> {
+        hir::ImportedProviderInput {
+            foundation: &self.foundation,
+            interface: &self.general_interface,
+            alias_expansions: &self.aliases,
+        }
     }
 
     pub(crate) fn type_binding(&self, name: &str) -> hir::DirectImportedTargetBinding {
@@ -48,12 +39,9 @@ pub(super) fn project_interface(
     output: &hir::Output,
     foundation: &mut hir::CanonicalHirFoundation,
 ) -> hir::CrossConeHirInterfaceSectionV1 {
-    let world = hir::ImportedSemanticWorld::from_validated_closure(
-        ConeIdentity::CORE,
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
+    let world =
+        hir::ImportedSemanticWorld::from_dependencies(ConeIdentity::CORE, Vec::new(), Vec::new())
+            .unwrap();
     let mut authority = hir::CrossConeHirProductionAuthority::new(
         foundation,
         &output.export.public_export_bindings,

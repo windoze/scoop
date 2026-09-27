@@ -46,7 +46,6 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                         .binding()
                         .expect("source import route")
                         .sources()
-                        .map(|source| source.witness().dependency())
                         .collect::<Vec<_>>();
                     routes.sort_unstable();
                     assert_eq!(

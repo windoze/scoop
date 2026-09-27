@@ -40,17 +40,6 @@ impl ImportedDependencySelectionPlan {
             .properties
             .get(&property)
             .ok_or(ImportedDependencyCandidateError::MissingProperty(property))?;
-        if binding.sources().any(|source| {
-            source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.provider
-        }) {
-            return Err(
-                ImportedDependencyCandidateError::PropertyTerminalProviderMismatch {
-                    property,
-                    expected: entry.provider,
-                },
-            );
-        }
         Ok(ImportedDependencyPropertyCandidate {
             binding: binding.clone(),
             provider: entry.provider,

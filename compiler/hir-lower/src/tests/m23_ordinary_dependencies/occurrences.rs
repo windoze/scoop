@@ -56,7 +56,6 @@ fn actual_dependency_call_occurrences_keep_shared_targets_and_distinct_origins()
                         .sources()
                         .next()
                         .unwrap()
-                        .witness()
                         .route()
                         .clone()
                 };
@@ -145,7 +144,7 @@ fn render(
             .binding()
             .expect("source import route")
             .sources()
-            .map(|source| source.witness().route().hops().len().to_string())
+            .map(|source| source.route().hops().len().to_string())
             .collect::<Vec<_>>()
             .join(",");
         rows.push((

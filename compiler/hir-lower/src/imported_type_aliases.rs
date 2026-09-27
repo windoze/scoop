@@ -141,7 +141,7 @@ impl Lowerer {
                     hir::ExternalHirBindingWitnessUse::new(
                         target,
                         hir::ExternalHirBindingWitnessRole::AliasTarget,
-                        source.witness().dependency().clone(),
+                        source.clone(),
                     )
                 }));
         }

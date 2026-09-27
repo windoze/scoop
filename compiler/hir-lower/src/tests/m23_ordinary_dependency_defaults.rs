@@ -2,7 +2,7 @@ use scoop_identity::ConeCoordinate;
 
 use super::m23_ordinary_core_only::support::{TrustedCoreFixture, parsed_ordinary, trusted_core};
 use super::m23_ordinary_dependencies::support::{
-    certificate, empty_alias_expansions, exact_import, project_dependency,
+    empty_alias_expansions, exact_import, project_dependency,
 };
 use super::{
     call, file, fun, fun_expr, int_lit, make_core_public, scoop_extern_fun, sp, stmt, ty_named, var,
@@ -25,16 +25,15 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
         .imports
         .push(exact_import(&["dependency", "api", "withDefault"]));
     let ordinary = parsed_ordinary(consumer);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ordinary.cone(),
         vec![
             core.provider(),
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider, 54),
-                &provider_foundation,
-                &interface,
-                &aliases,
-            ),
+            scoop_hir::ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )
@@ -126,16 +125,15 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
         .imports
         .push(exact_import(&["dependency", "api", "withDefault"]));
     let ordinary = parsed_ordinary(consumer);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ordinary.cone(),
         vec![
             core.provider(),
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider, 55),
-                &provider_foundation,
-                &interface,
-                &aliases,
-            ),
+            scoop_hir::ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )

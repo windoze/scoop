@@ -195,13 +195,10 @@ pub(super) fn try_with_world<T>(
     let direct_inputs = direct
         .iter()
         .enumerate()
-        .map(|(index, fixture)| {
-            DirectImportedProviderInput::from_validated(
-                certificate(&fixture.coordinate, index as u8 + 1),
-                &foundations[index],
-                &fixture.interface,
-                &aliases,
-            )
+        .map(|(index, fixture)| ImportedProviderInput {
+            foundation: &foundations[index],
+            interface: &fixture.interface,
+            alias_expansions: &aliases,
         })
         .collect();
     let support_inputs = support
@@ -209,15 +206,14 @@ pub(super) fn try_with_world<T>(
         .enumerate()
         .map(|(index, fixture)| {
             let index = index + direct.len();
-            SupportImportedProviderInput::from_validated(
-                certificate(&fixture.coordinate, index as u8 + 1),
-                &foundations[index],
-                &fixture.interface,
-                &aliases,
-            )
+            ImportedProviderInput {
+                foundation: &foundations[index],
+                interface: &fixture.interface,
+                alias_expansions: &aliases,
+            }
         })
         .collect();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         coordinate("consumer-native").identity().unwrap(),
         direct_inputs,
         support_inputs,

@@ -7,7 +7,6 @@ use scoop_identity::{
 };
 use scoop_wire::{WirePath, decode_canonical, encode};
 
-use crate::ImportedProviderCertificate;
 use crate::{
     CanonicalBinderListV1, CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
     CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1,
@@ -372,21 +371,6 @@ pub(super) fn empty_alias_expansions() -> CanonicalTypeAliasExpansionsV1 {
         .unwrap()
         .expand_alias_closure(&[], &WirePath::root())
         .unwrap()
-}
-
-pub(super) fn certificate(
-    coordinate: &ConeCoordinate,
-    fingerprint: u8,
-) -> ImportedProviderCertificate {
-    ImportedProviderCertificate::from_validated(
-        coordinate.clone(),
-        coordinate.identity().unwrap(),
-        SemanticOriginFingerprint::new(
-            [fingerprint; 32],
-            [fingerprint.wrapping_add(1); 32],
-            [fingerprint.wrapping_add(2); 32],
-        ),
-    )
 }
 
 pub(super) fn coordinate(name: &str) -> ConeCoordinate {

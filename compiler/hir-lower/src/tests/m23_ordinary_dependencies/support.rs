@@ -1,8 +1,8 @@
 use scoop_identity::{
     BindableEntity, BindingTarget, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord,
     ConeCoordinate, DeclarationScope, DefinitionOwnerChain, Effect, ExportBindingKey, GcEffect,
-    PackagePath, PersistentExportBindingId, PersistentFunctionId, SemanticOriginFingerprint,
-    SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite,
+    PackagePath, PersistentExportBindingId, PersistentFunctionId, SignatureTypeKey,
+    SourceDeclarationKey, SourceDeclarationSite,
 };
 use scoop_wire::WirePath;
 
@@ -132,21 +132,6 @@ fn package_path(segments: &[&str]) -> PackagePath {
             .iter()
             .map(|segment| CanonicalIdentifier::new(segment).unwrap())
             .collect(),
-    )
-}
-
-pub(crate) fn certificate(
-    coordinate: &ConeCoordinate,
-    fingerprint: u8,
-) -> scoop_hir::ImportedProviderCertificate {
-    scoop_hir::ImportedProviderCertificate::from_validated(
-        coordinate.clone(),
-        coordinate.identity().unwrap(),
-        SemanticOriginFingerprint::new(
-            [fingerprint; 32],
-            [fingerprint.wrapping_add(1); 32],
-            [fingerprint.wrapping_add(2); 32],
-        ),
     )
 }
 

@@ -23,23 +23,21 @@ fn signatures_use_actual_support_declarations_without_exposing_support_lookup() 
     let aliases = empty_alias_expansions();
     for include_types in [false, true] {
         let support = if include_types {
-            vec![SupportImportedProviderInput::from_validated(
-                certificate(&types.coordinate, 51),
-                &type_foundation,
-                &types.interface,
-                &aliases,
-            )]
+            vec![ImportedProviderInput {
+                foundation: &type_foundation,
+                interface: &types.interface,
+                alias_expansions: &aliases,
+            }]
         } else {
             Vec::new()
         };
-        let world = ImportedSemanticWorld::from_validated_closure(
+        let world = ImportedSemanticWorld::from_dependencies(
             coordinate("signature-consumer").identity().unwrap(),
-            vec![DirectImportedProviderInput::from_validated(
-                certificate(&factory.coordinate, 52),
-                &factory_foundation,
-                &factory.interface,
-                &aliases,
-            )],
+            vec![ImportedProviderInput {
+                foundation: &factory_foundation,
+                interface: &factory.interface,
+                alias_expansions: &aliases,
+            }],
             support,
         )
         .unwrap();
@@ -77,7 +75,7 @@ fn current_declarations_join_the_same_signature_scope() {
     let crate::SourceNominalId::Concrete(packet) = current.outer.unwrap() else {
         panic!("the fixture declares a concrete nominal")
     };
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         current.coordinate.identity().unwrap(),
         Vec::new(),
         Vec::new(),

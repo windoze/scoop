@@ -4,7 +4,7 @@ use scoop_hir as hir;
 
 use crate::tests::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core};
 use crate::tests::m23_ordinary_dependencies::support::{
-    certificate, empty_alias_expansions, project_dependency_text,
+    empty_alias_expansions, project_dependency_text,
 };
 use crate::{CurrentConeSources, lower_current_cone};
 
@@ -30,16 +30,15 @@ pub(super) fn with_output<T>(
     let aliases = empty_alias_expansions();
     let source = std::fs::read_to_string(fixture(&format!("{case}.scoop"))).unwrap();
     let parsed = parsed_ordinary_text(&source);
-    let world = hir::ImportedSemanticWorld::from_validated_closure(
+    let world = hir::ImportedSemanticWorld::from_dependencies(
         parsed.cone(),
         vec![
             core.provider(),
-            hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider, 97),
-                &foundation,
-                &interface,
-                &aliases,
-            ),
+            hir::ImportedProviderInput {
+                foundation: &foundation,
+                interface: &interface,
+                alias_expansions: &aliases,
+            },
         ],
         vec![],
     )

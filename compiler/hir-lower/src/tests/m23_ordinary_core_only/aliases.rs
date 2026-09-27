@@ -123,7 +123,7 @@ fn builtin_type_names_require_shared_public_bindings() {
     ));
     let parsed = support::parsed_ordinary_text(source);
     let world =
-        hir::ImportedSemanticWorld::from_validated_closure(parsed.cone(), Vec::new(), Vec::new())
+        hir::ImportedSemanticWorld::from_dependencies(parsed.cone(), Vec::new(), Vec::new())
             .unwrap();
     let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = CurrentConeSources::try_new(&parsed, protocols, &world).unwrap();

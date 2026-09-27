@@ -20,15 +20,6 @@ pub enum ImportedSemanticEntityId {
 #[derive(Debug)]
 pub enum ImportedSemanticWorldBuildError {
     CurrentUsedAsProvider(ConeIdentity),
-    CoordinateIdentityUnavailable(ConeIdentity),
-    CoordinateIdentityMismatch {
-        declared: ConeIdentity,
-        derived: ConeIdentity,
-    },
-    FoundationOriginMismatch {
-        provider: ConeIdentity,
-        foundation: ConeIdentity,
-    },
     DuplicateProvider(ConeIdentity),
     MissingEntityIdentity {
         provider: ConeIdentity,
@@ -65,7 +56,7 @@ pub enum ImportedSemanticWorldBuildError {
         provider: ConeIdentity,
         binding: scoop_identity::PersistentExportBindingId,
     },
-    InvalidLookupWitnessRoute {
+    InvalidLookupRoute {
         provider: ConeIdentity,
         binding: scoop_identity::PersistentExportBindingId,
         error: Box<crate::ReexportRouteBuildError>,
@@ -81,21 +72,6 @@ impl fmt::Display for ImportedSemanticWorldBuildError {
                     "current Cone {identity} also appears as an imported provider"
                 )
             }
-            Self::CoordinateIdentityUnavailable(identity) => write!(
-                formatter,
-                "cannot derive the coordinate identity for provider {identity}"
-            ),
-            Self::CoordinateIdentityMismatch { declared, derived } => write!(
-                formatter,
-                "provider identity {declared} does not match coordinate identity {derived}"
-            ),
-            Self::FoundationOriginMismatch {
-                provider,
-                foundation,
-            } => write!(
-                formatter,
-                "provider {provider} is paired with HIR foundation origin {foundation}"
-            ),
             Self::DuplicateProvider(identity) => {
                 write!(
                     formatter,
@@ -146,13 +122,13 @@ impl fmt::Display for ImportedSemanticWorldBuildError {
                 formatter,
                 "provider {provider} nominal namespace names absent public binding {binding}"
             ),
-            Self::InvalidLookupWitnessRoute {
+            Self::InvalidLookupRoute {
                 provider,
                 binding,
                 error,
             } => write!(
                 formatter,
-                "provider {provider} public binding {binding} cannot form a consumer lookup witness: {error}"
+                "provider {provider} public binding {binding} has an invalid consumer import route: {error}"
             ),
         }
     }

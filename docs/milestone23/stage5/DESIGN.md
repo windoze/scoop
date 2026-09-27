@@ -175,7 +175,7 @@ driver    -> 各IR crate + 各stage实现 + slib
 scoop     -> manifest/protocol/toolchain/slib，不依赖parser/lower/codegen实现
 ```
 
-`SemanticWorld`的只读数据类型和builder proof位于`scoop-hir`；`hir-lower`只执行当前AST到HIR的变换。`scoop-slib`返回typed imported sections，不依赖`hir-lower`。MIR/LIR的selected input分别定义在`scoop-mir`/`scoop-lir`，driver只按`CrossConeUseSet`投影，不能让lowerer打开`.slib`。
+`SemanticWorld`的只读声明目录和名称索引位于`scoop-hir`；`hir-lower`只执行当前AST到HIR的变换。`scoop-slib`返回typed imported sections，不依赖`hir-lower`。MIR/LIR的selected input分别定义在`scoop-mir`/`scoop-lir`，driver只按`CrossConeUseSet`投影，不能让lowerer打开`.slib`。
 
 ### 2.2 typed输入链
 
@@ -198,23 +198,13 @@ Explicit dependency paths
   -> dual-view valid .slib
 ```
 
-每个箭头消费前一状态并产生不可伪造的新状态。不存在从`ValidatedArtifactClosure<Compile>`直接取“metadata map”、从persistent digest直接构造imported arena id、或从Link view反向恢复HIR声明的入口。
+每个箭头消费完整的typed数据，输出下一阶段所需的完整结果。reader在读入新产物时检查格式、引用、类型与ABI；后续阶段复用已确认且未变化的内容。Compile查询直接借用共有reader的声明记录，Link按实际物理引用工作，不反向重建HIR声明，也不产生或消费来源凭证。
 
-### 2.3 current/direct/support authority
+### 2.3 当前 Cone 与依赖名称查找
 
-```text
-WorldProviderRole = Current
-                  | Direct { edge: ValidatedDirectDependencyEdge }
-                  | Support { via: NonEmpty<ValidatedDependencyEdge> }
-```
+当前源码按语言访问域查询本 Cone 声明。依赖目录使用同一份输入结构保存共有 foundation、完整 HIR interface 和别名展开；provider 身份直接取自 foundation。实际直接依赖集合决定哪些 public binding 加入源码 package 索引，传递依赖仍可按类型化声明 ID 查询定义和成员。一个 Cone 只保存一份记录，存在直接依赖边时也只贡献一次名称索引。
 
-- `Current`可按M21 access domain枚举本Cone声明；
-- `Direct`可枚举其public binding surface并产生`PublicDependencyLookupWitness`；
-- `Support`只能按已经持有的kind-specific persistent ref取回声明/definition，不提供package、name、member或prelude枚举API；
-- 默认查找到的 core 是普通直接依赖；sysroot 只提供默认位置，不附加来源 marker 或资格；
-- 一个Cone对当前root恰有一个role。既是多条路径的support时合并路径；只要存在direct edge即规范化为`Direct`，但仍保留全部graph path用于诊断和fingerprint验证。
-
-公开API不提供`role -> bool`后再调用统一枚举器；只有`DirectProviderView`实现`public_bindings()`，`SupportProviderView`只有typed lookup方法，从类型上阻止误枚举。
+默认查找到的 core 是普通直接依赖，sysroot 只提供默认位置。这里不保存 certificate、重复坐标身份或逐候选 fingerprint，不以 direct/support 专用输入和视图表达额外资格。转导出路径只保留真实 binding route；名称选择、默认参数和再次发布复用该路径，不另外复制 terminal 声明并重新证明其 provider。坐标、内容 fingerprint 与依赖图继续保留在普通产物和构建缓存记录中，用于定位、诊断和失效。
 
 ## 3. artifact profile、capability与迁移
 
@@ -1579,9 +1569,7 @@ ImportedTargetBinding {
 ImportBindingSource =
     CurrentCone { binding: PersistentLocalBindingId,
                   witness: LocalImportWitness }
-  | DirectDependency { provider_identity: ConeIdentity,
-                       route: ReexportRouteV1,
-                       witness: PublicDependencyLookupWitness }
+  | DirectDependency { dependency: DependencyBindingWitnessV1 { route: ReexportRouteV1 } }
 ```
 
 `ImportedTarget`继续是type/function/property/object/typealias/variant等kind-specific closed sum。sources 按实际 provider、binding 和 route 的 persistent 内容排序，不另设带品牌的会话 provider handle。target先按kind-specific origin id合并，再union sources；不同kind不能cast。
@@ -1654,7 +1642,7 @@ foreign ordinary lookup没有“重新计算access domain”的自由。reader�
 - target kind/role与binding key一致；
 - signature exposure/reference closure完整。
 
-成功返回`PublicDependencyLookupWitness { terminal declaration, route, public-domain proof }`。HIR candidate、property read/write与re-export保存真实查找关系，default ref直接保存已绑定目标及定义位置；查找结果不能代替override、默认值与构造器的前端语言检查。
+查找结果保存实际typed target与`DependencyBindingWitnessV1 { route }`，不另加terminal声明副本或public-domain凭证。HIR candidate、property read/write与re-export复用该真实查找关系，default ref直接保存已绑定目标及定义位置；候选查询不重放同一route及provider校验，override、默认值与构造器规则仍由前端负责。
 
 foreign internal/private声明没有普通lookup入口。若恶意section为它构造binding，surface validation在world commit前失败；若它只存在于provider object或未来hidden support，不影响普通lookup。`protected` record不进入本阶段general interface；合法subclass context与receiver restriction由M23-6新section一次性开放。
 

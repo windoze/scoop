@@ -435,23 +435,20 @@ fn inspect_extensions<R>(
                 project_dependency_without_default_roles(&core, &coordinate, source, core_types);
             let foundation =
                 core.import_dependency_foundation(&coordinate, &foundation, fingerprint);
-            (coordinate, fingerprint, foundation, interface)
+            (foundation, interface)
         })
         .collect::<Vec<_>>();
     let aliases = empty_alias_expansions();
     let ordinary = parsed_ordinary(consumer);
     let direct: Vec<_> = prepared
         .iter()
-        .map(|(coordinate, fingerprint, foundation, interface)| {
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(coordinate, *fingerprint),
-                foundation,
-                interface,
-                &aliases,
-            )
+        .map(|(foundation, interface)| scoop_hir::ImportedProviderInput {
+            foundation,
+            interface,
+            alias_expansions: &aliases,
         })
         .collect();
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ordinary.cone(),
         std::iter::once(core.provider()).chain(direct).collect(),
         Vec::new(),

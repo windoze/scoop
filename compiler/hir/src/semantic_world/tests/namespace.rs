@@ -2,8 +2,7 @@ use scoop_identity::{BindingNamespace, ConeCoordinate, SemanticIdentitySession};
 
 use super::super::*;
 use super::fixture::{
-    ProviderFixture, certificate, coordinate, empty_alias_expansions, identifiers,
-    import_foundation, package,
+    ProviderFixture, coordinate, empty_alias_expansions, identifiers, import_foundation, package,
 };
 
 #[test]
@@ -20,21 +19,19 @@ fn package_lookup_uses_static_edges_and_excludes_nested_bindings_from_package_sc
     let direct_foundation = import_foundation(&mut session, &direct, 5);
     let aliases = empty_alias_expansions();
     let current = coordinate("static-current").identity().unwrap();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         current,
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 4),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&direct.coordinate, 5),
-                &direct_foundation,
-                &direct.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &direct_foundation,
+                interface: &direct.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )
@@ -110,27 +107,24 @@ fn longest_package_prefix_never_falls_back_to_a_shorter_static_path() {
     let shadow_foundation = import_foundation(&mut session, &shadow, 8);
     let aliases = empty_alias_expansions();
     let current = coordinate("prefix-current").identity().unwrap();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         current,
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 6),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&shadow.coordinate, 8),
-                &shadow_foundation,
-                &shadow.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&outer.coordinate, 7),
-                &outer_foundation,
-                &outer.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &shadow_foundation,
+                interface: &shadow.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &outer_foundation,
+                interface: &outer.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )
@@ -151,7 +145,7 @@ fn longest_package_prefix_never_falls_back_to_a_shorter_static_path() {
     ));
     let direct_order = world
         .direct_providers()
-        .map(|provider| provider.certificate().identity())
+        .map(|provider| provider.id())
         .collect::<Vec<_>>();
     assert!(direct_order.windows(2).all(|pair| pair[0] < pair[1]));
 }

@@ -5,8 +5,8 @@ use scoop_identity::{
 
 use super::super::*;
 use super::fixture::{
-    CallableProviderFixture, ProviderFixture, certificate, coordinate, empty_alias_expansions,
-    identifiers, import_foundation, package,
+    CallableProviderFixture, ProviderFixture, coordinate, empty_alias_expansions, identifiers,
+    import_foundation, package,
 };
 
 mod nominals;
@@ -25,21 +25,19 @@ fn selection_retains_owned_declaration_and_lookup_data() {
     let core_foundation = import_foundation(&mut session, &core, 41);
     let provider_foundation = import_callable_foundation(&mut session, &provider, 42);
     let aliases = empty_alias_expansions();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         coordinate("selection-current").identity().unwrap(),
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 41),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&provider.coordinate, 42),
-                &provider_foundation,
-                &provider.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &provider.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )
@@ -103,21 +101,19 @@ fn selection_accepts_parameter_free_pointer_signatures() {
     let core_foundation = import_foundation(&mut session, &core, 43);
     let provider_foundation = import_callable_foundation(&mut session, &provider, 44);
     let aliases = empty_alias_expansions();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         coordinate("semantic-only-current").identity().unwrap(),
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 43),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&provider.coordinate, 44),
-                &provider_foundation,
-                &provider.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &provider.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )
@@ -165,27 +161,24 @@ fn cloned_plans_keep_candidate_ids_stable_across_different_probe_orders() {
     let first_foundation = import_callable_foundation(&mut session, &first_provider, 46);
     let second_foundation = import_callable_foundation(&mut session, &second_provider, 47);
     let aliases = empty_alias_expansions();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         coordinate("stable-current").identity().unwrap(),
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 45),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&second_provider.coordinate, 47),
-                &second_foundation,
-                &second_provider.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&first_provider.coordinate, 46),
-                &first_foundation,
-                &first_provider.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &second_foundation,
+                interface: &second_provider.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &first_foundation,
+                interface: &first_provider.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )

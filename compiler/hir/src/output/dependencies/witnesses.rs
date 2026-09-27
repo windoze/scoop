@@ -45,7 +45,7 @@ fn append(
         uses.push(ExternalHirBindingWitnessUse::new(
             target,
             crate::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
-            source.witness().dependency().clone(),
+            source.clone(),
         ));
     }
     Ok(())

@@ -15,14 +15,13 @@ fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
         core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 61);
     let aliases = empty_alias_expansions();
     let parsed = core_sources();
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ConeIdentity::CORE,
-        vec![scoop_hir::DirectImportedProviderInput::from_validated(
-            certificate(&provider.coordinate, 61),
-            &foundation,
-            &provider.interface,
-            &aliases,
-        )],
+        vec![scoop_hir::ImportedProviderInput {
+            foundation: &foundation,
+            interface: &provider.interface,
+            alias_expansions: &aliases,
+        }],
         Vec::new(),
     )
     .unwrap();
@@ -75,7 +74,7 @@ fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
 fn protocol_origin_and_semantic_world_must_match_current_sources() {
     let core = trusted_core();
     let parsed = core_sources();
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ConeIdentity::CORE,
         Vec::new(),
         Vec::new(),
@@ -152,7 +151,7 @@ fn core_sources_with_calls(text: &str) -> scoop_ast::CurrentConeParsedSources {
 fn core_missing_import_reports_the_shared_source_diagnostic() {
     let text = include_str!("../../../../../tests/fixtures/core-library/dependency-missing.scoop");
     let sources = core_sources_with_calls(text);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ConeIdentity::CORE,
         Vec::new(),
         Vec::new(),

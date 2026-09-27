@@ -20,12 +20,9 @@ fn with_production<R>(
     ) -> R,
 ) -> R {
     let sources = sources::core_sources_with(&[("src/finite-types.scoop", source)]);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
-        sources.cone(),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
+    let world =
+        scoop_hir::ImportedSemanticWorld::from_dependencies(sources.cone(), Vec::new(), Vec::new())
+            .unwrap();
     let hir = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
         scoop_identity::RequestedConeKind::Library,
         &sources,

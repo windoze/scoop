@@ -32,7 +32,7 @@ fn direct_exact_star_and_static_selectors_preserve_typed_witnesses() {
     assert_eq!(outer.binding_target().namespace(), BindingNamespace::Type);
     assert_eq!(outer.source_count(), 1);
     assert_eq!(
-        outer.sources().next().unwrap().provider_identity(),
+        outer.sources().next().unwrap().route().immediate_provider(),
         fixture.direct_identity()
     );
     assert!(matches!(
@@ -106,7 +106,8 @@ fn production_import_collection_receives_the_dependency_world() {
             .sources()
             .next()
             .unwrap()
-            .provider_identity(),
+            .route()
+            .immediate_provider(),
         fixture.direct_identity()
     );
 }
@@ -145,7 +146,8 @@ fn current_package_layer_freezes_direct_split_package_contributions() {
             .sources()
             .next()
             .unwrap()
-            .provider_identity(),
+            .route()
+            .immediate_provider(),
         fixture.direct_identity()
     );
 }

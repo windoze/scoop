@@ -177,10 +177,6 @@ impl ProviderFixture {
         }
     }
 
-    pub(super) const fn coordinate(&self) -> &ConeCoordinate {
-        &self.coordinate
-    }
-
     pub(super) fn identity(&self) -> ConeIdentity {
         self.coordinate.identity().unwrap()
     }

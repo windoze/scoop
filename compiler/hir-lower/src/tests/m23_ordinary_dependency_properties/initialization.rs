@@ -47,16 +47,15 @@ fn with_shared(
         let output = output.unwrap_or_else(|errors| panic!("{name}: {errors:#?}"));
         let provider = fixture.coordinate.identity().unwrap();
         let local = output.output().export.module();
-        let world = hir::ImportedSemanticWorld::from_validated_closure(
+        let world = hir::ImportedSemanticWorld::from_dependencies(
             local.cone,
             vec![
                 fixture.core.provider(),
-                hir::DirectImportedProviderInput::from_validated(
-                    certificate(&fixture.coordinate, 57),
-                    &fixture.foundation,
-                    &fixture.interface,
-                    &fixture.aliases,
-                ),
+                hir::ImportedProviderInput {
+                    foundation: &fixture.foundation,
+                    interface: &fixture.interface,
+                    alias_expansions: &fixture.aliases,
+                },
             ],
             vec![],
         )

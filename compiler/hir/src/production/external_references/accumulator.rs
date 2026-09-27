@@ -172,9 +172,7 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
                 .ok_or(Error::CurrentWitnessTarget { target, role })?;
             if let Some(binding) = call.binding() {
                 for source in binding.sources() {
-                    pending
-                        .witnesses
-                        .insert(source.witness().dependency().clone());
+                    pending.witnesses.insert(source.clone());
                 }
             }
 

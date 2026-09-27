@@ -2,7 +2,7 @@ use scoop_identity::{BindingTarget, ConeIdentity, SemanticIdentitySession};
 
 use super::super::*;
 use super::fixture::{
-    ProviderFixture, certificate, coordinate, empty_alias_expansions, import_foundation, package,
+    ProviderFixture, coordinate, empty_alias_expansions, import_foundation, package,
 };
 use crate::{
     CanonicalHirFoundation, CanonicalPublicExportBindingsV1, ExternalHirReferenceSemanticAuthority,
@@ -35,28 +35,25 @@ fn production_authority_resolves_current_and_imported_targets_by_typed_identity(
     let direct_foundation = import_foundation(&mut session, &direct, 2);
     let support_foundation = import_foundation(&mut session, &support, 3);
     let aliases = empty_alias_expansions();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         current_fixture.identity(),
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 1),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&direct.coordinate, 2),
-                &direct_foundation,
-                &direct.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &direct_foundation,
+                interface: &direct.interface,
+                alias_expansions: &aliases,
+            },
         ],
-        vec![SupportImportedProviderInput::from_validated(
-            certificate(&support.coordinate, 3),
-            &support_foundation,
-            &support.interface,
-            &aliases,
-        )],
+        vec![ImportedProviderInput {
+            foundation: &support_foundation,
+            interface: &support.interface,
+            alias_expansions: &aliases,
+        }],
     )
     .unwrap();
     let mut authority = CrossConeHirProductionAuthority::new(
@@ -97,21 +94,19 @@ fn production_authority_exposes_exact_binding_surfaces_without_support_enumerati
     let core_foundation = import_foundation(&mut session, &core, 1);
     let direct_foundation = import_foundation(&mut session, &direct, 2);
     let aliases = empty_alias_expansions();
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         current,
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 1),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&direct.coordinate, 2),
-                &direct_foundation,
-                &direct.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &direct_foundation,
+                interface: &direct.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )

@@ -38,16 +38,15 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
         .imports
         .push(exact_import(&["dependency", "api", "run"]));
     let ordinary = parsed_ordinary(source);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ordinary.cone(),
         vec![
             core.provider(),
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider.coordinate, 51),
-                &provider_foundation,
-                &provider.interface,
-                &aliases,
-            ),
+            scoop_hir::ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &provider.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )
@@ -78,8 +77,6 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
             .sources()
             .next()
             .unwrap()
-            .witness()
-            .dependency()
     );
     assert_eq!(
         output.output().export.imported_dependency_callables.len(),
@@ -114,16 +111,15 @@ fn direct_dependency_function_is_visible_in_the_split_current_package() {
         &["dependency", "api"],
     );
     let ordinary = parsed_ordinary(source);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ordinary.cone(),
         vec![
             core.provider(),
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider.coordinate, 54),
-                &provider_foundation,
-                &provider.interface,
-                &aliases,
-            ),
+            scoop_hir::ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &provider.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )
@@ -161,16 +157,15 @@ fn structural_dependency_candidate_wins_before_the_current_package() {
         .imports
         .push(exact_import(&["dependency", "api", "run"]));
     let ordinary = parsed_ordinary(source);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ordinary.cone(),
         vec![
             core.provider(),
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider.coordinate, 52),
-                &provider_foundation,
-                &provider.interface,
-                &aliases,
-            ),
+            scoop_hir::ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &provider.interface,
+                alias_expansions: &aliases,
+            },
         ],
         Vec::new(),
     )

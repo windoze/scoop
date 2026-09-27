@@ -4,9 +4,7 @@ use scoop_identity::*;
 use scoop_wire::{decode_canonical, encode};
 
 use super::super::*;
-use super::fixture::{
-    ProviderFixture, certificate, coordinate, empty_alias_expansions, import_foundation,
-};
+use super::fixture::{ProviderFixture, coordinate, empty_alias_expansions, import_foundation};
 use crate::{
     HirNativeBoundaryTypeDefinitionError as Error, NativeBoundaryNominalOwner as Owner,
     NativeBoundaryNominalShape as Shape, NativeBoundaryTypeDefinitionRecord as Record,

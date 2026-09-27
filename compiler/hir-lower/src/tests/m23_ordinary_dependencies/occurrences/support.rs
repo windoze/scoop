@@ -35,22 +35,20 @@ pub(super) fn with_output<T>(
     );
     let ordinary = parsed_ordinary_text(source);
     let aliases = empty_alias_expansions();
-    let world = hir::ImportedSemanticWorld::from_validated_closure(
+    let world = hir::ImportedSemanticWorld::from_dependencies(
         ordinary.cone(),
         vec![
             core.provider(),
-            hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider.coordinate, 91),
-                &provider_foundation,
-                &provider.interface,
-                &aliases,
-            ),
-            hir::DirectImportedProviderInput::from_validated(
-                certificate(&facade.coordinate, 92),
-                &facade_foundation,
-                &facade.interface,
-                &aliases,
-            ),
+            hir::ImportedProviderInput {
+                foundation: &provider_foundation,
+                interface: &provider.interface,
+                alias_expansions: &aliases,
+            },
+            hir::ImportedProviderInput {
+                foundation: &facade_foundation,
+                interface: &facade.interface,
+                alias_expansions: &aliases,
+            },
         ],
         vec![],
     )

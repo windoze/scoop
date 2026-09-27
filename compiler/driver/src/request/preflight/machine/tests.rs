@@ -19,14 +19,13 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         .unwrap()
         .expand_alias_closure(&[], &scoop_wire::WirePath::root())
         .unwrap();
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
         ConeIdentity::CORE,
-        vec![scoop_hir::DirectImportedProviderInput::from_validated(
-            provider.certificate(),
-            &imported,
-            &provider.interface,
-            &aliases,
-        )],
+        vec![scoop_hir::ImportedProviderInput {
+            foundation: &imported,
+            interface: &provider.interface,
+            alias_expansions: &aliases,
+        }],
         Vec::new(),
     )
     .unwrap();

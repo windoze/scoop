@@ -67,15 +67,7 @@ fn public_alias_retains_the_exact_imported_core_type_binding() {
         panic!("the Int prelude binding targets a concrete nominal")
     };
     let int_declaration = int_declaration.persistent();
-    let expected_binding = int_binding
-        .sources()
-        .next()
-        .unwrap()
-        .witness()
-        .dependency()
-        .route()
-        .hops()[0]
-        .binding();
+    let expected_binding = int_binding.sources().next().unwrap().route().hops()[0].binding();
     let world = core.world(ordinary.cone());
     let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 

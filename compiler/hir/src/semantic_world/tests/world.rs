@@ -2,7 +2,7 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
 
 use super::super::*;
 use super::fixture::{
-    ProviderFixture, certificate, coordinate, empty_alias_expansions, import_foundation, package,
+    ProviderFixture, coordinate, empty_alias_expansions, import_foundation, package,
 };
 
 #[test]
@@ -10,7 +10,7 @@ fn empty_semantic_world_uses_the_same_contract_for_every_current_cone() {
     let ordinary = coordinate("current").identity().unwrap();
     for current in [ConeIdentity::CORE, ordinary] {
         let world =
-            ImportedSemanticWorld::from_validated_closure(current, Vec::new(), Vec::new()).unwrap();
+            ImportedSemanticWorld::from_dependencies(current, Vec::new(), Vec::new()).unwrap();
         assert_eq!(world.current(), current);
         assert_eq!(world.provider_count(), 0);
         assert_eq!(world.direct_provider_count(), 0);
@@ -28,14 +28,13 @@ fn every_provider_uses_the_same_current_cone_exclusion() {
         let foundation = import_foundation(&mut session, &fixture, 1);
         let aliases = empty_alias_expansions();
         let current = fixture.identity();
-        let result = ImportedSemanticWorld::from_validated_closure(
+        let result = ImportedSemanticWorld::from_dependencies(
             current,
-            vec![DirectImportedProviderInput::from_validated(
-                certificate(&fixture.coordinate, 1),
-                &foundation,
-                &fixture.interface,
-                &aliases,
-            )],
+            vec![ImportedProviderInput {
+                foundation: &foundation,
+                interface: &fixture.interface,
+                alias_expansions: &aliases,
+            }],
             Vec::new(),
         );
         assert!(
@@ -45,7 +44,7 @@ fn every_provider_uses_the_same_current_cone_exclusion() {
 }
 
 #[test]
-fn world_separates_direct_enumeration_from_support_exact_lookup() {
+fn direct_dependencies_control_package_lookup_and_all_dependencies_resolve_declarations() {
     let core = ProviderFixture::with_nominals(
         ConeCoordinate::reserved_core(),
         package(&["core", "extensions"]),
@@ -71,28 +70,25 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
     let aliases = empty_alias_expansions();
     let current = coordinate("current").identity().unwrap();
 
-    let world = ImportedSemanticWorld::from_validated_closure(
+    let world = ImportedSemanticWorld::from_dependencies(
         current,
         vec![
-            DirectImportedProviderInput::from_validated(
-                certificate(&core.coordinate, 1),
-                &core_foundation,
-                &core.interface,
-                &aliases,
-            ),
-            DirectImportedProviderInput::from_validated(
-                certificate(&direct.coordinate, 2),
-                &direct_foundation,
-                &direct.interface,
-                &aliases,
-            ),
+            ImportedProviderInput {
+                foundation: &core_foundation,
+                interface: &core.interface,
+                alias_expansions: &aliases,
+            },
+            ImportedProviderInput {
+                foundation: &direct_foundation,
+                interface: &direct.interface,
+                alias_expansions: &aliases,
+            },
         ],
-        vec![SupportImportedProviderInput::from_validated(
-            certificate(&support.coordinate, 3),
-            &support_foundation,
-            &support.interface,
-            &aliases,
-        )],
+        vec![ImportedProviderInput {
+            foundation: &support_foundation,
+            interface: &support.interface,
+            alias_expansions: &aliases,
+        }],
     )
     .unwrap();
 
@@ -100,11 +96,7 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
     assert_eq!(world.direct_provider_count(), 2);
     assert_eq!(world.support_provider_count(), 1);
     assert_eq!(
-        world
-            .direct_provider(ConeIdentity::CORE)
-            .unwrap()
-            .certificate()
-            .identity(),
+        world.direct_provider(ConeIdentity::CORE).unwrap().id(),
         ConeIdentity::CORE
     );
 
@@ -121,14 +113,7 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
             .nominal_interfaces(),
         core.interface.nominal_interfaces(),
     );
-    assert!(world.support_provider(direct.identity()).is_none());
-    let support_view = world.support_provider(support.identity()).unwrap();
-    assert!(
-        support_view
-            .typed()
-            .nominal(support.outer.unwrap())
-            .is_some()
-    );
+    assert!(world.nominal(support.outer.unwrap()).is_some());
     assert!(world.direct_provider(support.identity()).is_none());
 
     assert!(world.direct_packages().contains(&package(&["demo", "api"])));

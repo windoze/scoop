@@ -5,8 +5,8 @@ use scoop_identity::{
 };
 
 use super::super::{import_callable_id, import_nominal_id, import_property_id};
-use super::{ImportedProvider, ImportedProviderCertificate};
-use crate::semantic_world::DirectDependencyImportSource;
+use super::ImportedProvider;
+use crate::DependencyBindingWitnessV1;
 use crate::{
     CallableSourceInterfaceV1, ExportBindingSourceV1, ExportConstValueV1,
     ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedBindingConflictKey,
@@ -24,7 +24,7 @@ pub struct ImportedPublicBinding<'input> {
     pub(super) target: ImportedTarget,
     pub(super) conflict: ImportedBindingConflictKey,
     pub(super) source: &'input ExportBindingSourceV1,
-    pub(super) lookup_sources: Vec<DirectDependencyImportSource>,
+    pub(super) lookup_sources: Vec<DependencyBindingWitnessV1>,
 }
 
 impl<'input> ImportedPublicBinding<'input> {
@@ -52,24 +52,20 @@ impl<'input> ImportedPublicBinding<'input> {
         self.source
     }
 
-    pub fn lookup_sources(&self) -> &[DirectDependencyImportSource] {
+    pub fn lookup_sources(&self) -> &[DependencyBindingWitnessV1] {
         &self.lookup_sources
     }
 }
 
-/// Exact typed lookup view shared by direct and support providers.
+/// Shared name and typed declaration queries for one dependency.
 #[derive(Clone, Copy)]
-pub struct ImportedTypedProviderView<'world, 'input> {
+pub struct ImportedProviderView<'world, 'input> {
     pub(in crate::semantic_world) provider: &'world ImportedProvider<'input>,
 }
 
-impl<'world, 'input> ImportedTypedProviderView<'world, 'input> {
+impl<'world, 'input> ImportedProviderView<'world, 'input> {
     pub const fn id(self) -> ConeIdentity {
         self.provider.identity()
-    }
-
-    pub const fn certificate(self) -> &'world ImportedProviderCertificate {
-        self.provider.certificate()
     }
 
     pub fn hir_identity<I: PersistentId + 'static>(self, id: I) -> Option<ImportedHirId<I>> {
@@ -196,56 +192,11 @@ impl<'world, 'input> ImportedTypedProviderView<'world, 'input> {
     pub fn constant(self, property: PersistentPropertyId) -> Option<&'input ExportConstValueV1> {
         self.provider.interface().constants().get(property)
     }
-}
-
-/// Enumeration-capable view available only for a direct dependency.
-#[derive(Clone, Copy)]
-pub struct DirectProviderView<'world, 'input> {
-    pub(in crate::semantic_world) provider: &'world ImportedProvider<'input>,
-}
-
-impl<'world, 'input> DirectProviderView<'world, 'input> {
-    pub const fn id(self) -> ConeIdentity {
-        self.provider.identity()
-    }
-
-    pub const fn certificate(self) -> &'world ImportedProviderCertificate {
-        self.provider.certificate()
-    }
-
-    pub const fn typed(self) -> ImportedTypedProviderView<'world, 'input> {
-        ImportedTypedProviderView {
-            provider: self.provider,
-        }
-    }
-
     pub fn nominal_interfaces(self) -> &'input crate::CanonicalNominalInterfacesV1 {
         self.provider.interface().nominal_interfaces()
     }
 
     pub fn public_bindings(self) -> &'world [ImportedPublicBinding<'input>] {
         self.provider.public_bindings()
-    }
-}
-
-/// Typed exact-lookup-only view of a transitive support dependency.
-#[derive(Clone, Copy)]
-pub struct SupportProviderView<'world, 'input> {
-    pub(in crate::semantic_world) provider: &'world ImportedProvider<'input>,
-}
-
-impl<'world, 'input> SupportProviderView<'world, 'input> {
-    pub const fn id(self) -> ConeIdentity {
-        self.provider.identity()
-    }
-
-    pub const fn certificate(self) -> &'world ImportedProviderCertificate {
-        self.provider.certificate()
-    }
-
-    pub const fn typed(self) -> ImportedTypedProviderView<'world, 'input> {
-        ImportedTypedProviderView {
-            provider: self.provider,
-        }
     }
 }

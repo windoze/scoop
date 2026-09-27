@@ -168,11 +168,9 @@ fn append(
     if entry.conflict != *binding.conflict_key() {
         return Err(ReexportPlanBuildError::ConflictKeyMismatch);
     }
-    entry.routes.extend(
-        binding
-            .sources()
-            .map(|source| source.witness().route().clone()),
-    );
+    entry
+        .routes
+        .extend(binding.sources().map(|source| source.route().clone()));
     entry.origins.push(PendingReexportOrigin {
         file,
         syntax: origin.clone(),

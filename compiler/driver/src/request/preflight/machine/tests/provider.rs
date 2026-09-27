@@ -100,14 +100,6 @@ impl Provider {
 }
 
 impl Provider {
-    pub(super) fn certificate(&self) -> scoop_hir::ImportedProviderCertificate {
-        scoop_hir::ImportedProviderCertificate::from_validated(
-            self.coordinate.clone(),
-            self.coordinate.identity().unwrap(),
-            scoop_identity::SemanticOriginFingerprint::new([61; 32], [62; 32], [63; 32]),
-        )
-    }
-
     pub(super) fn import(&self) -> scoop_hir::ImportedHirFoundation {
         let decoded: scoop_hir::DecodedHirFoundation =
             scoop_wire::decode_canonical(&scoop_wire::encode(&self.foundation).unwrap()).unwrap();
@@ -125,7 +117,7 @@ impl Provider {
         let imported = session
             .import(
                 self.coordinate.identity().unwrap(),
-                self.certificate().semantic_fingerprint(),
+                scoop_identity::SemanticOriginFingerprint::new([61; 32], [62; 32], [63; 32]),
                 &identities,
             )
             .unwrap();

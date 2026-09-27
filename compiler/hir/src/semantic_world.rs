@@ -1,8 +1,7 @@
 //! Read-only imported semantic world used by ordinary cross-Cone HIR lookup.
 //!
-//! Provider roles are represented by distinct public view types. In
-//! particular, a support provider has no API that enumerates names or public
-//! bindings; it can only answer exact, kind-specific persistent-id queries.
+//! The direct dependency set determines the source package namespace. All
+//! providers share the same declaration storage and typed lookup paths.
 
 use std::collections::BTreeMap;
 
@@ -31,7 +30,7 @@ pub use witness::*;
 
 use entities::ImportedEntityIndex;
 use namespace::build_direct_package_index;
-use provider::{ImportedProvider, ProviderSeed};
+use provider::ImportedProvider;
 
 /// Immutable semantic projection of one validated dependency closure.
 pub struct ImportedSemanticWorld<'input> {
@@ -39,39 +38,44 @@ pub struct ImportedSemanticWorld<'input> {
     providers: Vec<ImportedProvider<'input>>,
     positions: BTreeMap<ConeIdentity, usize>,
     direct: Vec<ConeIdentity>,
-    support: Vec<ConeIdentity>,
     entities: ImportedEntityIndex,
     direct_packages: DirectPackageIndex,
 }
 
 impl<'input> ImportedSemanticWorld<'input> {
-    /// Builds a world from the role-separated projections of a fully
-    /// validated closure. This constructor is public only for the slib/driver
-    /// boundary; ordinary lowering consumes the resulting read-only world.
-    #[doc(hidden)]
-    pub fn from_validated_closure(
+    /// Builds name and declaration indexes from the artifact reader's complete
+    /// dependency data. Direct inputs contribute to the source package index.
+    pub fn from_dependencies(
         current: ConeIdentity,
-        direct: Vec<DirectImportedProviderInput<'input>>,
-        support: Vec<SupportImportedProviderInput<'input>>,
+        direct: Vec<ImportedProviderInput<'input>>,
+        support: Vec<ImportedProviderInput<'input>>,
     ) -> Result<Self, ImportedSemanticWorldBuildError> {
-        let seeds = ProviderSeed::canonicalize(current, direct, support)?;
-        let mut providers = Vec::with_capacity(seeds.len());
+        let mut providers: Vec<_> = direct
+            .into_iter()
+            .map(|input| ImportedProvider::new(input, true))
+            .chain(
+                support
+                    .into_iter()
+                    .map(|input| ImportedProvider::new(input, false)),
+            )
+            .collect();
+        providers.sort_unstable_by_key(ImportedProvider::identity);
         let mut positions = BTreeMap::new();
         let mut direct_ids = Vec::new();
-        let mut support_ids = Vec::new();
-
-        for (index, seed) in seeds.into_iter().enumerate() {
-            let identity = seed.certificate().identity();
-            positions.insert(identity, index);
-            match seed.role() {
-                provider::ProviderSeedRole::Direct => direct_ids.push(identity),
-                provider::ProviderSeedRole::Support => support_ids.push(identity),
+        for (index, provider) in providers.iter().enumerate() {
+            let identity = provider.identity();
+            if identity == current {
+                return Err(ImportedSemanticWorldBuildError::CurrentUsedAsProvider(
+                    current,
+                ));
             }
-            providers.push(ImportedProvider::new(seed));
+            if positions.insert(identity, index).is_some() {
+                return Err(ImportedSemanticWorldBuildError::DuplicateProvider(identity));
+            }
+            if provider.is_direct() {
+                direct_ids.push(identity);
+            }
         }
-
-        direct_ids.sort_unstable();
-        support_ids.sort_unstable();
         let entities = ImportedEntityIndex::build(&providers)?;
         for provider in &mut providers {
             provider.build_public_bindings(&entities)?;
@@ -83,7 +87,6 @@ impl<'input> ImportedSemanticWorld<'input> {
             providers,
             positions,
             direct: direct_ids,
-            support: support_ids,
             entities,
             direct_packages,
         })
@@ -102,41 +105,23 @@ impl<'input> ImportedSemanticWorld<'input> {
     }
 
     pub fn support_provider_count(&self) -> usize {
-        self.support.len()
+        self.providers.len() - self.direct.len()
     }
 
     pub fn direct_provider(
         &self,
         identity: ConeIdentity,
-    ) -> Option<DirectProviderView<'_, 'input>> {
+    ) -> Option<ImportedProviderView<'_, 'input>> {
         let provider = self.provider(identity)?;
         provider
             .is_direct()
-            .then_some(DirectProviderView { provider })
-    }
-
-    pub fn support_provider(
-        &self,
-        identity: ConeIdentity,
-    ) -> Option<SupportProviderView<'_, 'input>> {
-        let provider = self.provider(identity)?;
-        provider
-            .is_support()
-            .then_some(SupportProviderView { provider })
+            .then_some(ImportedProviderView { provider })
     }
 
     pub fn direct_providers(
         &self,
-    ) -> impl ExactSizeIterator<Item = DirectProviderView<'_, 'input>> {
-        self.direct.iter().map(|id| DirectProviderView {
-            provider: &self.providers[self.positions[id]],
-        })
-    }
-
-    pub fn support_providers(
-        &self,
-    ) -> impl ExactSizeIterator<Item = SupportProviderView<'_, 'input>> {
-        self.support.iter().map(|id| SupportProviderView {
+    ) -> impl ExactSizeIterator<Item = ImportedProviderView<'_, 'input>> {
+        self.direct.iter().map(|id| ImportedProviderView {
             provider: &self.providers[self.positions[id]],
         })
     }
@@ -150,7 +135,7 @@ impl<'input> ImportedSemanticWorld<'input> {
             .entities
             .nominal_provider(declaration)
             .and_then(|id| self.provider(id))?;
-        ImportedTypedProviderView { provider }.nominal(declaration)
+        ImportedProviderView { provider }.nominal(declaration)
     }
 
     pub fn callable(
@@ -161,7 +146,7 @@ impl<'input> ImportedSemanticWorld<'input> {
             .entities
             .callable_provider(declaration)
             .and_then(|id| self.provider(id))?;
-        ImportedTypedProviderView { provider }.callable(declaration)
+        ImportedProviderView { provider }.callable(declaration)
     }
 
     pub fn property(
@@ -172,7 +157,7 @@ impl<'input> ImportedSemanticWorld<'input> {
             .entities
             .property_provider(declaration)
             .and_then(|id| self.provider(id))?;
-        ImportedTypedProviderView { provider }.property(declaration)
+        ImportedProviderView { provider }.property(declaration)
     }
 
     pub fn type_alias(
@@ -183,7 +168,7 @@ impl<'input> ImportedSemanticWorld<'input> {
             .entities
             .alias_provider(alias)
             .and_then(|id| self.provider(id))?;
-        ImportedTypedProviderView { provider }.type_alias(alias)
+        ImportedProviderView { provider }.type_alias(alias)
     }
 
     pub fn object_value(
@@ -194,7 +179,7 @@ impl<'input> ImportedSemanticWorld<'input> {
             .entities
             .object_value_provider(value)
             .and_then(|id| self.provider(id))?;
-        ImportedTypedProviderView { provider }.object_value(value)
+        ImportedProviderView { provider }.object_value(value)
     }
 
     pub fn enum_variant(
@@ -205,7 +190,7 @@ impl<'input> ImportedSemanticWorld<'input> {
             .entities
             .enum_variant_provider(variant)
             .and_then(|id| self.provider(id))?;
-        ImportedTypedProviderView { provider }.enum_variant(variant)
+        ImportedProviderView { provider }.enum_variant(variant)
     }
 
     fn provider(&self, identity: ConeIdentity) -> Option<&ImportedProvider<'input>> {

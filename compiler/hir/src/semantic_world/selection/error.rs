@@ -143,22 +143,6 @@ pub enum ImportedDependencyCandidateError {
     MissingTypeAlias(scoop_identity::PersistentTypeAliasId),
     MissingPropertySetter(PropertyOwner),
     RestrictedPropertySetter(PropertyOwner),
-    TerminalProviderMismatch {
-        declaration: CallableTemplateOrigin,
-        expected: ConeIdentity,
-    },
-    ConstantTerminalProviderMismatch {
-        property: PersistentPropertyId,
-        expected: ConeIdentity,
-    },
-    PropertyTerminalProviderMismatch {
-        property: PropertyOwner,
-        expected: ConeIdentity,
-    },
-    TypeAliasTerminalProviderMismatch {
-        alias: scoop_identity::PersistentTypeAliasId,
-        expected: ConeIdentity,
-    },
 }
 
 impl fmt::Display for ImportedDependencyCandidateError {
@@ -202,25 +186,6 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::RestrictedPropertySetter(property) => write!(
                 formatter,
                 "setter of imported property {property:?} is not public"
-            ),
-            Self::TerminalProviderMismatch {
-                declaration,
-                expected,
-            } => write!(
-                formatter,
-                "imported callable {declaration:?} does not terminate at provider {expected}"
-            ),
-            Self::ConstantTerminalProviderMismatch { property, expected } => write!(
-                formatter,
-                "imported constant {property:?} does not terminate at provider {expected}"
-            ),
-            Self::PropertyTerminalProviderMismatch { property, expected } => write!(
-                formatter,
-                "imported property {property:?} does not terminate at provider {expected}"
-            ),
-            Self::TypeAliasTerminalProviderMismatch { alias, expected } => write!(
-                formatter,
-                "imported type alias {alias:?} does not terminate at provider {expected}"
             ),
         }
     }

@@ -13,12 +13,9 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
         scoop_manifest::load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
     let sources = discover_manifest_sources(&manifest).unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
-        parsed.cone(),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
+    let world =
+        scoop_hir::ImportedSemanticWorld::from_dependencies(parsed.cone(), Vec::new(), Vec::new())
+            .unwrap();
     let hir = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
         scoop_identity::RequestedConeKind::Library,
         &parsed,

@@ -116,13 +116,13 @@ fn core_type_witnesses(
             witnesses.push(scoop_hir::ExternalHirBindingWitnessUse::new(
                 target,
                 scoop_hir::ExternalHirBindingWitnessRole::DefaultDependency,
-                source.witness().dependency().clone(),
+                source.clone(),
             ));
         }
         witnesses.push(scoop_hir::ExternalHirBindingWitnessUse::new(
             target,
             scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
-            source.witness().dependency().clone(),
+            source.clone(),
         ));
     }
     witnesses

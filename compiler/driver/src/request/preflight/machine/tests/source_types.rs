@@ -4,12 +4,9 @@ use scoop_identity::{DeclarationName, ExactTypeKey, PersistentExactTypeId, Sourc
 #[test]
 fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
     let sources = sources::core_sources_with(&[]);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
-        sources.cone(),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
+    let world =
+        scoop_hir::ImportedSemanticWorld::from_dependencies(sources.cone(), Vec::new(), Vec::new())
+            .unwrap();
     let hir = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
         scoop_identity::RequestedConeKind::Library,
         &sources,
