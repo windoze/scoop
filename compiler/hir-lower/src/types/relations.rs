@@ -290,6 +290,10 @@ impl Lowerer {
                     .clone();
                 for bound in declaration.nominal_bounds_in_source_order() {
                     match bound {
+                        // This query returns applications of a current-Cone interface;
+                        // a dependency bound cannot mention that later declaration.
+                        hir::NominalBoundRef::ImportedClass(_)
+                        | hir::NominalBoundRef::ImportedInterface(_) => continue,
                         hir::NominalBoundRef::Class(bound) => {
                             roots.extend(self.class_interfaces_for_application(bound.application));
                         }

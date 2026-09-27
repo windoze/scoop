@@ -27,6 +27,7 @@ pub(super) struct CallableCatalogEntry {
     pub(super) initialization_unit: Option<scoop_identity::PersistentInitializationUnitId>,
     pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
+    pub(super) callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
 }
 
 #[derive(Clone, Debug)]
@@ -144,6 +145,22 @@ impl ImportedSemanticWorld<'_> {
                         .map(|template| (template.key(), template.clone()))
                         .collect(),
                     definition_sources: Arc::clone(&definition_sources),
+                    callable_body: match declaration {
+                        CallableTemplateOrigin::Function(id) => {
+                            Some(crate::DefaultCallableDeclarationV1::Function(id))
+                        }
+                        CallableTemplateOrigin::GenericFunction(id) => {
+                            Some(crate::DefaultCallableDeclarationV1::GenericFunction(id))
+                        }
+                        CallableTemplateOrigin::Accessor(id) => {
+                            Some(crate::DefaultCallableDeclarationV1::PropertyAccessor(id))
+                        }
+                        CallableTemplateOrigin::Constructor(_)
+                        | CallableTemplateOrigin::VariantConstructor(_) => None,
+                    }
+                    .and_then(|owner| provider.interface().generic_callable_bodies().get(owner))
+                    .cloned()
+                    .map(Arc::new),
                 };
                 if callables.insert(declaration, entry).is_some() {
                     return Err(

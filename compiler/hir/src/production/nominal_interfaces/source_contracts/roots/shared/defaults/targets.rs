@@ -46,6 +46,7 @@ impl SourceRoots {
             // Imported calls keep the actual provider; attached lexical bodies
             // keep their own generated identity and reference closure.
             ExportDefaultCallableTarget::ImportedDependency(_)
+            | ExportDefaultCallableTarget::ImportedGeneric(_)
             | ExportDefaultCallableTarget::LocalFunction(_)
             | ExportDefaultCallableTarget::Lambda(_)
             | ExportDefaultCallableTarget::AnonymousFunction(_) => Ok(()),

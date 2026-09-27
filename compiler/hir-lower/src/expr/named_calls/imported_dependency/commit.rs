@@ -23,6 +23,7 @@ impl Lowerer {
         kind: MemberCallKind,
     ) -> Option<hir::Expr> {
         let ImportedDependencyCallProbe {
+            implementation,
             state,
             candidate,
             receiver,
@@ -211,6 +212,35 @@ impl Lowerer {
         args.extend(receiver);
         args.extend(parameter_values);
 
+        if let super::ImportedCallImplementation::Generic {
+            template,
+            arguments,
+        } = implementation
+        {
+            let binding = match candidate {
+                ImportedCallableCandidate::Binding(candidate) => {
+                    Some(std::sync::Arc::new(candidate.binding().clone()))
+                }
+                ImportedCallableCandidate::Declaration(_) => None,
+            };
+            let application =
+                self.imported_generic_applications
+                    .alloc(hir::ImportedGenericCallableApplication {
+                        template,
+                        arguments,
+                    });
+            return Some(hir::Expr {
+                kind: hir::ExprKind::ImportedGenericCall {
+                    application,
+                    binding,
+                    args,
+                    receiver: source_receiver,
+                },
+                ty: result_type,
+                span: call_span,
+                origin: self.expression_origin(call_span),
+            });
+        }
         let selected = match candidate {
             ImportedCallableCandidate::Binding(candidate) => self
                 .select_imported_dependency_callable_use(*candidate)

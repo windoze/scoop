@@ -363,6 +363,22 @@ impl Lowerer {
                 }
             }
 
+            ExprKind::ImportedGenericCall {
+                application, args, ..
+            } => {
+                let template = &self.imported_generic_templates
+                    [self.imported_generic_applications[*application].template];
+                if template.effects.gc_effect() != scoop_identity::GcEffect::NoGc {
+                    out.push((
+                        expr.span,
+                        "calling a managed dependency function is not allowed in `@NoGC` code"
+                            .to_string(),
+                    ));
+                }
+                for arg in args {
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
+                }
+            }
             ExprKind::ImportedDependencyCall { callee, args, .. } => {
                 let reference = self.imported_dependency_callables[*callee].reference();
                 let selected = self

@@ -199,7 +199,7 @@ impl Lowerer {
         let mut nominal_additions = Vec::new();
         for call_site in call_sites {
             let requirements = self
-                .function_gc_free_pointee_requirements(call_site.callee)
+                .callable_gc_free_pointee_requirements(call_site.callee)
                 .to_vec();
             for requirement in requirements {
                 let argument = call_site.argument(requirement.type_param);

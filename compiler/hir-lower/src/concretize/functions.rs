@@ -90,24 +90,38 @@ impl Concretizer<'_> {
         }
         let source = key.source();
         let arguments = self.function_key_arguments(&key);
-        assert_eq!(
-            self.source.functions[source].type_param_count(),
-            arguments.len()
-        );
+        let (parameter_count, emittable) = match source {
+            FunctionSource::Local(source) => (
+                self.source.functions[source].type_param_count(),
+                self.is_emittable_source_function(source),
+            ),
+            FunctionSource::Imported(source) => (
+                self.source.imported_generic_templates[source]
+                    .type_parameters
+                    .len(),
+                true,
+            ),
+        };
+        assert_eq!(parameter_count, arguments.len());
         let raw = self.function_slots.len() as u32;
         self.function_slots.push(None);
         self.function_keys.push(key.clone());
         let id = concrete::FunctionId::from_raw(raw.into());
         self.function_by_key.insert(key.clone(), id);
         self.pending_functions.push_back((key, id));
-        if self.is_emittable_source_function(source) {
+        if emittable {
             self.emitted_functions.push(id);
         }
         id
     }
 
     pub(super) fn lower_function(&mut self, key: &FunctionKey) -> PendingFunction {
-        let source_id = key.source();
+        let source_id = match key.source() {
+            FunctionSource::Local(source) => source,
+            FunctionSource::Imported(source) => {
+                return self.lower_imported_function(source, &self.function_key_arguments(key));
+            }
+        };
         let source = self.source.functions[source_id].clone();
         let arguments = self.function_key_arguments(key);
         let (kind, local_map) = match &source.kind {
@@ -202,7 +216,9 @@ impl Concretizer<'_> {
 
     pub(super) fn function_key_arguments(&self, key: &FunctionKey) -> Vec<concrete::TypeId> {
         match key {
-            FunctionKey::Free { arguments, .. } => arguments.clone(),
+            FunctionKey::Free { arguments, .. } | FunctionKey::Imported { arguments, .. } => {
+                arguments.clone()
+            }
             FunctionKey::Method {
                 owner,
                 specialization,

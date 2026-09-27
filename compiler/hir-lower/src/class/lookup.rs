@@ -183,6 +183,10 @@ impl Lowerer {
                     .enumerate()
                 {
                     match bound {
+                        // Imported member candidates are collected by the dependency
+                        // member catalog, with provider-owned dispatch slots.
+                        hir::NominalBoundRef::ImportedClass(_)
+                        | hir::NominalBoundRef::ImportedInterface(_) => continue,
                         hir::NominalBoundRef::Class(bound) => {
                             self.collect_class_method_candidates(
                                 bound.application,

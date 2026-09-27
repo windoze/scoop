@@ -428,6 +428,25 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
+        ExprKind::ImportedGenericCall {
+            application,
+            args,
+            receiver,
+            ..
+        } => {
+            out.extend(
+                lowerer.imported_generic_applications[*application]
+                    .arguments
+                    .iter()
+                    .copied(),
+            );
+            if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
+                out.push(*static_type);
+            }
+            for argument in args {
+                collect_expr_types(lowerer, argument, out);
+            }
+        }
         ExprKind::ImportedDependencyCall { args, .. } => {
             for argument in args {
                 collect_expr_types(lowerer, argument, out);

@@ -170,7 +170,7 @@ impl Lowerer {
             return Err(Box::new(state));
         }
         let expected_type_arguments = interface.type_parameters().binders().len();
-        if call.type_args.len() != expected_type_arguments {
+        if !call.type_args.is_empty() && call.type_args.len() != expected_type_arguments {
             state.error(
                 name.span,
                 format!(
@@ -241,6 +241,21 @@ impl Lowerer {
             receiver_source,
             argument_map.has_vararg(),
         )?;
+        if candidate.callable_body().is_some()
+            && matches!(
+                candidate.interface().owner(),
+                hir::PublicDeclarationOwnerV1::TopLevel | hir::PublicDeclarationOwnerV1::Extension
+            )
+        {
+            return state.probe_imported_generic(
+                candidate,
+                name,
+                call,
+                expected,
+                receiver,
+                argument_map,
+            );
+        }
         if candidate.executable() || matches!(candidate, ImportedCallableCandidate::Declaration(_))
         {
             for signature in interface
@@ -293,7 +308,6 @@ impl Lowerer {
         let mut source_args = Vec::with_capacity(call.arguments.len());
         let mut argument_sinks = Vec::with_capacity(call.arguments.len());
         let mut integer_arguments = Vec::with_capacity(call.arguments.len());
-        let mut source_parameter_types = Vec::with_capacity(call.arguments.len());
         for (index, signature) in argument_map.source_parameters().iter().enumerate() {
             let parameter = state.imported_signature_type(signature).ok();
             let mut argument_sink = Vec::new();
@@ -320,22 +334,12 @@ impl Lowerer {
                 hir::Type::Integer(kind) => Some(kind),
                 _ => None,
             });
-            source_parameter_types.push(parameter.unwrap_or(state.any));
             source_args.push(match parameter {
                 Some(parameter) => state.adapt_to(value, parameter),
                 None => value,
             });
             argument_sinks.push(argument_sink);
         }
-        let mut forwarding_parameters = Vec::with_capacity(
-            source_parameter_types.len() + usize::from(interface.receiver().is_some()),
-        );
-        if let Some(receiver) = interface.receiver() {
-            forwarding_parameters
-                .push(state.imported_signature_type(receiver).unwrap_or(state.any));
-        }
-        forwarding_parameters.extend(source_parameter_types);
-
         if !candidate.executable()
             || (matches!(
                 receiver,
@@ -362,6 +366,7 @@ impl Lowerer {
         };
 
         Ok(ImportedDependencyCallProbe {
+            implementation: super::ImportedCallImplementation::Native,
             declaration_file: state.current_file,
             declaration_span: name.span,
             state: Box::new(state),
@@ -372,7 +377,6 @@ impl Lowerer {
             argument_map,
             default_plan,
             parameter_types,
-            forwarding_parameters,
             result_type,
             integer_arguments,
             call_span: call.span,

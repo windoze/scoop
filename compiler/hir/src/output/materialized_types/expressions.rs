@@ -8,8 +8,9 @@ impl Collector<'_> {
         for (_, ty) in expression.type_uses() {
             self.add(ty)?;
         }
-        if let ExprKind::Call { receiver, .. } | ExprKind::ImportedDependencyCall { receiver, .. } =
-            &expression.kind
+        if let ExprKind::Call { receiver, .. }
+        | ExprKind::ImportedGenericCall { receiver, .. }
+        | ExprKind::ImportedDependencyCall { receiver, .. } = &expression.kind
             && let crate::SourceCallReceiver::Receiver { static_type } = receiver
         {
             self.add(*static_type)?;

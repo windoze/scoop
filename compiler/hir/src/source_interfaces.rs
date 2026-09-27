@@ -403,6 +403,7 @@ pub enum ExportDefaultCallableTarget {
     Callable(Callable),
     /// An actual imported function or accessor declaration.
     ImportedDependency(ImportedDependencyCallableUseId),
+    ImportedGeneric(ImportedGenericCallableApplicationId),
     Bound(BoundCallableRefId),
     DerivedEquality(DerivedEqualityApplicationId),
     LocalFunction(LocalFunctionId),

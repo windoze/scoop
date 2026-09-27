@@ -138,7 +138,8 @@ impl Lowerer {
                 .map(|local| hir::Pattern::Binding { local }),
             hir::DefaultPatternViewV1::Wildcard => Ok(hir::Pattern::Wildcard),
             hir::DefaultPatternViewV1::Variant { variant, fields } => {
-                let owner = self.materialize_imported_default_type(variant.owner_type())?;
+                let owner =
+                    self.materialize_imported_default_type(variant.owner_type(), context)?;
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -203,17 +204,17 @@ impl Lowerer {
             ),
             hir::DefaultWhenFallbackViewV1::IrrefutableArm { subject_type } => {
                 hir::WhenFallback::Impossible(hir::ExhaustivenessProof::IrrefutableArm {
-                    subject_ty: self.materialize_imported_default_type(subject_type)?,
+                    subject_ty: self.materialize_imported_default_type(subject_type, context)?,
                 })
             }
             hir::DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => {
                 hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
-                    subject_ty: self.materialize_imported_default_type(subject_type)?,
+                    subject_ty: self.materialize_imported_default_type(subject_type, context)?,
                 })
             }
             hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { subject_type, .. } => {
                 hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
-                    subject_ty: self.materialize_imported_default_type(subject_type)?,
+                    subject_ty: self.materialize_imported_default_type(subject_type, context)?,
                 })
             }
         };
@@ -227,8 +228,9 @@ impl Lowerer {
     fn materialize_imported_default_type(
         &mut self,
         source: &scoop_identity::SignatureTypeKey,
+        context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::TypeId, ImportedDefaultMaterializationError> {
-        self.imported_default_type(source)
+        self.imported_default_type_with_bindings(source, context.bindings)
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))
     }
 

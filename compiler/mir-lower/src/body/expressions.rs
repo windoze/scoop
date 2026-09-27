@@ -670,6 +670,9 @@ impl BodyLowerer<'_> {
                 return self.lower_call(*callee, args, expr.ty);
             }
 
+            hir::ExprKind::ImportedGenericCall { callee, args, .. } => {
+                return self.lower_call(hir::Callable::Function(*callee), args, expr.ty);
+            }
             hir::ExprKind::ImportedDependencyCall { callee, args, .. } => {
                 return self.lower_imported_call(*callee, args, expr.ty);
             }

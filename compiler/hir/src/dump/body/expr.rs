@@ -606,6 +606,25 @@ pub(super) fn dump_expr(
             dump_expr(module, locals, operand, indent + 1, out);
         }
 
+        ExprKind::ImportedGenericCall {
+            application, args, ..
+        } => {
+            let application = &module.imported_generic_applications[*application];
+            let template = &module.imported_generic_templates[application.template];
+            let arguments = application
+                .arguments
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!(
+                "{pad}ImportedGenericCall {}<{arguments}> : {ty}\n",
+                template.name
+            ));
+            for argument in args {
+                dump_expr(module, locals, argument, indent + 1, out);
+            }
+        }
         ExprKind::ImportedDependencyCall { callee, args, .. } => {
             let dispatch = match module.imported_dependency_callables[*callee].dispatch() {
                 ImportedDependencyDispatch::Direct => String::new(),

@@ -229,6 +229,25 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
+            ExprKind::ImportedGenericCall {
+                application, args, ..
+            } => {
+                let application = &self.imported_generic_applications[*application];
+                let template = &self.imported_generic_templates[application.template];
+                out.push(GenericCall {
+                    callee: GenericCallable::Imported(application.template),
+                    arguments: template
+                        .type_parameters
+                        .iter()
+                        .zip(application.arguments.iter())
+                        .map(|(p, a)| (p.id, *a))
+                        .collect(),
+                    span: expr.span,
+                });
+                for argument in args {
+                    self.collect_generic_calls_in_expr(argument, out);
+                }
+            }
             ExprKind::ImportedDependencyCall { args, .. } => {
                 for arg in args {
                     self.collect_generic_calls_in_expr(arg, out);

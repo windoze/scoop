@@ -4,6 +4,7 @@ mod interfaces;
 mod intrinsics;
 mod members;
 mod nominals;
+mod pointers;
 
 use scoop_ast::Span;
 use scoop_hir as hir;
@@ -18,6 +19,8 @@ pub(crate) enum ImportedSignatureTypeError {
     Generic,
     Structural,
 }
+
+pub(crate) type ImportedTypeBindings = std::collections::BTreeMap<SignatureTypeKey, hir::TypeId>;
 
 impl Lowerer {
     /// Retains the shared public route for a built-in spelling in an alias.
@@ -97,6 +100,17 @@ impl Lowerer {
         &mut self,
         signature: &SignatureTypeKey,
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
+        self.imported_signature_type_with_bindings(signature, &ImportedTypeBindings::new())
+    }
+
+    pub(crate) fn imported_signature_type_with_bindings(
+        &mut self,
+        signature: &SignatureTypeKey,
+        bindings: &ImportedTypeBindings,
+    ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
+        if let Some(ty) = bindings.get(signature) {
+            return Ok(*ty);
+        }
         match signature {
             SignatureTypeKey::Nominal(identity) => {
                 if *identity
@@ -137,7 +151,7 @@ impl Lowerer {
                 let elements = elements
                     .as_slice()
                     .iter()
-                    .map(|element| self.imported_signature_type(element))
+                    .map(|element| self.imported_signature_type_with_bindings(element, bindings))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(self.intern_type(hir::Type::Tuple(elements)))
             }
@@ -148,9 +162,11 @@ impl Lowerer {
             } => {
                 let parameters = parameters
                     .iter()
-                    .map(|parameter| self.imported_signature_type(parameter))
+                    .map(|parameter| {
+                        self.imported_signature_type_with_bindings(parameter, bindings)
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
-                let result = self.imported_signature_type(result)?;
+                let result = self.imported_signature_type_with_bindings(result, bindings)?;
                 Ok(self.intern_function_type(
                     *effect == scoop_identity::Effect::Suspend,
                     parameters,
@@ -158,7 +174,7 @@ impl Lowerer {
                 ))
             }
             SignatureTypeKey::RawPointer(pointee) => {
-                let pointee = self.imported_signature_type(pointee)?;
+                let pointee = self.imported_signature_type_with_bindings(pointee, bindings)?;
                 Ok(self.intern_type(hir::Type::Ptr(pointee)))
             }
             SignatureTypeKey::NativeFunctionPointer {
@@ -166,9 +182,11 @@ impl Lowerer {
             } => {
                 let parameters = parameters
                     .iter()
-                    .map(|parameter| self.imported_signature_type(parameter))
+                    .map(|parameter| {
+                        self.imported_signature_type_with_bindings(parameter, bindings)
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
-                let result = self.imported_signature_type(result)?;
+                let result = self.imported_signature_type_with_bindings(result, bindings)?;
                 let signature = self.intern_function_type(false, parameters, result);
                 let hir::Type::Function(function) = self.types[signature] else {
                     unreachable!("interned function signatures have function types")

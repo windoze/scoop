@@ -500,6 +500,7 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         self.lower_property_accessor_bodies();
+        self.complete_imported_generic_bodies();
 
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.

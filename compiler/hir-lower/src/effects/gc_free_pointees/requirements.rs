@@ -7,6 +7,24 @@ use crate::Lowerer;
 use super::{PointeeApplicationOccurrence, RequirementContext};
 
 impl Lowerer {
+    pub(super) fn callable_gc_free_pointee_requirements(
+        &self,
+        callable: super::super::no_gc_generics::GenericCallable,
+    ) -> &[hir::RequiresGcFreePointee] {
+        use super::super::no_gc_generics::GenericCallable;
+        match callable {
+            GenericCallable::Function(id) => self.function_gc_free_pointee_requirements(id),
+            GenericCallable::Imported(id) => {
+                &self.imported_generic_templates[id].gc_free_pointee_requirements
+            }
+            GenericCallable::ClassConstructor(id) => {
+                &self.classes[self.class_constructors[id].owner].gc_free_pointee_requirements
+            }
+            GenericCallable::StructConstructor(id) => {
+                &self.structs[self.struct_constructors[id].owner].gc_free_pointee_requirements
+            }
+        }
+    }
     pub(super) fn pointee_parameters_in_types(
         &self,
         types: &[hir::TypeId],

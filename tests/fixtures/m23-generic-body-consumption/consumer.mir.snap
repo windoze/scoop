@@ -1,0 +1,326 @@
+Module
+  struct LocalValue (number: Int)
+  fun explicitAndInferred @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun consumerLocalValue @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: LocalValue = @fn20 direct
+        Type Int
+        Local $parameter.number
+      val $dependency.parameter.value: LocalValue
+        Type LocalValue
+        Local $dependency.argument.0
+      call $call.1: LocalValue = @fn10 direct
+        Type LocalValue
+        Local $dependency.parameter.value
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalValue
+          Local $call.1
+  fun useRelay @fn2() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn11 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun extension @fn3() -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=45 bits=0x0000002d
+      call $call.1: Int = @fn12 direct
+        Type Int
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun defaults @fn4() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=46 bits=0x0000002e
+      val $dependency.parameter.first: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.default.local.1: Int
+        Type Int
+        Local $dependency.parameter.first
+      val $dependency.default.local.2: Int
+        Type Int
+        Local $dependency.default.local.1
+      call $dependency.parameter.second: Int = @fn9 direct
+        Type Int
+        Local $dependency.default.local.2
+      call $call.1: Int = @fn13 direct
+        Type Int
+        Local $dependency.parameter.first
+        Type Int
+        Local $dependency.parameter.second
+      return
+        Type Int
+        Local $call.1
+  fun consumerLocalDefault @fn5() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=47 bits=0x0000002f
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: LocalValue = @fn20 direct
+        Type Int
+        Local $parameter.number
+      val $dependency.parameter.first: LocalValue
+        Type LocalValue
+        Local $dependency.argument.0
+      val $dependency.default.local.1: LocalValue
+        Type LocalValue
+        Local $dependency.parameter.first
+      val $dependency.default.local.2: LocalValue
+        Type LocalValue
+        Local $dependency.default.local.1
+      call $dependency.parameter.second: LocalValue = @fn10 direct
+        Type LocalValue
+        Local $dependency.default.local.2
+      call $call.1: LocalValue = @fn14 direct
+        Type LocalValue
+        Local $dependency.parameter.first
+        Type LocalValue
+        Local $dependency.parameter.second
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalValue
+          Local $call.1
+  fun nativeCall @fn6() -> Int <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=48 bits=0x00000030
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun recursiveCall @fn7() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=49 bits=0x00000031
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.again: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $call.1: Int = @fn16 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Boolean
+        Local $dependency.parameter.again
+      return
+        Type Int
+        Local $call.1
+  fun pointerRoundtrip @fn8(pointer: Ptr<Int>) -> Ptr<Int>
+    bb0 entry
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.parameter.pointer: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      call $call.1: Ptr<Int> = @fn17 direct
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+      return
+        Type Ptr<Int>
+        Local $call.1
+  fun identity @fn9(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun identity @fn10(value: LocalValue) -> LocalValue
+    bb0 entry
+      return
+        Type LocalValue
+        Local value
+  fun relay @fn11(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.1: Int = @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.first: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: Int = @fn18 direct
+        Type Int
+        Local $dependency.parameter.first
+        Type Int
+        Local $dependency.parameter.second
+      return
+        Type Int
+        Local $call.1
+  fun $extension.echo @fn12(this: Int) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local this
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      call $call.1: Int = @fn9 direct
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun defaulted @fn13(first: Int, second: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local second
+  fun defaulted @fn14(first: LocalValue, second: LocalValue) -> LocalValue
+    bb0 entry
+      return
+        Type LocalValue
+        Local second
+  fun nativeIdentity @fn15(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun recursive @fn16(value: Int, again: Boolean) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local again
+    bb1 if.then.1
+      val $dependency.local.2: Int
+        Type Int
+        Local value
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.5: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      call $call.1: Int = @fn16 direct
+        Type Int
+        Local $dependency.local.4
+        Type Boolean
+        Local $dependency.local.5
+      return
+        Type Int
+        Local $call.1
+    bb2 if.merge.2
+      return
+        Type Int
+        Local value
+  fun pointerIdentity @fn17(pointer: Ptr<Int>) -> Ptr<Int>
+    bb0 entry
+      return
+        Type Ptr<Int>
+        Local pointer
+  fun choose @fn18(first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local first
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call $call.1: Int = @fn19 direct
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        Local $call.1
+  fun helper @fn19(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      call $call.1: Int = @fn9 direct
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun ctor.LocalValue.$c0 @fn20(number: Int) -> LocalValue <no-gc>
+    bb0 entry
+      return
+        Type LocalValue
+        StructInit LocalValue
+          Type Int
+          Local number
+  instance mi0 function=@fn9 <- identity
+  instance mi1 function=@fn10 <- identity
+  instance mi2 function=@fn11 <- relay
+  instance mi3 function=@fn12 <- $extension.echo
+  instance mi4 function=@fn13 <- defaulted
+  instance mi5 function=@fn14 <- defaulted
+  instance mi6 function=@fn15 <- nativeIdentity
+  instance mi7 function=@fn16 <- recursive
+  instance mi8 function=@fn17 <- pointerIdentity
+  instance mi9 function=@fn18 <- choose
+  instance mi10 function=@fn19 <- helper
+  output library

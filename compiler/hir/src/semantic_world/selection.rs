@@ -104,6 +104,7 @@ impl ImportedDependencySelectionPlan {
             capability: entry.capability.clone(),
             default_templates: entry.default_templates.clone(),
             definition_sources: Arc::clone(&entry.definition_sources),
+            callable_body: entry.callable_body.clone(),
         })
     }
 

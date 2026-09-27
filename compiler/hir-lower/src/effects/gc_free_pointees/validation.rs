@@ -40,7 +40,7 @@ impl Lowerer {
     ) {
         for call_site in call_sites {
             let requirements = self
-                .function_gc_free_pointee_requirements(call_site.callee)
+                .callable_gc_free_pointee_requirements(call_site.callee)
                 .to_vec();
             for requirement in requirements {
                 let argument = call_site.argument(requirement.type_param);
@@ -51,14 +51,13 @@ impl Lowerer {
                     continue;
                 }
                 self.current_file = call_site.file;
-                let callee = &self.functions[call_site.callee];
                 self.error(
                     call_site.span,
                     format!(
                         "generic function `{}` requires type argument {} for `{}` to be a GC-free `Ptr` pointee",
-                        callee.name,
+                        self.effect_callable_name(call_site.callee),
                         self.type_name(argument),
-                        callee.type_param(requirement.type_param).name
+                        self.effect_callable_parameter(call_site.callee, requirement.type_param).name
                     ),
                 );
             }

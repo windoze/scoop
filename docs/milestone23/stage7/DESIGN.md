@@ -102,6 +102,8 @@ ExportGenericBody
 
 bound member 节点保存实际 class/interface bound 与原 slot/callable identity。实例化后只完成规定的 exact dispatch 选择，不用实际类型额外出现的方法重新参与 overload resolution。
 
+消费方把实际需要的外来 callable body 转换为独立的 imported template 数据，保留原 typed declaration、定义位置和完整正文；该转换复用默认值的节点替换。imported template、调用的符号化 application 与最终 concrete function 使用各自的 typed ID，不分配当前 Cone 的 `FunctionId` 或复制源声明身份。具体化队列同时处理本地与 imported 请求，最终 callable materialization 仍引用定义方声明及完整 exact arguments。
+
 constructor、field、variant、property accessor、local value、loop target 和 callback registration 分别使用其原 typed ID。loop/cleanup、`try`/`finally`、enum pattern、callable reference、receiver adaptation 与 source location 都沿用既有 HIR 语义。
 
 lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的类型表，正文读取以该表中的位置引用闭包输入；该位置是当前正文内的 ABI 索引，不是新的全局实体身份。创建嵌套闭包时，捕获来源明确区分当前局部值与外层闭包输入。局部具名函数按现有 ABI 将捕获值作为前置参数，正文投影直接引用这些真实参数。不得将 request-local `BindingId` 写入产物，也不得把闭包输入误当作当前函数尚未定义的局部值。

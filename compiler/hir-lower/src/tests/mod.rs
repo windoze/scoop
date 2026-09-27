@@ -64,6 +64,7 @@ mod m23_exact_types;
 mod m23_explicit_receiver_calls;
 mod m23_expression_qualifiers;
 mod m23_extension_properties;
+mod m23_generic_body_consumption;
 mod m23_hir_foundation;
 mod m23_intrinsic_source_shapes;
 mod m23_local_value_identities;

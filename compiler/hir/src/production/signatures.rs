@@ -130,6 +130,23 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
             TypeParamBounds::Unconstrained => Ok(TypeParameterBoundsV1::Unconstrained),
             TypeParamBounds::Value { .. } => Ok(TypeParameterBoundsV1::Value),
             TypeParamBounds::Ref { .. } => Ok(TypeParameterBoundsV1::Ref),
+            TypeParamBounds::ImportedNominal(bounds) => {
+                let class = bounds
+                    .class
+                    .as_ref()
+                    .map(|bound| self.map_type(bound.ty, binders))
+                    .transpose()?;
+                let interfaces = bounds
+                    .interfaces
+                    .iter()
+                    .map(|bound| self.map_type(bound.ty, binders))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let interfaces = CanonicalSignatureTypesV1::try_new(interfaces)
+                    .map_err(HirInterfaceSignatureProjectionError::InterfaceBounds)?;
+                NominalTypeParameterBoundsV1::try_new(class, interfaces)
+                    .map(TypeParameterBoundsV1::Nominal)
+                    .map_err(HirInterfaceSignatureProjectionError::NominalBounds)
+            }
             TypeParamBounds::Nominal(bounds) => {
                 let class = bounds
                     .class

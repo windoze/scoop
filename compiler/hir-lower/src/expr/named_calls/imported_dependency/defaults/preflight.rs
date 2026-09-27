@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use hir::ImportedCallableSource;
 use scoop_hir as hir;
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
@@ -16,17 +17,24 @@ impl Lowerer {
         owner: &dyn hir::ImportedCallableSource,
         template: hir::ExportDefaultTemplateV1,
     ) -> Result<PreparedImportedDefault, ImportedDefaultPlanError> {
-        if !template.type_parameters().is_empty() {
-            return Err(ImportedDefaultPlanError::Requires {
-                requirement: ImportedCapabilityRequirement::Generic,
-                operation: "dependency default type substitution",
-            });
-        }
-        self.imported_default_type(template.result())?;
+        self.prepare_imported_default_with_bindings(
+            owner,
+            template,
+            &crate::imported_core::ImportedTypeBindings::new(),
+        )
+    }
+
+    pub(super) fn prepare_imported_default_with_bindings(
+        &mut self,
+        owner: &dyn hir::ImportedCallableSource,
+        template: hir::ExportDefaultTemplateV1,
+        bindings: &crate::imported_core::ImportedTypeBindings,
+    ) -> Result<PreparedImportedDefault, ImportedDefaultPlanError> {
+        self.imported_default_type_with_bindings(template.result(), bindings)?;
 
         let mut locals = BTreeSet::new();
         for local in template.locals().records() {
-            self.imported_default_type(local.value_type())?;
+            self.imported_default_type_with_bindings(local.value_type(), bindings)?;
             locals.insert(local.selector().clone());
         }
         let mut callables = BTreeMap::new();
@@ -35,6 +43,7 @@ impl Lowerer {
             &template,
             template.body().statements(),
             &locals,
+            bindings,
             &mut callables,
             0,
         )?;
@@ -43,11 +52,13 @@ impl Lowerer {
             &template,
             template.body().value(),
             &locals,
+            bindings,
             &mut callables,
         )?;
         Ok(PreparedImportedDefault {
             template,
             callables,
+            bindings: bindings.clone(),
         })
     }
 
@@ -57,17 +68,20 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expression: &hir::DefaultExpressionV1,
         locals: &BTreeSet<LocalValueSelector>,
+        bindings: &crate::imported_core::ImportedTypeBindings,
         callables: &mut BTreeMap<
             scoop_identity::CallableTemplateOrigin,
             hir::ImportedCallableDeclaration,
         >,
     ) -> Result<(), ImportedDefaultPlanError> {
-        self.imported_default_type(expression.result_type())?;
+        self.imported_default_type_with_bindings(expression.result_type(), bindings)?;
         use hir::DefaultExpressionKindV1 as Kind;
         match expression.kind() {
             Kind::Capture(index) => Err(ImportedDefaultPlanError::UnboundCapture(*index)),
             Kind::ReferenceUpcast(operand) | Kind::Box(operand) | Kind::Unbox(operand) => self
-                .preflight_imported_default_expression(owner, template, operand, locals, callables),
+                .preflight_imported_default_expression(
+                    owner, template, operand, locals, bindings, callables,
+                ),
             Kind::IsInstance {
                 operand,
                 checked_type,
@@ -77,9 +91,9 @@ impl Lowerer {
                 checked_type,
                 ..
             } => {
-                self.imported_default_type(checked_type)?;
+                self.imported_default_type_with_bindings(checked_type, bindings)?;
                 self.preflight_imported_default_expression(
-                    owner, template, operand, locals, callables,
+                    owner, template, operand, locals, bindings, callables,
                 )
             }
             Kind::StringLiteral {
@@ -100,12 +114,12 @@ impl Lowerer {
             Kind::Local(local) if locals.contains(local) => Ok(()),
             Kind::Local(local) => Err(ImportedDefaultPlanError::UnknownLocal(local.clone())),
             Kind::TupleLiteral(elements) => self.preflight_imported_default_expressions(
-                owner, template, elements, locals, callables,
+                owner, template, elements, locals, bindings, callables,
             ),
             Kind::VariantConstruct { variant, arguments } => {
-                self.imported_default_type(variant.owner_type())?;
+                self.imported_default_type_with_bindings(variant.owner_type(), bindings)?;
                 self.preflight_imported_default_expressions(
-                    owner, template, arguments, locals, callables,
+                    owner, template, arguments, locals, bindings, callables,
                 )
             }
             Kind::Call {
@@ -115,13 +129,13 @@ impl Lowerer {
             } => {
                 receiver
                     .as_ref()
-                    .try_map(|ty| self.imported_default_type(ty))?;
+                    .try_map(|ty| self.imported_default_type_with_bindings(ty, bindings))?;
                 self.prepare_imported_default_call(
                     super::plan::default_callable_origin(callee)?,
                     callables,
                 )?;
                 self.preflight_imported_default_expressions(
-                    owner, template, arguments, locals, callables,
+                    owner, template, arguments, locals, bindings, callables,
                 )
             }
             Kind::StructInit {
@@ -140,53 +154,58 @@ impl Lowerer {
                     },
                 arguments,
             } => {
-                self.imported_default_type(owner_type)?;
+                self.imported_default_type_with_bindings(owner_type, bindings)?;
                 self.prepare_imported_default_call(
                     scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
                     callables,
                 )?;
                 self.preflight_imported_default_expressions(
-                    owner, template, arguments, locals, callables,
+                    owner, template, arguments, locals, bindings, callables,
                 )
             }
             Kind::PrimitiveBinary { lhs, rhs, .. } | Kind::Binary { lhs, rhs, .. } => {
                 self.preflight_imported_default_expression(
-                    owner, template, lhs, locals, callables,
+                    owner, template, lhs, locals, bindings, callables,
                 )?;
-                self.preflight_imported_default_expression(owner, template, rhs, locals, callables)
+                self.preflight_imported_default_expression(
+                    owner, template, rhs, locals, bindings, callables,
+                )
             }
             Kind::PrimitiveUnary { operand, .. } | Kind::Unary { operand, .. } => self
-                .preflight_imported_default_expression(owner, template, operand, locals, callables),
+                .preflight_imported_default_expression(
+                    owner, template, operand, locals, bindings, callables,
+                ),
             Kind::IntegerOperation { arguments, .. } => match arguments {
                 hir::DefaultIntegerArgumentsV1::Unary(operand) => self
                     .preflight_imported_default_expression(
-                        owner, template, operand, locals, callables,
+                        owner, template, operand, locals, bindings, callables,
                     ),
                 hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
                     self.preflight_imported_default_expression(
-                        owner, template, lhs, locals, callables,
+                        owner, template, lhs, locals, bindings, callables,
                     )?;
                     self.preflight_imported_default_expression(
-                        owner, template, rhs, locals, callables,
+                        owner, template, rhs, locals, bindings, callables,
                     )
                 }
             },
-            Kind::IntegerConversion { operand, .. } => self
-                .preflight_imported_default_expression(owner, template, operand, locals, callables),
+            Kind::IntegerConversion { operand, .. } => self.preflight_imported_default_expression(
+                owner, template, operand, locals, bindings, callables,
+            ),
             Kind::FieldAccess {
                 receiver,
                 field: hir::DefaultFieldRefV1::Struct { owner_type, .. },
             } => {
-                self.imported_default_type(owner_type)?;
+                self.imported_default_type_with_bindings(owner_type, bindings)?;
                 self.preflight_imported_default_expression(
-                    owner, template, receiver, locals, callables,
+                    owner, template, receiver, locals, bindings, callables,
                 )
             }
             Kind::FieldAccess {
                 receiver,
                 field: hir::DefaultFieldRefV1::Tuple { .. },
             } => self.preflight_imported_default_expression(
-                owner, template, receiver, locals, callables,
+                owner, template, receiver, locals, bindings, callables,
             ),
             Kind::MethodCall {
                 receiver,
@@ -203,10 +222,10 @@ impl Lowerer {
                     callables,
                 )?;
                 self.preflight_imported_default_expression(
-                    owner, template, receiver, locals, callables,
+                    owner, template, receiver, locals, bindings, callables,
                 )?;
                 self.preflight_imported_default_expressions(
-                    owner, template, arguments, locals, callables,
+                    owner, template, arguments, locals, bindings, callables,
                 )
             }
             Kind::MethodCall { .. } | Kind::DirectSuperMethodCall { .. } => {
@@ -268,6 +287,7 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expressions: &[hir::DefaultExpressionV1],
         locals: &BTreeSet<LocalValueSelector>,
+        bindings: &crate::imported_core::ImportedTypeBindings,
         callables: &mut BTreeMap<
             scoop_identity::CallableTemplateOrigin,
             hir::ImportedCallableDeclaration,
@@ -275,7 +295,7 @@ impl Lowerer {
     ) -> Result<(), ImportedDefaultPlanError> {
         for expression in expressions {
             self.preflight_imported_default_expression(
-                owner, template, expression, locals, callables,
+                owner, template, expression, locals, bindings, callables,
             )?;
         }
         Ok(())
@@ -301,7 +321,7 @@ impl Lowerer {
                 callee,
                 error: error.to_string(),
             })?;
-        if candidate.capability().is_none() {
+        if candidate.capability().is_none() && candidate.callable_body().is_none() {
             return Err(ImportedDefaultPlanError::Requires {
                 requirement: callable_requirement(&candidate, false),
                 operation: "dependency default call",
@@ -311,11 +331,12 @@ impl Lowerer {
         Ok(())
     }
 
-    pub(super) fn imported_default_type(
+    pub(super) fn imported_default_type_with_bindings(
         &mut self,
         signature: &SignatureTypeKey,
+        bindings: &crate::imported_core::ImportedTypeBindings,
     ) -> Result<hir::TypeId, ImportedDefaultPlanError> {
-        match self.imported_signature_type(signature) {
+        match self.imported_signature_type_with_bindings(signature, bindings) {
             Ok(ty) => Ok(ty),
             Err(ImportedSignatureTypeError::Structural) => {
                 Err(ImportedDefaultPlanError::Requires {

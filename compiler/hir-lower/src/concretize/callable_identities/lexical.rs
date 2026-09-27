@@ -94,7 +94,7 @@ impl CallableIdentityBuilder<'_> {
             .iter()
             .enumerate()
             .filter_map(|(index, key)| {
-                (key.source() == source
+                (matches!(key.source(), FunctionSource::Local(actual) if actual == source)
                     && self.concretizer.function_key_arguments(key) == arguments)
                     .then_some(index)
             })

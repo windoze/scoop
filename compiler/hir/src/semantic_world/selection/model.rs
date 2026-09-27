@@ -64,9 +64,14 @@ pub struct ImportedDependencyCallableCandidate {
     pub(super) capability: Option<ParamFreeNominalCallableV1>,
     pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
+    pub(super) callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
 }
 
 impl ImportedDependencyCallableCandidate {
+    pub fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
+        self.callable_body.as_deref()
+    }
+
     pub const fn target(&self) -> ImportedTarget {
         self.binding.target()
     }

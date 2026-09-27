@@ -10,14 +10,22 @@ use crate::Lowerer;
 use crate::expr::MemberCallKind;
 use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
+mod callable;
 mod statements;
 
 struct ImportedDefaultContext<'a> {
     owner: &'a dyn hir::ImportedCallableSource,
-    prepared: &'a PreparedImportedDefault,
+    callables:
+        &'a BTreeMap<scoop_identity::CallableTemplateOrigin, hir::ImportedCallableDeclaration>,
+    bindings: &'a crate::imported_core::ImportedTypeBindings,
     locals: BTreeMap<LocalValueSelector, hir::Expr>,
     loop_targets: Vec<hir::LoopId>,
-    evaluation: hir::EvaluationOrigin,
+    evaluation: ImportedTemplateEvaluation,
+}
+
+enum ImportedTemplateEvaluation {
+    Definition,
+    DefaultUse(hir::EvaluationOrigin),
 }
 
 impl Lowerer {
@@ -36,7 +44,10 @@ impl Lowerer {
                 .cloned()
                 .ok_or(ImportedDefaultMaterializationError::MissingReceiver)?;
             let ty = self
-                .imported_default_type(template_receiver.value_type())
+                .imported_default_type_with_bindings(
+                    template_receiver.value_type(),
+                    &prepared.bindings,
+                )
                 .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
             let value = self.adapt_to(value, ty);
             locals.insert(template_receiver.local().clone(), value);
@@ -56,7 +67,7 @@ impl Lowerer {
                 continue;
             }
             let ty = self
-                .imported_default_type(local.value_type())
+                .imported_default_type_with_bindings(local.value_type(), &prepared.bindings)
                 .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
             let id = self.alloc_synthetic_local(
                 format!("$dependency.default.local.{index}"),
@@ -76,10 +87,13 @@ impl Lowerer {
         }
         let mut context = ImportedDefaultContext {
             owner,
-            prepared,
+            callables: &prepared.callables,
+            bindings: &prepared.bindings,
             locals,
             loop_targets: Vec::new(),
-            evaluation: self.definition_origin(call_span).into(),
+            evaluation: ImportedTemplateEvaluation::DefaultUse(
+                self.definition_origin(call_span).into(),
+            ),
         };
         for statement in prepared.template.body().statements() {
             sink.push(self.materialize_imported_default_statement(statement, &mut context)?);
@@ -96,12 +110,17 @@ impl Lowerer {
         let definition =
             self.imported_default_definition_origin(expression.definition_origin(), context)?;
         let span = definition.span;
-        let origin = hir::ExpressionOrigin::Instantiated(hir::ConcreteExpressionOrigin {
-            definition,
-            evaluation: context.evaluation,
-        });
+        let origin = match context.evaluation {
+            ImportedTemplateEvaluation::Definition => hir::ExpressionOrigin::Definition(definition),
+            ImportedTemplateEvaluation::DefaultUse(evaluation) => {
+                hir::ExpressionOrigin::Instantiated(hir::ConcreteExpressionOrigin {
+                    definition,
+                    evaluation,
+                })
+            }
+        };
         let ty = self
-            .imported_default_type(expression.result_type())
+            .imported_default_type_with_bindings(expression.result_type(), context.bindings)
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
 
         use hir::DefaultExpressionKindV1 as Kind;
@@ -111,6 +130,12 @@ impl Lowerer {
                     "dependency default root has no closure input {index}"
                 )));
             }
+            Kind::PtrFromNonZeroULong(operand) => hir::ExprKind::PtrFromNonZeroULong(Box::new(
+                self.materialize_imported_default_expression(operand, context)?,
+            )),
+            Kind::PtrToULong(operand) => hir::ExprKind::PtrToULong(Box::new(
+                self.materialize_imported_default_expression(operand, context)?,
+            )),
             Kind::SingletonValue(value) => hir::ExprKind::ImportedSingletonValue(*value),
             Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
@@ -133,9 +158,11 @@ impl Lowerer {
                 checked_type,
             } => hir::ExprKind::IsInstance {
                 operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
-                check_ty: self.imported_default_type(checked_type).map_err(|error| {
-                    ImportedDefaultMaterializationError::Plan(error.to_string())
-                })?,
+                check_ty: self
+                    .imported_default_type_with_bindings(checked_type, context.bindings)
+                    .map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?,
             },
             Kind::Cast {
                 operand,
@@ -154,9 +181,11 @@ impl Lowerer {
                     operand: Box::new(
                         self.materialize_imported_default_expression(operand, context)?,
                     ),
-                    check_ty: self.imported_default_type(checked_type).map_err(|error| {
-                        ImportedDefaultMaterializationError::Plan(error.to_string())
-                    })?,
+                    check_ty: self
+                        .imported_default_type_with_bindings(checked_type, context.bindings)
+                        .map_err(|error| {
+                            ImportedDefaultMaterializationError::Plan(error.to_string())
+                        })?,
                     optional,
                 }
             }
@@ -176,7 +205,7 @@ impl Lowerer {
             Kind::VariantConstruct { variant, arguments } => {
                 hir::ExprKind::ImportedVariantConstruct {
                     owner: self
-                        .imported_default_type(variant.owner_type())
+                        .imported_default_type_with_bindings(variant.owner_type(), context.bindings)
                         .map_err(|error| {
                             ImportedDefaultMaterializationError::Plan(error.to_string())
                         })?,
@@ -201,14 +230,12 @@ impl Lowerer {
                 let args = self.materialize_imported_default_expressions(arguments, context)?;
                 let receiver = receiver
                     .as_ref()
-                    .try_map(|ty| self.imported_default_type(ty))
+                    .try_map(|ty| self.imported_default_type_with_bindings(ty, context.bindings))
                     .map_err(|error| {
                         ImportedDefaultMaterializationError::Plan(error.to_string())
                     })?;
-                self.imported_default_call_kind(
-                    super::plan::default_callable_origin(callee).map_err(|error| {
-                        ImportedDefaultMaterializationError::Plan(error.to_string())
-                    })?,
+                self.imported_template_call_kind(
+                    callee,
                     args,
                     receiver,
                     MemberCallKind::Ordinary,
@@ -253,9 +280,11 @@ impl Lowerer {
                         owner_type,
                     },
             } => {
-                let owner = self.imported_default_type(owner_type).map_err(|error| {
-                    ImportedDefaultMaterializationError::Plan(error.to_string())
-                })?;
+                let owner = self
+                    .imported_default_type_with_bindings(owner_type, context.bindings)
+                    .map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?;
                 hir::ExprKind::FieldAccess {
                     receiver: Box::new(
                         self.materialize_imported_default_expression(receiver, context)?,
@@ -285,10 +314,8 @@ impl Lowerer {
                 let receiver_type = receiver.ty;
                 let mut args = vec![receiver];
                 args.extend(self.materialize_imported_default_expressions(arguments, context)?);
-                self.imported_default_call_kind(
-                    super::plan::default_callable_origin(callee).map_err(|error| {
-                        ImportedDefaultMaterializationError::Plan(error.to_string())
-                    })?,
+                self.imported_template_call_kind(
+                    callee,
                     args,
                     hir::SourceCallReceiver::Receiver {
                         static_type: receiver_type,
@@ -372,8 +399,6 @@ impl Lowerer {
             | Kind::AnonymousFunction(_)
             | Kind::CallableReference(_)
             | Kind::FunctionCoercion { .. }
-            | Kind::PtrFromNonZeroULong(_)
-            | Kind::PtrToULong(_)
             | Kind::PtrCast(_)
             | Kind::PtrLoad { .. }
             | Kind::PtrStore { .. }
@@ -431,13 +456,16 @@ impl Lowerer {
         kind: MemberCallKind,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        let candidate = context
-            .prepared
-            .callables
-            .get(&callee)
-            .ok_or(ImportedDefaultMaterializationError::MissingCallable(callee))?;
+        let candidate = match context.callables.get(&callee) {
+            Some(candidate) => candidate.clone(),
+            None => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.callable_declaration(callee).ok())
+                .ok_or(ImportedDefaultMaterializationError::MissingCallable(callee))?,
+        };
         let callee = self
-            .select_imported_callable_declaration_use_with_kind(candidate.clone(), kind)
+            .select_imported_callable_declaration_use_with_kind(candidate, kind)
             .map_err(|error| {
                 ImportedDefaultMaterializationError::DependencySelection(error.to_string())
             })?;

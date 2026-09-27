@@ -489,6 +489,12 @@ impl Lowerer {
             );
             for bound in parameter.nominal_bounds_in_source_order() {
                 let constraint = match bound {
+                    hir::NominalBoundRef::ImportedClass(bound) => {
+                        Constraint::ClassBound(variable, TypeTerm::Type(bound.ty))
+                    }
+                    hir::NominalBoundRef::ImportedInterface(bound) => {
+                        Constraint::Implements(variable, TypeTerm::Type(bound.ty))
+                    }
                     hir::NominalBoundRef::Class(bound) => {
                         let class = self.class_applications[bound.application].canonical_type;
                         Constraint::ClassBound(variable, TypeTerm::Type(class))

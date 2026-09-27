@@ -33,7 +33,42 @@ pub(crate) struct DeclarationForwardingView<'a> {
     parameter_types: &'a [hir::TypeId],
 }
 
+pub(crate) struct OwnedDeclarationForwarding {
+    owner_parameters: Vec<hir::TypeParamDecl>,
+    callable_parameters: Vec<hir::TypeParamDecl>,
+    parameter_types: Vec<hir::TypeId>,
+}
+
+impl OwnedDeclarationForwarding {
+    pub(crate) fn as_view(&self) -> DeclarationForwardingView<'_> {
+        DeclarationForwardingView {
+            owner_parameters: &self.owner_parameters,
+            callable_parameters: &self.callable_parameters,
+            parameter_types: &self.parameter_types,
+        }
+    }
+}
+
 impl<'a> DeclarationForwardingView<'a> {
+    pub(crate) fn to_owned(self) -> OwnedDeclarationForwarding {
+        OwnedDeclarationForwarding {
+            owner_parameters: self.owner_parameters.to_vec(),
+            callable_parameters: self.callable_parameters.to_vec(),
+            parameter_types: self.parameter_types.to_vec(),
+        }
+    }
+
+    pub(crate) fn callable_parameters(
+        callable_parameters: &'a [hir::TypeParamDecl],
+        parameter_types: &'a [hir::TypeId],
+    ) -> Self {
+        Self {
+            owner_parameters: &[],
+            callable_parameters,
+            parameter_types,
+        }
+    }
+
     pub(crate) fn nominal_parameters(
         owner_parameters: &'a [hir::TypeParamDecl],
         parameter_types: &'a [hir::TypeId],

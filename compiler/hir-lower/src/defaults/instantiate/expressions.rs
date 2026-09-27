@@ -289,6 +289,33 @@ impl Lowerer {
                 binding: binding.clone(),
                 args: self.instantiate_default_exprs(args, context),
             },
+            hir::ExprKind::ImportedGenericCall {
+                application,
+                binding,
+                args,
+                receiver,
+            } => {
+                let application = self.imported_generic_applications[*application].clone();
+                let arguments = application
+                    .arguments
+                    .iter()
+                    .copied()
+                    .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
+                    .collect::<Vec<_>>();
+                let application = self.imported_generic_applications.alloc(
+                    hir::ImportedGenericCallableApplication {
+                        template: application.template,
+                        arguments: hir::NonEmptyVec::from_vec(arguments)
+                            .expect("generic application retains its arguments"),
+                    },
+                );
+                hir::ExprKind::ImportedGenericCall {
+                    application,
+                    binding: binding.clone(),
+                    args: self.instantiate_default_exprs(args, context),
+                    receiver: receiver.map(|ty| self.instantiate_method_ty(ty, &context.bindings)),
+                }
+            }
             hir::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

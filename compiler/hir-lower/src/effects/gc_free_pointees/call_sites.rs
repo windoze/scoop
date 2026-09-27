@@ -107,8 +107,11 @@ fn push_pointee_call_sites(
     // Constructor pointee requirements belong to their nominal applications;
     // the nominal occurrence pass already validates and propagates that edge.
     out.extend(calls.into_iter().filter_map(|call| {
-        let super::super::no_gc_generics::GenericCallable::Function(callee) = call.callee else {
-            return None;
+        let callee = match call.callee {
+            callee @ (super::super::no_gc_generics::GenericCallable::Function(_)
+            | super::super::no_gc_generics::GenericCallable::Imported(_)) => callee,
+            super::super::no_gc_generics::GenericCallable::ClassConstructor(_)
+            | super::super::no_gc_generics::GenericCallable::StructConstructor(_) => return None,
         };
         Some(PointeeRequirementCallSite {
             context,

@@ -15,6 +15,7 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         statements: &[hir::DefaultStatementV1],
         locals: &BTreeSet<LocalValueSelector>,
+        bindings: &crate::imported_core::ImportedTypeBindings,
         callables: &mut BTreeMap<
             scoop_identity::CallableTemplateOrigin,
             hir::ImportedCallableDeclaration,
@@ -23,7 +24,7 @@ impl Lowerer {
     ) -> Result<(), ImportedDefaultPlanError> {
         for statement in statements {
             self.preflight_imported_default_statement(
-                owner, template, statement, locals, callables, loop_depth,
+                owner, template, statement, locals, bindings, callables, loop_depth,
             )?;
         }
         Ok(())
@@ -36,6 +37,7 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         statement: &hir::DefaultStatementV1,
         locals: &BTreeSet<LocalValueSelector>,
+        bindings: &crate::imported_core::ImportedTypeBindings,
         callables: &mut BTreeMap<
             scoop_identity::CallableTemplateOrigin,
             hir::ImportedCallableDeclaration,
@@ -44,11 +46,14 @@ impl Lowerer {
     ) -> Result<(), ImportedDefaultPlanError> {
         use hir::DefaultStatementKindV1 as Kind;
         match statement.kind() {
-            Kind::Expr(value) => self
-                .preflight_imported_default_expression(owner, template, value, locals, callables),
+            Kind::Expr(value) => self.preflight_imported_default_expression(
+                owner, template, value, locals, bindings, callables,
+            ),
             Kind::ValDecl { pattern, init } => {
-                self.preflight_imported_default_pattern(pattern, locals)?;
-                self.preflight_imported_default_expression(owner, template, init, locals, callables)
+                self.preflight_imported_default_pattern(pattern, locals, bindings)?;
+                self.preflight_imported_default_expression(
+                    owner, template, init, locals, bindings, callables,
+                )
             }
             Kind::Assign { target, value } => {
                 match target.as_ref() {
@@ -66,7 +71,7 @@ impl Lowerer {
                     }
                 }
                 self.preflight_imported_default_expression(
-                    owner, template, value, locals, callables,
+                    owner, template, value, locals, bindings, callables,
                 )
             }
             Kind::If {
@@ -75,14 +80,14 @@ impl Lowerer {
                 else_body,
             } => {
                 self.preflight_imported_default_expression(
-                    owner, template, condition, locals, callables,
+                    owner, template, condition, locals, bindings, callables,
                 )?;
                 self.preflight_imported_default_statements(
-                    owner, template, then_body, locals, callables, loop_depth,
+                    owner, template, then_body, locals, bindings, callables, loop_depth,
                 )?;
                 if let hir::OptionalDefaultStatementListViewV1::Present(body) = else_body.view() {
                     self.preflight_imported_default_statements(
-                        owner, template, body, locals, callables, loop_depth,
+                        owner, template, body, locals, bindings, callables, loop_depth,
                     )?;
                 }
                 Ok(())
@@ -100,17 +105,19 @@ impl Lowerer {
                     template,
                     condition_setup,
                     locals,
+                    bindings,
                     callables,
                     nested_depth,
                 )?;
                 self.preflight_imported_default_expression(
-                    owner, template, condition, locals, callables,
+                    owner, template, condition, locals, bindings, callables,
                 )?;
                 self.preflight_imported_default_statements(
                     owner,
                     template,
                     body,
                     locals,
+                    bindings,
                     callables,
                     nested_depth,
                 )
@@ -123,12 +130,12 @@ impl Lowerer {
                 "continue without an enclosing loop",
             )),
             Kind::When(value) => self.preflight_imported_default_when(
-                owner, template, value, locals, callables, loop_depth,
+                owner, template, value, locals, bindings, callables, loop_depth,
             ),
             Kind::Return(value) => {
                 if let Some(value) = value.as_ref() {
                     self.preflight_imported_default_expression(
-                        owner, template, value, locals, callables,
+                        owner, template, value, locals, bindings, callables,
                     )?;
                 }
                 Ok(())
@@ -156,6 +163,7 @@ impl Lowerer {
         &mut self,
         pattern: &hir::DefaultPatternV1,
         locals: &BTreeSet<LocalValueSelector>,
+        bindings: &crate::imported_core::ImportedTypeBindings,
     ) -> Result<(), ImportedDefaultPlanError> {
         match pattern.view() {
             hir::DefaultPatternViewV1::Binding { local } if locals.contains(local) => Ok(()),
@@ -164,15 +172,15 @@ impl Lowerer {
             }
             hir::DefaultPatternViewV1::Wildcard => Ok(()),
             hir::DefaultPatternViewV1::Variant { variant, fields } => {
-                self.imported_default_type(variant.owner_type())?;
+                self.imported_default_type_with_bindings(variant.owner_type(), bindings)?;
                 for field in fields {
-                    self.preflight_imported_default_pattern(field.pattern(), locals)?;
+                    self.preflight_imported_default_pattern(field.pattern(), locals, bindings)?;
                 }
                 Ok(())
             }
             hir::DefaultPatternViewV1::Tuple { elements } => {
                 for element in elements {
-                    self.preflight_imported_default_pattern(element, locals)?;
+                    self.preflight_imported_default_pattern(element, locals, bindings)?;
                 }
                 Ok(())
             }
@@ -191,6 +199,7 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         value: &hir::DefaultWhenV1,
         locals: &BTreeSet<LocalValueSelector>,
+        bindings: &crate::imported_core::ImportedTypeBindings,
         callables: &mut BTreeMap<
             scoop_identity::CallableTemplateOrigin,
             hir::ImportedCallableDeclaration,
@@ -202,16 +211,18 @@ impl Lowerer {
             template,
             value.subject(),
             locals,
+            bindings,
             callables,
         )?;
         for arm in value.arms() {
-            self.preflight_imported_default_pattern(arm.pattern(), locals)?;
+            self.preflight_imported_default_pattern(arm.pattern(), locals, bindings)?;
             if let Some(guard) = arm.guard().as_ref() {
                 self.preflight_imported_default_statements(
                     owner,
                     template,
                     guard.setup(),
                     locals,
+                    bindings,
                     callables,
                     loop_depth,
                 )?;
@@ -220,6 +231,7 @@ impl Lowerer {
                     template,
                     guard.condition(),
                     locals,
+                    bindings,
                     callables,
                 )?;
             }
@@ -228,6 +240,7 @@ impl Lowerer {
                 template,
                 arm.body(),
                 locals,
+                bindings,
                 callables,
                 loop_depth,
             )?;
@@ -235,18 +248,19 @@ impl Lowerer {
         match value.fallback().view() {
             hir::DefaultWhenFallbackViewV1::Else(body) => self
                 .preflight_imported_default_statements(
-                    owner, template, body, locals, callables, loop_depth,
+                    owner, template, body, locals, bindings, callables, loop_depth,
                 ),
             hir::DefaultWhenFallbackViewV1::IrrefutableArm { subject_type }
-            | hir::DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => {
-                self.imported_default_type(subject_type).map(|_| ())
-            }
+            | hir::DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => self
+                .imported_default_type_with_bindings(subject_type, bindings)
+                .map(|_| ()),
             hir::DefaultWhenFallbackViewV1::EnumPatternMatrix {
                 subject_type,
                 owner_type,
             } => {
-                self.imported_default_type(subject_type)?;
-                self.imported_default_type(owner_type).map(|_| ())
+                self.imported_default_type_with_bindings(subject_type, bindings)?;
+                self.imported_default_type_with_bindings(owner_type, bindings)
+                    .map(|_| ())
             }
         }
     }

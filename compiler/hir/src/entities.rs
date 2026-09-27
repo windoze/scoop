@@ -97,6 +97,8 @@ pub struct Module {
     /// Dependency callables committed by this HIR graph. Handles retain the
     /// selection brand; each expression also retains its own winning binding.
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
+    pub imported_generic_templates: Arena<ImportedGenericCallableTemplate>,
+    pub imported_generic_applications: Arena<ImportedGenericCallableApplication>,
     /// Template-only calls through an interface upper bound. Each entry
     /// names the exact receiver parameter, bound application and declaring
     /// interface method; local-concrete HIR has no corresponding arena.

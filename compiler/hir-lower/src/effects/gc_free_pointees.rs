@@ -20,7 +20,7 @@ struct PointeeApplicationOccurrence {
 #[derive(Debug, Clone)]
 struct PointeeRequirementCallSite {
     context: RequirementContext,
-    callee: hir::FunctionId,
+    callee: super::no_gc_generics::GenericCallable,
     arguments: Vec<(hir::TypeParamId, hir::TypeId)>,
     file: usize,
     span: Span,

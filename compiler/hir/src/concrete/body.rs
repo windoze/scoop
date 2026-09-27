@@ -303,6 +303,12 @@ pub enum ExprKind {
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,
     },
+    ImportedGenericCall {
+        callee: FunctionId,
+        binding: Option<std::sync::Arc<crate::DirectImportedTargetBinding>>,
+        args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
+    },
     ImportedDependencyCall {
         callee: ImportedDependencyCallableUseId,
         binding: Option<std::sync::Arc<crate::DirectImportedTargetBinding>>,

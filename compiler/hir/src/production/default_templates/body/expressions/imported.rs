@@ -8,6 +8,33 @@ use crate::{
 };
 
 impl BodyProjection<'_, '_> {
+    pub(super) fn imported_generic_call(
+        &mut self,
+        application: crate::ImportedGenericCallableApplicationId,
+        args: &[Expr],
+        receiver: SourceCallReceiver<TypeId>,
+    ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
+        let export = self.entities.export();
+        let application = &export.imported_generic_applications[application];
+        let template = &export.imported_generic_templates[application.template];
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|ty| self.type_key(*ty))
+            .collect::<Result<Vec<_>, _>>()?;
+        let callee = crate::DefaultCallableRefV1::try_new(
+            crate::DefaultCallableDeclarationV1::GenericFunction(template.declaration),
+            scoop_identity::OptionalSignatureType::Absent,
+            arguments,
+        )
+        .map_err(crate::DefaultEntityProjectionError::Callable)?;
+        Ok(DefaultExpressionKindV1::Call {
+            callee,
+            receiver: receiver.try_map(|ty| self.type_key(ty))?,
+            arguments: self.expressions(args)?,
+        })
+    }
+
     pub(super) fn imported_call(
         &mut self,
         callee: ImportedDependencyCallableUseId,

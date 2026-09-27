@@ -1,7 +1,7 @@
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity, NominalDeclarationOwner};
 use scoop_wire::WirePath;
 
-use super::{call, file, fun, fun_expr, int_lit, sp, stmt, ty_named, var};
+use super::{call, file, fun, fun_expr, sp, stmt, ty_named, var};
 use crate::{CurrentConeSources, lower_current_cone};
 
 mod aliases;
@@ -311,25 +311,32 @@ fn ordinary_core_call_uses_general_interface_without_legacy_strong_allowlist() {
 #[test]
 fn ordinary_core_call_uses_shared_generic_argument_diagnostics() {
     let core = trusted_core();
-    let ordinary = parsed_ordinary(file(vec![fun(
-        "main",
-        vec![stmt(call("print", vec![int_lit(1)]))],
-    )]));
+    let source = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m23-generic-body-consumption/bad-core-type-arity.scoop"
+    ));
+    let ordinary = support::parsed_ordinary_text(source);
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let diagnostics =
         match lower_current_cone(scoop_identity::RequestedConeKind::Executable, &input) {
-            Ok(_) => panic!("the shared call resolver requires explicit generic arguments"),
+            Ok(_) => panic!("the shared call resolver rejects incorrect explicit generic arity"),
             Err(diagnostics) => diagnostics,
         };
 
-    assert!(diagnostics.iter().any(|diagnostic| {
-        diagnostic
-            .message
-            .contains("dependency function `print` expects 1 type argument(s), found 0")
-    }));
+    let error = diagnostics
+        .iter()
+        .find(|diagnostic| {
+            diagnostic
+                .message
+                .contains("dependency function `print` expects 1 type argument(s), found 2")
+        })
+        .unwrap_or_else(|| panic!("missing generic arity diagnostic: {diagnostics:?}"));
+    let span = error.span.unwrap();
+    assert_eq!(&source[span.start as usize..span.end as usize], "print");
+    assert_eq!(error.file, 0);
 }
 
 #[test]

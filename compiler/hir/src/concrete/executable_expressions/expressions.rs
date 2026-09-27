@@ -11,6 +11,7 @@ impl<'a> Traversal<'a> {
             | ExprKind::ClassNew { args: values, .. }
             | ExprKind::VariantConstruct { args: values, .. }
             | ExprKind::Call { args: values, .. }
+            | ExprKind::ImportedGenericCall { args: values, .. }
             | ExprKind::ImportedDependencyCall { args: values, .. } => self.expressions(values),
             ExprKind::ClassInitializerCall { receiver, args, .. }
             | ExprKind::MethodCall { receiver, args, .. }

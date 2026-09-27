@@ -3,6 +3,7 @@ use super::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(in crate::effects) enum GenericCallable {
     Function(hir::FunctionId),
+    Imported(hir::ImportedGenericCallableTemplateId),
     ClassConstructor(hir::ClassConstructorId),
     StructConstructor(hir::StructConstructorId),
 }
@@ -10,7 +11,7 @@ pub(in crate::effects) enum GenericCallable {
 impl GenericCallable {
     pub(in crate::effects) fn kind(self) -> &'static str {
         match self {
-            Self::Function(_) => "function",
+            Self::Function(_) | Self::Imported(_) => "function",
             Self::ClassConstructor(_) | Self::StructConstructor(_) => "constructor",
         }
     }
@@ -40,6 +41,10 @@ impl Lowerer {
     ) -> Vec<&hir::TypeParamDecl> {
         match callable {
             GenericCallable::Function(id) => self.functions[id].type_params(),
+            GenericCallable::Imported(id) => self.imported_generic_templates[id]
+                .type_parameters
+                .iter()
+                .collect(),
             GenericCallable::ClassConstructor(id) => self.classes
                 [self.class_constructors[id].owner]
                 .type_params
@@ -67,6 +72,7 @@ impl Lowerer {
     pub(in crate::effects) fn effect_callable_name(&self, callable: GenericCallable) -> &str {
         match callable {
             GenericCallable::Function(id) => &self.functions[id].name,
+            GenericCallable::Imported(id) => &self.imported_generic_templates[id].name,
             GenericCallable::ClassConstructor(id) => {
                 &self.classes[self.class_constructors[id].owner].name
             }
@@ -79,6 +85,7 @@ impl Lowerer {
     pub(in crate::effects) fn effect_callable_span(&self, callable: GenericCallable) -> Span {
         match callable {
             GenericCallable::Function(id) => self.functions[id].span,
+            GenericCallable::Imported(id) => self.imported_generic_templates[id].span,
             GenericCallable::ClassConstructor(id) => self.class_constructors[id].span,
             GenericCallable::StructConstructor(id) => self.struct_constructors[id].span,
         }
@@ -86,6 +93,9 @@ impl Lowerer {
 
     pub(in crate::effects) fn effect_callable_file(&self, callable: GenericCallable) -> usize {
         match callable {
+            GenericCallable::Imported(id) => {
+                self.imported_generic_templates[id].origin.file as usize
+            }
             GenericCallable::Function(id) => self
                 .function_files
                 .get(&id)

@@ -424,6 +424,13 @@ pub enum ExprKind {
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,
     },
+    /// A dependency template application materialized by the HIR fixed point.
+    ImportedGenericCall {
+        application: ImportedGenericCallableApplicationId,
+        binding: Option<std::sync::Arc<DirectImportedTargetBinding>>,
+        args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
+    },
     /// Direct call of a lifted local function. Hidden capture arguments are
     /// explicit and precede source arguments in the lowered ABI.
     LocalFunctionCall {

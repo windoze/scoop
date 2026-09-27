@@ -83,7 +83,7 @@ impl Lowerer {
                 };
                 match params[index].bounds {
                     hir::TypeParamBounds::Unconstrained => params[index].bounds = next,
-                    hir::TypeParamBounds::Nominal(_) => self.error(
+                    hir::TypeParamBounds::Nominal(_) | hir::TypeParamBounds::ImportedNominal(_) => self.error(
                         span,
                         format!(
                             "type parameter `{}` of {target} cannot combine a kind bound with nominal upper bounds",
@@ -121,7 +121,7 @@ impl Lowerer {
                             hir::TypeParamBounds::Nominal(bounds) if bounds.class.is_none() => {
                                 bounds.class = Some(hir::ClassBound { application, span });
                             }
-                            hir::TypeParamBounds::Nominal(_) => self.error(
+                            hir::TypeParamBounds::Nominal(_) | hir::TypeParamBounds::ImportedNominal(_) => self.error(
                                 span,
                                 format!(
                                     "type parameter `{}` of {target} cannot have more than one class upper bound; found `{bound_name}`",
@@ -160,7 +160,7 @@ impl Lowerer {
                                     .interfaces
                                     .push(hir::InterfaceBound { application, span });
                             }
-                            hir::TypeParamBounds::Nominal(_) => self.error(
+                            hir::TypeParamBounds::Nominal(_) | hir::TypeParamBounds::ImportedNominal(_) => self.error(
                                 span,
                                 format!(
                                     "duplicate interface upper bound `{bound_name}` for type parameter `{}` of {target}",
@@ -238,6 +238,10 @@ impl Lowerer {
             for parameter in &params {
                 for bound in parameter.nominal_bounds_in_source_order() {
                     match bound {
+                        // Imported bounds were checked with their declaration and
+                        // are substituted at each consumer application.
+                        hir::NominalBoundRef::ImportedClass(_)
+                        | hir::NominalBoundRef::ImportedInterface(_) => continue,
                         hir::NominalBoundRef::Class(bound) => {
                             let application = self.class_applications[bound.application].clone();
                             let target_params =

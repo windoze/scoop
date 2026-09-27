@@ -20,6 +20,7 @@ mod closures;
 mod constructor_slots;
 mod constructor_work;
 mod functions;
+mod imported_functions;
 mod imported_nominals;
 mod initialization;
 mod initializing_fields;
@@ -85,6 +86,10 @@ pub(crate) fn lower_output(
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum FunctionKey {
+    Imported {
+        source: export::ImportedGenericCallableTemplateId,
+        arguments: Vec<concrete::TypeId>,
+    },
     Free {
         source: export::FunctionId,
         arguments: Vec<concrete::TypeId>,
@@ -112,11 +117,20 @@ enum ConcreteApplicationRepresentation {
 }
 
 impl FunctionKey {
-    fn source(&self) -> export::FunctionId {
+    fn source(&self) -> FunctionSource {
         match *self {
-            Self::Free { source, .. } | Self::Method { source, .. } => source,
+            Self::Free { source, .. } | Self::Method { source, .. } => {
+                FunctionSource::Local(source)
+            }
+            Self::Imported { source, .. } => FunctionSource::Imported(source),
         }
     }
+}
+
+#[derive(Clone, Copy)]
+enum FunctionSource {
+    Local(export::FunctionId),
+    Imported(export::ImportedGenericCallableTemplateId),
 }
 
 struct Concretizer<'a> {

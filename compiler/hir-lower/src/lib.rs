@@ -113,6 +113,7 @@ mod generic_entities;
 mod globals;
 mod imported_capabilities;
 mod imported_core;
+mod imported_generics;
 mod imported_type_aliases;
 mod imports;
 mod lowering_context;
@@ -556,6 +557,8 @@ pub(crate) struct Lowerer {
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
+    pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
+    pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
     /// Exact source-name routes selected while resolving public type-alias
     /// targets. Entries remain attached to their source alias until public
     /// surface publication, so private aliases cannot leak witness records.

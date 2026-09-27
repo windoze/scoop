@@ -10,6 +10,9 @@ impl Lowerer {
         let mut out = Vec::new();
         for caller in self.effect_callable_ids() {
             let calls = match caller {
+                GenericCallable::Imported(_) => {
+                    unreachable!("only current declarations infer new requirements")
+                }
                 GenericCallable::Function(id) => {
                     let hir::FunctionKind::User(body) = &self.functions[id].kind else {
                         continue;

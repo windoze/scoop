@@ -21,6 +21,7 @@ use crate::{
 pub trait ImportedCallableSource {
     fn interface(&self) -> &CallableDeclarationRecordV1;
     fn source_interface(&self) -> Option<&CallableSourceInterfaceV1>;
+    fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1>;
     fn default_template(&self, key: ExportDefaultTemplateKeyV1)
     -> Option<&ExportDefaultTemplateV1>;
     fn definition_source(
@@ -30,6 +31,9 @@ pub trait ImportedCallableSource {
 }
 
 impl ImportedCallableSource for ImportedDependencyCallableCandidate {
+    fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
+        self.callable_body()
+    }
     fn interface(&self) -> &CallableDeclarationRecordV1 {
         self.interface()
     }
@@ -67,6 +71,7 @@ pub struct ImportedCallableDeclaration {
     source: Option<CallableSourceInterfaceV1>,
     defaults: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     definition_sources: Arc<ImportedDependencyDefinitionSources>,
+    callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
 }
 
 impl ImportedCallableDeclaration {
@@ -80,6 +85,9 @@ impl ImportedCallableDeclaration {
 }
 
 impl ImportedCallableSource for ImportedCallableDeclaration {
+    fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
+        self.callable_body.as_deref()
+    }
     fn interface(&self) -> &CallableDeclarationRecordV1 {
         &self.interface
     }
@@ -181,6 +189,7 @@ impl ImportedDependencySelectionPlan {
             source: entry.source.clone(),
             defaults: entry.default_templates.clone(),
             definition_sources: Arc::clone(&entry.definition_sources),
+            callable_body: entry.callable_body.clone(),
         })
     }
 
@@ -269,6 +278,7 @@ impl ImportedDependencySelectionPlan {
                 source: entry.source.clone(),
                 defaults: entry.default_templates.clone(),
                 definition_sources: Arc::clone(&entry.definition_sources),
+                callable_body: entry.callable_body.clone(),
             });
         }
         Ok(candidates)

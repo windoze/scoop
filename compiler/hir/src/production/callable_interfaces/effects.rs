@@ -116,6 +116,8 @@ fn build(
     .map_err(CallableEffectProjectionError::Build)
 }
 
+mod imported;
+
 fn map_operator(operator: OperatorKind) -> CallableOperatorV1 {
     match operator {
         OperatorKind::UnaryPlus => CallableOperatorV1::UnaryPlus,

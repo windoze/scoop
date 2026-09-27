@@ -234,6 +234,8 @@ impl Lowerer {
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
             imported_dependency_callables: Arena::new(),
+            imported_generic_templates: Default::default(),
+            imported_generic_applications: Arena::new(),
             type_alias_binding_witnesses: HashMap::new(),
             retained_binding_witness_uses: Vec::new(),
             bound_callable_refs: Arena::new(),

@@ -19,6 +19,24 @@ impl DefaultEntityProjector<'_> {
                     entities.imported_dependency_callable(callable)?,
                 )
             }
+            ExportDefaultCallableTarget::ImportedGeneric(application) => {
+                let application = &export.imported_generic_applications[application];
+                let declaration =
+                    export.imported_generic_templates[application.template].declaration;
+                let arguments = application
+                    .arguments
+                    .iter()
+                    .map(|ty| self.type_key(*ty, binders))
+                    .collect::<Result<Vec<_>, _>>()?;
+                ExportDefaultCallableTargetV1::Callable(
+                    crate::DefaultCallableRefV1::try_new(
+                        crate::DefaultCallableDeclarationV1::GenericFunction(declaration),
+                        scoop_identity::OptionalSignatureType::Absent,
+                        arguments,
+                    )
+                    .map_err(super::super::DefaultEntityProjectionError::Callable)?,
+                )
+            }
             ExportDefaultCallableTarget::Bound(bound) => {
                 ExportDefaultCallableTargetV1::Bound(entities.bound_callable(bound, binders)?)
             }

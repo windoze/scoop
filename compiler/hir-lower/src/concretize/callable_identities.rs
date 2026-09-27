@@ -216,7 +216,22 @@ impl<'a> CallableIdentityBuilder<'a> {
             "concrete callable materialization parents are acyclic"
         );
         let key = self.concretizer.function_keys[index].clone();
-        let source = key.source();
+        let source = match key.source() {
+            FunctionSource::Local(source) => source,
+            FunctionSource::Imported(source) => {
+                let declaration =
+                    self.concretizer.source.imported_generic_templates[source].declaration;
+                let arguments = self.concretizer.function_key_arguments(&key);
+                let materialization = self.source_materialization(
+                    SourceTemplate::GenericFunction(declaration),
+                    CallableInstantiationOwner::NoOwner,
+                    &arguments,
+                );
+                self.visiting[index] = false;
+                self.materializations[index] = Some(materialization);
+                return materialization;
+            }
+        };
         let identity = self.concretizer.source.function_identities[source].clone();
         let materialization = match identity {
             export::HirFunctionIdentity::Source(identity) => {
@@ -282,7 +297,7 @@ impl<'a> CallableIdentityBuilder<'a> {
             export::HirFunctionIdentity::DerivedEquality(applications) => {
                 let exact_owner = self.exact_method_owner(match key {
                     FunctionKey::Method { owner, .. } => owner,
-                    FunctionKey::Free { .. } => {
+                    FunctionKey::Free { .. } | FunctionKey::Imported { .. } => {
                         panic!("derived equality is always an exact-owner method")
                     }
                 });
@@ -329,11 +344,8 @@ impl<'a> CallableIdentityBuilder<'a> {
         template: SourceTemplate,
     ) -> CallableMaterialization {
         match key {
-            FunctionKey::Free { arguments, .. } => self.source_materialization(
-                template,
-                CallableInstantiationOwner::NoOwner,
-                arguments,
-            ),
+            FunctionKey::Free { arguments, .. } | FunctionKey::Imported { arguments, .. } => self
+                .source_materialization(template, CallableInstantiationOwner::NoOwner, arguments),
             FunctionKey::Method {
                 owner,
                 specialization,

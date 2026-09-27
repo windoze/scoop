@@ -19,14 +19,20 @@ impl TypeParamDecl {
             TypeParamBounds::Value { .. } => TypeParamKind::Value,
             TypeParamBounds::Ref { .. } => TypeParamKind::Ref,
             TypeParamBounds::Nominal(bounds) if bounds.class.is_some() => TypeParamKind::Ref,
-            TypeParamBounds::Unconstrained | TypeParamBounds::Nominal(_) => TypeParamKind::Any,
+            TypeParamBounds::ImportedNominal(bounds) if bounds.class.is_some() => {
+                TypeParamKind::Ref
+            }
+            TypeParamBounds::Unconstrained
+            | TypeParamBounds::Nominal(_)
+            | TypeParamBounds::ImportedNominal(_) => TypeParamKind::Any,
         }
     }
 
     pub fn class_bound(&self) -> Option<&ClassBound> {
         match &self.bounds {
             TypeParamBounds::Nominal(bounds) => bounds.class.as_ref(),
-            TypeParamBounds::Unconstrained
+            TypeParamBounds::ImportedNominal(_)
+            | TypeParamBounds::Unconstrained
             | TypeParamBounds::Value { .. }
             | TypeParamBounds::Ref { .. } => None,
         }
@@ -35,13 +41,29 @@ impl TypeParamDecl {
     pub fn interface_bounds(&self) -> &[InterfaceBound] {
         match &self.bounds {
             TypeParamBounds::Nominal(bounds) => &bounds.interfaces,
-            TypeParamBounds::Unconstrained
+            TypeParamBounds::ImportedNominal(_)
+            | TypeParamBounds::Unconstrained
             | TypeParamBounds::Value { .. }
             | TypeParamBounds::Ref { .. } => &[],
         }
     }
 
     pub fn nominal_bounds_in_source_order(&self) -> Vec<NominalBoundRef<'_>> {
+        if let TypeParamBounds::ImportedNominal(bounds) = &self.bounds {
+            let mut ordered = bounds
+                .class
+                .iter()
+                .map(NominalBoundRef::ImportedClass)
+                .chain(
+                    bounds
+                        .interfaces
+                        .iter()
+                        .map(NominalBoundRef::ImportedInterface),
+                )
+                .collect::<Vec<_>>();
+            ordered.sort_by_key(|bound| bound.span().start);
+            return ordered;
+        }
         let TypeParamBounds::Nominal(bounds) = &self.bounds else {
             return Vec::new();
         };
@@ -62,6 +84,19 @@ pub enum TypeParamBounds {
     Value { span: Span },
     Ref { span: Span },
     Nominal(NominalBounds),
+    ImportedNominal(ImportedNominalBounds),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedNominalBounds {
+    pub class: Option<ImportedNominalTypeBound>,
+    pub interfaces: Vec<ImportedNominalTypeBound>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedNominalTypeBound {
+    pub ty: TypeId,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +125,8 @@ pub struct InterfaceBound {
 pub enum NominalBoundRef<'a> {
     Class(&'a ClassBound),
     Interface(&'a InterfaceBound),
+    ImportedClass(&'a ImportedNominalTypeBound),
+    ImportedInterface(&'a ImportedNominalTypeBound),
 }
 
 impl NominalBoundRef<'_> {
@@ -97,6 +134,7 @@ impl NominalBoundRef<'_> {
         match self {
             Self::Class(bound) => bound.span,
             Self::Interface(bound) => bound.span,
+            Self::ImportedClass(bound) | Self::ImportedInterface(bound) => bound.span,
         }
     }
 }

@@ -655,6 +655,28 @@ fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
                 TypeParamBounds::Unconstrained => String::new(),
                 TypeParamBounds::Value { .. } => " : value".to_string(),
                 TypeParamBounds::Ref { .. } => " : ref".to_string(),
+                TypeParamBounds::ImportedNominal(bounds) => {
+                    let mut rendered = bounds
+                        .class
+                        .iter()
+                        .chain(&bounds.interfaces)
+                        .map(|bound| {
+                            (
+                                bound.span.start,
+                                type_name_with_params(module, bound.ty, params),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    rendered.sort_by_key(|(span, _)| *span);
+                    format!(
+                        " : {}",
+                        rendered
+                            .into_iter()
+                            .map(|(_, name)| name)
+                            .collect::<Vec<_>>()
+                            .join(" & ")
+                    )
+                }
                 TypeParamBounds::Nominal(bounds) => {
                     let mut rendered = Vec::new();
                     if let Some(bound) = &bounds.class {

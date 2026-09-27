@@ -20,17 +20,18 @@ pub(crate) struct NamedIntrinsicStructProbe {
 }
 
 impl NamedFunctionLikeProbe {
-    fn forwarding(&self) -> super::specificity::DeclarationForwardingView<'_> {
+    fn forwarding(&self, state: &mut Lowerer) -> super::specificity::OwnedDeclarationForwarding {
         match self {
-            Self::Callable(probe) => probe.forwarding(),
-            Self::ImportedDependency(probe) => probe.forwarding(),
-            Self::ImportedDependencyProperty(probe) => probe.forwarding(),
-            Self::Nominal(probe) => probe.forwarding(),
+            Self::Callable(probe) => probe.forwarding().to_owned(),
+            Self::ImportedDependency(probe) => probe.forwarding(state),
+            Self::ImportedDependencyProperty(probe) => probe.forwarding().to_owned(),
+            Self::Nominal(probe) => probe.forwarding().to_owned(),
             Self::IntrinsicStruct(probe) => {
                 super::specificity::DeclarationForwardingView::nominal_parameters(
                     &probe.owners,
                     &probe.parameter_types,
                 )
+                .to_owned()
             }
         }
     }
@@ -73,7 +74,7 @@ impl NamedFunctionLikeProbe {
     fn signature(&self, state: &Lowerer, name: &str) -> String {
         match self {
             Self::Callable(probe) => probe.signature(state, name),
-            Self::ImportedDependency(probe) => probe.signature(state, name),
+            Self::ImportedDependency(probe) => probe.signature(name),
             Self::ImportedDependencyProperty(probe) => probe.signature(state, name),
             Self::Nominal(probe) => probe.signature(state),
             Self::IntrinsicStruct(probe) => {
@@ -126,13 +127,24 @@ impl Lowerer {
         arguments: Option<&[ast::CallArgument]>,
         span: ast::Span,
     ) -> Option<usize> {
+        if probes.len() == 1 {
+            return Some(0);
+        }
+        // Imported signatures belong to candidate-local arenas. Resolve their
+        // declaration types together in comparison scratch, without committing
+        // either candidate or comparing this call's inferred substitutions.
+        let mut comparison = self.clone();
+        let declarations = probes
+            .iter()
+            .map(|probe| probe.forwarding(&mut comparison))
+            .collect::<Vec<_>>();
         let mut forwards = vec![vec![false; probes.len()]; probes.len()];
         for (source, row) in forwards.iter_mut().enumerate() {
             for (target, value) in row.iter_mut().enumerate() {
                 *value = source == target
-                    || self.declaration_forwards(
-                        probes[source].forwarding(),
-                        probes[target].forwarding(),
+                    || comparison.declaration_forwards(
+                        declarations[source].as_view(),
+                        declarations[target].as_view(),
                     );
             }
         }

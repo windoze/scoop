@@ -257,6 +257,27 @@ impl ReferenceCollector<'_> {
                     self.type_reference(*static_type, origin);
                 }
             }
+            hir::ExprKind::ImportedGenericCall {
+                application,
+                args,
+                receiver,
+                ..
+            } => {
+                self.record_callable(
+                    hir::ExportDefaultCallableTarget::ImportedGeneric(*application),
+                    origin,
+                );
+                let arguments = self.lowerer.imported_generic_applications[*application]
+                    .arguments
+                    .to_vec();
+                for ty in arguments {
+                    self.type_reference(ty, origin);
+                }
+                self.expressions(args);
+                if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
+                    self.type_reference(*static_type, origin);
+                }
+            }
             hir::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

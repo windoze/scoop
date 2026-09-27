@@ -93,6 +93,9 @@ impl ImportedCallableCandidate {
 }
 
 impl ImportedCallableSource for ImportedCallableCandidate {
+    fn callable_body(&self) -> Option<&hir::ExportGenericCallableBodyV1> {
+        self.source().callable_body()
+    }
     fn interface(&self) -> &hir::CallableDeclarationRecordV1 {
         self.source().interface()
     }

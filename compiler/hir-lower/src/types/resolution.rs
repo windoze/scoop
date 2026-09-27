@@ -294,11 +294,15 @@ impl Lowerer {
                 }
                 crate::imports::lookup::TypeLookupTarget::Dependency(binding) => {
                     let final_segment = package_length + 1 == path.len();
-                    let ty = self.resolve_imported_dependency_type_target(
-                        &binding,
-                        binding_name,
-                        final_segment && !arguments.is_empty(),
-                    )?;
+                    let ty = if final_segment && !arguments.is_empty() {
+                        self.resolve_imported_generic_type_target(
+                            &binding,
+                            binding_name,
+                            arguments,
+                        )?
+                    } else {
+                        self.resolve_imported_dependency_type_target(&binding, binding_name, false)?
+                    };
                     if final_segment {
                         return Some(ty);
                     }
@@ -478,7 +482,7 @@ impl Lowerer {
                         crate::namespace::TopLevelTypeTarget::Alias(alias),
                     )) => return self.resolve_type_alias_id_reference(alias, name, true),
                     Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
-                        return self.resolve_imported_dependency_type_target(&binding, name, true);
+                        return self.resolve_imported_generic_type_target(&binding, name, args);
                     }
                     Some(crate::imports::lookup::TypeLookupTarget::Current(
                         crate::namespace::TopLevelTypeTarget::Nominal(_),

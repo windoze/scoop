@@ -237,7 +237,7 @@ fn render_type_term(lowerer: &Lowerer, view: &CallableView, term: TypeTerm) -> S
     }
 }
 
-pub(super) fn render_type_parameters(
+pub(crate) fn render_type_parameters(
     lowerer: &Lowerer,
     parameters: &[hir::TypeParamDecl],
     all_parameters: &[hir::TypeParamDecl],
@@ -252,6 +252,28 @@ pub(super) fn render_type_parameters(
                 hir::TypeParamBounds::Unconstrained => String::new(),
                 hir::TypeParamBounds::Value { .. } => " : value".to_string(),
                 hir::TypeParamBounds::Ref { .. } => " : ref".to_string(),
+                hir::TypeParamBounds::ImportedNominal(bounds) => {
+                    let mut rendered = bounds
+                        .class
+                        .iter()
+                        .chain(&bounds.interfaces)
+                        .map(|bound| {
+                            (
+                                bound.span.start,
+                                lowerer.type_name_with_params(bound.ty, all_parameters),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    rendered.sort_by_key(|(span, _)| *span);
+                    format!(
+                        " : {}",
+                        rendered
+                            .into_iter()
+                            .map(|(_, name)| name)
+                            .collect::<Vec<_>>()
+                            .join(" & ")
+                    )
+                }
                 hir::TypeParamBounds::Nominal(bounds) => {
                     let mut rendered = Vec::new();
                     if let Some(bound) = &bounds.class {
