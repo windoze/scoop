@@ -1,0 +1,3 @@
+span=130..157
+expression=super<FirstChoice>.choose()
+qualified interface `super` is not allowed during initialization

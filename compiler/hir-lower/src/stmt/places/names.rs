@@ -138,9 +138,7 @@ impl Lowerer {
                     });
                 }
                 crate::properties::ImplicitValueResolution::Value { target, .. } => {
-                    selected_value = Some(
-                        crate::imports::lookup::values::ResolvedValueTarget::Materialized(target),
-                    );
+                    selected_value = Some(target);
                 }
                 crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
                     self.commit_layer_diagnostics(*failure);

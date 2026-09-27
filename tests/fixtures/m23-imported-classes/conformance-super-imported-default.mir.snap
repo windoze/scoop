@@ -1,0 +1,56 @@
+Module
+  class DefaultOwner vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  interface FirstChoice
+  fun primary @fn0() -> Counter
+    bb0 entry
+      assign $new.1
+        Type DefaultOwner
+        ClassAlloc DefaultOwner
+      call external0 direct
+        Type DefaultOwner
+        Local $new.1
+      val $dependency.receiver: DefaultOwner
+        Type DefaultOwner
+        Local $new.1
+      val $dependency.default.local.1: FirstChoice
+        Type FirstChoice
+        Retype FirstChoice
+          Type DefaultOwner
+          Local $dependency.receiver
+      call $dependency.default.local.2: Long = external1 direct
+        Type FirstChoice
+        Local $dependency.default.local.1
+      val $dependency.default.local.3: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.default.local.4: Long
+        Type Long
+        Local $dependency.default.local.3
+      val $dependency.parameter.value: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.default.local.2
+          Type Long
+          Local $dependency.default.local.4
+      call $dependency.argument.0: Long = external2 direct
+        Type DefaultOwner
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

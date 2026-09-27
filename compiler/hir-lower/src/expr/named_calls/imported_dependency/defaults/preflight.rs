@@ -191,6 +191,11 @@ impl Lowerer {
                 receiver,
                 callee: hir::DefaultMethodCalleeV1::Callable(callee),
                 arguments,
+            }
+            | Kind::DirectSuperMethodCall {
+                receiver,
+                callee: hir::DefaultMethodCalleeV1::Callable(callee),
+                arguments,
             } => {
                 self.prepare_imported_default_call(
                     super::plan::default_callable_origin(callee)?,

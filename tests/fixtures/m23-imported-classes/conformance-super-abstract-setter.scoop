@@ -1,0 +1,6 @@
+import dependency.classes.MutableValue
+
+public class LocalValue public constructor(): MutableValue {
+    public override var value: Long = 0
+    public fun write() { super<MutableValue>.value = 1 }
+}

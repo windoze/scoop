@@ -1,0 +1,76 @@
+Module
+  struct LocalChoice ()
+  enum CoroutineStep<LocalChoice>
+    Completed(value: LocalChoice)
+    Suspended()
+  enum CoroutineSlot<LocalChoice>
+    Empty()
+    Value(value: LocalChoice)
+  class Counter vtable=0 itables=0
+  class box<LocalChoice> vtable=0 itables=1
+  interface FirstChoice
+  generated_exact_type get0 location=class1 nominal_id=35574b8f7ff5525af25b6beb4a19182bf1883d8928c4d4f54f4b7e0ab5e31a80 exact_id=36d61aadc2cf7a53474de26377c4313a7aec22c1c79025ff151ae33cc681dceb
+  generated_exact_type get1 location=enum0 nominal_id=ac119bf6f2dc30fc896d8385da3c6e0bd9ab608b3723a2dbca09230fc5749a4a exact_id=5f27019510d5558d4bbc92aeb7505ea451640d82a2c4e3cba81758a7e1468298
+  generated_exact_type get2 location=enum1 nominal_id=551348171fcf9a6c7561fa46b8c15c22c5d104ae87a63d10c4b9ed229787d2a8 exact_id=7028a2b2fb2f73dfc912e3f4666e3e4563fc04908a3d93437faf0286986c3e96
+  generated_callable gc0 function=@fn3 id=d0f8163af5b585197545f40f4ad03d139d534694403f7f9a7ee4098fbd0e055c
+  fun LocalChoice.choose @fn0(this: LocalChoice) -> Long
+    bb0 entry
+      val $dependency.receiver: FirstChoice
+        Type FirstChoice
+        Box
+          Type LocalChoice
+          Local this
+      call $dependency.receiver: Long = external1 direct
+        Type FirstChoice
+        Local $dependency.receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun primary @fn1() -> Counter
+    bb0 entry
+      call $receiver: LocalChoice = @fn2 direct
+      call $dependency.argument.0: Long = @fn0 direct
+        Type LocalChoice
+        Local $receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  fun ctor.LocalChoice.$c0 @fn2() -> LocalChoice <no-gc>
+    bb0 entry
+      return
+        Type LocalChoice
+        StructInit LocalChoice
+  fun thunk<LocalChoice> FirstChoice.choose() @fn3(this: FirstChoice) -> Long
+    bb0 entry
+      call $call.1: Long = @fn0 direct
+        Type LocalChoice
+        Unbox
+          Type FirstChoice
+          Local this
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalChoice> result=LocalChoice
+  coroutine_slot cl0 CoroutineSlot<LocalChoice> value=LocalChoice
+  output library

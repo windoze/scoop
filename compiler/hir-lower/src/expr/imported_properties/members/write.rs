@@ -9,6 +9,26 @@ impl Lowerer {
         name: &ast::Ident,
         span: ast::Span,
     ) -> Option<hir::StatementKind> {
+        self.lower_imported_member_property_write_with_kind(
+            property,
+            receiver,
+            value,
+            name,
+            span,
+            MemberCallKind::Ordinary,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn lower_imported_member_property_write_with_kind(
+        &mut self,
+        property: ResolvedImportedMemberProperty,
+        receiver: hir::Expr,
+        value: hir::Expr,
+        name: &ast::Ident,
+        span: ast::Span,
+        kind: MemberCallKind,
+    ) -> Option<hir::StatementKind> {
         let Some(setter) = property.capability.setter() else {
             self.error(
                 name.span,
@@ -57,6 +77,7 @@ impl Lowerer {
             self.unit,
             span,
             "writing an unsafe dependency property",
+            kind,
         )
         .map(hir::StatementKind::Expr)
     }

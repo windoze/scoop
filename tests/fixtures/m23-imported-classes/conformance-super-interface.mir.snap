@@ -1,0 +1,106 @@
+Module
+  struct LocalChoice ()
+  enum CoroutineStep<LocalDefault>
+    Completed(value: LocalDefault)
+    Suspended()
+  enum CoroutineSlot<LocalDefault>
+    Empty()
+    Value(value: LocalDefault)
+  enum CoroutineStep<LocalChoice>
+    Completed(value: LocalChoice)
+    Suspended()
+  enum CoroutineSlot<LocalChoice>
+    Empty()
+    Value(value: LocalChoice)
+  class Counter vtable=0 itables=0
+  class box<LocalChoice> vtable=0 itables=2
+  interface LocalDefault
+  interface FirstChoice
+  generated_exact_type get0 location=enum0 nominal_id=1031a13cb9bef4d183a9ba7226973dd5746852b75cc30f1d26a5eeb7a9d8d234 exact_id=482efd2296ca5f203fcd4e706e406a6b2a155235b508e6b0cc4ee1e102490c6c
+  generated_exact_type get1 location=enum2 nominal_id=9942c7f788ae2d48fe8239114fbdcbb7327bbfe147d787df57732b5481cfba9a exact_id=4ff5e786a5ca939724c48da93efee8c046360a8d8eb6a1963749d61045bc9761
+  generated_exact_type get2 location=class1 nominal_id=82e67fee1cc6b43c093b46fe0b0831c62f5d5688aa61640628f048181fee7e1b exact_id=82d9843373b18e90326705363d5148cab8f176b8058646a3877eadc527dedb82
+  generated_exact_type get3 location=enum1 nominal_id=cacfe61deed81bf32dc85bda17432785479343b67a2943b7ebf57d874fb042d0 exact_id=c71c805c548d472d9002bf70041e4e382fef61b2fc876ccb7149bc0267b6d3c4
+  generated_exact_type get4 location=enum3 nominal_id=2a2c5a84718ffd261c8585fdd12a4f8b720e2257873cd8f127e69f71b459532f exact_id=ded96b82682764e828667086c70466d869b1b5955fa398a69412bd777b992e00
+  generated_callable gc0 function=@fn3 id=9922c9815e258f3d684d778a64ad51d849567c61d9574ad4809f47d577e0af59
+  generated_callable gc1 function=@fn4 id=a9940d127dd9345956427c2102cc68b59ab681241fe6a94f4588c7316c05fba4
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call $call.1: LocalChoice = @fn2 direct
+      val choice: LocalDefault
+        Type LocalDefault
+        Box
+          Type LocalChoice
+          Local $call.1
+      val $receiver: LocalDefault
+        Type LocalDefault
+        Local choice
+      call $dependency.argument.0: Long = @fn1 interface LocalDefault[0]
+        Type LocalDefault
+        Local $receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun LocalDefault.choose @fn1(this: LocalDefault) -> Long
+    bb0 entry
+      val $dependency.receiver: FirstChoice
+        Type FirstChoice
+        Retype FirstChoice
+          Type LocalDefault
+          Local this
+      call $dependency.receiver: Long = external1 direct
+        Type FirstChoice
+        Local $dependency.receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun ctor.LocalChoice.$c0 @fn2() -> LocalChoice <no-gc>
+    bb0 entry
+      return
+        Type LocalChoice
+        StructInit LocalChoice
+  fun thunk<LocalChoice> LocalDefault.choose() @fn3(this: LocalDefault) -> Long
+    bb0 entry
+      call $call.1: Long = @fn1 direct
+        Type LocalDefault
+        Retype LocalDefault
+          Type LocalDefault
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalChoice> FirstChoice.choose() @fn4(this: FirstChoice) -> Long
+    bb0 entry
+      call $call.1: Long = @fn1 direct
+        Type LocalDefault
+        Retype LocalDefault
+          Type FirstChoice
+          Local this
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalDefault> result=LocalDefault
+  coroutine_step cs1 CoroutineStep<LocalChoice> result=LocalChoice
+  coroutine_slot cl0 CoroutineSlot<LocalDefault> value=LocalDefault
+  coroutine_slot cl1 CoroutineSlot<LocalChoice> value=LocalChoice
+  output library

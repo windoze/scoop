@@ -25,18 +25,27 @@ impl Lowerer {
             },
             sink,
         )?;
+        self.finish_resolved_super_method_call(resolved, name, call.span)
+    }
+
+    pub(in crate::expr) fn finish_resolved_super_method_call(
+        &mut self,
+        resolved: crate::overload::ResolvedCallee,
+        name: &str,
+        span: Span,
+    ) -> Option<hir::Expr> {
         let function = resolved.function();
         let method = self.functions[function]
             .method
             .expect("a direct-base member candidate is a method");
         if method.modifier == hir::MethodModifier::Abstract {
             self.error(
-                call.span,
+                span,
                 format!("abstract base method `{name}` cannot be called with `super`"),
             );
             return None;
         }
-        self.check_call_effects(hir::Callable::Function(function), call.span);
+        self.check_call_effects(hir::Callable::Function(function), span);
         let receiver = resolved
             .receiver
             .clone()
@@ -50,8 +59,8 @@ impl Lowerer {
                 args: resolved.args,
             },
             ty: resolved.return_ty,
-            span: call.span,
-            origin: self.expression_origin(call.span),
+            span,
+            origin: self.expression_origin(span),
         })
     }
 

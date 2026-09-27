@@ -8,6 +8,7 @@
 use hir::ImportedCallableSource;
 use scoop_hir as hir;
 
+use super::MemberCallKind;
 use crate::Lowerer;
 
 impl Lowerer {
@@ -21,7 +22,8 @@ impl Lowerer {
         ),
         hir::ImportedDependencySelectionError,
     > {
-        let dispatch = self.imported_callable_dispatch(candidate.interface())?;
+        let dispatch =
+            self.imported_callable_dispatch(candidate.interface(), MemberCallKind::Ordinary)?;
         let binding = std::sync::Arc::new(candidate.binding().clone());
         let reference = self
             .dependencies
@@ -38,7 +40,15 @@ impl Lowerer {
         &mut self,
         candidate: hir::ImportedCallableDeclaration,
     ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
-        let dispatch = self.imported_callable_dispatch(candidate.interface())?;
+        self.select_imported_callable_declaration_use_with_kind(candidate, MemberCallKind::Ordinary)
+    }
+
+    pub(crate) fn select_imported_callable_declaration_use_with_kind(
+        &mut self,
+        candidate: hir::ImportedCallableDeclaration,
+        kind: MemberCallKind,
+    ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
+        let dispatch = self.imported_callable_dispatch(candidate.interface(), kind)?;
         let reference = self
             .dependencies
             .as_mut()
@@ -50,11 +60,19 @@ impl Lowerer {
     fn imported_callable_dispatch(
         &mut self,
         callable: &hir::CallableInterfaceRecordV1,
+        kind: MemberCallKind,
     ) -> Result<hir::ImportedDependencyDispatch, hir::ImportedDependencySelectionError> {
         use hir::ImportedDependencyDispatch as Dispatch;
         let invalid = || hir::ImportedDependencySelectionError::InvalidDispatch {
             declaration: callable.declaration(),
         };
+        if kind == MemberCallKind::DirectSuper {
+            return if callable.modality() == hir::CallableModalityV1::Abstract {
+                Err(invalid())
+            } else {
+                Ok(Dispatch::Direct)
+            };
+        }
         if callable.modality() == hir::CallableModalityV1::Final {
             return Ok(Dispatch::Direct);
         }

@@ -7,13 +7,14 @@ use super::{
 };
 use crate::Lowerer;
 use crate::imports::lookup::calls::{ExtensionPropertyTarget, NamedCallOrigin, NamedCallTarget};
+use crate::imports::lookup::values::ResolvedValueTarget;
 
 pub(crate) enum ImplicitValueResolution<T> {
     NoCandidate,
     NoApplicable(Box<Lowerer>),
     Failed,
     Value {
-        target: crate::imports::lookup::values::ValueTarget,
+        target: ResolvedValueTarget,
         layer: crate::imports::ImportLookupLayer,
     },
     ExtensionProperty(Box<T>),
@@ -35,7 +36,7 @@ enum ImplicitValueSelection {
     NoApplicable(Box<Lowerer>),
     Failed,
     Value {
-        target: crate::imports::lookup::values::ValueTarget,
+        target: ResolvedValueTarget,
         layer: crate::imports::ImportLookupLayer,
     },
     ExtensionProperty(Box<SelectedImplicitExtensionProperty>),
@@ -112,7 +113,17 @@ impl Lowerer {
             for binding in layer.candidates {
                 let origin = self.named_call_value_origin(&binding);
                 match (binding.target, binding.origin) {
-                    (NamedCallTarget::Value(value), _) => values.push((value, origin)),
+                    (NamedCallTarget::Value(value), _) => {
+                        values.push((ResolvedValueTarget::Materialized(value), origin))
+                    }
+                    (
+                        NamedCallTarget::ImportedDependency(
+                            hir::ImportedTarget::Property(_)
+                            | hir::ImportedTarget::ObjectValue(_)
+                            | hir::ImportedTarget::EnumVariant(_),
+                        ),
+                        NamedCallOrigin::Dependency(binding),
+                    ) => values.push((ResolvedValueTarget::Dependency(binding), origin)),
                     (NamedCallTarget::ExtensionProperty(property), _) => {
                         properties.push((ExtensionPropertyTarget::Current(property), origin))
                     }
@@ -199,7 +210,7 @@ impl Lowerer {
                 [] => {}
                 [(target, _)] => {
                     return ImplicitValueSelection::Value {
-                        target: *target,
+                        target: target.clone(),
                         layer: layer.kind,
                     };
                 }

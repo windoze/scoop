@@ -1,0 +1,14 @@
+Module
+  class LocalArguments() : DefaultArguments
+  fun primary(): Counter
+    val local0
+      ClassInit LocalArguments : LocalArguments
+    val local1
+      MethodCall LocalArguments.answer : Long
+        Local $receiver : LocalArguments
+    val local2
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

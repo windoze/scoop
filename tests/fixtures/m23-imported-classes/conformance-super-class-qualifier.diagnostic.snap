@@ -1,0 +1,3 @@
+span=172..179
+expression=Counter
+qualified `super` type must be an interface

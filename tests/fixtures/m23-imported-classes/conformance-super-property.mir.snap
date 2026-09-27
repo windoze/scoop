@@ -1,0 +1,192 @@
+Module
+  enum CoroutineStep<LocalProperty>
+    Completed(value: LocalProperty)
+    Suspended()
+  enum CoroutineSlot<LocalProperty>
+    Empty()
+    Value(value: LocalProperty)
+  enum CoroutineStep<LocalProcedure>
+    Completed(value: LocalProcedure)
+    Suspended()
+  enum CoroutineSlot<LocalProcedure>
+    Empty()
+    Value(value: LocalProcedure)
+  class LocalProperty vtable=0 itables=2
+  class Counter vtable=0 itables=0
+  interface LocalProcedure
+  interface DefaultProperty
+  generated_exact_type get0 location=enum2 nominal_id=7f54fac79ac339bf6e323f07adfc437f31d7360ad5b165155b5a89767dfee97a exact_id=13f731bcc39ae9baf86c62567320de3427eccb9085488c3d02ca82b68de3d66b
+  generated_exact_type get1 location=enum1 nominal_id=33770f3b01d628b8191f1a2aa41240a7102dc3bffd8611dab86f5128ea14f137 exact_id=73eb3ba116f657718ade90121c339430d8803d30b1285b8eca1b4664a0dfbdbd
+  generated_exact_type get2 location=enum0 nominal_id=6d6b0e97e867221434529a186ecdb73436ba024cdeabf28790753c77e086612f exact_id=9d107e1f298b50151f81f506f724fca9ff126dae63cfce31392c2d98cf6e96b3
+  generated_exact_type get3 location=enum3 nominal_id=6b15e27b734e6ea391ead38c85f0d9bf134c0897b84690466607c24536699632 exact_id=f00c3c83a71deaaf5e4a91dded2c45a6939a455c8780818b706ae1c5a90819cd
+  fun LocalProperty.exercise @fn0(this: LocalProperty) -> Long
+    bb0 entry
+      val $receiver: LocalProcedure
+        Type LocalProcedure
+        Retype LocalProcedure
+          Type LocalProperty
+          Local this
+      call @fn4 direct
+        Type LocalProcedure
+        Local $receiver
+      call external2 direct
+        Type DefaultProperty
+        Retype DefaultProperty
+          Type LocalProperty
+          Local this
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      call $old.0: Long = external3 direct
+        Type DefaultProperty
+        Retype DefaultProperty
+          Type LocalProperty
+          Local this
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external2 direct
+        Type DefaultProperty
+        Retype DefaultProperty
+          Type LocalProperty
+          Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $old.1: Long = external3 direct
+        Type DefaultProperty
+        Retype DefaultProperty
+          Type LocalProperty
+          Local this
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.1
+      val $new.2: Long
+        Type Long
+        IntegerUnary increment kind=Long
+          Type Long
+          Local $dependency.receiver
+      call external2 direct
+        Type DefaultProperty
+        Retype DefaultProperty
+          Type LocalProperty
+          Local this
+        Type Long
+        Local $new.2
+      val old: Long
+        Type Long
+        Local $old.1
+      call $old.3: Long = external4 direct
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.3
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external1 direct
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.receiver: Long = external4 direct
+      val $dependency.argument.0: Long
+        Type Long
+        Local old
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun LocalProperty.$get$value @fn1(this: LocalProperty) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type LocalProperty
+          Local this
+  fun LocalProperty.$set$value @fn2(this: LocalProperty, value: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalProperty
+        Local this
+        Type Long
+        Local value
+      return
+  fun primary @fn3() -> Counter
+    bb0 entry
+      assign $new.1
+        Type LocalProperty
+        ClassAlloc LocalProperty
+      call @fn5 direct
+        Type LocalProperty
+        Local $new.1
+      val $receiver: LocalProperty
+        Type LocalProperty
+        Local $new.1
+      call $dependency.argument.0: Long = @fn0 direct
+        Type LocalProperty
+        Local $receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun LocalProcedure.clear @fn4(this: LocalProcedure) -> Unit
+    bb0 entry
+      call external1 direct
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+  fun init.LocalProperty.$c0 @fn5(this: LocalProperty) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalProperty
+        Local this
+        Type Long
+        IntegerLiteral Long value=1000 bits=0x00000000000003e8
+      return
+  coroutine_step cs0 CoroutineStep<LocalProperty> result=LocalProperty
+  coroutine_step cs1 CoroutineStep<LocalProcedure> result=LocalProcedure
+  coroutine_slot cl0 CoroutineSlot<LocalProperty> value=LocalProperty
+  coroutine_slot cl1 CoroutineSlot<LocalProcedure> value=LocalProcedure
+  output library

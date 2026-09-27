@@ -99,6 +99,7 @@ pub enum DefaultBodyProjectionError {
     UnknownBinding(u32),
     InvalidCaptureSource,
     InvalidLiteralPattern,
+    MissingMethodReceiver,
     UnsupportedExpression(&'static str),
     UnsupportedAssignment(&'static str),
     LoopControlOutsideLoop(&'static str),

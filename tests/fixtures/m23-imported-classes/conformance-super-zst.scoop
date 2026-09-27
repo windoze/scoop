@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+import dependency.classes.FirstChoice
+
+public struct LocalChoice(): FirstChoice {
+    public override fun choose(): Long = super<FirstChoice>.choose() + 1
+}
+public fun primary(): Counter = Counter(LocalChoice().choose())

@@ -1,0 +1,57 @@
+Module
+  enum CoroutineStep<LocalChoice> tagged size=8 align=8 variants=(struct0)@8+0 ()@8+0
+  enum CoroutineSlot<LocalChoice> tagged size=8 align=8 variants=()@8+0 (struct0)@8+0
+  fun @scoop$1$cb$2980bdcb11b60bfeee7a4a6f06e18bc0b9e2f5f62c28087a196024767cc482e1(elided-zst<struct0 size=0 align=1>) -> i64
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.receiver: i64
+    local %2 $dependency.argument.0: i64
+    local %3 $dependency.parameter.other: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = box_zst td0 sp<managed-call:0> live=[]
+    store t0 -> local0
+    call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i64 external-fn1(local0)
+    store t1 -> local1
+    store integer<Long>(0x0000000000000001) -> local2
+    store local2 -> local3
+    t2 = integer_Add<Long> local1, local3 : i64
+    ret t2
+  fun @scoop$1$cb$ac067cb4e272a83d4d0d6c2268d473758680ea47c8ff828b97174ccb4ad4584c() -> ptr<managed>
+    local %0 $receiver: struct0 <logical-zst dc66cce1044c20e85792cd17c54891a676d812146f57e67e0c010ca6c124e23f>
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.value: i64
+    local %3 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn2()
+    store t0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (elided-zst<struct0 size=0 align=1>) -> i64 local-fn0(elided-zst local0)
+    store t1 -> local1
+    store local1 -> local2
+    call managed-direct-target1 sp<managed-call:1> live=[] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t2 -> local3
+    call managed-void-target0 sp<managed-call:2> live=[local3:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn0(local3, local2)
+    t3 = aggregate () : {}
+    ret local3
+  fun @scoop$1$cb$82fe1dae62e5f9315091041137eb55f4ad2220893a7c1dc1d9446ce7f3e99777() -> elided-zst<struct0 size=0 align=1> <no-gc>
+  block entry
+    t0 = aggregate () : struct0
+    ret t0
+  fun @scoop$1$cb$cee2b22b50543e72bf7824bde5b79227160823ceb8ef2f7d958050a6cfb6d03c(ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    unbox_zst td0, param0 -> t0
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (elided-zst<struct0 size=0 align=1>) -> i64 local-fn0(elided-zst t0)
+    store t1 -> local0
+    ret local0
+  td td0 g(r=00000006;i=35574b8f7ff5525af25b6beb4a19182bf1883d8928c4d4f54f4b7e0ab5e31a80) @scoop$1$td$36d61aadc2cf7a53474de26377c4313a7aec22c1c79025ff151ae33cc681dceb type-id=17719116341947524678 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[external-td0:[local-fn3]]
+  td td1 n(c=dev.example%3Aclasses-conformance-super-zst%3A0.1.0;p=;o=-;k=S;x=LocalChoice) @scoop$1$td$dc66cce1044c20e85792cd17c54891a676d812146f57e67e0c010ca6c124e23f type-id=15459807231775190832 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000005;i=ac119bf6f2dc30fc896d8385da3c6e0bd9ab608b3723a2dbca09230fc5749a4a) @scoop$1$td$5f27019510d5558d4bbc92aeb7505ea451640d82a2c4e3cba81758a7e1468298 type-id=16799183726114264878 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000007;i=551348171fcf9a6c7561fa46b8c15c22c5d104ae87a63d10c4b9ed229787d2a8) @scoop$1$td$7028a2b2fb2f73dfc912e3f4666e3e4563fc04908a3d93437faf0286986c3e96 type-id=1455836941196655073 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout LocalChoice size=0 align=1 refs=[]
+  layout CoroutineStep<LocalChoice> size=8 align=8 enum-scan=none
+  layout CoroutineSlot<LocalChoice> size=8 align=8 enum-scan=none
+  layout box<LocalChoice> value size=8 align=8 refs=[0]
+  layout box<LocalChoice> size=16 align=8 refs=[]
+  output library

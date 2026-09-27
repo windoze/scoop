@@ -14,12 +14,34 @@ impl Lowerer {
         expected: Option<TypeId>,
         required: RequiredCallableModifiers,
     ) -> PropertyExtensionInvokeOutcome {
+        self.probe_member_call_partition_with_kind(
+            candidates,
+            name,
+            receiver,
+            call,
+            expected,
+            required,
+            MemberCallKind::Ordinary,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn probe_member_call_partition_with_kind(
+        &self,
+        candidates: Vec<crate::CallableCandidate>,
+        name: &ast::Ident,
+        receiver: hir::Expr,
+        call: CallSite<'_>,
+        expected: Option<TypeId>,
+        required: RequiredCallableModifiers,
+        kind: MemberCallKind,
+    ) -> PropertyExtensionInvokeOutcome {
         let imported = match self.imported_member_call_candidates(receiver.ty, name, required) {
             Ok(candidates) => candidates,
             Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
         };
         let operator_set = required.operator == Some(hir::OperatorKind::Set);
-        if imported.is_empty() {
+        if imported.is_empty() && kind == MemberCallKind::Ordinary {
             return self.probe_local_member_call_partition(
                 candidates,
                 &name.text,
@@ -101,9 +123,16 @@ impl Lowerer {
         let expression = match probes.swap_remove(winner) {
             NamedFunctionLikeProbe::Callable(probe) => state
                 .commit_named_callable(*probe, &mut sink)
-                .and_then(|resolved| state.finish_resolved_method_call(resolved, call.span)),
+                .and_then(|resolved| match kind {
+                    MemberCallKind::Ordinary => {
+                        state.finish_resolved_method_call(resolved, call.span)
+                    }
+                    MemberCallKind::DirectSuper => {
+                        state.finish_resolved_super_method_call(resolved, &name.text, call.span)
+                    }
+                }),
             NamedFunctionLikeProbe::ImportedDependency(probe) => {
-                state.commit_imported_dependency_callable(*probe, &mut sink)
+                state.commit_imported_dependency_callable_with_kind(*probe, &mut sink, kind)
             }
             _ => unreachable!("member call candidates are callable declarations"),
         };

@@ -1,0 +1,29 @@
+Module
+  class LocalChoice() : FirstChoice
+  fun primary(): Counter
+    val local0
+      ClassInit LocalChoice : LocalChoice
+    val local1
+      ReferenceUpcast : FirstChoice
+        Local $receiver : LocalChoice
+    val local2
+      ImportedDependencyCall #0 : Long
+        Local $dependency.receiver : FirstChoice
+    val local3
+      IntegerLiteral 1 : Long
+    val local4
+      Local $dependency.argument.0 : Long
+    val local5
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local6
+      MethodCall LocalChoice.answer : Long
+        Local $receiver : LocalChoice
+        Local $parameter.value : Long
+    val local7
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

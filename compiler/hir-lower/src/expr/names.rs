@@ -92,7 +92,7 @@ impl Lowerer {
                         return Some(property.read);
                     }
                     crate::properties::ImplicitValueResolution::Value { target, layer } => {
-                        Some((ResolvedValueTarget::Materialized(target), Some(layer)))
+                        Some((target, Some(layer)))
                     }
                     crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
                         implicit_failure = Some(failure);

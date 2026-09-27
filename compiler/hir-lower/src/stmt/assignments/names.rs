@@ -149,11 +149,7 @@ impl Lowerer {
                         return self.lower_extension_property_write(*property, value, name.span);
                     }
                     crate::properties::ImplicitValueResolution::Value { target, .. } => {
-                        selected_value = Some(
-                            crate::imports::lookup::values::ResolvedValueTarget::Materialized(
-                                target,
-                            ),
-                        );
+                        selected_value = Some(target);
                     }
                     crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
                         self.commit_layer_diagnostics(*failure);

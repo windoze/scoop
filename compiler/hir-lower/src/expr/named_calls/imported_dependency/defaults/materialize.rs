@@ -7,6 +7,7 @@ use scoop_identity::LocalValueSelector;
 
 use super::plan::PreparedImportedDefault;
 use crate::Lowerer;
+use crate::expr::MemberCallKind;
 use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
 mod statements;
@@ -201,6 +202,7 @@ impl Lowerer {
                     })?,
                     args,
                     receiver,
+                    MemberCallKind::Ordinary,
                     context,
                 )?
             }
@@ -221,6 +223,7 @@ impl Lowerer {
                     scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
                     args,
                     hir::SourceCallReceiver::NoReceiver,
+                    MemberCallKind::Ordinary,
                     context,
                 )?
             }
@@ -258,7 +261,17 @@ impl Lowerer {
                 receiver,
                 callee: hir::DefaultMethodCalleeV1::Callable(callee),
                 arguments,
+            }
+            | Kind::DirectSuperMethodCall {
+                receiver,
+                callee: hir::DefaultMethodCalleeV1::Callable(callee),
+                arguments,
             } => {
+                let kind = if matches!(expression.kind(), Kind::DirectSuperMethodCall { .. }) {
+                    MemberCallKind::DirectSuper
+                } else {
+                    MemberCallKind::Ordinary
+                };
                 let receiver = self.materialize_imported_default_expression(receiver, context)?;
                 let receiver_type = receiver.ty;
                 let mut args = vec![receiver];
@@ -271,6 +284,7 @@ impl Lowerer {
                     hir::SourceCallReceiver::Receiver {
                         static_type: receiver_type,
                     },
+                    kind,
                     context,
                 )?
             }
@@ -405,6 +419,7 @@ impl Lowerer {
         callee: scoop_identity::CallableTemplateOrigin,
         args: Vec<hir::Expr>,
         receiver: hir::SourceCallReceiver<hir::TypeId>,
+        kind: MemberCallKind,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
         let candidate = context
@@ -413,7 +428,7 @@ impl Lowerer {
             .get(&callee)
             .ok_or(ImportedDefaultMaterializationError::MissingCallable(callee))?;
         let callee = self
-            .select_imported_callable_declaration_use(candidate.clone())
+            .select_imported_callable_declaration_use_with_kind(candidate.clone(), kind)
             .map_err(|error| {
                 ImportedDefaultMaterializationError::DependencySelection(error.to_string())
             })?;

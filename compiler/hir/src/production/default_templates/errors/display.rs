@@ -142,6 +142,9 @@ impl fmt::Display for DefaultEntityProjectionError {
 impl fmt::Display for DefaultBodyProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingMethodReceiver => {
+                formatter.write_str("a direct super call is missing its receiver")
+            }
             Self::Resource(source) => source.fmt(formatter),
             Self::Entity(source) => source.fmt(formatter),
             Self::Signature(source) => source.fmt(formatter),

@@ -1,0 +1,19 @@
+import dependency.classes.Counter
+import dependency.classes.DefaultProperty
+import dependency.classes.superTrace
+
+public interface LocalProcedure {
+    public fun clear() { superTrace = 0 }
+}
+public class LocalProperty public constructor(): DefaultProperty, LocalProcedure {
+    public override var value: Long = 1000
+    public fun exercise(): Long {
+        super<LocalProcedure>.clear()
+        super<DefaultProperty>.value = 20
+        super<DefaultProperty>.value += 1
+        val old = super<DefaultProperty>.value++
+        superTrace += 0
+        return superTrace + old - 20
+    }
+}
+public fun primary(): Counter = Counter(LocalProperty().exercise())

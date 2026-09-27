@@ -5,12 +5,22 @@ use scoop_hir as hir;
 use super::arguments::ImportedParameterInput;
 use super::{ImportedCallReceiver, ImportedDependencyCallProbe, ImportedMemberReceiver};
 use crate::Lowerer;
+use crate::expr::MemberCallKind;
 
 impl Lowerer {
     pub(in crate::expr) fn commit_imported_dependency_callable(
         &mut self,
         probe: ImportedDependencyCallProbe,
         sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        self.commit_imported_dependency_callable_with_kind(probe, sink, MemberCallKind::Ordinary)
+    }
+
+    pub(in crate::expr) fn commit_imported_dependency_callable_with_kind(
+        &mut self,
+        probe: ImportedDependencyCallProbe,
+        sink: &mut Vec<hir::Statement>,
+        kind: MemberCallKind,
     ) -> Option<hir::Expr> {
         let ImportedDependencyCallProbe {
             state,
@@ -26,6 +36,15 @@ impl Lowerer {
             ..
         } = probe;
         *self = *state;
+        if kind == MemberCallKind::DirectSuper
+            && candidate.interface().modality() == hir::CallableModalityV1::Abstract
+        {
+            self.error(
+                call_span,
+                "abstract dependency member cannot be called with `super`".into(),
+            );
+            return None;
+        }
         if candidate.interface().effects().safety() == hir::CallableSafetyV1::Unsafe {
             self.require_unsafe_operation(
                 call_span,
@@ -197,7 +216,7 @@ impl Lowerer {
                 .select_imported_dependency_callable_use(*candidate)
                 .map(|(callee, binding)| (callee, Some(binding))),
             ImportedCallableCandidate::Declaration(candidate) => self
-                .select_imported_callable_declaration_use(*candidate)
+                .select_imported_callable_declaration_use_with_kind(*candidate, kind)
                 .map(|callee| (callee, None)),
         };
         let (callee, binding) = match selected {

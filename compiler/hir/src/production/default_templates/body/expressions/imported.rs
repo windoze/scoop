@@ -1,10 +1,10 @@
-use scoop_identity::{CallableTemplateOrigin, OptionalSignatureType};
+use scoop_identity::CallableTemplateOrigin;
 
 use super::BodyProjection;
 use crate::production::default_templates::DefaultBodyProjectionError;
 use crate::{
-    DefaultCallableDeclarationV1, DefaultCallableRefV1, DefaultConstructorRefV1,
-    DefaultExpressionKindV1, Expr, ImportedDependencyCallableUseId, SourceCallReceiver, TypeId,
+    DefaultConstructorRefV1, DefaultExpressionKindV1, DefaultMethodCalleeV1, Expr,
+    ImportedDependencyCallableUseId, ImportedDependencyDispatch, SourceCallReceiver, TypeId,
 };
 
 impl BodyProjection<'_, '_> {
@@ -16,15 +16,16 @@ impl BodyProjection<'_, '_> {
         result_type: TypeId,
     ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
         let selected = self.entities.imported_dependency_source(callee)?;
+        let direct_super = self.entities.export().imported_dependency_callables[callee].dispatch()
+            == ImportedDependencyDispatch::Direct
+            && selected.interface().modality() != crate::CallableModalityV1::Final;
         let declaration = selected.interface().declaration();
         let owner_type = selected.interface().result().clone();
         let callable = match declaration {
-            CallableTemplateOrigin::Function(id) => DefaultCallableDeclarationV1::Function(id),
-            CallableTemplateOrigin::GenericFunction(id) => {
-                DefaultCallableDeclarationV1::GenericFunction(id)
-            }
-            CallableTemplateOrigin::Accessor(id) => {
-                DefaultCallableDeclarationV1::PropertyAccessor(id)
+            CallableTemplateOrigin::Function(_)
+            | CallableTemplateOrigin::GenericFunction(_)
+            | CallableTemplateOrigin::Accessor(_) => {
+                self.entities.imported_dependency_callable(callee)?
             }
             CallableTemplateOrigin::Constructor(declaration) => {
                 let constructor =
@@ -60,13 +61,18 @@ impl BodyProjection<'_, '_> {
                 });
             }
         };
-        let callee =
-            DefaultCallableRefV1::try_new(callable, OptionalSignatureType::Absent, Vec::new())
-                .map_err(
-                    crate::production::default_templates::DefaultEntityProjectionError::Callable,
-                )?;
+        if direct_super {
+            let Some((receiver, arguments)) = args.split_first() else {
+                return Err(DefaultBodyProjectionError::MissingMethodReceiver);
+            };
+            return Ok(DefaultExpressionKindV1::DirectSuperMethodCall {
+                receiver: Box::new(self.expression(receiver)?),
+                callee: DefaultMethodCalleeV1::Callable(callable),
+                arguments: self.expressions(arguments)?,
+            });
+        }
         Ok(DefaultExpressionKindV1::Call {
-            callee,
+            callee: callable,
             receiver: receiver.try_map(|ty| self.type_key(ty))?,
             arguments: self.expressions(args)?,
         })

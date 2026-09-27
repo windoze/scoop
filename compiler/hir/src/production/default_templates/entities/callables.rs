@@ -113,10 +113,8 @@ impl DefaultEntityProjector<'_> {
         &self,
         id: ImportedDependencyCallableUseId,
     ) -> Result<DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
-        let source = self
-            .imported_dependency_source(id)?
-            .interface()
-            .declaration();
+        let interface = self.imported_dependency_source(id)?.interface();
+        let source = interface.declaration();
         let declaration = match source {
             scoop_identity::CallableTemplateOrigin::Function(id) => {
                 DefaultCallableDeclarationV1::Function(id)
@@ -134,7 +132,24 @@ impl DefaultEntityProjector<'_> {
                 ));
             }
         };
-        DefaultCallableRefV1::try_new(declaration, OptionalSignatureType::Absent, Vec::new())
+        let owner = if self.export.imported_dependency_callables[id].dispatch()
+            == crate::ImportedDependencyDispatch::Direct
+            && interface.modality() != crate::CallableModalityV1::Final
+        {
+            let crate::PublicDeclarationOwnerV1::Nominal(crate::SourceNominalId::Concrete(owner)) =
+                interface.owner()
+            else {
+                return Err(super::super::DefaultEntityProjectionError::CallableKind(
+                    source,
+                ));
+            };
+            OptionalSignatureType::Present(Box::new(scoop_identity::SignatureTypeKey::Nominal(
+                owner,
+            )))
+        } else {
+            OptionalSignatureType::Absent
+        };
+        DefaultCallableRefV1::try_new(declaration, owner, Vec::new())
             .map_err(super::super::DefaultEntityProjectionError::Callable)
     }
 

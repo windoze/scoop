@@ -1,0 +1,14 @@
+Module
+  struct LocalChoice : FirstChoice
+  fun primary(): Counter
+    val local0
+      StructInit LocalChoice : LocalChoice
+    val local1
+      MethodCall LocalChoice.choose : Long
+        Local $receiver : LocalChoice
+    val local2
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #0 : Counter
+        Local $dependency.parameter.value : Long
+  output library

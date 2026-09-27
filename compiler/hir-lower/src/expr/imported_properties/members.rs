@@ -1,8 +1,10 @@
 use super::*;
+use crate::expr::MemberCallKind;
 use hir::ImportedCallableSource;
 
 mod write;
 
+#[derive(Clone)]
 pub(crate) struct ResolvedImportedMemberProperty {
     getter: hir::ImportedCallableDeclaration,
     capability: hir::PropertyCapabilityV1,
@@ -100,6 +102,21 @@ impl Lowerer {
         receiver: hir::Expr,
         span: ast::Span,
     ) -> Option<hir::Expr> {
+        self.emit_imported_member_property_read_with_kind(
+            property,
+            receiver,
+            span,
+            MemberCallKind::Ordinary,
+        )
+    }
+
+    pub(crate) fn emit_imported_member_property_read_with_kind(
+        &mut self,
+        property: &ResolvedImportedMemberProperty,
+        receiver: hir::Expr,
+        span: ast::Span,
+        kind: MemberCallKind,
+    ) -> Option<hir::Expr> {
         self.emit_imported_member_accessor(
             property.getter.clone(),
             receiver,
@@ -107,9 +124,11 @@ impl Lowerer {
             property.value_type,
             span,
             "reading an unsafe dependency property",
+            kind,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn emit_imported_member_accessor(
         &mut self,
         candidate: hir::ImportedCallableDeclaration,
@@ -118,8 +137,18 @@ impl Lowerer {
         result_type: hir::TypeId,
         span: ast::Span,
         unsafe_operation: &str,
+        kind: MemberCallKind,
     ) -> Option<hir::Expr> {
         let interface = candidate.interface();
+        if kind == MemberCallKind::DirectSuper
+            && interface.modality() == hir::CallableModalityV1::Abstract
+        {
+            self.error(
+                span,
+                "abstract interface accessor cannot be called with qualified `super`".into(),
+            );
+            return None;
+        }
         if interface.effects().safety() == hir::CallableSafetyV1::Unsafe {
             self.require_unsafe_operation(span, unsafe_operation);
         }
@@ -136,7 +165,7 @@ impl Lowerer {
         args.push(self.adapt_to(receiver, owner));
         args.extend(values);
         let callee = self
-            .select_imported_callable_declaration_use(candidate)
+            .select_imported_callable_declaration_use_with_kind(candidate, kind)
             .map_err(|error| {
                 self.error(
                     span,

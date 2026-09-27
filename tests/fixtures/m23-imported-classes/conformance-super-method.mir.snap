@@ -1,0 +1,80 @@
+Module
+  enum CoroutineStep<LocalChoice>
+    Completed(value: LocalChoice)
+    Suspended()
+  enum CoroutineSlot<LocalChoice>
+    Empty()
+    Value(value: LocalChoice)
+  class LocalChoice vtable=0 itables=2
+  class Counter vtable=0 itables=0
+  interface FirstChoice
+  interface SecondChoice
+  generated_exact_type get0 location=enum1 nominal_id=213e1bbc52591cdc72c7c8018b2c839de26f2de7ec0fbac6e3455ec318c9638d exact_id=0e27da0a2109916301cfb4a7a9cce0136b6455ddfe2d4eafecdda5dba6f1ebee
+  generated_exact_type get1 location=enum0 nominal_id=53be3cab492c188b39f2e51976e174f615d1402d4b8266772b0b222767376646 exact_id=46ebdaa4a4f90ceb1d000ab8f1b80a39da0654e0b37f3ab3055047acdeac0ae1
+  fun LocalChoice.choose @fn0(this: LocalChoice) -> Long
+    bb0 entry
+      val $dependency.receiver: FirstChoice
+        Type FirstChoice
+        Retype FirstChoice
+          Type LocalChoice
+          Local this
+      call $dependency.receiver: Long = external0 direct
+        Type FirstChoice
+        Local $dependency.receiver
+      val $dependency.receiver: SecondChoice
+        Type SecondChoice
+        Retype SecondChoice
+          Type LocalChoice
+          Local this
+      call $dependency.argument.0: Long = external2 direct
+        Type SecondChoice
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun primary @fn1() -> Counter
+    bb0 entry
+      assign $new.1
+        Type LocalChoice
+        ClassAlloc LocalChoice
+      call @fn2 direct
+        Type LocalChoice
+        Local $new.1
+      val choice: FirstChoice
+        Type FirstChoice
+        Retype FirstChoice
+          Type LocalChoice
+          Local $new.1
+      val $dependency.receiver: FirstChoice
+        Type FirstChoice
+        Local choice
+      call $dependency.argument.0: Long = external0 interface FirstChoice[0]
+        Type FirstChoice
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.LocalChoice.$c0 @fn2(this: LocalChoice) -> Unit
+    bb0 entry
+      return
+  coroutine_step cs0 CoroutineStep<LocalChoice> result=LocalChoice
+  coroutine_slot cl0 CoroutineSlot<LocalChoice> value=LocalChoice
+  output library

@@ -204,6 +204,8 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 
 抽象 dispatch 目标与具体实现一样保留实际声明：Export HIR 的抽象 conformance 携带真实方法 application 或外来 callable 引用，source selection 携带所选 abstract 声明，完整 slot contract 携带该声明的 owner、signature、effect、modality 与访问域。最近的 class 抽象声明以及更具体 interface 的抽象 override 均压制原默认实现；不把原槽声明伪装成所选目标。MIR、LIR 和 Compile/Link 按该 typed target 取得真实 trap、ABI 与 relocation，不再扫描所有 callable、重建整份继承图或沿继承链反向推测抽象目标。槽身份与所选声明身份可以不同，双方仍须满足实际继承、签名和访问合同。正常路径复用完整记录，不增加来源凭证或第二套证明表。
 
+限定 `super<I>` 通过当前 owner 直接列出的真实接口类型查找成员，本地接口和依赖接口使用同一候选决议、参数默认值与可见性规则。调用选中的具体默认方法或 getter/setter 时，HIR 保存实际声明及强制 direct 调用方式；接收者沿共有引用转换或值装箱路径适配，MIR/LIR 按该声明的 canonical ABI 与 provider 定义发射，不再次进入接口表。抽象目标、非直接父接口、错误参数与初始化期间的调用仍在前端诊断。导出的默认参数正文用既有 `DirectSuperMethodCall` 节点保留该语义，下游展开继续调用同一真实目标。正文与引用集合复用同一 callable 引用转换，完整保留实际方法 owner，不分别重建不同的引用记录。同一 provider 的同一 typed callable 被 direct 和 dispatch 多次使用时，MIR 依赖记录与物理定义只选择一次，各调用点仍保留各自的派发方式。此项不新增来源资格、证明表、wire tag 或 runtime ABI；验收覆盖普通与 ZST 接收者、属性读写、命名及默认参数、大值结果和再次发布后的消费。具有隐式接收者的成员正文仍按普通值查找规则消费依赖属性、object 与 enum 变体；这些值与本地值使用同一个解析结果，不能归入函数或类型的非值阻断层。
+
 外来 dispatch target 按实际 provider 的普通 callable 或布局 ABI 导出取得定义和 canonical ABI；已完成消费边界检查的物理引用直接复用，不再重复完整验证或要求普通 callable 在布局 ABI 表中再登记一次。装箱和 dispatch adapter 的目标签名在完整本地及依赖 callable 查询中关联；组成记录只检查自身签名与转换形状，不要求外来目标同时登记在本地 foundation，也不重复进行同一目标签名的完整验证。
 
 先修订三份 spec、ROADMAP、M23 总设计、M23-6 设计与本清理文档，再按实际调用链清理实现。已完成项核对后保留，不重复实现；每批代码先格式化和 lint，随后测试，通过后按功能提交。

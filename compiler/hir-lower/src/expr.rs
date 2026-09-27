@@ -112,10 +112,27 @@ pub(crate) struct NominalArgumentInput<'a> {
 
 #[derive(Clone)]
 pub(crate) struct QualifiedInterfaceProperty {
-    pub(crate) property: hir::PropertyId,
-    pub(crate) owner: hir::InterfaceApplicationId,
+    pub(crate) target: QualifiedInterfacePropertyTarget,
     pub(crate) receiver: hir::Expr,
     pub(crate) ty: TypeId,
+}
+
+#[derive(Clone)]
+pub(crate) enum QualifiedInterfacePropertyTarget {
+    Local {
+        property: hir::PropertyId,
+        owner: hir::InterfaceApplicationId,
+    },
+    Imported {
+        property: Box<ResolvedImportedMemberProperty>,
+        name: ast::Ident,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MemberCallKind {
+    Ordinary,
+    DirectSuper,
 }
 
 #[derive(Clone, Copy)]

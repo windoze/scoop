@@ -22,6 +22,8 @@
 
 抽象 slot 的物理 entry 使用实际所选 abstract 声明的既有 pure-virtual trap 及完整 ABI；slot 的根声明与 trap 声明可以不同，receiver 沿真实 base/interface 关系适配，调用错误仍有明确 fatal 出口。该关系由编译器完整产物提供，runtime 不反向重建声明或新增来源、配额和重复元数据检查。HIR 接口及 type-semantics 格式按实现规范升级并要求旧产物重建，runtime C ABI、String 表示和 GC 契约保持不变。
 
+跨 Cone 的限定 `super<I>` 调用沿实际默认实现的普通 direct ABI 执行，接收者转换与值装箱、ZST 消除、大值返回和 GC effect 使用共有规则。运行时不再执行一次接口槽选择，也不增加特殊入口或验证；源码默认参数中的同类调用经产物消费后保持同一目标。现有 C 调用约定、String 表示与元数据格式不变。
+
 删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
 
 参数自由依赖class通过共有名义声明取得真实身份、modality、直接父类型和声明序字段，引用类型按GC契约传播，递归引用字段不展开成递归值布局。HIR保留完整声明及解析后的字段、父类型，不重建同名本地声明。外来class构造仍是对真实constructor的typed调用；HIR→MIR消费已选MIR绑定中的ClassInitializer角色，使用共有class分配路径创建对象，再将该对象作为receiver调用实际provider的初始化实现。构造表达式返回分配的对象，物理initializer返回Unit；普通返回class的函数不走构造分支。本地与外来initializer共用Callee表示、参数求值顺序和GC处理。 core默认导入层的构造调用和静态限定名同时查询普通Type/Value binding；用户新增的class、enum和typealias与其他依赖使用相同声明路径，不限于预设内建名字。此能力不增加来源凭证、core分支或runtime ABI，沿用现有类型、MIR绑定及LIR布局格式。 M23-6的真实class运行在单个最终镜像中链接实际产物及runtime；LLVM stackmap段按各对象贡献的完整v3 blob逐个读取，长度由已有count和对齐决定，保留每份格式、记录唯一性与精确PC检查，不增加展开预算。该读取不要求M23-8的多镜像启动或M23-9的program-link。

@@ -1,6 +1,6 @@
 use super::*;
-use crate::expr::QualifiedInterfaceProperty;
 use crate::expr::{CallSite, RequiredCallableModifiers};
+use crate::expr::{QualifiedInterfaceProperty, QualifiedInterfacePropertyTarget};
 
 mod imported_properties;
 mod names;
@@ -296,11 +296,15 @@ impl Lowerer {
                 let property =
                     self.resolve_qualified_interface_super_property(qualifier, name, *span)?;
                 let read = self.lower_direct_interface_property_read(property.clone(), *span)?;
-                let write = if self.properties[property.property]
-                    .capability
-                    .setter()
-                    .is_some()
-                {
+                let has_setter = match &property.target {
+                    QualifiedInterfacePropertyTarget::Local { property, .. } => {
+                        self.properties[*property].capability.setter().is_some()
+                    }
+                    QualifiedInterfacePropertyTarget::Imported { property, .. } => {
+                        property.has_setter()
+                    }
+                };
+                let write = if has_setter {
                     WriteCapability::DirectInterfaceProperty(property)
                 } else {
                     WriteCapability::ReadOnly

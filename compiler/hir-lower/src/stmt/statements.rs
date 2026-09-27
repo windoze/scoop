@@ -31,6 +31,7 @@ impl Lowerer {
                     hir::ExprKind::Call { .. }
                         | hir::ExprKind::ImportedDependencyCall { .. }
                         | hir::ExprKind::MethodCall { .. }
+                        | hir::ExprKind::DirectSuperMethodCall { .. }
                         | hir::ExprKind::LocalFunctionCall { .. }
                         | hir::ExprKind::CallableCall { .. }
                         | hir::ExprKind::PtrStore { .. }

@@ -1,0 +1,28 @@
+Module
+  fun primary(): Counter
+    val local0
+      ImportedDependencyCall #0 : DefaultOwner
+    val local1
+      ReferenceUpcast : FirstChoice
+        Local $dependency.receiver : DefaultOwner
+    val local2
+      ImportedDependencyCall #1 : Long
+        Local $dependency.default.local.1 : FirstChoice
+    val local3
+      IntegerLiteral 1 : Long
+    val local4
+      Local $dependency.default.local.3 : Long
+    val local5
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.default.local.2 : Long
+        Local $dependency.default.local.4 : Long
+    val local6
+      ImportedDependencyCall #2 : Long
+        Local $dependency.receiver : DefaultOwner
+        Local $dependency.parameter.value : Long
+    val local7
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #3 : Counter
+        Local $dependency.parameter.value : Long
+  output library

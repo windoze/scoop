@@ -1,5 +1,7 @@
 //! Stage-specific projection of committed dependency selections.
 
+use std::collections::BTreeSet;
+
 use scoop_hir::DependencyHirOutput;
 use scoop_mir::{
     SelectedDependencyMirCallableV1, SelectedExternalMirCallable, SelectedExternalMirSet,
@@ -39,17 +41,21 @@ impl ValidatedCrossConeSemanticClosure {
             .executable_dependency_callables()
             .map_err(CrossConeMirSelectionProjectionError::Occurrences)?;
         let mut projected = Vec::new();
+        let mut definitions = BTreeSet::new();
 
         scoop_wire::allocation::try_reserve(&mut projected, selected.len(), &WirePath::root())
             .map_err(CrossConeMirSelectionProjectionError::Resource)?;
         for use_ in selected {
             let callable = use_.callable();
             let provider = callable.provider();
+            let capability = callable.capability();
+            let target = capability.implementation();
+            if !definitions.insert((provider, target)) {
+                continue;
+            }
             let artifact = self
                 .provider(provider)
                 .ok_or(CrossConeMirSelectionProjectionError::MissingProvider { provider })?;
-            let capability = callable.capability();
-            let target = capability.implementation();
             let expected_gc = match capability.gc_effect() {
                 scoop_identity::GcEffect::Managed => scoop_mir::GcEffect::Managed,
                 scoop_identity::GcEffect::NoGc => scoop_mir::GcEffect::NoGc,

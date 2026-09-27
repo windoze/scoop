@@ -98,6 +98,7 @@ fn lower_dependency_callables(
     CurrentConeMirLoweringError,
 > {
     let mut mapping = HashMap::new();
+    let mut definitions = HashMap::new();
 
     let executable = output
         .executable_dependency_callables()
@@ -106,6 +107,11 @@ fn lower_dependency_callables(
         let source_id = use_.callee();
         let selected = use_.callable();
         let capability = selected.capability();
+        let definition = (selected.provider(), capability.implementation());
+        if let Some(target) = definitions.get(&definition) {
+            mapping.insert(source_id, *target);
+            continue;
+        }
         let id = imported
             .callable_for(selected.provider(), capability.implementation())
             .ok_or(CurrentConeMirLoweringError::MissingDependencyMirCallable {
@@ -137,6 +143,7 @@ fn lower_dependency_callables(
                 .expect("a selected dependency MIR callable has a complete typed reference"),
         );
         mapping.insert(source_id, (target, lowering_role));
+        definitions.insert(definition, (target, lowering_role));
     }
     Ok(mapping)
 }
