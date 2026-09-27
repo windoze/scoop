@@ -49,6 +49,25 @@ impl Lowerer {
         kind: MemberCallKind,
     ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
         let dispatch = self.imported_callable_dispatch(candidate.interface(), kind)?;
+        self.select_imported_callable_with_dispatch(candidate, dispatch)
+    }
+
+    /// A dispatch table references the definition itself, including abstract traps.
+    pub(crate) fn select_imported_callable_definition_use(
+        &mut self,
+        candidate: hir::ImportedCallableDeclaration,
+    ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
+        self.select_imported_callable_with_dispatch(
+            candidate,
+            hir::ImportedDependencyDispatch::Direct,
+        )
+    }
+
+    fn select_imported_callable_with_dispatch(
+        &mut self,
+        candidate: hir::ImportedCallableDeclaration,
+        dispatch: hir::ImportedDependencyDispatch,
+    ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
         let reference = self
             .dependencies
             .as_mut()
@@ -87,9 +106,9 @@ impl Lowerer {
         match &self.types[ty] {
             hir::Type::ImportedClass(class) => {
                 let position = class
-                    .virtual_slots
+                    .virtual_methods
                     .iter()
-                    .position(|slot| callable.slot_relations().values().contains(slot))
+                    .position(|method| callable.slot_relations().values().contains(&method.slot))
                     .ok_or_else(invalid)?;
                 Ok(Dispatch::Virtual {
                     slot: u32::try_from(position).map_err(|_| invalid())?,

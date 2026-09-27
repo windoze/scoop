@@ -152,7 +152,11 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
             output.local.classes[*owner]
                 .methods
                 .iter()
-                .all(|method| output.local.functions[*method].name != "Box.choose"),
+                .all(|method| match method {
+                    hir::concrete::ClassMethod::Local(function) =>
+                        output.local.functions[*function].name != "Box.choose",
+                    hir::concrete::ClassMethod::Imported { .. } => true,
+                }),
             "generic methods are direct applications and never dispatch-table members"
         );
         let record = output

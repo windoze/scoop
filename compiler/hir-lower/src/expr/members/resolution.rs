@@ -1,33 +1,6 @@
 use super::*;
 
 impl Lowerer {
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::expr) fn finish_super_method_call(
-        &mut self,
-        candidates: Vec<crate::CallableCandidate>,
-        name: &str,
-        receiver: hir::Expr,
-        call: CallSite<'_>,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
-    ) -> Option<hir::Expr> {
-        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
-        let resolved = self.resolve_member_overload(
-            name,
-            &candidates,
-            receiver,
-            crate::overload::OverloadCall {
-                explicit_type_args: &explicit_type_args,
-                arg_exprs: call.args,
-                span: call.span,
-                expected_result: expected,
-                argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
-            },
-            sink,
-        )?;
-        self.finish_resolved_super_method_call(resolved, name, call.span)
-    }
-
     pub(in crate::expr) fn finish_resolved_super_method_call(
         &mut self,
         resolved: crate::overload::ResolvedCallee,
@@ -147,7 +120,12 @@ impl Lowerer {
                         break true;
                     }
                     let Some(base) = self.direct_base_class(class) else {
-                        break false;
+                        break self
+                            .imported_member_candidates(
+                                receiver_ty,
+                                hir::ImportedMemberLookup::PropertyGetter(name),
+                            )
+                            .is_ok_and(|candidates| !candidates.is_empty());
                     };
                     class = base;
                 }

@@ -1,4 +1,5 @@
 use super::*;
+use hir::ImportedCallableSource;
 
 pub(super) struct InheritedProperty {
     pub(super) reference: hir::PropertyReference,
@@ -147,6 +148,41 @@ impl Lowerer {
         {
             result.push(self.local_inherited_property(property, ty));
         }
+        if result.is_empty()
+            && let Some(class) = class
+        {
+            for getter in self.inherited_imported_class_methods(
+                class,
+                &format!("$get${name}"),
+                self.classes[class].span,
+            ) {
+                let scoop_identity::CallableTemplateOrigin::Accessor(accessor) =
+                    getter.declaration.interface().declaration()
+                else {
+                    unreachable!("property lookup selects its actual getter")
+                };
+                let property = self
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.property_for_accessor(accessor))
+                    .expect("dependency getter has its property declaration");
+                let hir::PropertyDeclarationId::Property(declaration) = property.declaration()
+                else {
+                    unreachable!("class member properties have nominal declarations")
+                };
+                result.push(InheritedProperty {
+                    reference: hir::PropertyReference::Imported {
+                        owner: getter.owner,
+                        declaration,
+                    },
+                    ty: getter.signature.result,
+                    mutable: property.accessors().setter().is_some(),
+                    is_final: getter.declaration.interface().modality()
+                        == hir::CallableModalityV1::Final,
+                    slot: self.imported_callable_slot_domain(getter.declaration.interface()),
+                });
+            }
+        }
         for interface_ty in self.owner_interfaces(owner) {
             match self.types[interface_ty].clone() {
                 Type::Interface(application) => {
@@ -248,8 +284,10 @@ impl Lowerer {
         let application = self.class_applications[current].clone();
         let base = self.classes[class].base_class?;
         let base = self.instantiate_ty(base, &application.arguments);
-        let Type::Class(base_application) = self.types[base] else {
-            unreachable!("resolved class bases are class applications")
+        let base_application = match self.types[base] {
+            Type::Class(application) => application,
+            Type::ImportedClass(_) => return None,
+            _ => unreachable!("resolved class bases have class types"),
         };
         let (_, property, ty) =
             self.find_accessible_class_application_property(base_application, name, receiver_ty)?;

@@ -75,7 +75,7 @@ impl Lowerer {
             let return_type = self.imported_signature_type(callable.result())?;
             interface.methods.push(hir::ImportedInterfaceMethod {
                 slot: declaration
-                    .interface_slots
+                    .dispatch_slots
                     .iter()
                     .find(|slot| slot.id() == member.slot())
                     .ok_or(ImportedSignatureTypeError::Structural)?

@@ -354,16 +354,20 @@ pub(crate) fn lower_core_bootstrap(
         .map(|output| output.into_parts().0)
 }
 
-/// Projects the M23-6 type-semantics payload from a sealed ordinary HIR
-/// result and its M23-5 public interface. The returned production object also
-/// carries the independently derived source/fact/inheritance inventories that
-/// the driver must retain for semantic sealing.
+/// Projects complete HIR and dependency declarations into the type section.
+/// Inherited slot domains are reused from the dependency's checked contracts.
 pub fn produce_cross_cone_type_semantics(
     output: &hir::DependencyHirOutput,
     metadata: hir::SharedTypeMetadataV1<'_>,
     dependencies: &[hir::SharedTypeMetadataV1<'_>],
+    dependency_inheritance: &[&hir::CanonicalNominalInheritanceInterfacesV1],
 ) -> Result<hir::CrossConeTypeSemanticsSectionV1, hir::CrossConeTypeSemanticsProductionError> {
-    hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(output, metadata, dependencies)
+    hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(
+        output,
+        metadata,
+        dependencies,
+        dependency_inheritance,
+    )
 }
 
 fn finish_output(
@@ -534,7 +538,8 @@ pub(crate) struct Lowerer {
     /// Cone-wide source identity allocator for class virtual method families.
     pub(crate) next_virtual_method_identity: u32,
     /// Declaration root captured when each virtual family is created.
-    pub(crate) virtual_method_roots: HashMap<hir::VirtualMethodId, FunctionId>,
+    pub(crate) virtual_method_roots:
+        HashMap<hir::VirtualMethodId, persistent_dispatch::VirtualMethodRoot>,
     pub(crate) next_constructor_parameter_identity: u32,
     /// Cone-wide identity allocator for structured loop occurrences. The
     /// active target stack below is callable-local, but identities remain

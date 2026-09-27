@@ -9,7 +9,7 @@ Module
       Local $dependency.argument.0 : Long
     val local2
       ReferenceUpcast : RebuiltReadable
-        ImportedDependencyCall #0 : RebuiltCounter
+        ImportedDependencyCall #1 : RebuiltCounter
           Local $dependency.parameter.value : Long
     val local3
       Local $argument.0 : RebuiltReadable
@@ -17,11 +17,11 @@ Module
       Call preserve : RebuiltReadable
         Local $parameter.value : RebuiltReadable
     val local5
-      ImportedDependencyCall #1 interface[0] : Long
+      ImportedDependencyCall #2 interface[0] : Long
         Local $dependency.receiver : RebuiltReadable
     val local6
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      ImportedDependencyCall #3 : Counter
         Local $dependency.parameter.value : Long
   output library

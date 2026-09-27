@@ -11,15 +11,25 @@ pub(super) fn produce_type_semantics(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
 ) -> Result<hir::CrossConeTypeSemanticsSectionV1, hir::CrossConeTypeSemanticsProductionError> {
-    with_metadata(output, public, |metadata, dependencies| {
-        crate::produce_cross_cone_type_semantics(output, metadata, dependencies)
+    with_metadata(output, public, |metadata, dependencies, core| {
+        let core_types = crate::produce_cross_cone_type_semantics(core, dependencies[0], &[], &[])?;
+        crate::produce_cross_cone_type_semantics(
+            output,
+            metadata,
+            dependencies,
+            &[core_types.inheritance()],
+        )
     })
 }
 
 pub(super) fn with_metadata<R>(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    run: impl FnOnce(hir::SharedTypeMetadataV1<'_>, &[hir::SharedTypeMetadataV1<'_>]) -> R,
+    run: impl FnOnce(
+        hir::SharedTypeMetadataV1<'_>,
+        &[hir::SharedTypeMetadataV1<'_>],
+        &hir::DependencyHirOutput,
+    ) -> R,
 ) -> R {
     let core = trusted_core();
     let identities = source_inventory::identity_closure(output);
@@ -39,5 +49,5 @@ pub(super) fn with_metadata<R>(
         foundation: &core.source_foundation,
         public: core.general_interface(),
     };
-    run(metadata, &[dependency])
+    run(metadata, &[dependency], &core.output)
 }

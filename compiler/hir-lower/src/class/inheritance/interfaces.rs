@@ -1,4 +1,5 @@
 use super::*;
+use hir::ImportedCallableSource;
 use std::collections::HashSet;
 
 mod members;
@@ -21,6 +22,7 @@ impl Lowerer {
             .object_by_backing_class
             .get(&id)
             .map_or(Owner::Class(id), |id| Owner::Object(*id));
+        self.check_abstract_class_methods(id, span, host);
         self.check_nominal_interface_implementation(owner, span, host);
     }
 
@@ -114,6 +116,17 @@ impl Lowerer {
                         self.same_interface_signature(&signature, &member.signature)
                     })
                     .cloned();
+                let imported_implementation = if implemented.is_none() {
+                    class.and_then(|class| {
+                        self.inherited_imported_class_methods(class, &member.signature.name, span)
+                            .into_iter()
+                            .find(|method| {
+                                self.same_interface_signature(&method.signature, &member.signature)
+                            })
+                    })
+                } else {
+                    None
+                };
                 let target = match implemented {
                     Some(candidate) if !self.is_abstract_method(candidate.function) => {
                         let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
@@ -140,6 +153,40 @@ impl Lowerer {
                             true,
                         );
                         None
+                    }
+                    None if imported_implementation.is_some() => {
+                        let method =
+                            imported_implementation.expect("selected dependency implementation");
+                        let abstract_method = method.declaration.interface().modality()
+                            == hir::CallableModalityV1::Abstract;
+                        if abstract_method && !abstract_class {
+                            self.report_interface_obligation(
+                                &mut reported_obligations,
+                                &member,
+                                span,
+                                host,
+                                true,
+                            );
+                            None
+                        } else {
+                            self.select_imported_callable_declaration_use(method.declaration)
+                                .map(|callable| {
+                                    if abstract_method {
+                                        hir::InterfaceImplementationTarget::ImportedAbstract(
+                                            callable,
+                                        )
+                                    } else {
+                                        hir::InterfaceImplementationTarget::Imported(callable)
+                                    }
+                                })
+                                .map_err(|error| {
+                                    self.error(
+                                        span,
+                                        format!("invalid inherited interface target: {error}"),
+                                    )
+                                })
+                                .ok()
+                        }
                     }
                     None => match self.select_interface_default(&all_interfaces, &member.signature)
                     {

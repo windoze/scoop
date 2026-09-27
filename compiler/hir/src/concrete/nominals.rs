@@ -308,8 +308,17 @@ pub struct ClassDef {
     pub representation: ClassRepresentation,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
-    pub methods: Vec<FunctionId>,
+    pub methods: Vec<ClassMethod>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ClassMethod {
+    Local(FunctionId),
+    Imported {
+        family: VirtualMethodId,
+        callable: ImportedDependencyCallableUseId,
+    },
 }
 
 /// Complete signature and owning class of one compiler-hidden constructor.
@@ -327,6 +336,12 @@ pub struct ClassConstructor {
     pub origin: DefinitionOrigin,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassInitializerTarget {
+    Local(ClassConstructorId),
+    Imported(ImportedDependencyCallableUseId),
 }
 
 #[derive(Debug, Clone)]

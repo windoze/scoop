@@ -501,13 +501,24 @@ impl Concretizer<'_> {
             .position(|candidate| *candidate == field)
             .expect("a class field is listed by its typed owner") as u32;
         let mut base_count = 0_u32;
-        let mut current = declaration.owner;
-        while let Some(base) = self.source.classes[current].base_class {
-            let export::Type::Class(application) = self.source.types[base] else {
-                unreachable!("validated class bases are class applications")
+        let mut current = self.source.classes[declaration.owner].base_class;
+        while let Some(base) = current {
+            let fields = match &self.source.types[base] {
+                export::Type::Class(application) => {
+                    let class =
+                        &self.source.classes[self.source.class_applications[*application].template];
+                    current = class.base_class;
+                    class.fields.len()
+                }
+                export::Type::ImportedClass(class) => {
+                    current = class.base_class;
+                    class.fields.len()
+                }
+                _ => unreachable!("validated class bases have class types"),
             };
-            current = self.source.class_applications[application].template;
-            base_count += self.source.classes[current].fields.len() as u32;
+            base_count = base_count
+                .checked_add(u32::try_from(fields).expect("class field indices fit in u32"))
+                .expect("class field indices fit in u32");
         }
         base_count + own
     }

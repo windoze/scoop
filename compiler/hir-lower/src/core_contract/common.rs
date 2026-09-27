@@ -59,12 +59,17 @@ impl Lowerer {
             if !visited.insert(id) {
                 return false;
             }
-            current = self.classes[id].base_class.as_ref().map(|base| {
-                let Type::Class(application) = self.types[*base] else {
-                    unreachable!("resolved class bases are class applications")
-                };
-                self.class_applications[application].template
-            });
+            current =
+                self.classes[id]
+                    .base_class
+                    .as_ref()
+                    .and_then(|base| match self.types[*base] {
+                        Type::Class(application) => {
+                            Some(self.class_applications[application].template)
+                        }
+                        Type::ImportedClass(_) => None,
+                        _ => unreachable!("resolved class bases have class types"),
+                    });
         }
         false
     }

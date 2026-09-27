@@ -1,0 +1,69 @@
+Module
+  enum CoroutineStep<Derived>
+    Completed(value: Derived)
+    Suspended()
+  enum CoroutineSlot<Derived>
+    Empty()
+    Value(value: Derived)
+  class Derived vtable=1 itables=0
+  class RebuiltParent vtable=1 itables=0
+  class Counter vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=2cfebc3ce54b292bb2735e11c382c851074112261106ebd966027f457364c932 exact_id=1aaeb32a542dc45cf624c16985d553482e47e068cc49d61f77320ad6cc867419
+  generated_exact_type get1 location=enum1 nominal_id=5ce30fde191012f62bcb597492a89207f4f0696b1038ccae0685411c6f6811d3 exact_id=e226c8cebd2f5d5ae72ce1293591433d795f7ee76fcdb8d513f29f685cb7ce33
+  fun Derived.read @fn0(this: Derived) -> Long
+    bb0 entry
+      val $dependency.receiver: RebuiltParent
+        Type RebuiltParent
+        Retype RebuiltParent
+          Type Derived
+          Local this
+      call $call.1: Long = external0 direct
+        Type RebuiltParent
+        Local $dependency.receiver
+      return
+        Type Long
+        Local $call.1
+  fun primary @fn1() -> Counter
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn2 direct
+        Type Derived
+        Local $new.1
+      val $receiver: Derived
+        Type Derived
+        Local $new.1
+      call $dependency.argument.0: Long = @fn0 direct
+        Type Derived
+        Local $receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.Derived.$c0 @fn2(this: Derived) -> Unit
+    bb0 entry
+      val $dependency.parameter.seed: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      call external1 direct
+        Type RebuiltParent
+        Retype RebuiltParent
+          Type Derived
+          Local this
+        Type Long
+        Local $dependency.parameter.seed
+      return
+  coroutine_step cs0 CoroutineStep<Derived> result=Derived
+  coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
+  output library

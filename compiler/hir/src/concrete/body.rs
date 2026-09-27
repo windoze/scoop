@@ -196,7 +196,7 @@ pub enum ExprKind {
     },
     ClassInitializerCall {
         receiver: Box<Expr>,
-        initializer: ClassConstructorId,
+        initializer: ClassInitializerTarget,
         args: Vec<Expr>,
     },
     /// Ordinary, fully initialized receiver value inside a checked concrete

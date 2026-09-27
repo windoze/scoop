@@ -37,10 +37,11 @@ impl Lowerer {
         kind: MemberCallKind,
     ) -> PropertyExtensionInvokeOutcome {
         let mut context = self.clone();
-        let imported = match context.imported_member_call_candidates(receiver.ty, name, required) {
-            Ok(candidates) => candidates,
-            Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
-        };
+        let imported =
+            match context.imported_member_call_candidates(receiver.ty, name, required, kind) {
+                Ok(candidates) => candidates,
+                Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
+            };
         let operator_set = required.operator == Some(hir::OperatorKind::Set);
         if imported.is_empty() && kind == MemberCallKind::Ordinary {
             return context.probe_local_member_call_partition(

@@ -3,6 +3,7 @@
 use super::*;
 use std::sync::Arc;
 
+mod dispatch;
 mod values;
 
 impl Lowerer {
@@ -55,7 +56,8 @@ impl Lowerer {
             fields: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
-            virtual_slots: Vec::new(),
+            virtual_methods: Vec::new(),
+            interface_implementations: Vec::new(),
         };
         let ty = self.intern_type(hir::Type::ImportedClass(Arc::new(class.clone())));
         for parent in declaration.interface.exact_supertypes().values() {
@@ -81,22 +83,7 @@ impl Lowerer {
                 })
             })
             .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-        if let Some(base) = class.base_class {
-            let hir::Type::ImportedClass(base) = &self.types[base] else {
-                return Err(ImportedSignatureTypeError::Structural);
-            };
-            class.virtual_slots = base.virtual_slots.clone();
-        }
-        for slot in declaration
-            .interface
-            .declaration_details()
-            .dispatch_order()
-            .declared_slots()
-        {
-            if !class.virtual_slots.contains(&slot) {
-                class.virtual_slots.push(slot);
-            }
-        }
+        self.resolve_imported_class_dispatch(&mut class)?;
         self.types[ty] = hir::Type::ImportedClass(Arc::new(class));
         Ok(ty)
     }

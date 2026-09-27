@@ -1,5 +1,5 @@
 Module
-  class Reader vtable=0 itables=0
+  class Reader vtable=0 itables=1
   class Counter vtable=0 itables=0
   interface Readable
   fun primary @fn0() -> Counter
@@ -13,7 +13,7 @@ Module
       assign $new.1
         Type Reader
         ClassAlloc Reader
-      call external0 direct
+      call external2 direct
         Type Reader
         Local $new.1
         Type Long
@@ -23,10 +23,10 @@ Module
         Retype Readable
           Type Reader
           Local $new.1
-      call $dependency.receiver: Readable = external1 direct
+      call $dependency.receiver: Readable = external3 direct
         Type Readable
         Local $dependency.parameter.value
-      call $dependency.argument.0: Long = external2 interface Readable[0]
+      call $dependency.argument.0: Long = external4 interface Readable[0]
         Type Readable
         Local $dependency.receiver
       val $dependency.parameter.value: Long
@@ -35,7 +35,7 @@ Module
       assign $new.2
         Type Counter
         ClassAlloc Counter
-      call external3 direct
+      call external5 direct
         Type Counter
         Local $new.2
         Type Long

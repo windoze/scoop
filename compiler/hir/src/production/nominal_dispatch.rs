@@ -48,24 +48,40 @@ impl<'a> Projection<'a> {
         Ok(())
     }
 
-    pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassId>, Error> {
+    pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassChainEntry>, Error> {
         let mut result = Vec::new();
         let mut seen = BTreeSet::new();
-        let mut current = class;
+        let mut current = ClassChainEntry::Local(class);
         loop {
             if !seen.insert(current) {
                 return Err(invalid("cycle in the source class base chain"));
             }
             self.push(&mut result, current)?;
-            let Some(base) = self.export.classes[current].base_class else {
+            let base = match current {
+                ClassChainEntry::Local(class) => self.export.classes[class].base_class,
+                ClassChainEntry::Imported(ty) => {
+                    let Type::ImportedClass(class) = &self.export.types[ty] else {
+                        return Err(invalid("class base does not resolve to a class type"));
+                    };
+                    class.base_class
+                }
+            };
+            let Some(base) = base else {
                 return Ok(result);
             };
-            let Type::Class(application) = self.export.types[base] else {
-                return Err(invalid(
-                    "class base does not resolve to a class application",
-                ));
+            current = match &self.export.types[base] {
+                Type::Class(application) => {
+                    ClassChainEntry::Local(self.export.class_applications[*application].template)
+                }
+                Type::ImportedClass(_) => ClassChainEntry::Imported(base),
+                _ => return Err(invalid("class base does not resolve to a class type")),
             };
-            current = self.export.class_applications[application].template;
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) enum ClassChainEntry {
+    Local(ClassId),
+    Imported(TypeId),
 }

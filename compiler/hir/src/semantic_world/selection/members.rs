@@ -55,6 +55,7 @@ pub enum ImportedMemberLookup<'a> {
     Name(&'a str),
     Operator(CallableOperatorRoleV1),
     PropertyGetter(&'a str),
+    PropertySetter(&'a str),
 }
 
 /// A callable referenced by its actual declaration, including member and default uses.
@@ -206,7 +207,8 @@ impl ImportedDependencySelectionPlan {
     ) -> Result<Vec<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
         let mut candidates = Vec::new();
         let property = match lookup {
-            ImportedMemberLookup::PropertyGetter(name) => {
+            ImportedMemberLookup::PropertyGetter(name)
+            | ImportedMemberLookup::PropertySetter(name) => {
                 self.catalog.properties.values().find(|property| {
                     property.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
                         && property.name.as_str() == name
@@ -229,14 +231,25 @@ impl ImportedDependencySelectionPlan {
                 {
                     name
                 }
-                (CallableCatalogName::Accessor, ImportedMemberLookup::PropertyGetter(_)) => {
+                (
+                    CallableCatalogName::Accessor,
+                    ImportedMemberLookup::PropertyGetter(_)
+                    | ImportedMemberLookup::PropertySetter(_),
+                ) => {
                     let Some(property) = property else {
                         continue;
                     };
-                    if entry.interface.declaration()
-                        != scoop_identity::CallableTemplateOrigin::Accessor(
-                            property.interface.accessors().getter(),
-                        )
+                    let accessor = match lookup {
+                        ImportedMemberLookup::PropertyGetter(_) => {
+                            Some(property.interface.accessors().getter())
+                        }
+                        ImportedMemberLookup::PropertySetter(_) => {
+                            property.interface.accessors().setter()
+                        }
+                        _ => unreachable!("an accessor lookup has a property role"),
+                    };
+                    if Some(entry.interface.declaration())
+                        != accessor.map(scoop_identity::CallableTemplateOrigin::Accessor)
                     {
                         continue;
                     }

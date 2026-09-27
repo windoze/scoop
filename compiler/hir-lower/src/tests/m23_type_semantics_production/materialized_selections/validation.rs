@@ -7,7 +7,7 @@ fn materialized_selections_reject_missing_extra_and_wrong_provider_records() {
         let produced = produce_cross_cone_type_semantics(output, &public).unwrap();
         let records = produced.selected().records();
         assert!(!records.is_empty());
-        production::with_metadata(output, &public, |metadata, dependencies| {
+        production::with_metadata(output, &public, |metadata, dependencies, _| {
             let check = |records| {
                 let selected = CanonicalSelectedExternalTypeUsesV1::try_new(records).unwrap();
                 assert!(matches!(
@@ -40,7 +40,7 @@ fn materialized_selections_reject_missing_extra_and_wrong_provider_records() {
 fn materialized_selections_require_actual_unique_dependency_providers() {
     source_dispatch::with_hir_source(STANDALONE, |output, _| {
         let public = public_interface(output);
-        production::with_metadata(output, &public, |metadata, dependencies| {
+        production::with_metadata(output, &public, |metadata, dependencies, _| {
             assert!(
                 matches!(metadata.materialized_type_uses(&[]), Err(SharedTypeMetadataError::MissingProvider(provider)) if dependencies.iter().any(|dependency| dependency.provider == provider))
             );

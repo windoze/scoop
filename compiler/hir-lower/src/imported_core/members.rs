@@ -9,6 +9,15 @@ impl Lowerer {
         receiver: hir::TypeId,
         lookup: hir::ImportedMemberLookup<'_>,
     ) -> Result<Vec<hir::ImportedCallableDeclaration>, hir::ImportedDependencyCandidateError> {
+        self.imported_member_candidates_for_receiver(receiver, Some(receiver), lookup)
+    }
+
+    pub(crate) fn imported_member_candidates_for_receiver(
+        &self,
+        receiver: hir::TypeId,
+        access_receiver: Option<hir::TypeId>,
+        lookup: hir::ImportedMemberLookup<'_>,
+    ) -> Result<Vec<hir::ImportedCallableDeclaration>, hir::ImportedDependencyCandidateError> {
         let Some(dependencies) = &self.dependencies else {
             return Ok(Vec::new());
         };
@@ -35,6 +44,21 @@ impl Lowerer {
                     let declaration = &self.classes[self.class_applications[*application].template];
                     pending.extend(declaration.interfaces.iter().rev().copied());
                     pending.extend(declaration.base_class);
+                    for function in &declaration.methods {
+                        if let Some(method) = self.functions[*function].method {
+                            let family = match method.dispatch {
+                                hir::MethodDispatch::Virtual(family)
+                                | hir::MethodDispatch::FinalOverride(family) => family,
+                                _ => continue,
+                            };
+                            if let Some(crate::persistent_dispatch::VirtualMethodRoot::Imported(
+                                record,
+                            )) = self.virtual_method_roots.get(&family)
+                            {
+                                suppressed_slots.insert(record.id());
+                            }
+                        }
+                    }
                     suppress_local_implementations(
                         &declaration.interface_implementations,
                         &mut suppressed_slots,
@@ -136,7 +160,7 @@ impl Lowerer {
                 .member_callable_candidates(hir::SourceNominalId::Concrete(owner), lookup)?
             {
                 let declaration = candidate.interface();
-                if !self.imported_callable_is_accessible(declaration, Some(receiver)) {
+                if !self.imported_callable_is_accessible(declaration, access_receiver) {
                     continue;
                 }
                 if effective

@@ -16,8 +16,16 @@ impl Lowerer {
                     declaration.identity.key().origin(),
                 )])
             }
-            hir::DeclaredVisibilityV1::Private | hir::DeclaredVisibilityV1::Protected => {
-                hir::AccessDomain::empty()
+            hir::DeclaredVisibilityV1::Private => hir::AccessDomain::empty(),
+            hir::DeclaredVisibilityV1::Protected => {
+                match declaration.identity.key().owners().owners().last() {
+                    Some(scoop_identity::DefinitionOwnerAtom::Type(owner)) => {
+                        hir::AccessDomain::from_constraints([
+                            hir::AccessConstraint::ImportedSubclassesOf(*owner),
+                        ])
+                    }
+                    _ => hir::AccessDomain::empty(),
+                }
             }
         }
     }
@@ -108,6 +116,12 @@ impl Lowerer {
                     self.current_owner.is_some_and(|owner| {
                         self.protected_scope_classes(owner)
                             .any(|current| self.class_is_same_or_subclass_of(current, *base))
+                    })
+                }
+                hir::AccessConstraint::ImportedSubclassesOf(base) => {
+                    self.current_owner.is_some_and(|owner| {
+                        self.protected_scope_classes(owner)
+                            .any(|current| self.class_inherits_imported(current, *base))
                     })
                 }
             })

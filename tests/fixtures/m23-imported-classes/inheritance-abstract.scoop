@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.AbstractParent
+
+public class Derived public constructor(): AbstractParent() {
+    public override fun read(): Long = seed + 1
+    public override var value: Long = 21
+}
+public fun primary(): Counter {
+    val value: AbstractParent = Derived()
+    return Counter(value.read() + value.value - 21)
+}

@@ -196,18 +196,6 @@ impl Lowerer {
         )
     }
 
-    pub(crate) fn resolve_member_overload(
-        &mut self,
-        name: &str,
-        candidates: &[CallableCandidate],
-        receiver: hir::Expr,
-        call: OverloadCall<'_>,
-        sink: &mut Vec<hir::Statement>,
-    ) -> Option<ResolvedCallee> {
-        self.resolve_member_overload_outcome(name, candidates, receiver, call, sink)
-            .into_option()
-    }
-
     pub(crate) fn resolve_member_overload_outcome(
         &mut self,
         name: &str,

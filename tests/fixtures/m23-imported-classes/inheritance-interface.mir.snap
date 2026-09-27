@@ -1,0 +1,96 @@
+Module
+  enum CoroutineStep<Derived>
+    Completed(value: Derived)
+    Suspended()
+  enum CoroutineSlot<Derived>
+    Empty()
+    Value(value: Derived)
+  class Derived vtable=4 itables=1
+  class InterfaceParent vtable=4 itables=1
+  class Parent vtable=4 itables=0
+  class Counter vtable=0 itables=0
+  interface Readable
+  generated_exact_type get0 location=enum1 nominal_id=fc05f90600a5d758cacb9eecebd93771bc343d414ff23ca3f1bd3347124e0af2 exact_id=1a9aacfb86947600eead3a5148a4139c16de38cc7e8f9c8056a377353c87b26a
+  generated_exact_type get1 location=enum0 nominal_id=cb448dba82728a8d44199908f94b59ec8497a176935e6713878fa5397e29ac51 exact_id=5122aae7ebb74775fac510c5b7b9ada1aff1cb1759b6d98654647e2f95c5d3f3
+  fun Derived.read @fn0(this: Derived) -> Long
+    bb0 entry
+      call $dependency.receiver: Long = external8 direct
+        Type Parent
+        Retype Parent
+          Type Derived
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun primary @fn1() -> Counter
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn2 direct
+        Type Derived
+        Local $new.1
+      val value: Readable
+        Type Readable
+        Retype Readable
+          Type Derived
+          Local $new.1
+      val $dependency.receiver: Readable
+        Type Readable
+        Local value
+      val $dependency.parameter.extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.receiver: Long = external5 interface Readable[1]
+        Type Readable
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external7 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.Derived.$c0 @fn2(this: Derived) -> Unit
+    bb0 entry
+      call external6 direct
+        Type InterfaceParent
+        Retype InterfaceParent
+          Type Derived
+          Local this
+      return
+  coroutine_step cs0 CoroutineStep<Derived> result=Derived
+  coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
+  output library

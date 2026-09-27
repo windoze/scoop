@@ -71,6 +71,16 @@ impl Concretizer<'_> {
         self.classes[id].representation =
             concrete::ClassRepresentation::Declared { fields, base_class };
         self.classes[id].interfaces = interfaces;
+        self.classes[id].methods = source
+            .virtual_methods
+            .iter()
+            .map(|method| concrete::ClassMethod::Imported {
+                family: self.lower_virtual_method(method.family),
+                callable: self.imported_dependency_callable_map[&method.callable],
+            })
+            .collect();
+        self.classes[id].interface_implementations =
+            self.lower_interface_implementations(&source.interface_implementations, &[]);
         ty
     }
 }

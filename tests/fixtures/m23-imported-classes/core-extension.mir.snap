@@ -2,7 +2,7 @@ Module
   enum RebuiltFlag
     Ready()
     Empty()
-  class RebuiltCounter vtable=0 itables=0
+  class RebuiltCounter vtable=0 itables=1
   class Counter vtable=0 itables=0
   interface RebuiltReadable
   fun primary @fn0() -> Counter
@@ -16,7 +16,7 @@ Module
       assign $new.1
         Type RebuiltCounter
         ClassAlloc RebuiltCounter
-      call external0 direct
+      call external1 direct
         Type RebuiltCounter
         Local $new.1
         Type Long
@@ -24,7 +24,7 @@ Module
       val $dependency.receiver: RebuiltCounter
         Type RebuiltCounter
         Local $new.1
-      call value: Long = external1 direct
+      call value: Long = external0 direct
         Type RebuiltCounter
         Local $dependency.receiver
       val flag: RebuiltFlag
@@ -51,7 +51,7 @@ Module
       assign $new.2
         Type RebuiltCounter
         ClassAlloc RebuiltCounter
-      call external0 direct
+      call external1 direct
         Type RebuiltCounter
         Local $new.2
         Type Long
@@ -59,7 +59,7 @@ Module
       val $dependency.receiver: RebuiltCounter
         Type RebuiltCounter
         Local $new.2
-      call $dependency.argument.0: Long = external1 direct
+      call $dependency.argument.0: Long = external0 direct
         Type RebuiltCounter
         Local $dependency.receiver
       val $dependency.parameter.value: Long

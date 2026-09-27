@@ -3,6 +3,7 @@ use super::*;
 use crate::call_resolution::candidates::NominalConstructorSource;
 
 mod context;
+mod imported;
 mod validation;
 
 pub(crate) use context::ConstructorSource;
@@ -350,6 +351,10 @@ impl Lowerer {
         span: ast::Span,
         context: &str,
     ) -> Option<hir::BaseInitialization> {
+        if matches!(self.types[base_ty], Type::ImportedClass(_)) {
+            return self
+                .lower_imported_base_initialization(source, base_ty, arguments, span, context);
+        }
         let Type::Class(base_application) = self.types[base_ty] else {
             unreachable!("a direct base type is a class application")
         };
@@ -391,7 +396,7 @@ impl Lowerer {
         debug_assert_eq!(resolved.value.type_args, type_arguments);
         let target = self.class_constructor_application(target, base_application);
         Some(hir::BaseInitialization::Super {
-            target,
+            target: hir::BaseInitializerTarget::Local(target),
             arguments: hir::ConstructorArguments {
                 locals: resolved.locals,
                 statements: resolved.statements,

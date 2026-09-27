@@ -22,7 +22,7 @@ pub(in crate::expr) use property_invoke::{
 impl Lowerer {
     /// Resolve `super.name(...)` from the exact direct-base application. No
     /// extension, property-like, or interface layer participates, and the
-    /// resulting HIR variant preserves the mandatory direct-dispatch proof.
+    /// resulting HIR target retains direct dispatch.
     pub(super) fn lower_super_method_call(
         &mut self,
         name: &ast::Ident,
@@ -37,7 +37,7 @@ impl Lowerer {
             );
             return None;
         }
-        let Some(mut receiver) = self.lower_current_this(call.span) else {
+        let Some(receiver) = self.lower_current_this(call.span) else {
             self.error(
                 call.span,
                 "`super` method calls are only allowed inside class member functions".into(),
@@ -63,22 +63,40 @@ impl Lowerer {
             return None;
         };
         let base = self.instantiate_ty(base, &current.arguments);
-        let Type::Class(base_application) = self.types[base] else {
-            unreachable!("a class direct base is a class application")
-        };
-        receiver.ty = base;
-        let candidates = self.methods_by_name(base, &name.text);
-        if candidates.is_empty() {
-            let base_name = self.classes[self.class_applications[base_application].template]
-                .name
-                .clone();
-            self.error(
-                name.span,
-                format!("base class `{base_name}` has no method `{}`", name.text),
-            );
-            return None;
+        let receiver = self.adapt_to(receiver, base);
+        let candidates = self.super_methods_by_name(base, &name.text);
+        match self.probe_member_call_partition_with_kind(
+            candidates,
+            name,
+            receiver,
+            call,
+            expected,
+            RequiredCallableModifiers::default(),
+            MemberCallKind::DirectSuper,
+        ) {
+            PropertyExtensionInvokeOutcome::Resolved(success) => {
+                *self = *success.state;
+                sink.extend(success.sink);
+                Some(success.expression)
+            }
+            PropertyExtensionInvokeOutcome::Failed(failure)
+            | PropertyExtensionInvokeOutcome::NoApplicable(Some(failure)) => {
+                *self = *failure;
+                None
+            }
+            PropertyExtensionInvokeOutcome::Blocked
+            | PropertyExtensionInvokeOutcome::NoApplicable(None) => {
+                self.error(
+                    name.span,
+                    format!(
+                        "base class `{}` has no method `{}`",
+                        self.type_name(base),
+                        name.text
+                    ),
+                );
+                None
+            }
         }
-        self.finish_super_method_call(candidates, &name.text, receiver, call, sink, expected)
     }
 
     /// `this` (M6): only inside member functions, where it is

@@ -65,6 +65,10 @@ impl DecodedTypes {
                 .iter()
                 .map(|dependency| dependency.metadata())
                 .collect::<Vec<_>>(),
+            &dependencies
+                .iter()
+                .map(|dependency| dependency.section().inheritance())
+                .collect::<Vec<_>>(),
         )
         .unwrap();
         let types: hir::DecodedCrossConeTypeSemanticsSectionV1 = decoded(&source);

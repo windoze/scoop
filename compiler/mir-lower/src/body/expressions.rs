@@ -99,13 +99,21 @@ impl BodyLowerer<'_> {
                 initializer,
                 args,
             } => {
+                let callee = match initializer {
+                    hir::ClassInitializerTarget::Local(initializer) => {
+                        mir::Callee::User(self.ctors[initializer])
+                    }
+                    hir::ClassInitializerTarget::Imported(initializer) => {
+                        mir::Callee::External(self.imported_dependency_callable_map[initializer].0)
+                    }
+                };
                 let mut lowered = Vec::with_capacity(args.len() + 1);
                 lowered.push(self.lower_expr(receiver));
                 lowered.extend(args.iter().map(|arg| self.lower_expr(arg)));
                 smir::ExprKind::Call(smir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(self.ctors[initializer]),
+                        callee,
                     },
                     args: lowered,
                     return_ty: mir::Type::Unit,

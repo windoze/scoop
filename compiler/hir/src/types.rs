@@ -79,7 +79,15 @@ pub struct ImportedClassType {
     pub fields: Vec<ImportedNominalField>,
     pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
-    pub virtual_slots: Vec<scoop_identity::PersistentDispatchSlotId>,
+    pub virtual_methods: Vec<ImportedVirtualMethod>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedVirtualMethod {
+    pub slot: scoop_identity::PersistentDispatchSlotId,
+    pub family: VirtualMethodId,
+    pub callable: ImportedDependencyCallableUseId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -230,6 +230,7 @@ fn check_core_layout_exports(names: &[&str]) {
                 public: &hir.cross_cone_section,
             },
             &[],
+            &[],
         )
         .unwrap();
         let mir_input = scoop_mir_lower::MirTypeBridgeExportInputV1 {

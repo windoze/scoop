@@ -1,0 +1,14 @@
+Module
+  class Derived()
+  fun primary(): Counter
+    val local0
+      ClassInit Derived : Derived
+    val local1
+      MethodCall Derived.read : Long
+        Local $receiver : Derived
+    val local2
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

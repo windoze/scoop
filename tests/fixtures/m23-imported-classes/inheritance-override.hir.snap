@@ -1,0 +1,22 @@
+Module
+  class Derived(value: Long)
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 20 : Long
+    val local1
+      Local $argument.0 : Long
+    val local2
+      ReferenceUpcast : Parent
+        ClassInit Derived : Derived
+          Local $parameter.value : Long
+    val local3
+      Local base : Parent
+    val local4
+      ImportedDependencyCall #5 virtual[0] : Long
+        Local $dependency.receiver : Parent
+    val local5
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #6 : Counter
+        Local $dependency.parameter.value : Long
+  output library

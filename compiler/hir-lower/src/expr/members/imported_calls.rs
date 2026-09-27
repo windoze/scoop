@@ -17,6 +17,7 @@ impl Lowerer {
         receiver: TypeId,
         name: &ast::Ident,
         required: RequiredCallableModifiers,
+        kind: MemberCallKind,
     ) -> Result<Vec<hir::ImportedCallableDeclaration>, Box<Lowerer>> {
         self.resolve_imported_member_receiver(receiver, name.span)
             .map_err(|()| Box::new(self.clone()))?;
@@ -27,7 +28,11 @@ impl Lowerer {
             None => hir::ImportedMemberLookup::Name(&name.text),
         };
         let candidates = self
-            .imported_member_candidates(receiver, lookup)
+            .imported_member_candidates_for_receiver(
+                receiver,
+                (kind == MemberCallKind::Ordinary).then_some(receiver),
+                lookup,
+            )
             .map_err(|error| {
                 let mut failure = self.clone();
                 failure.error(name.span, format!("invalid imported member: {error}"));
@@ -36,6 +41,28 @@ impl Lowerer {
         Ok(candidates
             .into_iter()
             .filter(|candidate| {
+                if kind == MemberCallKind::DirectSuper {
+                    let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(
+                        owner,
+                    )) = candidate.interface().owner()
+                    else {
+                        return false;
+                    };
+                    if !self
+                        .dependencies
+                        .as_ref()
+                        .and_then(|dependencies| dependencies.nominal(owner))
+                        .is_some_and(|declaration| {
+                            matches!(
+                                declaration.interface.source_shape(),
+                                hir::NominalSourceShapeV1::Class(_)
+                                    | hir::NominalSourceShapeV1::Object(_)
+                            )
+                        })
+                    {
+                        return false;
+                    }
+                }
                 let effects = candidate.interface().effects();
                 (!required.infix || effects.infix() == hir::CallableInfixV1::Infix)
                     && required.property_delegate_operator.is_none_or(|operator| {
@@ -58,7 +85,12 @@ impl Lowerer {
     ) -> Result<ImportedDependencyCallProbe, ImportedMemberSelectionFailure> {
         let mut context = self.clone();
         let candidates = context
-            .imported_member_call_candidates(receiver.ty(), name, required)
+            .imported_member_call_candidates(
+                receiver.ty(),
+                name,
+                required,
+                MemberCallKind::Ordinary,
+            )
             .map_err(ImportedMemberSelectionFailure::Failed)?;
         let mut probes = Vec::new();
         let mut first_failure = None;

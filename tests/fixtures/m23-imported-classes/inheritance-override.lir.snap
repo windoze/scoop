@@ -1,0 +1,62 @@
+Module
+  enum CoroutineStep<Derived> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Derived> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$28583af1d378d9ff50e4d491a55b9866d8ec8a05cfea3af02c791946a21f0b43(ptr<managed>) -> i64
+    local %0 $dependency.receiver: i64
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.other: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i64 external-fn6(param0)
+    store t0 -> local0
+    store integer<Long>(0x0000000000000001) -> local1
+    store local1 -> local2
+    t1 = integer_Add<Long> local0, local2 : i64
+    ret t1
+  fun @scoop$1$cb$8724f41293396d29859643b90fd379ec74593a0bc3edea8f4f9364e45f740c7b() -> ptr<managed>
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 base: ptr<managed>
+    local %3 $dependency.receiver: ptr<managed>
+    local %4 $dependency.argument.0: i64
+    local %5 $dependency.parameter.value: i64
+    local %6 $new.1: ptr<managed>
+    local %7 $new.2: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000014) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
+    store t0 -> local6
+    call managed-void-target0 sp<managed-call:1> live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>, i64) local-fn2(local6, local1)
+    t1 = aggregate () : {}
+    store local6 -> local2
+    store local2 -> local3
+    t2 = heap_load local3 +0 : ptr<metadata>
+    t3 = heap_load t2 +88 : ptr<metadata>
+    call managed-direct-target1 sp<managed-call:2> live=[local3:ptr<managed>@0] t4 = sig=direct1 (ptr<managed>) -> i64 dispatch[Virtual:0] t3(local3)
+    store t4 -> local4
+    store local4 -> local5
+    call managed-direct-target2 sp<managed-call:3> live=[] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t5 -> local7
+    call managed-void-target1 sp<managed-call:4> live=[local7:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn5(local7, local5)
+    t6 = aggregate () : {}
+    ret local7
+  fun @scoop$1$cb$1769bd584df2053d985fc473f5558c2a6bdf45b8a7ab8990067f201e6e8a406a(ptr<managed>, i64) -> void
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.seed: i64
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param1 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn4(param0, local1)
+    t0 = aggregate () : {}
+    ret
+  td td0 n(c=dev.example%3Aclasses-inheritance-override%3A0.1.0;p=;o=-;k=C;x=Derived) @scoop$1$td$44110d9dcc8fd6d9f367583b74ec0ecde31dbeb647db997d7cb84e899bed6d27 type-id=5099646337753315408 shape=FixedObject minimum-size=32 align=8 parent=external-td0 vtable=[local-fn0, external-fn1, external-fn2, external-fn3] itables=[]
+  td td1 g(r=00000005;i=a14be14b785622d2e2f684ea424e7cb05664e411bbcb26f66ebdce9b55399c8a) @scoop$1$td$139e7bde1a622f50c2fa28c8e328a7e656bd54e1c2e829da09c08a8de40f7d85 type-id=8900043259807939229 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000007;i=dc22671794bad6b08fefb648b2889c12175599a75816c5f056f73b67a97c4805) @scoop$1$td$225d7d118f52986582f06350aaab2f7050b20ba9d00d9693833b03e6384e8d37 type-id=5191874315278435175 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<Derived> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Derived> size=8 align=8 enum-scan=refs[0]
+  layout Derived value size=8 align=8 refs=[0]
+  layout Derived size=32 align=8 refs=[]
+  output library

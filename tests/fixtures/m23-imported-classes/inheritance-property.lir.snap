@@ -1,0 +1,73 @@
+Module
+  enum CoroutineStep<Derived> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Derived> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$9e29c038ee4b7000942fb9ab351cb85e9418bb8a69024116945c56fd491454e0(ptr<managed>) -> i64
+    local %0 $dependency.receiver: i64
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.other: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +32 : i64
+    store t0 -> local0
+    store integer<Long>(0x0000000000000001) -> local1
+    store local1 -> local2
+    t1 = integer_Add<Long> local0, local2 : i64
+    ret t1
+  fun @scoop$1$cb$d55a6afed6df5bee5dfb0200f0899995e08931ac5b237ae710cdbd6c07041d43(ptr<managed>, i64) -> void
+    local %0 $dependency.receiver: i64
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.other: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param1 -> local0
+    store integer<Long>(0x0000000000000002) -> local1
+    store local1 -> local2
+    t0 = integer_Multiply<Long> local0, local2 : i64
+    heap_store param0 +32 t0
+    ret
+  fun @scoop$1$cb$0656f5affacdfac75da3b8b557ed411ee2f76f77831d64765e38487f5fad37da() -> ptr<managed>
+    local %0 value: ptr<managed>
+    local %1 $place.0: ptr<managed>
+    local %2 $dependency.argument.0: i64
+    local %3 $dependency.parameter.value: i64
+    local %4 $new.1: ptr<managed>
+    local %5 $new.2: ptr<managed>
+  block entry
+    poll managed-void-target3 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(40)))
+    store t0 -> local4
+    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn3(local4)
+    t1 = aggregate () : {}
+    store local4 -> local0
+    store local0 -> local1
+    t2 = heap_load local1 +0 : ptr<metadata>
+    t3 = heap_load t2 +88 : ptr<metadata>
+    call managed-void-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] sig=void1 (ptr<managed>, i64) dispatch[Virtual:3] t3(local1, integer<Long>(0x000000000000000a))
+    t4 = aggregate () : {}
+    t5 = heap_load local0 +0 : ptr<metadata>
+    t6 = heap_load t5 +88 : ptr<metadata>
+    call managed-direct-target1 sp<managed-call:3> live=[local0:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>) -> i64 dispatch[Virtual:2] t6(local0)
+    store t7 -> local2
+    store local2 -> local3
+    call managed-direct-target2 sp<managed-call:4> live=[] t8 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t8 -> local5
+    call managed-void-target2 sp<managed-call:5> live=[local5:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn5(local5, local3)
+    t9 = aggregate () : {}
+    ret local5
+  fun @scoop$1$cb$25ba403f10b27b7519167549682c171a9b0bd985111bcd82aa428e4542e4b451(ptr<managed>) -> void
+    local %0 $dependency.parameter.seed: i64
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store integer<Long>(0x0000000000000014) -> local0
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn4(param0, local0)
+    t0 = aggregate () : {}
+    heap_store param0 +32 integer<Long>(0x0000000000000000)
+    ret
+  td td0 n(c=dev.example%3Aclasses-inheritance-property%3A0.1.0;p=;o=-;k=C;x=Derived) @scoop$1$td$f2f75d1b3ad2e0b3c248a8d44065760f17ecc100a148f0d3f2e243f8d6111e4d type-id=17481025859571118704 shape=FixedObject minimum-size=40 align=8 parent=external-td0 vtable=[external-fn0, external-fn1, local-fn0, local-fn1] itables=[]
+  td td1 g(r=00000005;i=8654736adfe0676e4ad06b69e6de0436cce19fe1a0619d28020b76c2adebf2e6) @scoop$1$td$779df04a521f76d1d3fa20e0733985f0288197d4ba43719e7beb0574dc5a70f1 type-id=7389256064632763917 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000007;i=29f936ceeffed0d107feaf133a86e8ba794e147cb8d313acd5b366b6f2e1f881) @scoop$1$td$aca62501b13e052dd16da005397697568d79e9413a7de29ee770f23e410c26f6 type-id=14337048867135659531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<Derived> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Derived> size=8 align=8 enum-scan=refs[0]
+  layout Derived value size=8 align=8 refs=[0]
+  layout Derived size=40 align=8 refs=[]
+  output library

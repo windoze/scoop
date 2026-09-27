@@ -1,0 +1,127 @@
+Module
+  enum CoroutineStep<Derived>
+    Completed(value: Derived)
+    Suspended()
+  enum CoroutineSlot<Derived>
+    Empty()
+    Value(value: Derived)
+  class Derived vtable=3 itables=0
+  class AbstractParent vtable=3 itables=0
+  class Counter vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=506ba79845b2b6fe7f2555a687064fc465d07e0aedc44fda4e9bad9a3a48ec85 exact_id=374b65a72ae8c71e50a77fe5213c6ea20aada0495980833d235dce245fdaded5
+  generated_exact_type get1 location=enum0 nominal_id=81c68f9a336f22dc6f7a7251a2a32bee114544cc6c5b25705680d649b4a87c93 exact_id=a23a35a8a90403e28236b191909098fb28567b5775bfc73c141f45f808591072
+  fun Derived.read @fn0(this: Derived) -> Long
+    bb0 entry
+      call $dependency.receiver: Long = external5 direct
+        Type AbstractParent
+        Retype AbstractParent
+          Type Derived
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun Derived.$get$value @fn1(this: Derived) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 1
+          Type Derived
+          Local this
+  fun Derived.$set$value @fn2(this: Derived, value: Long) -> Unit
+    bb0 entry
+      field_set 1
+        Type Derived
+        Local this
+        Type Long
+        Local value
+      return
+  fun primary @fn3() -> Counter
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn4 direct
+        Type Derived
+        Local $new.1
+      val value: AbstractParent
+        Type AbstractParent
+        Retype AbstractParent
+          Type Derived
+          Local $new.1
+      val $dependency.receiver: AbstractParent
+        Type AbstractParent
+        Local value
+      call $dependency.receiver: Long = external0 virtual[0]
+        Type AbstractParent
+        Local $dependency.receiver
+      call $dependency.argument.0: Long = external1 virtual[1]
+        Type AbstractParent
+        Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun init.Derived.$c0 @fn4(this: Derived) -> Unit
+    bb0 entry
+      val $dependency.parameter.seed: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      call external3 direct
+        Type AbstractParent
+        Retype AbstractParent
+          Type Derived
+          Local this
+        Type Long
+        Local $dependency.parameter.seed
+      field_set 1
+        Type Derived
+        Local this
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      return
+  coroutine_step cs0 CoroutineStep<Derived> result=Derived
+  coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
+  output library

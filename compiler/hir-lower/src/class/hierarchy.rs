@@ -50,8 +50,10 @@ impl Lowerer {
 
     pub(crate) fn direct_base_class(&self, class: ClassId) -> Option<ClassId> {
         let base = self.classes[class].base_class.as_ref()?;
-        let Type::Class(application) = self.types[*base] else {
-            unreachable!("resolved class bases are class applications")
+        let application = match self.types[*base] {
+            Type::Class(application) => application,
+            Type::ImportedClass(_) => return None,
+            _ => unreachable!("resolved class bases have class types"),
         };
         Some(self.class_applications[application].template)
     }
@@ -74,8 +76,10 @@ impl Lowerer {
                 break;
             };
             let base = self.instantiate_ty(base, &application.arguments);
-            let Type::Class(base_application) = self.types[base] else {
-                unreachable!("class bases are resolved class applications")
+            let base_application = match self.types[base] {
+                Type::Class(application) => application,
+                Type::ImportedClass(_) => break,
+                _ => unreachable!("resolved class bases have class types"),
             };
             if seen.contains(&base_application) {
                 break;
@@ -131,8 +135,10 @@ impl Lowerer {
         }
         let base = self.classes[class].base_class?;
         let base = self.instantiate_ty(base, &application_value.arguments);
-        let Type::Class(base_application) = self.types[base] else {
-            unreachable!("resolved class bases are class applications")
+        let base_application = match self.types[base] {
+            Type::Class(application) => application,
+            Type::ImportedClass(_) => return None,
+            _ => unreachable!("resolved class bases have class types"),
         };
         self.find_class_application_field(base_application, name)
     }
@@ -163,8 +169,10 @@ impl Lowerer {
             }
             let base = self.classes[class].base_class?;
             let base = self.instantiate_ty(base, &application_value.arguments);
-            let Type::Class(base_application) = self.types[base] else {
-                unreachable!("class bases are resolved class applications")
+            let base_application = match self.types[base] {
+                Type::Class(application) => application,
+                Type::ImportedClass(_) => return None,
+                _ => unreachable!("resolved class bases have class types"),
             };
             application = base_application;
         }

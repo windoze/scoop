@@ -1,11 +1,26 @@
 use super::*;
+use crate::production::nominal_dispatch::ClassChainEntry;
 
 impl Projection<'_> {
     pub(super) fn class(&mut self, class: ClassId) -> Result<InheritanceSlotSchemaV1, Error> {
         let chain = self.class_chain(class)?;
         let mut slots = Vec::new();
         let mut seen = BTreeSet::new();
-        for class in chain.into_iter().rev() {
+        for entry in chain.into_iter().rev() {
+            let class = match entry {
+                ClassChainEntry::Local(class) => class,
+                ClassChainEntry::Imported(ty) => {
+                    let Type::ImportedClass(class) = &self.export.types[ty] else {
+                        return Err(self.invalid("class base does not resolve to a class type"));
+                    };
+                    for method in &class.virtual_methods {
+                        if seen.insert(method.slot) {
+                            self.push(&mut slots, method.slot)?;
+                        }
+                    }
+                    continue;
+                }
+            };
             let declaration = &self.export.classes[class];
             for function in &declaration.methods {
                 let Some(method) = self.export.functions[*function].method else {
@@ -23,9 +38,6 @@ impl Projection<'_> {
                     }
                 };
 
-                if !seen.insert(family) {
-                    continue;
-                }
                 let identity = self
                     .export
                     .dispatch_slot_identities
@@ -33,17 +45,23 @@ impl Projection<'_> {
                     .ok_or_else(|| {
                         self.invalid("virtual family has no sealed dispatch identity")
                     })?;
-                self.push(&mut slots, identity.id())?;
+                if seen.insert(identity.id()) {
+                    self.push(&mut slots, identity.id())?;
+                }
             }
         }
         self.schema(InheritanceSlotSchemaRoleV1::ClassVtable, slots)
     }
 
-    pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassId>, Error> {
+    pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassChainEntry>, Error> {
         let result =
             crate::production::nominal_dispatch::Projection::new(self.export).class_chain(class)?;
-        for class in &result {
-            if let Some(base) = self.export.classes[*class].base_class {
+        for entry in &result {
+            let base = match entry {
+                ClassChainEntry::Local(class) => self.export.classes[*class].base_class,
+                ClassChainEntry::Imported(ty) => Some(*ty),
+            };
+            if let Some(base) = base {
                 exact(self.export, base)?;
             }
         }

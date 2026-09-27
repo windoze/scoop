@@ -40,6 +40,44 @@ impl DependencyHirOutput {
         let concrete_dependency_witness_uses =
             witnesses::collect(&output, &imported_dependencies, &mut executable_callables)
                 .map_err(DependencyHirOutputError::CallOccurrence)?;
+        local
+            .visit_executable_expressions(|occurrence| {
+                if let concrete::ExprKind::ClassInitializerCall {
+                    initializer: concrete::ClassInitializerTarget::Imported(callable),
+                    ..
+                } = occurrence.expression.kind
+                {
+                    if callable.into_raw().into_u32() as usize
+                        >= local.imported_dependency_callables.len()
+                    {
+                        return Err(DependencyCallOccurrenceError::MissingUse(
+                            occurrence.position,
+                        ));
+                    }
+                    executable_callables.push(callable);
+                }
+                Ok(())
+            })
+            .map_err(|error| {
+                DependencyHirOutputError::CallOccurrence(match error {
+                    concrete::ExecutableExpressionVisitError::Structure(error) => {
+                        DependencyCallOccurrenceError::Structure(error)
+                    }
+                    concrete::ExecutableExpressionVisitError::Visitor(error) => error,
+                })
+            })?;
+        for method in local.classes.iter().flat_map(|(_, class)| &class.methods) {
+            if let concrete::ClassMethod::Imported { callable, .. } = *method {
+                if callable.into_raw().into_u32() as usize
+                    >= local.imported_dependency_callables.len()
+                {
+                    return Err(DependencyHirOutputError::MissingDispatchUse {
+                        index: callable.into_raw().into_u32(),
+                    });
+                }
+                executable_callables.push(callable);
+            }
+        }
         for implementation in local
             .classes
             .iter()

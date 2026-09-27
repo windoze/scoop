@@ -408,7 +408,10 @@ impl Harness {
                 let record =
                     scoop_identity::CborIdentityRecord::from_key(dispatch_key(root, false))
                         .unwrap();
-                (family, root, record)
+                (
+                    family,
+                    hir::HirVirtualDispatchSlotIdentity::Local { root, record },
+                )
             })
             .collect();
         let interface_slots = self

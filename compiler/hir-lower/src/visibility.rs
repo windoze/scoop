@@ -456,6 +456,48 @@ impl Lowerer {
                 hir::AccessConstraint::SubclassesOf(derived),
                 hir::AccessConstraint::SubclassesOf(base),
             ) => self.class_is_same_or_subclass_of(*derived, *base),
+            (
+                hir::AccessConstraint::SubclassesOf(derived),
+                hir::AccessConstraint::ImportedSubclassesOf(base),
+            ) => self.class_inherits_imported(*derived, *base),
+            (
+                hir::AccessConstraint::LexicalOwner(owner),
+                hir::AccessConstraint::ImportedSubclassesOf(base),
+            ) => {
+                let owner = match owner {
+                    hir::VisibilityOwner::Class(id) => Owner::Class(*id),
+                    hir::VisibilityOwner::Interface(id) => Owner::Interface(*id),
+                    hir::VisibilityOwner::Struct(id) => Owner::Struct(*id),
+                    hir::VisibilityOwner::Enum(id) => Owner::Enum(*id),
+                    hir::VisibilityOwner::Object(id) => Owner::Object(*id),
+                };
+                self.protected_scope_classes(owner)
+                    .any(|class| self.class_inherits_imported(class, *base))
+            }
+            (
+                hir::AccessConstraint::ImportedSubclassesOf(derived),
+                hir::AccessConstraint::ImportedSubclassesOf(base),
+            ) => {
+                let mut current = Some(*derived);
+                while let Some(class) = current {
+                    if class == *base {
+                        return true;
+                    }
+                    current = self
+                        .types
+                        .iter()
+                        .find_map(|(_, ty)| match ty {
+                            hir::Type::ImportedClass(class_type)
+                                if class_type.declaration.identity.id() == class =>
+                            {
+                                class_type.base_class
+                            }
+                            _ => None,
+                        })
+                        .and_then(|base| self.imported_nominal_declaration(base));
+                }
+                false
+            }
             _ => false,
         }
     }

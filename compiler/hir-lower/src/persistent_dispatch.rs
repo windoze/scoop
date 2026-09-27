@@ -5,6 +5,12 @@ use scoop_identity::{CborIdentityRecord, DispatchSlotKey};
 
 use crate::Lowerer;
 
+#[derive(Clone)]
+pub(crate) enum VirtualMethodRoot {
+    Local(hir::FunctionId),
+    Imported(hir::HirDispatchSlotIdentity),
+}
+
 pub(crate) fn build(
     lowerer: &Lowerer,
     functions: &hir::HirFunctionIdentities,
@@ -13,12 +19,21 @@ pub(crate) fn build(
     let mut roots = lowerer
         .virtual_method_roots
         .iter()
-        .map(|(family, root)| (*family, *root))
+        .map(|(family, root)| (*family, root.clone()))
         .collect::<Vec<_>>();
     roots.sort_by_key(|(family, _)| family.into_raw());
     let virtual_slots = roots
         .into_iter()
         .map(|(family, root)| {
+            let root = match root {
+                VirtualMethodRoot::Local(root) => root,
+                VirtualMethodRoot::Imported(record) => {
+                    return Ok((
+                        family,
+                        hir::HirVirtualDispatchSlotIdentity::Imported(record),
+                    ));
+                }
+            };
             let key = dispatch_key(functions, accessors, root, DispatchDeclarationKind::Virtual)
                 .map_err(|detail| failure(lowerer, root, detail))?;
             let record = CborIdentityRecord::from_key(key).map_err(|error| {
@@ -28,7 +43,10 @@ pub(crate) fn build(
                     PersistentDispatchSlotIdentityErrorDetail::Hash(error.to_string()),
                 )
             })?;
-            Ok((family, root, record))
+            Ok((
+                family,
+                hir::HirVirtualDispatchSlotIdentity::Local { root, record },
+            ))
         })
         .collect::<Result<Vec<_>, _>>()?;
     let interface_slots = lowerer

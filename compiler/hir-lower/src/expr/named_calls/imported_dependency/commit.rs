@@ -8,7 +8,7 @@ use crate::Lowerer;
 use crate::expr::MemberCallKind;
 
 impl Lowerer {
-    pub(in crate::expr) fn commit_imported_dependency_callable(
+    pub(crate) fn commit_imported_dependency_callable(
         &mut self,
         probe: ImportedDependencyCallProbe,
         sink: &mut Vec<hir::Statement>,

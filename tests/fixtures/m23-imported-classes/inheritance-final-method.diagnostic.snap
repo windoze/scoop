@@ -1,0 +1,3 @@
+span=112..118
+expression=direct
+`direct` cannot override final method `Parent.direct`

@@ -113,7 +113,7 @@ impl Harness {
                             owner,
                         });
                 hir::BaseInitialization::Super {
-                    target,
+                    target: hir::BaseInitializerTarget::Local(target),
                     arguments: hir::ConstructorArguments {
                         locals: Arena::new(),
                         statements: Vec::new(),

@@ -53,7 +53,7 @@ impl Lowerer {
                     self.is_subtype(bound, b)
                 })
             }
-            (Type::Class(application), Type::Class(..)) => {
+            (Type::Class(application), Type::Class(..) | Type::ImportedClass(_)) => {
                 let application = self.class_applications[application].clone();
                 let Some(base) = self.classes[application.template].base_class else {
                     return false;
@@ -173,24 +173,40 @@ impl Lowerer {
         application: hir::ClassApplicationId,
     ) -> Vec<TypeId> {
         let mut result = Vec::new();
-        let mut pending = vec![application];
-        let mut seen = Vec::<hir::ClassApplicationId>::new();
-        while let Some(application) = pending.pop() {
-            let application_value = self.class_applications[application].clone();
-            for interface in self.classes[application_value.template].interfaces.clone() {
-                let interface = self.instantiate_ty(interface, &application_value.arguments);
-                self.append_interface_closure(interface, &mut result);
+        let mut pending = vec![(
+            self.class_applications[application].canonical_type,
+            Type::Class(application),
+        )];
+        let mut seen = Vec::new();
+        while let Some((ty, class_type)) = pending.pop() {
+            if seen.contains(&ty) {
+                continue;
             }
-            if let Some(base) = self.classes[application_value.template].base_class {
-                let base = self.instantiate_ty(base, &application_value.arguments);
-                let Type::Class(base_application) = self.types[base] else {
-                    unreachable!("class bases are resolved class applications")
-                };
-                if seen.contains(&base_application) {
-                    continue;
+            seen.push(ty);
+            match class_type {
+                Type::Class(application) => {
+                    let application = self.class_applications[application].clone();
+                    let class = self.classes[application.template].clone();
+                    for interface in class.interfaces {
+                        let interface = self.instantiate_ty(interface, &application.arguments);
+                        self.append_interface_closure(interface, &mut result);
+                    }
+                    if let Some(base) = class.base_class {
+                        let base = self.instantiate_ty(base, &application.arguments);
+                        pending.push((base, self.types[base].clone()));
+                    }
                 }
-                seen.push(base_application);
-                pending.push(base_application);
+                Type::ImportedClass(class) => {
+                    for interface in &class.interfaces {
+                        self.append_interface_closure(*interface, &mut result);
+                    }
+                    pending.extend(
+                        class
+                            .base_class
+                            .map(|base| (base, self.types[base].clone())),
+                    );
+                }
+                _ => unreachable!("resolved class bases have class types"),
             }
         }
         result

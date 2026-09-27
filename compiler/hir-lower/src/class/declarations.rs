@@ -255,6 +255,28 @@ impl Lowerer {
                     }
                     base = Some(ty);
                 }
+                Type::ImportedClass(ref class) => {
+                    if base.is_some() {
+                        self.error(
+                            spec.span,
+                            format!("{host} may have only one direct base class"),
+                        );
+                        continue;
+                    }
+                    if class.declaration.interface.declaration_details().modality()
+                        == hir::NominalInheritanceModalityV1::Final
+                    {
+                        self.error(
+                            spec.ty.span,
+                            format!(
+                                "class `{}` is final and cannot be inherited",
+                                class.declaration.name()
+                            ),
+                        );
+                        continue;
+                    }
+                    base = Some(ty);
+                }
                 Type::Interface(_) | Type::ImportedInterface(_) => {
                     if spec.constructor_arguments.is_some() {
                         self.error(

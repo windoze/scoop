@@ -15,12 +15,16 @@ type Declaration = InheritanceCallableDeclarationV1;
 pub(in crate::production::type_semantics) struct SlotContracts<'a> {
     sources: BTreeMap<Declaration, DispatchSource>,
     selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
-    roots: BTreeMap<PersistentDispatchSlotId, Declaration>,
+    roots: BTreeMap<PersistentDispatchSlotId, DispatchRoot>,
 }
 
 struct DispatchSource {
     owner: PersistentTypeId,
     callable: InheritanceSourceCallableV1,
+}
+
+struct DispatchRoot {
+    declaration: Declaration,
     lookup: PersistentSlotContractDomainV1,
 }
 
@@ -28,9 +32,17 @@ impl<'a> SlotContracts<'a> {
     pub(in crate::production::type_semantics) fn new(
         export: &ExportHir,
         dependencies: &[SharedTypeMetadataV1<'_>],
+        dependency_inheritance: &[&CanonicalNominalInheritanceInterfacesV1],
         inventory: &CanonicalSourceInheritanceInventoriesV1,
         selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
     ) -> Result<Self, Error> {
+        let required_slots = inventory
+            .records()
+            .iter()
+            .flat_map(|record| record.slot_schemas().records())
+            .flat_map(|schema| schema.slots())
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
         let mut roots = BTreeMap::new();
         let records = export.dispatch_slot_identities.records().chain(
             export
@@ -45,6 +57,9 @@ impl<'a> SlotContracts<'a> {
                 .flatten(),
         );
         for record in records {
+            if !required_slots.contains(&record.id()) {
+                continue;
+            }
             let declaration = match (record.key().owner(), record.key().role()) {
                 (
                     DispatchDeclarationOwner::Function(id),
@@ -61,12 +76,7 @@ impl<'a> SlotContracts<'a> {
             roots.insert(record.id(), declaration);
         }
         let mut required = std::collections::BTreeSet::new();
-        for slot in inventory
-            .records()
-            .iter()
-            .flat_map(|record| record.slot_schemas().records())
-            .flat_map(|schema| schema.slots())
-        {
+        for slot in &required_slots {
             required.insert(
                 *roots
                     .get(slot)
@@ -77,6 +87,7 @@ impl<'a> SlotContracts<'a> {
             required.insert(selection.selection().declaration());
         }
         let mut sources = BTreeMap::new();
+        let mut local_domains = BTreeMap::new();
         for (id, function) in export.functions.iter() {
             let Some(declaration) = source_callables::identity(export, id) else {
                 continue;
@@ -93,15 +104,15 @@ impl<'a> SlotContracts<'a> {
             let ExactTypeKey::Nominal(owner) = identity.key() else {
                 return Err(Error::GenericOdrRequired(identity.id()));
             };
+            local_domains.insert(
+                declaration,
+                PersistentSlotContractDomainV1::new(domain(export, &function.access.lookup.0)?),
+            );
             sources.insert(
                 declaration,
                 DispatchSource {
                     owner: *owner,
                     callable: source_callables::local(export, id, declaration)?,
-                    lookup: PersistentSlotContractDomainV1::new(domain(
-                        export,
-                        &function.access.lookup.0,
-                    )?),
                 },
             );
         }
@@ -123,17 +134,34 @@ impl<'a> SlotContracts<'a> {
                 })
                 .ok_or_else(|| invalid("dispatch target has no dependency declaration"))?;
             let (callable, owner) = source_callables::imported(*metadata, declaration)?;
-            sources.insert(
-                declaration,
-                DispatchSource {
-                    owner,
-                    callable,
-                    lookup: PersistentSlotContractDomainV1::new(
-                        PersistentAccessDomainV1::universal(),
-                    ),
-                },
-            );
+            sources.insert(declaration, DispatchSource { owner, callable });
         }
+        let roots = roots
+            .into_iter()
+            .map(|(slot, declaration)| {
+                let lookup = if let Some(domain) = local_domains.remove(&declaration) {
+                    domain
+                } else {
+                    let owner = sources[&declaration].owner;
+                    let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner))
+                        .map_err(invalid)?;
+                    dependency_inheritance
+                        .iter()
+                        .find_map(|table| table.get(exact))
+                        .and_then(|owner| owner.slots().get(slot))
+                        .ok_or_else(|| invalid("dependency dispatch root has no slot contract"))?
+                        .domain()
+                        .clone()
+                };
+                Ok((
+                    slot,
+                    DispatchRoot {
+                        declaration,
+                        lookup,
+                    },
+                ))
+            })
+            .collect::<Result<_, Error>>()?;
         Ok(Self {
             sources,
             selections,
@@ -153,10 +181,11 @@ impl<'a> SlotContracts<'a> {
                     continue;
                 }
 
-                let declaration = *self
+                let root = self
                     .roots
                     .get(slot)
                     .ok_or_else(|| invalid("dispatch slot has no source root declaration"))?;
+                let declaration = root.declaration;
                 let source = self.source(declaration)?;
 
                 let selection = self.selections.get(owner, *slot).ok_or_else(|| {
@@ -178,7 +207,7 @@ impl<'a> SlotContracts<'a> {
                     source.owner,
                     declaration,
                     source.callable.signature().clone(),
-                    source.lookup.clone(),
+                    root.lookup.clone(),
                     implementation,
                     source.callable.declaration_access().clone(),
                 )
@@ -228,6 +257,11 @@ fn domain(export: &ExportHir, source: &AccessDomain) -> Result<PersistentAccessD
             AccessConstraint::File(file) => Ok(PersistentAccessConstraintV1::File(file.clone())),
             AccessConstraint::LexicalOwner(owner) => {
                 persistent_owner(export, *owner).map(PersistentAccessConstraintV1::LexicalOwner)
+            }
+            AccessConstraint::ImportedSubclassesOf(class) => {
+                scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(*class))
+                    .map(PersistentAccessConstraintV1::SubclassesOf)
+                    .map_err(invalid)
             }
             AccessConstraint::SubclassesOf(class) => {
                 let ty = export.class_applications[export.classes[*class].self_application]

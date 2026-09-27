@@ -40,6 +40,7 @@ fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
             public: input.public,
         },
         &[],
+        &[],
     )
     .unwrap();
     let mut found = std::collections::BTreeSet::new();

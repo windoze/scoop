@@ -1,49 +1,40 @@
 use super::*;
 
 impl Projection<'_> {
+    pub(super) fn imported_selection(
+        &self,
+        id: ImportedDependencyCallableUseId,
+    ) -> Result<Selection, Error> {
+        let target = self.export.imported_dependency_callables[id]
+            .reference()
+            .declaration();
+        self.export
+            .types
+            .iter()
+            .filter_map(|(_, ty)| match ty {
+                Type::ImportedClass(class) => Some(&class.declaration),
+                Type::ImportedInterface(interface) => Some(&interface.declaration),
+                Type::ImportedStruct(structure) => Some(&structure.declaration),
+                Type::ImportedEnum(enumeration) => Some(&enumeration.declaration),
+                _ => None,
+            })
+            .flat_map(|declaration| {
+                declaration
+                    .interface
+                    .declaration_details()
+                    .dispatch_selections()
+                    .records()
+            })
+            .find(|selection| selection.callable_target() == target)
+            .map(NominalDispatchSelectionV1::selection)
+            .ok_or_else(|| invalid("imported dispatch target has no actual declaration selection"))
+    }
+
     pub(super) fn imported_callable(
         &self,
         id: ImportedDependencyCallableUseId,
     ) -> Result<InheritanceCallableDeclarationV1, Error> {
-        let callable = &self.export.imported_dependency_callables[id];
-        match callable.reference().declaration() {
-            scoop_identity::CallableTemplateOrigin::Function(id) => {
-                Ok(InheritanceCallableDeclarationV1::Function(id))
-            }
-            scoop_identity::CallableTemplateOrigin::Accessor(id) => {
-                let ImportedDependencyDispatch::Interface { interface, slot } = callable.dispatch()
-                else {
-                    return Err(invalid(
-                        "an interface default accessor has an interface declaration",
-                    ));
-                };
-                let method = self
-                    .export
-                    .types
-                    .iter()
-                    .find_map(|(_, ty)| match ty {
-                        Type::ImportedInterface(source)
-                            if source.declaration.identity.id() == interface =>
-                        {
-                            source.methods.get(slot as usize)
-                        }
-                        _ => None,
-                    })
-                    .ok_or_else(|| invalid("imported accessor has no interface slot"))?;
-                match method.slot.key().role() {
-                    scoop_identity::DispatchRole::PropertyGetter => {
-                        Ok(InheritanceCallableDeclarationV1::Getter(id))
-                    }
-                    scoop_identity::DispatchRole::PropertySetter => {
-                        Ok(InheritanceCallableDeclarationV1::Setter(id))
-                    }
-                    _ => Err(invalid("imported accessor has no accessor role")),
-                }
-            }
-            _ => Err(invalid(
-                "interface dispatch target is not a method or accessor",
-            )),
-        }
+        self.imported_selection(id).map(Selection::declaration)
     }
 
     pub(super) fn method(&self, function: FunctionId) -> Result<Method, Error> {

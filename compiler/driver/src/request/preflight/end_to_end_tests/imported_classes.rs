@@ -1,6 +1,7 @@
 use super::*;
 
 mod conformance;
+mod inheritance;
 mod runtime;
 
 #[test]
@@ -252,11 +253,18 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         .iter()
         .chain(negative_cases)
         .any(|case| case.starts_with("primitive-inherited-"));
+    let inheritance = cases
+        .iter()
+        .chain(negative_cases)
+        .any(|case| case.starts_with("inheritance-"));
     let core_source = sysroot.path().join("editable-core");
     std::fs::rename(sysroot.path().join("lib/scoop.core"), &core_source).unwrap();
     let mut core_provider = source("core-provider");
     if intrinsic_defaults {
         core_provider.push_str(&source("core-member-defaults"));
+    }
+    if inheritance {
+        core_provider.push_str(&source("core-inheritance-provider"));
     }
     std::fs::write(core_source.join("src/user_class.scoop"), core_provider).unwrap();
     let types = core_source.join("src/types.scoop");
@@ -336,6 +344,9 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     let provider_root = sysroot.path().join("provider");
     let coordinate = ConeCoordinate::new("dev.example", "class-provider", "0.1.0").unwrap();
     let mut provider_source = source("provider");
+    if inheritance {
+        provider_source.push_str(&source("inheritance-provider"));
+    }
     if cases
         .iter()
         .chain(negative_cases)
@@ -429,7 +440,9 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
             "dev.example",
             &name,
             "library",
-            &source(if *case == "initialization-object-reexport" {
+            &source(if *case == "inheritance-published" {
+                "inheritance-downstream"
+            } else if *case == "initialization-object-reexport" {
                 "initialization-object-downstream"
             } else if *case == "companion-reexport" {
                 "companion-downstream"

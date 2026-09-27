@@ -717,8 +717,17 @@ pub struct ConstructorExpression {
 pub enum BaseInitialization {
     Root,
     Super {
-        target: ClassConstructorApplicationId,
+        target: BaseInitializerTarget,
         arguments: ConstructorArguments,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BaseInitializerTarget {
+    Local(ClassConstructorApplicationId),
+    Imported {
+        owner: TypeId,
+        callable: ImportedDependencyCallableUseId,
     },
 }
 

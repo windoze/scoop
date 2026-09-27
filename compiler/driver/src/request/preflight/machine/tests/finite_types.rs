@@ -58,6 +58,7 @@ fn with_production<R>(
             public: input.public,
         },
         &[],
+        &[],
     )
     .unwrap();
     let sources = scoop_mir_lower::lower_source_type_exports(&source, &mir.strong, &graph).unwrap();

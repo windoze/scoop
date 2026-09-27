@@ -15,12 +15,41 @@ impl Lowerer {
     pub(crate) fn fresh_virtual_method(&mut self, root: hir::FunctionId) -> hir::VirtualMethodId {
         let method = hir::VirtualMethodId::from_raw(self.next_virtual_method_identity);
         self.next_virtual_method_identity += 1;
-        let previous = self.virtual_method_roots.insert(method, root);
+        let previous = self.virtual_method_roots.insert(
+            method,
+            crate::persistent_dispatch::VirtualMethodRoot::Local(root),
+        );
         assert!(
             previous.is_none(),
             "fresh virtual method identity is unique"
         );
         method
+    }
+
+    pub(crate) fn imported_virtual_method(
+        &mut self,
+        record: &hir::HirDispatchSlotIdentity,
+    ) -> hir::VirtualMethodId {
+        use crate::persistent_dispatch::VirtualMethodRoot;
+        if let Some((family, _)) = self.virtual_method_roots.iter().find(|(_, root)| {
+            matches!(root, VirtualMethodRoot::Imported(existing) if existing.id() == record.id())
+        }) {
+            return *family;
+        }
+        let family = hir::VirtualMethodId::from_raw(self.next_virtual_method_identity);
+        self.next_virtual_method_identity += 1;
+        self.virtual_method_roots
+            .insert(family, VirtualMethodRoot::Imported(record.clone()));
+        family
+    }
+
+    pub(crate) fn imported_virtual_family(
+        &self,
+        slot: scoop_identity::PersistentDispatchSlotId,
+    ) -> Option<hir::VirtualMethodId> {
+        self.virtual_method_roots.iter().find_map(|(family, root)| {
+            matches!(root, crate::persistent_dispatch::VirtualMethodRoot::Imported(record) if record.id() == slot).then_some(*family)
+        })
     }
 
     pub(crate) fn fresh_constructor_parameter(&mut self) -> hir::ConstructorParamId {

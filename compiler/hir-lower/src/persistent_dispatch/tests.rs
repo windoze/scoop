@@ -328,7 +328,10 @@ fn dispatch_identity_relation_rejects_a_wrong_virtual_slot_role() {
             } else {
                 module.dispatch_slot_identities[family].clone()
             };
-            (family, root, record)
+            (
+                family,
+                hir::HirVirtualDispatchSlotIdentity::Local { root, record },
+            )
         })
         .collect();
     let interface_slots = module

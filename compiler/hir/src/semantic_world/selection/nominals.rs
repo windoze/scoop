@@ -17,7 +17,7 @@ pub struct ImportedNominalDeclaration {
     pub field_names: Vec<String>,
     pub variant_names: Vec<ImportedEnumVariantNames>,
     pub c_abi: NativeBoundaryCAbiV1,
-    pub interface_slots: Vec<
+    pub dispatch_slots: Vec<
         CborIdentityRecord<
             scoop_identity::PersistentDispatchSlotId,
             scoop_identity::DispatchSlotKey,
@@ -143,21 +143,17 @@ pub(super) fn declarations(
                 _ => Vec::new(),
             };
             Ok(Arc::new(ImportedNominalDeclaration {
-                interface_slots: if interface.kind() == crate::PublicNominalKindV1::Interface {
-                    interface
-                        .declaration_details()
-                        .dispatch_order()
-                        .declared_slots()
-                        .map(|slot| {
-                            canonical
-                                .dispatch_slot_record(slot)
-                                .cloned()
-                                .ok_or(Error::MissingDispatchSlot(slot))
-                        })
-                        .collect::<Result<Vec<_>, _>>()?
-                } else {
-                    Vec::new()
-                },
+                dispatch_slots: interface
+                    .declaration_details()
+                    .dispatch_order()
+                    .declared_slots()
+                    .map(|slot| {
+                        canonical
+                            .dispatch_slot_record(slot)
+                            .cloned()
+                            .ok_or(Error::MissingDispatchSlot(slot))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
                 identity,
                 interface: interface.clone(),
                 field_names,

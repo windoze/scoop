@@ -73,6 +73,10 @@ pub(super) fn with_mir(
             foundation: &core_hir,
             public: core.production().hir_interface(),
         }],
+        &closure
+            .layout_dependencies()
+            .map(|dependency| dependency.hir_type_semantics().inheritance())
+            .collect::<Vec<_>>(),
     )
     .unwrap();
     inspect(

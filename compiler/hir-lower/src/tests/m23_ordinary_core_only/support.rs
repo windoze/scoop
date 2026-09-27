@@ -15,9 +15,8 @@ use scoop_wire::{decode_canonical, encode};
 use super::super::{
     complete_core_file, fun_expr, int_lit, make_core_public, test_source_identity, ty_named,
 };
-use crate::lower_core_bootstrap;
-
 pub(crate) struct TrustedCoreFixture {
+    pub(crate) output: scoop_hir::DependencyHirOutput,
     pub(crate) foundation: scoop_hir::ImportedHirFoundation,
     pub(crate) source_foundation: scoop_hir::OdrFreeHirFoundation,
     general_interface: scoop_hir::CrossConeHirInterfaceSectionV1,
@@ -132,7 +131,18 @@ pub(crate) fn trusted_core_from_source(
         "<core>",
         source_text,
     );
-    let output = lower_core_bootstrap(&parsed).unwrap();
+    let world =
+        scoop_hir::ImportedSemanticWorld::from_dependencies(parsed.cone(), Vec::new(), Vec::new())
+            .unwrap();
+    let sources = crate::CurrentConeSources::try_new(
+        &parsed,
+        crate::CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
+    let dependency_output =
+        crate::lower_current_cone(scoop_identity::RequestedConeKind::Library, &sources).unwrap();
+    let output = dependency_output.output();
     let scoop_hir::CoreProtocols::Defined(protocols) = &output.export.core_protocols else {
         panic!("the bootstrap fixture defines its protocol roles")
     };
@@ -144,7 +154,7 @@ pub(crate) fn trusted_core_from_source(
         &output.native_boundary_types,
     )
     .unwrap();
-    let general_interface = world::project_interface(&output, &mut canonical);
+    let general_interface = world::project_interface(output, &mut canonical);
     let aliases = crate::tests::m23_ordinary_dependencies::support::alias_expansions(
         general_interface.type_aliases(),
     );
@@ -168,6 +178,7 @@ pub(crate) fn trusted_core_from_source(
     let foundation =
         scoop_hir::ImportedHirFoundation::from_odr_free(source_foundation.clone(), hir);
     TrustedCoreFixture {
+        output: dependency_output,
         general_interface,
         aliases,
         foundation,

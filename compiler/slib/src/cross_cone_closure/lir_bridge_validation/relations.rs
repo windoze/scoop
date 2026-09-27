@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use scoop_hir::{CallableInterfaceRecordV1, CrossConeHirInterfaceSectionV1};
+use scoop_hir::{CallableDeclarationRecordV1, CrossConeHirInterfaceSectionV1};
 use scoop_identity::{
     CallableTemplateOrigin, CanonicalScoopAbiFunctionSignature, ConeIdentity,
     DependencyCallableDeclarationId, ExactCallableSignature, GcEffect,
@@ -241,14 +241,14 @@ fn validate_terminal_provider(
 fn callable_interface(
     interface: &CrossConeHirInterfaceSectionV1,
     declaration: DependencyCallableDeclarationId,
-) -> Option<&CallableInterfaceRecordV1> {
+) -> Option<&CallableDeclarationRecordV1> {
     let declaration = match declaration {
         DependencyCallableDeclarationId::Function(id) => CallableTemplateOrigin::Function(id),
         DependencyCallableDeclarationId::PropertyAccessor(id) => {
             CallableTemplateOrigin::Accessor(id)
         }
     };
-    interface.callable_interfaces().get(declaration)
+    interface.callable_interfaces().declaration(declaration)
 }
 
 fn selected_lir(

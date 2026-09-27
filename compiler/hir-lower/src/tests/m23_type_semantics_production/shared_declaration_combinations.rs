@@ -63,7 +63,7 @@ fn check_shared_declarations(fixtures: &std::path::Path, case: &str) {
             restored.nominal_interfaces().declaration_count() > 0,
             "{case}"
         );
-        production::with_metadata(output, &restored, |metadata, dependencies| {
+        production::with_metadata(output, &restored, |metadata, dependencies, _| {
             metadata
                 .validate_materialized_type_uses(types.selected(), dependencies)
                 .unwrap();

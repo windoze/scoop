@@ -36,7 +36,23 @@ pub(super) fn select<'a>(
             ));
         }
     }
-    for (_, class) in input.module().classes.iter() {
+    for (id, class) in input.module().classes.iter() {
+        let ty = if matches!(
+            class.representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+        ) {
+            mir::Type::String
+        } else {
+            mir::Type::Class(id)
+        };
+        if input.materialization().source_nominal_shape(&ty).is_none()
+            && input
+                .materialization()
+                .generated_nominal_shape(mir::GeneratedExactTypeLocation::Class(id))
+                .is_none()
+        {
+            continue;
+        }
         for slot in class
             .vtable
             .iter()

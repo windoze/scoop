@@ -36,7 +36,7 @@ fn materialized_selections_are_produced_and_replayed_from_shared_hir_bytes() {
                 decoded(&public.index_for_wire().unwrap());
             let wire_public = wire_public.resolve(&mut identities).unwrap();
             assert_eq!(wire_public, public);
-            production::with_metadata(output, &wire_public, |metadata, dependencies| {
+            production::with_metadata(output, &wire_public, |metadata, dependencies, _| {
                 metadata
                     .validate_materialized_type_uses(section.selected(), dependencies)
                     .unwrap();

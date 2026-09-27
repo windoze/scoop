@@ -1,4 +1,6 @@
 use super::*;
+mod abstract_methods;
+mod imported;
 mod interfaces;
 mod overrides;
 mod properties;
@@ -126,8 +128,10 @@ impl Lowerer {
         let mut seen = vec![id];
         let mut current = id;
         while let Some(base_ty) = self.classes[current].base_class {
-            let Type::Class(base_application) = self.types[base_ty] else {
-                unreachable!("resolved class bases are class applications")
+            let base_application = match self.types[base_ty] {
+                Type::Class(application) => application,
+                Type::ImportedClass(_) => break,
+                _ => unreachable!("resolved class bases have class types"),
             };
             let base = self.class_applications[base_application].template;
             if seen.contains(&base) {

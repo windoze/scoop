@@ -5,14 +5,14 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : VirtualBase
+      ImportedDependencyCall #1 : VirtualBase
         Local $dependency.parameter.value : Long
     val local3
-      ImportedDependencyCall #1 virtual[0] : Long
+      ImportedDependencyCall #2 virtual[0] : Long
         Local $dependency.receiver : VirtualBase
     val local4
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      ImportedDependencyCall #3 : Counter
         Local $dependency.parameter.value : Long
   output library

@@ -96,7 +96,7 @@ impl Concretizer<'_> {
                         kind: concrete::StatementKind::Expr(concrete::Expr {
                             kind: concrete::ExprKind::ClassInitializerCall {
                                 receiver: Box::new(receiver),
-                                initializer: target_id,
+                                initializer: concrete::ClassInitializerTarget::Local(target_id),
                                 args,
                             },
                             ty: self.lower_type(self.source.unit, &[]),
@@ -164,10 +164,23 @@ impl Concretizer<'_> {
         let export::BaseInitialization::Super { target, arguments } = base else {
             return;
         };
-        let target = self.lower_class_constructor_application(*target, substitution);
+        let (target, target_ty) = match target {
+            export::BaseInitializerTarget::Local(target) => {
+                let target = self.lower_class_constructor_application(*target, substitution);
+                let (_, class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
+                (
+                    concrete::ClassInitializerTarget::Local(target),
+                    self.class_type[&class],
+                )
+            }
+            export::BaseInitializerTarget::Imported { owner, callable } => (
+                concrete::ClassInitializerTarget::Imported(
+                    self.imported_dependency_callable_map[callable],
+                ),
+                self.lower_type(*owner, substitution),
+            ),
+        };
         let args = self.append_constructor_arguments(body, arguments, substitution);
-        let (_, target_class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
-        let target_ty = self.class_type[&target_class];
         let receiver = self.constructor_receiver(target_ty, span, origin);
         body.statements.push(concrete::Statement {
             kind: concrete::StatementKind::Expr(concrete::Expr {

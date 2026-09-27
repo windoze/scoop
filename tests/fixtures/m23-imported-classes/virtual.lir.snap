@@ -10,7 +10,7 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000014) -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i64) -> ptr<managed> external-fn0(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i64) -> ptr<managed> external-fn1(local1)
     store t0 -> local2
     t1 = heap_load local2 +0 : ptr<metadata>
     t2 = heap_load t1 +88 : ptr<metadata>

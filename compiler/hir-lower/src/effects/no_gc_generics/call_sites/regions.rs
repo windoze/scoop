@@ -92,7 +92,9 @@ impl Lowerer {
         out: &mut Vec<GenericCall>,
     ) {
         if let hir::BaseInitialization::Super { target, arguments } = base {
-            out.extend(self.generic_class_constructor_call(*target, span));
+            if let hir::BaseInitializerTarget::Local(target) = target {
+                out.extend(self.generic_class_constructor_call(*target, span));
+            }
             self.collect_generic_calls_in_constructor_arguments(arguments, out);
         }
     }

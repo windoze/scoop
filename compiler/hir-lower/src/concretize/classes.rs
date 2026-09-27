@@ -123,7 +123,10 @@ impl Concretizer<'_> {
                 debug_assert!(fields.is_empty() && base_class.is_none());
             }
         }
-        self.classes[id].methods = methods;
+        self.classes[id].methods = methods
+            .into_iter()
+            .map(concrete::ClassMethod::Local)
+            .collect();
         if source.type_params.is_empty() {
             for &constructor in &source.constructors {
                 if self.automatic_class_constructor(constructor) {

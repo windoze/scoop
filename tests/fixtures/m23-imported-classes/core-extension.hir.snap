@@ -5,10 +5,10 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : RebuiltCounter
+      ImportedDependencyCall #1 : RebuiltCounter
         Local $dependency.parameter.value : Long
     val local3
-      ImportedDependencyCall #1 : Long
+      ImportedDependencyCall #0 : Long
         Local $dependency.receiver : RebuiltCounter
     val local4
       ImportedVariantConstruct RebuiltFlag.Ready : RebuiltFlag
@@ -20,10 +20,10 @@ Module
         val local6
           Local $dependency.argument.0 : Long
         val local7
-          ImportedDependencyCall #0 : RebuiltCounter
+          ImportedDependencyCall #1 : RebuiltCounter
             Local $dependency.parameter.value : Long
         val local8
-          ImportedDependencyCall #1 : Long
+          ImportedDependencyCall #0 : Long
             Local $dependency.receiver : RebuiltCounter
         val local9
           Local $dependency.argument.0 : Long

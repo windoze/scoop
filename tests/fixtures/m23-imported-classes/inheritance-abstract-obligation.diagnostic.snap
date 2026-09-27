@@ -1,0 +1,9 @@
+span=42..101
+expression=public class Derived public constructor(): AbstractParent()
+class `Derived` does not implement abstract method `AbstractParent.read`
+span=42..101
+expression=public class Derived public constructor(): AbstractParent()
+class `Derived` does not implement abstract getter `AbstractParent.value`
+span=42..101
+expression=public class Derived public constructor(): AbstractParent()
+class `Derived` does not implement abstract setter `AbstractParent.value`

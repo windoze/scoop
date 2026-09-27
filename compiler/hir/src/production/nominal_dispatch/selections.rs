@@ -38,7 +38,7 @@ impl Projection<'_> {
                         self.target(application)?
                     }
                     InterfaceImplementationTarget::Imported(callable) => {
-                        Selection::InterfaceDefault(self.imported_callable(callable)?)
+                        self.imported_selection(callable)?
                     }
                     InterfaceImplementationTarget::Abstract(application) if allow_abstract => {
                         let application = &self.export.method_applications[application];
@@ -66,7 +66,36 @@ impl Projection<'_> {
         selections: &mut Selections,
     ) -> Result<(), Error> {
         // The first encounter in derived-to-base order is the selected override.
-        for class in self.class_chain(class)? {
+        for entry in self.class_chain(class)? {
+            let class = match entry {
+                ClassChainEntry::Local(class) => class,
+                ClassChainEntry::Imported(ty) => {
+                    let Type::ImportedClass(class) = &self.export.types[ty] else {
+                        return Err(invalid("class base does not resolve to a class type"));
+                    };
+                    for selection in class
+                        .declaration
+                        .interface
+                        .declaration_details()
+                        .dispatch_selections()
+                        .records()
+                    {
+                        if class
+                            .virtual_methods
+                            .iter()
+                            .any(|method| method.slot == selection.slot())
+                            && !selections.contains_key(&selection.slot())
+                        {
+                            self.merge_selection(
+                                selections,
+                                selection.slot(),
+                                selection.selection(),
+                            )?;
+                        }
+                    }
+                    continue;
+                }
+            };
             for function in &self.export.classes[class].methods {
                 let method = self.method(*function)?;
                 let family = match method.dispatch {

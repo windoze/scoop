@@ -129,7 +129,7 @@ impl Lowerer {
         )
     }
 
-    pub(in crate::expr) fn probe_imported_value_constructor(
+    pub(crate) fn probe_imported_value_constructor(
         &self,
         candidate: hir::ImportedCallableDeclaration,
         name: &ast::Ident,

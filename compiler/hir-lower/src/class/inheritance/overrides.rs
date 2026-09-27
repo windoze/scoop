@@ -1,4 +1,5 @@
 use super::*;
+use hir::ImportedCallableSource;
 
 impl Lowerer {
     /// The `override` rules for one member function: an overriding
@@ -86,6 +87,27 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let interfaces = self.owner_interfaces(owner);
         let signature = super::interfaces::InterfaceSignature::local(&short, &sig);
+        let class = match owner {
+            Owner::Class(class) => Some(class),
+            Owner::Object(object) => Some(self.objects[object].backing_class),
+            _ => None,
+        };
+        let imported_class = class
+            .map(|class| self.inherited_imported_class_methods(class, &short, decl.name.span))
+            .unwrap_or_default();
+        let imported_class_matches = imported_class
+            .iter()
+            .filter(|method| {
+                sig.type_params.len() == sig.owner_type_param_count
+                    && self.same_interface_signature(&signature, &method.signature)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if decl.is_override {
+            for method in &imported_class_matches {
+                self.check_imported_class_override(id, decl, &sig, method);
+            }
+        }
         let mut imported = Vec::new();
         for interface in interfaces {
             if matches!(self.types[interface], Type::ImportedInterface(_)) {
@@ -180,7 +202,7 @@ impl Lowerer {
             overridden.extend(imported_matches.iter().map(|member| member.member));
             self.interface_method_entities[member].overrides = overridden;
         }
-        if overrides.is_none() && imported_matches.is_empty() {
+        if overrides.is_none() && imported_matches.is_empty() && imported_class_matches.is_empty() {
             let local_shape = candidates
                 .iter()
                 .find(|(candidate, args)| {
@@ -195,19 +217,41 @@ impl Lowerer {
                         ),
                     )
                 });
-            let inherited = local_shape.or_else(|| {
-                imported
-                    .iter()
-                    .find(|member| {
-                        self.same_interface_signature_shape(&signature, &member.signature)
-                    })
-                    .map(|member| {
-                        (
-                            format!("{}.{}", self.type_name(member.owner), member.signature.name),
-                            member.signature.clone(),
-                        )
-                    })
-            });
+            let inherited = local_shape
+                .or_else(|| {
+                    imported_class
+                        .iter()
+                        .find(|method| {
+                            self.same_interface_signature_shape(&signature, &method.signature)
+                        })
+                        .map(|method| {
+                            (
+                                format!(
+                                    "{}.{}",
+                                    self.type_name(method.owner),
+                                    method.signature.name
+                                ),
+                                method.signature.clone(),
+                            )
+                        })
+                })
+                .or_else(|| {
+                    imported
+                        .iter()
+                        .find(|member| {
+                            self.same_interface_signature_shape(&signature, &member.signature)
+                        })
+                        .map(|member| {
+                            (
+                                format!(
+                                    "{}.{}",
+                                    self.type_name(member.owner),
+                                    member.signature.name
+                                ),
+                                member.signature.clone(),
+                            )
+                        })
+                });
             if let Some((target, inherited)) = inherited {
                 let modifier = if inherited.is_suspend != signature.is_suspend {
                     "suspend"
@@ -238,6 +282,18 @@ impl Lowerer {
             );
             return;
         }
+        if let Some(method) = imported_class_matches.first()
+            && method.declaration.interface().modality() == hir::CallableModalityV1::Final
+        {
+            self.error(
+                decl.name.span,
+                format!(
+                    "`{short}` cannot override final method `{}.{short}`",
+                    self.type_name(method.owner)
+                ),
+            );
+            return;
+        }
         if matches!(owner, Owner::Class(_) | Owner::Object(_)) {
             let inherited_family = overrides.as_ref().and_then(|(candidate, _)| {
                 matches!(self.function_owner.get(candidate), Some(Owner::Class(_))).then(|| {
@@ -251,6 +307,19 @@ impl Lowerer {
                             unreachable!("an overridable class method owns a virtual family")
                         }
                     }
+                })
+            });
+            let inherited_family = inherited_family.or_else(|| {
+                imported_class_matches.first().map(|method| {
+                    let slot = method
+                        .declaration
+                        .interface()
+                        .slot_relations()
+                        .values()
+                        .first()
+                        .expect("an overridable dependency class member has a virtual family");
+                    self.imported_virtual_family(*slot)
+                        .expect("dependency class retains its actual virtual family")
                 })
             });
             let modifier = self.functions[id]
@@ -277,6 +346,11 @@ impl Lowerer {
         }
         let overridden_name = overrides
             .map(|(candidate, _)| self.functions[candidate].name.clone())
+            .or_else(|| {
+                imported_class_matches.first().map(|method| {
+                    format!("{}.{}", self.type_name(method.owner), method.signature.name)
+                })
+            })
             .or_else(|| {
                 imported_matches.first().map(|member| {
                     format!("{}.{}", self.type_name(member.owner), member.signature.name)

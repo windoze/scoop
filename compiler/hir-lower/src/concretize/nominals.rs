@@ -371,6 +371,17 @@ impl Concretizer<'_> {
         id
     }
 
+    pub(in crate::concretize) fn lower_virtual_method(
+        &mut self,
+        source: export::VirtualMethodId,
+    ) -> concrete::VirtualMethodId {
+        let next = self.virtual_method_by_source.len() as u32;
+        *self
+            .virtual_method_by_source
+            .entry(source)
+            .or_insert_with(|| concrete::VirtualMethodId::from_raw(next))
+    }
+
     pub(super) fn lower_method_dispatch(
         &mut self,
         dispatch: export::MethodDispatch,
@@ -379,20 +390,10 @@ impl Concretizer<'_> {
         match dispatch {
             export::MethodDispatch::Direct => concrete::MethodDispatch::Direct,
             export::MethodDispatch::Virtual(source) => {
-                let next = self.virtual_method_by_source.len() as u32;
-                let method = *self
-                    .virtual_method_by_source
-                    .entry(source)
-                    .or_insert_with(|| concrete::VirtualMethodId::from_raw(next));
-                concrete::MethodDispatch::Virtual(method)
+                concrete::MethodDispatch::Virtual(self.lower_virtual_method(source))
             }
             export::MethodDispatch::FinalOverride(source) => {
-                let next = self.virtual_method_by_source.len() as u32;
-                let method = *self
-                    .virtual_method_by_source
-                    .entry(source)
-                    .or_insert_with(|| concrete::VirtualMethodId::from_raw(next));
-                concrete::MethodDispatch::FinalOverride(method)
+                concrete::MethodDispatch::FinalOverride(self.lower_virtual_method(source))
             }
             export::MethodDispatch::Interface(member) => {
                 let FunctionKey::Method {

@@ -18,9 +18,27 @@ pub use error::HirDispatchSlotIdentityError;
 pub type HirDispatchSlotIdentity = CborIdentityRecord<PersistentDispatchSlotId, DispatchSlotKey>;
 
 #[derive(Clone, Debug)]
-struct HirVirtualDispatchSlotIdentity {
-    root: FunctionId,
-    record: HirDispatchSlotIdentity,
+pub enum HirVirtualDispatchSlotIdentity {
+    Local {
+        root: FunctionId,
+        record: HirDispatchSlotIdentity,
+    },
+    Imported(HirDispatchSlotIdentity),
+}
+
+impl HirVirtualDispatchSlotIdentity {
+    fn record(&self) -> &HirDispatchSlotIdentity {
+        match self {
+            Self::Local { record, .. } | Self::Imported(record) => record,
+        }
+    }
+
+    fn local_root(&self) -> Option<FunctionId> {
+        match self {
+            Self::Local { root, .. } => Some(*root),
+            Self::Imported(_) => None,
+        }
+    }
 }
 
 pub struct HirDispatchSlotIdentityInputs<'a> {
@@ -40,7 +58,7 @@ pub struct HirDispatchSlotIdentities {
 impl HirDispatchSlotIdentities {
     pub fn checked(
         inputs: HirDispatchSlotIdentityInputs<'_>,
-        virtual_slots: Vec<(VirtualMethodId, FunctionId, HirDispatchSlotIdentity)>,
+        virtual_slots: Vec<(VirtualMethodId, HirVirtualDispatchSlotIdentity)>,
         interface_slots: Vec<HirDispatchSlotIdentity>,
     ) -> Result<Self, HirDispatchSlotIdentityError> {
         if interface_slots.len() != inputs.interface_methods.len() {
@@ -51,11 +69,8 @@ impl HirDispatchSlotIdentities {
         }
 
         let mut virtual_map = BTreeMap::new();
-        for (family, root, record) in virtual_slots {
-            if virtual_map
-                .insert(family, HirVirtualDispatchSlotIdentity { root, record })
-                .is_some()
-            {
+        for (family, slot) in virtual_slots {
+            if virtual_map.insert(family, slot).is_some() {
                 return Err(HirDispatchSlotIdentityError::DuplicateVirtualFamily {
                     family: family.into_raw(),
                 });
@@ -73,11 +88,15 @@ impl HirDispatchSlotIdentities {
     }
 
     pub fn get_virtual(&self, family: VirtualMethodId) -> Option<&HirDispatchSlotIdentity> {
-        self.virtual_slots.get(&family).map(|slot| &slot.record)
+        self.virtual_slots
+            .get(&family)
+            .map(HirVirtualDispatchSlotIdentity::record)
     }
 
     pub fn virtual_root(&self, family: VirtualMethodId) -> Option<FunctionId> {
-        self.virtual_slots.get(&family).map(|slot| slot.root)
+        self.virtual_slots
+            .get(&family)
+            .and_then(HirVirtualDispatchSlotIdentity::local_root)
     }
 
     pub fn get_interface(&self, member: InterfaceMethodId) -> Option<&HirDispatchSlotIdentity> {
@@ -87,7 +106,7 @@ impl HirDispatchSlotIdentities {
     pub fn records(&self) -> impl Iterator<Item = &HirDispatchSlotIdentity> {
         self.virtual_slots
             .values()
-            .map(|slot| &slot.record)
+            .map(HirVirtualDispatchSlotIdentity::record)
             .chain(self.interface_slots.iter())
     }
 }
@@ -130,7 +149,7 @@ fn validate_virtual_slots(
                     family: family.into_raw(),
                 })?;
         referenced.insert(family);
-        if function_slot_role(inputs, function)? != slot.record.key().role() {
+        if function_slot_role(inputs, function)? != slot.record().key().role() {
             return Err(HirDispatchSlotIdentityError::VirtualMemberRole {
                 function: raw_index(function),
                 family: family.into_raw(),
@@ -139,24 +158,28 @@ fn validate_virtual_slots(
     }
 
     for (family, slot) in slots {
-        if local_index(slot.root) >= inputs.functions.len() {
+        let Some(root_id) = slot.local_root() else {
+            // Dependency slots retain the reader's actual declaration record.
+            continue;
+        };
+        if local_index(root_id) >= inputs.functions.len() {
             return Err(HirDispatchSlotIdentityError::UnknownVirtualRoot {
                 family: family.into_raw(),
-                function: raw_index(slot.root),
+                function: raw_index(root_id),
             });
         }
-        let root = &inputs.functions[slot.root];
+        let root = &inputs.functions[root_id];
         if !matches!(
             root.method.map(|method| method.dispatch),
             Some(MethodDispatch::Virtual(actual)) if actual == *family
         ) {
             return Err(HirDispatchSlotIdentityError::VirtualRootDispatch {
                 family: family.into_raw(),
-                function: raw_index(slot.root),
+                function: raw_index(root_id),
             });
         }
-        let expected = dispatch_key(inputs, slot.root, DispatchDeclarationKind::Virtual)?;
-        if slot.record.key() != &expected {
+        let expected = dispatch_key(inputs, root_id, DispatchDeclarationKind::Virtual)?;
+        if slot.record().key() != &expected {
             return Err(HirDispatchSlotIdentityError::VirtualIdentity {
                 family: family.into_raw(),
             });
@@ -320,7 +343,7 @@ fn validate_unique_persistent_ids(
     let mut seen = HashSet::new();
     for record in virtual_slots
         .values()
-        .map(|slot| &slot.record)
+        .map(HirVirtualDispatchSlotIdentity::record)
         .chain(interface_slots)
     {
         if !seen.insert(record.id()) {

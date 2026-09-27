@@ -18,8 +18,22 @@ impl Lowerer {
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, ty, |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
             this.functions[candidate.function].name.rsplit('.').next() == Some(name)
+        })
+    }
+
+    pub(crate) fn super_methods_by_name(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+    ) -> Vec<crate::CallableCandidate> {
+        let declared = self.method_candidates(ty);
+        self.visible_method_candidates(declared, None, |this, candidate| {
+            !matches!(
+                this.function_owner.get(&candidate.function),
+                Some(Owner::Interface(_))
+            ) && this.functions[candidate.function].name.rsplit('.').next() == Some(name)
         })
     }
 
@@ -32,7 +46,7 @@ impl Lowerer {
         operator: hir::OperatorKind,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, ty, |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
             this.signatures[&candidate.function].modifiers.operator == Some(operator)
         })
     }
@@ -252,8 +266,10 @@ impl Lowerer {
                 break;
             };
             let base = self.instantiate_ty(base, &application_value.arguments);
-            let Type::Class(base_application) = self.types[base] else {
-                unreachable!("resolved class bases are class applications")
+            let base_application = match self.types[base] {
+                Type::Class(application) => application,
+                Type::ImportedClass(_) => break,
+                _ => unreachable!("resolved class bases have class types"),
             };
             application = base_application;
             depth += 1;
@@ -263,12 +279,12 @@ impl Lowerer {
     fn visible_method_candidates(
         &mut self,
         declared: Vec<(crate::CallableCandidate, usize, usize)>,
-        receiver_ty: TypeId,
+        receiver_ty: Option<TypeId>,
         mut matches: impl FnMut(&Self, &crate::CallableCandidate) -> bool,
     ) -> Vec<crate::CallableCandidate> {
         let mut visible = Vec::new();
         for (candidate, depth, root) in declared {
-            if !self.function_is_accessible(candidate.function, Some(receiver_ty))
+            if !self.function_is_accessible(candidate.function, receiver_ty)
                 || !matches(self, &candidate)
             {
                 continue;

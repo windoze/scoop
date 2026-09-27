@@ -1,6 +1,6 @@
 Module
-  class VirtualBase vtable=0 itables=0
-  class VirtualCounter vtable=0 itables=0
+  class VirtualBase vtable=1 itables=0
+  class VirtualCounter vtable=1 itables=0
   class Counter vtable=0 itables=0
   fun primary @fn0() -> Counter
     bb0 entry
@@ -10,7 +10,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call value: VirtualBase = external0 direct
+      call value: VirtualBase = external1 direct
         Type Long
         Local $dependency.parameter.value
       val alias: Any
@@ -47,7 +47,7 @@ Module
         Retype VirtualCounter
           Type VirtualBase
           Local value
-      call $dependency.argument.0: Long = external1 direct
+      call $dependency.argument.0: Long = external2 direct
         Type VirtualCounter
         Local $dependency.receiver
       val $dependency.parameter.value: Long
@@ -56,7 +56,7 @@ Module
       assign $new.2
         Type Counter
         ClassAlloc Counter
-      call external2 direct
+      call external3 direct
         Type Counter
         Local $new.2
         Type Long
@@ -74,7 +74,7 @@ Module
       assign $new.3
         Type Counter
         ClassAlloc Counter
-      call external2 direct
+      call external3 direct
         Type Counter
         Local $new.3
         Type Long

@@ -1,0 +1,3 @@
+span=89..109
+expression=PrivateConstructor()
+constructor `PrivateConstructor` is not accessible here

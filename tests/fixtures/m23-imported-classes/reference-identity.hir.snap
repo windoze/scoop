@@ -5,7 +5,7 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : VirtualBase
+      ImportedDependencyCall #1 : VirtualBase
         Local $dependency.parameter.value : Long
     val local3
       ReferenceUpcast : Any
@@ -20,18 +20,18 @@ Module
       val local4
         Local value : VirtualCounter
       val local5
-        ImportedDependencyCall #1 : Long
+        ImportedDependencyCall #2 : Long
           Local $dependency.receiver : VirtualCounter
       val local6
         Local $dependency.argument.0 : Long
       return
-        ImportedDependencyCall #2 : Counter
+        ImportedDependencyCall #3 : Counter
           Local $dependency.parameter.value : Long
     val local7
       IntegerLiteral 0 : Long
     val local8
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      ImportedDependencyCall #3 : Counter
         Local $dependency.parameter.value : Long
   output library
