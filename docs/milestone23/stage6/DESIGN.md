@@ -143,7 +143,7 @@ ExactOwnerRoot == SourceCone != exemption from dependency ODR requirements
 | `compiler/lir/src/metadata.rs`、`compiler/lir-lower/src/metadata/layouts/` | 本地 aggregate/enum/field layout | 收口 raw size/alignment 构造，接入定义方布局与继承 prefix |
 | `compiler/lir/src/production/shape_support/` | core 的有限 shape-support 数据 | 合并到所有定义 Cone 共用的形状表，移除 core 专用查询分支 |
 | `compiler/hir/src/visibility.rs`、`compiler/hir-lower/src/visibility.rs` | lookup/inheritance/slot domain 与本地 protected 规则 | 导出完整继承关系，前端按实际接收者检查 protected 访问 |
-| HIR/MIR/LIR 的 `cross_cone_*` 模块 | M23-5 core-closed callable 子集与 selected bridge | 增加一般类型、构造、slot/dispatch 和 object-value selection |
+| HIR/MIR/LIR 的 `cross_cone_*` 模块 | M23-5 普通参数自由 callable 与 selected bridge | 增加一般类型、构造、slot/dispatch 和 object-value selection |
 | `compiler/lir-lower/src/function/expression.rs`、`runtime/src/rt.c` | 现有 box/unbox/array 执行路径 | 消除旧 payload/size/scan 多源调用与固定 header-offset 假设 |
 | `compiler/codegen/src/function.rs` | 本地地址存储发射 | 在 LIR 明确 token place，codegen 不再由 LLVM 空类型猜 ZST |
 
@@ -1219,7 +1219,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 4. 收口LIR storage/refined shape、general layout replay、scan normal form和external exact arena；实现provider有限shape-support导出和consumer验证。
 5. 接入通用ABI及logical-to-physical映射，验证call/invoke/dispatch/byval/sret/root plan，再开放对应param-free source成功格。
 6. 完成box/unbox、ZST place/static、array/Ptr执行路径与C边界矩阵；删除被替代的旧size/scan/header-offset入口。
-7. 完成新Link-only closure、共有 requirement 与完整 object coverage、definition规范化、Code贡献和双view发布；删除 core 独立 closure 并更新core、scheduler、cache accepted profile。
+7. 完成 Link 实际引用、共有 requirement 与完整 object coverage、definition 规范化、Code 贡献和同次完整产物发布；删除 core 独立 closure 并更新core、scheduler、cache accepted profile。
 8. 完成独立/组合/negative/golden/corruption与回归矩阵，将多Cone运行场景交给M23-9/11复用。
 
 每批代码变更完成后先 `cargo fmt --all`、`cargo clippy --workspace`，再运行相关test；最终运行完整workspace与runtime/fixture验证。本阶段必须覆盖实际对象检查、Compile/Link 消费以及适用的链接和运行。

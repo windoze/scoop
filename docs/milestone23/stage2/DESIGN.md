@@ -2032,7 +2032,7 @@ golden文件包含schema/domain/tag版本说明。更新golden必须在review中
 
 对每个closed record做缺field、多field、重复field、错major type、unknown/reserved tag、非最短integer与乱序table用例。对archive做bit flip、truncation、错size/pad/name/order、thin/special member、重复/缺失/未声明member和hash/fingerprint错配。对identity graph做错kind、错owner、cycle、binder/index/arity/path/span越界与cross-layer bridge漏项；另覆盖tag 4 initialization owner指向别的property/unit、nominal exact type误造StructuralType group、`StaticAssertSupport`产生plan、以及同bridge unit跨两个Cone复用unit/recipe但atom/symbol必须不同的正反对照。
 
-native-boundary witness另有三组Compile测试：当前Cone加trusted core能闭合时成功；缺少本地传递record或夹带无关record时失败；边跨direct dependency时Graph仍成功而M23-2 Compile稳定返回`SLIB_CAPABILITY_NATIVE_BOUNDARY_CLOSURE_REQUIRED`，待M23-6 closure profile提供完整proof后成功。C/Scoop extern还需覆盖Managed与NoGc产生不同fingerprint、却都保持NativeBorrowed caller-root publication的断言。
+native-boundary 测试使用当前 Cone 和实际依赖的共有类型查询：完整的 C-safe、布局与 ABI 关系成功，缺失记录、无关记录或错误表示失败。M23-6 closure profile 已覆盖跨 direct dependency 的完整声明与表示，不以 core 来源提供资格。C/Scoop extern还需覆盖Managed与NoGc产生不同fingerprint、却都保持NativeBorrowed caller-root publication的断言。
 
 fuzz/property test向raw archive、CBOR、identity graph与remap输入任意bytes，验证截断、非法字段、引用环与实际整数溢出被拒绝，失败不panic、不提交部分world，同bytes产生同error code/path。较深或较大的合法输入不因任意成本配额被拒绝。
 

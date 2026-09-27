@@ -1,6 +1,6 @@
 # M23-3 设计：single-Cone artifact 与 core 分离
 
-2026-09-23 Link 迁移说明：本文的 core requirement 独立闭包、CoreStrong tag 2 与 link-identity-closure/1 是历史格式。M23-6 已迁入共有 provider/typed owner 分类，最终 requirement 使用 tag 8、对象指纹 target 使用 tag 13，当前 capability 为 /2；旧格式拒绝并重建，具体合同见实现规范 2.11 与 stage6 设计。其他原有 capability/subject 用途仍互斥且联合覆盖完整 relocation，不按 provider 名称分类。
+M23-6 Link 迁移：core 专用 requirement、owner 证明和 CoreStrong tag 2 已退役。当前 `link-identity-closure/3` 通过共有语义引用和真实对象 relocation 解析实际 provider 与 typed owner；退役 tag 不复用，旧产物重建。完整格式见实现规范 2.11 与 M23-6 设计。
 
 2026-09-22 当前整数正规化约定：源码intrinsic调用完成共有成员候选及参数/effect检查后，HIR只保留封闭typed operation、conversion和操作数；导入声明不物化成本地函数，后续IR和default body不保留冗余callee。整数default wire删除该字段，旧格式要求重建；exact identity、witness及extern/callback bytes保持。导入成员复用共有源码调用探测与winner commit，完整规则见实现规范2.10。
 
@@ -40,7 +40,7 @@ M23-3 第一次产生真正可发布、同时通过 Compile/Link 两种 purpose 
 
 1. `Cone.toml` v1、manifest source discovery、single-file synthetic input、library/executable 输出和 entry 选择都由封闭 typed input 表示；
 2. `scoopc` 每次只编译当前一个 Cone，唯一成功产物是该 Cone 的 `.slib`；它不查找或构建普通 dependency，不构建 runtime，不调用最终 linker；
-3. `scoop.core` 由 trusted sysroot source slot 独立编译为 reserved library artifact，普通 Cone 只消费经过双视图验证的 core `.slib`，不再把 core source 拼入当前 AST/HIR；
+3. `scoop.core` 由 trusted core 通过普通 library Cone 构建路径独立生成完整 `.slib`，普通 Cone 消费其实际声明与产物；sysroot 只提供默认位置，不把 core source 拼入当前 AST/HIR；
 4. M23-3 只允许 core-only 的成功编译图。显式非 core dependency 会先完成输入闭包和 artifact 验证，再以稳定的阶段能力诊断结束；它不会进入 resolver；
 5. 当前 Scoop LIR object 与 generated C bridge object 都通过自己的 versioned verifier capability，成员数量、文件名、扩展名和 archive ordinal 不承担语义；
 6. 每个成功 artifact 的全部 `LinkObject` 联合定义且只定义一个当前 Cone 的 hidden strong `ScoopImageDescriptorV1`，并产生六类 strong registration、member-aware definition/undefined requirement、typed digest DAG、`StrongRegistrationFingerprint`、`RuntimeImageFingerprint` 与 `CodeFingerprint`；
@@ -61,7 +61,7 @@ M23-3 的“core-only”描述依赖关系，不等于恢复 core 专用的名�
 - `compiler/manifest`、`compiler/protocol` 两个共享crate及其依赖边界；
 - `scoopc build` 的 single-Cone request、`--direct-slib`、`--support-slib`、`--out-slib`与typed diagnostic协议；
 - explicit dependency input的完整闭包验证，以及本阶段对非core dependency的稳定能力门禁；
-- trusted core source/artifact slot、bootstrap authority、core独立artifact、typed prelude和well-known relation；
+- core 默认查找、普通源码及产物输入、独立 library artifact、typed prelude 和 well-known relation；
 - current Cone parser/HIR/MIR/LIR/codegen pipeline，不再存在正式的core+user combined input；
 - executable entry选择、root gateway/failure root/entry descriptor；
 - `SingleConeStrongProfile`及本阶段mandatory manifest/HIR/MIR/LIR capability；
@@ -381,27 +381,19 @@ ExplicitDependencyInputs {
 参数顺序、basename和绝对路径不决定角色以外的任何语义。validation读取artifact自报identity后构造`ConeIdentity -> ArtifactInput`表，并按以下顺序检查：
 
 1. 每个path是可读取regular self-contained `.slib`，完整通过container/hash与实际边界检查；
-2. 对同一最终bytes分别构造声明profile的Compile与Link view；Graph-only不能进入下一步；
+2. 共有 reader 从同一最终 bytes 构造完整语义结果并追加实际 Link 对象检查，摘要不能代替这些输入；
 3. 按Cone identity去重；同identity不同artifact/semantic fingerprint失败，同一artifact重复path也作为重复输入报告而不是静默依赖argument顺序；
-4. manifest分支的non-core dependency declaration与`direct`逐coordinate一一对应；single-file/core bootstrap要求`direct`为空；
-5. `support`恰好是从direct dependency record递归可达、排除current/core/direct后的其余闭包；direct/support交叉、额外、缺失和不可达均失败；
+4. manifest 声明与 `direct` 按实际 coordinate 对应，core 可由显式依赖或默认查找提供；single-file 只注入其 core 依赖；
+5. `support` 恰为 direct dependency record 递归可达而尚未作为 direct 提供的其余依赖；direct/support 交叉、额外、缺失和不可达均失败；
 6. 每条dependency record的coordinate/id/三层fingerprint与实际artifact逐项相等；
 7. 拒绝self edge、cycle、同一`group:name`多version、executable dependency、single-file dependency、target/schema/ABI/profile不兼容；
-8. 普通参数中出现reserved core identity一律失败；core只由独立trusted slot提供。
+8. 显式 core 与默认查找按实际声明和输入关系合并；普通来源不被拒绝，同 identity 冲突仍按共有规则报错。
 
 这些检查发生在读取当前source前。M23-3尚未提供一般`ValidatedArtifactClosure<P>`给orchestrator；内部结果命名为`ValidatedExplicitDependencyInputSet`，只证明本次调用参数闭合，不能冒充M23-4的resolved build graph或cache proof。
 
-### 5.3 core-only阶段门禁
+### 5.3 当前依赖消费
 
-在上述闭包完全验证后：
-
-- trusted core bootstrap要求闭包为空且不注入self dependency；
-- manifest/single-file请求注入且只允许一个trusted core direct edge；
-- 只要manifest声明任意non-core dependency，或direct/support集合非空，就返回`SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE`；
-- 诊断列出canonical coordinate和最初manifest dependency span，不解析dependency export、不执行current source parser；
-- 已验证的dependency不被写入partial HIR、输出manifest或临时artifact。
-
-这一门禁不能简化成“忽略dependency继续编译”，也不能让artifact已在内存中就成为名称候选。M23-5删除能力拒绝并接入ordinary surface时，前面的闭包检查保持不变。
+M23-3 最初的 core-only 限制已由 M23-5/6 的实际依赖消费取代。当前请求加载完整 direct/support 产物，构造共有声明查询后编译源码；core 自身构建只省略隐式 self dependency，不产生来源资格。尚属后续阶段的 generic/ODR 与 native closure 能力仍由相应检查诊断，不能输出不完整 IR。
 
 driver的公开状态链固定为：
 
@@ -810,7 +802,7 @@ subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementatio
 
 每个callable bridge连接HIR persistent declaration identity、MIR
 `CallableSignatureSubjectV1::Strong`、exact signature与实现origin；subject必须递归回到当前Cone。
-普通公共callable通过共有cross-Cone bridge的资格规则导出；初始化角色不创建public binding，不能进入prelude。entry bridge只能指向当前Cone main。
+普通公共 callable 按共有声明、可见性和实现规则导出；初始化角色不创建public binding，不能进入prelude。entry bridge只能指向当前Cone main。
 
 本section不保存machine body、link symbol或object member；这些由LIR决定。
 
@@ -822,7 +814,6 @@ MIR内存中的`SingleConeStrongMaterializationPlan`由实际module、完整foun
 
 ```text
 StrongProductionSectionV1 {
-    external_bridges: CanonicalVec<StrongExternalLirBridgeV1>,
     canonical_definitions: StrongObjectSymbolSurfaceV1,
     object_definition_plans: StrongObjectDefinitionPlanSurfaceV1,
     digest_finalization_plan: StrongDigestFinalizationPlanV1,
@@ -831,14 +822,13 @@ StrongProductionSectionV1 {
     entry_plan: Library | Executable(ExecutableEntryPlan),
     shape_support_plan: ParamFreeShapeSupportPlanSet,
     generated_bridge_plan: GeneratedBridgePlanSetV1,
-    core_lir_bridge: NotCore | Core(CanonicalVec<CoreLirCallableBridgeV1>),
 }
 ```
 
-field 10 `core_lir_bridge`当前仅保留初始化服务的旧LIR协议wire，普通callable使用共有cross-Cone bridge。其Core payload的字段2保存共有CallableAbiRecordV1初始化记录：`1=target`、`2=abi_signature`、`3=expected_symbol`、`4=calling_convention`、`5=root_plan`、`6=required_definition`。symbol、body与definition从typed target推导并在共有foundation及definition surface验证，root plan须匹配canonical ABI的GC effect。reader与MIR共有strong callable表中的InitializationCycle记录直接核对target和exact签名，不再依赖已删除的CoreMirBridge。
+当前 Strong section 使用八字段，保留 field 2～9。field 1 的专用 external bridge 与 field 10 的 core 协议 bridge 已退役；旧字段及其 tag 不复用，旧产物必须重建。初始化服务的 callable、ABI、GC effect、definition 与 selected 关系由共有记录保存，不再建立独立协议投影。
 
 field 5 `StrongRegistrationProductionSurfaceV1`不是仅含identity的摘要，而是artifact-only Link重建
-registration与stackmap proof所需的完整、member-independent authority。其closed product固定为：
+registration 与 stackmap 检查所需的完整、member-independent 数据。其closed product固定为：
 `1=identities: StrongRegistrationIdentitySurfaceV1`、
 `2=safepoints: CanonicalVec<StrongSafepointRegistrationPlanV1>`、
 `3=callables: CanonicalVec<StrongCallableRegistrationPlanV1>`、
@@ -850,9 +840,7 @@ kind-specific semantic id严格递增并与identities逐项、全量相等；其
 `SafepointId`、owner、role与`root_pair_count`，后三类plan非可选地保存后续object verifier所需的稳定
 semantic record、initial template、typed relocation、diagnostic path、schedule与dependency。所有可从
 foundation、digest graph、target或persistent key派生的definition/atom/symbol/node/intent仍逐项重建并做
-canonical byte等值，不能因field 5携带了同值就直接提升；只有无法从其他artifact字段重建的LIR semantic
-scalar/byte sequence在完成closed-shape、canonical order、typed identity relation及自身不变量验证后成为
-authority。旧的identity-only field 5 shape直接拒绝，不设版本分支、fallback或兼容reader。
+canonical byte 等值；LIR semantic scalar/byte sequence 在外部读取边界完成 closed-shape、canonical order、typed identity relation 及自身不变量检查。后续消费复用已完成的记录和检查结果，不另外建立来源凭证。旧的identity-only field 5 shape直接拒绝，不设版本分支、fallback或兼容reader。
 
 writer构造该surface时同时持有最终`Module`并验证完整semantic plan；但`GlobalId`、function-local ref及其他
 arena handle不进入field 5，也不保留在registration production plan或codegen emission proof中。codegen只能按
@@ -861,36 +849,11 @@ writer过程在同一session内完成映射后即丢弃arena id，不建立第�
 production surface；不得要求compiler residual `Module`、调用者补送semantic plan，或从stackmap location
 count、object大小/内容反推出LIR语义。
 
-`external_bridges`在普通Cone中只允许origin为validated core；core bootstrap中为空。每项包含typed target、expected persistent symbol、calling convention、effect/root-plan和required upstream definition identity。没有“symbol string only”分支。
-M23-6清理后的LIR内存模型中，所有外部TypeDescriptor使用同一个`ExternalTypeDescriptor`实体、typed id与arena，必需携带实际provider、exact type、symbol request和definition plan；`TypeDescriptorRef`只区分Local/External。foundation投影与通用layout/ABI selection物化使用同一实体，codegen统一发射external声明，并拒绝当前Cone provider、重复exact及与local描述符重叠。旧协议wire的String分区只从`WellKnownTypeDescriptors.string`的明确引用投影，并验证core provider和strong definition契约；arena中其他core描述符不进入该分区，由M23-6通用layout selection证明。
+所有外部 TypeDescriptor 使用同一个 `ExternalTypeDescriptor` 实体、typed id 与 arena，必需保存实际 provider、exact type、symbol request 和 definition plan；`TypeDescriptorRef` 只区分 Local/External。String 的 well-known 角色指向同一共有 descriptor，不另存 bridge、固定 CORE provider 或独立 registration 资格。foundation、layout/ABI selection 与 codegen 使用相同记录，保留重复 exact、错误 provider、与 local descriptor 重叠及实际定义检查。
 
-MIR同样统一为`ExternalCallableUse`及一个arena；每项保存初始化协议或普通依赖的明确选择来源与GC effect。所有调用和initialization unit使用共有typed use id，选择记录也使用共有typed id/ref，并与use id保持不同domain。当前Cone输出与strong sealer复用来源覆盖、实际引用及重复implementation校验；每条共有选择通过明确角色在旧LIR根投影时区分，不能按provider归类。LIR lowering只建立一个MIR→LIR映射。
+MIR 的外部调用统一使用 `ExternalCallableUse`；普通调用、初始化服务和 dispatch 都保存真实 typed target 与 GC effect。LIR lowering 使用同一个 MIR→LIR 映射，产生共有 `ExternalCallable`，其中完整保存实际 provider、`StrongCallableDefinitionOwner`、body、canonical/physical ABI、root plan、symbol 与 definition plan。初始化角色由前端解析的声明引用决定，不按 provider 身份推断；internal 服务仍不进入 public lookup。
 
-初始化循环服务与普通依赖统一使用`ExternalCallable`、一个typed id和arena；每项保存实际provider、`StrongCallableDefinitionOwner`、`PersistentCallableBodyId`、canonical/physical ABI、`ExternalCallableRootPlan`、symbol及definition plan。旧协议wire仅投影明确的InitializationCycle角色，M23-5选择只投影其普通声明角色，通用layout选择保留自身重放；不得从provider为core反推协议角色。MIR的外部use id在lowering中经同一个映射连接该共有arena，call destination及dispatch只携带统一External引用。codegen共用声明、ABI/GC校验与调用发射，不再有core/ordinary执行分支；当前provider、重复body及与local body重叠均按共有规则拒绝。此合并不使internal服务成为public声明，不放宽旧metadata分区的definition及selection覆盖检查。
-
-callable bridge表示本Cone中已经materialize的调用，因此必须至少命中一个真实object relocation，缺失时以
-`UnusedExternalCallableBridge`拒绝。type-descriptor bridge同时承担compile/LIR metadata authority；尤其
-well-known runtime String即使当前Cone没有产生取descriptor地址的指令，也必须保留该typed bridge并验证core
-descriptor及配套type-registration owner，但不得伪造object relocation来满足“used”计数。真实出现的descriptor或
-type-registration relocation仍必须逐项解析为该bridge的`CoreStrong` use；registration/type/immortal等专用verifier
-继续核对其semantic edge与物理relocation一一对应。不得把metadata-only descriptor authority误报为unused object
-requirement，也不得因此放宽callable bridge或真实descriptor use的覆盖验证。
-
-`external_bridges`的元素sum tag固定为`Callable=1`、`TypeDescriptor=2`，payload均位于field `1`；
-顶层array先按tag、再按callable body/exact type identity bytes严格递增。callable payload使用共有CallableAbiRecordV1及codec，closed
-product：`1=target: StrongCallableDefinitionOwner`、`2=abi_signature: CanonicalScoopAbiFunctionSignature`、
-`3=expected_symbol: PersistentSymbolRequest`、`4=calling_convention`、
-`5=root_plan: ManagedStatepoint | NoGc`、`6=required_definition: ObjectDefinitionPlanId`。
-target的closed sum tag按`Function=1`、`Constructor=2`、`PropertyAccessor=3`、
-`GeneratedCallable=4`固定；它只允许param-free strong owner，不能先降格存为可包含generic/application
-分支的`CallableOwner`。body、symbol request和
- `CallableBody` definition plan从target和显式provider唯一重算；这个旧初始化分区的provider明确为CORE，builder拒绝其他provider的record，普通调用桥传入其实际provider。canonical ABI完整绑定exact signature、
-direct/indirect/ZST传递、storage size/alignment/shape与GC effect；它必须与codegen消费的物理
-`ScoopAbiSignature`逐argument/result相符，并与root-plan effect相符。type descriptor payload固定为
-`1=provider: ConeIdentity`、`2=target: PersistentExactTypeId`、`3=expected_symbol: PersistentSymbolRequest`、
-`4=required_definition: ObjectDefinitionPlanId`，使用共有ExternalTypeDescriptor codec；symbol和definition由实际provider/target唯一重算，旧三字段格式拒绝。untrusted reader必须与
-HIR/MIR/LIR及trusted-core artifact重建出的完整typed surface逐byte匹配，不能排序、补字段或直接把
-decoded identity cast为已验证记录。
+共有 callable ABI 按真实 exact signature、direct/indirect/ZST 传递、storage size/alignment/scan 与 GC effect 核对；后端据此发射声明和调用。Link reader 从同一完整 MIR/LIR 记录查询实际 provider 的定义，检查符号、ABI、registration 和实际 relocation。descriptor 的 metadata 引用与真实 object relocation 各按用途检查，不为满足使用计数虚构 relocation。旧 String/InitializationCycle bridge codec、`CoreStrong` requirement 分区和独立 core owner 证明通道均已删除。
 
 `object_definition_plans`覆盖每个参与definition/digest的strong primary和associated atom，但不含member assignment。`DigestFinalizationPlan`可使用M23总设计已经冻结的全部kind enum；本profile只允许SourceSignature/Layout/Scan/LirDefinition/ObjectSupport/ObjectDefinition/StackmapRecord/StrongRegistration/RuntimeImage，出现OdrDefinition node即拒绝。
 
@@ -1712,7 +1675,6 @@ UndefinedSymbolRequirement {
 
 FinalUndefinedSymbolRequirement =
     IntraConeStrong { owner: StrongDefinitionOwner }
-  | CoreStrong { core: ConeIdentity, owner: StrongDefinitionOwner }
   | GeneratedBridge { unit: GeneratedBridgeUnitId }
   | SourceExtern { contract: NativeExternalContractFingerprint,
                    library: NativeLibraryBinding }
@@ -1790,8 +1752,7 @@ current-Cone strong definition。Page21/PageOffset12的field 1是
 `None=1 | NonNegative=2 {1=magnitude} | Negative=3 {1=magnitude}`，从而不引入Wire v1禁止的
 signed CBOR integer。
 
-`FinalUndefinedSymbolRequirement`的sum tag按上述声明顺序取1..7；单值variant使用field 1，
-`CoreStrong`使用`1=core, 2=owner`，`SourceExtern`使用`1=contract, 2=library`。
+`FinalUndefinedSymbolRequirement` 的普通分支保留 tag 1、3～7；单值 variant 使用 field 1，`SourceExtern` 使用 `1=contract, 2=library`。旧 CoreStrong tag 2 退役且不复用。跨 Cone 的 callable 和 layout 引用使用各自完整的共有 import 记录，保存实际 provider、typed target 和对应 relocation，不加入来源资格分支。
 `StrongDefinitionOwner`固定为`1=entity, 2=role`。最终set按
 `(member, containing_atom, offset_within_atom, target_slot)`严格递增编码为array；producer与
 target selection由验证后的外层Link proof保留，不重复进入array。finalizer必须逐项等于同一
@@ -1801,7 +1762,7 @@ strong relocation closure中除object-local strong以外的全部use；两个不
 
 - `IntraConeStrong`必须在当前artifact内解析到唯一owner，可跨member；
 - `GeneratedBridge`必须解析到当前producer的唯一`PrimaryEntry(unit)`；
-- `CoreStrong`在普通Cone中必须能由validated core Link/Compile bridge找到相同owner/symbol，当前artifact仍保留external requirement；
+- 跨 Cone 的实际引用从同一共有 callable/layout import 取得 provider 和 typed target，并在该依赖的定义集合中解析，当前 artifact 保留真实 external requirement；
 - `SourceExtern`只验证完整contract、library binding及object use一致，不搜索host provider；
   `DefaultNativeNamespace`是不带`NativeLinkRequirementId`的封闭分支；
   `Requirement(id)`则必须在同target的canonical native library requirement集中唯一存在，
@@ -1819,9 +1780,7 @@ object-local strong relocation已经在member verifier内完成解析，不进�
 unit入口。`ConeImage`与verifier boundary是definition/export验证专用owner，不是本阶段合法的
 relocation target。
 
-`CoreStrong`不能只凭consumer bridge的symbol自证。packager必须同时消费validated core artifact的
-member-aware defined-owner set，要求其producer精确为reserved core Cone，并以相同normalized symbol
-找到唯一且类型完全相同的`StrongDefinitionOwner`；最终requirement保留该core member与owner证明。
+外部符号与定义关联使用实际 provider 的 member-aware definition 集合。normalized symbol、typed owner、ABI 与 relocation 均须一致，不能只凭同名或同布局匹配。这个查询不接收独立 core owner 表或重复来源证明，String 和初始化服务遵守相同规则。
 
 ## 13. 六类registration与image producer
 
@@ -1847,7 +1806,7 @@ M23-3 只发射实际使用的 image、registration 与 root entry。M23-6 已�
 本profile全部`linkage_kind=Strong`，ODR group/member 64 bytes全零。`definition_fingerprint`由相应StrongRegistration node写入；callable的`body_definition_fingerprint`独立取body atom的ObjectDefinition fingerprint。六张表分别按总设计canonical key严格排序，即使为空也在image/hash中保留count 0，并在object中使用typed addressable sentinel。callable表具体按`PersistentCallableBodyId`排序；LIR foundation中的callable-body identity表因`RootGateway -> main`依赖采用稳定拓扑序，两者只能按typed body id做全集相等与join，禁止按相同index位置配对或把拓扑序误当registration wire顺序。
 
 LIR先从strong object-definition plan重建`StrongRegistrationIdentitySurfaceV1`，作为完整
-registration plan与image plan共用的不可伪造索引。顶层是fields `1..6`依上表次序排列的六个
+registration plan 与 image plan 共用的 typed 引用索引。顶层是fields `1..6`依上表次序排列的六个
 array；每个元素是closed product：`1=semantic_id`（使用该表的kind-specific id）、
 `2=definition_plan: ObjectDefinitionPlanId`、`3=fingerprint_node: DigestNodeId`。六类plan role
 依次固定为`RootRegistration`、`ImmortalRegistration`、`InitializationRegistration`、
@@ -1856,7 +1815,7 @@ array；每个元素是closed product：`1=semantic_id`（使用该表的kind-sp
 `CallableBody`。每个array按semantic id bytes严格递增；definition plan必须来自当前producer，
 fingerprint node必须是同一digest plan中owner恰为该plan id的`StrongRegistration` node。
 foundation中的每个registration-role plan恰好进入一张表，其他definition role不得混入；reader
-从foundation与digest plan独立重建全部六表并逐项比较，不把decoded id直接提升为trusted id。
+在读取边界关联 foundation、digest plan 与六张表的 typed id、role 和实际引用；后续 registration/image 消费同一完整结果，不复制表建立防伪凭证。
 
 每个`GlobalInit::Storage`必须直接携带与该source exact value type、target profile及representation role闭合的
 `LayoutIdentity`；同一identity同时给出唯一`PersistentLayoutId`与其top-level inline
@@ -2228,25 +2187,21 @@ immortal-object registration的Link侧唯一入口是
 经content digest绑定的Scoop LIR object bytes。验证器重验只读Primary atom与精确184-byte provisional record；
 该atom必须恰有offset 152和176两条8-byte、zero-addend、`Unsigned64` relocation。前者必须解析到plan中同一
 immortal object definition/Primary symbol；后者在typed local分支必须解析到当前Cone同一exact type的
-TypeRegistration definition/Primary symbol，在typed core-external分支则必须保持为拼写精确的external
+TypeRegistration definition/Primary symbol，在 typed external 分支则必须保持为实际 provider 的 external
 candidate，不能用任意本地strong定义冒充。offset 120只允许同一registration definition/Primary atom的
 `RegistrationDefinition` patch，额外patch、relocation或验后换bytes均失败。验证器同时从digest plan重建
 registration object leaf、实际immortal object ObjectDefinition与StrongRegistration节点，重验leaf闭包、
 两项direct input和唯一writer；不接受调用方自报target、node、digest或兼容record格式。
 
-core-external exact type的`TypeDescriptor` bridge同时授权同一type的`TypeRegistration` support owner；两者都
-必须在受信任core owner表中以各自精确role和规范symbol存在。descriptor relocation仍是bridge的必需直接use，
-type-registration relocation只在实际需要immortal metadata时进入requirement集合；它不能被当作source extern、
-runtime symbol或未分类external保留，也不新增一套无typed bridge来源的兼容授权。
+外部 exact type 的 descriptor 与 type registration 分别通过实际 provider 和 typed target 查询已有定义，二者指向同一 exact type。String immortal metadata 使用同一共有关系；实际 relocation 按其真实目标进入 requirement 集合，不附加 descriptor bridge 授权、固定 core owner 或来源证明。
 
 immortal registration自身的ObjectDefinition leaf只能经
 `compute_strong_immortal_object_registration_object_fingerprints_v1`消费上述完整registration proof和再次
 匹配content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确
 184-byte provisional record、relocation count 2、offset 152的immortal-object relocation、offset 176的
 type-registration relocation及direct-input count 0。前者规范化为同一object id的`IntraConeStrong
-ImmortalObject` owner；后者由plan中的typed来源唯一编码为同一exact type的`IntraConeStrong`或`CoreStrong
-TypeRegistration` owner。member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；
-不接受调用方传入裸target、core标记或自组relocation数组。
+ImmortalObject` owner；后者由 plan 中的实际 provider 与 typed type-registration 引用编码，同一 exact type 的 local 与 external 定义按共有对象关系区分。member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；
+typed target、实际 provider 和 relocation 必须来自同一完整对象检查结果。
 
 实际immutable String object的ObjectDefinition只能经
 `compute_strong_immortal_object_definition_fingerprints_v1`消费registration-object proof、完整最终undefined
@@ -2254,8 +2209,7 @@ requirement proof和再次匹配content digest的object全集产生。计算器�
 只读Primary atom，要求范围精确等于plan的object size；对象必须是`{ TypeDescriptor*; zero GC word; u64 UTF-8
 length; exact UTF-8 bytes; zero alignment padding }`，且atom中只有offset 0的一条8-byte、zero-addend、
 `Unsigned64` relocation。local分支必须解析到当前Cone同一exact type的`TypeDescriptor` strong owner；
-core-external分支必须保持external candidate，并由最终requirement proof提升为同一exact type的`CoreStrong
-TypeDescriptor` owner。哈希前将指针载荷归零，并用通用canonical relocation schema连同精确对象bytes编码；
+external 分支保留实际 provider 的 descriptor 引用，并在该 provider 的定义表中解析到同一 exact type。哈希前将指针载荷归零，并用通用canonical relocation schema连同精确对象bytes编码；
 不接受长度不闭合、非法UTF-8、非零padding、错owner或未分类external，也不从String显示值重建另一份旁路hash。
 
 immortal object的StrongRegistration只能经`compute_strong_immortal_object_fingerprints_v1`消费上述实际对象
@@ -2412,8 +2366,7 @@ body bytes按已验证relocation逐项归一化：`Unsigned64/Subtractor64/Point
 normalized byte span、按atom offset排序的relocation sequence及canonical direct-input sequence。每条
 relocation固定写offset、form tag及其optional explicit addend、原始checked encoded value、target count和
 按Single/Minuend/Subtrahend排序的target；target只允许由strong relocation closure与最终requirement proof
-提升为`IntraConeStrong/CoreStrong/GeneratedBridge/SourceExtern/RuntimeAbi/TargetEhSupport/CBridgeTargetSupport`
-封闭sum，或由后续profile增加的不改写上述tag的typed target，或在物理target精确落入同一body已计划associated atom时提升为
+对应 `IntraConeStrong/GeneratedBridge/SourceExtern/RuntimeAbi/TargetEhSupport/CBridgeTargetSupport`，或已有共有 callable/layout import 中的实际 provider 与 typed target，或在物理target精确落入同一body已计划associated atom时提升为
 `OwningAssociatedAtomOffset { atom, role, offset_within_atom }`。每个callable runtime-scan atom的bytes与其中指向
 child scan atom的canonical relocation按plan顺序作为associated-atom sequence进入同一个body ObjectDefinition
 fingerprint；body Primary指向top-level scan的Page/GOT/Unsigned relocation也使用同一owner-relative target。
@@ -2734,48 +2687,21 @@ commit；失败保留为`StrongCompileArtifactValidationError`中的精确阶段
 布局与 ABI；不存在 production 为 `()` 的身份专用分支。三层基础 identity 使用同一次身份映射，
 不能把只有 identity 的旧产物包装成完整 Strong 结果。
 
-### 15.1 Link proof顺序
+### 15.1 Link 读取与对象检查
 
-Compile与Link使用同一组HIR/MIR/LIR metadata、identity foundation与实际production声明。
-独立消费某个产物时，reader检查输入格式、fingerprint、typed引用、签名和必要的跨层关系；同一次
-消费或发布中的两种用途必须复用已完成的共有检查与完整IR，不得重新解码并完整重放同一事实。
-Link在此基础上检查其实际objects、定义集合、ABI、符号与relocation。若某条关系需要某个section，
-就将其作为实际输入要求，不得以purpose差异允许缺失，也不得要求额外的来源资格证明。
-三层foundation identity的authority注册、canonical key解析、结构验证与`RejectAll`转换由Compile/Link
-两条reader调用同一实现；同一次产物消费复用已解码的graph与完整typed IR，只补充各自实际需要的检查。共享转换
-产出`OdrFreeHirFoundation`、`OdrFreeMirFoundation`、`OdrFreeLirFoundation`，Link后续object proof只能
-从这组三层typed foundation继续。
+Compile 与 Link 消费同一组完整 HIR/MIR/LIR metadata、typed identity 和实际 production 声明。读取外部产物时，reader 检查 envelope、profile、fingerprint、canonical 字段、引用、签名、布局和必要的跨层关系，并构造完整结果。同次消费中的 Link 在已有数据上补充对象检查，不重新解码并完整重放相同事实；独立 Link 请求在自己的输入边界完成所需读取。
 
-`validate_link::<SingleConeStrongProfile>`固定按以下依赖顺序：
+对象检查按实际依赖关系进行：
 
-1. 接收已通过的`DecodedSlibEnvelope`和Graph proof；
-2. 验证profile descriptor、Available fingerprint、mandatory Link/Compile|Link section inventory；
-3. 解码三层foundation、HIR/MIR production、LIR strong-production/link-closure与manifest production
-   payload；
-4. 重放`RejectAll`，独立验证三层production关系，并拒绝全部ODR identity/linkage/symbol；
-5. 为每个`LinkObject`按capability调用known verifier；unknown capability fail closed；
-6. 重建unit/member assignment、definition range、relocation、patch和stackmap leaf；
-7. 验证defined owner、undefined requirement及intra-Cone/generated bridge闭合；
-8. 验证六类registration、strong fingerprint、table排序与entry分支；
-9. 验证唯一image owner并重算RuntimeImage fingerprint；
-10. 重算Code fingerprint、member/artifact fingerprint交叉关系；
-11. 原子构造immutable `ValidatedLinkArtifact<SingleConeStrongProfile>`。
+1. 将 producer unit、member 与原归档的 LinkObject directory 对应，拒绝缺失、额外、重复或错 kind 的对象；
+2. 按实际 target 和 producer 检查对象格式、definition range、relocation、digest patch 范围和 stackmap；
+3. 从当前 Cone 及实际依赖的 typed definition 查询符号，核对 undefined requirement、generated C bridge 和 native contract；
+4. 检查六类 registration、ABI、entry 分支、唯一 image owner、Strong/RuntimeImage/Code fingerprint 与实际对象的一致性；
+5. 保存完整原始对象、已解析定义和引用关系，供后续消费直接使用。必要的补丁归一化与最终字节核对在这一外部对象边界执行；同次 producer 已完成的数据不逆向重建为另一条证明链。
 
-步骤8进入步骤9时使用单一消费式状态转换：先在上述typed provisional视图上验证唯一image与entry分支，再原子写入
-六表StrongRegistration、重算并写入RuntimeImage，最后写入executable entry的source-signature/gateway
-digest；每次写入后都重验Mach-O envelope与shape。转换结果只暴露`VerifiedEntryPatchSetV1`承载的最终
-对象，并在进入Code proof前与archive final副本逐byte互证，不保留可绕过上述顺序的兼容完成态。
+ODR 能力仍按当前阶段限制拒绝。错误保留实际 artifact、member、section 和字段位置，不返回残缺 IR 或部分对象集合。
 
-最终状态`ValidatedSingleConeStrongLinkArtifact`只能由Code/member projection、production manifest、完整
-Link identity closure及bootstrap semantic record中的Code/RuntimeImage两项全部与同一`VerifiedCodeFingerprintV1`
-相等后构造；它通过production manifest拥有最终object proof，不能降级回任何provisional reader状态。
-
-Link验证不要求先构造Compile view，也不借用Compile已commit的session-local arena。两条proof可以共享同一raw envelope/hash bytes，但必须分别解码/验证自己需要的semantic surface。这样link-only consumer无需把HIR导入semantic world。
-
-公开Link入口固定为`validate_single_cone_strong_link_artifact`。它消费Graph proof，并显式接收同请求已经验证的
-external-bridge surface、trusted-core defined-owner proof与C bridge toolchain profile；内部只能按15.1节顺序
-消费各typed state，返回`ValidatedSingleConeStrongLinkArtifact`或保留精确失败层的
-`StrongLinkArtifactValidationError`。各中间方法用于实现与细粒度测试，不另设少校验、自动补值或历史兼容入口。
+普通 Strong 的 `validate_single_cone_strong_link_artifact` 使用实际依赖定义集合和 C bridge toolchain profile；不接收 trusted-core owner proof。M23-6 正式路径由 `read_cross_cone_layout_artifact_closure` 统一读取完整依赖，Compile 结果与追加的 Link 检查直接共享。没有用于恢复已删除来源 bridge 的第二个 self-describing 入口。
 
 ### 15.2 Link API
 
@@ -2796,39 +2722,11 @@ ValidatedLinkArtifact<SingleConeStrongProfile> {
 
 object bytes只能从Link view以`VerifiedLinkObject`访问；Graph/Compile view只保留hash-valid opaque envelope。API不暴露“第一个object”“code object”“bridge object”字段。
 
-### 15.3 publish gate
+### 15.3 原子发布
 
-writer在同一输出目录创建private temporary file，写完整deterministic archive并关闭写端；随后重新以只读方式打开最终bytes，分别构造：
+producer 从同次完成的 HIR/MIR/LIR、最终对象和生产记录组成完整归档及普通摘要。发布在 destination 同目录创建私有 temporary file，写入全部 bytes，flush/sync 并关闭写句柄；回读只核对写入 bytes 与已完成归档完全相等，随后原子 rename。写入、回读或 rename 失败清理临时文件，不能提前删除、截断或覆盖已有成功产物。
 
-```text
-ValidatedCompileArtifact<SingleConeStrongProfile>
-ValidatedLinkArtifact<SingleConeStrongProfile>
-```
-
-再构造：
-
-```text
-PublishableSingleConeArtifact {
-    artifact_fingerprint,
-    cone,
-    compile_summary,
-    link_summary,
-}
-```
-
-构造器要求两份proof来自同一ArtifactFingerprint/Cone/profile，compatibility、output kind、三层/Code/RuntimeImage fingerprint一致。只有成功后才以同目录atomic rename发布`--out-slib`。任一步失败删除temporary，不覆盖现有成功artifact。
-
-`validate_publishable_single_cone_artifact`是上述round-trip的唯一整体入口：它对调用者提供的final byte
-slice解码一次envelope与Graph，并完成一次共有语义检查；Compile与Link复用结果，Link补充object、ABI与relocation检查后
-构造`PublishableSingleConeArtifact`。调用者可在形成summary后继续
-持有这两条typed proof；publication proof自身只保留不可变identity、target与两条view summary。不存在从
-Graph、Compile或未闭合Link状态直接构造publication authority的兼容入口。
-
-文件系统发布固定由`publish_single_cone_artifact`完成。它在destination同目录创建私有临时文件，写入并
-flush/sync后关闭写句柄，再以只读方式重开临时路径并调用上述双视图入口；只有得到
-`PublishableSingleConeArtifact`才把该临时路径原子rename到destination。验证或I/O失败依靠临时路径的
-delete-on-drop守卫清理，且不得提前删除、截断或覆盖已有destination。output alias检查由进入本API前的
-typed request负责。发布结果同时提供Compile与Link需要的完整信息；它复用共有语义检查，不为取得双视图重复全部验证。
+发布不再重新创建语义会话，不把当前产物及全部依赖分别送入 Compile/Link 重放，也不构造 `PublishableSingleConeArtifact` 或独立发布资格。外部产物在共有 reader 的读取边界完成格式、typed 引用、ABI、符号和对象检查，Compile 与 Link 复用完整结果。格式 round-trip 和损坏对象交叉验证保留在相应测试中。
 
 output destination不能与current manifest/source、trusted core input或任一dependency artifact解析为同一文件；检查失败早于写入。host I/O error不伪造成source diagnostic。
 
@@ -2839,9 +2737,9 @@ manifest/source、trusted core artifact与每个direct/support artifact逐一can
 bootstrap的artifact slot是本次output而不是input，因此只比较其source manifest，不把合法self-output误判
 为alias。
 
-### 15.4 core input门
+### 15.4 依赖输入
 
-普通Cone不仅需要core Compile view用于semantic bridge，也保留同一core Link view以证明其确为可发布dependency。若core只通过Compile、Link object损坏、image不唯一、profile foundation或target不匹配，必须在parse current source前失败。不能因为当前compile“暂时只用名字”而接受不可链接core。
+core 和普通依赖都通过同一 reader 取得完整声明、类型、布局、ABI 与实际对象。输入检查按真实 Cone identity、direct/support 关系、target/profile、依赖 fingerprint 和对象合同进行；结果供当前源码编译直接使用。sysroot 仅提供默认 core 查找位置，不授予发布或链接资格。损坏对象、错误 target、stale dependency 和不完整产物仍在当前源码编译前失败，不另保留 core 专用 Compile/Link 证明。
 
 ## 16. `scoopc` CLI边界
 
@@ -2871,7 +2769,7 @@ target/sysroot选择沿现有toolchain配置，但解析成typed request后不�
 
 ### 16.3 成功与失败
 
-成功只意味着`.slib`已经双视图验证并原子发布。`--emit`输出本次current Cone stage dump，不改变artifact bytes/fingerprint；warning写stderr或structured response，不能污染dump/stdout协议。命令不产生runtime archive、program descriptor、executable或执行程序。
+成功意味着当前 Cone 的完整 `.slib` 已完成并原子发布，可由共有 Compile/Link reader 消费。`--emit`输出本次current Cone stage dump，不改变artifact bytes/fingerprint；warning写stderr或structured response，不能污染dump/stdout协议。命令不产生runtime archive、program descriptor、executable或执行程序。
 
 ## 17. 诊断与失败原子性
 
@@ -2891,7 +2789,7 @@ request/protocol
   -> MIR/LIR structural validation
   -> producer/toolchain
   -> object/fingerprint/image verification
-  -> pack round-trip Compile/Link
+  -> pack complete archive and verify written bytes
   -> atomic publish
 ```
 
@@ -2903,11 +2801,11 @@ request/protocol
 
 - manifest：`MANIFEST_IO`、`MANIFEST_TOML`、`MANIFEST_SCHEMA`、`MANIFEST_UNKNOWN_FIELD`、`MANIFEST_COORDINATE`、`MANIFEST_DEPENDENCY`、`MANIFEST_RESERVED_COORDINATE`；
 - discovery：`SOURCE_DISCOVERY_MISSING_ROOT`、`SOURCE_DISCOVERY_EMPTY`、`SOURCE_DISCOVERY_NON_UTF8_PATH`、`SOURCE_DISCOVERY_SYMLINK_ESCAPE`、`SOURCE_DISCOVERY_SYMLINK_CYCLE`、`SOURCE_DISCOVERY_DUPLICATE_IDENTITY`、`SOURCE_DISCOVERY_IO`；
-- request/dependency：`SCOOPC_INPUT_KIND`、`SCOOPC_INPUT_DUPLICATE_ARTIFACT`、`SCOOPC_INPUT_DIRECT_MISMATCH`、`SCOOPC_INPUT_SUPPORT_MISMATCH`、`SCOOPC_INPUT_STALE_DEPENDENCY`、`SCOOPC_INPUT_CORE_AUTHORITY`、`SCOOPC_INPUT_EXECUTABLE_DEPENDENCY`；
-- capability：`SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE`、`SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE`、`SCOOPC_CAPABILITY_ODR_UNAVAILABLE`；
+- request/dependency：`SCOOPC_INPUT_KIND`、`SCOOPC_INPUT_DUPLICATE_ARTIFACT`、`SCOOPC_INPUT_DIRECT_MISMATCH`、`SCOOPC_INPUT_SUPPORT_MISMATCH`、`SCOOPC_INPUT_STALE_DEPENDENCY`、`SCOOPC_INPUT_EXECUTABLE_DEPENDENCY`；
+- capability：尚未进入本阶段的 ODR 使用 `SCOOPC_CAPABILITY_ODR_UNAVAILABLE`；普通依赖、core 类型和成员按 M23-6 已实现能力处理；
 - entry：`CONE_ENTRY_MISSING`、`CONE_ENTRY_MULTIPLE`、`CONE_ENTRY_INVALID_SIGNATURE`；
 - Link：`SLIB_LINK_OBJECT_CAPABILITY`、`SLIB_LINK_OBJECT_FORMAT`、`SLIB_LINK_OBJECT_AUTOLINK`、`SLIB_LINK_MATERIALIZATION`、`SLIB_LINK_DEFINITION`、`SLIB_LINK_UNDEFINED_REQUIREMENT`、`SLIB_LINK_PATCH`、`SLIB_LINK_DIGEST`、`SLIB_LINK_REGISTRATION`、`SLIB_LINK_IMAGE`、`SLIB_LINK_ENTRY`、`SLIB_LINK_ODR_FORBIDDEN`；
-- publish：`SLIB_PUBLISH_VIEW_MISMATCH`、`SLIB_PUBLISH_OUTPUT_ALIAS`、`SLIB_PUBLISH_IO`。
+- publish：输出别名、写入、回读一致性与 rename 失败保留各自错误；不设置双视图凭证不匹配错误。
 
 slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed key origin。source诊断使用canonical semantic source name排序，CLI最后才装饰display locator。untrusted manifest/artifact text只作为escaped argument。
 
@@ -2917,7 +2815,7 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - 任一source parser失败不产生`CurrentConeParsedSources`；
 - HIR/entry/ODR失败不进入MIR；
 - object/finalizer失败不产生`VerifiedLinkObjectMember`；
-- Link round-trip失败不产生publishable proof；
+- 归档构造、写入、回读一致性或 rename 失败不发布新产物；
 - publish前失败不改变已有output；
 - error path不留下可被后续request误识别为core/cache/dependency的partial `.slib`。
 
@@ -2940,8 +2838,8 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - direct/support顺序置换等价；
 - missing/extra/cross-role/duplicate identity、same identity different artifact、stale edge、cycle/self/multiversion；
 - executable/single-file artifact作为dependency拒绝；
-- 普通path伪造core、trusted slot内错coordinate/profile/target/image拒绝；
-- 非coredependency先通过完整双视图验证，再稳定命中阶段能力诊断且current parser未启动；
+- 任意依赖路径中的 coordinate/profile/target/image 与请求不匹配时拒绝；
+- core 与普通依赖均从实际归档取得完整 Compile 数据并追加 Link 检查；M23-5/6 已取代早期的非 core dependency 限制；
 - single-file带任一direct/support参数拒绝；
 - core bootstrap不产生self edge。
 
@@ -2970,10 +2868,10 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - `SingleConeStrongProfileDescriptor` canonical CBOR与fingerprint fixed vector；
 - 五条新增capability的location/required_for/sink矩阵；
 - mandatory section缺失、重复、错purpose、错location、unknown required稳定失败；
-- foundation artifact无法提升，Available/Unavailable、publication、RejectAll/Required任一篡改失败；
-- `NotCore/Core`、Library/Executable、Distributable/LocalRoot各variant round-trip；
+- 当前 profile 的必需 section、fingerprint、类型与引用必须完整；旧身份专用产物和退役字段按版本规则拒绝，要求重建；
+- Library/Executable 与 manifest/single-file source form 的合法 variant round-trip，语言角色按实际 typed 声明读取；
 - single-file distribution与ConeRecord/source table组合逐项篡改失败；
-- Compile/Link view类型编译期不可互换，Graph/Compile无object API。
+- Graph 摘要不提供可链接对象；共有完整 Compile 数据追加真实对象检查后提供 Link 消费结果。
 
 ### 18.6 object verifier
 
@@ -3033,14 +2931,14 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 
 1. 新增`compiler/manifest`，完成strict manifest DTO、locator/semantic分离、source discovery与negative测试；
 2. 新增`compiler/protocol`和`SingleConeBuildRequest`，固定request/response/framing并接入`scoopc`参数归一化；
-3. 实现trusted core slot/bootstrap authority、`ValidatedTrustedCoreArtifact`与core-only dependency input门；
+3. 接入 core 与普通依赖共用的产物读取，sysroot 只负责默认查找；
 4. 用`CurrentConeParsedSources`替换正式`LegacyCombinedSources`，完成output kind/entry选择及core prelude-only Imported HIR；
-5. 在HIR/MIR/LIR crate增加三层本阶段canonical/decoded/validated/imported section和strong/entry/core bridge；
+5. 在 HIR/MIR/LIR crate 保存三层完整声明、typed 引用、Strong production 与 entry 数据；
 6. 在LIR形成strong definition、registration、image、entry与digest plan，并加入四层ODR拒绝；
 7. 生成共享runtime metadata v1 header，改造codegen输出per-Cone image、六表、root descriptor、boundary与zero patch；
 8. 实现Scoop LIR/generated C两种LinkObject verifier、member-awareowner/requirement及C-bridge production proof；
 9. 实现digest finalizer、final re-verification、Code/RuntimeImage fingerprint和Link closure/manifest section；
-10. 注册`SingleConeStrongProfile`并实现`ValidatedLinkArtifact`、双视图publish gate及atomic output；
+10. 注册完整 production profile，读取实际 Link 对象，并直接原子发布同次完成的归档；
 11. 切换正式`scoopc build`只产`.slib`，移除其runtime/link依赖，并在同一批变更中删除旧直编直链入口及其专用fixture；
 12. 补齐core bootstrap、library/executable/single-file、corruption、reproducibility与组合fixture。
 
@@ -3052,17 +2950,17 @@ M23-3只有同时满足以下条件才完成：
 
 - `Cone.toml` semantic projection、source discovery和single-file固定projection全部有strict、确定性实现；
 - `scoopc`正式入口每次只编译一个Cone，只消费显式artifact/trusted core，只输出`.slib`，不搜索、递归、构建runtime或最终链接；
-- core由trusted authority独立生成library artifact，普通Cone的AST/HIR中不再混入core source，prelude/well-known/strong bridge只来自已验证core metadata；
-- 非coredependency、generic/structural/ODR能力在本阶段稳定拒绝且没有残缺IR/artifact；
+- core 独立生成普通 library artifact；普通 Cone 的 AST/HIR 不混入 core source，prelude 和 well-known 角色使用实际声明引用及共有依赖查询；
+- M23-3 的早期依赖与布局限制由 M23-5/6 取代；尚属后续阶段的 generic/ODR 能力稳定诊断，不产生残缺 IR/artifact；
 - core bootstrap、core-only library、core-only executable和single-file都能产生逐byte可重复的`SingleConeStrongProfile` artifact；
 - 每个成功artifact都至少含一个verified LinkObject，全部object联合恰有一个当前Cone image，并完整证明六类strong registration、entry分支、definition、undefined requirement、patch、Strong/RuntimeImage/Code fingerprint；
 - 任意ODR group/member/body/linkage/symbol都无法取得production Compile/Link proof；
 - core param-free exported source nominal的有限shape-support closure由core定义并完整物化，consumer只产生external typed requirement；
-- core的well-known String TypeDescriptor为本地strong定义；每个普通Cone从同一trusted core proof投影typed external引用，且不含重复String layout/scan/TypeDescriptor定义；
-- writer只有在最终bytes分别通过Compile和Link验证后才原子发布；foundation、Graph-only、Compile-only、损坏object或错image均不可发布/消费；
+- String 的 descriptor 在实际声明 provider 中定义；consumer 通过共有 typed external 引用使用该 descriptor、layout 和 scan，不复制定义或建立独立资格；
+- writer 直接原子发布同次完整结果并核对写入 bytes；外部 reader 保留必要格式、引用、ABI、对象与 image 检查，缺少必需部分或损坏的产物不能消费；
 - 成员语义不依赖文件名、扩展名、ordinal或固定object数量，opaque blob绝不被提升为object；
 - library不需要main且没有root metadata，executable entry/root gateway/failure root非可选且互证；
 - 新增unit/golden/negative/组合fixture、`cargo fmt --all`、`cargo clippy --workspace`和完整`cargo test`全部通过；
 - 旧executable runner、兼容wrapper与仅服务旧入口的fixture已经删除，仓库中不存在第二套production路径。
 
-到达该完成门后，M23-4可以只把`.slib`视为不透明、已双视图验证的节点来做DAG与调度；它不需要也不允许进入任何Cone的parser、IR或object producer内部。
+到达该完成门后，M23-4 使用完整 `.slib` 的不可变归档与普通构建摘要进行 DAG 调度和缓存；它不需要也不允许进入任何Cone的parser、IR或object producer内部。

@@ -24,13 +24,13 @@ M23-4 第一次建立多 Cone 的**构建图**，但不建立多 Cone 的**语�
 2. `BuildRootInput::{ManifestCone, SingleFile}` 先变成只供定位和调度的 `ResolvedBuildGraph`。该图只含 source projection、single-file projection和 bounded prebuilt summary，不能冒充 Graph/Compile/Link artifact proof；
 3. manifest `path`、`artifact` 与 search-root locator 都按 exact coordinate 工作。同一 `ConeIdentity` 的全部 locator claim 必须收敛到同一种、同一份内容；同 coordinate 的不同 source root、不同 artifact fingerprint或 source/artifact 混用均在启动第一个 compiler child 前失败；
 4. 整张图先验证 reserved identity、coordinate、kind、single version、无环、唯一 root、core 注入和 target/schema/ABI summary，再按 canonical dependency-first Kahn order 调度。manifest 枚举顺序、locator 参数顺序、hash seed与未来并发完成顺序不影响图、child 顺序或诊断顺序；
-5. prebuilt、cache hit和新 child 输出都必须从不可变 byte snapshot 分别重建完整 Compile 与 Link view。只有两种 view 都成功且依赖记录与当前图逐项相等，节点才进入 completed set；Graph-only、summary-only或 response 中声称的 fingerprint都不能提升节点状态；
+5. prebuilt、cache hit 和新 child 输出都保留不可变归档与普通构建摘要；父进程核对 envelope/hash、profile、identity/target、依赖 fingerprint 和 child 结果后完成节点。实际源码编译和 Link 消费者通过共有 reader 取得完整语义及对象，不由调度器重复执行 Compile/Link 语义检查；
 6. source node使用由semantic manifest、排序后的source content digest、实际direct dependency三层Merkle fingerprint、compiler/schema/ABI和当前single-Cone会消费的target/toolchain projection计算的内容寻址cache key。locator、绝对路径、mtime、inode、诊断展示路径和child request id不进入key；
 7. source输入在任何child启动前完成全图discovery与immutable snapshot。所有Cone（包括core）的child读取私有snapshot，不重新遍历原始源码目录；
 8. 每个source cache miss恰好启动一次独立child。child只收到已经completed的direct/support artifact路径、独立trusted core slot和私有output path；父进程不调用`scoopc` lib，不传AST/IR，不让child解析locator或递归构建；
 9. M23-4串行执行canonical order。child失败立即停止，不启动任何dependent，也不进入program-link；已成功并核对归档和构建记录、原子发布的cache entry可以保留；
 10. library root成功结果是root `.slib`的不可变快照、普通manifest摘要及实际依赖集合；executable root返回同类产物。M23-6 已删除仅供重复检查的 Compile/Link 完成凭证。本阶段不构建runtime、program descriptor、native provider或binary，不执行程序，也不宣称正式`scoop build/run/link` CLI已经完成；
-11. `compiler/scoop`以recording runner、fake artifact gate和真实M23-3 core-only节点分别验证graph算法与进程边界。含普通dependency的真实source图可以完整规划和调度上游，但当前node最终仍由`SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE`结束，不生成残缺artifact；
+11. 调度算法的单元测试可记录 child 请求；构建成功、core 修改重建、缓存和跨 Cone 消费必须通过真实配套编译器及源码产物验收。M23-5/6 已完成普通依赖消费，删除仅服务旧来源 gate 的测试工厂；
 12. cache、prebuilt 与 child output 在实际读取边界检查格式、依赖、target/toolchain 与符号信息，同一不可变结果供后续消费复用；本地 cache receipt 只记录缓存 key、产物内容及 warning，不承担授权或防伪职责。
 
 M23-4 的关键不变量是：
@@ -41,10 +41,9 @@ Graph summary       != reusable artifact
 child success       != completed node
 cache path hit      != cache hit
 
-completed node = immutable artifact snapshot
-               + Compile-purpose validation
-               + Link-purpose validation
-               + exact dependency/target/plan match
+completed node = immutable artifact snapshot and manifest summary
+               + envelope/hash/profile checks
+               + exact dependency/target/build-result match
 ```
 
 ## 1. 范围与阶段边界
@@ -59,7 +58,7 @@ completed node = immutable artifact snapshot
 - bounded `.slib` manifest summary probe；
 - identity/content claim合并、reserved identity、kind、single-version、cycle与canonical topological order验证；
 - graph-wide source snapshot、artifact snapshot及TOCTOU检查；
-- per-artifact 完整 Compile/Link 数据，以及一个共有的 `ValidatedArtifactClosure`；
+- 每个产物的不可变归档、普通摘要及一个共有的 `ValidatedArtifactClosure`，供实际消费者读取完整 Compile/Link 数据；
 - direct/support closure投影与canonical child argument顺序；
 - `ConeCompileCacheKeyV1`、cache receipt、per-key lock、atomic entry publication与warning replay；
 - trusted core slot freshness、bootstrap调度和slot/cache隔离规则；
@@ -92,7 +91,7 @@ M23-4不以“已有dependency artifact”为理由删除M23-3能力门。真实
 | --- | --- | --- |
 | M23-3 | strict manifest/locator projection、trusted core slot、single-Cone request、child DTO、双视图有效strong artifact | exact DAG、cache、真实child orchestration与共有完整产物闭包；不改`scoopc`编译语义 |
 | M23-5 | graph中已完成的direct/support artifact和Compile closure | `SemanticWorld`可直接消费的完整artifact集合与稳定origin；删除的只有非core能力拒绝，不重做locator/cache |
-| M23-6/7 | Link closure、三层fingerprint与stable origin | 新layout/ODR profile仍经同一cache/child/double-view流程；cache key按新增实际消费capability升版而非旁路验证 |
+| M23-6/7 | Link closure、三层fingerprint与stable origin | 新 layout/ODR profile 仍经共有 cache/child 与实际 reader 消费流程；cache key按新增实际消费capability升版而非旁路验证 |
 | M23-8 | canonical dependency-first Cone order | runtime registration/startup沿用该order，不从link input或地址顺序重算另一套 |
 | M23-9/10 | root及完整`ValidatedArtifactClosure<Link>` | program-link直接消费closure；不读取manifest locator、source snapshot或cache receipt |
 | M23-11 | 可测试的orchestration library与root artifact outcome | 薄`scoop` binary、正式build/run/link lifecycle、默认materialization与fixture迁移 |
@@ -277,7 +276,7 @@ BuildGraphRequest
 - `ResolvedBuildGraph`已通过coordinate/content唯一、kind、version、cycle与canonical order验证，但source/prebuilt bytes尚未全部形成execution snapshot；
 - `PreparedBuildGraph`已完成全图source/artifact snapshot、summary复核、core默认依赖计划与cache namespace解析；这些实际构建输入用于启动compiler child。prebuilt复用同一snapshot的摘要，在全部dependency completed后核对stale edge；
 - `ExecutedBuildGraph`中的每个节点保存完成产物的不可变归档、manifest摘要及实际依赖集合；
-- `BuildGraphOutcome`只暴露root artifact、Compile closure、Link closure、warnings和本次cache/child观测摘要，不暴露可变scheduler state。
+- `BuildGraphOutcome` 保留 root artifact、共有依赖集合、warnings 和本次 cache/child 观测摘要，不暴露可变 scheduler state。
 
 任一步失败都消费并丢弃前一状态，不存在从`DiscoveredBuildGraph`直接调用scheduler、从summary构造completed node或从child response跳过artifact gate的公开方法。
 
@@ -698,9 +697,9 @@ source 和 artifact 按真实文件长度读取；保留文件类型、稳定快
 
 ### 7.1 不可变快照与共用读取结果
 
-一个产物快照保留实际字节、正常内容 fingerprint 及完整的语义读取结果。外部字节在 reader 边界完成格式、typed 引用、签名和布局检查；Link 在这份结果上追加对象、符号、relocation、registration 及 Code/runtime fingerprint 检查。发布和后续 accessor 直接使用检查后的完整数据。
+构建侧 `BuildArtifact` 保留不可变归档和普通 manifest 摘要。父进程核对 envelope/hash、profile、identity/target、依赖 fingerprint、缓存键与 child 结果；这些信息用于发现、调度和缓存，不重放 HIR/MIR/LIR 或对象语义。
 
-删除独立 Compile/Link certificate、额外凭证外层，以及每次 accessor 都重开产物再比较 certificate 的通道。不得用 unsafe self-reference、泄漏内存或另一套工厂替代这些机制；生命周期和所有权按实际数据访问表达。磁盘上的新快照仍经过读取边界，已有且未变化的内存结果复用检查结论。
+`scoopc` 或实际 Link 消费者在读取外部产物时取得完整语义和对象。共有 reader 完成格式、typed 引用、签名与布局检查，Link 在同一结果上追加对象、符号、relocation、registration 和 Code/runtime fingerprint 检查；后续直接使用完整结果。删除独立 Compile/Link certificate、每次 accessor 重开产物和比较凭证的通道。新的外部输入仍需检查，未变化的结果直接复用。
 
 ### 7.2 Compile 与 Link 的实际数据需求
 
@@ -713,13 +712,13 @@ Compile 使用导出声明、类型、成员、默认参数正文及实例化所
 对completed root `R`：
 
 1. 从resolved graph计算R可达子图；
-2. 要求每个 node 都有消费所需的完整产物结果；
+2. 要求每个 node 都有完整的归档、manifest 摘要及对应构建结果；
 3. 对新读取的 artifact 核对 coordinate/id/kind/source form/target/profile，已有结果直接复用；
 4. artifact direct dependency record集合必须等于resolved direct edge集合（core包含在artifact记录中）；
 5. 每条record的HIR/MIR/LIR fingerprint必须等于dependency handle；
 6. 同identity只能有一个artifact fingerprint；同`group:name`只能一个version；
-7. closure order是全图canonical order在可达集合上的稳定投影，并再次验证dependency-first；
-8. 同一完整产物结果提供 Compile/Link 所需数据，任一必要检查失败则不发布 closure。
+7. closure order 是已完成全图 canonical dependency-first order 在可达集合上的稳定投影；
+8. 共有依赖集合为实际 Compile/Link reader 提供同一批完整产物；调度所需的任一输入检查失败则不完成 closure。
 
 closure构造不再次解析locator，也不从artifact dependency table扩张图；若artifact宣称graph外额外edge，直接报告`UnexpectedArtifactDependency`。
 
@@ -729,14 +728,13 @@ closure构造不再次解析locator，也不从artifact dependency table扩张�
 CompletedNode {
     cone: ConeIdentity,
     origin: Prebuilt | CacheHit | Compiled,
-    artifact: ValidatedCrossConeArtifactHandle,
-    compile_closure: ValidatedArtifactClosure<Compile>,
-    link_closure: ValidatedArtifactClosure<Link>,
+    artifact: BuildArtifact,
+    closure: ValidatedArtifactClosure,
     materialized_child_path: PrivateArtifactPath,
 }
 ```
 
-node 只有在共有语义与实际 Link 对象检查均成功后才进入 scheduler completed map。这样即使当前child只直接消费Compile metadata，损坏Link object的dependency也不能成为上游或cache hit。
+node 在归档、摘要与实际依赖/构建结果匹配后进入 scheduler completed map。该状态只表示构建节点完成，不是机器消费资格；实际 `scoopc` 或 Link reader 仍检查完整类型、ABI 与对象，损坏产物不能通过相应消费边界。
 
 `materialized_child_path`指向本次build private、digest-checked的`.slib` snapshot，不是用户prebuilt path或可替换cache path。路径只作transport。
 
@@ -746,7 +744,7 @@ node 只有在共有语义与实际 Link 对象检查均成功后才进入 sched
 - exact新key下的receipt/artifact却记录不同dependency，属于cache corruption；
 - prebuilt artifact记录不同dependency，属于`StalePrebuiltDependency`且不可重建；
 - child新输出记录不同dependency，属于`ChildOutputPlanMismatch`，说明child/protocol/toolchain违反合同；
-- trusted core slot artifact与当前core source key不符，属于core slot miss并bootstrap；artifact本身损坏先分类为`CoreRebuildReason::Corrupt`，再由trusted authority重建，不能把损坏描述成“源码更新”或在重建前把它交给ordinary child。只有重建也失败时才把slot corruption作为最终error context。
+- core 使用与普通 source node 相同的 cache key、损坏检测和重建流程；源码、依赖或 target 变化时失效，不另设 core slot receipt 或 trusted authority。
 
 任何分类都不能把旧typed id接到新metadata。
 
@@ -759,10 +757,9 @@ M23-4 cache只保存single-Cone `.slib`和重放该次source编译warning所需�
 - `ResolvedBuildGraph`或locator结果；
 - source snapshot；
 - runtime object、program descriptor、native provider、link plan或binary；
-- Graph/Compile/Link内存proof；
-- trusted core intrinsic authority本身。
+- 编译进程中的 IR arena 或临时 reader 状态。
 
-新读入的缓存快照完成一次共有语义和 Link 对象检查，随后复用完整结果；已有依赖不重新完整读取。target、实际依赖 fingerprint 与 stale edge 检查仍须满足。
+新读入的缓存快照在构建侧核对 envelope/hash、摘要、target、实际依赖 fingerprint 与 cache key；实际编译或 Link 消费再由共有 reader 取得并检查完整数据。同一边界内已经取得的结果直接复用。
 
 ### 8.2 `ConeCompileCacheKeyV1`
 
@@ -1038,27 +1035,15 @@ fail-fast位置因此只由canonical order决定。未来允许并行ready set�
 staging/outputs/<topological-index>-<ConeIdentity>/candidate.slib
 ```
 
-目录由parent预创建并只授予child必要写权限；output必须不存在，不能与任何input alias。child仍使用M23-3自己的同目录temporary + double-view + atomic rename。parent不允许child直接写最终cache key目录或用户路径。
+目录由parent预创建并只授予child必要写权限；output必须不存在，不能与任何input alias。child 使用同目录 temporary、完成归档的写入字节核对与 atomic rename。parent不允许child直接写最终cache key目录或用户路径。
 
 child成功后parent只读取`candidate.slib`；额外文件、非空dump descriptor、symlink替换、缺失output或wrong type是transport/output error。output path不进入cache key或artifact identity。
 
-### 9.5 M23-4普通dependency门禁
+### 9.5 普通依赖与失败传播
 
-当N具有普通direct dependency时，production child预期在M23-3能力门返回结构化failure：
+M23-5/6 已完成普通依赖的实际源码消费，child 不再把 non-core dependency 当作阶段性失败。orchestrator 传递真实 compiler diagnostic；失败时不产生当前节点的 cache receipt 或 partial completed node，不启动其 dependent，可以保留此前独立完成的上游 cache entry。
 
-```text
-SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE
-```
-
-orchestrator：
-
-- 将其作为当前阶段合法、可预期但仍使build失败的compiler diagnostic呈现；
-- 不把它改写成graph error；
-- 不产生N的cache receipt或partial completed node；
-- 不启动N的dependent或program-link；
-- 可以保留N之前已独立完成并发布的upstream cache entry。
-
-recording runner用于核对子进程调度；成功产物和cache验收使用真实编译结果。M23-6 的完成路径只核对归档、manifest、response及依赖，完整 typed IR 与对象由实际consumer读取。
+recording runner 用于核对子进程调度；成功产物、core 重建和 cache 验收使用真实编译结果。构建完成路径核对归档、manifest、response 及依赖，完整 typed IR 与对象由实际消费者读取。
 
 ### 9.6 warning
 
@@ -1305,7 +1290,7 @@ manifest whitespace/comment改变不会改变normalized semantic cache字段；s
 - unreachable injected node；
 - manifest枚举、map/hash seed和edge insertion全排列下order一致；
 - direct/support closure在chain/diamond/sibling图中的精确集合；
-- node/edge/depth/candidate各limit的边界值与超限值。
+- 较长合法依赖链和共享 DAG，局部检测实际引用环及整数范围，不设通用 node/edge/depth 配额。
 
 ### 13.3 snapshot与TOCTOU
 
@@ -1316,9 +1301,9 @@ manifest whitespace/comment改变不会改变normalized semantic cache字段；s
 - child input只引用private artifact snapshot，不引用用户/cache可替换path；
 - 修改core原始源码不改变正在编译的快照；下一次build按普通key重建。
 
-### 13.4 dual view与closure
+### 13.4 实际消费与依赖集合
 
-- Compile成功/Link失败不能完成；Link成功/Compile失败不能完成；
+- 实际消费者拒绝缺失语义数据或损坏对象，构建完成状态不能代替 reader 检查；
 - 仅有 Graph/summary 的输入不能代替完整 IR 或 Link 对象；
 - 同一快照的 Compile/Link 共有数据复用，accessor 不重开或重演；
 - missing/extra/stale direct edge、transitive mismatch、wrong target/profile；

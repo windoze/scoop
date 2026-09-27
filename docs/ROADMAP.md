@@ -349,11 +349,11 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 ### M23-8 runtime multi-image registry与启动
 
 - 消费已有 image descriptor，按实际生产调用确定启动所需 C 数据与登记契约；实现六类registration table、全image登记、canonical eager/lazy初始化、no-throw gateway与连续LLVM v3 stackmap blob消费。
-- 先由typed synthetic program descriptor驱动3+ image、moving GC、exception、failure/cycle、ODR重复与损坏metadata fatal测试，不依赖生产linker或weak-symbol扫描。
+- 使用实际编译产物的 3+ 个 image 验证 moving GC、exception、failure/cycle、ODR 重复与损坏 metadata；测试可显式构造损坏输入，但不另建只用于测试的 program descriptor 生产工厂。
 
 ### M23-9 基础artifact-only program-link
 
-- `compiler/runtime-build`只消费`lir_target + c_bridge_toolchain + runtime_build`并产出`ValidatedRuntimeArtifact`；`compiler/linker`只消费`ValidatedArtifactClosure<Link>`、该runtime artifact、`lir_target + final_link`及其他已验证产物，生成并验证program object和无用户native requirement的真实多Cone binary。`final_link`必须显式闭合startup/support/default system provider及target-synthetic输入，基础plan/evidence不得依赖linker隐式default；backend/C-bridge/runtime-build信息只通过已验证producer产物进入link plan。源码、locator、cache和额外raw object不进入stage。
+- M23-9 接入普通 runtime 对象构建与实际 artifact-only program-link：runtime 按 target、C toolchain、build rules 和源码内容构建并缓存；linker 消费共有 reader 的完整 Link 数据、runtime 对象及 final-link profile，生成实际启动对象和多 Cone binary。保留符号、格式、ABI、对象与 relocation 检查，复用未变化的读取结果，不建立 runtime/program 来源凭证、不可伪造包装或测试工厂。默认系统输入由明确 target/profile 解析，用户 native requirement 的一般解析仍在 M23-10 完成。
 - 完成真实ODR coalesce、multi-object stackmap、初始化、moving GC与exception gateway；带尚未处理native requirement的程序稳定拒绝。
 
 ### M23-10 general native requirement闭包与link evidence hardening

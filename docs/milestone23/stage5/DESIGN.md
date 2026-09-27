@@ -41,7 +41,7 @@ M23-5 第一次让普通 dependency 成为**语言名称来源**，但 artifact 
 7. 跨 Cone 名称查找按声明可见性和实际依赖关系进行。import 路径记录解析事实；它不授予额外机器调用资格。private/internal 支持声明可因实现需要保存在产物中，公开查找仍遵守语言规则，protected 访问按 M23-6 的接收者和继承上下文检查；
 8. exported default继续是定义方已完成名称解析和overload选择的hygienic typed template。consumer只做type/value substitution与evaluation-origin构造，不按本地import或re-export重新解析。re-export引用同一template，不复制body；
 9. non-generic typealias保留自己的persistent alias identity、visibility与target。跨Cone import/re-export保留alias binding；使用时由一个bounded、memoized的closure-wide expander透明展开。alias identity不因target变化而改变，但HIR fingerprint必须改变；
-10. M23-5 的 executable external-use成功子集严格限定为：public `const val`的core-closed常量值，以及非generic、non-suspend、non-extern的top-level function、top-level property accessor或top-level extension function/property accessor，其完整exact签名只含trusted core已经由M23-3证明的param-free ABI leaf。consumer只发typed undefined requirement，不重发provider body或任何Strong definition；
+10. M23-5 的 const 与普通参数自由调用现使用共有声明、实际 provider 表示和 canonical ABI，M23-6 继续完成类型与成员消费。consumer 保留实际 typed external use，provider 拥有对应 body、registration 和 Strong definition；不使用 core 来源资格或 leaf 证明；
 11. 名称解析本身可以成功指向class/struct/enum/interface/object、constructor/member、generic declaration或任意公开property；但一旦具体使用需要foreign nominal layout/scan/TypeDescriptor、constructor/materialization、member/virtual dispatch、receiver-dependent protected access、function-value representation、generic application或native provider，就在HIR winner commit前以对应阶段的唯一能力诊断失败，不产生`LocalConcreteHir`残片；
 12. 本阶段新增`cross-cone-semantics-strong/3` artifact profile，以及HIR general interface、MIR/LIR param-free bridge和Link-only cross-Cone use closure四条capability。M23-3的`single-cone-strong/3`仍可被旧reader识别，但不能进入M23-5 build；trusted core、prebuilt与cache artifact必须按新profile重建；
 13. ordinary callable、初始化服务与布局相关 callable 按实际 typed target 取得定义、ABI 和 relocation；core 使用同一查询与发布路径。每个定义只保留一份记录，dispatch 可以引用普通导出；
@@ -122,7 +122,7 @@ M23-5把“名称可见”和“可生成machine use”分开。下表是本阶�
 | public non-generic type/constructor/member | 是 | 是 | 否，报M23-6 layout/dispatch能力诊断 |
 | public generic declaration | 是 | 是 | 否，application报M23-7能力诊断 |
 | public non-generic typealias | 是 | 是，透明展开 | 仅最终target完全落入本表其他成功格时 |
-| public `const val` | 是 | 是 | core-closed constant允许内联；不引用provider storage |
+| public `const val` | 是 | 是 | 合法的常量值允许内联；不引用 provider storage |
 | ordinary top-level function | 是 | 是 | 满足1.5 param-free bridge条件时允许 |
 | top-level/extension property | 是 | 是 | 非const只允许通过满足1.5的getter/setter bridge |
 | member function/property/constructor/object value | 是 | 是 | 否，报M23-6能力诊断 |
@@ -131,20 +131,13 @@ M23-5把“名称可见”和“可生成machine use”分开。下表是本阶�
 
 unused import、纯re-export Cone、跨Cone alias facade和只使用允许bridge的param-free library/executable都能成功产生双view有效artifact。M23-5不以“当前还不能最终运行”为理由拒绝这类artifact；M23-8/9负责runtime/link消费，而不是回来补语言语义。
 
-### 1.5 `ParamFreeCoreClosedCallableV1`
+### 1.5 普通参数自由 callable
 
-ordinary external callable只有同时满足以下全部条件，才能从成功lookup精化为可执行target：
+M23-5 原有的窄 callable 能力已经接入 M23-6 的共有声明、类型查询和 canonical ABI。普通 top-level/extension function 与 accessor 使用真实声明 provider 的完整 exact signature、implementation、GC effect、symbol 和 definition。其 owner/binder、suspend、vararg 与当前物化能力仍按语言规则处理，成员、constructor 和 dispatch 使用 M23-6 的完整表示。
 
-1. target是terminal provider自己定义的top-level ordinary/extension function，或top-level/extension property的getter/setter；不是constructor、member、local、lambda、callable reference、intrinsic或source extern；
-2. declaration和owner都非generic，callable non-suspend；source parameter interface不存在需要generic array application的vararg；
-3. MIR implementation是provider现有`StrongCallableDefinitionOwner`，且provider的M23-3 strong production已经定义body、entry、registration和required object definition；
-4. receiver、全部parameter与result的`ExactCallableSignature`均通过同一个`CoreClosedExactLeafClassifierV1`。classifier只接受trusted core artifact已经由M23-3 `ParamFreeStrong`/well-known builtin proof闭合的exact nominal leaf；拒绝foreign nominal、nominal application、tuple、function、raw/native pointer和type parameter；
-5. LIR canonical Scoop ABI由上述core leaf proof机械重放，不能读取provider host layout或新建M23-6 layout record；
-6. `GcEffect`与calling convention完整一致，Managed调用使用statepoint，NoGc调用使用NoGc root plan；ordinary/suspend与GC effect仍是两个不同维度；
-7. selected target有至少一条从当前Cone direct dependency开始并终止于该provider binding的合法source route；provider是transitive support时只能由re-export route到达；
-8. consumer只建立`DependencyExternalCallable`和undefined requirement；body、registration、TypeDescriptor、storage、initializer与definition fingerprint继续由provider拥有。
+类型分类从实际依赖声明和 exact key 取得表示；Unit、Any 与 intrinsic 按前端已解析的语言类型处理。不能通过 CORE 来源、同名或同布局取得调用资格，也不再维护 `CoreClosedExactLeafClassifierV1` 和 core leaf 证明。canonical ABI 由共有布局与真实 target 正规化，Managed/NoGc root plan 与实际 effect 对应。
 
-classifier复用M23-3 core param-free proof，不冻结一般Scoop ABI；只要某个参数需要M23-6的新layout/ABI section，整个candidate仍可参与名称诊断，但不能成为本阶段的可执行winner。
+名称解析仍使用从 direct dependency、公有转导出到 terminal provider 的实际 binding route。consumer 保存 typed external callable 和实际 undefined requirement，body、registration、descriptor、storage 及初始化定义由各自 provider 拥有。源码选择与实际已物化机器使用分别完整保存，不借任意候选反推来源；尚未进入本阶段的泛型/ODR 能力仍由对应阶段诊断。
 
 ## 2. crate与依赖方向
 
@@ -1692,23 +1685,11 @@ name/access collection
 
 gate必须在winner commit和任何local persistent materialization前完成。失败candidate保留结构化reason供resolver继续较低层；若最终无winner，主诊断选择普通type/applicability错误或最接近的capability error，排序规则固定，不把后端错误冒充源码诊断。
 
-### 10.2 能力分类
+### 10.2 当前能力边界
 
-```text
-CrossConeCapability =
-    SurfaceOnly
-  | InlineCoreClosedConst
-  | ParamFreeCoreClosedCallable
-  | RequiresLayoutAbi
-  | RequiresDispatchOrProtected
-  | RequiresGenericOdr
-  | RequiresNativeClosure
-```
+名称候选可以只参与 import、qualified namespace、re-export、alias 和诊断。进入实际正文的 const 按 5.5 内联，参数自由 callable 按 1.5 的共有声明和 ABI 进入 lowering；类型、constructor、成员、protected 与 dispatch 使用 M23-6 的完整产物。
 
-- `SurfaceOnly`只允许import、qualified namespace、re-export、alias surface和diagnostic inspection；
-- `InlineCoreClosedConst`按5.5内联；
-- `ParamFreeCoreClosedCallable`按1.5进入lowering；
-- 后四种分别产生M23-6、M23-6、M23-7、M23-10稳定诊断，且没有fallback到local Strong、opaque pointer、erased generic或native string symbol。
+早期的 core-closed classifier 及来源资格分类已经删除。尚未进入本阶段的 generic/ODR、native closure 分别按 M23-7、M23-10 边界诊断，不能回退到伪造 local Strong、opaque pointer、erased generic 或裸 native symbol。
 
 ### 10.3 禁止的降级
 
@@ -2084,10 +2065,10 @@ positive：
 
 - imported/re-exported declarations完全unused；
 - public alias facade指向dependency type；
-- core-closed public const read；
+- public const read；
 - `(Int) -> Int`、`() -> Unit` ordinary top-level call；
-- core-closed extension function；
-- core-closed top-level/extension property getter/setter；
+- 参数自由 extension function；
+- 参数自由 top-level/extension property getter/setter；
 - managed与NoGc两种root plan；
 - 通过一跳/多跳re-export调用terminal provider body；
 - imported callable使用provider default。
@@ -2164,7 +2145,7 @@ M23-5只有同时满足以下条件才完成：
 - default template保持定义方绑定和definition origin，只在winner后实例化并使用调用点评估origin；
 - non-generic alias跨Cone透明展开、保留alias identity并正确失效；
 - `LookupObservationSet`覆盖空/不可访问/shape/applicability/MSC/winner，cache仍保守纳入全部direct fingerprint；
-- 本阶段positive external-use只落入const或`ParamFreeCoreClosedCallableV1`，所有layout/dispatch/generic/native形态在HIR原子拒绝；
+- M23-5 原有 const 与普通 callable 场景继续通过共有入口；M23-6 的 layout/dispatch/protected 场景使用完整表示，尚属后续阶段的 generic/ODR 与 native closure 在 HIR 给出对应诊断；
 - LocalConcrete/MIR/LIR对ordinary dependency使用独立typed target，consumer不发provider Strong definition；
 - provider export、consumer selected、LIR semantic、object relocation与Link physical closure逐层一一对应；旧core closure与新ordinary closure互斥且联合覆盖全部undefined use；
 - chain/diamond中最终call target始终是terminal origin，re-exporting Cone不生成forwarder或第二份body；
