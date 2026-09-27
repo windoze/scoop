@@ -1,7 +1,6 @@
 use super::*;
 use scoop_hir::{HirCLayoutContract, HirCLayoutValue, NominalSourceFieldV1};
 use scoop_identity::SignatureTypeKey;
-use scoop_lir::CanonicalLirFoundation;
 
 pub(super) struct DeclaredLayout {
     pub current: Fixture,
@@ -113,18 +112,16 @@ impl DeclaredLayout {
         materialized: bool,
         dependency: bool,
     ) -> Result<(), NativeBoundaryCompileError> {
-        let target = scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-        let artifact =
-            crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(
-                crate::ProducerRecord::new("test").unwrap(),
-                self.cone.clone(),
-                target,
-                self.current.foundation.as_canonical(),
-                &scoop_mir::CanonicalMirFoundation::empty(),
-                &CanonicalLirFoundation::empty(),
-            ))
-            .unwrap();
-        let mut graph = crate::strong_compile_decode::tests::open_graph(artifact.as_bytes());
+        let (hir, mir, lir) = crate::strong_compile_decode::tests::required_sections();
+        let bytes = crate::strong_compile_decode::tests::build_artifact_for_profile(
+            self.cone.clone(),
+            crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+            hir,
+            mir,
+            lir,
+            false,
+        );
+        let mut graph = crate::strong_compile_decode::tests::open_graph(&bytes);
         let view = crate::NativeBoundaryFoundationView {
             source_contracts: &[],
             type_definitions: &[],

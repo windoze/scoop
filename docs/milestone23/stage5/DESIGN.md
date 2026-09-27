@@ -43,7 +43,7 @@ M23-5 第一次让普通 dependency 成为**语言名称来源**，但 artifact 
 9. non-generic typealias保留自己的persistent alias identity、visibility与target。跨Cone import/re-export保留alias binding；使用时由一个bounded、memoized的closure-wide expander透明展开。alias identity不因target变化而改变，但HIR fingerprint必须改变；
 10. M23-5 的 executable external-use成功子集严格限定为：public `const val`的core-closed常量值，以及非generic、non-suspend、non-extern的top-level function、top-level property accessor或top-level extension function/property accessor，其完整exact签名只含trusted core已经由M23-3证明的param-free ABI leaf。consumer只发typed undefined requirement，不重发provider body或任何Strong definition；
 11. 名称解析本身可以成功指向class/struct/enum/interface/object、constructor/member、generic declaration或任意公开property；但一旦具体使用需要foreign nominal layout/scan/TypeDescriptor、constructor/materialization、member/virtual dispatch、receiver-dependent protected access、function-value representation、generic application或native provider，就在HIR winner commit前以对应阶段的唯一能力诊断失败，不产生`LocalConcreteHir`残片；
-12. 本阶段新增`cross-cone-semantics-strong/2` artifact profile，以及HIR general interface、MIR/LIR param-free bridge和Link-only cross-Cone use closure四条capability。M23-3的`single-cone-strong/2`仍可被旧reader识别，但不能进入M23-5 build；trusted core、prebuilt与cache artifact必须按新profile重建；
+12. 本阶段新增`cross-cone-semantics-strong/3` artifact profile，以及HIR general interface、MIR/LIR param-free bridge和Link-only cross-Cone use closure四条capability。M23-3的`single-cone-strong/3`仍可被旧reader识别，但不能进入M23-5 build；trusted core、prebuilt与cache artifact必须按新profile重建；
 13. ordinary callable、初始化服务与布局相关 callable 按实际 typed target 取得定义、ABI 和 relocation；core 使用同一查询与发布路径。每个定义只保留一份记录，dispatch 可以引用普通导出；
 14. HIR layer在M23 v1继续保守纳入全部direct dependency HIR fingerprint；MIR/LIR也继续沿用全部direct dependency对应层fingerprint作为cache安全基线。`LookupObservationSet`和`SelectedExternalSet`本阶段完整产生并测试，但不用于减少cache edge，避免negative lookup、star snapshot或re-export变化被错误复用；
 15. reader 在实际 Compile/Link 消费边界检查相应格式、类型、引用、ABI 与符号。发布复用同次编译的完整结果与已经检查的依赖；损坏产物仍拒绝，不为发布重新执行两次完整闭包读取；
@@ -83,7 +83,7 @@ external code use = committed HIR winner
 - `CrossConeUseSet { lookup_observations, selected_external }`；
 - `LocalConcreteHir`、MIR与LIR中的external param-free callable target；
 - ordinary dependency strong callable的producer export bridge、consumer selected bridge、typed object relocation与Link-only requirement closure；
-- `cross-cone-semantics-strong/2` profile、四条新增capability与profile migration；
+- `cross-cone-semantics-strong/3` profile、四条新增capability与profile migration；
 - HIR/MIR/LIR Merkle contribution/support-edge及M23-4 cache invalidation衔接；
 - direct/transitive、split package、re-export、visibility、default、alias、stage gate、corruption、dual-view与determinism测试矩阵；
 - M23总设计、language/implementation spec与ROADMAP的阶段链接和profile说明。
@@ -223,7 +223,7 @@ WorldProviderRole = Current
 新增：
 
 ```text
-org.scoop-lang.slib-profile/cross-cone-semantics-strong/2
+org.scoop-lang.slib-profile/cross-cone-semantics-strong/3
 ```
 
 descriptor固定为：
@@ -253,17 +253,9 @@ required_lir = [
   org.scoop-lang.lir/strong-production/11,
 ]
 
-code_requirement    = MustBeAvailable
-runtime_requirement = MustBeAvailable
-publication_class   = Publishable
-validation_policy   = {
-  odr: RejectAll,
-  extra_sections: AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-  link_proof: Required,
-}
 ```
 
-数组实际按`CapabilitySortKey`编码；上面为便于阅读按层分组。profile仍拒绝任何ODR group/member/body/linkage/symbol，M23-7才更换为`RequireCompleteDefinitionProof`。profile fingerprint由M23-2既有公式计算并加入fixed vector；不得手写常量后跳过descriptor重算。
+数组实际按`CapabilitySortKey`编码；上面为便于阅读按层分组。本阶段 Strong 输入边界仍拒绝任何 ODR group/member/body/linkage/symbol；M23-7 的实际实现另行定义所需数据，不保留未来策略占位。profile fingerprint由M23-2既有公式计算并加入fixed vector；不得手写常量后跳过descriptor重算。
 
 ### 3.2 新capability contract
 
@@ -291,7 +283,7 @@ validation_policy   = {
 M23-5 production graph只接受新profile：
 
 - source Cone、single-file 与 core 普通 library Cone 都写新 profile，即使新 section 为空；
-- M23-3 `single-cone-strong/2` prebuilt/cache entry报告明确的profile mismatch并要求重建，不做in-memory upgrade；
+- M23-3 `single-cone-strong/3` prebuilt/cache entry报告明确的profile mismatch并要求重建，不做in-memory upgrade；
 - core 和其他依赖的缓存记录、compile cache key 均绑定实际 profile id/fingerprint；
 - graph summary仍可读取旧artifact用于报告coordinate，但旧artifact不能成为completed node或dependency authority；
 - reader 从同一 envelope 取得语义与对象 section，构造共享数据的 `ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>` 和 Link view；LIR bridge 的 import 与 Link closure 必须指向相同 provider、typed target 和 ABI。producer 发布复用同次编译的完整 IR 和已检查对象，写回仅核对实际 bytes。
@@ -2000,7 +1992,7 @@ role继续使用M23-2现有`all-direct/1`。由于每个provider自己的layer f
 
 M23-4 scheduler只改三点：
 
-1. planned/actual profile期望改为`cross-cone-semantics-strong/2`；
+1. planned/actual profile期望改为`cross-cone-semantics-strong/3`；
 2. 删除`SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE`作为普通dependency的预期终点；
 3. child success后除原双view/graph match外，增加cross-Cone semantic closure与physical requirement closure验证。
 
@@ -2174,7 +2166,7 @@ negative：
 
 M23-5只有同时满足以下条件才完成：
 
-- 所有production Cone（含core/single-file）使用`cross-cone-semantics-strong/2`，旧profile不会被静默upgrade或混入closure；
+- 所有production Cone（含core/single-file）使用`cross-cone-semantics-strong/3`，旧profile不会被静默upgrade或混入closure；
 - 四条新capability的wire、registry contract、fingerprint contribution、实际边界检查与fixed vector完成；
 - direct/support semantic closure在parser前原子验证，support artifact不能枚举名称，direct artifact不能伪造core authority；
 - persistent identity按kind/origin统一intern，re-export binding复用M23-2 identity key并在terminal provider authority下验证；

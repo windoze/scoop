@@ -1,13 +1,8 @@
 use std::path::Path;
 
-use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate};
-use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
-use scoop_mir::CanonicalMirFoundation;
-use scoop_slib::{
-    ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord,
-};
+use scoop_lir::ValidatedLirTargetSelection;
+use scoop_slib::{ConeKind, ConeRecord, ConeSourceForm};
 use scoop_wire::sha256;
 
 use super::*;
@@ -23,30 +18,29 @@ fn key(seed: &[u8]) -> ConeCompileCacheKeyV1 {
 }
 
 fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
     let cone = ConeRecord::new(
         ConeCoordinate::reserved_core(),
         ConeKind::Library,
         ConeSourceForm::Manifest,
     )
     .unwrap();
-    let foundation = IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new(producer).unwrap(),
+    let archive = crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
         cone.clone(),
+        producer,
+        Vec::new(),
+    );
+    let summary = scoop_slib::read_artifact_manifest_summary(
+        archive.as_bytes(),
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &hir,
-        &mir,
-        &lir,
-    ))
+    )
     .unwrap();
     let path = root.join(format!("{producer}.slib"));
-    std::fs::write(&path, foundation.as_bytes()).unwrap();
+    std::fs::write(&path, archive.as_bytes()).unwrap();
     let artifact = ImmutableInputSnapshot::capture(&path).unwrap();
     let body = CacheReceiptBodyV1::new(
         key,
-        foundation.artifact_fingerprint(),
+        summary.artifact_fingerprint(),
         cone,
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),

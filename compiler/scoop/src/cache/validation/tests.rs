@@ -1,15 +1,10 @@
-use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, NormalizedSourcePath};
-use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
-use scoop_mir::CanonicalMirFoundation;
+use scoop_lir::ValidatedLirTargetSelection;
 use scoop_protocol::{
     DiagnosticOriginV1, DiagnosticSeverityV1, ProtocolByteSpan, ProtocolConeIdentity,
     StructuredDiagnosticV1,
 };
-use scoop_slib::{
-    ConeKind, ConeSourceForm, IdentityFoundationArtifact, IdentityFoundationArtifactInput,
-    ProducerRecord, read_artifact_manifest_summary,
-};
+use scoop_slib::{ConeKind, ConeSourceForm, read_artifact_manifest_summary};
 use scoop_wire::sha256;
 
 use super::*;
@@ -18,18 +13,17 @@ fn cone(coordinate: ConeCoordinate) -> ConeRecord {
     ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap()
 }
 
-fn foundation(producer: &str) -> IdentityFoundationArtifact {
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
-    IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new(producer).unwrap(),
+fn artifact_summary(producer: &str) -> scoop_slib::ArtifactManifestSummaryV1 {
+    let archive = crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
         cone(ConeCoordinate::reserved_core()),
+        producer,
+        Vec::new(),
+    );
+    read_artifact_manifest_summary(
+        archive.as_bytes(),
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &hir,
-        &mir,
-        &lir,
-    ))
+    )
     .unwrap()
 }
 
@@ -58,8 +52,8 @@ fn binding<'a>(
 
 #[test]
 fn receipt_binding_checks_cache_metadata() {
-    let first = foundation("cache-binding-first");
-    let second = foundation("cache-binding-second");
+    let first = artifact_summary("cache-binding-first");
+    let second = artifact_summary("cache-binding-second");
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));
     let current_compiler = compiler(b"compiler");
     let current_cone = cone(ConeCoordinate::reserved_core());
@@ -132,7 +126,7 @@ fn receipt_binding_checks_cache_metadata() {
         ),
         Err(CacheReceiptBindingError::Compiler)
     );
-    let identity_profile = ArtifactCapabilityProfileId::identity_foundation();
+    let other_profile = ArtifactCapabilityProfileId::single_cone_strong();
     assert_eq!(
         validate_receipt_binding(
             &receipt,
@@ -142,7 +136,7 @@ fn receipt_binding_checks_cache_metadata() {
                 &current_cone,
                 &[],
                 current_compiler,
-                &identity_profile,
+                &other_profile,
             ),
         ),
         Err(CacheReceiptBindingError::ArtifactProfile)
@@ -151,24 +145,19 @@ fn receipt_binding_checks_cache_metadata() {
 
 #[test]
 fn receipt_binding_rejects_dependency_and_key_drift() {
-    let artifact = foundation("cache-binding-dependency");
-    let summary = read_artifact_manifest_summary(
-        artifact.as_bytes(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
+    let artifact = artifact_summary("cache-binding-dependency");
     let dependency = DependencyRecord::new(
         ConeCoordinate::reserved_core(),
-        summary.semantic_fingerprints().hir(),
-        summary.semantic_fingerprints().mir(),
-        summary.semantic_fingerprints().lir(),
+        artifact.semantic_fingerprints().hir(),
+        artifact.semantic_fingerprints().mir(),
+        artifact.semantic_fingerprints().lir(),
     )
     .unwrap();
     let other_dependency = DependencyRecord::new(
         ConeCoordinate::new("test", "dependency", "1.0.0").unwrap(),
-        summary.semantic_fingerprints().hir(),
-        summary.semantic_fingerprints().mir(),
-        summary.semantic_fingerprints().lir(),
+        artifact.semantic_fingerprints().hir(),
+        artifact.semantic_fingerprints().mir(),
+        artifact.semantic_fingerprints().lir(),
     )
     .unwrap();
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));

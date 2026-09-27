@@ -79,7 +79,6 @@ fn hir_foundation_v3_rejects_retired_native_witnesses_in_every_profile_and_view(
         hir_identity_foundation_capability(),
         3,
         &[
-            ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

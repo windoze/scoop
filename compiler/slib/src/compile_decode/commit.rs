@@ -13,7 +13,6 @@ use scoop_lir::{ImportedLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::ImportedMirFoundation;
 use scoop_wire::WireError;
 
-use super::{NativeBoundaryValidatedFoundations, StructurallyValidatedFoundations};
 use crate::{
     ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord, SemanticFingerprintRecord,
     ValidatedGraphArtifact,
@@ -26,16 +25,6 @@ mod profile_seal {
 /// The complete production data carried by each supported Compile profile.
 pub trait CompileCapabilityProfile: profile_seal::Sealed {
     type Production;
-}
-
-/// The non-publishable identity-foundation Compile profile implemented by
-/// M23-2.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct IdentityFoundationProfile;
-
-impl profile_seal::Sealed for IdentityFoundationProfile {}
-impl CompileCapabilityProfile for IdentityFoundationProfile {
-    type Production = ();
 }
 
 /// The M23-3 production Compile profile for one Cone whose definitions all
@@ -70,35 +59,6 @@ pub struct ValidatedCompileArtifact<P: CompileCapabilityProfile> {
     lir: ImportedLirFoundation,
     production: P::Production,
     profile: PhantomData<fn() -> P>,
-}
-
-impl<'input> NativeBoundaryValidatedFoundations<'input> {
-    /// Atomically imports all three layers into one session. Identity ids are
-    /// assigned only after every origin and canonical-key conflict check has
-    /// passed.
-    pub fn commit(
-        self,
-        session: &mut SemanticIdentitySession,
-    ) -> Result<ValidatedCompileArtifact<IdentityFoundationProfile>, CompileCommitError> {
-        let StructurallyValidatedFoundations {
-            mut graph,
-            identities,
-            hir,
-            mir,
-            lir,
-        } = self.foundations;
-        let imported = commit_identity_graph(&mut graph, &identities, session)?;
-        let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
-        Ok(ValidatedCompileArtifact {
-            metadata: Rc::new(graph.into()),
-            identities: Rc::new(identities),
-            hir: ImportedHirFoundation::from_validated(hir, hir_identities),
-            mir: ImportedMirFoundation::from_validated(mir, mir_identities),
-            lir: ImportedLirFoundation::from_validated(lir, lir_identities),
-            production: (),
-            profile: PhantomData,
-        })
-    }
 }
 
 impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {

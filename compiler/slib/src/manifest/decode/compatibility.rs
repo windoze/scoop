@@ -317,7 +317,7 @@ mod tests {
     fn compatibility_reader_selects_the_exact_registered_artifact_profile() {
         let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
         for profile in [
-            ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         ] {
             let expected = CompatibilityRecord::new(selection, profile).unwrap();

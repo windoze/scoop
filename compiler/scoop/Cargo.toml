@@ -20,5 +20,3 @@ rustix.workspace = true
 [dev-dependencies]
 serde.workspace = true
 serde_json.workspace = true
-scoop-hir.workspace = true
-scoop-mir.workspace = true

@@ -27,8 +27,7 @@ use scoop_identity::{
 use scoop_wire::WirePath;
 
 use super::{
-    NativeBoundaryCompileError, NativeBoundaryFoundationView,
-    NativeBoundarySourceValidatedFoundations, index_records, records_by_id,
+    NativeBoundaryCompileError, NativeBoundaryFoundationView, index_records, records_by_id,
 };
 use crate::ValidatedGraphArtifact;
 
@@ -46,42 +45,6 @@ use physical::*;
 
 use scoop_abi::exact_type_records;
 pub(crate) use scoop_abi::{AbiReplayDependency, collect_abi_types, replay_canonical_scoop_abi};
-
-/// Foundation payloads whose source closure and every target-specific native
-/// ABI leaf were independently recomputed from canonical identities.
-pub struct NativeBoundaryValidatedFoundations<'input> {
-    pub(crate) foundations: super::super::StructurallyValidatedFoundations<'input>,
-}
-
-impl<'input> NativeBoundarySourceValidatedFoundations<'input> {
-    pub fn validate_target(
-        mut self,
-    ) -> Result<NativeBoundaryValidatedFoundations<'input>, NativeBoundaryCompileError> {
-        let view = NativeBoundaryFoundationView {
-            source_contracts: self.foundations.hir.source_native_contracts(),
-            type_definitions: self.foundations.hir.native_boundary_types(),
-            callback_applications: self.foundations.mir.callback_application_records(),
-            native_contracts: self.foundations.lir.native_contracts(),
-            c_abi_signatures: self.foundations.lir.c_abi_signatures(),
-            c_abi_layouts: self.foundations.lir.c_abi_layouts(),
-            callback_bridges: self.foundations.lir.callback_bridges(),
-        };
-        validate_target_normalization(
-            &mut self.foundations.graph,
-            &self.foundations.identities,
-            &view,
-        )?;
-        Ok(NativeBoundaryValidatedFoundations {
-            foundations: self.foundations,
-        })
-    }
-}
-
-impl NativeBoundaryValidatedFoundations<'_> {
-    pub const fn foundations(&self) -> &super::super::StructurallyValidatedFoundations<'_> {
-        &self.foundations
-    }
-}
 
 pub(super) fn validate_target_normalization(
     artifact: &mut ValidatedGraphArtifact<'_>,

@@ -21,21 +21,13 @@ use scoop_lir::{CallbackBridgeRecord, OdrFreeLirFoundation};
 use scoop_mir::{CallbackApplicationRecord, OdrFreeMirFoundation};
 use scoop_wire::{WireError, WirePath};
 
-use super::StructurallyValidatedFoundations;
 use crate::ValidatedGraphArtifact;
 
 mod errors;
 mod target;
 pub use errors::NativeBoundaryCompileError;
+pub use target::NativeBoundaryTargetError;
 pub(crate) use target::{AbiReplayDependency, collect_abi_types, replay_canonical_scoop_abi};
-pub use target::{NativeBoundaryTargetError, NativeBoundaryValidatedFoundations};
-
-/// Structurally valid foundations whose native-boundary source witnesses are
-/// exactly the transitive nominal closure required by externs and callbacks.
-/// Target-specific ABI normalization remains a separate proof.
-pub struct NativeBoundarySourceValidatedFoundations<'input> {
-    pub(super) foundations: StructurallyValidatedFoundations<'input>,
-}
 
 pub(crate) struct NativeBoundaryFoundationView<'foundation> {
     pub(super) source_contracts: &'foundation [SourceNativeExternalContractRecord],
@@ -62,30 +54,6 @@ impl<'foundation> NativeBoundaryFoundationView<'foundation> {
             c_abi_layouts: lir.c_abi_layouts(),
             callback_bridges: lir.callback_bridges(),
         }
-    }
-}
-
-impl<'input> StructurallyValidatedFoundations<'input> {
-    pub fn validate_native_boundary_source(
-        self,
-    ) -> Result<NativeBoundarySourceValidatedFoundations<'input>, NativeBoundaryCompileError> {
-        let view = NativeBoundaryFoundationView {
-            source_contracts: self.hir.source_native_contracts(),
-            type_definitions: self.hir.native_boundary_types(),
-            callback_applications: self.mir.callback_application_records(),
-            native_contracts: self.lir.native_contracts(),
-            c_abi_signatures: self.lir.c_abi_signatures(),
-            c_abi_layouts: self.lir.c_abi_layouts(),
-            callback_bridges: self.lir.callback_bridges(),
-        };
-        validate_source_closure(&self.identities, &view)?;
-        Ok(NativeBoundarySourceValidatedFoundations { foundations: self })
-    }
-}
-
-impl NativeBoundarySourceValidatedFoundations<'_> {
-    pub const fn foundations(&self) -> &StructurallyValidatedFoundations<'_> {
-        &self.foundations
     }
 }
 

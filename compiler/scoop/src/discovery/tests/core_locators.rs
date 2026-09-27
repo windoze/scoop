@@ -64,7 +64,7 @@ fn explicit_core_artifact_and_search_root_use_common_prebuilt_claims() {
     std::fs::create_dir_all(&directory).unwrap();
     std::fs::write(
         directory.join("cone.slib"),
-        foundation_artifact(ConeCoordinate::reserved_core(), "core"),
+        manifest_artifact(ConeCoordinate::reserved_core(), "core"),
     )
     .unwrap();
     for locator in [

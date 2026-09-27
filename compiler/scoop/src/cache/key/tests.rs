@@ -1,16 +1,12 @@
-use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{ConeIdentity, NormalizedSourcePath};
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeToolchainFingerprint, CBridgeToolchainProfileV1,
-    CanonicalLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    ValidatedLirTargetSelection,
+    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, ValidatedLirTargetSelection,
 };
-use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::ScoopcProtocolCapabilityV1;
 use scoop_slib::{
     ArtifactManifestSummaryV1, ConeKind, ConeRecord, ConeSourceForm, DependencyRecord,
-    IdentityAbiDescriptor, IdentityFoundationArtifact, IdentityFoundationArtifactInput,
-    ProducerRecord, read_artifact_manifest_summary,
+    IdentityAbiDescriptor, read_artifact_manifest_summary,
 };
 use scoop_wire::{encode, sha256};
 
@@ -80,51 +76,38 @@ fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolch
 
 fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummaryV1) {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
-    let core_cone = ConeRecord::new(
-        ConeCoordinate::reserved_core(),
-        ConeKind::Library,
-        ConeSourceForm::Manifest,
-    )
-    .unwrap();
-    let core = IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new("cache-key-core").unwrap(),
-        core_cone,
-        selection,
-        &hir,
-        &mir,
-        &lir,
-    ))
-    .unwrap();
-    let core = read_artifact_manifest_summary(core.as_bytes(), selection).unwrap();
-    let core_semantic = core.semantic_fingerprints();
-    let core_dependency = DependencyRecord::new(
-        core.cone().coordinate().clone(),
-        core_semantic.hir(),
-        core_semantic.mir(),
-        core_semantic.lir(),
-    )
-    .unwrap();
-    let dependency_cone = ConeRecord::new(
-        ConeCoordinate::new("dev.example", "dependency", "1.0.0").unwrap(),
-        ConeKind::Library,
-        ConeSourceForm::Manifest,
-    )
-    .unwrap();
-    let dependency = IdentityFoundationArtifact::write(
-        IdentityFoundationArtifactInput::new(
-            ProducerRecord::new("cache-key-dependency").unwrap(),
-            dependency_cone,
-            selection,
-            &hir,
-            &mir,
-            &lir,
+    let core = crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
         )
-        .with_direct_dependencies(vec![core_dependency]),
-    )
-    .unwrap();
+        .unwrap(),
+        "cache-key-core",
+        Vec::new(),
+    );
+    let core = read_artifact_manifest_summary(core.as_bytes(), selection).unwrap();
+    let semantic = core.semantic_fingerprints();
+    let dependency = crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        ConeRecord::new(
+            ConeCoordinate::new("dev.example", "dependency", "1.0.0").unwrap(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        "cache-key-dependency",
+        vec![
+            DependencyRecord::new(
+                core.cone().coordinate().clone(),
+                semantic.hir(),
+                semantic.mir(),
+                semantic.lir(),
+            )
+            .unwrap(),
+        ],
+    );
     let dependency = read_artifact_manifest_summary(dependency.as_bytes(), selection).unwrap();
     (core, dependency)
 }
@@ -193,7 +176,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "023eddbf15371b85c30923eb2a79cfa3514c0770307bb3c99e83528f07493f7a"
+        "7649443bbe9839654d1ca01cd2eec06b7cd8bccf9caf6472ddb87da828be95fd"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xac));
 }
@@ -288,7 +271,7 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
         );
     });
     assert_mutation_misses(&baseline, |input| {
-        input.artifact_profile = ArtifactCapabilityProfileId::identity_foundation();
+        input.artifact_profile = ArtifactCapabilityProfileId::single_cone_strong();
     });
     assert_mutation_misses(&baseline, |input| {
         input.c_bridge_toolchain =

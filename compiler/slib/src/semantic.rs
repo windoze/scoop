@@ -570,7 +570,7 @@ mod tests {
     fn compatibility() -> CompatibilityRecord {
         CompatibilityRecord::new(
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            crate::ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+            crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         )
         .unwrap()
     }

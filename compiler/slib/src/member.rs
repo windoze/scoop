@@ -269,10 +269,6 @@ impl SlibMember {
     pub fn payload(&self) -> &[u8] {
         &self.payload
     }
-
-    pub(crate) fn expected_id(&self, cone: ConeIdentity) -> Result<SlibMemberId, HashError> {
-        SlibMemberId::from_stable_key(cone, &self.record.stable_key)
-    }
 }
 
 impl SlibMemberRecord {

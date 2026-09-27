@@ -1,15 +1,10 @@
-use scoop_hir::{HirFoundationValidationError, NativeBoundaryNominalOwner};
+use scoop_hir::NativeBoundaryNominalOwner;
 use scoop_identity::{
     IdentityReferenceError, IdentityValidationError, SemanticIdentityImportError,
 };
-use scoop_lir::LirFoundationValidationError;
-use scoop_mir::MirFoundationValidationError;
 use scoop_wire::WirePath;
 
-use crate::{
-    CompileCommitError, FoundationStructureValidationError, MetadataLocation,
-    NativeBoundaryCompileError, NativeBoundaryTargetError,
-};
+use crate::{CompileCommitError, NativeBoundaryCompileError, NativeBoundaryTargetError};
 
 use super::{
     SlibDiagnostic, SlibDiagnosticRecord, SlibErrorCode, SlibPrimaryOrigin, root_diagnostic,
@@ -55,16 +50,6 @@ impl SlibDiagnostic for IdentityReferenceError {
             Self::StorageFailure => {
                 SlibDiagnosticRecord::new(SlibErrorCode::WireIntegerOutOfRange, WirePath::root())
             }
-        }
-    }
-}
-
-impl SlibDiagnostic for FoundationStructureValidationError {
-    fn diagnostic(&self) -> SlibDiagnosticRecord {
-        match self {
-            Self::Hir(error) => hir_structure_diagnostic(error),
-            Self::Mir(error) => mir_structure_diagnostic(error),
-            Self::Lir(error) => lir_structure_diagnostic(error),
         }
     }
 }
@@ -186,62 +171,6 @@ impl SlibDiagnostic for SemanticIdentityImportError {
                 SlibDiagnosticRecord::new(SlibErrorCode::Allocation, WirePath::root())
             }
         }
-    }
-}
-
-fn hir_structure_diagnostic(error: &HirFoundationValidationError) -> SlibDiagnosticRecord {
-    match error {
-        HirFoundationValidationError::Identity(error) => error.diagnostic(),
-        HirFoundationValidationError::Resource(error) => error.diagnostic(),
-        HirFoundationValidationError::SourceNativeContract { .. }
-        | HirFoundationValidationError::DefinitionOrigin { .. }
-        | HirFoundationValidationError::Origin(_)
-        | HirFoundationValidationError::NativeBoundaryType { .. }
-        | HirFoundationValidationError::NativeBoundaryShapeCoverage(_) => {
-            SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root())
-                .with_origin(SlibPrimaryOrigin::Metadata(MetadataLocation::Hir))
-        }
-        _ => SlibDiagnosticRecord::new(SlibErrorCode::ReferenceInvalid, WirePath::root())
-            .with_origin(SlibPrimaryOrigin::Metadata(MetadataLocation::Hir)),
-    }
-}
-
-fn mir_structure_diagnostic(error: &MirFoundationValidationError) -> SlibDiagnosticRecord {
-    match error {
-        MirFoundationValidationError::Identity(error) => error.diagnostic(),
-        MirFoundationValidationError::Resource(error) => error.diagnostic(),
-        MirFoundationValidationError::CallbackRelation(_) => {
-            SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root())
-                .with_origin(SlibPrimaryOrigin::Metadata(MetadataLocation::Mir))
-        }
-        _ => SlibDiagnosticRecord::new(SlibErrorCode::ReferenceInvalid, WirePath::root())
-            .with_origin(SlibPrimaryOrigin::Metadata(MetadataLocation::Mir)),
-    }
-}
-
-fn lir_structure_diagnostic(error: &LirFoundationValidationError) -> SlibDiagnosticRecord {
-    match error {
-        LirFoundationValidationError::Identity(error) => error.diagnostic(),
-        LirFoundationValidationError::Resource(error) => error.diagnostic(),
-        LirFoundationValidationError::RuntimeType {
-            error: scoop_lir::RuntimeTypeMappingResolutionError::Resource(error),
-            ..
-        }
-        | LirFoundationValidationError::Safepoint {
-            error: scoop_lir::SafepointMappingResolutionError::Resource(error),
-            ..
-        } => error.diagnostic(),
-        LirFoundationValidationError::NativeContract { .. }
-        | LirFoundationValidationError::CAbiSignature { .. }
-        | LirFoundationValidationError::CAbiLayout { .. }
-        | LirFoundationValidationError::CallbackBridge { .. }
-        | LirFoundationValidationError::NativeContractRelation(_)
-        | LirFoundationValidationError::BridgeRelation(_) => {
-            SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root())
-                .with_origin(SlibPrimaryOrigin::Metadata(MetadataLocation::Lir))
-        }
-        _ => SlibDiagnosticRecord::new(SlibErrorCode::ReferenceInvalid, WirePath::root())
-            .with_origin(SlibPrimaryOrigin::Metadata(MetadataLocation::Lir)),
     }
 }
 

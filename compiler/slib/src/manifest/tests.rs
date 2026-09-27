@@ -10,17 +10,21 @@ use crate::{
 };
 
 fn fingerprints(seed: u8) -> SemanticFingerprintRecord {
-    SemanticFingerprintRecord::from_foundation_digests(
+    SemanticFingerprintRecord::from_digests(
         HirFingerprint::from_array([seed; 32]),
         MirFingerprint::from_array([seed.wrapping_add(1); 32]),
         LirFingerprint::from_array([seed.wrapping_add(2); 32]),
+        crate::FingerprintAvailability::Available(crate::CodeFingerprint::from_array([4; 32])),
+        crate::FingerprintAvailability::Available(crate::RuntimeImageFingerprint::from_array(
+            [5; 32],
+        )),
     )
 }
 
 fn compatibility() -> CompatibilityRecord {
     CompatibilityRecord::new(
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
     )
     .unwrap()
 }

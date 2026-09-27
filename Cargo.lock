@@ -435,11 +435,9 @@ version = "0.0.0"
 dependencies = [
  "fs4",
  "rustix",
- "scoop-hir",
  "scoop-identity",
  "scoop-lir",
  "scoop-manifest",
- "scoop-mir",
  "scoop-protocol",
  "scoop-slib",
  "scoop-toolchain",

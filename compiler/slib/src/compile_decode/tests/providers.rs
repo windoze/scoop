@@ -1,9 +1,22 @@
-use super::*;
-use scoop_identity::{PersistentTypeId, SourceNominalKind};
+use crate::strong_compile_decode::tests::{
+    build_artifact_for_profile_with_dependencies, open_graph,
+};
+use crate::{
+    ArtifactCapabilityProfile, ConeKind, ConeRecord, ConeSourceForm, DependencyRecord,
+    HirFingerprint, LirFingerprint, MirFingerprint,
+};
+use scoop_hir::{CanonicalHirFoundation, DecodedHirFoundation};
+use scoop_identity::{
+    CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, DeclarationScope,
+    DefinitionOwnerChain, IdentityValidationError, PackagePath, PersistentTypeId,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+};
+use scoop_lir::{CanonicalLirFoundation, DecodedLirFoundation};
+use scoop_mir::{CanonicalMirFoundation, DecodedMirFoundation};
+use scoop_wire::{decode_canonical, encode};
 
 #[test]
 fn foreign_declarations_require_their_actual_cone_dependency() {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     for provider in [
         ConeCoordinate::reserved_core(),
         ConeCoordinate::new("tests", "provider", "1.0.0").unwrap(),
@@ -39,30 +52,26 @@ fn foreign_declarations_require_their_actual_cone_dependency() {
                 })
                 .into_iter()
                 .collect();
-            let artifact = IdentityFoundationArtifact::write(
-                IdentityFoundationArtifactInput::new(
-                    ProducerRecord::new("test").unwrap(),
-                    ConeRecord::new(
-                        ConeCoordinate::reserved_single_file(),
-                        ConeKind::Executable,
-                        ConeSourceForm::SingleFile,
-                    )
-                    .unwrap(),
-                    selection,
-                    &hir,
-                    &mir,
-                    &lir,
+            let bytes = build_artifact_for_profile_with_dependencies(
+                ConeRecord::new(
+                    ConeCoordinate::reserved_single_file(),
+                    ConeKind::Executable,
+                    ConeSourceForm::SingleFile,
                 )
-                .with_direct_dependencies(dependencies),
-            )
-            .unwrap();
-            let result = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), selection)
-                .unwrap()
-                .validate_graph()
-                .unwrap()
-                .decode_identity_foundations()
-                .unwrap()
-                .validate_identities();
+                .unwrap(),
+                ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+                dependencies,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                false,
+            );
+            let result = crate::compile_decode::validate_foundation_identity_graph(
+                &mut open_graph(&bytes),
+                &decode_canonical::<DecodedHirFoundation>(&encode(&hir).unwrap()).unwrap(),
+                &decode_canonical::<DecodedMirFoundation>(&encode(&mir).unwrap()).unwrap(),
+                &decode_canonical::<DecodedLirFoundation>(&encode(&lir).unwrap()).unwrap(),
+            );
             if include_dependency {
                 result.expect("the declared provider resolves the foreign declaration");
             } else {

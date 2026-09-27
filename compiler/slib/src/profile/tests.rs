@@ -6,38 +6,16 @@ mod layout;
 mod strong_version;
 
 #[test]
-fn identity_foundation_profile_has_the_fixed_descriptor_and_fingerprint() {
-    let profile = ArtifactCapabilityProfile::IDENTITY_FOUNDATION;
-    let descriptor = profile.descriptor();
-    assert_eq!(
-        hex(&encode(&descriptor).unwrap()),
-        "a901a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c6502736964656e746974792d666f756e646174696f6e030202800381a301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03030481a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03010581a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e030106010701080109a3010102010401"
-    );
-    assert_eq!(
-        profile.fingerprint().unwrap().to_string(),
-        "c9dd14cdce30fe2e455f7a7c8ef2954f82b4bb2f1a561bc93da8ed0401d5e191"
-    );
-    assert_eq!(
-        descriptor.publication_class(),
-        PublicationClass::FoundationOnly
-    );
-    assert_eq!(
-        descriptor.validation_policy().link_proof(),
-        LinkProofPolicy::Forbidden
-    );
-}
-
-#[test]
 fn single_cone_strong_profile_has_the_fixed_descriptor_and_fingerprint() {
     let profile = ArtifactCapabilityProfile::SINGLE_CONE_STRONG;
     let descriptor = profile.descriptor();
     assert_eq!(
         hex(&encode(&descriptor).unwrap()),
-        "a901a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c65027273696e676c652d636f6e652d7374726f6e6703020281a301776f72672e73636f6f702d6c616e672e6d616e6966657374027673696e676c652d636f6e652d70726f64756374696f6e03010382a301726f72672e73636f6f702d6c616e672e686972027818636f72652d626f6f7473747261702d696e746572666163650304a301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03030482a301726f72672e73636f6f702d6c616e672e6d69720275636f72652d626f6f7473747261702d6272696467650301a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03010583a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e0301a301726f72672e73636f6f702d6c616e672e6c697202756c696e6b2d6964656e746974792d636c6f737572650303a301726f72672e73636f6f702d6c616e672e6c697202717374726f6e672d70726f64756374696f6e030b06020702080209a3010202010402"
+        "a501a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c65027273696e676c652d636f6e652d7374726f6e6703030281a301776f72672e73636f6f702d6c616e672e6d616e6966657374027673696e676c652d636f6e652d70726f64756374696f6e03010382a301726f72672e73636f6f702d6c616e672e686972027818636f72652d626f6f7473747261702d696e746572666163650304a301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03030482a301726f72672e73636f6f702d6c616e672e6d69720275636f72652d626f6f7473747261702d6272696467650301a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03010583a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e0301a301726f72672e73636f6f702d6c616e672e6c697202756c696e6b2d6964656e746974792d636c6f737572650303a301726f72672e73636f6f702d6c616e672e6c697202717374726f6e672d70726f64756374696f6e030b"
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "acdfef2a8d908c17d72383c03e4960dff8f477d4da6c721513ba8255a6b49e60"
+        "7cbc3b96392014215198d279eee85994b8b96ded183a2fb68e693eab0364f825"
     );
     assert_eq!(
         ArtifactCapabilityProfile::from_id(descriptor.id()),
@@ -70,26 +48,6 @@ fn single_cone_strong_profile_has_the_fixed_descriptor_and_fingerprint() {
             lir_strong_production_capability(),
         ]
     );
-    assert_eq!(
-        descriptor.code_requirement(),
-        FingerprintAvailabilityRequirement::MustBeAvailable
-    );
-    assert_eq!(
-        descriptor.runtime_requirement(),
-        FingerprintAvailabilityRequirement::MustBeAvailable
-    );
-    assert_eq!(
-        descriptor.publication_class(),
-        PublicationClass::Publishable
-    );
-    assert_eq!(
-        descriptor.validation_policy().odr(),
-        OdrValidationPolicy::RejectAll
-    );
-    assert_eq!(
-        descriptor.validation_policy().link_proof(),
-        LinkProofPolicy::Required
-    );
 }
 
 #[test]
@@ -102,7 +60,7 @@ fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint(
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "d78fe5a738cfe975551323bd37484e0f79f6b6583d9e126073ab761226526ee6"
+        "f2f283c8bd8f073cca64f44fbd09c8315eb4b749d229882ce3c14a370a3f38e0"
     );
 
     assert_eq!(
@@ -138,24 +96,6 @@ fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint(
             lir_link_identity_closure_capability(),
             lir_strong_production_capability(),
         ]
-    );
-    assert_eq!(
-        descriptor.code_requirement(),
-        FingerprintAvailabilityRequirement::MustBeAvailable
-    );
-    assert_eq!(
-        descriptor.runtime_requirement(),
-        FingerprintAvailabilityRequirement::MustBeAvailable
-    );
-    assert_eq!(
-        descriptor.publication_class(),
-        PublicationClass::Publishable
-    );
-    assert_eq!(
-        descriptor.validation_policy(),
-        ArtifactCapabilityProfile::SINGLE_CONE_STRONG
-            .descriptor()
-            .validation_policy()
     );
 }
 
@@ -292,19 +232,6 @@ fn manifest_inventory_is_closed_by_artifact_profile() {
             .validate_link_manifest_inventory(std::slice::from_ref(&production))
             .is_ok()
     );
-    assert!(matches!(
-        ArtifactCapabilityProfile::IDENTITY_FOUNDATION
-            .validate_link_manifest_inventory(std::slice::from_ref(&production)),
-        Err(
-            ArtifactProfileInventoryError::UnsupportedRequiredCapability {
-                view: ArtifactProfileView::Link,
-                location: SectionLocation::Manifest,
-                index: 0,
-                ..
-            }
-        )
-    ));
-
     let optional = crate::ManifestSection::new(
         CapabilityId::new("org.scoop-lang.test", "optional", 1).unwrap(),
         MemberPurposeSet::NONE,
@@ -312,8 +239,8 @@ fn manifest_inventory_is_closed_by_artifact_profile() {
     )
     .unwrap();
     assert!(
-        ArtifactCapabilityProfile::IDENTITY_FOUNDATION
-            .validate_link_manifest_inventory(&[optional])
+        ArtifactCapabilityProfile::SINGLE_CONE_STRONG
+            .validate_link_manifest_inventory(&[production, optional])
             .is_ok()
     );
 }

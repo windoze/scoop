@@ -86,7 +86,7 @@ LIR descriptor 依赖是明确的 typed IR 引用。reader 验证可达 provider
 
 M23-6 把已有的本地类型表示变成可独立验证、可跨 Cone 消费的接口。成功解析到外部 nominal 之后，consumer 必须取得定义方的完整语义、layout、ABI、scan、TypeDescriptor 与 dispatch 信息，才能产生 machine use。
 
-1. 新增 `cross-cone-layout-strong/2` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure 四条 section，并将强定义语义升级为 `strong-production/12`，以表达普通依赖的 TD/dispatch 引用；仍拒绝全部 ODR production。完整声明与实际使用信息按 3.1.1 合入共有 metadata，不新增独立来源授权 section。
+1. 新增 `cross-cone-layout-strong/3` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure 四条 section，并将强定义语义升级为 `strong-production/12`，以表达普通依赖的 TD/dispatch 引用；仍拒绝全部 ODR production。完整声明与实际使用信息按 3.1.1 合入共有 metadata，不新增独立来源授权 section。
 2. persistent identity 与 extern/callback contract bytes 保持；native-boundary witness 按当前 intrinsic family 与 typed C 投影合同显式升代，旧字段和版本退役。一般 layout 服务只能由新 required section 构造，不从 native witness 推出通用 layout、scan 或 dispatch。
 3. HIR 输出每个 concrete type 完备的 `gc_free`、value `ZstStatus` 与继承/slot 语义；MIR 输出表示无关的类型、构造器、成员、slot 与生成 helper 关系；LIR 独占 target layout、Scoop ABI 与递归 scan 的生产权。
 4. 外部实体保持定义 Cone 的 Strong ownership。consumer 可以检查和在本地类型中内联外部 value 的表示，但不能重新定义其 body、layout constant、scan、TD、dispatch table、registration 或初始化 storage。
@@ -97,7 +97,7 @@ M23-6 把已有的本地类型表示变成可独立验证、可跨 Cone 消费�
 9. `Array`/`MutableArray<ZST>` 保留 logical size、bounds、求值和 index iteration，allocation 不随 length 增长，不能生成 zero-stride scan、payload copy 或逐元素 token。
 10. 开放 closure 完备的 param-free 跨 Cone 构造、value 投影、member/accessor、object value、继承、virtual/interface dispatch、`is/as` 与 protected access。protected 调用保存实际声明、接收者和访问上下文，由前端按语言可见性检查；不增加授权包装，也不把 protected 声明提升成 public wrapper。
 11. 通用表示算法和 compiler/layout/object 测试本阶段覆盖 generic/structural shape；需要独立 Nominal/Structural ODR materialization 的生产请求仍留 M23-7。`Array<T>`、tuple、function、pointer 不因布局简单获得 Strong 特赦。
-12. 本阶段产出双 view 有效的多 Cone `.slib`，验证 local runtime 表示操作；真实 multi-image startup、artifact-only program-link 和多 Cone moving-GC 分别留 M23-8、M23-9、M23-11。
+12. 本阶段由实际源码产出双 view 有效的多 Cone `.slib`，在单 image harness 中链接真实对象，完成普通及移动 GC 运行验证。multi-image startup、artifact-only program-link 和最终工具链集成分别留 M23-8、M23-9、M23-11。
 
 核心关系为：
 
@@ -110,9 +110,13 @@ resolved declaration + complete type/inheritance interface
 
 same size/alignment != same exact type
 same physical signature != same callable contract
-external layout knowledge != permission to emit an external definition
+external layout use -> reference the provider-owned definition
 ExactOwnerRoot == SourceCone != exemption from dependency ODR requirements
 ```
+
+独立 `identity-foundation` artifact profile（旧 `/1`、`/2`）退役。删除只供旧测试使用的 `IdentityFoundationMetadata`、`IdentityFoundationArtifact` writer，以及 `DecodedIdentityFoundations`、`IdentityCheckedFoundations`、`StructurallyValidatedFoundations` 和 native-boundary/commit 外层组成的平行 reader。三层基础 identity payload、真实依赖身份解析、类型/ABI/GC 契约与完整 Strong 产物 reader 保留；测试直接使用共有容器或完整生产 reader，不保留只有 identity、没有实际编译输出的产物路线。
+
+生产 profile descriptor 只编码必需 section 清单：field 1=id、2=required_manifest、3=required_hir、4=required_mir、5=required_lir。原 field 6～9 及独立 `ArtifactValidationPolicy` 退役，不复用；删除仅服务于旧 profile 或未来占位的 availability policy、publication class、Link proof policy 与 ODR policy 数据。完整生产产物的 Code/RuntimeImage fingerprint 必须 Available，由 manifest 读取规则检查；ODR 在本阶段的 Strong 输入边界拒绝，optional/unknown section 按实际 purpose 与 registry 规则处理。`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong` 的 major 均升为 3，旧 `/1`、`/2` 产物和缓存重建。profile fingerprint 继续覆盖这个实际格式描述，runtime C ABI 与 String 表示不变。
 
 ## 1. 范围、基线与阶段边界
 
@@ -237,10 +241,10 @@ MIR 类型与 LIR layout/ABI 选择保存经过依赖闭包检查的完整记录
 新增：
 
 ```text
-org.scoop-lang.slib-profile/cross-cone-layout-strong/2
+org.scoop-lang.slib-profile/cross-cone-layout-strong/3
 ```
 
-其 required inventory 从 M23-5 `cross-cone-semantics-strong/2` 出发，移除 `org.scoop-lang.lir/strong-production/11`，替换为 `/12`，再加入下表前四项；`code_requirement`、`runtime_requirement`、publication、extra-section policy 和实际 Link 数据要求沿用共有规则；旧 decode-cost model 字段 3 退役，`odr = RejectAll`。
+其 required inventory 从 M23-5 `cross-cone-semantics-strong/3` 出发，移除 `org.scoop-lang.lir/strong-production/11`，替换为 `/12`，再加入下表前四项；`code_requirement`、`runtime_requirement`、publication、extra-section policy 和实际 Link 数据要求沿用共有规则；旧 decode-cost model 字段 3 退役，`odr = RejectAll`。
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
@@ -1134,7 +1138,7 @@ target表示上限由LIR报告明确target/layout错误；内部array count、si
 
 ### 13.1 独立fixture与组合fixture
 
-生产fixture采用provider→consumer，另加facade re-export和diamond；provider源码在consumer编译时不可见。建议目录 `tests/fixtures/milestone23_stage6/`，每项同时检查HIR/MIR/LIR golden、selected metadata和双view artifact；运行行为在单image harness验证，并标出待M23-9/11复用的真实多Cone运行断言。
+生产fixture采用provider→consumer，另加facade re-export和diamond；provider源码在consumer编译时不可见。建议目录 `tests/fixtures/milestone23_stage6/`，每项同时检查HIR/MIR/LIR golden、selected metadata和双view artifact；运行行为在单 image harness 中以真实多 Cone 产物验证，覆盖普通与移动 GC，并供 M23-9/11 的最终工具链集成复用。
 
 | 主题 | 独立positive | 组合与negative |
 | --- | --- | --- |
@@ -1204,4 +1208,4 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 - ZST logical semantics、typed ABI、place/static token、box/array/Ptr/C边界及scan/TD矩阵全部锁定；codegen/runtime不再从size0或空LLVM struct猜语义。
 - nonzero box、indirect aggregate和跨Conefield的managed provenance/root/relocation完整；不存在握手后才登记root或从旧ref副本复制的路径。
 - 新required section/profile、strong-production/12的完整foreign TD/dispatch引用、fingerprint/cache迁移和共有 Link requirement 与完整 object coverage 落地；既有 identity、extern/callback 契约保持，退出的专用 capability/字段按补充设计显式迁移。
-- 独立、组合、negative、各stage golden与corruption/determinism回归通过；文档明确M23-7/8/9/10/11交接，真实多Conemoving-GC不被提前宣称完成。
+- 独立、组合、negative、各stage golden与corruption/determinism回归通过；文档明确 M23-7/8/9/10/11 交接；本阶段完成单 image 的实际跨 Cone 链接与普通/移动 GC 运行，不宣称 multi-image startup 或 artifact-only program-link 已完成。

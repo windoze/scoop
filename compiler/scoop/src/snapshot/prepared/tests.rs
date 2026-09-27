@@ -1,11 +1,9 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
+use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
-use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
     ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
@@ -15,8 +13,7 @@ use scoop_protocol::{
     TargetSelectionRequestV1, TrustedCoreRequestV1, encode_machine_capability_frame,
 };
 use scoop_slib::{
-    ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord, read_artifact_manifest_summary,
+    ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, read_artifact_manifest_summary,
 };
 
 use super::*;
@@ -78,7 +75,7 @@ impl SingleConeCompilerRunner for IncompatibleProfileSuccessRunner {
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
         std::fs::write(
             request.build().out_slib().to_path_buf().unwrap(),
-            foundation_core_artifact(),
+            core_manifest_artifact(),
         )
         .unwrap();
         Ok(test_success(request.request_id()))
@@ -189,25 +186,19 @@ fn prepare(root: &Path, workspace: &Path) -> Result<PreparedBuildGraph, PrepareB
         .prepare()
 }
 
-fn foundation_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
+fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let seed = IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new("prepare-test-seed").unwrap(),
+    let seed = crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
             ConeKind::Library,
             ConeSourceForm::Manifest,
         )
         .unwrap(),
-        selection,
-        &hir,
-        &mir,
-        &lir,
-    ))
-    .unwrap();
+        "prepare-test-seed",
+        Vec::new(),
+    );
     let fingerprints = read_artifact_manifest_summary(seed.as_bytes(), selection)
         .unwrap()
         .semantic_fingerprints();
@@ -218,42 +209,28 @@ fn foundation_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
         fingerprints.lir(),
     )
     .unwrap();
-    IdentityFoundationArtifact::write(
-        IdentityFoundationArtifactInput::new(
-            ProducerRecord::new("prepare-test").unwrap(),
-            ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
-            selection,
-            &hir,
-            &mir,
-            &lir,
-        )
-        .with_direct_dependencies(vec![core]),
+    crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
+        "prepare-test",
+        vec![core],
     )
-    .unwrap()
-    .as_bytes()
-    .to_vec()
+    .into_bytes()
 }
 
-fn foundation_core_artifact() -> Vec<u8> {
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
-    IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new("prepare-core-test").unwrap(),
+fn core_manifest_artifact() -> Vec<u8> {
+    crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
             ConeKind::Library,
             ConeSourceForm::Manifest,
         )
         .unwrap(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &hir,
-        &mir,
-        &lir,
-    ))
-    .unwrap()
-    .as_bytes()
-    .to_vec()
+        "prepare-core-test",
+        Vec::new(),
+    )
+    .into_bytes()
 }
 
 #[test]
@@ -316,7 +293,7 @@ fn prepare_reprobes_and_materializes_every_prebuilt_candidate() {
     write_core(&sysroot);
     write_fake_compiler(&workspace.join("bin/scoopc"));
     let coordinate = ConeCoordinate::new("test", "prebuilt", "1.0.0").unwrap();
-    let artifact = foundation_artifact_with_core(coordinate.clone());
+    let artifact = manifest_artifact_with_core(coordinate.clone());
     std::fs::write(workspace.join("prebuilt.slib"), &artifact).unwrap();
     write_manifest(
         &root,
@@ -359,7 +336,7 @@ fn prepare_rejects_artifact_changed_after_discovery() {
     write_fake_compiler(&workspace.join("bin/scoopc"));
     let artifact_path = workspace.join("prebuilt.slib");
     let coordinate = ConeCoordinate::new("test", "prebuilt", "1.0.0").unwrap();
-    let mut artifact = foundation_artifact_with_core(coordinate);
+    let mut artifact = manifest_artifact_with_core(coordinate);
     std::fs::write(&artifact_path, &artifact).unwrap();
     write_manifest(
         &root,

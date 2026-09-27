@@ -263,18 +263,17 @@ fn strong_compile_one_shot_entry_returns_the_final_typed_artifact() {
 
 #[test]
 fn compile_section_decode_rejects_wrong_profile_before_payloads() {
-    let artifact =
-        crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(
-            ProducerRecord::new("test").unwrap(),
-            cone(),
-            selection(),
-            &CanonicalHirFoundation::empty(),
-            &CanonicalMirFoundation::empty(),
-            &CanonicalLirFoundation::empty(),
-        ))
-        .unwrap();
+    let (hir, mir, lir) = crate::strong_compile_decode::tests::required_sections();
+    let bytes = crate::strong_compile_decode::tests::build_artifact_for_profile(
+        cone(),
+        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+        hir,
+        mir,
+        lir,
+        false,
+    );
     assert!(matches!(
-        open_graph(artifact.as_bytes()).decode_single_cone_compile_sections(),
+        open_graph(&bytes).decode_single_cone_compile_sections(),
         Err(SingleConeCompileSectionDecodeError::WrongProfile { .. })
     ));
 }
@@ -587,7 +586,7 @@ pub(crate) fn build_artifact_for_profile_with_dependencies(
         &known_lir,
     )
     .unwrap();
-    let semantic = SemanticFingerprintRecord::from_validated_digests(
+    let semantic = SemanticFingerprintRecord::from_digests(
         if stale_hir_fingerprint {
             HirFingerprint::from_array([9; 32])
         } else {

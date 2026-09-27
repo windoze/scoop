@@ -33,7 +33,7 @@ fn manifest(
         ProducerRecord::new("dev").unwrap(),
         CompatibilityRecord::new(
             selection(),
-            crate::ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+            crate::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         )
         .unwrap(),
         ConeRecord::new(
@@ -44,10 +44,14 @@ fn manifest(
         .unwrap(),
         dependencies,
         members,
-        SemanticFingerprintRecord::from_foundation_digests(
+        SemanticFingerprintRecord::from_digests(
             HirFingerprint::from_array([1; 32]),
             MirFingerprint::from_array([2; 32]),
             LirFingerprint::from_array([3; 32]),
+            crate::FingerprintAvailability::Available(crate::CodeFingerprint::from_array([4; 32])),
+            crate::FingerprintAvailability::Available(crate::RuntimeImageFingerprint::from_array(
+                [5; 32],
+            )),
         ),
         sections,
     )

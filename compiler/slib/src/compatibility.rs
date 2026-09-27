@@ -267,7 +267,7 @@ mod tests {
     fn compatibility_record_is_derived_from_the_only_registered_contracts() {
         let record = CompatibilityRecord::new(
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            ArtifactCapabilityProfile::IDENTITY_FOUNDATION,
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         )
         .unwrap();
         let encoded = encode(&record).unwrap();
@@ -283,7 +283,7 @@ mod tests {
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "c9dd14cdce30fe2e455f7a7c8ef2954f82b4bb2f1a561bc93da8ed0401d5e191"
+            "7cbc3b96392014215198d279eee85994b8b96ded183a2fb68e693eab0364f825"
         );
     }
 

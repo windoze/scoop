@@ -213,19 +213,11 @@ capability_refinement!(
 pub struct ArtifactCapabilityProfileId(CapabilityId);
 
 impl ArtifactCapabilityProfileId {
-    pub fn identity_foundation() -> Self {
-        Self(CapabilityId {
-            namespace: "org.scoop-lang.slib-profile".to_owned(),
-            name: "identity-foundation".to_owned(),
-            major_version: 2,
-        })
-    }
-
     pub fn single_cone_strong() -> Self {
         Self(CapabilityId {
             namespace: "org.scoop-lang.slib-profile".to_owned(),
             name: "single-cone-strong".to_owned(),
-            major_version: 2,
+            major_version: 3,
         })
     }
 
@@ -233,7 +225,7 @@ impl ArtifactCapabilityProfileId {
         Self(CapabilityId {
             namespace: "org.scoop-lang.slib-profile".to_owned(),
             name: "cross-cone-semantics-strong".to_owned(),
-            major_version: 2,
+            major_version: 3,
         })
     }
 
@@ -241,7 +233,7 @@ impl ArtifactCapabilityProfileId {
         Self(CapabilityId {
             namespace: "org.scoop-lang.slib-profile".to_owned(),
             name: "cross-cone-layout-strong".to_owned(),
-            major_version: 2,
+            major_version: 3,
         })
     }
 
@@ -252,12 +244,10 @@ impl ArtifactCapabilityProfileId {
     pub fn refine(
         capability: CapabilityId,
     ) -> Result<Self, ArtifactCapabilityProfileRefinementError> {
-        let identity_foundation = Self::identity_foundation();
         let single_cone_strong = Self::single_cone_strong();
         let cross_cone_semantics_strong = Self::cross_cone_semantics_strong();
         let cross_cone_layout_strong = Self::cross_cone_layout_strong();
-        if capability == identity_foundation.0
-            || capability == single_cone_strong.0
+        if capability == single_cone_strong.0
             || capability == cross_cone_semantics_strong.0
             || capability == cross_cone_layout_strong.0
         {
@@ -425,7 +415,6 @@ mod tests {
     #[test]
     fn artifact_profile_refinement_accepts_all_registered_profiles() {
         for profile in [
-            ArtifactCapabilityProfileId::identity_foundation(),
             ArtifactCapabilityProfileId::single_cone_strong(),
             ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
             ArtifactCapabilityProfileId::cross_cone_layout_strong(),
@@ -441,6 +430,22 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn retired_artifact_profiles_require_rebuilding() {
+        for name in [
+            "identity-foundation",
+            "single-cone-strong",
+            "cross-cone-semantics-strong",
+            "cross-cone-layout-strong",
+        ] {
+            for major in 1..=2 {
+                let retired =
+                    CapabilityId::new("org.scoop-lang.slib-profile", name, major).unwrap();
+                assert!(ArtifactCapabilityProfileId::refine(retired).is_err());
+            }
+        }
     }
 
     #[test]

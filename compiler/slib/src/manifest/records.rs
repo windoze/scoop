@@ -292,7 +292,7 @@ impl SemanticFingerprintRecord {
         }
     }
 
-    pub(crate) const fn from_validated_digests(
+    pub const fn from_digests(
         hir: HirFingerprint,
         mir: MirFingerprint,
         lir: LirFingerprint,

@@ -102,11 +102,9 @@ impl DecodedBootstrapManifest {
 
         require_strictly_increasing_members(&members)?;
 
-        let profile = crate::ArtifactCapabilityProfile::from_id(compatibility.artifact_profile())
-            .expect("every validated artifact profile is registered");
         let semantic_fingerprints = self
             .semantic_fingerprints
-            .validate(profile)
+            .validate()
             .map_err(BootstrapManifestValidationError::SemanticFingerprints)?;
 
         let mut sections = Vec::new();

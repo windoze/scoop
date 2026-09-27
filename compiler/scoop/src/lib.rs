@@ -28,3 +28,6 @@ pub use locator::{DependencyLocatorError, LocatorIoOperation};
 pub use request::*;
 pub use schedule::*;
 pub use snapshot::*;
+
+#[cfg(test)]
+mod test_artifacts;

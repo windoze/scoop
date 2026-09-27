@@ -147,22 +147,16 @@ mir-lower:
 lir-lower:
     MIR(with persistent origins) -> LIR + LirIdentityFoundation
 
-slib-foundation:
-    GraphManifestInput
-      + HirIdentityFoundation
-      + MirIdentityFoundation
-      + LirIdentityFoundation
-      + TypedOpaqueMembers
-    -> foundation `.slib`
+slib-write:
+    complete HIR/MIR/LIR production sections + object members
+    -> ordinary production `.slib`
 
 slib-read:
-    bytes
-    -> DecodedSlibEnvelope
-    -> ValidatedGraphArtifact
-    -> ValidatedCompileArtifact<IdentityFoundationProfile>
+    bytes -> DecodedSlibEnvelope -> ValidatedGraphArtifact
+    -> complete Compile/Link data for the requested production profile
 ```
 
-foundation writer是M23-2测试与迁移工具，不接入当前driver的production输出，也不返回`PublishableArtifact`。后续产物发布使用同一低层 writer；共有格式与语义只验证一次，Link 追加实际对象、符号、ABI 和 relocation 检查。
+独立 `identity-foundation` artifact profile（旧 `/1`、`/2`）退役。删除只供旧测试使用的 `IdentityFoundationMetadata`、`IdentityFoundationArtifact` writer，以及 `DecodedIdentityFoundations`、`IdentityCheckedFoundations`、`StructurallyValidatedFoundations` 和 native-boundary/commit 外层组成的平行 reader。三层基础 identity payload、真实依赖身份解析、类型/ABI/GC 契约与完整 Strong 产物 reader 保留；测试直接使用共有容器或完整生产 reader，不保留只有 identity、没有实际编译输出的产物路线。
 
 ### 2.3 所有权与不变量
 
@@ -701,7 +695,7 @@ ImmortalObjectOwner =
   | InitializationUnit { id: PersistentInitializationUnitId } // tag 3, field 1
 ```
 
-sum仍使用`0=tag`，每个variant payload从field 1开始。`PersistentPropertyAccessorId`只接受property declaration owner；`FieldIdentityKey::Source`只接受source nominal declaration，Generated分支只接受generated `PersistentTypeId`，exact application不能另造per-application field declaration id；`PersistentEnumVariantId`的Source分支只接受source enum的Concrete/GenericTemplate owner，Generated分支只接受匹配role的generated enum。`PersistentDispatchSlotId`只接受`DispatchDeclarationOwner`，generic callable declaration、constructor、application和generated callable不能另造声明slot。trusted HIR constructor还检查：VirtualMethod owner是virtual family root、InterfaceMethod owner是direct interface member、getter/setter role匹配对应family-root accessor，所有override复用同一slot id。上述virtual/interface/family关系不在identity key中，M23-2 foundation wire只能验证owner typed kind与“generic callable不得成为slot”这类key内事实；`ValidatedCompileArtifact<IdentityFoundationProfile>`不暴露“dispatch合法”API。M23-5必须用新的required HIR dispatch-declaration provenance section重放其余检查，production profile取得该proof后才可导出slot/实现relation。现有LIR的closure/function-bridge call slot只是function-local ABI table index，不是persistent dispatch declaration；adjust/boxing/variance thunk是某个slot的implementation body，也不是新slot。application-specific field/variant/dispatch relation由“declaration id + exact owner/substitution”表达。storage/immortal key才可使用较宽的`DefinitionOwner`。这些sum仅用于保留kind的product field，不提供跨variant cast或“任意entity lookup”API。
+sum仍使用`0=tag`，每个variant payload从field 1开始。`PersistentPropertyAccessorId`只接受property declaration owner；`FieldIdentityKey::Source`只接受source nominal declaration，Generated分支只接受generated `PersistentTypeId`，exact application不能另造per-application field declaration id；`PersistentEnumVariantId`的Source分支只接受source enum的Concrete/GenericTemplate owner，Generated分支只接受匹配role的generated enum。`PersistentDispatchSlotId`只接受`DispatchDeclarationOwner`，generic callable declaration、constructor、application和generated callable不能另造声明slot。前端按实际声明确定 VirtualMethod family root、直接 InterfaceMethod owner 与 getter/setter role，override 复用同一 slot id；共有 HIR 声明直接保存这些 typed 关系。基础 identity wire 检查 key 的 typed kind 与引用，完整 reader 在共有声明边界核对真实 slot、签名和实现引用，不另设 provenance section、导出资格或 identity-only Compile profile。现有LIR的closure/function-bridge call slot只是function-local ABI table index，不是persistent dispatch declaration；adjust/boxing/variance thunk是某个slot的implementation body，也不是新slot。application-specific field/variant/dispatch relation由“declaration id + exact owner/substitution”表达。storage/immortal key才可使用较宽的`DefinitionOwner`。这些sum仅用于保留kind的product field，不提供跨variant cast或“任意entity lookup”API。
 
 第5.2节各个shorthand key的CBOR field也由此精确化：
 
@@ -994,7 +988,7 @@ M24 generic release hook使用`{group = 该owner的Nominal specialization group,
 
 param-free hook不构造ReleaseHook ODR member；其body、callable registration与TD都继承同一个exact source subject，因而可按M23-7完整hidden proof统一为ConeStrong或TemplateSupportHidden。这样M24只启用M23-2已经赋义的role/matrix，不改变`OdrGroupId`、`OdrMemberKey`或`persistent-v1`；但M23 schema v1的artifact profile仍一律拒绝ReleaseHook semantic member。
 
-M23-2对当前callable application生成`SpecializationKey::Callable`、对应`CallableBody` member与`OdrWeak` symbol，使同一generic owner/callable application从一开始就没有temporary Strong identity。但foundation profile不可发布、没有Link view；M23-3的production profile仍明确拒绝任何ODR member。直到M23-7补齐完整member闭包、ABI/definition fingerprint、object materialization和跨Cone member-set/definition一致性证明后，含ODR member的artifact才可取得Publishable/Link proof。M23-7不重定义上述group/member key。不使用FQN、symbol、producer Cone、object分片或全零bytes作占位。
+generic specialization 使用既有 typed callable application、`SpecializationKey::Callable`、group/member 与 symbol key。当前完整 Strong 产物拒绝 ODR member/body/symbol，不存在可单独发布或消费的 foundation profile。M23-7 再完成实际 member 闭包、ABI/definition fingerprint、object materialization 和跨 Cone 定义一致性；这些都是链接所需数据，不建立发布资格或来源证明。既有实体身份不使用 FQN、symbol、producer Cone、object 分片或全零值回退。
 
 ### 5.3 identity record与顺序
 
@@ -1341,9 +1335,9 @@ validator不从linkage反猜owner，而是先从完整identity graph计算一个
 
 表中C/H/O分别是ConeStrong、TemplateSupportHidden、OdrWeak；RuntimeAbi对全部21行都非法。每个ObjectDefinitionPlan恰有一个primary symbol key，ODR member也不能同时发一个kind-specific primary和`od` alias。primary选择固定为：CallableBody/DispatchAdapter→`cb`；Layout→`ly`；ScanProgram→`sp`；TypeDescriptor→`td`；DispatchTable→`dt`；StaticStorage→`ss`；ImmortalObject→`io`；InitializationCell/Descriptor→`ic`/`id`；RegistrationRecord按discriminator唯一映射`rr/ir/nr/tr/sr/cr`；ReleaseHook→对应body的`cb`。`od`只接受确有物理primary的GeneratedNominal，以及没有上述kind-specific key的DiagnosticBytes、AddressTakenConstant（两种合法discriminator）和ObjectSupport；AddressTakenConstant即使以ImmortalObject作provenance也按member id命名，不能争用该object自身`ImmortalObject` member的`io(id)`。同member双primary、两个member争同primary、两个primary指同range或用alias让Mach-O不同symbol各选不同producer都拒绝。
 
-`ConeOwned`默认且在M23-2唯一可证明的linkage是`ConeStrong`。`TemplateSupportHidden`不是“private等于hidden”的cast：M23-5最多为source root建立visibility/access eligibility；M23-7的required HIR template-support section才从实际Export template body证明`{producer, template owner, source support subject}`的reachability，随后M23-7 LIR/object section把该subject投影为上述`ConeEmissionSubject`并闭合全部派生definition。两个proof都存在且一致后，Link/production profile才可把**整个subject**收窄成`TemplateSupportHidden`；同一subject下的body/site/registration/boundary或exact/layout/scan/TD/registration不得各自选择不同linkage，同key也不能重复请求。可被最终claim的key tag封闭为`cb/ss/io/td/ly/sp/dt/ds/ic/id/rr/ir/nr/tr/sr/cr/bs/be`；Cone-owned initialization startup gateway随其unit subject继承，M24 param-free ReleaseHook及其registration随exact source subject继承，所以“strong”可具体为ConeStrong或TemplateSupportHidden。只有root gateway、image和generated bridge永远不得claim。foundation profile一律拒绝linkage 2；M23-3 production profile同样只接受`ConeStrong`并拒绝linkage 2/3，M23-5 eligibility单独存在也不开放linkage，M23-7 profile才随完整required proof开放。
+`ConeOwned` 在本阶段实际使用 `ConeStrong`。`TemplateSupportHidden` 属于后续 template/ODR 的定义可见性处理，当前 Strong profile 拒绝 linkage 2/3；不建立 M23-5 eligibility 或两份来源凭证为后续发射授予资格。后续实现按实际 template body 所需定义及其 typed 依赖闭包确定对象可见性，同一 subject 的 body、registration、layout、scan、TD 与其他派生定义保持一致；不得为相同 key 重复请求不同 linkage。本阶段不增加 template-support 物化或 ODR 产物消费能力。
 
-`OdrOwned`只能选择`OdrWeak`，`ConeOwned`不能选择`OdrWeak`。因此constructor的最终判定精确为：先求root，再检查上表和可选hidden-support proof，最后比较request linkage；不允许用“当前只有一个producer”、语言visibility、symbol spelling或native linker容忍重复来降级/升级。
+`OdrOwned` 只对应 `OdrWeak`，`ConeOwned` 不对应 `OdrWeak`。symbol 请求检查实际 owner、定义和 linkage 关系，不接收来源资格凭证；不能因当前只有一个 producer、语言 visibility、symbol spelling 或 native linker 容忍重复而改变实体归属。
 
 `@Extern`指定的native symbol与runtime固定C ABI symbol走`NativeExternalSymbol`/`RuntimeAbiSymbol`独立type，不进mangler。M23-1旧runner需要的`scoop_main`仅由driver/codegen的`LegacyExecutableShim`定义，其body只调用已有`cb`持久symbol；同一Scoop main body不同时发射CompactV2与PersistentV1两个symbol。shim不进`.slib`、identity和semantic fingerprint，M23-11删除。
 
@@ -1568,13 +1562,13 @@ metadata stable key无payload，必须与同tag role配对，且三种metadata�
 
 `TargetProfileWireId`、`BackendProfileWireId`、`ObjectFormatId`与`ArtifactCapabilityProfileId`是私有constructor产生、互不可转换的`CapabilityId` refinement；它们在wire复用三字段形状，但API不能把任意section capability cast成target/backend/profile。相应fingerprint也各有typed newtype。
 
-M23-2 registry识别：
+当前 M23 registry 识别：
 
 - `org.scoop-lang.target-profile/darwin-aarch64/1`；
 - `org.scoop-lang.backend-profile/llvm-22-1/1`；
 - `org.scoop-lang.object-format/mach-o-relocatable/1`；
-- artifact profile `org.scoop-lang.slib-profile/identity-foundation/2`；
-- metadata foundation capabilities `org.scoop-lang.hir/identity-foundation/1`、`org.scoop-lang.mir/identity-foundation/1`、`org.scoop-lang.lir/identity-foundation/1`。
+- 三个生产 artifact profile：`org.scoop-lang.slib-profile/single-cone-strong/3`、`org.scoop-lang.slib-profile/cross-cone-semantics-strong/3`、`org.scoop-lang.slib-profile/cross-cone-layout-strong/3`；
+- metadata foundation capabilities `org.scoop-lang.hir/identity-foundation/3`、`org.scoop-lang.mir/identity-foundation/1`、`org.scoop-lang.lir/identity-foundation/1`。
 
 上述两个contract DTO、singleton值、canonical bytes与digest是registry定义本身，不由host `llvm-config`、inkwell runtime枚举或TargetMachine默认值反推。`org.scoop-lang.link-object/scoop-lir/1`与`.../generated-c-bridge/1`的id/logical-key schema也按总设计冻结，但M23-2不声称识别其payload、不运行object verifier；Graph/Compile只保存hash-valid opaque member。
 
@@ -1582,7 +1576,7 @@ consumer内建的`CapabilityContractRegistryV1`为每个known section capability
 
 purpose到sink的兼容矩阵精确冻结为：`required_for=0`只允许`EnvelopeOnly`；`Compile`只允许`Hir|Mir|Lir`且至少一个；`Link`只允许`Code|RuntimeImage|LinkValidationOnly`且至少一个；`Compile|Link`必须至少有一个`Hir|Mir|Lir`和至少一个`Code|RuntimeImage|LinkValidationOnly`。`EnvelopeOnly`不能与其他sink并列。location再收窄：Hir只能产生Hir，Mir只能产生Mir；Lir的Compile面只能产生Lir、Link面只能产生Code/RuntimeImage/LinkValidationOnly；Manifest可按registry选择任一相容sink。由此Link-only section永不进入唯一的HIR/MIR/LIR semantic fingerprint，旧Compile reader无需理解它也能重算相同layer digest。
 
-`LinkValidationOnly`只允许payload是其他已经进入LIR/Code/RuntimeImage fingerprint的canonical records之**完全可重算派生闭包**。handler必须从这些上游record独立重算后逐byte比较，且不产生新的semantic contribution；section bytes仍受member/artifact hash保护。若payload含任何不能从已指纹化输入重算的新语义，就必须改用Code或RuntimeImage sink，并在对应fingerprint的规范输入中显式加入projection，不能借tag 7绕过hash。
+`LinkValidationOnly`只允许payload是其他已经进入LIR/Code/RuntimeImage fingerprint的canonical records之**完全可重算派生闭包**。reader 在实际外部消费边界核对这些引用及其派生字段；同次消费复用已经检查的记录，不独立重放完整声明或来源证明。该 section 不产生新的 semantic contribution，普通 member/artifact hash 仍检查内容一致性。若payload含任何不能从已指纹化输入重算的新语义，就必须改用Code或RuntimeImage sink，并在对应fingerprint的规范输入中显式加入projection，不能借tag 7绕过hash。
 
 当前三条foundation contract分别是`Hir/Compile/{Hir}`、`Mir/Compile/{Mir}`、`Lir/Compile/{Lir}`。每个handler恰产生一条contribution，projection逐byte等于通过其closed decoder验证后的原始canonical inner payload；不得重新serde成另一种等价bytes。M23-3的object/image/runtime section必须以新known capability给出Link对应的Code/RuntimeImage sink；`org.scoop-lang.lir/link-identity-closure/1`只列出从LIR verification surface与directory重算的派生闭包，使用LinkValidationOnly，不二次改变Compile-facing LIR fingerprint，也不声称有一条本文未定义的Code contribution聚合公式。不能把M23-2 LIR foundation偷偷升级成Link输入。`ManifestSectionV1`与`MetadataSectionV1`共用这张registry，故未来Compile/Link-required manifest section也有明确fingerprint落点。
 
@@ -1595,23 +1589,19 @@ ArtifactCapabilityProfileDescriptorV1 {
     required_hir: array<CapabilityId>,            // field 3
     required_mir: array<CapabilityId>,            // field 4
     required_lir: array<CapabilityId>,             // field 5
-    code_requirement: FingerprintAvailabilityRequirementV1, // field 6
-    runtime_requirement: FingerprintAvailabilityRequirementV1, // field 7
-    publication_class: PublicationClassV1,         // field 8
-    validation_policy: ArtifactValidationPolicyV1, // field 9
 }
 
 ArtifactCapabilityProfileFingerprint =
     DomainSeparatedCborHash("scoop-artifact-capability-profile-v1", descriptor)
 ```
 
-所有capability array按`CapabilitySortKey`排序去重；它们精确列出与该profile所请求purpose相交的mandatory required set，而不是实际envelope inventory的全集。与requested purpose相交的每条required section必须出现在对应descriptor array，array中的每项也必须实际存在；与requested purpose不相交的known/unknown section只验证envelope/hash并保持opaque。实际envelope还可以包含registry允许的EnvelopeOnly optional section。availability为`MustBeUnavailable=1`或`MustBeAvailable=2`，publication为`FoundationOnly=1`或`Publishable=2`。
+所有 capability array 按 `CapabilitySortKey` 排序去重，列出各用途实际必需的 section。与请求 purpose 相交的 required section 必须在对应清单中且实际存在；与 purpose 不相交的 section 完成范围/hash 检查后保持 opaque。registry 允许的 EnvelopeOnly optional section 不进入必需清单。
 
-`ArtifactValidationPolicyV1` 只编码实际格式规则：field 1 为 `OdrValidationPolicyV1`、field 2 为 `ExtraSectionPolicyV1`、field 4 为 `LinkProofPolicyV1`。原 field 3 的 `SlibDecodeCostModelV1` 退役且不得复用，不再保存计量策略或成本常量。ODR policy 的既有 tag 为 `IdentityOnlyNonPublishable=1, RejectAll=2, RequireCompleteDefinitionProof=3`；extra section policy 的唯一值为 `AllowPurposeDisjointOpaqueAndEnvelopeOptional=1`；Link policy 为 `Forbidden=1, Required=2`。M23-6 使用 RejectAll，不提前提供 M23-7 的 ODR 能力。
+生产 profile descriptor 只编码必需 section 清单：field 1=id、2=required_manifest、3=required_hir、4=required_mir、5=required_lir。原 field 6～9 及独立 `ArtifactValidationPolicy` 退役，不复用；删除仅服务于旧 profile 或未来占位的 availability policy、publication class、Link proof policy 与 ODR policy 数据。完整生产产物的 Code/RuntimeImage fingerprint 必须 Available，由 manifest 读取规则检查；ODR 在本阶段的 Strong 输入边界拒绝，optional/unknown section 按实际 purpose 与 registry 规则处理。`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong` 的 major 均升为 3，旧 `/1`、`/2` 产物和缓存重建。profile fingerprint 继续覆盖这个实际格式描述，runtime C ABI 与 String 表示不变。
 
-删除成本字段后，四个现有 profile（`identity-foundation`、`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong`）的 major 升为 2，使用新的 descriptor fingerprint。版本 1 的旧产物须重建；不保留旧成本模型或双版本 reader。内容哈希仍覆盖实际 section、对象和依赖信息，runtime C ABI 不因计量清理而改变。
+旧 identity-only profile 及 descriptor 的策略外层均不再读取，也不保留旧成本模型或双版本 reader。基础 identity、extern/callback 及普通格式/引用测试保留；只服务于退役 profile、状态链和策略外层的测试删除。
 
-`identity-foundation/2` 的 mandatory manifest 清单为空，HIR/MIR/LIR 分别只含对应 foundation，Code/RuntimeImage 为 Unavailable，publication 为 FoundationOnly。生产 profile 要求各自完整的 Compile/Link 数据和 Available fingerprints。reader 检查实际 inventory 中的必需 section、格式、引用、符号与 ABI，不能把只有 identity 数据的产物当作完整生产产物。profile canonical bytes 与 fingerprint 的固定向量由 `compiler/slib/src/profile/tests.rs` 验证。
+三个生产 profile 要求完整 Compile/Link 数据和 Available fingerprints。reader 在同一消费边界完成所需格式、引用、符号与 ABI 检查；发布复用同次编译的完整结果。profile canonical bytes 与 fingerprint 的固定向量由 `compiler/slib/src/profile/tests.rs` 验证。
 
 v1 `ExtensionBlob.required_for`只允许0或恰好`Link(0x4)`；Graph/Compile/Diagnostics bit、多bit或unknown bit都是目录错误。`DiagnosticAttachment`对语义purpose总是optional。`LinkObject`隐含Link required，但不得因Graph/Compile reader不认识verifier而失败；它只能在请求Link proof时fail closed。
 
@@ -1823,7 +1813,7 @@ reader不把`.slib`交给system linker或通用archive extraction。archive总�
 SlibInputBytes
   -> DecodedSlibEnvelope
   -> ValidatedGraphArtifact
-       |-> ValidatedCompileArtifact<P>   // M23-2实现foundation profile
+       |-> ValidatedCompileArtifact<P>   // Complete production data
        `-> ValidatedLinkArtifact         // M23-3首次实现
 ```
 
@@ -1831,9 +1821,9 @@ SlibInputBytes
 
 `ValidatedGraphArtifact`在envelope上追加magic/schema/ABI/profile exact match、Cone coordinate/id、kind/source form、direct dependency record与member role/purpose/capability envelope验证。它只是一个artifact graph node proof，不说dependency artifact存在、唯一、无环或已形成closure。
 
-`ValidatedCompileArtifact<P: CompileCapabilityProfile>`再按profile解码三个metadata outer envelope与所有Compile-required section，完成单层结构、identity重算、第4.5节精确矩阵规定的HIR definition-source覆盖、跨层typed identity bridge、derived u64、symbol request和semantic fingerprint检查，最后原子提交该profile允许的`ImportedHirSet/ImportedMirSet/ImportedLirSet`。M23-2唯一可构造的`P`是`IdentityFoundationProfile`。expression evaluation/concrete origin要等承载body的后续required section才进入相应Compile proof，本foundation proof不声称验证不存在的body。该proof只把LinkObject/Link-required blob作为hash-valid opaque envelope保存，没有`VerifiedLinkObject`、object bytes extraction、linker argv或native requirement API；不同profile之间没有unchecked cast。
+`ValidatedCompileArtifact<P: CompileCapabilityProfile>` 保存实际生产 profile 的完整类型、声明、表示和 identity 数据；reader 解码所需 section，检查格式、typed 引用与 ABI，并原子提交身份映射。不存在 `IdentityFoundationProfile` 或丢弃 production 内容的 `()` 分支。同次消费的 Compile/Link 复用已经检查的不可变内容，Link 追加对象、符号和 relocation 检查。
 
-M23-2不定义public `validate_link`，也不定义伪`ValidatedLinkArtifact`。M23-3必须从同一`ValidatedGraphArtifact`分叉添加object/image verifier，并共享immutable envelope/backing member ranges；Link不依赖Compile或HIR/MIR decode，也不从raw envelope开第二条捷径。
+Link 消费沿同一共有产物读取路径取得完整输入，不另建来源工厂或重复解码通道；所需数据不能因 purpose 不同而被省略。
 
 ### 11.2 decode与remap算法
 

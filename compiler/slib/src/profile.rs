@@ -25,41 +25,33 @@ pub struct ArtifactCapabilityProfile(ArtifactCapabilityProfileKind);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum ArtifactCapabilityProfileKind {
-    IdentityFoundation,
-    SingleConeStrong,
-    CrossConeSemanticsStrong,
-    CrossConeLayoutStrong,
+    SingleCone,
+    CrossConeSemantics,
+    CrossConeLayout,
 }
 
 impl ArtifactCapabilityProfile {
-    pub const IDENTITY_FOUNDATION: Self = Self(ArtifactCapabilityProfileKind::IdentityFoundation);
-    pub const SINGLE_CONE_STRONG: Self = Self(ArtifactCapabilityProfileKind::SingleConeStrong);
+    pub const SINGLE_CONE_STRONG: Self = Self(ArtifactCapabilityProfileKind::SingleCone);
     pub const CROSS_CONE_SEMANTICS_STRONG: Self =
-        Self(ArtifactCapabilityProfileKind::CrossConeSemanticsStrong);
-    pub const CROSS_CONE_LAYOUT_STRONG: Self =
-        Self(ArtifactCapabilityProfileKind::CrossConeLayoutStrong);
+        Self(ArtifactCapabilityProfileKind::CrossConeSemantics);
+    pub const CROSS_CONE_LAYOUT_STRONG: Self = Self(ArtifactCapabilityProfileKind::CrossConeLayout);
 
     pub fn id(self) -> ArtifactCapabilityProfileId {
         match self.0 {
-            ArtifactCapabilityProfileKind::IdentityFoundation => {
-                ArtifactCapabilityProfileId::identity_foundation()
-            }
-            ArtifactCapabilityProfileKind::SingleConeStrong => {
+            ArtifactCapabilityProfileKind::SingleCone => {
                 ArtifactCapabilityProfileId::single_cone_strong()
             }
-            ArtifactCapabilityProfileKind::CrossConeSemanticsStrong => {
+            ArtifactCapabilityProfileKind::CrossConeSemantics => {
                 ArtifactCapabilityProfileId::cross_cone_semantics_strong()
             }
-            ArtifactCapabilityProfileKind::CrossConeLayoutStrong => {
+            ArtifactCapabilityProfileKind::CrossConeLayout => {
                 ArtifactCapabilityProfileId::cross_cone_layout_strong()
             }
         }
     }
 
     pub fn from_id(id: &ArtifactCapabilityProfileId) -> Option<Self> {
-        if id == &ArtifactCapabilityProfileId::identity_foundation() {
-            Some(Self::IDENTITY_FOUNDATION)
-        } else if id == &ArtifactCapabilityProfileId::single_cone_strong() {
+        if id == &ArtifactCapabilityProfileId::single_cone_strong() {
             Some(Self::SINGLE_CONE_STRONG)
         } else if id == &ArtifactCapabilityProfileId::cross_cone_semantics_strong() {
             Some(Self::CROSS_CONE_SEMANTICS_STRONG)
@@ -72,7 +64,7 @@ impl ArtifactCapabilityProfile {
 
     pub fn descriptor(self) -> ArtifactCapabilityProfileDescriptor {
         match self.0 {
-            ArtifactCapabilityProfileKind::CrossConeLayoutStrong => {
+            ArtifactCapabilityProfileKind::CrossConeLayout => {
                 let mut descriptor = Self::CROSS_CONE_SEMANTICS_STRONG.descriptor();
                 descriptor.id = self.id();
                 descriptor
@@ -94,53 +86,24 @@ impl ArtifactCapabilityProfile {
                 descriptor.required_lir.sort_unstable();
                 descriptor
             }
-            ArtifactCapabilityProfileKind::IdentityFoundation => {
-                ArtifactCapabilityProfileDescriptor {
-                    id: self.id(),
-                    required_manifest: Vec::new(),
-                    required_hir: vec![hir_identity_foundation_capability()],
-                    required_mir: vec![mir_identity_foundation_capability()],
-                    required_lir: vec![lir_identity_foundation_capability()],
-                    code_requirement: FingerprintAvailabilityRequirement::MustBeUnavailable,
-                    runtime_requirement: FingerprintAvailabilityRequirement::MustBeUnavailable,
-                    publication_class: PublicationClass::FoundationOnly,
-                    validation_policy: ArtifactValidationPolicy {
-                        odr: OdrValidationPolicy::IdentityOnlyNonPublishable,
-                        extra_sections:
-                            ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-                        link_proof: LinkProofPolicy::Forbidden,
-                    },
-                }
-            }
-            ArtifactCapabilityProfileKind::SingleConeStrong => {
-                ArtifactCapabilityProfileDescriptor {
-                    id: self.id(),
-                    required_manifest: vec![manifest_single_cone_production_capability()],
-                    required_hir: vec![
-                        hir_core_bootstrap_interface_capability(),
-                        hir_identity_foundation_capability(),
-                    ],
-                    required_mir: vec![
-                        mir_core_bootstrap_bridge_capability(),
-                        mir_identity_foundation_capability(),
-                    ],
-                    required_lir: vec![
-                        lir_identity_foundation_capability(),
-                        lir_link_identity_closure_capability(),
-                        lir_strong_production_capability(),
-                    ],
-                    code_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
-                    runtime_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
-                    publication_class: PublicationClass::Publishable,
-                    validation_policy: ArtifactValidationPolicy {
-                        odr: OdrValidationPolicy::RejectAll,
-                        extra_sections:
-                            ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-                        link_proof: LinkProofPolicy::Required,
-                    },
-                }
-            }
-            ArtifactCapabilityProfileKind::CrossConeSemanticsStrong => {
+            ArtifactCapabilityProfileKind::SingleCone => ArtifactCapabilityProfileDescriptor {
+                id: self.id(),
+                required_manifest: vec![manifest_single_cone_production_capability()],
+                required_hir: vec![
+                    hir_core_bootstrap_interface_capability(),
+                    hir_identity_foundation_capability(),
+                ],
+                required_mir: vec![
+                    mir_core_bootstrap_bridge_capability(),
+                    mir_identity_foundation_capability(),
+                ],
+                required_lir: vec![
+                    lir_identity_foundation_capability(),
+                    lir_link_identity_closure_capability(),
+                    lir_strong_production_capability(),
+                ],
+            },
+            ArtifactCapabilityProfileKind::CrossConeSemantics => {
                 ArtifactCapabilityProfileDescriptor {
                     id: self.id(),
                     required_manifest: vec![manifest_single_cone_production_capability()],
@@ -161,15 +124,6 @@ impl ArtifactCapabilityProfile {
                         lir_link_identity_closure_capability(),
                         lir_strong_production_capability(),
                     ],
-                    code_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
-                    runtime_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
-                    publication_class: PublicationClass::Publishable,
-                    validation_policy: ArtifactValidationPolicy {
-                        odr: OdrValidationPolicy::RejectAll,
-                        extra_sections:
-                            ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-                        link_proof: LinkProofPolicy::Required,
-                    },
                 }
             }
         }

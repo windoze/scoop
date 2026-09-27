@@ -1,13 +1,7 @@
 use super::*;
-use scoop_hir::CanonicalHirFoundation;
-use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
 use scoop_manifest::ManifestRootLocator;
-use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::TargetSelectionRequestV1;
-use scoop_slib::{
-    ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord,
-};
+use scoop_slib::{ConeKind, ConeRecord, ConeSourceForm};
 
 fn write_manifest(root: &std::path::Path, name: &str, dependencies: &str) {
     std::fs::create_dir_all(root).unwrap();
@@ -35,14 +29,6 @@ fn request(
     sysroot: &std::path::Path,
     search_roots: Vec<ArtifactSearchRoot>,
 ) -> BuildGraphRequest {
-    request_with_limits(root, sysroot, search_roots)
-}
-
-fn request_with_limits(
-    root: &std::path::Path,
-    sysroot: &std::path::Path,
-    search_roots: Vec<ArtifactSearchRoot>,
-) -> BuildGraphRequest {
     BuildGraphRequest::new(
         crate::BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
         search_roots,
@@ -55,22 +41,15 @@ fn request_with_limits(
     .unwrap()
 }
 
-fn foundation_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
+fn manifest_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
     let cone = ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap();
-    IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new(producer).unwrap(),
+    crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
         cone,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &hir,
-        &mir,
-        &lir,
-    ))
-    .unwrap()
-    .as_bytes()
-    .to_vec()
+        producer,
+        Vec::new(),
+    )
+    .into_bytes()
 }
 
 #[test]
@@ -219,7 +198,7 @@ fn identical_artifact_claims_merge_but_different_fingerprints_conflict() {
         "[dependencies]\n\"test:shared\" = { version = \"1.0.0\", artifact = \"../shared-b.slib\" }\n",
     );
     let shared = ConeCoordinate::new("test", "shared", "1.0.0").unwrap();
-    let bytes = foundation_artifact(shared.clone(), "same");
+    let bytes = manifest_artifact(shared.clone(), "same");
     std::fs::write(temp.path().join("shared-a.slib"), &bytes).unwrap();
     std::fs::write(temp.path().join("shared-b.slib"), &bytes).unwrap();
 
@@ -235,7 +214,7 @@ fn identical_artifact_claims_merge_but_different_fingerprints_conflict() {
 
     std::fs::write(
         temp.path().join("shared-b.slib"),
-        foundation_artifact(shared, "different"),
+        manifest_artifact(shared, "different"),
     )
     .unwrap();
     assert!(matches!(
@@ -275,7 +254,7 @@ fn source_and_artifact_claims_never_select_by_discovery_order() {
     let shared = ConeCoordinate::new("test", "shared", "1.0.0").unwrap();
     std::fs::write(
         temp.path().join("shared.slib"),
-        foundation_artifact(shared, "artifact"),
+        manifest_artifact(shared, "artifact"),
     )
     .unwrap();
 

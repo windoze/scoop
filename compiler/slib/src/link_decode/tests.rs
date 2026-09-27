@@ -463,19 +463,17 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
 
 #[test]
 fn link_section_decode_rejects_the_wrong_profile_before_payloads() {
-    let artifact =
-        crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(
-            ProducerRecord::new("test").unwrap(),
-            cone(),
-            selection(),
-            &scoop_hir::CanonicalHirFoundation::empty(),
-            &scoop_mir::CanonicalMirFoundation::empty(),
-            &CanonicalLirFoundation::empty(),
-        ))
-        .unwrap();
-    let graph = open_graph(artifact.as_bytes());
+    let (hir, mir, lir) = crate::strong_compile_decode::tests::required_sections();
+    let bytes = crate::strong_compile_decode::tests::build_artifact_for_profile(
+        cone(),
+        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+        hir,
+        mir,
+        lir,
+        false,
+    );
     assert!(matches!(
-        graph.decode_single_cone_link_sections(),
+        open_graph(&bytes).decode_single_cone_link_sections(),
         Err(SingleConeLinkSectionDecodeError::WrongProfile { .. })
     ));
 }
@@ -916,7 +914,7 @@ fn build_artifact(
         &known_sections(&complete_lir_sections),
     )
     .unwrap();
-    let semantic = SemanticFingerprintRecord::from_validated_digests(
+    let semantic = SemanticFingerprintRecord::from_digests(
         if stale_hir_fingerprint {
             HirFingerprint::from_array([9; 32])
         } else {

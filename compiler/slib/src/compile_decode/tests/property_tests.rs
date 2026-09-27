@@ -1,22 +1,27 @@
-use scoop_identity::{ConeCoordinate, SemanticIdentitySession};
+use scoop_identity::SemanticIdentitySession;
 use scoop_lir::ValidatedLirTargetSelection;
 
-use crate::{
-    ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact, SlibDiagnostic,
-    SlibDiagnosticRecord,
-};
+use crate::ArtifactCapabilityProfile;
+use crate::strong_compile_decode::tests::{build_artifact_for_profile, cone, required_sections};
 
 #[derive(Debug, Eq, PartialEq)]
 struct CompileAttempt {
-    result: Result<(), Box<SlibDiagnosticRecord>>,
+    result: Result<(), String>,
     session_origins: usize,
     session_entities: usize,
 }
 
 #[test]
 fn arbitrary_archives_are_panic_free_deterministic_and_failure_atomic() {
-    let artifact = empty_foundation_artifact();
-    let canonical = artifact.as_bytes().to_vec();
+    let (hir, mir, lir) = required_sections();
+    let canonical = build_artifact_for_profile(
+        cone(),
+        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        hir,
+        mir,
+        lir,
+        false,
+    );
     let canonical_attempt = compile_attempt(&canonical);
     assert!(canonical_attempt.result.is_ok());
     assert_eq!(canonical_attempt.session_origins, 1);
@@ -55,28 +60,12 @@ fn compile_attempt(bytes: &[u8]) -> CompileAttempt {
     let mut session = SemanticIdentitySession::new();
     let result = (|| {
         let envelope = crate::DecodedSlibEnvelope::open(bytes, selection)
-            .map_err(|error| Box::new(error.diagnostic()))?;
+            .map_err(|error| error.to_string())?;
         let graph = envelope
             .validate_graph()
-            .map_err(|error| Box::new(error.diagnostic()))?;
-        let decoded = graph
-            .decode_identity_foundations()
-            .map_err(|error| Box::new(error.diagnostic()))?;
-        let identities = decoded
-            .validate_identities()
-            .map_err(|error| Box::new(error.diagnostic()))?;
-        let structure = identities
-            .validate_structure()
-            .map_err(|error| Box::new(error.diagnostic()))?;
-        let source = structure
-            .validate_native_boundary_source()
-            .map_err(|error| Box::new(error.diagnostic()))?;
-        let target = source
-            .validate_target()
-            .map_err(|error| Box::new(error.diagnostic()))?;
-        target
-            .commit(&mut session)
-            .map_err(|error| Box::new(error.diagnostic()))?;
+            .map_err(|error| error.to_string())?;
+        crate::validate_single_cone_strong_compile_artifact(graph, &mut session)
+            .map_err(|error| error.to_string())?;
         Ok(())
     })();
     CompileAttempt {
@@ -84,16 +73,6 @@ fn compile_attempt(bytes: &[u8]) -> CompileAttempt {
         session_origins: session.origin_count(),
         session_entities: session.entity_count(),
     }
-}
-
-fn empty_foundation_artifact() -> IdentityFoundationArtifact {
-    let cone = ConeRecord::new(
-        ConeCoordinate::reserved_core(),
-        ConeKind::Library,
-        ConeSourceForm::Manifest,
-    )
-    .unwrap();
-    super::foundation_artifact(cone, None)
 }
 
 fn arbitrary_byte_corpus() -> Vec<Vec<u8>> {

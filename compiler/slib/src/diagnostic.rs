@@ -7,9 +7,9 @@ use scoop_wire::{WireError, WireErrorKind, WirePath};
 use crate::{
     ArchiveMemberOrdinal, ArchiveReadError, BootstrapManifestError,
     BootstrapManifestValidationError, CompatibilitySchemaKind, CompatibilityValidationError,
-    GraphValidationError, IdentityFoundationDecodeError, MetadataLocation, MetadataReadError,
-    MetadataSectionError, MetadataSectionValidationError, ProducerRecordError, SchemaKind,
-    SemanticFingerprintError, SemanticFingerprintValidationError, SlibMemberId, SlibReadError,
+    GraphValidationError, MetadataLocation, MetadataReadError, MetadataSectionError,
+    MetadataSectionValidationError, ProducerRecordError, SchemaKind,
+    SemanticFingerprintValidationError, SlibMemberId, SlibReadError,
 };
 
 /// Closed stable diagnostic codes for the M23-2 `.slib` reader and validators.
@@ -315,10 +315,8 @@ impl SlibDiagnostic for BootstrapManifestValidationError {
             Self::SemanticFingerprints(error) => SlibDiagnosticRecord::new(
                 SlibErrorCode::FingerprintMismatch,
                 WirePath::root().field(9).field(match error {
-                    SemanticFingerprintValidationError::CodeMustBeAvailable
-                    | SemanticFingerprintValidationError::CodeMustBeUnavailable => 4,
-                    SemanticFingerprintValidationError::RuntimeImageMustBeAvailable
-                    | SemanticFingerprintValidationError::RuntimeImageMustBeUnavailable => 5,
+                    SemanticFingerprintValidationError::CodeMustBeAvailable => 4,
+                    SemanticFingerprintValidationError::RuntimeImageMustBeAvailable => 5,
                 }),
             )
             .with_origin(manifest),
@@ -393,78 +391,6 @@ impl SlibDiagnostic for GraphValidationError {
             Self::SingleFileDependency => SlibDiagnosticRecord::new(
                 SlibErrorCode::ReferenceInvalid,
                 WirePath::root().field(7),
-            ),
-        }
-    }
-}
-
-impl SlibDiagnostic for IdentityFoundationDecodeError {
-    fn diagnostic(&self) -> SlibDiagnosticRecord {
-        match self {
-            Self::MissingMetadataMember { location } => metadata_diagnostic(
-                SlibErrorCode::DirectoryMismatch,
-                *location,
-                WirePath::root().field(8),
-            ),
-            Self::MissingMemberPayload {
-                location: _,
-                member,
-            } => SlibDiagnosticRecord::new(
-                SlibErrorCode::DirectoryMismatch,
-                WirePath::root()
-                    .field(8)
-                    .key("slib-member", *member.as_array()),
-            )
-            .with_origin(SlibPrimaryOrigin::Member(*member)),
-            Self::OuterEnvelope { location, source } => source
-                .diagnostic()
-                .with_origin(SlibPrimaryOrigin::Metadata(*location)),
-            Self::MissingFoundationSection {
-                location,
-                capability,
-            }
-            | Self::UnknownCompileCapability {
-                location: Some(location),
-                capability,
-                ..
-            } => SlibDiagnosticRecord::new(
-                SlibErrorCode::CapabilityUnsupported,
-                WirePath::root().field(3),
-            )
-            .with_origin(SlibPrimaryOrigin::Capability {
-                location: Some(*location),
-                capability: capability.clone(),
-            }),
-            Self::UnknownCompileCapability {
-                location: None,
-                index,
-                capability,
-            } => SlibDiagnosticRecord::new(
-                SlibErrorCode::CapabilityUnsupported,
-                WirePath::root()
-                    .field(10)
-                    .index(u64::try_from(*index).unwrap_or(u64::MAX)),
-            )
-            .with_origin(SlibPrimaryOrigin::Capability {
-                location: None,
-                capability: capability.clone(),
-            }),
-            Self::InnerFoundation { location, source } => source
-                .diagnostic()
-                .with_origin(SlibPrimaryOrigin::Metadata(*location)),
-            Self::SemanticFingerprints(SemanticFingerprintError::Resource(error)) => {
-                error.diagnostic().with_origin(SlibPrimaryOrigin::Manifest)
-            }
-            Self::SemanticFingerprints(_) => root_diagnostic(
-                SlibErrorCode::FingerprintMismatch,
-                SlibPrimaryOrigin::Manifest,
-            ),
-            Self::SemanticFingerprintMismatch { location, .. } => metadata_diagnostic(
-                SlibErrorCode::FingerprintMismatch,
-                *location,
-                WirePath::root()
-                    .field(9)
-                    .field(metadata_fingerprint_field(*location)),
             ),
         }
     }
@@ -564,22 +490,6 @@ fn metadata_section_diagnostic(error: &MetadataSectionValidationError) -> SlibDi
                 SlibDiagnosticRecord::new(SlibErrorCode::CapabilityInvalid, WirePath::root())
             }
         },
-    }
-}
-
-fn metadata_diagnostic(
-    code: SlibErrorCode,
-    location: MetadataLocation,
-    path: WirePath,
-) -> SlibDiagnosticRecord {
-    SlibDiagnosticRecord::new(code, path).with_origin(SlibPrimaryOrigin::Metadata(location))
-}
-
-fn metadata_fingerprint_field(location: MetadataLocation) -> u32 {
-    match location {
-        MetadataLocation::Hir => 1,
-        MetadataLocation::Mir => 2,
-        MetadataLocation::Lir => 3,
     }
 }
 

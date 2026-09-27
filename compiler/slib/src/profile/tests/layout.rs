@@ -10,21 +10,11 @@ fn layout_profile_has_a_fixed_descriptor_and_fingerprint() {
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "d31b2318fc0c8aa7c623a7fed4633914b2be6c119eed47952e85fedd566a1e9b"
+        "51490f1c4030936d3df219931ee690a37ee2ee8f3dfbd310ab1b886282f0a3a9"
     );
     assert_eq!(
         ArtifactCapabilityProfile::from_id(descriptor.id()),
         Some(profile)
-    );
-    assert_eq!(
-        descriptor.validation_policy(),
-        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG
-            .descriptor()
-            .validation_policy()
-    );
-    assert_eq!(
-        descriptor.validation_policy().odr(),
-        OdrValidationPolicy::RejectAll
     );
     assert!(
         descriptor

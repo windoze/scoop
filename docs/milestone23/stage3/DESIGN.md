@@ -710,7 +710,7 @@ artifact profile固定为：
 
 ```text
 ArtifactCapabilityProfileId =
-    org.scoop-lang.slib-profile/single-cone-strong/2
+    org.scoop-lang.slib-profile/single-cone-strong/3
 
 SingleConeStrongProfileDescriptor {
     required_manifest: [single-cone-production/1],
@@ -721,27 +721,16 @@ SingleConeStrongProfileDescriptor {
     required_lir: [identity-foundation/1,
                    link-identity-closure/1,
                    strong-production/1],
-    code_requirement: MustBeAvailable,
-    runtime_requirement: MustBeAvailable,
-    publication_class: Publishable,
-    validation_policy: {
-        odr: RejectAll,
-        extra_sections: AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-        link_proof: Required,
-    },
 }
 ```
 
 capability array仍按`CapabilitySortKey`的实际ASCII顺序编码；上面为可读性列出，不授权writer沿文档顺序写wire。profile fingerprint按M23-2既有domain从该descriptor计算，并在实现第一批变更中加入固定CBOR/hex golden。改变mandatory set、sink、ODR门禁或publication语义必须提升profile major；不能只改reader代码。
 
-### 8.2 foundation不可提升
+### 8.2 退役 identity-only 产物
 
-`IdentityFoundationProfile`与`SingleConeStrongProfile`没有cast、upgrade或“补一个object”的API。production writer必须重新构造全部required section、Available fingerprint和最终manifest。reader看到foundation profile时：
+独立 `identity-foundation` artifact profile（旧 `/1`、`/2`）退役。删除只供旧测试使用的 `IdentityFoundationMetadata`、`IdentityFoundationArtifact` writer，以及 `DecodedIdentityFoundations`、`IdentityCheckedFoundations`、`StructurallyValidatedFoundations` 和 native-boundary/commit 外层组成的平行 reader。三层基础 identity payload、真实依赖身份解析、类型/ABI/GC 契约与完整 Strong 产物 reader 保留；测试直接使用共有容器或完整生产 reader，不保留只有 identity、没有实际编译输出的产物路线。
 
-- 即使archive碰巧含合法Mach-O object，也不能构造Link view；
-- 即使code/runtime slot被篡改为Available，也因profile不符失败；
-- 即使所有persistent identity都可重算，也不能作为core或dependency；
-- 生产 reader 要求当前 profile 的完整格式、引用和对象数据；发布使用本次编译的完整结果，不另生成资格凭证。
+生产 profile descriptor 只编码必需 section 清单：field 1=id、2=required_manifest、3=required_hir、4=required_mir、5=required_lir。原 field 6～9 及独立 `ArtifactValidationPolicy` 退役，不复用；删除仅服务于旧 profile 或未来占位的 availability policy、publication class、Link proof policy 与 ODR policy 数据。完整生产产物的 Code/RuntimeImage fingerprint 必须 Available，由 manifest 读取规则检查；ODR 在本阶段的 Strong 输入边界拒绝，optional/unknown section 按实际 purpose 与 registry 规则处理。`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong` 的 major 均升为 3，旧 `/1`、`/2` 产物和缓存重建。profile fingerprint 继续覆盖这个实际格式描述，runtime C ABI 与 String 表示不变。
 
 ### 8.3 distribution class
 
@@ -2740,12 +2729,10 @@ transaction、三层structure/`RejectAll`、local/cross-layer/LIR production、n
 commit；失败保留为`StrongCompileArtifactValidationError`中的精确阶段。中间状态只服务实现与细粒度
 测试，不另设少校验、自动补值或历史兼容入口。
 
-最终Compile proof不能把production证明丢回一个无类型的marker。profile为关联数据选择器：
-`IdentityFoundationProfile`只携带`()`，`SingleConeStrongProfile`必须携带
-`ValidatedSingleConeStrongProduction { hir, mir, lir }`，三项分别是已经重建并验证的HIR core/output
-interface、MIR core/entry bridge与LIR strong production。ODR-free foundation则在同一次identity session
-transaction后变成三层`Imported*Set`；不能先导入普通foundation，再通过cast或二次包装声称它满足strong
-profile。
+最终 Compile 结果直接保留完整生产数据。`SingleConeStrongProfile` 携带
+`ValidatedSingleConeStrongProduction { hir, mir, lir }`，M23-6 layout profile 携带完整共有声明、类型、
+布局与 ABI；不存在 production 为 `()` 的身份专用分支。三层基础 identity 使用同一次身份映射，
+不能把只有 identity 的旧产物包装成完整 Strong 结果。
 
 ### 15.1 Link proof顺序
 

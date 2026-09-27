@@ -1450,7 +1450,7 @@ ArtifactFingerprint = SHA-256(
 
 同coordinate的两个完整`ArtifactFingerprint`不同的候选仍是ambiguous artifact，即使差异只来自optional attachment；这样search-root顺序永远不能暗中选择不同envelope。但编译与链接失效不使用whole-artifact fingerprint：三层semantic fingerprint和4.6的code fingerprint只覆盖对应用途的成员，所以optional diagnostic/opaque blob变化不会使下游重编译或重链接。
 
-reader先限制archive/member总大小，再读取manifest并校验所有section hash，之后才反序列化IR。hash是损坏检测和cache key，不是签名；M23不提供恶意发行者认证。
+reader 检查归档和成员的实际输入范围、长度运算溢出、目录及 hash，然后解码所需 IR。没有 archive/member 的任意总配额，也不按读取、遍历或分配逐项计费。hash 用于损坏检测与缓存失效，不承担发行者认证。
 
 ### 4.3 Export HIR wire closure
 
@@ -1489,7 +1489,11 @@ MetadataSectionV1 {
 }
 ```
 
-HIR/MIR/LIR magic分别为`SCOOPHIR`、`SCOOPMIR`、`SCOOPLIR`，M23全部`outer_schema=1`。foundation capability在 M23-6 精确为`org.scoop-lang.hir/identity-foundation/3`（原 `/1` native witness 格式退役，见 stage6 设计）、`org.scoop-lang.mir/identity-foundation/1`与`org.scoop-lang.lir/identity-foundation/1`，三者都严格`required_for={Compile}`且每层恰好一条；artifact profile为`org.scoop-lang.slib-profile/identity-foundation/2`。该profile的Code/RuntimeImage unavailable、publication=`FoundationOnly`、Link forbidden，只能构造`ValidatedCompileArtifact<IdentityFoundationProfile>`，不能发布、链接或作为dependency。section按`CapabilitySortKey`严格递增；unknown optional完成outer/hash验证后才可跳过，unknown Compile-required在分配IR arena前失败。
+HIR/MIR/LIR magic 分别为 `SCOOPHIR`、`SCOOPMIR`、`SCOOPLIR`，M23 的 outer_schema 为 1。基础 identity capability 为 `org.scoop-lang.hir/identity-foundation/3`、`org.scoop-lang.mir/identity-foundation/1`、`org.scoop-lang.lir/identity-foundation/1`，每层恰有一条 Compile section，直接进入完整生产 profile。section 按 `CapabilitySortKey` 严格递增；unknown optional 完成范围/hash 检查后保持 opaque，unknown Compile-required 在解码 IR 前失败。
+
+独立 `identity-foundation` artifact profile（旧 `/1`、`/2`）退役。删除只供旧测试使用的 `IdentityFoundationMetadata`、`IdentityFoundationArtifact` writer，以及 `DecodedIdentityFoundations`、`IdentityCheckedFoundations`、`StructurallyValidatedFoundations` 和 native-boundary/commit 外层组成的平行 reader。三层基础 identity payload、真实依赖身份解析、类型/ABI/GC 契约与完整 Strong 产物 reader 保留；测试直接使用共有容器或完整生产 reader，不保留只有 identity、没有实际编译输出的产物路线。
+
+生产 profile descriptor 只编码必需 section 清单：field 1=id、2=required_manifest、3=required_hir、4=required_mir、5=required_lir。原 field 6～9 及独立 `ArtifactValidationPolicy` 退役，不复用；删除仅服务于旧 profile 或未来占位的 availability policy、publication class、Link proof policy 与 ODR policy 数据。完整生产产物的 Code/RuntimeImage fingerprint 必须 Available，由 manifest 读取规则检查；ODR 在本阶段的 Strong 输入边界拒绝，optional/unknown section 按实际 purpose 与 registry 规则处理。`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong` 的 major 均升为 3，旧 `/1`、`/2` 产物和缓存重建。profile fingerprint 继续覆盖这个实际格式描述，runtime C ABI 与 String 表示不变。
 
 三个inner payload都是Wire CBOR v1 closed product；同一种identity只在首次产生它的stage进入一张delta table，跨层重复`(kind,id)`即使key相同也拒绝。HIR foundation的field 1…30精确为：
 
@@ -2571,7 +2575,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 详细设计见`docs/milestone23/stage5/DESIGN.md`。
 
-依赖M23-4。实现第2.2–2.5与5.2节的`SemanticWorld`、direct/support closure、package binding、exact/star/alias import、re-export、public/internal/private access provenance、default template和non-generic alias，以及相应cross-Cone HIR/MIR/LIR引用投影。新增`cross-cone-semantics-strong/2` profile与general HIR、MIR/LIR param-free bridge、Link-only cross-Cone use closure；本段记述 M23-5 的历史格式边界：当时 M23-3 core bridge、strong-production 和旧 Link closure 保持原义，ordinary dependency 不写入 CoreStrong；M23-6 随补充设计删除这条专用资格与分区，不将其冻结为最终架构。本阶段只开放public core-closed const及签名完全由trusted-core param-free leaf构成的非generic top-level/extension callable或property accessor；跨Cone value layout、构造/member/dispatch、receiver-dependent protected access、generic application和source extern分别以明确诊断关闭到M23-6、M23-7或M23-10，不允许HIR接受后再由下游stage报“尚未支持”。
+依赖M23-4。实现第2.2–2.5与5.2节的`SemanticWorld`、direct/support closure、package binding、exact/star/alias import、re-export、public/internal/private access provenance、default template和non-generic alias，以及相应cross-Cone HIR/MIR/LIR引用投影。新增`cross-cone-semantics-strong/3` profile与general HIR、MIR/LIR param-free bridge、Link-only cross-Cone use closure；本段记述 M23-5 的历史格式边界：当时 M23-3 core bridge、strong-production 和旧 Link closure 保持原义，ordinary dependency 不写入 CoreStrong；M23-6 随补充设计删除这条专用资格与分区，不将其冻结为最终架构。本阶段只开放public core-closed const及签名完全由trusted-core param-free leaf构成的非generic top-level/extension callable或property accessor；跨Cone value layout、构造/member/dispatch、receiver-dependent protected access、generic application和source extern分别以明确诊断关闭到M23-6、M23-7或M23-10，不允许HIR接受后再由下游stage报“尚未支持”。
 
 完成门：direct与transitive可见性、split package、exact/star/alias冲突、链式re-export、public/internal/private access、default origin/evaluation source、non-generic alias和negative lookup observation/cache失效矩阵通过；所有成功用例产生双view有效artifact，所有暂未开放形态在HIR边界有唯一稳定诊断，不产生残缺IR。
 
@@ -2599,7 +2603,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 当前目标同时包含 [core 专用资格清理](stage6/CORE-AUTHORITY-CLEANUP.md)：删除 core ABI 重放豁免、native-boundary 专用可信输入、protocol 额外来源资格、String/初始化专用 bridge 和 core 独立 Link requirement closure。各项须有共有路径的实际生产/消费、正负例与 wire/cache 迁移，不能以旧分区冻结或仅完成类型组成表宣称完成。
 
-详细设计见 `docs/milestone23/stage6/DESIGN.md`。新增 `cross-cone-layout-strong/2`，以四条 required section 承载 HIR type/inheritance、MIR type bridge、LIR layout/ABI 及 Link-only layout-use closure，strong-production/11 升级为 /10 以完整表达普通依赖的 TD/dispatch 引用。独立 HIR source-authority 草案退役；完整声明、表示、参数/default 与实际使用信息由共有 metadata 持有，生产与 bytes-only reader 共用 typed identity、访问、依赖、跨阶段语义、ABI/layout 和 object 校验。源码接口可保留尚需后续能力的声明；机器接口只发布完整物化闭包通过 M23-7/10 gate 的根，实际使用不支持的能力仍拒绝。三层 outer schema 仍为1；旧 core 专用资格、bridge 和 Link 分区按补充设计退出，同步 capability/profile inventory 与 fingerprint，不复用退役 tag。有效 callable 与 general physical use 由共有 requirement 验证保证互斥且联合完整。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
+详细设计见 `docs/milestone23/stage6/DESIGN.md`。新增 `cross-cone-layout-strong/3`，以四条 required section 承载 HIR type/inheritance、MIR type bridge、LIR layout/ABI 及 Link-only layout-use closure，strong-production/11 升级为 /10 以完整表达普通依赖的 TD/dispatch 引用。独立 HIR source-authority 草案退役；完整声明、表示、参数/default 与实际使用信息由共有 metadata 持有，生产与 bytes-only reader 共用 typed identity、访问、依赖、跨阶段语义、ABI/layout 和 object 校验。源码接口可保留尚需后续能力的声明；机器接口只发布完整物化闭包通过 M23-7/10 gate 的根，实际使用不支持的能力仍拒绝。三层 outer schema 仍为1；旧 core 专用资格、bridge 和 Link 分区按补充设计退出，同步 capability/profile inventory 与 fingerprint，不复用退役 tag。有效 callable 与 general physical use 由共有 requirement 验证保证互斥且联合完整。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
 
 依赖 M23-5。实现第 3.6 节的 `ValueStorageLayout`、Scoop ABI payload elision、C ABI 拒绝规则、boxing、address/static token 与 `Array`/`MutableArray<ZST>`，并完成参数自由的跨 Cone layout、scan、TypeDescriptor、继承与 dispatch 消费。protected 访问由前端根据实际声明和 receiver 检查；reader 保留真实类型、引用、ABI、布局与对象格式检查，不要求额外访问证明或 native 来源资格。各阶段直接使用已取得的完整 typed IR；普通格式与 fingerprint 规则表达版本变化，不冻结已退役的证明或成本策略。M23-7 的泛型与 ODR 能力仍在其原阶段实现。
 

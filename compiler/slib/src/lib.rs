@@ -78,9 +78,6 @@ pub use publish::*;
 mod metadata;
 pub use metadata::*;
 
-mod foundation;
-pub use foundation::*;
-
 mod strong_artifact;
 pub use strong_artifact::*;
 

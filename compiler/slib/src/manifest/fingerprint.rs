@@ -38,37 +38,37 @@ typed_fingerprint!(RuntimeImageFingerprint);
 typed_fingerprint!(ArtifactFingerprint);
 
 impl HirFingerprint {
-    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 }
 
 impl MirFingerprint {
-    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 }
 
 impl LirFingerprint {
-    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 }
 
 impl CodeFingerprint {
-    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 }
 
 impl RuntimeImageFingerprint {
-    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 }
 
 impl ArtifactFingerprint {
-    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
+    pub const fn from_array(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 }

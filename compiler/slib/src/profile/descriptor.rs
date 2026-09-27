@@ -7,10 +7,6 @@ pub struct ArtifactCapabilityProfileDescriptor {
     pub(super) required_hir: Vec<CapabilityId>,
     pub(super) required_mir: Vec<CapabilityId>,
     pub(super) required_lir: Vec<CapabilityId>,
-    pub(super) code_requirement: FingerprintAvailabilityRequirement,
-    pub(super) runtime_requirement: FingerprintAvailabilityRequirement,
-    pub(super) publication_class: PublicationClass,
-    pub(super) validation_policy: ArtifactValidationPolicy,
 }
 
 impl ArtifactCapabilityProfileDescriptor {
@@ -33,41 +29,17 @@ impl ArtifactCapabilityProfileDescriptor {
     pub fn required_lir(&self) -> &[CapabilityId] {
         &self.required_lir
     }
-
-    pub const fn code_requirement(&self) -> FingerprintAvailabilityRequirement {
-        self.code_requirement
-    }
-
-    pub const fn runtime_requirement(&self) -> FingerprintAvailabilityRequirement {
-        self.runtime_requirement
-    }
-
-    pub const fn publication_class(&self) -> PublicationClass {
-        self.publication_class
-    }
-
-    pub const fn validation_policy(&self) -> ArtifactValidationPolicy {
-        self.validation_policy
-    }
 }
 
 impl WireEncode for ArtifactCapabilityProfileDescriptor {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.id.encode(encoder)?;
         encode_capabilities(encoder, 2, &self.required_manifest)?;
         encode_capabilities(encoder, 3, &self.required_hir)?;
         encode_capabilities(encoder, 4, &self.required_mir)?;
-        encode_capabilities(encoder, 5, &self.required_lir)?;
-        encoder.field(6)?;
-        self.code_requirement.encode(encoder)?;
-        encoder.field(7)?;
-        self.runtime_requirement.encode(encoder)?;
-        encoder.field(8)?;
-        self.publication_class.encode(encoder)?;
-        encoder.field(9)?;
-        self.validation_policy.encode(encoder)
+        encode_capabilities(encoder, 5, &self.required_lir)
     }
 }
 
@@ -99,110 +71,6 @@ impl fmt::Display for ArtifactCapabilityProfileFingerprint {
             write!(formatter, "{byte:02x}")?;
         }
         Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum FingerprintAvailabilityRequirement {
-    MustBeUnavailable,
-    MustBeAvailable,
-}
-
-impl WireEncode for FingerprintAvailabilityRequirement {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::MustBeUnavailable => 1,
-            Self::MustBeAvailable => 2,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum PublicationClass {
-    FoundationOnly,
-    Publishable,
-}
-
-impl WireEncode for PublicationClass {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::FoundationOnly => 1,
-            Self::Publishable => 2,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum OdrValidationPolicy {
-    IdentityOnlyNonPublishable,
-    RejectAll,
-    RequireCompleteDefinitionProof,
-}
-
-impl WireEncode for OdrValidationPolicy {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::IdentityOnlyNonPublishable => 1,
-            Self::RejectAll => 2,
-            Self::RequireCompleteDefinitionProof => 3,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum ExtraSectionPolicy {
-    AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-}
-
-impl WireEncode for ExtraSectionPolicy {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(1)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum LinkProofPolicy {
-    Forbidden,
-    Required,
-}
-
-impl WireEncode for LinkProofPolicy {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::Forbidden => 1,
-            Self::Required => 2,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct ArtifactValidationPolicy {
-    pub(super) odr: OdrValidationPolicy,
-    pub(super) extra_sections: ExtraSectionPolicy,
-    pub(super) link_proof: LinkProofPolicy,
-}
-
-impl ArtifactValidationPolicy {
-    pub const fn odr(self) -> OdrValidationPolicy {
-        self.odr
-    }
-    pub const fn extra_sections(self) -> ExtraSectionPolicy {
-        self.extra_sections
-    }
-    pub const fn link_proof(self) -> LinkProofPolicy {
-        self.link_proof
-    }
-}
-
-impl WireEncode for ArtifactValidationPolicy {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.odr.encode(encoder)?;
-        encoder.field(2)?;
-        self.extra_sections.encode(encoder)?;
-        encoder.field(4)?;
-        self.link_proof.encode(encoder)
     }
 }
 

@@ -595,13 +595,9 @@ impl std::error::Error for DependencyLocatorError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scoop_hir::CanonicalHirFoundation;
-    use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
+    use scoop_lir::ValidatedLirTargetSelection;
     use scoop_manifest::load_cone_manifest;
-    use scoop_mir::CanonicalMirFoundation;
-    use scoop_slib::{
-        ConeRecord, IdentityFoundationArtifact, IdentityFoundationArtifactInput, ProducerRecord,
-    };
+    use scoop_slib::ConeRecord;
 
     const TARGET: ValidatedLirTargetSelection =
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
@@ -633,23 +629,16 @@ mod tests {
             .clone()
     }
 
-    fn foundation_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
-        let hir = CanonicalHirFoundation::empty();
-        let mir = CanonicalMirFoundation::empty();
-        let lir = CanonicalLirFoundation::empty();
+    fn manifest_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
         let cone =
             ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap();
-        IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-            ProducerRecord::new(producer).unwrap(),
+        crate::test_artifacts::manifest_archive(
+            scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
             cone,
-            TARGET,
-            &hir,
-            &mir,
-            &lir,
-        ))
-        .unwrap()
-        .as_bytes()
-        .to_vec()
+            producer,
+            Vec::new(),
+        )
+        .into_bytes()
     }
 
     #[test]
@@ -702,7 +691,7 @@ mod tests {
         let parent_root = temp.path().join("parent");
         let artifact = temp.path().join("dep.slib");
         let coordinate = ConeCoordinate::new("test", "dep", "1.0.0").unwrap();
-        let bytes = foundation_artifact(coordinate.clone(), "locator-test");
+        let bytes = manifest_artifact(coordinate.clone(), "locator-test");
         std::fs::write(&artifact, &bytes).unwrap();
         let parent = parent_with_dependency(
             &parent_root,
@@ -722,7 +711,7 @@ mod tests {
 
         std::fs::write(
             &artifact,
-            foundation_artifact(
+            manifest_artifact(
                 ConeCoordinate::new("test", "other", "1.0.0").unwrap(),
                 "wrong-coordinate",
             ),
@@ -748,7 +737,7 @@ mod tests {
             .join("1.0.0")
             .join("cone.slib");
         std::fs::create_dir_all(artifact.parent().unwrap()).unwrap();
-        std::fs::write(&artifact, foundation_artifact(coordinate, "locator-test")).unwrap();
+        std::fs::write(&artifact, manifest_artifact(coordinate, "locator-test")).unwrap();
         let parent = parent_with_dependency(
             &parent_root,
             "[dependencies]\n\"test.group:dep.name\" = \"1.0.0\"\n",
@@ -828,7 +817,7 @@ mod tests {
                 .join("1.0.0")
                 .join("cone.slib")
         });
-        let bytes = foundation_artifact(coordinate.clone(), "same");
+        let bytes = manifest_artifact(coordinate.clone(), "same");
         for path in &paths {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(path, &bytes).unwrap();
@@ -842,7 +831,7 @@ mod tests {
         };
         assert_eq!(prebuilt.candidate_count(), 2);
 
-        std::fs::write(&paths[1], foundation_artifact(coordinate, "different")).unwrap();
+        std::fs::write(&paths[1], manifest_artifact(coordinate, "different")).unwrap();
         assert!(matches!(
             locate_manifest_dependency(&parent, &first_key(&parent), &search_roots, TARGET,),
             Err(DependencyLocatorError::AmbiguousArtifact { .. })

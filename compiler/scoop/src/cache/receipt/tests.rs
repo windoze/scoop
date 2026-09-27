@@ -1,35 +1,18 @@
 use std::path::Path;
 
-use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate};
-use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
-use scoop_mir::CanonicalMirFoundation;
+use scoop_lir::ValidatedLirTargetSelection;
 use scoop_protocol::{
     DiagnosticOriginV1, DiagnosticSeverityV1, HostPathCarrier, ProtocolByteSpan,
     StructuredDiagnosticV1,
 };
-use scoop_slib::{
-    ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord,
-};
+use scoop_slib::{ConeKind, ConeRecord, ConeSourceForm};
 use scoop_wire::{decode_canonical, encode, sha256};
 
 use super::*;
 
 fn artifact_fingerprint() -> ArtifactFingerprint {
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
-    IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new("cache-receipt-test").unwrap(),
-        core_cone(),
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &hir,
-        &mir,
-        &lir,
-    ))
-    .unwrap()
-    .artifact_fingerprint()
+    ArtifactFingerprint::from_array(*sha256(b"cache-receipt-test").as_array())
 }
 
 fn core_cone() -> ConeRecord {
@@ -94,7 +77,7 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
 
     assert_eq!(
         receipt.fingerprint().to_string(),
-        "3bdc59294deedb8f50e397560896fd8f8dc31b65215dede6b383542138f2624b"
+        "0107ee21dd581bbfabec042263a0f0d11719376e5ae398d8f91b7588b92b2c60"
     );
 }
 

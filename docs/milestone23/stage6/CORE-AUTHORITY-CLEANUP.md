@@ -176,6 +176,10 @@ M23-6 的 runtime 复用编译器或 artifact reader 已验证的静态类型、
 
 ### 2.7 无生产用途的框架和重复实现
 
+独立 `identity-foundation` artifact profile（旧 `/1`、`/2`）退役。删除只供旧测试使用的 `IdentityFoundationMetadata`、`IdentityFoundationArtifact` writer，以及 `DecodedIdentityFoundations`、`IdentityCheckedFoundations`、`StructurallyValidatedFoundations` 和 native-boundary/commit 外层组成的平行 reader。三层基础 identity payload、真实依赖身份解析、类型/ABI/GC 契约与完整 Strong 产物 reader 保留；测试直接使用共有容器或完整生产 reader，不保留只有 identity、没有实际编译输出的产物路线。
+
+生产 profile descriptor 只编码必需 section 清单：field 1=id、2=required_manifest、3=required_hir、4=required_mir、5=required_lir。原 field 6～9 及独立 `ArtifactValidationPolicy` 退役，不复用；删除仅服务于旧 profile 或未来占位的 availability policy、publication class、Link proof policy 与 ODR policy 数据。完整生产产物的 Code/RuntimeImage fingerprint 必须 Available，由 manifest 读取规则检查；ODR 在本阶段的 Strong 输入边界拒绝，optional/unknown section 按实际 purpose 与 registry 规则处理。`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong` 的 major 均升为 3，旧 `/1`、`/2` 产物和缓存重建。profile fingerprint 继续覆盖这个实际格式描述，runtime C ABI 与 String 表示不变。
+
 删除仅由测试实现/使用的 HIR/MIR/LIR 来源工厂、平行来源 reader、凭证状态机、重复数据表及适配层。旧 bootstrap stage 包装与 Core/NotCore 测试输入适配层同样删除；保留的真实源码测试直接调用共有 stage 入口。独立 dual-artifact certificate/reopen 框架没有生产调用者，删除后只保留实际使用的不可变产物快照。source-authority 收缩为名称解析、类型检查、默认参数实例化和跨 Cone 消费实际需要的声明/来源信息，不保留逐项授权和防伪证明。
 
 语言规则由对应 stage 负责；IR/meta crate 负责数据及格式/引用不变量，reader 不再维护一套前端语义实现。已解析默认值保留完整 typed 正文、声明引用和定义环境。依赖默认值中的字段和 callable 使用定义时保存的 typed 声明与完整类型，实例化不重新要求公开 namespace 导入路径，也不再次证明模板引用集合。

@@ -1,14 +1,11 @@
 use std::path::Path;
 
-use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
+use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
-use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::TargetSelectionRequestV1;
 use scoop_slib::{
-    ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord, read_artifact_manifest_summary,
+    ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, read_artifact_manifest_summary,
 };
 
 use super::*;
@@ -40,10 +37,6 @@ fn write_core(sysroot: &Path) {
 }
 
 fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
-    request_with_limits(root, sysroot)
-}
-
-fn request_with_limits(root: &Path, sysroot: &Path) -> BuildGraphRequest {
     BuildGraphRequest::new(
         BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
         vec![],
@@ -60,29 +53,22 @@ fn coordinate(name: &str, version: &str) -> ConeCoordinate {
     ConeCoordinate::new("test", name, version).unwrap()
 }
 
-fn foundation_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
-    let hir = CanonicalHirFoundation::empty();
-    let mir = CanonicalMirFoundation::empty();
-    let lir = CanonicalLirFoundation::empty();
+fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let seed = IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new("graph-test-seed").unwrap(),
+    let seed = crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
             ConeKind::Library,
             ConeSourceForm::Manifest,
         )
         .unwrap(),
-        selection,
-        &hir,
-        &mir,
-        &lir,
-    ))
-    .unwrap();
+        "graph-test-seed",
+        Vec::new(),
+    );
     let fingerprints = read_artifact_manifest_summary(seed.as_bytes(), selection)
         .unwrap()
         .semantic_fingerprints();
-    let cone = ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap();
     let core = DependencyRecord::new(
         ConeCoordinate::reserved_core(),
         fingerprints.hir(),
@@ -90,20 +76,13 @@ fn foundation_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
         fingerprints.lir(),
     )
     .unwrap();
-    IdentityFoundationArtifact::write(
-        IdentityFoundationArtifactInput::new(
-            ProducerRecord::new("graph-test").unwrap(),
-            cone,
-            selection,
-            &hir,
-            &mir,
-            &lir,
-        )
-        .with_direct_dependencies(vec![core]),
+    crate::test_artifacts::manifest_archive(
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
+        "graph-test",
+        vec![core],
     )
-    .unwrap()
-    .as_bytes()
-    .to_vec()
+    .into_bytes()
 }
 
 fn identities_as_coordinates(graph: &ResolvedBuildGraph, values: &[ConeIdentity]) -> Vec<String> {
@@ -418,7 +397,7 @@ fn prebuilt_node_must_bind_its_recorded_core_edge() {
     let prebuilt_coordinate = coordinate("prebuilt", "1.0.0");
     std::fs::write(
         temp.path().join("prebuilt.slib"),
-        foundation_artifact_with_core(prebuilt_coordinate.clone()),
+        manifest_artifact_with_core(prebuilt_coordinate.clone()),
     )
     .unwrap();
 

@@ -13,7 +13,7 @@ use super::super::{
     FingerprintAvailability, HirFingerprint, LirFingerprint, ManifestSection, ManifestSectionError,
     MirFingerprint, RuntimeImageFingerprint, SemanticFingerprintRecord,
 };
-use crate::{ArtifactCapabilityProfile, FingerprintAvailabilityRequirement, MemberPurposeSet};
+use crate::MemberPurposeSet;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 /// Untrusted wire projection of a Cone record. Call [`Self::validate`] before
@@ -247,13 +247,10 @@ pub(super) struct DecodedSemanticFingerprintRecord {
 impl DecodedSemanticFingerprintRecord {
     pub(super) fn validate(
         self,
-        profile: ArtifactCapabilityProfile,
     ) -> Result<SemanticFingerprintRecord, SemanticFingerprintValidationError> {
-        let descriptor = profile.descriptor();
-        let code = validate_code_availability(self.code, descriptor.code_requirement())?;
-        let runtime_image =
-            validate_runtime_availability(self.runtime_image, descriptor.runtime_requirement())?;
-        Ok(SemanticFingerprintRecord::from_validated_digests(
+        let code = validate_code_availability(self.code)?;
+        let runtime_image = validate_runtime_availability(self.runtime_image)?;
+        Ok(SemanticFingerprintRecord::from_digests(
             HirFingerprint::from_array(*self.hir.as_array()),
             MirFingerprint::from_array(*self.mir.as_array()),
             LirFingerprint::from_array(*self.lir.as_array()),
@@ -265,23 +262,12 @@ impl DecodedSemanticFingerprintRecord {
 
 fn validate_code_availability(
     decoded: DecodedFingerprintAvailability,
-    requirement: FingerprintAvailabilityRequirement,
 ) -> Result<FingerprintAvailability<CodeFingerprint>, SemanticFingerprintValidationError> {
-    match (requirement, decoded) {
-        (
-            FingerprintAvailabilityRequirement::MustBeUnavailable,
-            DecodedFingerprintAvailability::Unavailable,
-        ) => Ok(FingerprintAvailability::Unavailable),
-        (
-            FingerprintAvailabilityRequirement::MustBeAvailable,
-            DecodedFingerprintAvailability::Available(value),
-        ) => Ok(FingerprintAvailability::Available(
+    match decoded {
+        DecodedFingerprintAvailability::Available(value) => Ok(FingerprintAvailability::Available(
             CodeFingerprint::from_array(*value.as_array()),
         )),
-        (FingerprintAvailabilityRequirement::MustBeUnavailable, _) => {
-            Err(SemanticFingerprintValidationError::CodeMustBeUnavailable)
-        }
-        (FingerprintAvailabilityRequirement::MustBeAvailable, _) => {
+        DecodedFingerprintAvailability::Unavailable => {
             Err(SemanticFingerprintValidationError::CodeMustBeAvailable)
         }
     }
@@ -289,23 +275,12 @@ fn validate_code_availability(
 
 fn validate_runtime_availability(
     decoded: DecodedFingerprintAvailability,
-    requirement: FingerprintAvailabilityRequirement,
 ) -> Result<FingerprintAvailability<RuntimeImageFingerprint>, SemanticFingerprintValidationError> {
-    match (requirement, decoded) {
-        (
-            FingerprintAvailabilityRequirement::MustBeUnavailable,
-            DecodedFingerprintAvailability::Unavailable,
-        ) => Ok(FingerprintAvailability::Unavailable),
-        (
-            FingerprintAvailabilityRequirement::MustBeAvailable,
-            DecodedFingerprintAvailability::Available(value),
-        ) => Ok(FingerprintAvailability::Available(
+    match decoded {
+        DecodedFingerprintAvailability::Available(value) => Ok(FingerprintAvailability::Available(
             RuntimeImageFingerprint::from_array(*value.as_array()),
         )),
-        (FingerprintAvailabilityRequirement::MustBeUnavailable, _) => {
-            Err(SemanticFingerprintValidationError::RuntimeImageMustBeUnavailable)
-        }
-        (FingerprintAvailabilityRequirement::MustBeAvailable, _) => {
+        DecodedFingerprintAvailability::Unavailable => {
             Err(SemanticFingerprintValidationError::RuntimeImageMustBeAvailable)
         }
     }
@@ -343,23 +318,15 @@ impl WireDecode for DecodedSemanticFingerprintRecord {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SemanticFingerprintValidationError {
     CodeMustBeAvailable,
-    CodeMustBeUnavailable,
     RuntimeImageMustBeAvailable,
-    RuntimeImageMustBeUnavailable,
 }
 
 impl fmt::Display for SemanticFingerprintValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::CodeMustBeAvailable => "production artifact code fingerprint must be available",
-            Self::CodeMustBeUnavailable => {
-                "foundation artifact code fingerprint must be unavailable"
-            }
             Self::RuntimeImageMustBeAvailable => {
                 "production artifact runtime image fingerprint must be available"
-            }
-            Self::RuntimeImageMustBeUnavailable => {
-                "foundation artifact runtime image fingerprint must be unavailable"
             }
         })
     }
@@ -431,25 +398,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn semantic_fingerprint_availability_follows_the_selected_profile() {
-        let foundation = decoded(
-            DecodedFingerprintAvailability::Unavailable,
-            DecodedFingerprintAvailability::Unavailable,
-        )
-        .validate(ArtifactCapabilityProfile::IDENTITY_FOUNDATION)
-        .unwrap();
-        assert_eq!(foundation.code(), FingerprintAvailability::Unavailable);
-        assert_eq!(
-            foundation.runtime_image(),
-            FingerprintAvailability::Unavailable
-        );
-
-        let production = decoded(
-            DecodedFingerprintAvailability::Available(Digest256::from_array([4; 32])),
-            DecodedFingerprintAvailability::Available(Digest256::from_array([5; 32])),
-        )
-        .validate(ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
-        .unwrap();
+    fn production_requires_both_available_fingerprints() {
+        let code = DecodedFingerprintAvailability::Available(Digest256::from_array([4; 32]));
+        let runtime = DecodedFingerprintAvailability::Available(Digest256::from_array([5; 32]));
+        let production = decoded(code.clone(), runtime.clone()).validate().unwrap();
         assert!(matches!(
             production.code(),
             FingerprintAvailability::Available(_)
@@ -458,25 +410,13 @@ mod tests {
             production.runtime_image(),
             FingerprintAvailability::Available(_)
         ));
-    }
-
-    #[test]
-    fn semantic_fingerprint_availability_rejects_cross_profile_shapes() {
         assert_eq!(
-            decoded(
-                DecodedFingerprintAvailability::Unavailable,
-                DecodedFingerprintAvailability::Unavailable,
-            )
-            .validate(ArtifactCapabilityProfile::SINGLE_CONE_STRONG),
-            Err(SemanticFingerprintValidationError::CodeMustBeAvailable)
+            decoded(DecodedFingerprintAvailability::Unavailable, runtime).validate(),
+            Err(SemanticFingerprintValidationError::CodeMustBeAvailable),
         );
         assert_eq!(
-            decoded(
-                DecodedFingerprintAvailability::Available(Digest256::from_array([4; 32])),
-                DecodedFingerprintAvailability::Available(Digest256::from_array([5; 32])),
-            )
-            .validate(ArtifactCapabilityProfile::IDENTITY_FOUNDATION),
-            Err(SemanticFingerprintValidationError::CodeMustBeUnavailable)
+            decoded(code, DecodedFingerprintAvailability::Unavailable).validate(),
+            Err(SemanticFingerprintValidationError::RuntimeImageMustBeAvailable),
         );
     }
 
