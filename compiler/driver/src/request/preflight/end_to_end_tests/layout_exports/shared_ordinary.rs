@@ -13,7 +13,7 @@ pub(super) fn check(
     name: &str,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     foundation: &hir::OdrFreeHirFoundation,
-    lir: &lir::SingleConeStrongLirOutput,
+    lir: &lir::ConeLirOutput,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     expected: &lir::CrossConeLirBridgeSectionV1,
 ) {

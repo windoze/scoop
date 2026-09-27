@@ -11,7 +11,7 @@ impl<
     #[allow(clippy::too_many_arguments)]
     pub fn from_semantics(
         target: crate::LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
         identities: StrongRegistrationIdentitySurfaceV1,
         callable_runtime_scans: StrongCallableRuntimeScanPlanSetV1,

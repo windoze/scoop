@@ -25,7 +25,7 @@ fn enum_module_with(
         init: GlobalInit::CString {
             identity: scoop_lir::CallableCStringIdentity::new(
                 scoop_identity::ConeIdentity::SINGLE_FILE,
-                trap_callable_body.id(),
+                &trap_callable_body,
                 scoop_identity::StructuralDefinitionPath::from_first(
                     scoop_identity::StructuralPathSegment::new(
                         scoop_identity::StructuralDefinitionSiteRole::StringConstant,

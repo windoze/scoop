@@ -4,10 +4,12 @@ use super::*;
 mod errors;
 mod layout;
 mod layout_references;
+mod layout_selection;
 mod protocols;
 pub use errors::{CurrentConeProductionError, CurrentConeProductionFailure};
 pub use layout::LayoutProductionError;
 pub(super) use layout_references::collect_mir_references;
+pub(super) use layout_selection::select_lir_dependencies;
 
 impl ParsedSingleConeBuildRequest<'_, '_> {
     pub fn build_and_publish(
@@ -69,7 +71,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         }
     }
 
-    fn lower_hir(
+    pub(super) fn lower_hir(
         &self,
         requested: scoop_identity::RequestedConeKind,
         protocols: &ValidatedCompilerProtocols,

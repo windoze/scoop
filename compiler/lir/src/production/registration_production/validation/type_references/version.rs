@@ -31,7 +31,7 @@ pub(in super::super) trait TypeReferences {
 }
 
 pub(in super::super) struct LegacyTypeReferences<'a> {
-    pub foundation: &'a OdrFreeLirFoundation,
+    pub foundation: &'a ConeLirFoundation,
     pub identities: &'a StrongRegistrationIdentitySurfaceV1,
 }
 
@@ -68,7 +68,7 @@ impl TypeReferences for LegacyTypeReferences<'_> {
 pub(in super::super) fn vtable<R: TypeReferences>(
     decoded: DecodedStrongTypeVtableSemanticPlan<R::DecodedCallable>,
     exact_type: scoop_identity::PersistentExactTypeId,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     references: &R,
     index: usize,
 ) -> Result<StrongTypeVtableSemanticPlan<R::Callable>, StrongRegistrationProductionValidationError>
@@ -87,7 +87,7 @@ pub(in super::super) fn vtable<R: TypeReferences>(
 pub(in super::super) fn itable<R: TypeReferences>(
     decoded: DecodedStrongTypeItableSemanticPlan<R::DecodedDescriptor, R::DecodedCallable>,
     exact_type: scoop_identity::PersistentExactTypeId,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     references: &R,
     index: usize,
 ) -> Result<

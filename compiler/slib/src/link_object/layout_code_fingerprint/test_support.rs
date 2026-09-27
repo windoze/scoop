@@ -5,9 +5,9 @@ use scoop_identity::{
     SourceDeclarationSite, StrongCallableDefinitionOwner,
 };
 use scoop_lir::{
-    CallingConvention, CanonicalNativeExternalRequirementSurfaceV1, CrossConeLayoutAbiSectionV1,
-    CrossConeLirBridgeSectionV1, EntryProductionSourceV1, ExternalCallableRootPlan,
-    LirTargetProfile, OdrFreeLirFoundation, SelectedDependencyLirCallableV1,
+    CallingConvention, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
+    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, EntryProductionSourceV1,
+    ExternalCallableRootPlan, LirTargetProfile, SelectedDependencyLirCallableV1,
     StrongProductionSectionV2, StrongRegistrationProductionSurfaceV2, ValidatedLirTargetSelection,
 };
 
@@ -29,7 +29,7 @@ use crate::{
 pub(crate) struct EmptyLayoutCodeFixture<'a> {
     pub cone: ConeRecord,
     pub dependencies: Vec<DependencyRecord>,
-    pub foundation: &'a OdrFreeLirFoundation,
+    pub foundation: &'a ConeLirFoundation,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub mismatched_ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layout: &'a CrossConeLayoutAbiSectionV1<'a>,
@@ -63,7 +63,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         cone.coordinate().clone(),
         &[scoop_identity::ConeIdentity::CORE],
     );
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
     let ordinary = CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![]).unwrap();
     let mismatched_ordinary = nonempty_ordinary(&foundation);
     let target = LirTargetProfile::DARWIN_AARCH64;
@@ -155,7 +155,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     })
 }
 
-fn nonempty_ordinary(foundation: &OdrFreeLirFoundation) -> CrossConeLirBridgeSectionV1 {
+fn nonempty_ordinary(foundation: &ConeLirFoundation) -> CrossConeLirBridgeSectionV1 {
     let provider = ConeCoordinate::new("test", "layout-writer-callable-provider", "1.0.0")
         .unwrap()
         .identity()

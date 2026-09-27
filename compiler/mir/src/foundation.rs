@@ -129,6 +129,13 @@ impl CanonicalMirFoundation {
         self.odr_groups.iter().map(CborIdentityRecord::id)
     }
 
+    pub fn odr_member(&self, id: OdrMemberId) -> Option<&OdrMemberRecord> {
+        self.odr_members
+            .binary_search_by_key(&id, |record| record.id())
+            .ok()
+            .map(|index| &self.odr_members[index])
+    }
+
     pub fn set_exact_types(
         &mut self,
         records: Vec<ExactTypeRecord>,

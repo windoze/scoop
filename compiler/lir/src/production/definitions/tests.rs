@@ -10,7 +10,7 @@ use scoop_identity::{
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::{CanonicalLirFoundation, DecodedLirFoundation, OdrFreeLirFoundation};
+use crate::{CanonicalLirFoundation, ConeLirFoundation, DecodedLirFoundation};
 
 #[test]
 fn definition_plan_surface_has_a_fixed_wire_vector_and_validates() {
@@ -37,9 +37,9 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
     let records = records();
 
     let missing = foundation(&records, vec![associated_atom(&records)]);
-    let missing = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, missing).unwrap();
+    let missing = ConeLirFoundation::try_new(ConeIdentity::CORE, missing).unwrap();
     assert_eq!(
-        StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(&missing),
+        StrongObjectDefinitionPlanSurfaceV1::from_foundation(&missing),
         Err(StrongObjectDefinitionPlanBuildError::MissingPrimaryAtom(
             records.plan.id()
         ))
@@ -55,9 +55,9 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
     let expected_first = first_primary.id().min(other_primary.id());
     let expected_second = first_primary.id().max(other_primary.id());
     let multiple = foundation(&records, vec![first_primary, other_primary]);
-    let multiple = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, multiple).unwrap();
+    let multiple = ConeLirFoundation::try_new(ConeIdentity::CORE, multiple).unwrap();
     assert_eq!(
-        StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(&multiple),
+        StrongObjectDefinitionPlanSurfaceV1::from_foundation(&multiple),
         Err(StrongObjectDefinitionPlanBuildError::MultiplePrimaryAtoms {
             plan: records.plan.id(),
             first: expected_first,
@@ -83,9 +83,9 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
     let orphan_id = orphan.id();
     let orphan_plan = other_plan.id();
     let invalid = foundation(&records, vec![primary_atom(&records), orphan]);
-    let invalid = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, invalid).unwrap();
+    let invalid = ConeLirFoundation::try_new(ConeIdentity::CORE, invalid).unwrap();
     assert_eq!(
-        StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(&invalid),
+        StrongObjectDefinitionPlanSurfaceV1::from_foundation(&invalid),
         Err(StrongObjectDefinitionPlanBuildError::OrphanAtom {
             atom: orphan_id,
             plan: orphan_plan,
@@ -195,7 +195,7 @@ fn foundation(
 fn fixture() -> (
     StrongObjectDefinitionPlanSurfaceV1,
     ValidatedIdentityGraph,
-    OdrFreeLirFoundation,
+    ConeLirFoundation,
 ) {
     let records = records();
     let canonical = foundation(
@@ -220,9 +220,8 @@ fn fixture() -> (
     let validated = decoded
         .validate(ConeIdentity::CORE, &mut identities)
         .unwrap();
-    let foundation = OdrFreeLirFoundation::from_validated(validated).unwrap();
-    let surface =
-        StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let foundation = ConeLirFoundation::from_validated(validated);
+    let surface = StrongObjectDefinitionPlanSurfaceV1::from_foundation(&foundation).unwrap();
     (surface, identities, foundation)
 }
 

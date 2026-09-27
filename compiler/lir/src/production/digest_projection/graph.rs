@@ -13,13 +13,13 @@ struct DigestNodeDraft {
 }
 
 pub(super) struct DigestGraphWriter<'foundation> {
-    foundation: &'foundation OdrFreeLirFoundation,
+    foundation: &'foundation ConeLirFoundation,
     nodes: BTreeMap<DigestNodeKey, DigestNodeDraft>,
     registration_nodes: BTreeSet<DigestNodeKey>,
 }
 
 impl<'foundation> DigestGraphWriter<'foundation> {
-    pub(super) fn new(foundation: &'foundation OdrFreeLirFoundation) -> Self {
+    pub(super) fn new(foundation: &'foundation ConeLirFoundation) -> Self {
         Self {
             foundation,
             nodes: BTreeMap::new(),

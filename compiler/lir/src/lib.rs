@@ -105,8 +105,8 @@ pub use safepoint::*;
 mod foundation;
 pub use foundation::*;
 
-mod strong_output;
-pub use strong_output::*;
+mod cone_output;
+pub use cone_output::*;
 
 mod production;
 pub use production::*;

@@ -12,7 +12,7 @@ use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation,
+    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -93,7 +93,7 @@ fn availability_and_empty_plan_have_fixed_wire_shapes() {
     );
 
     let foundation =
-        OdrFreeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty()).unwrap();
+        ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty()).unwrap();
     let digests = StrongDigestFinalizationPlanV1::new(
         vec![
             DigestNodeV1::new(
@@ -261,7 +261,7 @@ fn builder_rejects_a_missing_strong_definition() {
 #[test]
 fn foreign_source_cannot_build_a_local_shape_plan() {
     let foundation =
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
             .unwrap();
     let digests = StrongDigestFinalizationPlanV1::new(
         vec![
@@ -291,7 +291,7 @@ fn foreign_source_cannot_build_a_local_shape_plan() {
 
 struct Fixture {
     source: SourceDeclarationKey,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     registrations: StrongRegistrationIdentitySurfaceV1,
 }
 
@@ -434,7 +434,7 @@ fn finish_fixture(
     canonical.set_definition_plans(parts.plans).unwrap();
     canonical.set_definition_atoms(parts.atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(parts.symbols).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(parts.source.origin(), canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(parts.source.origin(), canonical).unwrap();
     let mut nodes = foundation
         .definition_plans()
         .iter()

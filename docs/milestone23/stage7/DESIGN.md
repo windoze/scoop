@@ -211,6 +211,12 @@ LIR 继续使用 M23-6 的完整 value storage、scan、TypeDescriptor、dispatc
 
 MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 canonical foundation，不要求调用方再提供另一份 foundation。每个函数物化根保留既有 `CallableSignatureSubject` 的 Strong/ODR 分支；参数自由导出、entry 和 compiler protocol 查询仍选择各自的 Strong 目标，不因同模块还有 ODR 函数而失败。旧 core bootstrap bridge 的 bytes 合同不变，其 Strong callable 表只覆盖 canonical foundation 中的 Strong 子集；ODR 函数继续使用原完整 signature、application 和 member 表。历史 Strong 产物读取与写入仍在各自产物边界拒绝 ODR。
 
+泛型正文与默认值复用同一控制流节点展开。`try`、顺序 `catch`、`finally` 和 `throw` 直接保留原定义处的完整 typed 结构、catch local selector 与求值位置，继续使用现有异常、清理和 GC lowering；消费方不重做名字查找，不另建泛型异常实现。
+
+共有 LIR 输出保存实际 producer 与唯一 canonical foundation，物化定义图直接区分 Strong plan 和既有 ODR member plan。源 callable 的 group/member 由 MIR 的实际物化记录传入；LIR 不重复发布 HIR/MIR 已有的 member，而为其 callable/safepoint registration 建立属于同一 group 的新 member。每个物理定义保留自己的 kind-specific primary symbol，不能为取得 plan 而把 ODR body 改成 consumer Strong。callable 的 trap 字符串、运行时 scan 与 EH/stackmap 关联 atom 从该 body 的真实 plan 和稳定局部路径产生；定义边界 symbol 沿用所属 plan 的 linkage。历史 Strong section 的限制在读取或生产该 section 时检查，共有 LIR lowering 不借用 OdrFree 输出。 普通 callable bridge 只核对其实际导出项的 body、符号、Strong definition plan 与 primary atom；完整物理定义和关联 atom 的验证保留在共有产物边界，不为读取参数自由子集重建整张 Strong symbol 表。 从已完成读取验证的 foundation 构造共有输出时，直接保留已验证的 producer 和 canonical 数据，不再次遍历归属。
+
+物理依赖选择直接使用 MIR 的实际类型、callable、dispatch 与初始化单元引用，保留各自 provider 和 typed target；初始化选择只传入所需的 unit 引用，不要求先构造整个参数自由类型导出 section。完整依赖记录仍来自同一批已读取产物，不能用手工补造 descriptor 或省略实际引用来降低测试要求。
+
 ## 7. 对象发射与可复现性
 
 扩展现有 `EmittedStrongObjectSetV2` 所在的对象集合实现，并按其新用途整理命名。每个 `ObjectDefinitionPlan` 只绑定到一个实际 `SlibMemberId`；一个对象可以含多个 plan，一个 group 可以跨对象。目录逻辑 key 仍由排序后的真实 unit set 形成。

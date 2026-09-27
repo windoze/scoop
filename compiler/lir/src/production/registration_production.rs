@@ -5,7 +5,7 @@ use std::fmt;
 use scoop_wire::{Encoder, WireEncode};
 
 use crate::{
-    ImmortalObjectTypeRegistrationRefV1, Module, OdrFreeLirFoundation, RefScan,
+    ConeLirFoundation, ImmortalObjectTypeRegistrationRefV1, Module, RefScan,
     StaticStorageRelocationTableArtifactV1, StrongCallableRegistrationPlanBuildError,
     StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
     StrongCallableRuntimeScanPlanError, StrongCallableRuntimeScanPlanSetV1,
@@ -39,7 +39,7 @@ mod v2;
 impl StrongRegistrationProductionSurfaceV1 {
     pub fn empty(
         target: crate::LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
         let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
@@ -73,7 +73,7 @@ impl StrongRegistrationProductionSurfaceV1 {
 
     pub fn from_module(
         module: &Module,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         entry_source: &crate::EntryProductionSourceV1,
     ) -> Result<(StrongDigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError>
     {

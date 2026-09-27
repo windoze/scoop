@@ -5,7 +5,7 @@ use super::*;
 pub(super) fn validate_immortal_objects(
     decoded: Vec<DecodedStrongImmortalObjectRegistrationPlanV1>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     definitions: Option<&crate::StrongTypeReferenceDefinitionsV2>,
 ) -> Result<StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationProductionValidationError> {

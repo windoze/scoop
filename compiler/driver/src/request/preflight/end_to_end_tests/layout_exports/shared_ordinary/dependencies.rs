@@ -8,7 +8,7 @@ pub(in super::super) fn check_dependency_uses(
     dependencies: LayoutAbiExportDependenciesV1<'_>,
     terminal: &lir::CrossConeLirBridgeSectionV1,
     metadata: hir::SharedTypeMetadataV1<'_>,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
 ) {
     let layouts = scoop_slib::replay_shared_mir_layouts(
         input.lir.module().meta.target_profile,

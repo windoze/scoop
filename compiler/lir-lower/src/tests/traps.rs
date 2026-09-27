@@ -1,5 +1,7 @@
 use super::*;
 
+mod odr;
+
 #[test]
 fn trap_calls_branch_to_a_shared_trap_block() {
     // fun f(o: Option<Int>): Int { return o!! + o!! } — in the
@@ -143,8 +145,8 @@ fn trap_calls_branch_to_a_shared_trap_block() {
             0,
         )]
     );
-    let foundation = lir::OdrFreeLirFoundation::from_module(&module).unwrap();
-    let surface = lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let foundation = lir::ConeLirFoundation::from_module(&module).unwrap();
+    let surface = lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let boundary = surface
         .plans()
         .iter()

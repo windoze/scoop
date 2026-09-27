@@ -16,7 +16,7 @@ use super::{
     EntryProductionSourceV1,
 };
 use crate::{
-    CanonicalLirFoundation, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestNodeV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -155,7 +155,7 @@ struct ExecutableFixture {
     main: MainCallableBodyId,
     gateway: PersistentCallableBodyId,
     failure_root: PersistentStaticStorageId,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     digests: StrongDigestFinalizationPlanV1,
     registrations: StrongRegistrationIdentitySurfaceV1,
 }
@@ -252,7 +252,7 @@ fn executable_fixture() -> ExecutableFixture {
     canonical.set_definition_plans(plans).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let gateway_definition = definition_plan(
         producer,
@@ -343,12 +343,11 @@ fn executable_fixture() -> ExecutableFixture {
     }
 }
 
-fn empty_foundation() -> OdrFreeLirFoundation {
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
-        .unwrap()
+fn empty_foundation() -> ConeLirFoundation {
+    ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty()).unwrap()
 }
 
-fn image_only_digests(foundation: &OdrFreeLirFoundation) -> StrongDigestFinalizationPlanV1 {
+fn image_only_digests(foundation: &ConeLirFoundation) -> StrongDigestFinalizationPlanV1 {
     StrongDigestFinalizationPlanV1::new(
         vec![
             DigestNodeV1::new(
@@ -375,7 +374,7 @@ fn definition_plan(
 }
 
 fn primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     plan: scoop_identity::ObjectDefinitionPlanId,
 ) -> scoop_identity::ObjectDefinitionAtomId {
     foundation

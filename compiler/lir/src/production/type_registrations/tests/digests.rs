@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     types: &[TypeArtifacts; 2],
     options: Options,
 ) -> StrongDigestFinalizationPlanV1 {

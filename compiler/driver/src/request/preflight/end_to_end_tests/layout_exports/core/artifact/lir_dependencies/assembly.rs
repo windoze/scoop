@@ -6,7 +6,7 @@ pub(in super::super) fn assemble_with_production(
     target: &scoop_toolchain::ResolvedTargetProfile,
     core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    lir: &lir::SingleConeStrongLirOutput,
+    lir: &lir::ConeLirOutput,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     owners: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],

@@ -7,8 +7,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
-    CanonicalLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    EntryProductionSourceV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    CanonicalLirFoundation, ConeLirFoundation, DarwinCBridgeDeploymentContractV1,
+    DarwinPackedVersionV1, EntryProductionSourceV1, StrongDigestFinalizationPlanV1,
     StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
     ValidatedLirTargetSelection,
 };
@@ -592,8 +592,7 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
         .unwrap();
     let (lir_foundation, _) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
-    let lir_proof =
-        OdrFreeLirFoundation::try_new(cone().identity(), lir_foundation.clone()).unwrap();
+    let lir_proof = ConeLirFoundation::try_new(cone().identity(), lir_foundation.clone()).unwrap();
     let (strong_production, final_objects, defined_symbols, undefined_symbols) =
         finalized_link_object_fixture();
     let image_patch_offset = final_objects
@@ -1064,7 +1063,7 @@ pub(crate) fn strong_production_fixture(
         .set_definition_atoms(image_atoms(definition_id))
         .unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical.clone()).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical.clone()).unwrap();
     let image_key = DigestNodeKey::runtime_image(producer);
     let image_id = DigestNodeId::from_key(&image_key).unwrap();
     let patch = DigestPatchIntentKey::new(
@@ -1183,8 +1182,8 @@ fn empty_hir_library_section() -> Vec<u8> {
 fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
     let (canonical, _) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
-    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
-    let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let foundation = ConeLirFoundation::try_new(cone().identity(), canonical).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let units = crate::CanonicalScoopLirObjectUnitSetV1::new(
         partition.scoop_lir_definition_plans().to_vec(),
     )
@@ -1202,8 +1201,8 @@ struct LinkObjectFixture {
 fn link_object_fixture() -> LinkObjectFixture {
     let (canonical, production) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
-    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
-    let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let foundation = ConeLirFoundation::try_new(cone().identity(), canonical).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let plan = link_object_plan();
     let symbols =
         PlannedStrongObjectSymbolSetV1::new(selection().target(), &surface, &plan).unwrap();
@@ -1251,7 +1250,7 @@ fn finalized_link_object_fixture() -> (
     let fixture = link_object_fixture();
     let (canonical, production) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
-    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(cone().identity(), canonical).unwrap();
     let objects = [crate::ScoopLirObjectCandidateV1::new(
         fixture.plan.scoop_lir_members()[0].member_id(),
         &fixture.bytes,
@@ -1428,7 +1427,7 @@ fn link_object_bytes() -> Vec<u8> {
 
 fn empty_undefined_requirements(
     patch_sites: &crate::VerifiedScoopLirDigestPatchSiteSetV1,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     production: &StrongProductionSectionV1,
 ) -> crate::CanonicalUndefinedSymbolRequirementSetV1 {
     let strong = patch_sites.builtins().strong_relocations().clone();

@@ -8,7 +8,7 @@ use scoop_identity::{
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, LirTargetProfile, OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, LirTargetProfile, StrongObjectSymbolSurfaceV1,
     StrongProducerUnitPartitionV1,
 };
 
@@ -141,9 +141,9 @@ fn fixture(name: &str) -> Fixture {
     canonical.set_definition_plans(vec![plan.clone()]).unwrap();
     canonical.set_definition_atoms(vec![atom.clone()]).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
-    let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
-    let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],

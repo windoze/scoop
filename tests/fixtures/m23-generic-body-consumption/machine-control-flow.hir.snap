@@ -1,0 +1,55 @@
+Module
+  fun guarded(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      IntegerLiteral 1 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      Local $dependency.argument.1 : Int
+    return
+      ImportedGenericCall checked<Int> : Int
+        Local $dependency.parameter.value : Int
+        Local $dependency.parameter.count : Int
+  fun recovery(): Int
+    val local0
+      ImportedDependencyCall #0 : Throwable
+    val local1
+      IntegerLiteral 43 : Int
+    val local2
+      Local $dependency.argument.0 : Throwable
+    val local3
+      Local $dependency.argument.1 : Int
+    return
+      ImportedGenericCall recover<Int> : Int
+        Local $dependency.parameter.error : Throwable
+        Local $dependency.parameter.fallback : Int
+  fun defaultValue(): Int
+    val local0
+      IntegerLiteral 44 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    try
+      val local3
+        Local $dependency.parameter.value : Int
+      val local4
+        Local $dependency.default.local.2 : Int
+      assign $dependency.default.local.4
+        ImportedGenericCall identity<Int> : Int
+          Local $dependency.default.local.3 : Int
+    finally
+      val local6
+        IntegerLiteral 0 : Int
+      val local7
+        Local $dependency.default.local.5 : Int
+      val local2
+        ImportedGenericCall identity<Int> : Int
+          Local $dependency.default.local.6 : Int
+    val local8
+      Local $dependency.default.local.4 : Int
+    return
+      ImportedGenericCall defaulted<Int> : Int
+        Local $dependency.parameter.value : Int
+        Local $dependency.parameter.second : Int
+  output library

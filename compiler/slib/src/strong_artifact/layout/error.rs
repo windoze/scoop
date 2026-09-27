@@ -13,6 +13,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum CrossConeLayoutStrongArtifactWriteError {
+    LirProfile(scoop_lir::ConeLirFoundationError),
     ComponentProducerMismatch {
         component: &'static str,
         expected: ConeIdentity,
@@ -118,6 +119,7 @@ impl fmt::Display for CrossConeLayoutStrongArtifactWriteError {
 impl std::error::Error for CrossConeLayoutStrongArtifactWriteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::LirProfile(source) => Some(source),
             Self::CallableSemanticImports(source) => Some(source),
             Self::LinkObjectFingerprint(source) | Self::Compatibility(source) => Some(source),
             Self::LinkIdentityClosure(source) => Some(source),

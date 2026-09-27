@@ -36,7 +36,7 @@ fn ordinary_bridge_requires_body_symbol_definition_and_primary_atom() {
             3 => canonical.set_definition_atoms(vec![]).unwrap(),
             _ => unreachable!(),
         }
-        let foundation = OdrFreeLirFoundation::try_new(fixture.producer, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(fixture.producer, canonical).unwrap();
         let result =
             CrossConeLirBridgeSectionV1::try_new(&foundation, vec![fixture.export()], vec![]);
         assert!(result.is_err(), "missing physical component {missing}");

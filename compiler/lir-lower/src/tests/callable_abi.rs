@@ -66,7 +66,7 @@ fn ordinary_and_layout_publication_reject_a_missing_materialized_body_with_the_s
     module
         .functions
         .retain(|function| function.callable_body.id() != body);
-    let output = lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let output = lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     assert!(matches!(
         crate::lower_cross_cone_bridge_section(&input, &mir_bridge(&input, target, signature.exact()), &output),
         Err(CrossConeLirBridgeLoweringError::CallableAbi { source: CallableAbiProjectionError::MissingLirBody(actual), .. }) if actual == target

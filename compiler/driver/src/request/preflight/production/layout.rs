@@ -118,9 +118,13 @@ pub(super) fn assemble(
         &identities,
     )
     .map_err(Error::MirSection)?;
-    let selected_layout = imports::select(
+    let selected_layout = select_lir_dependencies(
         &mir.strong,
-        &mir_section,
+        mir_section
+            .initialization_uses()
+            .records()
+            .iter()
+            .map(|usage| (usage.provider(), usage.dependency_unit())),
         &dependencies,
         request.target().lir_target(),
     )?;

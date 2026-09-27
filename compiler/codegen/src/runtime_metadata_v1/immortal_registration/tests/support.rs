@@ -10,11 +10,11 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
-    CanonicalCAbiMetadata, CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
-    ExternFunctions, ExternalTypeDescriptor, Global, GlobalInit, ImmortalObjectIdentity,
-    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
-    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
+    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global, GlobalInit,
+    ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind,
+    LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot,
+    Module, NativeExternalMetadata, NativeGlobalBridges, PointerKind, RefScan,
     StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
     StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationIdentitySurfaceV1, StructDefs,
     TypeDescriptorRef, WellKnownTypeDescriptors,
@@ -73,7 +73,7 @@ pub(super) fn immortal_plan(object_count: u32) -> StrongImmortalObjectRegistrati
         )
         .unwrap(),
     );
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let digests = digest_plan(&foundation, &artifacts);
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
@@ -182,7 +182,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     artifacts: &[ObjectArtifacts],
 ) -> StrongDigestFinalizationPlanV1 {
     let mut nodes = Vec::new();

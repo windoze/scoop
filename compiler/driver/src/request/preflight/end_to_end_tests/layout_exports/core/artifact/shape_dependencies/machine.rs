@@ -76,7 +76,7 @@ pub(super) fn check(
         .unwrap()];
     assert!(matches!(
         scoop_lir_lower::lower(input.mir, string, callables, provider.target.lir_target(),),
-        Err(scoop_lir_lower::StrongLirLoweringError::MissingDependencyLayoutSelection { .. })
+        Err(scoop_lir_lower::LirLoweringError::MissingDependencyLayoutSelection { .. })
     ));
 
     let coordinate = ConeCoordinate::new("dev.example", "shape-consumer", "0.1.0").unwrap();
@@ -164,7 +164,7 @@ pub(super) fn check(
 
 fn emit(
     name: &str,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
     coordinate: &ConeCoordinate,
     provider: Provider<'_, '_>,
     production: lir::StrongProductionSectionV2,

@@ -4,7 +4,7 @@ use super::validation::*;
 use super::*;
 
 pub(super) fn build_registration<D: crate::StrongInitializationDependencyReference>(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     semantic: &StrongInitializationUnitSemanticPlan<D>,
     identity: &crate::StrongRegistrationIdentityV1<PersistentInitializationUnitId>,

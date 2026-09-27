@@ -9,7 +9,7 @@ use scoop_identity::{
     StrongDefinitionRole,
 };
 
-use crate::{GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, OdrFreeLirFoundation};
+use crate::{ConeLirFoundation, GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedBridgeProducerUnitV1 {
@@ -35,10 +35,10 @@ pub struct StrongProducerUnitPartitionV1 {
 }
 
 impl StrongProducerUnitPartitionV1 {
-    pub fn from_odr_free_foundation(
-        foundation: &OdrFreeLirFoundation,
+    pub fn from_foundation(
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, StrongProducerUnitPartitionError> {
-        let bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(foundation)
+        let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(foundation)
             .map_err(StrongProducerUnitPartitionError::GeneratedBridgePlan)?;
         let mut unit_definitions = bridge_plan
             .units()

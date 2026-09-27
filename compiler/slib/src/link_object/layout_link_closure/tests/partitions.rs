@@ -59,8 +59,7 @@ fn old_callable(consumer: ConeIdentity) -> OldCallable {
         ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
-    let foundation =
-        OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
+    let foundation = ConeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
     let bridge = CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![selected]).unwrap();
     let imports = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&bridge).unwrap();
     let symbol = TARGET

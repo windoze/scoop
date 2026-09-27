@@ -6,7 +6,7 @@ pub enum CurrentConeLirStageError {
     DiagnosticCatalog(scoop_identity::ExactTypeDiagnosticCatalogError),
 
     DependencyProjection(scoop_slib::CrossConeLirSelectionProjectionError),
-    Lowering(scoop_lir_lower::StrongLirLoweringError),
+    Lowering(scoop_lir_lower::LirLoweringError),
     CrossConeBridge(scoop_lir_lower::CrossConeLirBridgeLoweringError),
 }
 

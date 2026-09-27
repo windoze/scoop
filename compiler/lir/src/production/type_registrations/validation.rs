@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn require_descriptor_associated_atoms(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     plan: ObjectDefinitionPlanId,
     exact_type: PersistentExactTypeId,
     has_itable_directory: bool,
@@ -65,7 +65,7 @@ pub(super) fn require_descriptor_associated_atoms(
 }
 
 pub(super) fn require_definition(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<
@@ -84,7 +84,7 @@ pub(super) fn require_definition(
 }
 
 pub(super) fn require_primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     plan: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongTypeRegistrationPlanBuildError> {
     let actual = foundation
@@ -102,7 +102,7 @@ pub(super) fn require_primary_atom(
 }
 
 pub(super) fn require_symbol(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
 ) -> Result<PersistentSymbolRequest, StrongTypeRegistrationPlanBuildError> {
     let request = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)

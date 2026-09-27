@@ -168,7 +168,7 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
 }
 
 fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
-    let foundation = crate::OdrFreeLirFoundation::try_new(
+    let foundation = crate::ConeLirFoundation::try_new(
         ConeIdentity::SINGLE_FILE,
         crate::CanonicalLirFoundation::empty(),
     )

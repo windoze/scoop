@@ -137,7 +137,7 @@ fn role_specific_definitions_do_not_alias_subjects_with_the_same_payload_id() {
 
 #[test]
 fn binding_requires_the_exact_symbol_definition_and_unique_primary_atom() {
-    let empty = crate::OdrFreeLirFoundation::try_new(
+    let empty = crate::ConeLirFoundation::try_new(
         ConeIdentity::SINGLE_FILE,
         crate::CanonicalLirFoundation::empty(),
     )
@@ -180,7 +180,7 @@ fn foundation(
     subject: ExternalStrongShapeSubjectV1,
     include_symbol: bool,
     primary_count: usize,
-) -> crate::OdrFreeLirFoundation {
+) -> crate::ConeLirFoundation {
     let (key, symbol) = subject
         .expected_definition(ConeIdentity::SINGLE_FILE)
         .unwrap();
@@ -219,7 +219,7 @@ fn foundation(
         )
         .unwrap(),
     );
-    crate::OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
+    crate::ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
 }
 
 #[test]

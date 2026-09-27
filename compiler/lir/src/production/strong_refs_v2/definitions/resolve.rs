@@ -1,5 +1,5 @@
 use super::*;
-use crate::{OdrFreeLirFoundation, StrongRegistrationIdentitySurfaceV1};
+use crate::{ConeLirFoundation, StrongRegistrationIdentitySurfaceV1};
 
 type Error = StrongTypeReferenceResolutionErrorV2;
 
@@ -7,7 +7,7 @@ impl StrongTypeReferenceDefinitionsV2 {
     pub fn resolve_descriptor(
         &self,
         decoded: DecodedStrongTypeDescriptorRefV2,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
     ) -> Result<StrongTypeDescriptorRefV2, Error> {
         self.check_producer(foundation.producer())?;
@@ -48,7 +48,7 @@ impl StrongTypeReferenceDefinitionsV2 {
     pub fn resolve_optional_descriptor(
         &self,
         decoded: DecodedOptionalStrongTypeDescriptorRefV2,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
     ) -> Result<Option<StrongTypeDescriptorRefV2>, Error> {
         self.check_producer(foundation.producer())?;
@@ -68,7 +68,7 @@ impl StrongTypeReferenceDefinitionsV2 {
     pub fn resolve_dispatch_callable(
         &self,
         decoded: DecodedStrongTypeDispatchCallableRefV2,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<StrongTypeDispatchCallableRefV2, Error> {
         self.check_producer(foundation.producer())?;
 

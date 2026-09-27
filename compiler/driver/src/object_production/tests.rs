@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentNativeExternalSymbolId, SourceNativeSymbol, StrongDefinitionEntity,
     StrongDefinitionRole,
 };
-use scoop_lir::{CanonicalLirFoundation, OdrFreeLirFoundation};
+use scoop_lir::{CanonicalLirFoundation, ConeLirFoundation};
 
 use super::*;
 
@@ -22,8 +22,7 @@ fn binds_object_bytes_to_member_ids_only_through_their_canonical_units() {
         StrongDefinitionRole::RootEntryDescriptor,
     );
     let foundation = foundation(&[image.clone(), entry.clone()]);
-    let producer_units =
-        StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let producer_units = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let sources = vec![
         UnboundScoopLirObject {
             units: vec![entry.id()],
@@ -80,8 +79,7 @@ fn binds_generated_c_bytes_from_the_actual_singleton_unit_set() {
         vec![unit.clone()],
         vec![bridge_atom],
     );
-    let producer_units =
-        StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let producer_units = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
 
     let planned = plan_objects(
         &producer_units,
@@ -121,8 +119,7 @@ fn rejects_one_physical_object_whose_units_resolve_to_different_members() {
         StrongDefinitionRole::RootEntryDescriptor,
     );
     let foundation = foundation(&[image.clone(), entry.clone()]);
-    let producer_units =
-        StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let producer_units = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
         &producer_units,
         vec![
@@ -151,7 +148,7 @@ fn definition(
 
 fn foundation(
     definitions: &[CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>],
-) -> OdrFreeLirFoundation {
+) -> ConeLirFoundation {
     foundation_with_bridges(definitions, Vec::new(), Vec::new())
 }
 
@@ -159,7 +156,7 @@ fn foundation_with_bridges(
     definitions: &[CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>],
     bridge_units: Vec<CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>>,
     bridge_atoms: Vec<CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>>,
-) -> OdrFreeLirFoundation {
+) -> ConeLirFoundation {
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_bridge_units(bridge_units).unwrap();
     canonical.set_bridge_atoms(bridge_atoms).unwrap();
@@ -181,7 +178,7 @@ fn foundation_with_bridges(
                 .collect(),
         )
         .unwrap();
-    OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap()
+    ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap()
 }
 
 fn bridge_unit() -> CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey> {

@@ -14,15 +14,15 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
-    CanonicalLirFoundation, DecodedStrongRegistrationProductionSurfaceV1, DigestInputRefV1,
-    DigestNodeV1, EnumDefs, ExternFunctions, Function, GcEffect, Global, GlobalInit,
-    ImmortalObjectIdentity, Instruction, IntrinsicTypeRepresentation, Layout, LayoutIdentity,
-    LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
-    LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
+    CanonicalLirFoundation, ConeLirFoundation, DecodedStrongRegistrationProductionSurfaceV1,
+    DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, Function, GcEffect, Global,
+    GlobalInit, ImmortalObjectIdentity, Instruction, IntrinsicTypeRepresentation, Layout,
+    LayoutIdentity, LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile,
+    LirType, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
     ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeTypeMappingRecord,
-    SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
-    SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StaticStorageIdentity,
+    NativeGlobalBridges, PointerKind, RefScan, RuntimeTypeMappingRecord, SafepointIdentities,
+    SafepointIdentity, SafepointMappingRecord, SafepointSiteRef, SafepointSiteRole,
+    ScoopAbiSignature, StatepointLiveSet, StaticStorageIdentity,
     StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
     StrongImmortalObjectRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanSetV1,
     StrongRegistrationProductionSurfaceV1, StrongSafepointRegistrationPlanSetV1,
@@ -35,7 +35,7 @@ use super::Corruption;
 
 pub(crate) struct SemanticInputs {
     pub(crate) module: Module,
-    pub(crate) foundation: OdrFreeLirFoundation,
+    pub(crate) foundation: ConeLirFoundation,
     pub(crate) definitions: Vec<ObjectDefinitionPlanId>,
     pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
@@ -325,7 +325,7 @@ fn foundation(
     safepoints: &[SafepointIdentity],
     corruption: Corruption,
 ) -> (
-    OdrFreeLirFoundation,
+    ConeLirFoundation,
     Vec<RegistrationArtifacts>,
     CallableRegistrationArtifacts,
     TypeRegistrationArtifacts,
@@ -515,7 +515,7 @@ fn foundation(
         .unwrap(),
     );
     (
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
         registrations,
         callable_registration,
         type_registration,
@@ -812,7 +812,7 @@ fn registration_artifacts(site: PersistentSafepointSiteId) -> RegistrationArtifa
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     body: scoop_identity::PersistentCallableBodyId,
     registrations: &[RegistrationArtifacts],
     callable_registration: &CallableRegistrationArtifacts,

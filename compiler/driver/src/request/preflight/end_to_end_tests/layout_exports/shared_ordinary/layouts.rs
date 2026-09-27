@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check(
     expected: &lir::CanonicalExactLayoutExportsV1,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
     replay: impl Fn(
         &lir::CanonicalExactLayoutExportsV1,
     ) -> Result<lir::CrossConeLirBridgeSectionV1, Error>,

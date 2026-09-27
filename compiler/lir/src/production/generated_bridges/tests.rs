@@ -10,7 +10,7 @@ use scoop_identity::{
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
+use crate::{CanonicalLirFoundation, ConeLirFoundation};
 
 #[test]
 fn generated_bridge_plan_has_a_fixed_wire_vector_and_validates() {
@@ -46,16 +46,16 @@ fn generated_bridge_plan_requires_primary_and_definition_plans() {
     let unit = unit_record();
     let mut no_primary = CanonicalLirFoundation::empty();
     no_primary.set_bridge_units(vec![unit.clone()]).unwrap();
-    let no_primary = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, no_primary).unwrap();
+    let no_primary = ConeLirFoundation::try_new(ConeIdentity::CORE, no_primary).unwrap();
     assert_eq!(
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&no_primary),
+        GeneratedBridgePlanSetV1::from_foundation(&no_primary),
         Err(GeneratedBridgePlanBuildError::MissingPrimaryAtom(unit.id()))
     );
 
     let fixture = fixture(false);
     let expected = expected_definition_plan(fixture.bridge_atom.key()).id();
     assert_eq!(
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation),
+        GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation),
         Err(GeneratedBridgePlanBuildError::MissingDefinitionPlan {
             atom: fixture.bridge_atom.id(),
             expected,
@@ -83,7 +83,7 @@ fn validation_rejects_atoms_moved_to_another_role_set() {
 struct Fixture {
     unit: CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>,
     bridge_atom: CborIdentityRecord<GeneratedBridgeAtomId, GeneratedBridgeAtomKey>,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     plan: GeneratedBridgePlanSetV1,
 }
 
@@ -114,9 +114,9 @@ fn fixture(include_definition: bool) -> Fixture {
             .set_definition_atoms(vec![definition_atom])
             .unwrap();
     }
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap();
     let plan = if include_definition {
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap()
+        GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap()
     } else {
         GeneratedBridgePlanSetV1 {
             producer: ConeIdentity::CORE,

@@ -262,7 +262,7 @@ struct ObjectArtifacts {
 }
 
 struct Fixture {
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     identities: StrongRegistrationIdentitySurfaceV1,
     semantics: StrongImmortalObjectSemanticPlanSetV1,
     digests: StrongDigestFinalizationPlanV1,
@@ -346,8 +346,7 @@ impl Fixture {
             )
             .unwrap(),
         );
-        let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &artifacts, options);
         let identities =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
@@ -420,7 +419,7 @@ fn object_artifacts(seed: u32) -> ObjectArtifacts {
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     artifacts: &[ObjectArtifacts; 2],
     options: Options,
 ) -> StrongDigestFinalizationPlanV1 {

@@ -2,7 +2,7 @@ use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
     CrossConeTypeSemanticsSectionV1, OdrFreeHirFoundation,
 };
-use scoop_lir::{CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, OdrFreeLirFoundation};
+use scoop_lir::{ConeLirFoundation, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1};
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
     OdrFreeMirFoundation,
@@ -32,7 +32,7 @@ pub(super) struct LayoutMetadataInput<'section, 'ir> {
     pub mir_production: &'section CoreBootstrapBridgeSectionV1,
     pub mir_cross_cone: &'section CrossConeMirBridgeSectionV1,
     pub mir_type_bridge: &'section CrossConeMirTypeBridgeSectionV1<'ir>,
-    pub lir_foundation: &'section OdrFreeLirFoundation,
+    pub lir_foundation: &'section ConeLirFoundation,
     pub lir_cross_cone: &'section CrossConeLirBridgeSectionV1,
     pub lir_layout_abi: &'section CrossConeLayoutAbiSectionV1<'ir>,
     pub code: &'section VerifiedCodeFingerprintV2,

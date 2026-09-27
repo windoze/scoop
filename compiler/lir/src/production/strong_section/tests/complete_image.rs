@@ -4,7 +4,7 @@ use super::*;
 
 pub(in crate::production) fn attach_image(
     coordinate: &ConeCoordinate,
-    foundation: &mut OdrFreeLirFoundation,
+    foundation: &mut ConeLirFoundation,
     digests: &mut StrongDigestFinalizationPlanV1,
 ) {
     let (image_foundation, image_digests) = fixture(coordinate);
@@ -42,7 +42,7 @@ pub(in crate::production) fn attach_image(
         .unwrap(),
     );
     let producer = foundation.producer();
-    *foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    *foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
     let mut nodes = digests.nodes().to_vec();
     let image = &image_digests.nodes()[0];
     let current = nodes

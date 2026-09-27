@@ -8,7 +8,7 @@ use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
-    ExternalStrongShapeSubjectV1, InstanceRepresentationKindV1, OdrFreeLirFoundation,
+    ConeLirFoundation, ExternalStrongShapeSubjectV1, InstanceRepresentationKindV1,
     StrongShapeDefinitionRefV1, StrongShapeDefinitionV1, StrongShapeRegistrationV1,
     StrongTypeDescriptorInlineScanPlanV1, StrongTypeDescriptorSemanticPlanV2,
     StrongTypeRegistrationPlanV2, TypeDescriptorITableDirectoryV1, TypeDescriptorInlineScanV1,
@@ -27,7 +27,7 @@ impl ExactDescriptorExportV1 {
         layouts: &crate::CanonicalExactLayoutExportsV1,
         registration: &StrongTypeRegistrationPlanV2,
         diagnostics: &impl ExactTypeDiagnosticGraph,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactDescriptorError> {
         validate_registration_plan(registration, layouts, foundation)?;
         let expected_registration = StrongShapeRegistrationV1::from_artifact(
@@ -54,7 +54,7 @@ pub(super) fn replay_test_parts(
     semantic: &StrongTypeDescriptorSemanticPlanV2,
     registration: StrongShapeRegistrationV1<PersistentExactTypeId>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ExactDescriptorExportV1, ExactDescriptorError> {
     replay_parts(
         target,

@@ -5,8 +5,8 @@ use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
-    CanonicalExactDescriptorExportsV1, CanonicalExactLayoutExportsV1, LirTargetProfile,
-    OdrFreeLirFoundation,
+    CanonicalExactDescriptorExportsV1, CanonicalExactLayoutExportsV1, ConeLirFoundation,
+    LirTargetProfile,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,7 +24,7 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         sources: &[SourceDeclarationKey],
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ParamFreeShapeSupportTableError> {
         Self::from_source_refs(sources.iter(), layouts, descriptors, foundation)
     }
@@ -33,7 +33,7 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         sources: impl ExactSizeIterator<Item = &'a SourceDeclarationKey>,
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ParamFreeShapeSupportTableError> {
         validate_inputs(layouts, descriptors, foundation)?;
         let path = WirePath::root();
@@ -67,7 +67,7 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         sources: &[SourceDeclarationKey],
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         mut records: Vec<ParamFreeShapeSupportExportV1>,
     ) -> Result<Self, ParamFreeShapeSupportTableError> {
         validate_inputs(layouts, descriptors, foundation)?;
@@ -132,7 +132,7 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
 fn validate_inputs(
     layouts: &CanonicalExactLayoutExportsV1,
     descriptors: &CanonicalExactDescriptorExportsV1,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<(), ParamFreeShapeSupportTableError> {
     if layouts.provider() != foundation.producer()
         || descriptors.provider() != foundation.producer()

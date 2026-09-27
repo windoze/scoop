@@ -13,7 +13,7 @@ pub fn replay_shared_mir_callable_abis(
     bindings: &mir::CanonicalMirCallableBindingsV1,
     local: &lir::CanonicalExactLayoutExportsV1,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
     identities: &scoop_identity::ValidatedIdentityGraph,
 ) -> Result<lir::CanonicalExactCallableAbiExportsV1, Error> {
     let mut layouts = Layouts::new(local, dependencies, target, foundation.producer())?;

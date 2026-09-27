@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) fn require_static_storage(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     storage: PersistentStaticStorageId,
     digests: &StrongDigestFinalizationPlanV1,
@@ -65,7 +65,7 @@ pub(super) fn require_static_storage(
 }
 
 pub(super) fn require_callable(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     body: PersistentCallableBodyId,
     digests: &StrongDigestFinalizationPlanV1,
@@ -135,7 +135,7 @@ pub(super) fn require_callable(
 }
 
 pub(super) fn require_definition(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<&crate::DefinitionPlanRecord, StrongInitializationUnitRegistrationPlanBuildError> {
@@ -149,7 +149,7 @@ pub(super) fn require_definition(
 }
 
 pub(super) fn require_primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     definition: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongInitializationUnitRegistrationPlanBuildError> {
     let atoms = foundation
@@ -172,7 +172,7 @@ pub(super) fn require_primary_atom(
 }
 
 pub(super) fn require_associated_atoms<const N: usize>(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     unit: PersistentInitializationUnitId,
     definition: ObjectDefinitionPlanId,
     mut expected: [ObjectDefinitionAtomKey; N],
@@ -212,7 +212,7 @@ pub(super) fn require_associated_atoms<const N: usize>(
 }
 
 pub(super) fn require_symbol(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
 ) -> Result<PersistentSymbolRequest, StrongInitializationUnitRegistrationPlanBuildError> {
     let symbol = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)

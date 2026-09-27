@@ -17,8 +17,7 @@ const SDK: u32 = 0x000e_0200;
 #[test]
 fn verifies_the_complete_mixed_builtin_member_set() {
     let fixture = fixture(Some("native_bridge"));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
     let symbol_plan = symbol_plan(&fixture.foundation, &member_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
@@ -94,8 +93,7 @@ fn verifies_the_complete_mixed_builtin_member_set() {
 #[test]
 fn rejects_missing_scoop_members_before_partial_verification() {
     let fixture = fixture(None);
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
     let symbol_plan = symbol_plan(&fixture.foundation, &member_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
@@ -128,8 +126,7 @@ fn rejects_missing_scoop_members_before_partial_verification() {
 #[test]
 fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
     let fixture = fixture(Some("native_bridge"));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
     let symbol_plan = symbol_plan(&fixture.foundation, &member_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
@@ -215,10 +212,10 @@ fn rejects_capability_confusion_and_bytes_changed_after_bridge_proof() {
 }
 
 fn symbol_plan(
-    foundation: &scoop_lir::OdrFreeLirFoundation,
+    foundation: &scoop_lir::ConeLirFoundation,
     members: &PlannedLinkObjectMemberSetV1,
 ) -> PlannedStrongObjectSymbolSetV1 {
-    let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(foundation).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(foundation).unwrap();
     PlannedStrongObjectSymbolSetV1::new(LirTargetProfile::DARWIN_AARCH64, &surface, members)
         .unwrap()
 }

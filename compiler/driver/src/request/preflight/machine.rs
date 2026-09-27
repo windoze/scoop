@@ -61,7 +61,7 @@ pub(super) fn lower_selected_lir(
     diagnostics: &impl scoop_identity::ExactTypeDiagnosticGraph,
 ) -> Result<
     (
-        scoop_lir::SingleConeStrongLirOutput,
+        scoop_lir::ConeLirOutput,
         scoop_lir::CrossConeLirBridgeSectionV1,
     ),
     CurrentConeLirStageError,

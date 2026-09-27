@@ -65,7 +65,7 @@ fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
     }
 }
 
-fn fixture(coordinate: &ConeCoordinate) -> (OdrFreeLirFoundation, StrongDigestFinalizationPlanV1) {
+fn fixture(coordinate: &ConeCoordinate) -> (ConeLirFoundation, StrongDigestFinalizationPlanV1) {
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
@@ -87,7 +87,7 @@ fn fixture(coordinate: &ConeCoordinate) -> (OdrFreeLirFoundation, StrongDigestFi
     canonical.set_definition_plans(vec![definition]).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
     let image_id = DigestNodeId::from_key(&image_key).unwrap();
@@ -174,7 +174,7 @@ fn image_atoms(
         .collect()
 }
 
-fn identities(foundation: &OdrFreeLirFoundation) -> scoop_identity::ValidatedIdentityGraph {
+fn identities(foundation: &ConeLirFoundation) -> scoop_identity::ValidatedIdentityGraph {
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(foundation.producer()).unwrap();
     for definition in foundation.definition_plans() {

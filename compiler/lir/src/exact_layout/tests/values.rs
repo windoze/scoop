@@ -157,7 +157,7 @@ fn records_reject_wrong_role_identity_kind_owner_and_missing_scan_relation() {
     let bound = Bound::value(exact(&CoreBuiltinNominal::Unit.declaration_key()));
     let mut canonical = bound.foundation.as_canonical().clone();
     canonical.set_scans(Vec::new()).unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     assert!(matches!(
         ExactValueLayoutV1::unit(bound.identity, &foundation),
         Err(ExactLayoutReplayError::MissingScan)

@@ -6,7 +6,7 @@ pub(crate) fn replay_parts(
     semantic: &StrongTypeDescriptorSemanticPlanV2,
     registration: StrongShapeRegistrationV1<PersistentExactTypeId>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ExactDescriptorExportV1, ExactDescriptorError> {
     let path = WirePath::root();
 
@@ -138,7 +138,7 @@ pub(crate) fn replay_parts(
 }
 
 fn validate_dispatch_key(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     table: PersistentDispatchTableId,
     owner: PersistentExactTypeId,
     interface: Option<PersistentExactTypeId>,

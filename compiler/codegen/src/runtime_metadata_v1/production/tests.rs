@@ -8,8 +8,8 @@ use scoop_identity::{
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, DigestNodeV1, EntryProductionSourceV1, LirTargetProfile,
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongProductionSectionV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestNodeV1, EntryProductionSourceV1,
+    LirTargetProfile, StrongDigestFinalizationPlanV1, StrongProductionSectionV1,
     StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
     StrongRegistrationProductionSurfaceV2,
 };
@@ -209,7 +209,7 @@ fn production() -> (
     canonical.set_definition_plans(vec![definition]).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
     let image_id = DigestNodeId::from_key(&image_key).unwrap();
@@ -278,7 +278,7 @@ fn production_v2() -> (
     canonical.set_definition_plans(vec![definition]).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
     let image_id = DigestNodeId::from_key(&image_key).unwrap();

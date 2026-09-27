@@ -51,7 +51,7 @@ impl ValidatedCrossConeStrongLinkArtifact {
     pub fn mir_foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
         self.artifact.mir_foundation()
     }
-    pub fn lir_foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
+    pub fn lir_foundation(&self) -> &scoop_lir::ConeLirFoundation {
         self.artifact.lir_foundation()
     }
     pub fn strong_production(&self) -> &scoop_lir::StrongProductionSectionV2 {

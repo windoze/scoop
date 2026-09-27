@@ -112,7 +112,7 @@ pub(crate) fn type_descriptors(
         TypeDescriptorRefs,
         lir::WellKnownTypeDescriptors,
     ),
-    StrongLirLoweringError,
+    LirLoweringError,
 > {
     let imported = dependencies
         .source
@@ -308,7 +308,7 @@ pub(crate) fn type_descriptors(
     }
     let string = refs
         .string
-        .ok_or(StrongLirLoweringError::MissingRuntimeStringDescriptor {
+        .ok_or(LirLoweringError::MissingRuntimeStringDescriptor {
             producer: module.cone,
         })?;
     Ok((descriptors, refs, lir::WellKnownTypeDescriptors { string }))

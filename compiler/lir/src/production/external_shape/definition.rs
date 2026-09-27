@@ -18,7 +18,7 @@ pub struct StrongShapeDefinitionRefV1 {
 impl StrongShapeDefinitionRefV1 {
     pub fn from_foundation(
         subject: ExternalStrongShapeSubjectV1,
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
     ) -> Result<Self, StrongShapeDefinitionError> {
         let (key, symbol) = subject.expected_definition(foundation.producer())?;
 

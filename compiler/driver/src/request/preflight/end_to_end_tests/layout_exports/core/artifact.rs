@@ -28,7 +28,7 @@ pub(super) fn check(
     directory: &Path,
     target: &scoop_toolchain::ResolvedTargetProfile,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    lir: &lir::SingleConeStrongLirOutput,
+    lir: &lir::ConeLirOutput,
     mir_section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     objects: scoop_codegen::EmittedStrongObjectSetV2,
@@ -48,13 +48,7 @@ pub(super) fn check(
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, lir).unwrap();
     shared_ordinary::check(name, input, &foundation, lir, layout, &ordinary);
     shared_digests::check(name, lir.foundation(), objects.production());
-    shared_initialization::check(
-        name,
-        input.mir.production(),
-        &ordinary,
-        lir,
-        objects.production(),
-    );
+    shared_initialization::check(name, input.mir.production(), &ordinary, lir);
     external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
     let generated =
         scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())

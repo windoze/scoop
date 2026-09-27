@@ -39,7 +39,7 @@ pub(crate) fn exact(
 
 pub(crate) struct Bound {
     pub(crate) identity: ExactLayoutIdentityV1,
-    pub(crate) foundation: OdrFreeLirFoundation,
+    pub(crate) foundation: ConeLirFoundation,
 }
 
 impl Bound {
@@ -86,7 +86,7 @@ impl Bound {
         foundation.set_definition_plans(plans).unwrap();
         foundation.set_definition_atoms(atoms).unwrap();
         foundation.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-        let foundation = OdrFreeLirFoundation::try_new(provider, foundation).unwrap();
+        let foundation = ConeLirFoundation::try_new(provider, foundation).unwrap();
         let identity =
             ExactLayoutIdentityV1::from_foundation(TARGET, exact, role, &foundation).unwrap();
         Self {

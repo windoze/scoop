@@ -3,7 +3,7 @@ use scoop_identity::StrongCallableDefinitionOwner;
 
 pub(super) fn fixture() -> (
     mir::ConeMirInput,
-    lir::SingleConeStrongLirOutput,
+    lir::ConeLirOutput,
     StrongCallableDefinitionOwner,
     mir::MirBridgeCallableSignatureV1,
 ) {

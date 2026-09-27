@@ -10,7 +10,7 @@ use scoop_identity::{
     PersistentSourceNativeExternalContractId, TargetProfileWireId,
 };
 
-use crate::{LirTargetProfile, OdrFreeLirFoundation};
+use crate::{ConeLirFoundation, LirTargetProfile};
 
 pub type CanonicalNativeLibraryRequirementV1 =
     CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>;
@@ -84,7 +84,7 @@ pub struct CanonicalNativeExternalRequirementSurfaceV1 {
 impl CanonicalNativeExternalRequirementSurfaceV1 {
     pub fn from_foundation(
         target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, CanonicalNativeExternalRequirementBuildError> {
         let target_wire_id = target.wire_id();
         let mut requirements = BTreeMap::new();

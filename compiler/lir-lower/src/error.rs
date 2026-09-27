@@ -10,7 +10,7 @@ pub use storage::StorageLoweringError;
 pub(crate) use storage::StorageResult;
 
 #[derive(Debug)]
-pub enum StrongLirLoweringError {
+pub enum LirLoweringError {
     Capability(StrongLirCapabilityError),
     DependencyLayout(lir::LayoutExternalMaterializationError),
     DependencyLayoutConsumer {
@@ -78,10 +78,10 @@ pub enum StrongLirLoweringError {
 
     InvalidInitializationCallable(scoop_identity::CallableOwner),
     CallableAbi(crate::CallableAbiProjectionError),
-    Output(lir::SingleConeStrongLirOutputError),
+    Output(lir::ConeLirOutputError),
 }
 
-impl fmt::Display for StrongLirLoweringError {
+impl fmt::Display for LirLoweringError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Capability(source) => source.fmt(formatter),
@@ -175,7 +175,7 @@ impl fmt::Display for StrongLirLoweringError {
     }
 }
 
-impl std::error::Error for StrongLirLoweringError {
+impl std::error::Error for LirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Capability(source) => Some(source),

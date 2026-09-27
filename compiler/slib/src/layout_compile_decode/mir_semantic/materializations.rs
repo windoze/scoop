@@ -30,10 +30,9 @@ impl<'input> PreparedCrossConeLayoutMirSections<'input> {
         &mut self,
     ) -> Result<(), crate::StrongLinkMaterializationError> {
         if let Some(link) = self.view.link() {
-            let partition = scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(
-                &self.foundations.lir,
-            )
-            .map_err(crate::StrongLinkMaterializationError::ProducerUnits)?;
+            let partition =
+                scoop_lir::StrongProducerUnitPartitionV1::from_foundation(&self.foundations.lir)
+                    .map_err(crate::StrongLinkMaterializationError::ProducerUnits)?;
             let plan = link
                 .link_identity_closure_wire()
                 .replay_materializations(&partition)

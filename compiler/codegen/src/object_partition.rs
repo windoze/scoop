@@ -45,12 +45,11 @@ pub struct StrongScoopLirObjectPartitionV1 {
 
 impl StrongScoopLirObjectPartitionV1 {
     pub fn from_input(
-        input: &scoop_lir::SingleConeStrongLirOutput,
+        input: &scoop_lir::ConeLirOutput,
         surface: &StrongObjectSymbolSurfaceV1,
     ) -> Result<Self, StrongScoopLirObjectPartitionError> {
-        let producer_units =
-            StrongProducerUnitPartitionV1::from_odr_free_foundation(input.foundation())
-                .map_err(StrongScoopLirObjectPartitionError::ProducerUnits)?;
+        let producer_units = StrongProducerUnitPartitionV1::from_foundation(input.foundation())
+            .map_err(StrongScoopLirObjectPartitionError::ProducerUnits)?;
         let mut non_callable = Vec::new();
         let mut callables = BTreeMap::<PersistentCallableBodyId, ObjectDefinitionPlanId>::new();
         for definition in producer_units.scoop_lir_definition_plans() {

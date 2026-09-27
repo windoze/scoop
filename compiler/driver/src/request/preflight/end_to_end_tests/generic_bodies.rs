@@ -1,5 +1,7 @@
 use super::*;
 
+mod machine;
+
 #[test]
 fn ordinary_reader_retains_generic_bodies_from_actual_published_libraries() {
     let target = resolved_target().expect("generic body publication requires a target");

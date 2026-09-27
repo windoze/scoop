@@ -10,8 +10,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
-    CanonicalLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    GeneratedBridgePlanSetV1, OdrFreeLirFoundation, StrongProducerUnitPartitionV1,
+    CanonicalLirFoundation, ConeLirFoundation, DarwinCBridgeDeploymentContractV1,
+    DarwinPackedVersionV1, GeneratedBridgePlanSetV1, StrongProducerUnitPartitionV1,
 };
 
 use super::*;
@@ -23,8 +23,7 @@ const SDK: u32 = 0x000e_0200;
 #[test]
 fn binds_profile_production_plan_members_and_object_envelopes() {
     let fixture = fixture(Some("native_bridge"));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
@@ -65,8 +64,7 @@ fn binds_profile_production_plan_members_and_object_envelopes() {
 #[test]
 fn accepts_explicit_not_used_only_when_plan_and_members_are_empty() {
     let fixture = fixture(None);
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
@@ -87,12 +85,10 @@ fn accepts_explicit_not_used_only_when_plan_and_members_are_empty() {
 #[test]
 fn rejects_used_for_an_empty_plan_and_not_used_for_a_nonempty_plan() {
     let empty = fixture(None);
-    let empty_bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&empty.foundation).unwrap();
+    let empty_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&empty.foundation).unwrap();
     let empty_member_plan = member_plan(&empty, &empty_bridge_plan);
     let used = fixture(Some("native_bridge"));
-    let used_bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&used.foundation).unwrap();
+    let used_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&used.foundation).unwrap();
     let used_member_plan = member_plan(&used, &used_bridge_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let used_production =
@@ -123,8 +119,7 @@ fn rejects_used_for_an_empty_plan_and_not_used_for_a_nonempty_plan() {
 #[test]
 fn rejects_manifest_profile_even_when_object_deployment_would_validate() {
     let fixture = fixture(Some("native_bridge"));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
     let manifest_profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let request_profile = profile("clang-2100.1.1.102", MINIMUM_OS, SDK);
@@ -151,8 +146,7 @@ fn rejects_manifest_profile_even_when_object_deployment_would_validate() {
 #[test]
 fn rejects_missing_duplicate_and_wrong_deployment_objects() {
     let fixture = fixture(Some("native_bridge"));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
@@ -205,11 +199,9 @@ fn rejects_missing_duplicate_and_wrong_deployment_objects() {
 #[test]
 fn rejects_member_plan_for_a_different_generated_unit() {
     let first = fixture(Some("native_bridge_a"));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&first.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&first.foundation).unwrap();
     let other = fixture(Some("native_bridge_b"));
-    let other_bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&other.foundation).unwrap();
+    let other_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&other.foundation).unwrap();
     let other_member_plan = member_plan(&other, &other_bridge_plan);
     let profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &profile);
@@ -231,7 +223,7 @@ fn rejects_member_plan_for_a_different_generated_unit() {
 }
 
 pub(in crate::link_object) struct Fixture {
-    pub(in crate::link_object) foundation: OdrFreeLirFoundation,
+    pub(in crate::link_object) foundation: ConeLirFoundation,
     pub(in crate::link_object) lir_plan: ObjectDefinitionPlanId,
     pub(in crate::link_object) bridge_unit: Option<GeneratedBridgeUnitId>,
 }
@@ -303,7 +295,7 @@ pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
     foundation.set_definition_plans(definitions).unwrap();
     foundation.set_definition_atoms(atoms).unwrap();
     foundation.set_symbol_requests(PersistentSymbolRequestTable::new(symbol_requests).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap();
     Fixture {
         foundation,
         lir_plan,
@@ -326,8 +318,7 @@ pub(in crate::link_object) fn member_plan(
     fixture: &Fixture,
     bridge_plan: &GeneratedBridgePlanSetV1,
 ) -> PlannedLinkObjectMemberSetV1 {
-    let partition =
-        StrongProducerUnitPartitionV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let bridge_sets = bridge_plan
         .units()
         .iter()

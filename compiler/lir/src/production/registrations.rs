@@ -9,7 +9,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::{OdrFreeLirFoundation, StrongDigestFinalizationPlanV1};
+use crate::{ConeLirFoundation, StrongDigestFinalizationPlanV1};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongRegistrationIdentityV1<I: PersistentId> {
@@ -86,7 +86,7 @@ pub struct StrongRegistrationIdentitySurfaceV1 {
 
 impl StrongRegistrationIdentitySurfaceV1 {
     pub fn from_foundation(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digest_plan: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationIdentityBuildError> {
         let mut surface = Self::empty();
@@ -244,7 +244,7 @@ pub struct DecodedStrongRegistrationIdentitySurfaceV1 {
 impl DecodedStrongRegistrationIdentitySurfaceV1 {
     pub fn validate(
         self,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digest_plan: &StrongDigestFinalizationPlanV1,
     ) -> Result<StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityValidationError>
     {

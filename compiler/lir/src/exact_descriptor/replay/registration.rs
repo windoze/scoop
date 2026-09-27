@@ -3,7 +3,7 @@ use super::*;
 pub(crate) fn validate_registration_plan(
     registration: &StrongTypeRegistrationPlanV2,
     layouts: &crate::CanonicalExactLayoutExportsV1,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<(), ExactDescriptorError> {
     use scoop_identity::{DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey};
 

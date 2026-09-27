@@ -1,7 +1,7 @@
 use super::*;
 
 fn records() -> (
-    OdrFreeLirFoundation,
+    ConeLirFoundation,
     Vec<ExactCallableAbiExportV1>,
     Vec<StrongCallableDefinitionOwner>,
 ) {
@@ -49,7 +49,7 @@ fn records() -> (
         )
         .unwrap(),
     );
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let unit: ExactLayoutExportV1 = unit().into();
     let make = |target| {
         ExactCallableAbiExportV1::from_signature(

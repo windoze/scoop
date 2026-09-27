@@ -14,8 +14,8 @@ use scoop_identity::{
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, DigestNodeV1, EntryProductionPlanV1, EntryProductionSourceV1,
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    CanonicalLirFoundation, ConeLirFoundation, DigestNodeV1, EntryProductionPlanV1,
+    EntryProductionSourceV1, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
 };
 
 use super::{
@@ -236,7 +236,7 @@ fn executable_plan() -> EntryProductionPlanV1 {
     canonical.set_definition_plans(plans).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let gateway_definition = definition_plan(
         producer,

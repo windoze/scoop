@@ -299,8 +299,7 @@ pub(super) fn odr_callable_body(symbol: &str) -> scoop_lir::CallableBodyIdentity
         scoop_identity::OdrMemberDiscriminator::GeneratedCallable(generated.id()),
     )
     .unwrap();
-    let member = scoop_identity::CallableOdrMemberId::from_key(&member_key).unwrap();
-    scoop_lir::CallableBodyIdentity::for_odr_member(member).unwrap()
+    scoop_lir::CallableBodyIdentity::for_odr_member(&member_key).unwrap()
 }
 
 pub(super) fn local_function_ref(index: usize, effect: GcEffect) -> scoop_lir::LocalFunctionRef {
@@ -397,9 +396,9 @@ pub(super) fn type_descriptor_symbol(module: &Module, name: &str) -> String {
 }
 
 pub(super) fn strong_scan_symbol(module: &Module, scan: scoop_lir::PersistentScanId) -> String {
-    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
+    let foundation = scoop_lir::ConeLirFoundation::from_module(module)
         .expect("test module has a strong foundation");
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation)
         .expect("test module has a canonical symbol surface");
     surface
         .plans()
@@ -1211,9 +1210,9 @@ pub(super) fn strong_shape_ir_of(module: &Module) -> String {
 }
 
 pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenError> {
-    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
+    let foundation = scoop_lir::ConeLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation)
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
     let context = Context::create();
     let llvm = context.create_module("strong-shape-test");

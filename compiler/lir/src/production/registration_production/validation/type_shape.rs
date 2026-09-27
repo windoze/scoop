@@ -7,7 +7,7 @@ pub(super) fn validate_type_descriptor_inline_scan(
     shape: &TypeInstanceShapeV1,
     exact_type: scoop_identity::PersistentExactTypeId,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     index: usize,
 ) -> Result<TypeDescriptorInlineScanV1, StrongRegistrationProductionValidationError> {
     let contains_reference = shape.inline_scan().contains_reference();

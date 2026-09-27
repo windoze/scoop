@@ -6,12 +6,12 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey, Validat
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
-    DecodedConeImagePlanV1, DecodedEntryProductionPlanV1, DecodedGeneratedBridgePlanSetV1,
-    DecodedParamFreeShapeSupportPlanSetV1, DecodedStrongDigestFinalizationPlanV1,
-    DecodedStrongObjectDefinitionPlanSurfaceV1, DecodedStrongObjectSymbolSurfaceV1,
-    DecodedStrongRegistrationProductionSurfaceV1, DigestPlanError, EntryProductionPlanBuildError,
-    EntryProductionPlanV1, EntryProductionSourceV1, GeneratedBridgePlanBuildError,
-    GeneratedBridgePlanSetV1, OdrFreeLirFoundation, ParamFreeShapeSupportBuildError,
+    ConeLirFoundation, DecodedConeImagePlanV1, DecodedEntryProductionPlanV1,
+    DecodedGeneratedBridgePlanSetV1, DecodedParamFreeShapeSupportPlanSetV1,
+    DecodedStrongDigestFinalizationPlanV1, DecodedStrongObjectDefinitionPlanSurfaceV1,
+    DecodedStrongObjectSymbolSurfaceV1, DecodedStrongRegistrationProductionSurfaceV1,
+    DigestPlanError, EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1,
+    GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, ParamFreeShapeSupportBuildError,
     ParamFreeShapeSupportPlanSetV1, StrongDigestFinalizationPlanV1,
     StrongDigestPlanValidationError, StrongObjectDefinitionPlanBuildError,
     StrongObjectDefinitionPlanSurfaceV1, StrongObjectSymbolSurfaceBuildError,
@@ -50,7 +50,7 @@ impl StrongProductionSectionV1 {
     pub fn new(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
         registration_production: StrongRegistrationProductionSurfaceV1,
         entry_source: EntryProductionSourceV1,
@@ -73,7 +73,7 @@ impl StrongProductionSectionV2 {
     pub fn new(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
         registration_production: crate::StrongRegistrationProductionSurfaceV2,
         entry_source: EntryProductionSourceV1,
@@ -96,7 +96,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
     pub(crate) fn from_parts(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
         registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
         entry_source: EntryProductionSourceV1,
@@ -106,7 +106,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
             .validate_against(foundation)
             .map_err(StrongProductionSectionBuildError::DigestPlan)?;
         let object_definition_plans =
-            StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
+            StrongObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
                 .map_err(StrongProductionSectionBuildError::ObjectDefinitions)?;
         let canonical_definitions = StrongObjectSymbolSurfaceV1::from_definition_plans(
             foundation,
@@ -134,7 +134,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
             registration_production.identities(),
         )
         .map_err(StrongProductionSectionBuildError::ShapeSupport)?;
-        let generated_bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(foundation)
+        let generated_bridge_plan = GeneratedBridgePlanSetV1::from_foundation(foundation)
             .map_err(StrongProductionSectionBuildError::GeneratedBridges)?;
         Ok(Self {
             canonical_definitions,
@@ -221,7 +221,7 @@ impl DecodedStrongProductionSectionV1 {
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         target: crate::LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
 
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],

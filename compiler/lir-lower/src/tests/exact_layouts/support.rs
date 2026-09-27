@@ -8,7 +8,7 @@ use representation::representation;
 
 pub(super) struct Fixture {
     pub input: mir::ConeMirInput,
-    pub output: lir::SingleConeStrongLirOutput,
+    pub output: lir::ConeLirOutput,
     pub graph: ValidatedIdentityGraph,
     pub types: mir::CanonicalParamFreeMirTypeExportsV1,
     dependencies: lir::CanonicalExactLayoutExportsV1,

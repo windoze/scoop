@@ -3,7 +3,7 @@ use scoop_lir::*;
 pub(super) use super::super::super::support::physical::Source;
 
 pub(super) fn empty_exports(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     target: LirTargetProfile,
 ) -> LayoutAbiExportConstituentsV1 {
     let layouts = CanonicalExactLayoutExportsV1::try_new(target, foundation, Vec::new()).unwrap();

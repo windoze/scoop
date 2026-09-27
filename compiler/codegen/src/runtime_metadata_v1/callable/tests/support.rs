@@ -8,7 +8,7 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation,
+    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
     StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
 };
@@ -58,7 +58,7 @@ pub(super) fn callable_plan() -> StrongCallableRegistrationPlanSetV1 {
         .set_definition_atoms(vec![body_primary.clone(), registration_primary.clone()])
         .unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols.to_vec()).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
     let body_key = DigestNodeKey::object_definition(body_primary.id());
     let body_source = DigestNodeId::from_key(&body_key).unwrap();

@@ -27,7 +27,7 @@ type Result<T> = std::result::Result<T, ExactLayoutLoweringError>;
 /// querying complete representations from actual dependencies where needed.
 pub fn lower_exact_layout_exports(
     input: &mir::ConeMirInput,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
     identities: &ValidatedIdentityGraph,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
@@ -64,7 +64,7 @@ pub fn lower_exact_layout_exports(
 
 struct Projection<'a> {
     module: &'a mir::Module,
-    output: &'a lir::SingleConeStrongLirOutput,
+    output: &'a lir::ConeLirOutput,
     types: &'a mir::CanonicalParamFreeMirTypeExportsV1,
     identities: &'a ValidatedIdentityGraph,
     dependencies: &'a [&'a lir::CanonicalExactLayoutExportsV1],

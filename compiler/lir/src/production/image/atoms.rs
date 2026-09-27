@@ -145,7 +145,7 @@ impl WireDecode for DecodedConeImageSupportAtomsV1 {
 }
 
 pub(super) fn require_image_atoms(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     definition: ObjectDefinitionPlanId,
 ) -> Result<(ObjectDefinitionAtomId, ConeImageSupportAtomsV1), ConeImagePlanBuildError> {
     let primary_key = ObjectDefinitionAtomKey::new(

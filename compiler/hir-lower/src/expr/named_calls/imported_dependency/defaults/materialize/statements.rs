@@ -81,11 +81,13 @@ impl Lowerer {
             Kind::When(value) => {
                 hir::StatementKind::When(self.materialize_imported_default_when(value, context)?)
             }
-            Kind::InitializationEnsure(_)
-            | Kind::LocalFunction(_)
-            | Kind::For(_)
-            | Kind::Try(_)
-            | Kind::Throw(_) => {
+            Kind::Try(value) => {
+                hir::StatementKind::Try(self.materialize_imported_default_try(value, context)?)
+            }
+            Kind::Throw(value) => hir::StatementKind::Throw(
+                self.materialize_imported_default_expression(value, context)?,
+            ),
+            Kind::InitializationEnsure(_) | Kind::LocalFunction(_) | Kind::For(_) => {
                 return Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default statement".to_owned(),
                 ));
@@ -106,6 +108,39 @@ impl Lowerer {
             .iter()
             .map(|statement| self.materialize_imported_default_statement(statement, context))
             .collect()
+    }
+
+    fn materialize_imported_default_try(
+        &mut self,
+        value: &hir::DefaultTryV1,
+        context: &mut ImportedDefaultContext<'_>,
+    ) -> Result<hir::Try, ImportedDefaultMaterializationError> {
+        let body = self.materialize_imported_default_statements(value.body(), context)?;
+        let catches = value
+            .catches()
+            .iter()
+            .map(|catch| {
+                Ok(hir::CatchClause {
+                    local: self.materialized_imported_default_local(catch.local(), context)?,
+                    ty: self.materialize_imported_default_type(catch.value_type(), context)?,
+                    body: self.materialize_imported_default_statements(catch.body(), context)?,
+                    span: self
+                        .imported_default_definition_origin(catch.definition_origin(), context)?
+                        .span,
+                })
+            })
+            .collect::<Result<_, ImportedDefaultMaterializationError>>()?;
+        let finally_body = match value.finally_body().view() {
+            hir::OptionalDefaultStatementListViewV1::Absent => None,
+            hir::OptionalDefaultStatementListViewV1::Present(body) => {
+                Some(self.materialize_imported_default_statements(body, context)?)
+            }
+        };
+        Ok(hir::Try {
+            body,
+            catches,
+            finally_body,
+        })
     }
 
     fn materialize_imported_default_assign_target(

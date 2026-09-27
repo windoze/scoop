@@ -2,8 +2,8 @@ use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey, DigestSemanticFieldRole,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalLirFoundation, DigestInputRefV1, GeneratedBridgePlanSetV1,
-    LirTargetProfile, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    CBridgeProductionSetV1, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
+    GeneratedBridgePlanSetV1, LirTargetProfile, StrongDigestFinalizationPlanV1,
     StrongObjectSymbolSurfaceV1,
 };
 
@@ -184,7 +184,7 @@ fn rechecks_the_exact_object_bytes_after_definition_verification() {
 #[test]
 fn rejects_a_digest_plan_validated_against_another_foundation() {
     let fixture = patch_fixture([0; 64], &[]);
-    let unrelated = OdrFreeLirFoundation::try_new(
+    let unrelated = ConeLirFoundation::try_new(
         fixture.foundation.producer(),
         CanonicalLirFoundation::empty(),
     )
@@ -274,7 +274,7 @@ fn patch_site(fixture: &PatchFixture) -> ProvisionalDigestPatchSiteV1 {
 }
 
 struct PatchFixture {
-    foundation: scoop_lir::OdrFreeLirFoundation,
+    foundation: scoop_lir::ConeLirFoundation,
     digest_plan: StrongDigestFinalizationPlanV1,
     builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     bytes: Vec<u8>,
@@ -287,9 +287,9 @@ struct PatchFixture {
 
 fn patch_fixture(section_bytes: [u8; 64], relocation_offsets: &[u32]) -> PatchFixture {
     let base = fixture(None);
-    let bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(&base.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&base.foundation).unwrap();
     let member_plan = member_plan(&base, &bridge_plan);
-    let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&base.foundation).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&base.foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
         LirTargetProfile::DARWIN_AARCH64,
         &surface,

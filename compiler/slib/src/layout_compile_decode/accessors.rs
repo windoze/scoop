@@ -1,5 +1,5 @@
 use scoop_hir::OdrFreeHirFoundation;
-use scoop_lir::OdrFreeLirFoundation;
+use scoop_lir::ConeLirFoundation;
 use scoop_mir::OdrFreeMirFoundation;
 
 use super::*;
@@ -131,7 +131,7 @@ impl FoundationValidatedCrossConeLayoutCompileSections<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -197,7 +197,7 @@ impl ResolvedCrossConeLayoutHirSections<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -271,7 +271,7 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

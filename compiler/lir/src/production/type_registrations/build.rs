@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
     target: crate::LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     semantic: &StrongTypeDescriptorSemanticPlan<D, C>,
     identity: &crate::StrongRegistrationIdentityV1<PersistentExactTypeId>,
     digests: &StrongDigestFinalizationPlanV1,

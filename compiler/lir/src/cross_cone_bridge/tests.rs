@@ -11,7 +11,7 @@ use scoop_identity::{
 };
 
 use super::*;
-use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
+use crate::{CanonicalLirFoundation, ConeLirFoundation};
 
 mod abi_record;
 mod relations;
@@ -26,7 +26,7 @@ struct Fixture {
     unit: PersistentExactTypeId,
     abi: CanonicalScoopAbiFunctionSignature,
     body: PersistentCallableBodyId,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
 }
 
 impl Fixture {
@@ -80,7 +80,7 @@ impl Fixture {
         canonical.set_definition_plans(vec![definition]).unwrap();
         canonical.set_definition_atoms(vec![atom]).unwrap();
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-        let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
         Self {
             producer,
             declaration,
@@ -130,8 +130,8 @@ fn register_declaration(
     }
 }
 
-fn empty_foundation(producer: ConeIdentity) -> OdrFreeLirFoundation {
-    OdrFreeLirFoundation::try_new(producer, CanonicalLirFoundation::empty()).unwrap()
+fn empty_foundation(producer: ConeIdentity) -> ConeLirFoundation {
+    ConeLirFoundation::try_new(producer, CanonicalLirFoundation::empty()).unwrap()
 }
 
 fn function(producer: ConeIdentity, name: &str) -> PersistentFunctionId {

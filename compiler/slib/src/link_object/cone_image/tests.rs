@@ -10,8 +10,8 @@ use scoop_identity::{
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalLirFoundation, ConeImagePlanV1, EntryProductionPlanV1,
-    GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
+    CBridgeProductionSetV1, CanonicalLirFoundation, ConeImagePlanV1, ConeLirFoundation,
+    EntryProductionPlanV1, GeneratedBridgePlanSetV1, LirTargetProfile,
     StrongDigestFinalizationPlanV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
     StrongRegistrationIdentitySurfaceV1,
 };
@@ -297,7 +297,7 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     canonical.set_definition_plans(definitions).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbol_requests).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
     let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
@@ -335,8 +335,8 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     )
     .unwrap();
 
-    let bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
-    let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
         &partition,
         vec![
@@ -350,7 +350,7 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
         Vec::new(),
     )
     .unwrap();
-    let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
         LirTargetProfile::DARWIN_AARCH64,
         &surface,

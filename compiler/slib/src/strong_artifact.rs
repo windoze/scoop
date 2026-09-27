@@ -4,7 +4,7 @@ use std::fmt;
 
 use scoop_hir::{CoreBootstrapInterfaceSectionV1, OdrFreeHirFoundation};
 use scoop_identity::ConeIdentity;
-use scoop_lir::{OdrFreeLirFoundation, ValidatedLirTargetSelection};
+use scoop_lir::{ConeLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::{CoreBootstrapBridgeSectionV1, OdrFreeMirFoundation};
 use scoop_wire::{HashError, encode};
 
@@ -43,7 +43,7 @@ pub struct SingleConeStrongArtifactInputV1<'ir> {
     hir_production: &'ir CoreBootstrapInterfaceSectionV1,
     mir_foundation: &'ir OdrFreeMirFoundation,
     mir_production: &'ir CoreBootstrapBridgeSectionV1,
-    lir_foundation: &'ir OdrFreeLirFoundation,
+    lir_foundation: &'ir ConeLirFoundation,
     production_manifest: SingleConeProductionManifestV1,
     link_objects: Vec<SlibMember>,
 }
@@ -58,7 +58,7 @@ impl<'ir> SingleConeStrongArtifactInputV1<'ir> {
         hir_production: &'ir CoreBootstrapInterfaceSectionV1,
         mir_foundation: &'ir OdrFreeMirFoundation,
         mir_production: &'ir CoreBootstrapBridgeSectionV1,
-        lir_foundation: &'ir OdrFreeLirFoundation,
+        lir_foundation: &'ir ConeLirFoundation,
         production_manifest: SingleConeProductionManifestV1,
         link_objects: Vec<SlibMember>,
     ) -> Self {
@@ -101,6 +101,9 @@ impl AssembledSingleConeStrongArtifactV1 {
             production_manifest,
             link_objects,
         } = input;
+        lir_foundation
+            .require_strong()
+            .map_err(SingleConeStrongArtifactWriteError::LirProfile)?;
         let identity = cone.identity();
         let code = production_manifest.code_proof();
         if code.producer() != identity {
@@ -279,6 +282,7 @@ pub enum StrongArtifactSectionV1 {
 
 #[derive(Debug)]
 pub enum SingleConeStrongArtifactWriteError {
+    LirProfile(scoop_lir::ConeLirFoundationError),
     CodeProducerMismatch {
         expected: ConeIdentity,
         actual: ConeIdentity,

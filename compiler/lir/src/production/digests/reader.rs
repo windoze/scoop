@@ -8,7 +8,7 @@ impl DecodedStrongDigestFinalizationPlanV1 {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
     ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestPlanValidationError> {
         self.validate_resolved(identities, foundation)
     }
@@ -16,7 +16,7 @@ impl DecodedStrongDigestFinalizationPlanV1 {
     fn validate_resolved<R: scoop_identity::DigestOwnerResolver<IdentityReferenceError>>(
         self,
         identities: &mut R,
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
     ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestPlanValidationError> {
         let mut resolved = Vec::with_capacity(self.nodes.len());
         for decoded in self.nodes {

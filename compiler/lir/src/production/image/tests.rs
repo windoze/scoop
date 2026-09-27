@@ -9,7 +9,7 @@ use scoop_wire::{decode_canonical, encode, encode_runtime};
 
 use super::{ConeImagePlanBuildError, ConeImagePlanV1, ConeRecordV1, DecodedConeImagePlanV1};
 use crate::{
-    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation,
+    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -207,7 +207,7 @@ pub(super) fn image_fixture(
     registration: Option<PersistentExactTypeId>,
     image_depends_on_registration: bool,
     include_support_atoms: bool,
-) -> (OdrFreeLirFoundation, StrongDigestFinalizationPlanV1) {
+) -> (ConeLirFoundation, StrongDigestFinalizationPlanV1) {
     let producer = coordinate.identity().unwrap();
     let image_plan_key = ObjectDefinitionPlanKey::strong(
         producer,
@@ -253,7 +253,7 @@ pub(super) fn image_fixture(
     canonical.set_definition_plans(plans).unwrap();
     canonical.set_definition_atoms(image_atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![image_symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
     let image_node_id = DigestNodeId::from_key(&image_key).unwrap();

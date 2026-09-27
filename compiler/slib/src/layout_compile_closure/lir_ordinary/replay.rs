@@ -26,7 +26,7 @@ pub fn replay_shared_ordinary_lir_bridge(
     mir: &mir::CrossConeMirBridgeSectionV1,
     local: &lir::CanonicalExactLayoutExportsV1,
     dependencies: SharedOrdinaryLirBridgeDependenciesV1<'_>,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
 ) -> Result<lir::CrossConeLirBridgeSectionV1, Error> {
     if mir.artifact() != foundation.producer() || source.provider != foundation.producer() {
         return Err(Error::ArtifactProvider);

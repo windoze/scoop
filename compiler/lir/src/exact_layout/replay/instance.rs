@@ -11,7 +11,7 @@ fn finish_instance(
     shape: TypeInstanceShapeV1,
     representation: InstanceRepresentation,
     role: ScanRole,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ExactInstanceLayoutV1, ExactLayoutReplayError> {
     let scan = scan_binding(&identity, role, foundation)?;
     Ok(ExactInstanceLayoutV1 {
@@ -28,7 +28,7 @@ impl ExactInstanceLayoutV1 {
     pub fn boxed_payload(
         identity: ExactLayoutIdentityV1,
         payload: &ExactValueLayoutV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         require_roles(&payload.identity, &[RepresentationRole::ManagedValue])?;
@@ -67,7 +67,7 @@ impl ExactInstanceLayoutV1 {
     pub fn inline_array(
         identity: ExactLayoutIdentityV1,
         element: &ExactValueLayoutV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         let ExactTypeKey::NominalApplication { arguments, .. } = identity.exact_key() else {
@@ -98,7 +98,7 @@ impl ExactInstanceLayoutV1 {
     /// to the trusted-core String binding.
     pub fn inline_bytes(
         identity: ExactLayoutIdentityV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         if is_unit(identity.exact_key()) {
@@ -119,7 +119,7 @@ impl ExactInstanceLayoutV1 {
 
     pub fn abstract_reference(
         identity: ExactLayoutIdentityV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         if is_unit(identity.exact_key()) {

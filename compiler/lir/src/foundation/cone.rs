@@ -13,81 +13,38 @@ use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 use super::{CanonicalLirFoundation, LirFoundationBuildError};
 use crate::ValidatedLirFoundation;
 
-/// A canonical LIR identity foundation proven to satisfy the M23-3
-/// `SingleConeStrong` profile's `RejectAll` ODR policy.
+/// The physical producer and its single canonical LIR identity foundation.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OdrFreeLirFoundation {
+pub struct ConeLirFoundation {
     producer: ConeIdentity,
     canonical: Rc<CanonicalLirFoundation>,
 }
 
-impl OdrFreeLirFoundation {
-    pub fn from_module(
-        module: &crate::Module,
-    ) -> Result<Self, OdrFreeLirFoundationProjectionError> {
-        let foundation = CanonicalLirFoundation::from_module(module)
-            .map_err(OdrFreeLirFoundationProjectionError::Foundation)?;
-        let mut foundation = Self::try_new(module.cone, foundation)
-            .map_err(OdrFreeLirFoundationProjectionError::Odr)?
-            .into_canonical();
+impl ConeLirFoundation {
+    pub fn from_module(module: &crate::Module) -> Result<Self, ConeLirFoundationProjectionError> {
+        let mut foundation = CanonicalLirFoundation::from_module(module)
+            .map_err(ConeLirFoundationProjectionError::Foundation)?;
         foundation
-            .project_strong_definitions(module)
-            .map_err(OdrFreeLirFoundationProjectionError::Foundation)?;
-        // The projection only appends current-Cone strong definitions.
-        Ok(Self {
-            producer: module.cone,
-            canonical: Rc::new(foundation),
-        })
+            .project_definitions(module)
+            .map_err(ConeLirFoundationProjectionError::Foundation)?;
+        Self::try_new(module.cone, foundation).map_err(ConeLirFoundationProjectionError::Ownership)
     }
 
     pub fn try_new(
         producer: ConeIdentity,
         foundation: CanonicalLirFoundation,
-    ) -> Result<Self, OdrFreeLirFoundationError> {
-        if let Some(record) = foundation.odr_groups.first() {
-            return Err(OdrFreeLirFoundationError::OdrGroup(record.id()));
-        }
-        if let Some(record) = foundation.odr_members.first() {
-            return Err(OdrFreeLirFoundationError::OdrMember(record.id()));
-        }
-        for record in &foundation.callable_bodies {
-            let key =
-                decode_runtime::<DecodedCallableBodyKey>(record.key_bytes()).map_err(|error| {
-                    OdrFreeLirFoundationError::InvalidCallableBodyKey {
-                        body: record.id(),
-                        error,
-                    }
-                })?;
-            if matches!(key.kind(), DecodedCallableBodyKeyKind::Odr(_)) {
-                return Err(OdrFreeLirFoundationError::OdrCallableBody(record.id()));
-            }
-        }
-        if let Some(request) = foundation
-            .symbol_requests
-            .requests()
-            .iter()
-            .find(|request| request.linkage() != LinkageClass::ConeStrong)
-        {
-            return Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
-                key: request.key(),
-                linkage: request.linkage(),
-            });
-        }
+    ) -> Result<Self, ConeLirFoundationError> {
         for record in &foundation.definition_plans {
-            match record.key().owner() {
-                ObjectDefinitionPlanOwner::Strong {
-                    producer: actual, ..
-                } if actual != producer => {
-                    return Err(OdrFreeLirFoundationError::ForeignStrongDefinitionPlan {
-                        plan: record.id(),
-                        expected: producer,
-                        actual,
-                    });
-                }
-                ObjectDefinitionPlanOwner::Odr { .. } => {
-                    return Err(OdrFreeLirFoundationError::OdrDefinitionPlan(record.id()));
-                }
-                ObjectDefinitionPlanOwner::Strong { .. } => {}
+            if let ObjectDefinitionPlanOwner::Strong {
+                producer: actual, ..
+            } = record.key().owner()
+                && actual != producer
+            {
+                return Err(ConeLirFoundationError::ForeignStrongDefinitionPlan {
+                    plan: record.id(),
+                    expected: producer,
+                    actual,
+                });
             }
         }
         if let Some(record) = foundation
@@ -95,7 +52,7 @@ impl OdrFreeLirFoundation {
             .iter()
             .find(|record| record.key().producer() != producer)
         {
-            return Err(OdrFreeLirFoundationError::ForeignGeneratedBridgeAtom {
+            return Err(ConeLirFoundationError::ForeignGeneratedBridgeAtom {
                 atom: record.id(),
                 expected: producer,
                 actual: record.key().producer(),
@@ -107,11 +64,53 @@ impl OdrFreeLirFoundation {
         })
     }
 
-    pub fn from_validated(
-        foundation: ValidatedLirFoundation,
-    ) -> Result<Self, OdrFreeLirFoundationError> {
-        let producer = foundation.producer();
-        Self::try_new(producer, foundation.into_canonical())
+    /// Applies the historical Strong profile restriction at its artifact boundary.
+    pub fn require_strong(&self) -> Result<(), ConeLirFoundationError> {
+        let foundation = &self.canonical;
+        if let Some(record) = foundation.odr_groups.first() {
+            return Err(ConeLirFoundationError::OdrGroup(record.id()));
+        }
+        if let Some(record) = foundation.odr_members.first() {
+            return Err(ConeLirFoundationError::OdrMember(record.id()));
+        }
+        for record in &foundation.callable_bodies {
+            let key =
+                decode_runtime::<DecodedCallableBodyKey>(record.key_bytes()).map_err(|error| {
+                    ConeLirFoundationError::InvalidCallableBodyKey {
+                        body: record.id(),
+                        error,
+                    }
+                })?;
+            if matches!(key.kind(), DecodedCallableBodyKeyKind::Odr(_)) {
+                return Err(ConeLirFoundationError::OdrCallableBody(record.id()));
+            }
+        }
+        if let Some(request) = foundation
+            .symbol_requests
+            .requests()
+            .iter()
+            .find(|request| request.linkage() != LinkageClass::ConeStrong)
+        {
+            return Err(ConeLirFoundationError::NonStrongSymbolRequest {
+                key: request.key(),
+                linkage: request.linkage(),
+            });
+        }
+        if let Some(record) = foundation
+            .definition_plans
+            .iter()
+            .find(|record| matches!(record.key().owner(), ObjectDefinitionPlanOwner::Odr { .. }))
+        {
+            return Err(ConeLirFoundationError::OdrDefinitionPlan(record.id()));
+        }
+        Ok(())
+    }
+
+    pub fn from_validated(foundation: ValidatedLirFoundation) -> Self {
+        Self {
+            producer: foundation.producer(),
+            canonical: Rc::new(foundation.into_canonical()),
+        }
     }
 
     pub const fn producer(&self) -> ConeIdentity {
@@ -368,14 +367,14 @@ impl fmt::Display for DefinitionAtomResolutionError {
 
 impl std::error::Error for DefinitionAtomResolutionError {}
 
-impl WireEncode for OdrFreeLirFoundation {
+impl WireEncode for ConeLirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         self.canonical.encode(encoder)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum OdrFreeLirFoundationError {
+pub enum ConeLirFoundationError {
     OdrGroup(OdrGroupId),
     OdrMember(OdrMemberId),
     OdrCallableBody(PersistentCallableBodyId),
@@ -400,11 +399,11 @@ pub enum OdrFreeLirFoundationError {
     },
 }
 
-impl OdrFreeLirFoundationError {
+impl ConeLirFoundationError {
     pub const CODE: &'static str = "SCOOPC_CAPABILITY_ODR_UNAVAILABLE";
 }
 
-impl fmt::Display for OdrFreeLirFoundationError {
+impl fmt::Display for ConeLirFoundationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::OdrGroup(id) => write!(
@@ -463,28 +462,28 @@ impl fmt::Display for OdrFreeLirFoundationError {
     }
 }
 
-impl std::error::Error for OdrFreeLirFoundationError {}
+impl std::error::Error for ConeLirFoundationError {}
 
 #[derive(Debug)]
-pub enum OdrFreeLirFoundationProjectionError {
+pub enum ConeLirFoundationProjectionError {
     Foundation(LirFoundationBuildError),
-    Odr(OdrFreeLirFoundationError),
+    Ownership(ConeLirFoundationError),
 }
 
-impl fmt::Display for OdrFreeLirFoundationProjectionError {
+impl fmt::Display for ConeLirFoundationProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Foundation(error) => error.fmt(formatter),
-            Self::Odr(error) => error.fmt(formatter),
+            Self::Ownership(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for OdrFreeLirFoundationProjectionError {
+impl std::error::Error for ConeLirFoundationProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Foundation(error) => Some(error),
-            Self::Odr(error) => Some(error),
+            Self::Ownership(error) => Some(error),
         }
     }
 }
@@ -514,7 +513,7 @@ mod tests {
     };
     use scoop_wire::encode;
 
-    use super::{OdrFreeLirFoundation, OdrFreeLirFoundationError};
+    use super::{ConeLirFoundation, ConeLirFoundationError};
     use crate::CanonicalLirFoundation;
 
     #[test]
@@ -530,35 +529,39 @@ mod tests {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
         let expected = encode(&canonical).unwrap();
 
-        let proven = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
 
-        assert_eq!(encode(&proven).unwrap(), expected);
-        assert_eq!(proven.producer(), ConeIdentity::CORE);
-        assert_eq!(proven.as_canonical().counts().odr_members, 0);
+        assert_eq!(encode(&foundation).unwrap(), expected);
+        assert_eq!(foundation.producer(), ConeIdentity::CORE);
+        assert_eq!(foundation.as_canonical().counts().odr_members, 0);
     }
 
     #[test]
-    fn rejects_odr_group_and_member_tables_independently() {
+    fn strong_profile_rejects_odr_group_and_member_tables_independently() {
         let (group, member) = odr_records();
         let expected_group = group.id();
         let mut with_group = CanonicalLirFoundation::empty();
         with_group.set_odr_groups(vec![group]).unwrap();
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_group),
-            Err(OdrFreeLirFoundationError::OdrGroup(expected_group))
+            ConeLirFoundation::try_new(ConeIdentity::CORE, with_group)
+                .unwrap()
+                .require_strong(),
+            Err(ConeLirFoundationError::OdrGroup(expected_group))
         );
 
         let expected_member = member.id();
         let mut with_member = CanonicalLirFoundation::empty();
         with_member.set_odr_members(vec![member]).unwrap();
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_member),
-            Err(OdrFreeLirFoundationError::OdrMember(expected_member))
+            ConeLirFoundation::try_new(ConeIdentity::CORE, with_member)
+                .unwrap()
+                .require_strong(),
+            Err(ConeLirFoundationError::OdrMember(expected_member))
         );
     }
 
     #[test]
-    fn rejects_odr_callable_body_without_relying_on_odr_tables() {
+    fn strong_profile_rejects_odr_callable_body_without_relying_on_odr_tables() {
         let member = callable_odr_member();
         let body = RuntimeIdentityRecord::from_key(&CallableBodyKey::odr(member)).unwrap();
         let expected = body.id();
@@ -566,13 +569,15 @@ mod tests {
         canonical.set_callable_bodies(vec![body]).unwrap();
 
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
-            Err(OdrFreeLirFoundationError::OdrCallableBody(expected))
+            ConeLirFoundation::try_new(ConeIdentity::CORE, canonical)
+                .unwrap()
+                .require_strong(),
+            Err(ConeLirFoundationError::OdrCallableBody(expected))
         );
     }
 
     #[test]
-    fn rejects_odr_weak_symbol_without_relying_on_body_or_odr_tables() {
+    fn strong_profile_rejects_odr_weak_symbol_without_relying_on_body_or_odr_tables() {
         let body = strong_body("weakBody");
         let key = PersistentSymbolKey::CallableBody(body.id());
         let request = PersistentSymbolRequest::new(key, LinkageClass::OdrWeak).unwrap();
@@ -580,8 +585,10 @@ mod tests {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
 
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
-            Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
+            ConeLirFoundation::try_new(ConeIdentity::CORE, canonical)
+                .unwrap()
+                .require_strong(),
+            Err(ConeLirFoundationError::NonStrongSymbolRequest {
                 key,
                 linkage: LinkageClass::OdrWeak,
             })
@@ -589,7 +596,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_explicit_odr_member_symbol_even_with_its_required_linkage() {
+    fn strong_profile_rejects_explicit_odr_member_symbol_even_with_its_required_linkage() {
         let member = callable_odr_member().member();
         let key = PersistentSymbolKey::OdrMember(member);
         let request = PersistentSymbolRequest::new(key, LinkageClass::OdrWeak).unwrap();
@@ -597,8 +604,10 @@ mod tests {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
 
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
-            Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
+            ConeLirFoundation::try_new(ConeIdentity::CORE, canonical)
+                .unwrap()
+                .require_strong(),
+            Err(ConeLirFoundationError::NonStrongSymbolRequest {
                 key,
                 linkage: LinkageClass::OdrWeak,
             })
@@ -606,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_template_support_hidden_symbols() {
+    fn strong_profile_rejects_template_support_hidden_symbols() {
         let slot = PersistentDispatchSlotId::from_key(&DispatchSlotKey::virtual_method(
             source_function("hiddenSlot"),
         ))
@@ -618,8 +627,10 @@ mod tests {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![request]).unwrap());
 
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical),
-            Err(OdrFreeLirFoundationError::NonStrongSymbolRequest {
+            ConeLirFoundation::try_new(ConeIdentity::CORE, canonical)
+                .unwrap()
+                .require_strong(),
+            Err(ConeLirFoundationError::NonStrongSymbolRequest {
                 key,
                 linkage: LinkageClass::TemplateSupportHidden,
             })
@@ -627,7 +638,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_odr_and_foreign_strong_definition_plans() {
+    fn strong_profile_rejects_odr_and_foreign_strong_definition_plans() {
         let odr_plan = CborIdentityRecord::from_key(ObjectDefinitionPlanKey::odr(
             callable_odr_member().member(),
         ))
@@ -636,8 +647,10 @@ mod tests {
         let mut with_odr = CanonicalLirFoundation::empty();
         with_odr.set_definition_plans(vec![odr_plan]).unwrap();
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_odr),
-            Err(OdrFreeLirFoundationError::OdrDefinitionPlan(expected_odr))
+            ConeLirFoundation::try_new(ConeIdentity::CORE, with_odr)
+                .unwrap()
+                .require_strong(),
+            Err(ConeLirFoundationError::OdrDefinitionPlan(expected_odr))
         );
 
         let body = strong_body("foreign");
@@ -657,8 +670,8 @@ mod tests {
             .set_definition_plans(vec![foreign_plan])
             .unwrap();
         assert_eq!(
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, with_foreign),
-            Err(OdrFreeLirFoundationError::ForeignStrongDefinitionPlan {
+            ConeLirFoundation::try_new(ConeIdentity::CORE, with_foreign),
+            Err(ConeLirFoundationError::ForeignStrongDefinitionPlan {
                 plan: expected_plan,
                 expected: ConeIdentity::CORE,
                 actual: ConeIdentity::SINGLE_FILE,

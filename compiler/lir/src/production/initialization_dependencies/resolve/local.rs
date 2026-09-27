@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::{
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
     StrongRegistrationProductionValidationError,
 };
 
@@ -11,7 +11,7 @@ impl StrongInitializationDefinitionCatalogV2 {
     /// are reconstructed here before the complete registration/DAG replay.
     pub(in crate::production) fn with_local_foundation(
         &self,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionValidationError> {

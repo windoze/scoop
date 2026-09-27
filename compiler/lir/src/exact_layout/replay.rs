@@ -3,7 +3,7 @@ use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
-    ExternalStrongShapeSubjectV1, OdrFreeLirFoundation, RefScan, StrongShapeDefinitionRefV1,
+    ConeLirFoundation, ExternalStrongShapeSubjectV1, RefScan, StrongShapeDefinitionRefV1,
     ValueLayoutConstituentV1, ValueStorageLayoutV1,
 };
 
@@ -41,7 +41,7 @@ fn is_unit(key: &ExactTypeKey) -> bool {
 fn scan_binding(
     identity: &ExactLayoutIdentityV1,
     role: ScanRole,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ScanBinding, ExactLayoutReplayError> {
     if identity.physical_definition().provider() != foundation.producer() {
         return Err(ExactLayoutReplayError::ProviderMismatch);
@@ -67,7 +67,7 @@ fn finish_value(
     identity: ExactLayoutIdentityV1,
     storage: ValueStorageLayoutV1,
     representation: ValueRepresentation,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ExactValueLayoutV1, ExactLayoutReplayError> {
     let scan = scan_binding(&identity, ScanRole::InlineValue, foundation)?;
     let value =

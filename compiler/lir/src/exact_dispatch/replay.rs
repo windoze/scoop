@@ -6,7 +6,7 @@ use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
-    ExternalStrongShapeSubjectV1, OdrFreeLirFoundation, StrongShapeDefinitionRefV1,
+    ConeLirFoundation, ExternalStrongShapeSubjectV1, StrongShapeDefinitionRefV1,
     StrongShapeDefinitionV1,
 };
 
@@ -19,7 +19,7 @@ impl ExactDispatchExportV1 {
         target: crate::LirTargetProfile,
         identity: &CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
         inputs: &[ExactDispatchEntryInputV1<'_>],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactDispatchError> {
         let path = WirePath::root();
 

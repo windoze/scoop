@@ -9,7 +9,7 @@ use scoop_identity::{
 use scoop_wire::{WireError, WirePath};
 
 use crate::{
-    ExactLayoutExportV1, LirTargetProfile, OdrFreeLirFoundation, StrongShapeDefinitionRefV1,
+    ConeLirFoundation, ExactLayoutExportV1, LirTargetProfile, StrongShapeDefinitionRefV1,
     StrongShapeDefinitionV1,
 };
 
@@ -69,7 +69,7 @@ impl ExactCallableAbiExportV1 {
         target_profile: LirTargetProfile,
         target: StrongCallableDefinitionOwner,
         signature: CanonicalScoopAbiFunctionSignature,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactCallableAbiError> {
         replay::callable(target_profile, target, signature, foundation)
     }

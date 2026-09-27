@@ -11,7 +11,7 @@ pub(crate) struct StrongProfileSemanticFront<'a> {
     pub(crate) hir_foundation: &'a OdrFreeHirFoundation,
     pub(crate) hir_production: &'a CoreBootstrapInterfaceSectionV1,
     pub(crate) mir_production: &'a CoreBootstrapBridgeSectionV1,
-    pub(crate) lir_foundation: &'a OdrFreeLirFoundation,
+    pub(crate) lir_foundation: &'a ConeLirFoundation,
 }
 
 pub(crate) fn validate_strong_profile_production(
@@ -254,13 +254,15 @@ fn validate_strong_profile_foundations_with_source_authority(
     let lir = lir
         .validate(producer, identities)
         .map_err(StrongProfileFoundationError::LirStructure)?;
+    let lir = ConeLirFoundation::from_validated(lir);
+    lir.require_strong()
+        .map_err(StrongProfileFoundationError::LirOdr)?;
 
     Ok(OdrFreeStrongFoundationSet {
         hir: OdrFreeHirFoundation::from_validated(hir)
             .map_err(StrongProfileFoundationError::HirOdr)?,
         mir: OdrFreeMirFoundation::from_validated(mir)
             .map_err(StrongProfileFoundationError::MirOdr)?,
-        lir: OdrFreeLirFoundation::from_validated(lir)
-            .map_err(StrongProfileFoundationError::LirOdr)?,
+        lir,
     })
 }

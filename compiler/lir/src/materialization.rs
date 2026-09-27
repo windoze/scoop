@@ -50,7 +50,7 @@ impl MaterializationRoot {
         }
     }
 
-    fn materialization(
+    pub(crate) fn materialization(
         &self,
         role: OdrMemberRole,
         discriminator: OdrMemberDiscriminator,

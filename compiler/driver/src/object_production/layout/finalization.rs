@@ -2,7 +2,7 @@ use super::*;
 
 pub(crate) struct FinalizedLayoutObjects {
     pub(crate) target_selection: ValidatedLirTargetSelection,
-    pub(crate) foundation: OdrFreeLirFoundation,
+    pub(crate) foundation: ConeLirFoundation,
     pub(crate) projection: slib::VerifiedSingleConeProductionCodeProjectionV2,
     pub(crate) members: Vec<SlibMember>,
 }

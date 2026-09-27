@@ -24,7 +24,7 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::VerifiedCodeL
     let (production, previous, _, _) = finalized_link_object_fixture();
     let (canonical, _) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
-    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(cone().identity(), canonical).unwrap();
     let objects = [crate::ScoopLirObjectCandidateV1::new(
         fixture.plan.scoop_lir_members()[0].member_id(),
         &fixture.bytes,

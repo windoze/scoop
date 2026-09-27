@@ -6,7 +6,7 @@ use scoop_hir::{
 };
 use scoop_identity::ConeIdentity;
 use scoop_lir::{
-    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, OdrFreeLirFoundation,
+    ConeLirFoundation, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
     ValidatedLirTargetSelection,
 };
 use scoop_mir::{
@@ -46,7 +46,7 @@ pub struct CrossConeLayoutStrongArtifactInputV1<'ir> {
     mir_production: &'ir CoreBootstrapBridgeSectionV1,
     mir_cross_cone: &'ir CrossConeMirBridgeSectionV1,
     mir_type_bridge: &'ir CrossConeMirTypeBridgeSectionV1<'ir>,
-    lir_foundation: &'ir OdrFreeLirFoundation,
+    lir_foundation: &'ir ConeLirFoundation,
     lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
     lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
     layout_code: VerifiedCrossConeLayoutCodeFingerprintV1<'ir>,
@@ -67,7 +67,7 @@ impl<'ir> CrossConeLayoutStrongArtifactInputV1<'ir> {
         mir_production: &'ir CoreBootstrapBridgeSectionV1,
         mir_cross_cone: &'ir CrossConeMirBridgeSectionV1,
         mir_type_bridge: &'ir CrossConeMirTypeBridgeSectionV1<'ir>,
-        lir_foundation: &'ir OdrFreeLirFoundation,
+        lir_foundation: &'ir ConeLirFoundation,
         lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
         lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
         layout_code: VerifiedCrossConeLayoutCodeFingerprintV1<'ir>,
@@ -123,6 +123,9 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             layout_code,
             link_objects,
         } = input;
+        lir_foundation
+            .require_strong()
+            .map_err(CrossConeLayoutStrongArtifactWriteError::LirProfile)?;
         let identity = cone.identity();
         let link_object_count = link_objects.len();
         let (code, callable_link_closure, layout_link_closure) = layout_code.into_parts();
@@ -260,7 +263,7 @@ fn validate_producers(
     code: &VerifiedCodeFingerprintV2,
     mir_cross_cone: &CrossConeMirBridgeSectionV1,
     mir_type_bridge: &CrossConeMirTypeBridgeSectionV1<'_>,
-    lir_foundation: &OdrFreeLirFoundation,
+    lir_foundation: &ConeLirFoundation,
     lir_cross_cone: &CrossConeLirBridgeSectionV1,
     lir_layout_abi: &CrossConeLayoutAbiSectionV1<'_>,
     callable_link_closure: &crate::CrossConeLinkClosureSectionV1,

@@ -5,8 +5,8 @@ pub(super) fn lower(
     global: &mir::Global,
     provider: scoop_identity::ConeIdentity,
     storage: scoop_identity::PersistentStaticStorageId,
-) -> Result<lir::Global, StrongLirLoweringError> {
-    let error = || StrongLirLoweringError::DependencyStorageBinding { provider, storage };
+) -> Result<lir::Global, LirLoweringError> {
+    let error = || LirLoweringError::DependencyStorageBinding { provider, storage };
     let definition = inputs
         .selected_layout
         .and_then(|selected| {

@@ -14,7 +14,7 @@ pub(super) struct Fixture {
     value: ExactValueLayoutV1,
     instance: ExactInstanceLayoutV1,
     layouts: CanonicalExactLayoutExportsV1,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     vtable: PersistentDispatchTableId,
     registration: StrongShapeRegistrationV1<PersistentExactTypeId>,
     diagnostics: Graph,
@@ -108,7 +108,7 @@ impl Fixture {
         &self.instance
     }
 
-    pub(super) fn foundation(&self) -> &OdrFreeLirFoundation {
+    pub(super) fn foundation(&self) -> &ConeLirFoundation {
         &self.foundation
     }
 
@@ -219,10 +219,10 @@ fn exact(source: &SourceDeclarationKey) -> CborIdentityRecord<PersistentExactTyp
 }
 
 fn foundation(
-    sources: [&OdrFreeLirFoundation; 2],
+    sources: [&ConeLirFoundation; 2],
     exact: PersistentExactTypeId,
     vtable: CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
-) -> OdrFreeLirFoundation {
+) -> ConeLirFoundation {
     let mut layouts = Vec::new();
     let mut scans = Vec::new();
     let mut plans = Vec::new();
@@ -268,7 +268,7 @@ fn foundation(
     canonical.set_definition_plans(plans).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
+    ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
 }
 
 fn add_subject(

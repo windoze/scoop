@@ -162,8 +162,8 @@ fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
     let selected = mir::SelectedExternalMirSet::empty(module.cone);
     let mir_output = mir::DependencyMirOutput::try_new(module, selected).unwrap();
     let module = mir_output.module();
-    let foundation = mir_output.strong_foundation().unwrap();
-    let strong_callable_bridges = mir::StrongCallableBridgeSurfaceV1::from_foundation(&foundation);
+    let foundation = mir_output.foundation();
+    let strong_callable_bridges = mir::StrongCallableBridgeSurfaceV1::from_foundation(foundation);
     let entry_bridge = match module.output {
         mir::MirOutput::Library => mir::EntryMirBridgeBranchV1::Library,
         mir::MirOutput::Executable { entry } => {
@@ -215,9 +215,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
     mir::ConeMirInput::try_new(mir_output, production, Vec::new()).unwrap()
 }
 
-fn try_lower(
-    module: mir::Module,
-) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+fn try_lower(module: mir::Module) -> Result<lir::ConeLirOutput, LirLoweringError> {
     let input = seal_strong_input(module);
     lower_test_input(&input)
 }
@@ -345,7 +343,7 @@ fn expected_callable_body(subject: mir::CallableSignatureSubject) -> lir::Callab
     let mir::CallableSignatureSubject::Strong(owner) = subject else {
         panic!("strong test subject cannot use ODR ownership")
     };
-    crate::lowering::callable_body_identity(mir::CallableSignatureSubject::Strong(owner))
+    crate::lowering::strong_callable_body_identity(owner)
 }
 
 fn callback_application()
@@ -1392,7 +1390,7 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
 
     assert!(matches!(
         try_lower(builder.finish(main)),
-        Err(StrongLirLoweringError::StorageReplay(
+        Err(LirLoweringError::StorageReplay(
             StorageLoweringError::InvalidRepresentation(
                 "the source type has no C object representation"
             )

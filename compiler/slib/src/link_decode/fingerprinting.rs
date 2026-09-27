@@ -25,7 +25,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -197,7 +197,7 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -384,7 +384,7 @@ impl<'input> RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -529,7 +529,7 @@ impl<'input> FinalizedStrongLinkObjectSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -677,7 +677,7 @@ impl ValidatedSingleConeStrongLinkArtifact<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

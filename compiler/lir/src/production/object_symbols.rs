@@ -14,7 +14,7 @@ pub use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
-    OdrFreeLirFoundation, StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
+    ConeLirFoundation, StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -117,16 +117,16 @@ pub struct StrongObjectSymbolSurfaceV1 {
 }
 
 impl StrongObjectSymbolSurfaceV1 {
-    pub fn from_odr_free_foundation(
-        foundation: &OdrFreeLirFoundation,
+    pub fn from_foundation(
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, StrongObjectSymbolSurfaceBuildError> {
-        let definitions = StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
+        let definitions = StrongObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
             .map_err(StrongObjectSymbolSurfaceBuildError::DefinitionSurface)?;
         Self::from_definition_plans(foundation, &definitions)
     }
 
     pub(crate) fn from_definition_plans(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         definitions: &StrongObjectDefinitionPlanSurfaceV1,
     ) -> Result<Self, StrongObjectSymbolSurfaceBuildError> {
         let mut plans = Vec::with_capacity(definitions.plans().len());
@@ -306,10 +306,10 @@ pub struct DecodedStrongObjectSymbolSurfaceV1 {
 impl DecodedStrongObjectSymbolSurfaceV1 {
     pub fn validate(
         self,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<StrongObjectSymbolSurfaceV1, StrongObjectSymbolSurfaceValidationError> {
         let actual = encode(&self).map_err(StrongObjectSymbolSurfaceValidationError::Encode)?;
-        let expected = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(foundation)
+        let expected = StrongObjectSymbolSurfaceV1::from_foundation(foundation)
             .map_err(StrongObjectSymbolSurfaceValidationError::Foundation)?;
         let expected_bytes =
             encode(&expected).map_err(StrongObjectSymbolSurfaceValidationError::Encode)?;

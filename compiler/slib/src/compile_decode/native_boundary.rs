@@ -17,7 +17,7 @@ use scoop_identity::{
     SourceCAbiReturn, SourceExternFunctionAbi, SourceNativeExternalContract,
     SourceNativeExternalContractRecord, SourceScoopAbiFunctionSignature, ValidatedIdentityGraph,
 };
-use scoop_lir::{CallbackBridgeRecord, OdrFreeLirFoundation};
+use scoop_lir::{CallbackBridgeRecord, ConeLirFoundation};
 use scoop_mir::{CallbackApplicationRecord, OdrFreeMirFoundation};
 use scoop_wire::{WireError, WirePath};
 
@@ -43,7 +43,7 @@ impl<'foundation> NativeBoundaryFoundationView<'foundation> {
     pub(crate) fn from_odr_free(
         hir: &'foundation OdrFreeHirFoundation,
         mir: &'foundation OdrFreeMirFoundation,
-        lir: &'foundation OdrFreeLirFoundation,
+        lir: &'foundation ConeLirFoundation,
     ) -> Self {
         Self {
             source_contracts: hir.source_native_contracts(),

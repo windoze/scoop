@@ -12,7 +12,7 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{
-    OdrFreeLirFoundation, StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
+    ConeLirFoundation, StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
 };
 
 pub type GeneratedBridgeUnitAuthorityRecordV1 =
@@ -123,12 +123,11 @@ pub struct GeneratedBridgePlanSetV1 {
 }
 
 impl GeneratedBridgePlanSetV1 {
-    pub fn from_odr_free_foundation(
-        foundation: &OdrFreeLirFoundation,
+    pub fn from_foundation(
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, GeneratedBridgePlanBuildError> {
-        let definition_plans =
-            StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
-                .map_err(GeneratedBridgePlanBuildError::DefinitionSurface)?;
+        let definition_plans = StrongObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
+            .map_err(GeneratedBridgePlanBuildError::DefinitionSurface)?;
         let bridge_units = foundation
             .bridge_units()
             .iter()
@@ -266,9 +265,9 @@ impl DecodedGeneratedBridgePlanSetV1 {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<GeneratedBridgePlanSetV1, GeneratedBridgePlanValidationError> {
-        let expected = GeneratedBridgePlanSetV1::from_odr_free_foundation(foundation)
+        let expected = GeneratedBridgePlanSetV1::from_foundation(foundation)
             .map_err(GeneratedBridgePlanValidationError::Foundation)?;
         if self.units.len() != expected.units.len() {
             return Err(GeneratedBridgePlanValidationError::UnitCoverage {

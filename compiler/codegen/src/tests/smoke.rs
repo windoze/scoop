@@ -25,10 +25,7 @@ fn strong_codegen_rejects_odr_callable_bodies() {
     let context = Context::create();
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("the M23-3 backend accepts strong callable bodies only");
-    assert!(
-        error.0.contains("ODR") || error.0.contains("Odr"),
-        "{error}"
-    );
+    assert!(error.0.contains("InvalidStrongDefinition"), "{error}");
 }
 
 #[test]

@@ -27,7 +27,7 @@ pub fn replay_shared_mir_dispatch(
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
     schemas: &mir::CanonicalMirDispatchSchemasV1,
     abis: SharedLirDispatchAbiInputsV1<'_>,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
 ) -> Result<lir::CanonicalExactDispatchExportsV1, Error> {
     let abis = lookup::Abis::new(abis, target, foundation.producer())?;
     let path = WirePath::root();
@@ -69,7 +69,7 @@ fn replay(
     key: DispatchTableKey,
     slots: &[mir::MirDispatchEntryV1],
     abis: &lookup::Abis<'_>,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
 ) -> Result<lir::ExactDispatchExportV1, Error> {
     let identity = CborIdentityRecord::from_key(key)?;
     let entries = entries::project(slots, abis)?;

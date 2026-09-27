@@ -54,7 +54,7 @@ impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn initialization_units(&self) -> &[mir::MirTypeBridgeInitializationUnitV1] {
         &self.units
     }
-    pub fn lir_foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
+    pub fn lir_foundation(&self) -> &scoop_lir::ConeLirFoundation {
         &self.semantic.foundations.lir
     }
     pub fn lir_cross_cone_bridge(&self) -> &scoop_lir::CrossConeLirBridgeSectionV1 {

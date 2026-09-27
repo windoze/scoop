@@ -268,7 +268,7 @@ struct ShapeArtifacts {
 }
 
 struct Fixture {
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     identities: StrongRegistrationIdentitySurfaceV1,
     semantics: StrongStaticStorageSemanticPlanSetV1,
     digests: StrongDigestFinalizationPlanV1,
@@ -359,8 +359,7 @@ impl Fixture {
         .collect();
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
 
-        let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &shape, &storages, options);
         let identities =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
@@ -481,7 +480,7 @@ fn storage_artifacts(name: &str) -> StorageArtifacts {
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     shape: &ShapeArtifacts,
     storages: &[StorageArtifacts; 2],
     options: Options,

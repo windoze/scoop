@@ -43,7 +43,7 @@ impl std::fmt::Display for StorageLoweringError {
 }
 impl std::error::Error for StorageLoweringError {}
 
-impl From<StorageLoweringError> for super::StrongLirLoweringError {
+impl From<StorageLoweringError> for super::LirLoweringError {
     fn from(source: StorageLoweringError) -> Self {
         Self::StorageReplay(source)
     }

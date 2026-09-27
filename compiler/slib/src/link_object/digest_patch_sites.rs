@@ -4,7 +4,7 @@ use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestPatchIntentId, DigestSemanticFieldRole,
     ObjectDefinitionAtomId, ObjectDefinitionPlanId,
 };
-use scoop_lir::{OdrFreeLirFoundation, StrongDigestFinalizationPlanV1};
+use scoop_lir::{ConeLirFoundation, StrongDigestFinalizationPlanV1};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{
@@ -169,7 +169,7 @@ impl VerifiedScoopLirDigestPatchSiteSetV1 {
 
 pub fn verify_scoop_lir_digest_patch_sites_v1(
     builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     digest_plan: StrongDigestFinalizationPlanV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
     provisional_sites: &[ProvisionalDigestPatchSiteV1],

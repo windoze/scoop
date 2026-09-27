@@ -5,7 +5,7 @@ use super::*;
 pub(super) fn validate_static_storages(
     decoded: Vec<DecodedStrongStaticStorageRegistrationPlanV1>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     dependencies: Option<&crate::StrongTypeReferenceDefinitionsV2>,
 ) -> Result<StrongStaticStorageSemanticPlanSetV1, StrongRegistrationProductionValidationError> {

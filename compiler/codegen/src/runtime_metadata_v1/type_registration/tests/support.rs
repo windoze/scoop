@@ -10,10 +10,10 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CanonicalCAbiMetadata, CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
-    ExternFunctions, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
-    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
-    NativeGlobalBridges, OdrFreeLirFoundation, RefScan, RuntimeTypeMappingRecord,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
+    DigestNodeV1, EnumDefs, ExternFunctions, Layout, LayoutIdentity, LayoutKind, LirMeta,
+    LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module,
+    NativeExternalMetadata, NativeGlobalBridges, RefScan, RuntimeTypeMappingRecord,
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
     StrongTypeDescriptorSemanticPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs,
     TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VtableRecord,
@@ -84,7 +84,7 @@ pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
         .map(|key| PersistentSymbolRequest::new(key, LinkageClass::ConeStrong).unwrap())
         .collect();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let digests = digest_plan(&foundation, &types);
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
@@ -264,7 +264,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     types: &[TypeArtifacts],
 ) -> StrongDigestFinalizationPlanV1 {
     let mut nodes = Vec::new();

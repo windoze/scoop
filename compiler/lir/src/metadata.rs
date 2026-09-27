@@ -969,15 +969,10 @@ pub struct CallableCStringIdentity {
 impl CallableCStringIdentity {
     pub fn new(
         producer: scoop_identity::ConeIdentity,
-        owner: scoop_identity::PersistentCallableBodyId,
+        owner: &crate::CallableBodyIdentity,
         path: scoop_identity::StructuralDefinitionPath,
     ) -> Result<Self, scoop_wire::HashError> {
-        let plan_key = scoop_identity::ObjectDefinitionPlanKey::strong(
-            producer,
-            scoop_identity::StrongDefinitionEntity::callable_body(owner),
-            scoop_identity::StrongDefinitionRole::CallableBody,
-        )
-        .expect("a callable body has a valid strong definition plan");
+        let plan_key = owner.definition_plan_key(producer);
         let plan = scoop_identity::ObjectDefinitionPlanId::from_key(&plan_key)?;
         let atom = scoop_identity::CborIdentityRecord::from_key(
             scoop_identity::ObjectDefinitionAtomKey::new(
@@ -988,11 +983,11 @@ impl CallableCStringIdentity {
         )?;
         let symbol = MaterializedSymbol::new(
             scoop_identity::PersistentSymbolKey::DefinitionBoundaryStart(atom.id()),
-            LinkageClass::ConeStrong,
+            owner.symbol_request().linkage(),
         )
-        .expect("a strong atom boundary accepts ConeStrong linkage");
+        .expect("a definition boundary inherits its body linkage");
         Ok(Self {
-            owner,
+            owner: owner.id(),
             path,
             atom,
             symbol,

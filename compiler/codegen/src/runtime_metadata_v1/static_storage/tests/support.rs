@@ -10,14 +10,15 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
-    CanonicalCAbiMetadata, CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
-    ExternFunctions, ExternalTypeDescriptor, Global, GlobalInit, ImmortalObjectIdentity,
-    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirConstantImage, LirMeta,
-    LirStaticInitialState, LirTargetProfile, LirType, LocalFunctionIdentities, LocalFunctionRef,
-    MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges, OdrFreeLirFoundation,
-    PointerKind, RefScan, StaticStorageIdentity, StrongDigestFinalizationPlanV1,
-    StrongRegistrationIdentitySurfaceV1, StrongStaticStorageRegistrationPlanSetV1,
-    StrongStaticStorageSemanticPlanSetV1, StructDefs, TypeDescriptorRef, WellKnownTypeDescriptors,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
+    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global, GlobalInit,
+    ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind,
+    LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
+    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
+    NativeGlobalBridges, PointerKind, RefScan, StaticStorageIdentity,
+    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageSemanticPlanSetV1, StructDefs,
+    TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 {
@@ -165,7 +166,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
         .collect();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
 
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let digests = digest_plan(
         &foundation,
         &semantics,
@@ -255,7 +256,7 @@ impl StorageArtifacts {
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     semantics: &StrongStaticStorageSemanticPlanSetV1,
     shapes: &[ShapeArtifacts],
     storages: &[StorageArtifacts],

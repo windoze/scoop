@@ -15,7 +15,7 @@ use scoop_mir as mir;
 pub fn lower_cross_cone_bridge_section(
     input: &mir::ConeMirInput,
     mir_bridge: &mir::CrossConeMirBridgeSectionV1,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
 ) -> Result<lir::CrossConeLirBridgeSectionV1, CrossConeLirBridgeLoweringError> {
     validate_providers(input, mir_bridge, output)?;
     validate_mir_selections(input, mir_bridge)?;
@@ -28,7 +28,7 @@ pub fn lower_cross_cone_bridge_section(
 fn validate_providers(
     input: &mir::ConeMirInput,
     bridge: &mir::CrossConeMirBridgeSectionV1,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
 ) -> Result<(), CrossConeLirBridgeLoweringError> {
     let expected = input.module().cone;
     if bridge.artifact() != expected {
@@ -69,7 +69,7 @@ fn validate_mir_selections(
 fn lower_exports(
     input: &mir::ConeMirInput,
     bridge: &mir::CrossConeMirBridgeSectionV1,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
 ) -> Result<Vec<lir::ParamFreeLirCallableExportV1>, CrossConeLirBridgeLoweringError> {
     let mut exports = Vec::new();
     exports
@@ -85,7 +85,7 @@ fn lower_exports(
 
 fn lower_export(
     input: &mir::ConeMirInput,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
     export: &mir::ParamFreeMirCallableExportV1,
 ) -> Result<lir::ParamFreeLirCallableExportV1, CrossConeLirBridgeLoweringError> {
     let declaration = export.declaration();
@@ -111,7 +111,7 @@ fn lower_export(
 
 fn lower_selected(
     bridge: &mir::CrossConeMirBridgeSectionV1,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
 ) -> Result<Vec<lir::SelectedDependencyLirCallableV1>, CrossConeLirBridgeLoweringError> {
     let mut external = Vec::new();
     external

@@ -11,7 +11,7 @@ impl ExactDispatchExportV1 {
         target: crate::LirTargetProfile,
         physical: ExactDispatchPhysicalTableV1<'_>,
         inputs: &[ExactDispatchEntryInputV1<'_>],
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
         resolver: &mut impl ExactDispatchPhysicalCallableResolverV1,
     ) -> Result<Self, ExactDispatchError> {
         if physical.slots().len() != inputs.len() {

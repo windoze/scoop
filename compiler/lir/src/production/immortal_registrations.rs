@@ -12,7 +12,7 @@ use scoop_identity::{
 };
 
 use crate::{
-    DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -110,7 +110,7 @@ pub struct StrongImmortalObjectRegistrationPlanSetV1 {
 
 impl StrongImmortalObjectRegistrationPlanSetV1 {
     pub fn new(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         semantics: &StrongImmortalObjectSemanticPlanSetV1,
         digests: &StrongDigestFinalizationPlanV1,
@@ -202,7 +202,7 @@ impl StrongImmortalObjectRegistrationPlanSetV1 {
 }
 
 fn build_registration(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     semantic: &StrongImmortalObjectSemanticPlanV1,
     identity: &crate::StrongRegistrationIdentityV1<PersistentImmortalObjectId>,
     digests: &StrongDigestFinalizationPlanV1,
@@ -347,7 +347,7 @@ fn build_registration(
 }
 
 fn require_definition(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<&crate::DefinitionPlanRecord, StrongImmortalObjectRegistrationPlanBuildError> {
@@ -361,7 +361,7 @@ fn require_definition(
 }
 
 fn require_primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     definition: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongImmortalObjectRegistrationPlanBuildError> {
     let atoms = foundation
@@ -384,7 +384,7 @@ fn require_primary_atom(
 }
 
 fn require_symbol_key(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
 ) -> Result<PersistentSymbolRequest, StrongImmortalObjectRegistrationPlanBuildError> {
     let symbol = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
@@ -394,7 +394,7 @@ fn require_symbol_key(
 }
 
 fn require_symbol(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     symbol: PersistentSymbolRequest,
 ) -> Result<(), StrongImmortalObjectRegistrationPlanBuildError> {
     if foundation.contains_symbol_request(symbol) {

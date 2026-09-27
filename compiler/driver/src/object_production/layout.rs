@@ -15,7 +15,7 @@ pub(crate) use verification::prepare;
 
 pub(crate) struct PreparedLayoutObjects {
     pub(crate) target_selection: ValidatedLirTargetSelection,
-    pub(crate) foundation: OdrFreeLirFoundation,
+    pub(crate) foundation: ConeLirFoundation,
     pub(crate) production: StrongProductionSectionV2,
     pub(crate) c_bridge_profile: CBridgeToolchainProfileV1,
     pub(crate) patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,

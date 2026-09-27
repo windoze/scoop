@@ -6,7 +6,7 @@ impl StrongRegistrationProductionSurfaceV2 {
     /// runtime registrations; it does not reinterpret a V1 wire surface.
     pub fn empty(
         target: crate::LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
         let producer = foundation.producer();
@@ -38,7 +38,7 @@ impl StrongRegistrationProductionSurfaceV2 {
     /// Computes local runtime semantics once for digests and registrations.
     pub fn from_module(
         module: &Module,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         entry_source: &crate::EntryProductionSourceV1,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
     ) -> Result<(StrongDigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError>

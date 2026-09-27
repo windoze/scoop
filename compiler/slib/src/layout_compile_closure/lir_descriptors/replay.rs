@@ -20,7 +20,7 @@ pub fn replay_shared_mir_descriptors(
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
     inputs: SharedLirDescriptorInputsV1<'_>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
 ) -> Result<lir::CanonicalExactDescriptorExportsV1, Error> {
     let references = references::References::new(target, types, inputs, foundation.producer())?;
     let path = WirePath::root();

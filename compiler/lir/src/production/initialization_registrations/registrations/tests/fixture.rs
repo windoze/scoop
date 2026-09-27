@@ -36,7 +36,7 @@ pub(super) struct CallableArtifacts {
 }
 
 pub(super) struct Fixture {
-    pub(super) foundation: OdrFreeLirFoundation,
+    pub(super) foundation: ConeLirFoundation,
     pub(super) identities: StrongRegistrationIdentitySurfaceV1,
     pub(super) semantics: StrongInitializationUnitSemanticPlanSetV1,
     pub(super) digests: StrongDigestFinalizationPlanV1,
@@ -248,7 +248,7 @@ impl Fixture {
         .collect();
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
 
-        let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
         let digests = digest_plan(
             &foundation,
             &cell,

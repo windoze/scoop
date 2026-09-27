@@ -4,7 +4,7 @@ use super::*;
 
 pub(in crate::tests) fn lower_test_input(
     input: &mir::ConeMirInput,
-) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+) -> Result<lir::ConeLirOutput, LirLoweringError> {
     let (provider_input, provider, _, _) = crate::tests::exact_callable_abi::fixture();
     let target = provider.module().meta.target_profile;
     let foundation = provider.foundation();
@@ -89,7 +89,7 @@ pub(in crate::tests) fn lower_test_input(
         target,
         Some(&selected),
     )?;
-    lir::SingleConeStrongLirOutput::try_new(
+    lir::ConeLirOutput::try_new(
         lowered.module,
         input
             .materialization()
@@ -98,5 +98,5 @@ pub(in crate::tests) fn lower_test_input(
             .map(|root| root.declaration().clone())
             .collect(),
     )
-    .map_err(StrongLirLoweringError::Output)
+    .map_err(LirLoweringError::Output)
 }

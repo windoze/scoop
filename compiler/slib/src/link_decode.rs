@@ -13,7 +13,7 @@ use scoop_identity::{
 use scoop_lir::{
     CBridgeProductionValidationError, CBridgeToolchainProfileV1,
     CanonicalNativeExternalRequirementBuildError, CanonicalNativeExternalRequirementSurfaceV1,
-    DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation,
+    ConeLirFoundation, DecodedLirFoundation, DecodedStrongProductionSectionV1,
     StrongProducerUnitPartitionError, StrongProducerUnitPartitionV1,
 };
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};

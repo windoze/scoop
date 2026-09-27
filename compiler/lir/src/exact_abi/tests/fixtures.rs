@@ -3,7 +3,7 @@ use super::*;
 pub(super) fn foundation(
     name: &str,
     body: bool,
-) -> (StrongCallableDefinitionOwner, OdrFreeLirFoundation) {
+) -> (StrongCallableDefinitionOwner, ConeLirFoundation) {
     let site = SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,
         PackagePath::root(),
@@ -49,7 +49,7 @@ pub(super) fn foundation(
     }
     (
         target,
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
     )
 }
 

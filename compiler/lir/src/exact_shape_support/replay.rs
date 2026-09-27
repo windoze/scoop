@@ -7,7 +7,7 @@ use scoop_wire::WirePath;
 use super::*;
 use crate::{
     CanonicalExactDescriptorExportsV1, CanonicalExactLayoutExportsV1, ClosedShapeSupportReasonV1,
-    ExactRepresentationKindV1, NichePointerKind, OdrFreeLirFoundation,
+    ConeLirFoundation, ExactRepresentationKindV1, NichePointerKind,
     ParamFreeShapeSupportRolePartsV1, ParamFreeShapeSupportRolesV1, ShapeSupportAvailabilityV1,
     StrongExactShapeSupportV1, StrongShapeDefinitionV1,
 };
@@ -20,7 +20,7 @@ impl ParamFreeShapeSupportExportV1 {
         source: &SourceDeclarationKey,
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ParamFreeShapeSupportExportError> {
         validate_inputs(source, layouts, descriptors, foundation)?;
         let path = WirePath::root();
@@ -95,7 +95,7 @@ fn validate_inputs(
     source: &SourceDeclarationKey,
     layouts: &CanonicalExactLayoutExportsV1,
     descriptors: &CanonicalExactDescriptorExportsV1,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<(), ParamFreeShapeSupportExportError> {
     if layouts.provider() != foundation.producer()
         || descriptors.provider() != foundation.producer()

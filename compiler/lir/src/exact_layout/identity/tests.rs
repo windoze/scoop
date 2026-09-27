@@ -31,7 +31,7 @@ fn foundation(
     exact: PersistentExactTypeId,
     role: RepresentationRole,
     definition: bool,
-) -> OdrFreeLirFoundation {
+) -> ConeLirFoundation {
     let layout =
         CborIdentityRecord::from_key(LayoutKey::new(exact, TARGET.wire_id(), role)).unwrap();
     let (key, symbol) = ExternalStrongShapeSubjectV1::Layout(layout.id())
@@ -59,7 +59,7 @@ fn foundation(
             .unwrap(),
         );
     }
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
+    ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
 }
 
 #[test]

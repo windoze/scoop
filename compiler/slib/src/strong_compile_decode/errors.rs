@@ -9,7 +9,7 @@ pub enum StrongProfileFoundationError {
     LirStructure(LirFoundationValidationError),
     HirOdr(OdrFreeHirFoundationError),
     MirOdr(OdrFreeMirFoundationError),
-    LirOdr(OdrFreeLirFoundationError),
+    LirOdr(ConeLirFoundationError),
 }
 
 impl fmt::Display for StrongProfileFoundationError {

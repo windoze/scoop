@@ -6,8 +6,6 @@ use scoop_identity::{
     StrongCallableDefinitionOwner,
 };
 
-use crate::StrongObjectSymbolSurfaceBuildError;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParamFreeLirCallableBuildError {
     TargetMismatch {
@@ -118,7 +116,6 @@ impl std::error::Error for SelectedDependencyLirCallableResolutionError {
 
 #[derive(Debug)]
 pub enum CrossConeLirBridgeRelationError {
-    DefinitionSurface(StrongObjectSymbolSurfaceBuildError),
     Contract(crate::CallableLinkContractError),
     ExportContractMismatch {
         index: usize,
@@ -163,7 +160,6 @@ impl fmt::Display for CrossConeLirBridgeRelationError {
 impl std::error::Error for CrossConeLirBridgeRelationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::DefinitionSurface(source) => Some(source),
             Self::Contract(source) => Some(source),
             _ => None,
         }

@@ -75,7 +75,7 @@ fn assert_validation_error<T>(
 
 fn assert_scoop_entries_reject(module: Module, expected: &str, fixture: &str) {
     let expected = resolve_function_markers(&module, expected);
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new())
+    let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new())
         .expect("malformed validation fixture still has a complete strong foundation");
     let profile = host_profile();
     let output = std::env::temp_dir().join(format!(
@@ -116,7 +116,7 @@ fn assert_scoop_entries_reject(module: Module, expected: &str, fixture: &str) {
 }
 
 fn assert_output_validation_error(module: Module, expected: &str) {
-    let error = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new())
+    let error = scoop_lir::ConeLirOutput::try_new(module, Vec::new())
         .err()
         .expect("malformed identities must fail at the LIR output boundary");
     assert!(error.to_string().contains(expected), "{error}");
@@ -568,9 +568,8 @@ fn callable_runtime_scan_trees_are_emitted_as_closed_strong_atoms() {
         .unwrap();
     assert_eq!(callable.atoms().len(), 4);
 
-    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(&module).unwrap();
-    let surface =
-        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
+    let foundation = scoop_lir::ConeLirFoundation::from_module(&module).unwrap();
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let machine = host_target_machine().unwrap();
     let context = inkwell::context::Context::create();
     let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();

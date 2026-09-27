@@ -26,8 +26,8 @@ use super::{
     StrongRegistrationProductionSurfaceV1,
 };
 use crate::{
-    ArrayElementStorageV1, BackendScalarKind, ImmortalObjectTypeRegistrationRefV1,
-    LirTargetProfile, NonEmptyRefScan, OdrFreeLirFoundation, PointerKind, RefScan,
+    ArrayElementStorageV1, BackendScalarKind, ConeLirFoundation,
+    ImmortalObjectTypeRegistrationRefV1, LirTargetProfile, NonEmptyRefScan, PointerKind, RefScan,
     StaticImmortalRelocationPlanV1, StaticStorageScanKindV1, StrongCallableRuntimeScanAtomV1,
     StrongCallableRuntimeScanPlanSetV1, StrongCallableRuntimeScanPlanV1,
     StrongDigestFinalizationPlanV1, StrongImmortalObjectSemanticPlanSetV1,
@@ -64,7 +64,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
     pub fn validate(
         self,
         target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError>
     {

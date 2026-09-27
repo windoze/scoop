@@ -7,7 +7,7 @@ use scoop_hir::{
     CrossConeTypeSemanticsSectionV1, OdrFreeHirFoundation,
 };
 use scoop_identity::ValidatedIdentityGraph;
-use scoop_lir::OdrFreeLirFoundation;
+use scoop_lir::ConeLirFoundation;
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError,
     DecodedCrossConeMirTypeBridgeSectionV1, MirProductionValidationError, OdrFreeMirFoundation,
@@ -48,7 +48,7 @@ pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
     pub(crate) mir_foundation: &'a OdrFreeMirFoundation,
     pub(crate) mir_core: &'a CoreBootstrapBridgeSectionV1,
     pub(crate) mir_ordinary: &'a CrossConeMirBridgeSectionV1,
-    pub(crate) lir_foundation: &'a OdrFreeLirFoundation,
+    pub(crate) lir_foundation: &'a ConeLirFoundation,
 
     pub(crate) manifest: &'a crate::BootstrapManifest,
     pub(crate) link_sections: Option<&'a crate::DecodedCrossConeLayoutLinkOnlySections>,
@@ -145,7 +145,7 @@ impl PreparedCrossConeLayoutMirSections<'_> {
         self.graph.coordinate()
     }
 
-    pub(crate) fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub(crate) fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

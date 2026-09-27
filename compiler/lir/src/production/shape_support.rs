@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
-use crate::{OdrFreeLirFoundation, StrongRegistrationIdentitySurfaceV1};
+use crate::{ConeLirFoundation, StrongRegistrationIdentitySurfaceV1};
 
 mod callable;
 mod layout;
@@ -373,7 +373,7 @@ pub struct ParamFreeShapeSupportPlanSetV1 {
 impl ParamFreeShapeSupportPlanSetV1 {
     pub fn from_sources<'source>(
         sources: impl IntoIterator<Item = &'source SourceDeclarationKey>,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
     ) -> Result<Self, ParamFreeShapeSupportBuildError> {
         let mut closures = sources
@@ -642,7 +642,7 @@ impl DecodedParamFreeShapeSupportPlanSetV1 {
         self,
         sources: impl IntoIterator<Item = &'source SourceDeclarationKey>,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
     ) -> Result<ParamFreeShapeSupportPlanSetV1, ParamFreeShapeSupportValidationError> {
         let actual = encode(&self).map_err(ParamFreeShapeSupportValidationError::Encode)?;

@@ -70,8 +70,7 @@ fn c_layout_record_replays_packing_and_requires_its_canonical_foundation_contrac
         let contract = contract(bound.identity.exact(), &fields, &values, offset);
         let mut canonical = bound.foundation.as_canonical().clone();
         canonical.set_c_abi_layouts(vec![contract.clone()]).unwrap();
-        let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let result = ExactValueLayoutV1::c_struct(
             bound.identity.clone(),
             false,

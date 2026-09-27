@@ -15,7 +15,7 @@ pub(super) struct Provider {
     pub(super) callable: StrongCallableDefinitionOwner,
     pub(super) callable_body: PersistentCallableBodyId,
     pub(super) initialization_unit: PersistentInitializationUnitId,
-    pub(super) output: SingleConeStrongLirOutput,
+    pub(super) output: ConeLirOutput,
     pub(super) section: StrongProductionSectionV2,
     pub(super) ordinary: CrossConeLirBridgeSectionV1,
     layouts: CanonicalExactLayoutExportsV1,
@@ -46,7 +46,7 @@ impl Provider {
         let mut module = provider_module(identity, exact_record.clone(), callable, diagnostic_name);
         let initialization_unit = attach_eager_initialization(&mut module, "providerValue", exact);
         super::lir_fixture::provider_protocol(&mut module, exact);
-        let output = SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+        let output = ConeLirOutput::try_new(module, Vec::new()).unwrap();
         let section = output
             .build_production_section_v2(
                 coordinate.clone(),
@@ -177,7 +177,7 @@ impl Provider {
 }
 
 fn provider_layout_section(
-    output: &SingleConeStrongLirOutput,
+    output: &ConeLirOutput,
     layouts: &CanonicalExactLayoutExportsV1,
     descriptors: &CanonicalExactDescriptorExportsV1,
     dispatch: &CanonicalExactDispatchExportsV1,
@@ -204,7 +204,7 @@ fn provider_layout_section(
 
 pub(super) fn consumer_layout_section<'a>(
     coordinate: &ConeCoordinate,
-    output: &SingleConeStrongLirOutput,
+    output: &ConeLirOutput,
     registrations: &StrongRegistrationProductionSurfaceV2,
     provider: &'a Provider,
     dependencies: &[&'a LayoutAbiExportConstituentsV1],

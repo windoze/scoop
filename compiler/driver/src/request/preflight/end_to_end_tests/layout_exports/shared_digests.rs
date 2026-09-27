@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) fn check(
     name: &str,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
     production: &lir::StrongProductionSectionV2,
 ) {
     let replay = || {

@@ -6,7 +6,7 @@ pub(in crate::link_object::layout_link_closure) const TARGET: LirTargetProfile =
     LirTargetProfile::DARWIN_AARCH64;
 
 pub(in crate::link_object) struct Provider {
-    pub foundation: OdrFreeLirFoundation,
+    pub foundation: ConeLirFoundation,
     pub production: StrongProductionSectionV2,
     pub ordinary: CrossConeLirBridgeSectionV1,
     pub section: CrossConeLayoutAbiSectionV1<'static>,
@@ -83,7 +83,7 @@ impl Provider {
         canonical.set_definition_plans(plans).unwrap();
         canonical.set_definition_atoms(atoms).unwrap();
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-        let foundation = OdrFreeLirFoundation::try_new(provider, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(provider, canonical).unwrap();
         let identity = ExactLayoutIdentityV1::from_foundation(
             TARGET,
             exact,
@@ -159,7 +159,7 @@ impl Provider {
 
     pub fn consumer(&self, consumer: ConeIdentity) -> CrossConeLayoutAbiSectionV1<'_> {
         let foundation =
-            OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
+            ConeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
         let exports = exports(&foundation, vec![]);
         let import = self.import(consumer);
         let roots = [LayoutAbiDependencyV1::new(
@@ -179,14 +179,13 @@ impl Provider {
 pub(in crate::link_object) fn empty_section(
     provider: ConeIdentity,
 ) -> CrossConeLayoutAbiSectionV1<'static> {
-    let foundation =
-        OdrFreeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
+    let foundation = ConeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
     let exports = exports(&foundation, vec![]);
     CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &[]).unwrap()
 }
 
 pub(in crate::link_object::layout_link_closure) fn exports(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     values: Vec<ExactLayoutExportV1>,
 ) -> LayoutAbiExportConstituentsV1 {
     let layouts = CanonicalExactLayoutExportsV1::try_new(TARGET, foundation, values).unwrap();

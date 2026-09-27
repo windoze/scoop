@@ -1,5 +1,5 @@
 use super::*;
-use scoop_lir_lower::StrongLirLoweringError as Error;
+use scoop_lir_lower::LirLoweringError as Error;
 
 pub(super) fn check(
     input: &mir::ConeMirInput,

@@ -1,7 +1,7 @@
 use scoop_identity::{ConeIdentity, NativeLibraryBinding};
 use scoop_lir::{
     CBridgeTargetSupportRequirementV1, CBridgeTargetSupportV1, CanonicalLirFoundation,
-    GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation, ValidatedLirTargetSelection,
+    ConeLirFoundation, GeneratedBridgePlanSetV1, LirTargetProfile, ValidatedLirTargetSelection,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -310,9 +310,8 @@ fn seal_without_generated(
 pub(in crate::link_object) fn empty_bridge_plan(
     producer: ConeIdentity,
 ) -> GeneratedBridgePlanSetV1 {
-    let foundation =
-        OdrFreeLirFoundation::try_new(producer, CanonicalLirFoundation::empty()).unwrap();
-    GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap()
+    let foundation = ConeLirFoundation::try_new(producer, CanonicalLirFoundation::empty()).unwrap();
+    GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap()
 }
 
 fn hex(bytes: &[u8]) -> String {

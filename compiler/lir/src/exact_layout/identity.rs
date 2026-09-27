@@ -5,8 +5,8 @@ use scoop_identity::{
 use scoop_wire::WireError;
 
 use crate::{
-    ExternalStrongShapeSubjectV1, LirTargetProfile, OdrFreeLirFoundation,
-    StrongShapeDefinitionError, StrongShapeDefinitionRefV1, StrongShapeDefinitionV1,
+    ConeLirFoundation, ExternalStrongShapeSubjectV1, LirTargetProfile, StrongShapeDefinitionError,
+    StrongShapeDefinitionRefV1, StrongShapeDefinitionV1,
 };
 
 /// One canonical exact/layout key and its physical definition in the producer.
@@ -25,7 +25,7 @@ impl ExactLayoutIdentityV1 {
         target: LirTargetProfile,
         exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
         role: RepresentationRole,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutIdentityError> {
         let key = LayoutKey::new(exact.id(), target.wire_id(), role);
 

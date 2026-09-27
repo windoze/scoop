@@ -12,8 +12,8 @@ use scoop_identity::{
 use scoop_wire::HashError;
 
 use crate::{
-    DefinitionAtomResolutionError, DigestInputRefV1, DigestNodeBuildError, DigestNodeV1,
-    EntryProductionSourceV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DefinitionAtomResolutionError, DigestInputRefV1, DigestNodeBuildError,
+    DigestNodeV1, EntryProductionSourceV1, StrongDigestFinalizationPlanV1,
     StrongDigestPlanBuildError, StrongImmortalObjectSemanticPlanSetV1,
     StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSet,
     StrongSafepointSemanticPlanSetV1, StrongTypeDescriptorSemanticPlanSet,
@@ -21,7 +21,7 @@ use crate::{
 
 /// Derives digest inputs from the same runtime semantics used for registrations.
 pub(crate) fn project_strong_digest_finalization_plan<D: Copy, C, I>(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entry_source: &EntryProductionSourceV1,
     safepoints: &StrongSafepointSemanticPlanSetV1,
     types: &StrongTypeDescriptorSemanticPlanSet<D, C>,

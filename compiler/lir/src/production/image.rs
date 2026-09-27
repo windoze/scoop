@@ -19,7 +19,7 @@ use scoop_wire::{
 };
 
 use crate::{
-    DigestInputRefV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DigestInputRefV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
 };
 

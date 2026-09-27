@@ -6,9 +6,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Encoder, WireEncode};
 
-use crate::{
-    CallableAbiRecordV1, CallingConvention, ExternalCallableRootPlan, OdrFreeLirFoundation,
-};
+use crate::{CallableAbiRecordV1, CallingConvention, ConeLirFoundation, ExternalCallableRootPlan};
 
 mod errors;
 mod selection;
@@ -184,7 +182,7 @@ pub struct CrossConeLirBridgeSectionV1 {
 
 impl CrossConeLirBridgeSectionV1 {
     pub fn try_new(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         mut exports: Vec<ParamFreeLirCallableExportV1>,
         mut selected: Vec<SelectedDependencyLirCallableV1>,
     ) -> Result<Self, CrossConeLirBridgeBuildError> {

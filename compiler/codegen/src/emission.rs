@@ -615,9 +615,9 @@ pub(crate) fn emit_llvm_module<'ctx>(
             "initialization units require a sealed strong production section".to_string(),
         ));
     }
-    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
+    let foundation = scoop_lir::ConeLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
-    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation)
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
     emit_llvm_module_with_surface(
         context,

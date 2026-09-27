@@ -156,7 +156,7 @@ pub(super) fn module(
 }
 
 pub(super) fn exact_layouts(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     exact_record: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
 ) -> (CanonicalExactLayoutExportsV1, ExactLayoutExportV1) {
     let value_identity = ExactLayoutIdentityV1::from_foundation(

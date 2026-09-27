@@ -12,7 +12,7 @@ use super::{
     DigestPlanError, StrongDigestFinalizationPlanV1, StrongDigestPlanBuildError,
     StrongDigestPlanValidationError,
 };
-use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
+use crate::{CanonicalLirFoundation, ConeLirFoundation};
 
 #[test]
 fn runtime_image_only_plan_has_canonical_wire_and_round_trips() {
@@ -159,9 +159,8 @@ fn reader_rejects_noncanonical_node_order_without_sorting() {
     ));
 }
 
-fn empty_foundation() -> OdrFreeLirFoundation {
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
-        .unwrap()
+fn empty_foundation() -> ConeLirFoundation {
+    ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty()).unwrap()
 }
 
 fn image_node(inputs: Vec<DigestInputRefV1>) -> DigestNodeV1 {
@@ -180,7 +179,7 @@ fn unit_exact_type() -> PersistentExactTypeId {
     .unwrap()
 }
 
-fn layout_foundation() -> (OdrFreeLirFoundation, scoop_identity::PersistentLayoutId) {
+fn layout_foundation() -> (ConeLirFoundation, scoop_identity::PersistentLayoutId) {
     let layout = CborIdentityRecord::from_key(LayoutKey::darwin_aarch64(
         unit_exact_type(),
         RepresentationRole::ManagedValue,
@@ -190,13 +189,13 @@ fn layout_foundation() -> (OdrFreeLirFoundation, scoop_identity::PersistentLayou
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_layouts(vec![layout]).unwrap();
     (
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
         id,
     )
 }
 
 fn definition_foundation() -> (
-    OdrFreeLirFoundation,
+    ConeLirFoundation,
     scoop_identity::ObjectDefinitionPlanId,
     scoop_identity::ObjectDefinitionAtomId,
 ) {
@@ -220,7 +219,7 @@ fn definition_foundation() -> (
     canonical.set_definition_plans(vec![plan]).unwrap();
     canonical.set_definition_atoms(vec![atom]).unwrap();
     (
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
         plan_id,
         atom_id,
     )

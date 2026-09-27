@@ -7,7 +7,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::OdrFreeLirFoundation;
+use crate::ConeLirFoundation;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongObjectDefinitionPlanV1 {
@@ -80,8 +80,8 @@ pub struct StrongObjectDefinitionPlanSurfaceV1 {
 }
 
 impl StrongObjectDefinitionPlanSurfaceV1 {
-    pub fn from_odr_free_foundation(
-        foundation: &OdrFreeLirFoundation,
+    pub fn from_foundation(
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, StrongObjectDefinitionPlanBuildError> {
         let plan_ids = foundation
             .definition_plans()
@@ -156,10 +156,10 @@ impl DecodedStrongObjectDefinitionPlanSurfaceV1 {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<StrongObjectDefinitionPlanSurfaceV1, StrongObjectDefinitionPlanValidationError>
     {
-        let expected = StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
+        let expected = StrongObjectDefinitionPlanSurfaceV1::from_foundation(foundation)
             .map_err(StrongObjectDefinitionPlanValidationError::Foundation)?;
         if self.plans.len() != expected.plans.len() {
             return Err(StrongObjectDefinitionPlanValidationError::PlanCoverage {

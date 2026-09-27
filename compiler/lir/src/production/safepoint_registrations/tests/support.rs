@@ -12,17 +12,17 @@ use scoop_identity::{
 use super::StrongSafepointRegistrationPlanSetV1;
 use crate::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
-    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, Function,
-    GcEffect, Instruction, IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind,
-    LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination,
-    ManagedLeafPath, ManagedLeafPaths, ManagedPollSite, ManagedRuntimeFunction,
-    MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges, OdrFreeLirFoundation,
-    RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity, SafepointMappingRecord,
-    SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StatepointLiveValue,
-    StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
-    StrongSafepointSemanticPlanSetV1, StructDefs, Terminator, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
-    VtableRecord, WellKnownTypeDescriptors,
+    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
+    ExternFunctions, Function, GcEffect, Instruction, IntrinsicTypeRepresentation, Layout,
+    LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile, LocalFunctionIdentities,
+    LocalFunctionRef, ManagedCallDestination, ManagedLeafPath, ManagedLeafPaths, ManagedPollSite,
+    ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
+    NativeGlobalBridges, RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity,
+    SafepointMappingRecord, SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature,
+    StatepointLiveSet, StatepointLiveValue, StrongDigestFinalizationPlanV1,
+    StrongRegistrationIdentitySurfaceV1, StrongSafepointSemanticPlanSetV1, StructDefs, Terminator,
+    TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1,
+    VoidCallSignature, VtableRecord, WellKnownTypeDescriptors,
 };
 
 #[derive(Clone, Copy)]
@@ -65,7 +65,7 @@ impl Default for FixtureOptions {
 }
 
 pub(super) struct Fixture {
-    pub(super) foundation: OdrFreeLirFoundation,
+    pub(super) foundation: ConeLirFoundation,
     pub(super) identities: StrongRegistrationIdentitySurfaceV1,
     pub(super) semantics: StrongSafepointSemanticPlanSetV1,
     pub(super) digests: StrongDigestFinalizationPlanV1,
@@ -136,8 +136,7 @@ impl Fixture {
                 .unwrap(),
             );
         }
-        let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
         let extra_source = (options.extra_direct_input || options.object_node_input).then(|| {
             DigestNodeV1::new(

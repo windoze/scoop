@@ -23,7 +23,7 @@ type SemanticTypeSetFor<R> = StrongTypeDescriptorSemanticPlanSet<
 pub(crate) fn validate_types(
     decoded: Vec<DecodedStrongTypeRegistrationPlanV1>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
 
     digests: &StrongDigestFinalizationPlanV1,
@@ -49,7 +49,7 @@ pub(crate) fn validate_types(
 pub fn validate_type_registration_constituents_v2(
     decoded: Vec<crate::DecodedStrongTypeRegistrationPlanV2>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
 
     definitions: &crate::StrongTypeReferenceDefinitionsV2,
@@ -86,7 +86,7 @@ pub fn validate_type_registration_constituents_v2(
 fn validate_types_with_references<R: TypeReferences>(
     decoded: Vec<DecodedTypeFor<R>>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     digests: &StrongDigestFinalizationPlanV1,
     references: &R,

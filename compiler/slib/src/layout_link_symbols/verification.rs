@@ -2,7 +2,7 @@ use super::*;
 
 pub(crate) struct ReplayInputs<'a> {
     pub link: &'a crate::DecodedCrossConeLayoutLinkOnlySections,
-    pub foundation: &'a lir::OdrFreeLirFoundation,
+    pub foundation: &'a lir::ConeLirFoundation,
     pub strong: &'a lir::StrongProductionSectionV2,
     pub ordinary: &'a lir::CrossConeLirBridgeSectionV1,
     pub layout: &'a lir::PhysicalImportsReplayedLayoutAbiSectionV1,

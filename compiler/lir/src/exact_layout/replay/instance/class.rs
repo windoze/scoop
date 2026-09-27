@@ -14,7 +14,7 @@ impl ExactInstanceLayoutV1 {
         identity: ExactLayoutIdentityV1,
         base: ClassLayoutBaseV1<'_>,
         fields: &[NominalLayoutFieldInputV1<'_>],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         let owner = nominal(identity.exact_key())?;
         replay_class(identity, owner, base, fields, foundation)
@@ -27,7 +27,7 @@ impl ExactInstanceLayoutV1 {
         backing: &CborIdentityRecord<PersistentTypeId, GeneratedNominalKey>,
         base: ClassLayoutBaseV1<'_>,
         fields: &[NominalLayoutFieldInputV1<'_>],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         nominal(identity.exact_key())?;
         let GeneratedNominalKey::ObjectBackingClass { object } = backing.key() else {
@@ -51,7 +51,7 @@ fn replay_class(
     owner: NominalDeclarationOwner,
     base: ClassLayoutBaseV1<'_>,
     fields: &[NominalLayoutFieldInputV1<'_>],
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ExactInstanceLayoutV1, ExactLayoutReplayError> {
     require_roles(&identity, &[RepresentationRole::ManagedObject])?;
     let declared = aggregate::nominal_fields_for_owner(&identity, owner, fields)?;

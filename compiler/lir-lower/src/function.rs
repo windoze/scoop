@@ -185,11 +185,10 @@ pub(super) fn lower_function<'a>(
         .map(|target| MappedLoopHeaderPollTarget::new(block_map[&target.header()]))
         .collect();
     let mut pending_safepoints = safepoints::PendingSafepointSites::default();
-    let callable_owner = callable_body.id();
     let mut lowerer = FunctionLowerer {
         context,
         producer,
-        callable_owner,
+        callable_body: &callable_body,
         module,
         mir_locals: &function.body.locals,
         global_map,
@@ -246,7 +245,6 @@ pub(super) fn lower_function<'a>(
     }
     Ok(LoweredFunction {
         function: lir::Function {
-            callable_body,
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,
@@ -258,6 +256,7 @@ pub(super) fn lower_function<'a>(
             temps: lowerer.temps,
             blocks: lowerer.blocks,
             entry,
+            callable_body,
         },
         loop_header_polls,
         pending_safepoints,
@@ -283,7 +282,7 @@ enum LocalSlot {
 struct FunctionLowerer<'a> {
     context: &'a LoweringContext,
     producer: scoop_identity::ConeIdentity,
-    callable_owner: scoop_identity::PersistentCallableBodyId,
+    callable_body: &'a lir::CallableBodyIdentity,
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for local storage and parameters).
     mir_locals: &'a Arena<mir::Local>,

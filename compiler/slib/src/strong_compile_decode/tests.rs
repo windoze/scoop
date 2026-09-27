@@ -91,7 +91,7 @@ fn strong_compile_foundations_validate_structure_and_reject_all_odr() {
             .unwrap()
             .validate_foundation_structure(),
         Err(StrongProfileFoundationError::LirOdr(
-            scoop_lir::OdrFreeLirFoundationError::NonStrongSymbolRequest {
+            scoop_lir::ConeLirFoundationError::NonStrongSymbolRequest {
                 linkage: LinkageClass::OdrWeak,
                 ..
             }

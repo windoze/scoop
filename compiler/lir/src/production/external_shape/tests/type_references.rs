@@ -12,7 +12,7 @@ fn checked(subject: ExternalStrongShapeSubjectV1) -> StrongShapeDefinitionRefV1 
 }
 
 fn empty_consumer() -> (
-    crate::OdrFreeLirFoundation,
+    crate::ConeLirFoundation,
     StrongRegistrationIdentitySurfaceV1,
 ) {
     consumer_at(ConeIdentity::CORE)
@@ -21,11 +21,11 @@ fn empty_consumer() -> (
 fn consumer_at(
     producer: ConeIdentity,
 ) -> (
-    crate::OdrFreeLirFoundation,
+    crate::ConeLirFoundation,
     StrongRegistrationIdentitySurfaceV1,
 ) {
     let foundation =
-        crate::OdrFreeLirFoundation::try_new(producer, crate::CanonicalLirFoundation::empty())
+        crate::ConeLirFoundation::try_new(producer, crate::CanonicalLirFoundation::empty())
             .unwrap();
     let image = crate::DigestNodeV1::new(
         scoop_identity::DigestNodeKey::runtime_image(producer),
@@ -117,7 +117,7 @@ fn an_imported_symbol_request_is_not_a_local_definition() {
     let mut canonical = crate::CanonicalLirFoundation::empty();
     canonical
         .set_symbol_requests(PersistentSymbolRequestTable::new(vec![definition.symbol()]).unwrap());
-    let consumer = crate::OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let consumer = crate::ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     let ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = definition.subject() else {
         panic!("descriptor fixture");
     };

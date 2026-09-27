@@ -7,6 +7,16 @@ pub use place::*;
 pub struct CallableBodyIdentity {
     record: scoop_identity::RuntimeIdentityRecord<scoop_identity::PersistentCallableBodyId>,
     symbol: MaterializedSymbol,
+    materialization: CallableBodyMaterialization,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CallableBodyMaterialization {
+    ConeOwned,
+    Odr {
+        group: scoop_identity::OdrGroupId,
+        member: scoop_identity::CallableOdrMemberId,
+    },
 }
 
 impl CallableBodyIdentity {
@@ -39,11 +49,16 @@ impl CallableBodyIdentity {
     }
 
     pub fn for_odr_member(
-        member: scoop_identity::CallableOdrMemberId,
+        key: &scoop_identity::OdrMemberKey,
     ) -> Result<Self, CallableBodyIdentityBuildError> {
+        let member = scoop_identity::CallableOdrMemberId::from_key(key)
+            .map_err(CallableBodyIdentityBuildError::Member)?;
         Self::from_key(
             scoop_identity::CallableBodyKey::odr(member),
-            LinkageClass::OdrWeak,
+            CallableBodyMaterialization::Odr {
+                group: key.group(),
+                member,
+            },
         )
     }
 
@@ -52,7 +67,7 @@ impl CallableBodyIdentity {
     ) -> Result<Self, CallableBodyIdentityBuildError> {
         Self::from_key(
             scoop_identity::CallableBodyKey::initialization_startup_gateway(unit),
-            LinkageClass::ConeStrong,
+            CallableBodyMaterialization::ConeOwned,
         )
     }
 
@@ -62,7 +77,7 @@ impl CallableBodyIdentity {
     ) -> Result<Self, CallableBodyIdentityBuildError> {
         Self::from_key(
             scoop_identity::CallableBodyKey::root_gateway(root_cone, main),
-            LinkageClass::ConeStrong,
+            CallableBodyMaterialization::ConeOwned,
         )
     }
 
@@ -84,20 +99,53 @@ impl CallableBodyIdentity {
         self.symbol.as_str()
     }
 
+    pub fn definition_plan_key(
+        &self,
+        producer: scoop_identity::ConeIdentity,
+    ) -> scoop_identity::ObjectDefinitionPlanKey {
+        match self.materialization {
+            CallableBodyMaterialization::ConeOwned => {
+                scoop_identity::ObjectDefinitionPlanKey::strong(
+                    producer,
+                    scoop_identity::StrongDefinitionEntity::callable_body(self.id()),
+                    scoop_identity::StrongDefinitionRole::CallableBody,
+                )
+                .expect("a callable body has a valid Strong definition role")
+            }
+            CallableBodyMaterialization::Odr { member, .. } => {
+                scoop_identity::ObjectDefinitionPlanKey::odr(member.member())
+            }
+        }
+    }
+
+    pub(crate) fn materialization_root(&self) -> MaterializationRoot {
+        match self.materialization {
+            CallableBodyMaterialization::ConeOwned => MaterializationRoot::cone_owned(),
+            CallableBodyMaterialization::Odr { group, .. } => {
+                MaterializationRoot::prior_stage_odr(group)
+            }
+        }
+    }
+
     fn strong(
         owner: scoop_identity::StrongCallableDefinitionOwner,
     ) -> Result<Self, CallableBodyIdentityBuildError> {
         Self::from_key(
             scoop_identity::CallableBodyKey::strong(owner),
-            LinkageClass::ConeStrong,
+            CallableBodyMaterialization::ConeOwned,
         )
     }
 
     fn from_key(
         key: scoop_identity::CallableBodyKey,
-        linkage: LinkageClass,
+        materialization: CallableBodyMaterialization,
     ) -> Result<Self, CallableBodyIdentityBuildError> {
-        let record = scoop_identity::RuntimeIdentityRecord::from_key(&key)?;
+        let record = scoop_identity::RuntimeIdentityRecord::from_key(&key)
+            .map_err(CallableBodyIdentityBuildError::Runtime)?;
+        let linkage = match materialization {
+            CallableBodyMaterialization::ConeOwned => LinkageClass::ConeStrong,
+            CallableBodyMaterialization::Odr { .. } => LinkageClass::OdrWeak,
+        };
         Ok(Self {
             symbol: MaterializedSymbol::new(
                 scoop_identity::PersistentSymbolKey::CallableBody(record.id()),
@@ -105,12 +153,27 @@ impl CallableBodyIdentity {
             )
             .expect("the closed callable-body key/linkage pair is valid"),
             record,
+            materialization,
         })
     }
 }
 
-pub type CallableBodyIdentityBuildError =
-    scoop_identity::RuntimeIdentityRecordBuildError<scoop_wire::HashError>;
+#[derive(Debug)]
+pub enum CallableBodyIdentityBuildError {
+    Runtime(scoop_identity::RuntimeIdentityRecordBuildError<scoop_wire::HashError>),
+    Member(scoop_identity::OdrMemberIdentityError),
+}
+
+impl std::fmt::Display for CallableBodyIdentityBuildError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Runtime(error) => error.fmt(formatter),
+            Self::Member(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CallableBodyIdentityBuildError {}
 
 /// A temporary SSA-ish value produced by an instruction.
 #[derive(Debug)]

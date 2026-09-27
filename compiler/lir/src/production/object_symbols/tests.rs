@@ -15,8 +15,7 @@ use crate::CanonicalLirFoundation;
 #[test]
 fn derives_primary_and_every_atom_boundary_from_typed_plans() {
     let fixture = fixture(true);
-    let surface =
-        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     assert_eq!(surface.plans().len(), 1);
     assert_eq!(surface.plan(fixture.plan.id()), Some(&surface.plans()[0]));
 
@@ -52,8 +51,7 @@ fn derives_primary_and_every_atom_boundary_from_typed_plans() {
 #[test]
 fn wire_reader_only_returns_the_independently_rebuilt_surface() {
     let fixture = fixture(true);
-    let surface =
-        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     let encoded = encode(&surface).unwrap();
     let decoded: DecodedStrongObjectSymbolSurfaceV1 = decode_canonical(&encoded).unwrap();
 
@@ -63,8 +61,7 @@ fn wire_reader_only_returns_the_independently_rebuilt_surface() {
 #[test]
 fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
     let fixture = fixture(true);
-    let surface =
-        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     let encoded = encode(&surface).unwrap();
     assert_eq!(encoded[0], 0x81);
     assert_eq!(encoded[1], 0xa6);
@@ -92,7 +89,7 @@ fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
 fn refuses_a_definition_without_its_foundation_primary_symbol() {
     let fixture = fixture(false);
     assert_eq!(
-        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation),
+        StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation),
         Err(
             StrongObjectSymbolSurfaceBuildError::MissingPrimarySymbolRequest {
                 definition_plan: fixture.plan.id(),
@@ -107,7 +104,7 @@ struct Fixture {
     plan: CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>,
     primary: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
     eh_frame: CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
 }
 
 fn fixture(with_symbol: bool) -> Fixture {
@@ -160,7 +157,7 @@ fn fixture(with_symbol: bool) -> Fixture {
             .unwrap(),
         );
     }
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     Fixture {
         body,
         plan,

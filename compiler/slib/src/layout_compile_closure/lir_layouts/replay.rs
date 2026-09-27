@@ -30,7 +30,7 @@ type Result<T> = std::result::Result<T, Error>;
 pub fn replay_shared_mir_layouts(
     target: lir::LirTargetProfile,
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
     identities: &ValidatedIdentityGraph,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
 ) -> Result<lir::CanonicalExactLayoutExportsV1> {
@@ -81,7 +81,7 @@ pub fn replay_shared_mir_layouts(
 struct Replay<'a> {
     target: lir::LirTargetProfile,
     types: &'a mir::CanonicalParamFreeMirTypeExportsV1,
-    foundation: &'a lir::OdrFreeLirFoundation,
+    foundation: &'a lir::ConeLirFoundation,
     identities: &'a ValidatedIdentityGraph,
 
     dependencies: BTreeMap<PersistentLayoutId, &'a lir::ExactLayoutExportV1>,

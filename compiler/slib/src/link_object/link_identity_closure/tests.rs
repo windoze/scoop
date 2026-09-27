@@ -7,8 +7,7 @@ use crate::link_object::c_bridge_production::tests::{fixture, member_plan};
 #[test]
 fn materializations_are_sorted_by_member_and_keep_producer_kinds_distinct() {
     let fixture = fixture(Some("bridge"));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let plan = member_plan(&fixture, &bridge_plan);
     let materializations = materializations(&plan);
 

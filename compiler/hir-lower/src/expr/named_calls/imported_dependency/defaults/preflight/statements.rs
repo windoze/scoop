@@ -152,10 +152,45 @@ impl Lowerer {
                 requirement: ImportedCapabilityRequirement::Generic,
                 operation: "dependency default iteration protocol",
             }),
-            Kind::Try(_) | Kind::Throw(_) => Err(ImportedDefaultPlanError::Requires {
-                requirement: ImportedCapabilityRequirement::Layout,
-                operation: "dependency default exception value",
-            }),
+            Kind::Try(value) => {
+                self.preflight_imported_default_statements(
+                    owner,
+                    template,
+                    value.body(),
+                    locals,
+                    bindings,
+                    callables,
+                    loop_depth,
+                )?;
+                for catch in value.catches() {
+                    if !locals.contains(catch.local()) {
+                        return Err(ImportedDefaultPlanError::UnknownLocal(
+                            catch.local().clone(),
+                        ));
+                    }
+                    self.imported_default_type_with_bindings(catch.value_type(), bindings)?;
+                    self.preflight_imported_default_statements(
+                        owner,
+                        template,
+                        catch.body(),
+                        locals,
+                        bindings,
+                        callables,
+                        loop_depth,
+                    )?;
+                }
+                if let hir::OptionalDefaultStatementListViewV1::Present(body) =
+                    value.finally_body().view()
+                {
+                    self.preflight_imported_default_statements(
+                        owner, template, body, locals, bindings, callables, loop_depth,
+                    )?;
+                }
+                Ok(())
+            }
+            Kind::Throw(value) => self.preflight_imported_default_expression(
+                owner, template, value, locals, bindings, callables,
+            ),
         }
     }
 

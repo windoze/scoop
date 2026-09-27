@@ -7,7 +7,7 @@ pub(super) fn callable(
     target_profile: LirTargetProfile,
     target: StrongCallableDefinitionOwner,
     signature: CanonicalScoopAbiFunctionSignature,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ExactCallableAbiExportV1, ExactCallableAbiError> {
     let protocol = match signature.gc_effect() {
         GcEffect::Managed => ExactCallableProtocolV1::OrdinaryManaged,

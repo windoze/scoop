@@ -6,7 +6,7 @@ use scoop_identity::{
 use scoop_wire::WireEncode;
 
 use super::{
-    CanonicalLirFoundation, LirFoundationCounts, OdrFreeLirFoundation, ValidatedLirFoundation,
+    CanonicalLirFoundation, ConeLirFoundation, LirFoundationCounts, ValidatedLirFoundation,
 };
 
 /// Session-local LIR identity. It cannot be interchanged with imported HIR or
@@ -44,7 +44,7 @@ impl ImportedLirFoundation {
 
     #[doc(hidden)]
     pub fn from_odr_free(
-        foundation: OdrFreeLirFoundation,
+        foundation: ConeLirFoundation,
         identities: ImportedIdentityMap<LirIdentityLayer>,
     ) -> Self {
         Self {

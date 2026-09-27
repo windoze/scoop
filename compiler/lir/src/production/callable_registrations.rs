@@ -12,7 +12,7 @@ use scoop_identity::{
 };
 
 use crate::{
-    DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -98,7 +98,7 @@ pub struct StrongCallableRegistrationPlanSetV1 {
 
 impl StrongCallableRegistrationPlanSetV1 {
     pub fn new(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         runtime_scans: StrongCallableRuntimeScanPlanSetV1,
         digests: &StrongDigestFinalizationPlanV1,
@@ -196,7 +196,7 @@ impl StrongCallableRegistrationPlanSetV1 {
 }
 
 fn build_registration(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     digests: &StrongDigestFinalizationPlanV1,
     body: PersistentCallableBodyId,
     identity_definition: ObjectDefinitionPlanId,
@@ -314,7 +314,7 @@ fn build_registration(
 }
 
 fn require_definition(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<
@@ -333,7 +333,7 @@ fn require_definition(
 }
 
 fn require_primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     plan: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongCallableRegistrationPlanBuildError> {
     let actual = foundation
@@ -351,7 +351,7 @@ fn require_primary_atom(
 }
 
 fn require_symbol(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
 ) -> Result<PersistentSymbolRequest, StrongCallableRegistrationPlanBuildError> {
     let request = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)

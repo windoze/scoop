@@ -1,11 +1,11 @@
-//! Sealed LIR output for the single-Cone strong production path.
+//! Complete LIR output for the shared physical lowering path.
 
 use std::fmt;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey};
 
 use crate::{
-    EntryProductionSourceV1, Module, OdrFreeLirFoundation, OdrFreeLirFoundationProjectionError,
+    ConeLirFoundation, ConeLirFoundationProjectionError, EntryProductionSourceV1, Module,
     StrongProductionSectionBuildError, StrongProductionSectionV1, StrongProductionSectionV2,
     StrongRegistrationProductionBuildError, StrongRegistrationProductionSurfaceV1,
 };
@@ -17,21 +17,21 @@ pub use shape_support::{
 };
 
 /// A complete LIR graph with its identity foundation and shape metadata.
-pub struct SingleConeStrongLirOutput {
+pub struct ConeLirOutput {
     module: Module,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     shape_support: StrongLirShapeSupportPlan,
 }
 
-impl SingleConeStrongLirOutput {
+impl ConeLirOutput {
     pub fn try_new(
         module: Module,
         shape_sources: Vec<SourceDeclarationKey>,
-    ) -> Result<Self, SingleConeStrongLirOutputError> {
-        let foundation = OdrFreeLirFoundation::from_module(&module)
-            .map_err(SingleConeStrongLirOutputError::Foundation)?;
+    ) -> Result<Self, ConeLirOutputError> {
+        let foundation =
+            ConeLirFoundation::from_module(&module).map_err(ConeLirOutputError::Foundation)?;
         let shape_support = StrongLirShapeSupportPlan::from_module(&module, shape_sources)
-            .map_err(SingleConeStrongLirOutputError::ShapeSupport)?;
+            .map_err(ConeLirOutputError::ShapeSupport)?;
         Ok(Self {
             module,
             foundation,
@@ -43,7 +43,7 @@ impl SingleConeStrongLirOutput {
         &self.module
     }
 
-    pub const fn foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn foundation(&self) -> &ConeLirFoundation {
         &self.foundation
     }
 
@@ -111,12 +111,12 @@ impl SingleConeStrongLirOutput {
 }
 
 #[derive(Debug)]
-pub enum SingleConeStrongLirOutputError {
-    Foundation(OdrFreeLirFoundationProjectionError),
+pub enum ConeLirOutputError {
+    Foundation(ConeLirFoundationProjectionError),
     ShapeSupport(StrongLirShapeSupportError),
 }
 
-impl fmt::Display for SingleConeStrongLirOutputError {
+impl fmt::Display for ConeLirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Foundation(source) => source.fmt(formatter),
@@ -125,7 +125,7 @@ impl fmt::Display for SingleConeStrongLirOutputError {
     }
 }
 
-impl std::error::Error for SingleConeStrongLirOutputError {
+impl std::error::Error for ConeLirOutputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::Foundation(source) => source,

@@ -30,7 +30,7 @@ impl ExactValueLayoutV1 {
     pub fn enumeration(
         identity: ExactLayoutIdentityV1,
         variants: &[EnumLayoutVariantInputV1<'_>],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         validate_variants(&identity, variants)?;
         if let Some((index, kind, payload)) = niche(variants) {

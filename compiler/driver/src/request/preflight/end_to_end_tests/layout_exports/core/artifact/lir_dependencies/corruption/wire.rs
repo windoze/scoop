@@ -29,7 +29,7 @@ pub(in super::super::super) fn empty_exports(
     target: lir::LirTargetProfile,
 ) -> lir::LayoutAbiExportConstituentsV1 {
     let foundation =
-        lir::OdrFreeLirFoundation::try_new(provider, lir::CanonicalLirFoundation::empty()).unwrap();
+        lir::ConeLirFoundation::try_new(provider, lir::CanonicalLirFoundation::empty()).unwrap();
     let layouts = lir::CanonicalExactLayoutExportsV1::try_new(target, &foundation, vec![]).unwrap();
     let descriptors =
         lir::CanonicalExactDescriptorExportsV1::try_new(target, &foundation, vec![]).unwrap();

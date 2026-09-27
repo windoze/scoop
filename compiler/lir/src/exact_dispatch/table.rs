@@ -4,8 +4,7 @@ use scoop_identity::{ConeIdentity, PersistentDispatchTableId};
 
 use super::*;
 use crate::{
-    ExternalStrongShapeSubjectV1, LirTargetProfile, OdrFreeLirFoundation,
-    StrongShapeDefinitionRefV1,
+    ConeLirFoundation, ExternalStrongShapeSubjectV1, LirTargetProfile, StrongShapeDefinitionRefV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -21,7 +20,7 @@ struct ExactDispatchTableBodyV1 {
 impl CanonicalExactDispatchExportsV1 {
     pub fn try_new(
         target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         mut records: Vec<ExactDispatchExportV1>,
     ) -> Result<Self, ExactDispatchTableError> {
         records.sort_unstable_by_key(ExactDispatchExportV1::table);

@@ -33,13 +33,12 @@ fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
 fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
     let bytes = library_manifest_bytes();
     let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
-    let foundation = scoop_lir::OdrFreeLirFoundation::try_new(
+    let foundation = scoop_lir::ConeLirFoundation::try_new(
         scoop_identity::ConeIdentity::CORE,
         scoop_lir::CanonicalLirFoundation::empty(),
     )
     .unwrap();
-    let bridge_plan =
-        scoop_lir::GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
+    let bridge_plan = scoop_lir::GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap();
     let checked = decoded
         .validate_c_bridge_production(&bridge_plan, &c_bridge_profile())
         .unwrap();

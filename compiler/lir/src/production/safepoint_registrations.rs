@@ -12,7 +12,7 @@ use scoop_identity::{
 };
 
 use crate::{
-    DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1, StrongSafepointSemanticPlanSetV1,
 };
 
@@ -94,7 +94,7 @@ pub struct StrongSafepointRegistrationPlanSetV1 {
 
 impl StrongSafepointRegistrationPlanSetV1 {
     pub fn new(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         semantics: &StrongSafepointSemanticPlanSetV1,
         digests: &StrongDigestFinalizationPlanV1,
@@ -148,7 +148,7 @@ impl StrongSafepointRegistrationPlanSetV1 {
 }
 
 fn build_registration(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     semantic: &crate::StrongSafepointSemanticPlanV1,
     identity: &crate::StrongRegistrationIdentityV1<PersistentSafepointSiteId>,
     digests: &StrongDigestFinalizationPlanV1,

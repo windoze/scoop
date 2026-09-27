@@ -11,7 +11,7 @@ pub fn replay_shared_mir_shape_support(
     layouts: &lir::CanonicalExactLayoutExportsV1,
     descriptors: &lir::CanonicalExactDescriptorExportsV1,
     identities: &ValidatedIdentityGraph,
-    foundation: &lir::OdrFreeLirFoundation,
+    foundation: &lir::ConeLirFoundation,
 ) -> Result<lir::CanonicalParamFreeShapeSupportExportsV1, Error> {
     let path = WirePath::root();
 

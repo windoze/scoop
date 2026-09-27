@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) fn validate_callable_runtime_scans(
     decoded: Vec<DecodedStrongCallableRuntimeScanPlanV1>,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<StrongCallableRuntimeScanPlanSetV1, StrongRegistrationProductionValidationError> {
     let mut callables = Vec::with_capacity(decoded.len());
     for (index, decoded) in decoded.into_iter().enumerate() {
@@ -90,7 +90,7 @@ fn validate_callable_ref_scan(
 
 pub(super) fn validate_safepoints(
     decoded: Vec<DecodedStrongSafepointRegistrationPlanV1>,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
 ) -> Result<StrongSafepointSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     require_length(

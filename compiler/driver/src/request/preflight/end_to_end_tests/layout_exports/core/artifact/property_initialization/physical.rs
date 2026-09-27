@@ -38,7 +38,7 @@ pub(super) fn check_provider(input: scoop_mir_lower::MirTypeBridgeExportInputV1<
 
 pub(super) fn select<'a>(
     input: &mir::ConeMirInput,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     provider: &lir::ShapeLinkProviderV1<'a>,
     layout: &'a lir::LayoutAbiExportConstituentsV1,

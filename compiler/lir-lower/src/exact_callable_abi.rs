@@ -7,7 +7,7 @@ use scoop_mir as mir;
 /// Ordinary and lowered callables share the canonical signature projection.
 pub fn lower_exact_callable_abi_export(
     input: &mir::ConeMirInput,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
     target: StrongCallableDefinitionOwner,
     signature: &mir::MirBridgeCallableSignatureV1,
 ) -> Result<lir::ExactCallableAbiExportV1, ExactCallableAbiLoweringError> {

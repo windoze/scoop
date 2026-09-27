@@ -7,8 +7,8 @@ use scoop_hir::{
 };
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::{
-    DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation, DecodedStrongProductionSectionV1,
-    OdrFreeLirFoundation,
+    ConeLirFoundation, DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
+    DecodedStrongProductionSectionV1,
 };
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, DecodedMirFoundation,
@@ -122,7 +122,7 @@ impl FoundationValidatedCrossConeHirFrontSections<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -176,7 +176,7 @@ impl ResolvedCrossConeHirFrontSections<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -230,7 +230,7 @@ impl HirProductionValidatedCrossConeHirFrontSections<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

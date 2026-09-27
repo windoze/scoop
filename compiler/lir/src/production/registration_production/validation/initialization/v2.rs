@@ -14,7 +14,7 @@ use scoop_wire::encode_canonical_temporary;
 pub fn validate_initialization_registration_constituents_v2(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     static_storages: StrongStaticStorageSemanticPlanSetV1,
     definitions: &StrongInitializationDefinitionCatalogV2,

@@ -58,7 +58,7 @@ fn resolve_type_descriptor_ref(
 fn resolve_dispatch_table(
     decoded: DecodedPersistentId<scoop_identity::PersistentDispatchTableId>,
     expected_key: scoop_identity::DispatchTableKey,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     index: usize,
     field: &'static str,
 ) -> Result<scoop_identity::PersistentDispatchTableId, StrongRegistrationProductionValidationError>
@@ -75,7 +75,7 @@ fn resolve_dispatch_table(
 
 fn validate_type_dispatch_slots(
     decoded: Vec<DecodedStrongTypeDispatchCallableRefV1>,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 
     index: usize,
 ) -> Result<Vec<StrongTypeDispatchCallableRefV1>, StrongRegistrationProductionValidationError> {

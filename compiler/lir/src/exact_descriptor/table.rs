@@ -4,7 +4,7 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId};
 use scoop_wire::WireError;
 
 use super::*;
-use crate::{LirTargetProfile, OdrFreeLirFoundation};
+use crate::{ConeLirFoundation, LirTargetProfile};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalExactDescriptorExportsV1(Arc<DescriptorTable>);
@@ -19,7 +19,7 @@ struct DescriptorTable {
 impl CanonicalExactDescriptorExportsV1 {
     pub fn try_new(
         target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         mut records: Vec<ExactDescriptorExportV1>,
     ) -> Result<Self, ExactDescriptorTableError> {
         records.sort_unstable_by_key(ExactDescriptorExportV1::exact);

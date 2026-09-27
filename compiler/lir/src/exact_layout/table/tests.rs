@@ -5,7 +5,7 @@ use super::*;
 use crate::exact_layout::tests::{Bound, unit};
 use crate::*;
 
-fn fixture() -> (OdrFreeLirFoundation, Vec<ExactLayoutExportV1>) {
+fn fixture() -> (ConeLirFoundation, Vec<ExactLayoutExportV1>) {
     let value = unit();
     let value_bound = Bound::value(value.identity().exact_record().clone());
     let instance_bound = Bound::instance(value.identity().exact_record().clone());
@@ -59,7 +59,7 @@ fn fixture() -> (OdrFreeLirFoundation, Vec<ExactLayoutExportV1>) {
         .unwrap(),
     );
     (
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, foundation).unwrap(),
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, foundation).unwrap(),
         vec![value.into(), instance.into()],
     )
 }
@@ -124,8 +124,7 @@ fn layout_table_rejects_duplicate_keys_and_foreign_or_incomplete_foundation() {
         (ConeIdentity::CORE, true),
         (ConeIdentity::SINGLE_FILE, false),
     ] {
-        let empty =
-            OdrFreeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
+        let empty = ConeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
         let error = CanonicalExactLayoutExportsV1::try_new(
             LirTargetProfile::DARWIN_AARCH64,
             &empty,
@@ -153,7 +152,7 @@ fn layout_table_reader_rejects_reordering_duplication_and_omission() {
 #[test]
 fn layout_table_preserves_empty_wire() {
     let foundation =
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
             .unwrap();
     let empty = CanonicalExactLayoutExportsV1::try_new(
         LirTargetProfile::DARWIN_AARCH64,

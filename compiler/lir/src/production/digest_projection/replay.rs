@@ -3,7 +3,7 @@
 use super::*;
 
 pub fn replay_strong_digest_finalization_plan_v2(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: &crate::StrongRegistrationProductionSurfaceV2,
     entry: &EntryProductionSourceV1,
 ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {

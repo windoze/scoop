@@ -3,9 +3,9 @@ use scoop_identity::{
     LinkageClass, ObjectDefinitionAtomKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
-    DecodedStrongProductionSectionV2, EntryProductionSourceV1, ExactValueLayoutV1,
-    OdrFreeLirFoundation, ScalarRepresentationKindV1, StrongInitializationDefinitionCatalogV2,
+    CanonicalLirFoundation, ConeLirFoundation, CrossConeLayoutAbiSectionV1,
+    CrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV2, EntryProductionSourceV1,
+    ExactValueLayoutV1, ScalarRepresentationKindV1, StrongInitializationDefinitionCatalogV2,
     StrongProductionSectionV1, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
     StrongTypeReferenceDefinitionsV2,
 };
@@ -66,7 +66,7 @@ impl Fixture {
 }
 
 pub(super) struct Consumer<'provider> {
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     production: StrongProductionSectionV2,
     ordinary: CrossConeLirBridgeSectionV1,
     pub(super) section: CrossConeLayoutAbiSectionV1<'provider>,
@@ -80,7 +80,7 @@ impl<'provider> Consumer<'provider> {
         let section = provider.consumer(consumer);
         let (canonical, old) =
             crate::link_decode::tests::strong_production_fixture(coordinate.clone(), &[]);
-        let foundation = OdrFreeLirFoundation::try_new(consumer, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(consumer, canonical).unwrap();
         let production = replay(&old, coordinate, &foundation, &section);
         let ordinary = CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![]).unwrap();
         let defined_symbols = owner_set_for_callable(consumer, "consumerOwner");
@@ -153,7 +153,7 @@ pub(super) fn replay_provider_production(
 fn replay(
     old: &StrongProductionSectionV1,
     coordinate: ConeCoordinate,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     section: &CrossConeLayoutAbiSectionV1<'_>,
 ) -> StrongProductionSectionV2 {
     let producer = foundation.producer();
@@ -219,11 +219,9 @@ fn owner_set_for_subject(
         ])
         .unwrap(),
     );
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
-    let surface =
-        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
-    let partition =
-        scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
+    let surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let partition = scoop_lir::StrongProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
@@ -256,7 +254,7 @@ fn owner_set_for_subject(
 pub(super) fn foundation_without_symbol(
     producer: ConeIdentity,
     subject: scoop_lir::ExternalStrongShapeSubjectV1,
-) -> OdrFreeLirFoundation {
+) -> ConeLirFoundation {
     let (plan, _) = subject.expected_definition(producer).unwrap();
     let plan = CborIdentityRecord::from_key(plan).unwrap();
     let atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
@@ -268,5 +266,5 @@ pub(super) fn foundation_without_symbol(
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_definition_plans(vec![plan]).unwrap();
     canonical.set_definition_atoms(vec![atom]).unwrap();
-    OdrFreeLirFoundation::try_new(producer, canonical).unwrap()
+    ConeLirFoundation::try_new(producer, canonical).unwrap()
 }

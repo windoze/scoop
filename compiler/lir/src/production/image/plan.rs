@@ -22,7 +22,7 @@ impl ConeImagePlanV1 {
     pub fn new(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
         digest_plan: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, ConeImagePlanBuildError> {
@@ -168,7 +168,7 @@ impl DecodedConeImagePlanV1 {
         self,
         coordinate: &ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
         digest_plan: &StrongDigestFinalizationPlanV1,
     ) -> Result<ConeImagePlanV1, ConeImagePlanValidationError> {

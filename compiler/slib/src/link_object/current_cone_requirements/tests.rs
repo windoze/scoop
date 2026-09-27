@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentNativeExternalSymbolId, SourceNativeSymbol, StrongDefinitionEntity,
     StrongDefinitionRole,
 };
-use scoop_lir::{CanonicalLirFoundation, GeneratedBridgePlanSetV1, OdrFreeLirFoundation};
+use scoop_lir::{CanonicalLirFoundation, ConeLirFoundation, GeneratedBridgePlanSetV1};
 
 use super::*;
 use crate::link_object::strong_relocation_closure::tests::{
@@ -144,9 +144,8 @@ fn synthetic_cross_member_closure(
 }
 
 fn empty_bridge_plan(producer: ConeIdentity) -> GeneratedBridgePlanSetV1 {
-    let foundation =
-        OdrFreeLirFoundation::try_new(producer, CanonicalLirFoundation::empty()).unwrap();
-    GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap()
+    let foundation = ConeLirFoundation::try_new(producer, CanonicalLirFoundation::empty()).unwrap();
+    GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap()
 }
 
 struct BridgePlanFixture {
@@ -212,10 +211,10 @@ fn bridge_plan(producer: ConeIdentity) -> BridgePlanFixture {
         .set_definition_plans(definition_plans.into_iter().collect())
         .unwrap();
     foundation.set_definition_atoms(definition_atoms).unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(producer, foundation).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, foundation).unwrap();
 
     BridgePlanFixture {
-        plan: GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap(),
+        plan: GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap(),
         unit: unit.id(),
         primary: primary.id(),
         associated: associated.id(),

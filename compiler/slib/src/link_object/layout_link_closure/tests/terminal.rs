@@ -1,4 +1,4 @@
-use scoop_lir::{CanonicalLirFoundation, OdrFreeLirFoundation};
+use scoop_lir::{CanonicalLirFoundation, ConeLirFoundation};
 
 use super::fixture::empty_section;
 use super::*;
@@ -106,8 +106,7 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
     let fixture = Fixture::new();
     let consumer = Consumer::new(&fixture.provider);
     let missing =
-        OdrFreeLirFoundation::try_new(fixture.provider_id(), CanonicalLirFoundation::empty())
-            .unwrap();
+        ConeLirFoundation::try_new(fixture.provider_id(), CanonicalLirFoundation::empty()).unwrap();
     let result =
         CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
             foundation: &missing,

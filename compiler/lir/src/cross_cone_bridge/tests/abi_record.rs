@@ -25,10 +25,8 @@ fn shared_abi_decodes_with_the_actual_provider_and_rejects_another_provider() {
             Err(CallableAbiDecodeError::RecordMismatch)
         ));
         let definitions =
-            StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
-        record
-            .validate_against(&fixture.foundation, &definitions)
-            .unwrap();
+            StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
+        record.validate_against(&fixture.foundation).unwrap();
         assert!(matches!(
             record.validate_definition(ConeIdentity::SINGLE_FILE, &definitions),
             Err(CallableAbiValidationError::ContractMismatch)

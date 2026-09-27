@@ -4,7 +4,7 @@ use fixture::{ImportedInitialization, imported_initialization};
 fn lower_selected(
     fixture: &ImportedInitialization,
     selected: &lir::SelectedExternalLirSet,
-) -> Result<lir::SingleConeStrongLirOutput, crate::StrongLirLoweringError> {
+) -> Result<lir::ConeLirOutput, crate::LirLoweringError> {
     crate::lower(
         &fixture.input,
         &[fixture.runtime_string],
@@ -25,12 +25,12 @@ fn initialization_selection_uses_shared_callables_and_checks_coverage() {
     let empty = lir::SelectedExternalLirSet::empty(fixture.input.module().cone);
     assert!(matches!(
         lower_selected(&fixture, &empty),
-        Err(crate::StrongLirLoweringError::ExternalCallableCountMismatch { mir: 1, lir: 0 })
+        Err(crate::LirLoweringError::ExternalCallableCountMismatch { mir: 1, lir: 0 })
     ));
     let foreign = lir::SelectedExternalLirSet::empty(ConeIdentity::CORE);
     assert!(matches!(
         lower_selected(&fixture, &foreign),
-        Err(crate::StrongLirLoweringError::ForeignExternalLirSelection { .. })
+        Err(crate::LirLoweringError::ForeignExternalLirSelection { .. })
     ));
 }
 
@@ -62,13 +62,11 @@ fn initialization_selection_uses_the_shared_gc_effect_check() {
     .unwrap();
     assert!(matches!(
         lower_selected(&fixture, &selected),
-        Err(
-            crate::StrongLirLoweringError::ExternalCallableGcEffectMismatch {
-                mir: mir::GcEffect::Managed,
-                lir: scoop_identity::GcEffect::NoGc,
-                ..
-            }
-        )
+        Err(crate::LirLoweringError::ExternalCallableGcEffectMismatch {
+            mir: mir::GcEffect::Managed,
+            lir: scoop_identity::GcEffect::NoGc,
+            ..
+        })
     ));
 }
 
@@ -89,7 +87,7 @@ fn descriptor_inputs_resolve_the_actual_type_and_provider() {
             &selected,
             lir::LirTargetProfile::DARWIN_AARCH64
         ),
-        Err(crate::StrongLirLoweringError::MissingDependencyLayoutSelection { exact, .. }) if exact == fixture.runtime_string.target()
+        Err(crate::LirLoweringError::MissingDependencyLayoutSelection { exact, .. }) if exact == fixture.runtime_string.target()
     ));
     let wrong_provider = lir::ExternalTypeDescriptor::new(
         ConeIdentity::SINGLE_FILE,
@@ -103,9 +101,7 @@ fn descriptor_inputs_resolve_the_actual_type_and_provider() {
             &selected,
             lir::LirTargetProfile::DARWIN_AARCH64
         ),
-        Err(crate::StrongLirLoweringError::DependencyDescriptorBinding(
-            _
-        ))
+        Err(crate::LirLoweringError::DependencyDescriptorBinding(_))
     ));
     let unrelated = scoop_identity::ConeCoordinate::new("test", "unrelated", "1.0.0")
         .unwrap()
@@ -120,9 +116,7 @@ fn descriptor_inputs_resolve_the_actual_type_and_provider() {
             &selected,
             lir::LirTargetProfile::DARWIN_AARCH64
         ),
-        Err(crate::StrongLirLoweringError::DependencyDescriptorBinding(
-            _
-        ))
+        Err(crate::LirLoweringError::DependencyDescriptorBinding(_))
     ));
 }
 

@@ -8,8 +8,8 @@ use scoop_identity::{
     TargetProfileWireId,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1,
-    CrossConeLirBridgeSectionV1, LirTargetProfile, OdrFreeLirFoundation,
+    CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
+    CrossConeLirBridgeSectionV1, LirTargetProfile,
 };
 use scoop_wire::decode_canonical;
 
@@ -36,7 +36,7 @@ fn known_link_contributions_distinguish_legacy_and_cross_cone_profiles() {
     assert_eq!(scoop_wire::encode(&legacy).unwrap(), vec![0x80]);
 
     let foundation =
-        OdrFreeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty()).unwrap();
+        ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty()).unwrap();
     let bridge = CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
     let semantic_imports = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&bridge).unwrap();
     let cross_cone =
@@ -68,8 +68,7 @@ fn layout_profile_code_contribution_contains_both_semantic_import_projections() 
     let consumer = ConeIdentity::SINGLE_FILE;
     let provider = crate::link_object::layout_link_closure::tests::fixture::Provider::new();
     let layout = provider.consumer(consumer);
-    let foundation =
-        OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
+    let foundation = ConeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
     let bridge = CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
     let callable_imports = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&bridge).unwrap();
 
@@ -217,7 +216,7 @@ fn changing_the_contract_changes_the_code_projection() {
     canonical
         .set_native_link_requirements(vec![requirement])
         .unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     let linked = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
@@ -268,7 +267,7 @@ fn requirement_surface(
 ) -> CanonicalNativeExternalRequirementSurfaceV1 {
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_native_contracts(contracts).unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,

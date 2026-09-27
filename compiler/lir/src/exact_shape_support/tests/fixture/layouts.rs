@@ -21,7 +21,7 @@ pub(super) struct Shape {
 pub(super) struct LayoutFixture {
     pub shapes: Vec<Shape>,
     pub records: Vec<ExactLayoutExportV1>,
-    pub foundations: Vec<crate::OdrFreeLirFoundation>,
+    pub foundations: Vec<crate::ConeLirFoundation>,
 }
 
 pub(super) fn build(source: &SourceDeclarationKey, wrong_step_payload: bool) -> LayoutFixture {
@@ -137,7 +137,7 @@ fn generated_exact(
 fn source_value(
     source: &SourceDeclarationKey,
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
-) -> (ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
+) -> (ExactValueLayoutV1, crate::ConeLirFoundation) {
     match source.declaration_kind() {
         SourceDeclarationKind::Struct => empty_struct(source.origin(), exact),
         SourceDeclarationKind::Interface => managed_value(source.origin(), exact),
@@ -148,7 +148,7 @@ fn source_value(
 fn empty_struct(
     provider: ConeIdentity,
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
-) -> (ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
+) -> (ExactValueLayoutV1, crate::ConeLirFoundation) {
     let Bound {
         identity,
         foundation,
@@ -165,7 +165,7 @@ fn empty_struct(
 fn managed_value(
     provider: ConeIdentity,
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
-) -> (ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
+) -> (ExactValueLayoutV1, crate::ConeLirFoundation) {
     let Bound {
         identity,
         foundation,
@@ -184,7 +184,7 @@ fn managed_value(
 fn source_instance(
     source: &SourceDeclarationKey,
     value: &ExactValueLayoutV1,
-) -> (ExactInstanceLayoutV1, crate::OdrFreeLirFoundation) {
+) -> (ExactInstanceLayoutV1, crate::ConeLirFoundation) {
     let Bound {
         identity,
         foundation,
@@ -210,7 +210,7 @@ fn boxed_instance(
     provider: ConeIdentity,
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
     payload: &ExactValueLayoutV1,
-) -> (ExactInstanceLayoutV1, crate::OdrFreeLirFoundation) {
+) -> (ExactInstanceLayoutV1, crate::ConeLirFoundation) {
     let Bound {
         identity,
         foundation,
@@ -230,7 +230,7 @@ fn helper_shape(
     roles: [GeneratedEnumVariantRole; 2],
     payload_index: usize,
     payload: &ExactValueLayoutV1,
-) -> (Shape, [crate::OdrFreeLirFoundation; 2]) {
+) -> (Shape, [crate::ConeLirFoundation; 2]) {
     let exact = generated_exact(owner);
     let variants = roles.map(|role| {
         CborIdentityRecord::from_key(EnumVariantIdentityKey::generated(owner, role).unwrap())

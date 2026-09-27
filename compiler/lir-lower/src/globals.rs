@@ -28,7 +28,7 @@ pub(super) struct LoweredGlobals {
 pub(super) fn lower_globals(
     inputs: GlobalLoweringInputs<'_>,
     globals: &mut Arena<lir::Global>,
-) -> Result<LoweredGlobals, StrongLirLoweringError> {
+) -> Result<LoweredGlobals, LirLoweringError> {
     let GlobalLoweringInputs {
         context,
         identity_roots,
@@ -206,7 +206,7 @@ pub(super) fn static_storage_layout(
     module: &mir::Module,
     ty: &mir::Type,
     selected: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
-) -> Result<lir::StaticStorageLayout, StrongLirLoweringError> {
+) -> Result<lir::StaticStorageLayout, LirLoweringError> {
     use scoop_identity::RepresentationRole;
     let exact = exact_type_record(module, ty).id();
     let target = context.target_profile();
@@ -230,7 +230,7 @@ pub(super) fn static_storage_layout(
         && provider != module.cone
     {
         let selected = selected
-            .ok_or(StrongLirLoweringError::MissingDependencyLayoutSelection { provider, exact })?;
+            .ok_or(LirLoweringError::MissingDependencyLayoutSelection { provider, exact })?;
         let layout = scoop_identity::PersistentLayoutId::from_key(&scoop_identity::LayoutKey::new(
             exact,
             target.wire_id(),
@@ -243,7 +243,7 @@ pub(super) fn static_storage_layout(
             Some(lir::LayoutAbiSemanticRecordV1::Layout(record)) => record.value_handle(),
             _ => None,
         }
-        .ok_or(StrongLirLoweringError::MissingDependencyValueLayout { provider, layout })?;
+        .ok_or(LirLoweringError::MissingDependencyValueLayout { provider, layout })?;
         return Ok(lir::StaticStorageLayout::External(value));
     }
     let identity = match role {

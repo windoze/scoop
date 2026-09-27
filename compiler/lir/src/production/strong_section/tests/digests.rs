@@ -9,7 +9,7 @@ fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
 
 pub(in crate::production) fn without_image_input(
     section: &StrongProductionSectionV2,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Vec<u8> {
     let mut nodes = section.digest_finalization_plan().nodes().to_vec();
     let image = nodes
@@ -33,7 +33,7 @@ pub(in crate::production) fn without_image_input(
     encode(&raw).unwrap()
 }
 
-pub(super) fn check(section: &StrongProductionSectionV2, foundation: &OdrFreeLirFoundation) {
+pub(super) fn check(section: &StrongProductionSectionV2, foundation: &ConeLirFoundation) {
     let projection = || {
         crate::replay_strong_digest_finalization_plan_v2(
             foundation,

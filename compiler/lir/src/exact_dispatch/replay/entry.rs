@@ -5,7 +5,7 @@ use scoop_identity::{ConeIdentity, PersistentCallableBodyId};
 pub(super) fn replay(
     target: crate::LirTargetProfile,
     input: &ExactDispatchEntryInputV1<'_>,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<ExactDispatchEntryV1, ExactDispatchError> {
     let target_owner = input.implementation.target();
     if input.abi.target() != target_owner {

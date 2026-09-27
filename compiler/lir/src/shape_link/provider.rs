@@ -8,7 +8,7 @@ mod support;
 mod types;
 
 pub struct ShapeLinkProviderPartsV1<'a> {
-    pub foundation: &'a OdrFreeLirFoundation,
+    pub foundation: &'a ConeLirFoundation,
     pub production: &'a StrongProductionSectionV2,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layouts: &'a CanonicalExactLayoutExportsV1,

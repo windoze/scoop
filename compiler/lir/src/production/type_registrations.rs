@@ -14,7 +14,7 @@ use scoop_identity::{
 };
 
 use crate::{
-    DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1, TypeDescriptorInlineScanV1,
 };
 
@@ -31,7 +31,7 @@ use validation::*;
 impl<D: StrongDescriptorReference, C: Clone> StrongTypeRegistrationPlanSet<D, C> {
     pub fn new(
         target: crate::LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         semantics: &StrongTypeDescriptorSemanticPlanSet<D, C>,
         digests: &StrongDigestFinalizationPlanV1,

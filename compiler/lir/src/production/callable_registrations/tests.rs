@@ -211,7 +211,7 @@ struct RegistrationArtifacts {
 }
 
 struct Fixture {
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     identities: StrongRegistrationIdentitySurfaceV1,
     digests: StrongDigestFinalizationPlanV1,
     registrations: Vec<RegistrationArtifacts>,
@@ -301,8 +301,7 @@ impl Fixture {
             })
             .collect();
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-        let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &registrations, options);
         let identities =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
@@ -391,7 +390,7 @@ fn primary(
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: &[RegistrationArtifacts],
     options: Options,
 ) -> StrongDigestFinalizationPlanV1 {

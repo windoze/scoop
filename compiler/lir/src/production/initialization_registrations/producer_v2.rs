@@ -7,10 +7,10 @@ use super::{
     StrongInitializationUnitSemanticPlanSetV2,
 };
 use crate::{
-    InitializationDefinitionResolutionErrorV2, InitializationDependencyResolutionError,
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongExternalInitializationUseV2,
-    StrongInitializationDefinitionCatalogV2, StrongInitializationUnitDefinitionRefV2,
-    StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, InitializationDefinitionResolutionErrorV2,
+    InitializationDependencyResolutionError, StrongDigestFinalizationPlanV1,
+    StrongExternalInitializationUseV2, StrongInitializationDefinitionCatalogV2,
+    StrongInitializationUnitDefinitionRefV2, StrongRegistrationIdentitySurfaceV1,
 };
 
 impl StrongInitializationUnitSemanticPlanSetV2 {
@@ -20,7 +20,7 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
     /// boundary and collapse to the single dependency id carried on wire.
     pub fn from_local_semantics(
         local: StrongInitializationUnitSemanticPlanSetV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
         external_uses: &[StrongExternalInitializationUseV2],

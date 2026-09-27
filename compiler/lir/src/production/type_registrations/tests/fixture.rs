@@ -45,7 +45,7 @@ pub(super) struct TypeArtifacts {
 }
 
 pub(super) struct Fixture {
-    pub(super) foundation: OdrFreeLirFoundation,
+    pub(super) foundation: ConeLirFoundation,
     pub(super) identities: StrongRegistrationIdentitySurfaceV1,
     pub(super) semantics: StrongTypeDescriptorSemanticPlanSetV1,
     pub(super) digests: StrongDigestFinalizationPlanV1,
@@ -194,8 +194,7 @@ impl Fixture {
             })
             .collect();
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-        let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &types, options);
         let identities =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();

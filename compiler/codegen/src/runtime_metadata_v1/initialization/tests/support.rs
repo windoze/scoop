@@ -11,12 +11,12 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention,
-    CanonicalCAbiMetadata, CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
-    ExternFunctions, ExternalTypeDescriptor, Function, GcEffect, Global, GlobalInit,
-    InitializationSchedule, InitializationUnit, InitializationUnitKind, Layout, LayoutIdentity,
-    LayoutKind, LirMeta, LirStaticInitialState, LirTargetProfile, LirType, LocalFunctionIdentities,
-    LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges,
-    OdrFreeLirFoundation, PointerKind, RefScan, SafepointIdentities, ScoopAbiSignature,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1,
+    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Function, GcEffect, Global,
+    GlobalInit, InitializationSchedule, InitializationUnit, InitializationUnitKind, Layout,
+    LayoutIdentity, LayoutKind, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
+    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
+    NativeGlobalBridges, PointerKind, RefScan, SafepointIdentities, ScoopAbiSignature,
     StaticStorageIdentity, StrongDigestFinalizationPlanV1,
     StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanSetV1,
     StrongRegistrationIdentitySurfaceV1, StructDefs, Terminator, TypeDescriptorRef,
@@ -168,7 +168,7 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
     );
 
     let foundation =
-        OdrFreeLirFoundation::try_new(scoop_lir::ConeIdentity::SINGLE_FILE, canonical).unwrap();
+        ConeLirFoundation::try_new(scoop_lir::ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let digests = digest_plan(
         &foundation,
         semantic.schedule().gateway(),
@@ -223,7 +223,7 @@ fn definition_artifacts(
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     gateway: Option<scoop_lir::PersistentCallableBodyId>,
     cell: &DefinitionArtifacts,
     descriptor: &DefinitionArtifacts,

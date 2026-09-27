@@ -10,7 +10,7 @@ pub use v2::validate_initialization_registration_constituents_v2;
 pub(super) fn validate_initialization_units(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     static_storages: StrongStaticStorageSemanticPlanSetV1,
 ) -> Result<StrongInitializationUnitSemanticPlanSetV1, StrongRegistrationProductionValidationError>
@@ -44,7 +44,7 @@ pub(super) fn validate_initialization_units(
 fn replay_units<D: crate::StrongInitializationDependencyReference>(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     target: LirTargetProfile,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
     static_storages: StrongStaticStorageSemanticPlanSetV1,
     mut resolve: impl FnMut(

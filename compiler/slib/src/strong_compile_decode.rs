@@ -15,9 +15,10 @@ use scoop_identity::{
     ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    DecodedLirFoundation, DecodedStrongProductionSectionV1, EntryProductionSourceV1,
-    ImportedLirFoundation, LirFoundationValidationError, OdrFreeLirFoundation,
-    OdrFreeLirFoundationError, StrongProductionSectionV1, StrongProductionSectionValidationError,
+    ConeLirFoundation, ConeLirFoundationError, DecodedLirFoundation,
+    DecodedStrongProductionSectionV1, EntryProductionSourceV1, ImportedLirFoundation,
+    LirFoundationValidationError, StrongProductionSectionV1,
+    StrongProductionSectionValidationError,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation,
@@ -77,7 +78,7 @@ pub struct OdrCheckedSingleConeCompileFoundations<'input> {
     hir_production: DecodedCoreBootstrapInterfaceSectionV1,
     mir_foundation: OdrFreeMirFoundation,
     mir_production: DecodedCoreBootstrapBridgeSectionV1,
-    lir_foundation: OdrFreeLirFoundation,
+    lir_foundation: ConeLirFoundation,
     lir_production: DecodedStrongProductionSectionV1,
 }
 
@@ -91,7 +92,7 @@ pub struct LocallyValidatedSingleConeCompileProduction<'input> {
     hir_production: CoreBootstrapInterfaceSectionV1,
     mir_foundation: OdrFreeMirFoundation,
     mir_production: CoreBootstrapBridgeSectionV1,
-    lir_foundation: OdrFreeLirFoundation,
+    lir_foundation: ConeLirFoundation,
     lir_production: DecodedStrongProductionSectionV1,
 }
 
@@ -114,7 +115,7 @@ pub struct StructurallyValidatedSingleConeCompileProduction<'input> {
     hir_production: CoreBootstrapInterfaceSectionV1,
     mir_foundation: OdrFreeMirFoundation,
     mir_production: CoreBootstrapBridgeSectionV1,
-    lir_foundation: OdrFreeLirFoundation,
+    lir_foundation: ConeLirFoundation,
     lir_production: StrongProductionSectionV1,
 }
 
@@ -129,7 +130,7 @@ pub struct NativeBoundaryValidatedSingleConeCompileProduction<'input> {
 pub(crate) struct OdrFreeStrongFoundationSet {
     pub(crate) hir: OdrFreeHirFoundation,
     pub(crate) mir: OdrFreeMirFoundation,
-    pub(crate) lir: OdrFreeLirFoundation,
+    pub(crate) lir: ConeLirFoundation,
 }
 
 pub(crate) struct DecodedStrongProfileProductionSet {
@@ -434,7 +435,7 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
         &self.mir_production
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.lir_foundation
     }
 
@@ -513,7 +514,7 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
         &self.mir_production
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.lir_foundation
     }
 
@@ -568,7 +569,7 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
         self.local.mir_production()
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         self.local.lir_foundation()
     }
 
@@ -651,7 +652,7 @@ impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
         &self.mir_production
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.lir_foundation
     }
 

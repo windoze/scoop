@@ -519,8 +519,8 @@ mod tests {
         StrongDefinitionEntity, StrongDefinitionRole,
     };
     use scoop_lir::{
-        CanonicalLirFoundation, ConeImagePlanV1, DigestInputRefV1, DigestNodeV1,
-        OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+        CanonicalLirFoundation, ConeImagePlanV1, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
+        StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
     };
 
     use super::{DIGEST_SIZE, IMAGE_DESCRIPTOR_SIZE, emit_cone_image_v1};
@@ -683,7 +683,7 @@ mod tests {
     fn image_fixture(
         coordinate: ConeCoordinate,
         registration: Option<PersistentExactTypeId>,
-    ) -> (OdrFreeLirFoundation, StrongDigestFinalizationPlanV1) {
+    ) -> (ConeLirFoundation, StrongDigestFinalizationPlanV1) {
         let producer = coordinate.identity().unwrap();
         let image_plan_key = ObjectDefinitionPlanKey::strong(
             producer,
@@ -727,7 +727,7 @@ mod tests {
         canonical.set_definition_atoms(image_atoms).unwrap();
         canonical
             .set_symbol_requests(PersistentSymbolRequestTable::new(vec![image_symbol]).unwrap());
-        let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+        let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
         let image_key = DigestNodeKey::runtime_image(producer);
         let image_node_id = DigestNodeId::from_key(&image_key).unwrap();

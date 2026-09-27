@@ -11,7 +11,7 @@ pub(super) struct DirectFixture {
     pub target_receiver: ExactLayoutExportV1,
     pub abi: ExactCallableAbiExportV1,
     pub vtable: VtableRecord,
-    pub foundation: OdrFreeLirFoundation,
+    pub foundation: ConeLirFoundation,
     pub slot: PersistentDispatchSlotId,
     slot_signature: ExactDispatchSlotSignatureV1,
     pub target: StrongCallableDefinitionOwner,
@@ -155,7 +155,7 @@ impl DirectFixture {
 
 pub(super) struct EmptyItable {
     pub table: ItableRecord,
-    pub foundation: OdrFreeLirFoundation,
+    pub foundation: ConeLirFoundation,
     pub interface: PersistentExactTypeId,
 }
 
@@ -193,7 +193,7 @@ fn named_pointer(name: &str) -> ExactLayoutExportV1 {
     .into()
 }
 
-fn callable_foundation(name: &str) -> (StrongCallableDefinitionOwner, OdrFreeLirFoundation) {
+fn callable_foundation(name: &str) -> (StrongCallableDefinitionOwner, ConeLirFoundation) {
     let target = StrongCallableDefinitionOwner::Function(source_function(name));
     let (definition, symbol) = ExternalStrongShapeSubjectV1::Callable(target)
         .expected_definition(ConeIdentity::SINGLE_FILE)
@@ -221,7 +221,7 @@ fn callable_foundation(name: &str) -> (StrongCallableDefinitionOwner, OdrFreeLir
     );
     (
         target,
-        OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
+        ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap(),
     )
 }
 
@@ -252,8 +252,8 @@ fn dispatch_slot(function: PersistentFunctionId) -> PersistentDispatchSlotId {
 
 fn table_foundation(
     table: CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
-    callable: Option<&OdrFreeLirFoundation>,
-) -> OdrFreeLirFoundation {
+    callable: Option<&ConeLirFoundation>,
+) -> ConeLirFoundation {
     let (definition, symbol) = ExternalStrongShapeSubjectV1::DispatchTable(table.id())
         .expected_definition(ConeIdentity::SINGLE_FILE)
         .unwrap();
@@ -273,24 +273,24 @@ fn table_foundation(
     canonical.set_dispatch_tables(vec![table]).unwrap();
     let mut plans = callable
         .into_iter()
-        .flat_map(OdrFreeLirFoundation::definition_plans)
+        .flat_map(ConeLirFoundation::definition_plans)
         .cloned()
         .collect::<Vec<_>>();
     plans.push(definition);
     canonical.set_definition_plans(plans).unwrap();
     let mut atoms = callable
         .into_iter()
-        .flat_map(OdrFreeLirFoundation::definition_atoms)
+        .flat_map(ConeLirFoundation::definition_atoms)
         .cloned()
         .collect::<Vec<_>>();
     atoms.push(atom);
     canonical.set_definition_atoms(atoms).unwrap();
     let mut symbols = callable
         .into_iter()
-        .flat_map(OdrFreeLirFoundation::symbol_requests)
+        .flat_map(ConeLirFoundation::symbol_requests)
         .copied()
         .collect::<Vec<_>>();
     symbols.push(PersistentSymbolRequest::new(symbol, LinkageClass::ConeStrong).unwrap());
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
+    ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
 }

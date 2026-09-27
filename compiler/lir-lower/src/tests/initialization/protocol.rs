@@ -97,7 +97,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
             &selected_lir,
             lir::LirTargetProfile::DARWIN_AARCH64,
         ),
-        Err(StrongLirLoweringError::MissingDependencyLayoutSelection { .. })
+        Err(LirLoweringError::MissingDependencyLayoutSelection { .. })
     ));
     let output = crate::lower(
         &ordinary_input,

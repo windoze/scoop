@@ -64,7 +64,7 @@ pub struct StrongCallableRuntimeScanPlanSetV1 {
 
 impl StrongCallableRuntimeScanPlanSetV1 {
     pub fn from_foundation_without_scans(
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
     ) -> Result<Self, StrongCallableRuntimeScanPlanError> {
         let mut callables = foundation
             .callable_bodies()
@@ -160,7 +160,9 @@ fn callable_plan(
     function: &Function,
 ) -> Result<StrongCallableRuntimeScanPlanV1, StrongCallableRuntimeScanPlanError> {
     let body = function.callable_body.id();
-    let plan = callable_definition_plan(producer, body)?;
+    let plan =
+        ObjectDefinitionPlanId::from_key(&function.callable_body.definition_plan_key(producer))
+            .map_err(StrongCallableRuntimeScanPlanError::Hash)?;
     let mut scans = Vec::new();
     for (_, scan) in function.call_targets.root_scans.iter() {
         append_scan_tree(scan, body, &mut scans)?;

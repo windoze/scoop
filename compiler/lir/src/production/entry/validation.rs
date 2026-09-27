@@ -12,12 +12,12 @@ use scoop_wire::HashError;
 
 use super::ExecutableEntryPlanV1;
 use crate::{
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
 };
 
 pub(super) fn build_executable(
     source: ExecutableSourceEntryIdentity,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: &StrongRegistrationIdentitySurfaceV1,
     digests: &StrongDigestFinalizationPlanV1,
 ) -> Result<ExecutableEntryPlanV1, EntryProductionPlanBuildError> {
@@ -128,7 +128,7 @@ pub(super) fn build_executable(
 }
 
 pub(super) fn validate_library_foundation(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<(), EntryProductionPlanBuildError> {
     let gateway_count = foundation
         .root_gateway_bodies()
@@ -153,7 +153,7 @@ pub(super) fn validate_library_foundation(
 }
 
 fn validate_root_only_entities(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     expected_gateway: PersistentCallableBodyId,
     expected_failure_root: PersistentStaticStorageId,
 ) -> Result<(), EntryProductionPlanBuildError> {
@@ -188,7 +188,7 @@ fn validate_root_only_entities(
     Ok(())
 }
 
-fn root_descriptor_definitions(foundation: &OdrFreeLirFoundation) -> Vec<ObjectDefinitionPlanId> {
+fn root_descriptor_definitions(foundation: &ConeLirFoundation) -> Vec<ObjectDefinitionPlanId> {
     foundation
         .definition_plans()
         .iter()
@@ -209,7 +209,7 @@ fn root_descriptor_definitions(foundation: &OdrFreeLirFoundation) -> Vec<ObjectD
 }
 
 fn require_symbol(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
 ) -> Result<PersistentSymbolRequest, EntryProductionPlanBuildError> {
     let request = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
@@ -221,7 +221,7 @@ fn require_symbol(
 }
 
 fn require_definition(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<ObjectDefinitionPlanId, EntryProductionPlanBuildError> {
@@ -237,7 +237,7 @@ fn require_definition(
 }
 
 fn require_primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     plan: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, EntryProductionPlanBuildError> {
     let atoms = foundation

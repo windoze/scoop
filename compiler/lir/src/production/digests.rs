@@ -302,7 +302,7 @@ pub struct StrongDigestFinalizationPlanV1 {
 impl StrongDigestFinalizationPlanV1 {
     pub fn new(
         mut nodes: Vec<DigestNodeV1>,
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
     ) -> Result<Self, StrongDigestPlanBuildError> {
         nodes.sort_unstable_by_key(DigestNodeV1::sort_key);
         validate_node_order(&nodes).map_err(StrongDigestPlanBuildError::Plan)?;
@@ -316,7 +316,7 @@ impl StrongDigestFinalizationPlanV1 {
 
     pub fn validate_against(
         &self,
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
     ) -> Result<(), DigestPlanError> {
         validate_plan(&self.nodes, foundation)
     }

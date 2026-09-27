@@ -11,7 +11,7 @@ use super::machine_selection as selection;
 pub(super) fn check(
     name: &str,
     target: &scoop_toolchain::ResolvedTargetProfile,
-    producer: &lir::SingleConeStrongLirOutput,
+    producer: &lir::ConeLirOutput,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     ordinary: &lir::CrossConeLirBridgeSectionV1,
     production: &lir::StrongProductionSectionV2,
@@ -35,7 +35,7 @@ pub(super) fn check(
         layout.target_profile(),
         lir::ExternalTypeDescriptor::new(layout.provider(), string).unwrap(),
     );
-    let foundation = lir::OdrFreeLirFoundation::from_module(&module).unwrap();
+    let foundation = lir::ConeLirFoundation::from_module(&module).unwrap();
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: producer.foundation(),
         production,
@@ -132,7 +132,7 @@ pub(super) fn check(
     }
     assert!(module.meta.type_descriptors.is_empty());
     consumer::snapshot(&module, references);
-    let output = lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let output = lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     let profile =
         scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
             .unwrap();
@@ -166,7 +166,7 @@ pub(super) fn check(
 }
 
 fn shape<'a>(
-    producer: &lir::SingleConeStrongLirOutput,
+    producer: &lir::ConeLirOutput,
     layout: &'a lir::CrossConeLayoutAbiSectionV1<'_>,
     name: &str,
 ) -> &'a lir::ParamFreeShapeSupportExportV1 {

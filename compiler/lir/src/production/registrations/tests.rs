@@ -10,7 +10,7 @@ use super::{
     StrongRegistrationIdentityValidationError,
 };
 use crate::{
-    CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation,
+    CanonicalLirFoundation, ConeLirFoundation, DigestInputRefV1, DigestNodeV1,
     StrongDigestFinalizationPlanV1,
 };
 
@@ -47,7 +47,7 @@ fn registration_role_derives_typed_table_plan_and_digest_node() {
     .unwrap();
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_definition_plans(vec![plan.clone()]).unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let registration = DigestNodeV1::new(
         DigestNodeKey::strong_registration(plan.id()),
         Vec::new(),
@@ -87,7 +87,7 @@ fn every_registration_plan_requires_its_own_strong_digest_node() {
     .unwrap();
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_definition_plans(vec![plan.clone()]).unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let digest_plan = digest_plan(&foundation, Vec::new());
 
     assert_eq!(
@@ -110,7 +110,7 @@ fn reader_rebuilds_tables_instead_of_accepting_missing_entries() {
     .unwrap();
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_definition_plans(vec![plan.clone()]).unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let registration = DigestNodeV1::new(
         DigestNodeKey::strong_registration(plan.id()),
         Vec::new(),
@@ -134,13 +134,12 @@ fn reader_rebuilds_tables_instead_of_accepting_missing_entries() {
     );
 }
 
-fn empty_foundation() -> OdrFreeLirFoundation {
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
-        .unwrap()
+fn empty_foundation() -> ConeLirFoundation {
+    ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty()).unwrap()
 }
 
 fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: Vec<DigestNodeV1>,
 ) -> StrongDigestFinalizationPlanV1 {
     let inputs = registrations

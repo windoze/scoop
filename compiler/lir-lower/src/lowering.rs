@@ -12,7 +12,7 @@ pub(super) fn lower_graph(
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     selected_layout: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
-) -> Result<LoweredModule, StrongLirLoweringError> {
+) -> Result<LoweredModule, LirLoweringError> {
     let module = input.module();
     let context = LoweringContext::new(target_profile);
     let identity_roots = IdentityRoots::new(input);
@@ -28,7 +28,7 @@ pub(super) fn lower_graph(
         .iter()
         .find_map(|(ty, reference)| (*ty == mir::Type::String).then_some(*reference));
     validate_strong_materialization(input, &identity_roots, &dependency_types)
-        .map_err(StrongLirLoweringError::Capability)?;
+        .map_err(LirLoweringError::Capability)?;
     // Every string selected by the sealed materialization plan becomes a
     // global with the same typed identity.
     let mut globals = Arena::new();
@@ -115,11 +115,11 @@ pub(super) fn lower_graph(
         },
         &mut globals,
     )?;
-    let callable_owners = input
+    let callable_bodies = input
         .materialization()
         .callable_roots()
         .iter()
-        .map(|root| (root.function(), root.subject()))
+        .map(|root| (root.function(), callable_body_identity(input, *root)))
         .collect::<HashMap<_, _>>();
     let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
@@ -127,7 +127,7 @@ pub(super) fn lower_graph(
         .iter()
         .map(|&id| {
             assert!(
-                callable_owners.contains_key(&id),
+                callable_bodies.contains_key(&id),
                 "every emitted function is selected by the MIR materialization plan"
             );
             let reference = match module.functions[id].gc_effect {
@@ -223,7 +223,7 @@ pub(super) fn lower_graph(
                 &context,
                 module.cone,
                 module,
-                callable_body_identity(callable_owners[&id]),
+                callable_bodies[&id].clone(),
                 &module.functions[id],
                 &function_signatures[&id],
                 &string_global_map,
@@ -353,16 +353,30 @@ fn materialized_exact_types(
     records
 }
 
-pub(super) fn callable_body_identity(
-    subject: mir::CallableSignatureSubject,
+fn callable_body_identity(
+    input: &mir::ConeMirInput,
+    root: mir::CallableMaterializationRoot,
 ) -> lir::CallableBodyIdentity {
-    let owner = match subject {
-        mir::CallableSignatureSubject::Strong(owner) => owner,
+    match root.subject() {
+        mir::CallableSignatureSubject::Strong(owner) => strong_callable_body_identity(owner),
         mir::CallableSignatureSubject::Odr(member) => {
-            return lir::CallableBodyIdentity::for_odr_member(member)
-                .expect("validated callable ODR members have canonical runtime identities");
+            let record = input
+                .module()
+                .meta
+                .source_callable_materializations
+                .get(root.function())
+                .and_then(|source| source.odr_member_record())
+                .or_else(|| input.foundation().odr_member(member.member()))
+                .expect("a validated ODR function retains its source or MIR member record");
+            lir::CallableBodyIdentity::for_odr_member(record.key())
+                .expect("a validated callable member has a canonical body identity")
         }
-    };
+    }
+}
+
+pub(super) fn strong_callable_body_identity(
+    owner: mir::CallableOwner,
+) -> lir::CallableBodyIdentity {
     let identity = match owner {
         mir::CallableOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
         mir::CallableOwner::Constructor(id) => lir::CallableBodyIdentity::for_constructor(id),

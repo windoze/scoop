@@ -6,7 +6,7 @@ use la_arena::Arena;
 use scoop_lir as lir;
 use scoop_mir as mir;
 
-use crate::{LoweringContext, StrongLirLoweringError as Error, abi};
+use crate::{LirLoweringError as Error, LoweringContext, abi};
 
 pub(super) fn lower_external_callables(
     context: &LoweringContext,

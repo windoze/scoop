@@ -1,7 +1,7 @@
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
-    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1, GeneratedBridgePlanSetV1,
-    LirTargetProfile, OdrFreeLirFoundation, StrongCallableRegistrationPlanSetV1,
+    ConeLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
+    GeneratedBridgePlanSetV1, LirTargetProfile, StrongCallableRegistrationPlanSetV1,
     StrongDigestFinalizationPlanV1, StrongImmortalObjectRegistrationPlanSetV1,
     StrongInitializationUnitRegistrationPlanSetV1, StrongObjectSymbolSurfaceV1,
     StrongProducerUnitPartitionV1, StrongSafepointRegistrationPlanSetV1,
@@ -59,7 +59,7 @@ pub(crate) enum Corruption {
 pub(crate) struct Fixture {
     pub(crate) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     pub(crate) semantic_plan: StrongSafepointSemanticPlanSetV1,
-    pub(crate) foundation: OdrFreeLirFoundation,
+    pub(crate) foundation: ConeLirFoundation,
     pub(crate) digest_plan: StrongDigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
@@ -76,18 +76,15 @@ impl Fixture {
     pub(crate) fn new(corruption: Corruption) -> Self {
         let inputs = semantic::inputs(corruption);
         let semantic_plan = StrongSafepointSemanticPlanSetV1::from_module(&inputs.module).unwrap();
-        let bridge_plan =
-            GeneratedBridgePlanSetV1::from_odr_free_foundation(&inputs.foundation).unwrap();
-        let partition =
-            StrongProducerUnitPartitionV1::from_odr_free_foundation(&inputs.foundation).unwrap();
+        let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&inputs.foundation).unwrap();
+        let partition = StrongProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
         let member_plan = PlannedLinkObjectMemberSetV1::new(
             &partition,
             vec![CanonicalScoopLirObjectUnitSetV1::new(inputs.definitions).unwrap()],
             Vec::new(),
         )
         .unwrap();
-        let surface =
-            StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&inputs.foundation).unwrap();
+        let surface = StrongObjectSymbolSurfaceV1::from_foundation(&inputs.foundation).unwrap();
         let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
             LirTargetProfile::DARWIN_AARCH64,
             &surface,

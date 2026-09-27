@@ -8,7 +8,7 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
 };
 
 mod validation;
@@ -141,7 +141,7 @@ pub enum EntryProductionPlanV1 {
 impl EntryProductionPlanV1 {
     pub fn new(
         source: EntryProductionSourceV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, EntryProductionPlanBuildError> {
@@ -240,7 +240,7 @@ impl DecodedEntryProductionPlanV1 {
     pub fn validate(
         self,
         source: EntryProductionSourceV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<EntryProductionPlanV1, EntryProductionPlanValidationError> {

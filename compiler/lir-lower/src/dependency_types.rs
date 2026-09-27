@@ -32,8 +32,8 @@ pub(super) fn lower(
     target: lir::LirTargetProfile,
     selected: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
     external: &mut Arena<lir::ExternalTypeDescriptor>,
-) -> Result<DependencyTypeDescriptors, StrongLirLoweringError> {
-    use StrongLirLoweringError as Error;
+) -> Result<DependencyTypeDescriptors, LirLoweringError> {
+    use LirLoweringError as Error;
     let mut result = DependencyTypeDescriptors::default();
     let roots = input
         .materialization()
@@ -152,7 +152,7 @@ pub(super) fn lower(
 fn intern(
     external: &mut Arena<lir::ExternalTypeDescriptor>,
     descriptor: lir::ExternalTypeDescriptor,
-) -> Result<lir::ExternalTypeDescriptorId, StrongLirLoweringError> {
+) -> Result<lir::ExternalTypeDescriptorId, LirLoweringError> {
     if let Some((id, existing)) = external
         .iter()
         .find(|(_, entry)| entry.target() == descriptor.target())
@@ -160,7 +160,7 @@ fn intern(
         return if existing == &descriptor {
             Ok(id)
         } else {
-            Err(StrongLirLoweringError::DependencyDescriptorBinding(
+            Err(LirLoweringError::DependencyDescriptorBinding(
                 descriptor.target(),
             ))
         };

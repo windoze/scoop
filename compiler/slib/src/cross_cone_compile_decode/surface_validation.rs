@@ -5,7 +5,7 @@ use scoop_hir::{
 };
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{
-    DecodedCrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV1, OdrFreeLirFoundation,
+    ConeLirFoundation, DecodedCrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV1,
 };
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
@@ -96,7 +96,7 @@ macro_rules! impl_surface_front_accessors {
                 &self.0.foundations.mir
             }
 
-            pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+            pub const fn lir_foundation(&self) -> &ConeLirFoundation {
                 &self.0.foundations.lir
             }
 

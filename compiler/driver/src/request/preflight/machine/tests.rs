@@ -86,7 +86,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
             &diagnostics
         ),
         Err(CurrentConeLirStageError::Lowering(
-            scoop_lir_lower::StrongLirLoweringError::DependencyLayout(
+            scoop_lir_lower::LirLoweringError::DependencyLayout(
                 scoop_lir::LayoutExternalMaterializationError::MissingCallable {
                     provider,
                     target

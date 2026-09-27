@@ -81,7 +81,7 @@ pub(super) fn validate_node_order(nodes: &[DigestNodeV1]) -> Result<(), DigestPl
 
 pub(super) fn validate_plan(
     nodes: &[DigestNodeV1],
-    foundation: &crate::OdrFreeLirFoundation,
+    foundation: &crate::ConeLirFoundation,
 ) -> Result<(), DigestPlanError> {
     validate_node_order(nodes)?;
     let known = nodes
@@ -177,7 +177,7 @@ pub(super) fn validate_plan(
 
 fn validate_owner(
     node: &DigestNodeV1,
-    foundation: &crate::OdrFreeLirFoundation,
+    foundation: &crate::ConeLirFoundation,
 ) -> Result<(), DigestPlanError> {
     let known = match node.key().owner_and_role() {
         DigestOwnerAndRoleKey::SourceSignature(id) => foundation.contains_callable_body(id),
@@ -241,7 +241,7 @@ fn validate_owner(
 fn validate_patch_target(
     intent: DigestPatchIntentId,
     key: &DigestPatchIntentKey,
-    foundation: &crate::OdrFreeLirFoundation,
+    foundation: &crate::ConeLirFoundation,
 ) -> Result<(), DigestPlanError> {
     let count = foundation
         .definition_atoms()

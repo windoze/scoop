@@ -4,7 +4,7 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentLayoutId, Re
 use scoop_wire::WireError;
 
 use super::*;
-use crate::{ExternalStrongShapeSubjectV1, LirTargetProfile, OdrFreeLirFoundation};
+use crate::{ConeLirFoundation, ExternalStrongShapeSubjectV1, LirTargetProfile};
 
 mod wire;
 pub use wire::DecodedCanonicalExactLayoutExportsV1;
@@ -27,7 +27,7 @@ struct LayoutTable {
 impl CanonicalExactLayoutExportsV1 {
     pub fn try_new(
         target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         mut records: Vec<ExactLayoutExportV1>,
     ) -> Result<Self, ExactLayoutTableError> {
         records.sort_unstable_by_key(|record| record.identity().layout());

@@ -6,15 +6,14 @@ use scoop_identity::{
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentNativeExternalSymbolId,
     SourceNativeSymbol, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_lir::{CanonicalLirFoundation, OdrFreeLirFoundation, StrongProducerUnitPartitionV1};
+use scoop_lir::{CanonicalLirFoundation, ConeLirFoundation, StrongProducerUnitPartitionV1};
 
 use super::*;
 
 #[test]
 fn assigns_every_plan_and_bridge_unit_to_exactly_one_member() {
     let fixture = fixture(true);
-    let partition =
-        StrongProducerUnitPartitionV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
         &partition,
         vec![
@@ -49,8 +48,7 @@ fn assigns_every_plan_and_bridge_unit_to_exactly_one_member() {
 #[test]
 fn rejects_overlapping_and_incomplete_shards() {
     let fixture = fixture(true);
-    let partition =
-        StrongProducerUnitPartitionV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
 
     let duplicate = PlannedLinkObjectMemberSetV1::new(
         &partition,
@@ -79,8 +77,7 @@ fn rejects_overlapping_and_incomplete_shards() {
 #[test]
 fn generated_members_are_absent_when_the_partition_has_no_bridge_units() {
     let fixture = fixture(false);
-    let partition =
-        StrongProducerUnitPartitionV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let partition = StrongProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
@@ -93,7 +90,7 @@ fn generated_members_are_absent_when_the_partition_has_no_bridge_units() {
 }
 
 struct Fixture {
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     lir_plans: [ObjectDefinitionPlanId; 2],
     bridge_unit: GeneratedBridgeUnitId,
     bridge_plan: ObjectDefinitionPlanId,
@@ -176,7 +173,7 @@ fn fixture(include_bridge: bool) -> Fixture {
     foundation.set_definition_atoms(atoms).unwrap();
 
     Fixture {
-        foundation: OdrFreeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap(),
+        foundation: ConeLirFoundation::try_new(ConeIdentity::CORE, foundation).unwrap(),
         lir_plans,
         bridge_unit: bridge_unit.id(),
         bridge_plan: bridge_definition.id(),

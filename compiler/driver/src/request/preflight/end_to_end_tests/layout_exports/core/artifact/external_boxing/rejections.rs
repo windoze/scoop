@@ -167,7 +167,7 @@ pub(super) fn codegen(
         original.target(),
     )
     .unwrap();
-    let output = SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let output = ConeLirOutput::try_new(module, Vec::new()).unwrap();
     let error = scoop_codegen::render_llvm_ir_members(
         &output,
         coordinate,

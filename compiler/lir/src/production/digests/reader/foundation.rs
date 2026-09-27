@@ -10,7 +10,7 @@ impl DecodedStrongDigestFinalizationPlanV1 {
     /// The complete graph is replayed after its registration relations pass.
     pub fn resolve_foundation(
         self,
-        foundation: &crate::OdrFreeLirFoundation,
+        foundation: &crate::ConeLirFoundation,
         dependencies: &crate::StrongTypeReferenceDefinitionsV2,
     ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestPlanReplayError> {
         self.validate_resolved(&mut Foundation(foundation, dependencies), foundation)
@@ -19,7 +19,7 @@ impl DecodedStrongDigestFinalizationPlanV1 {
 }
 
 struct Foundation<'a>(
-    &'a crate::OdrFreeLirFoundation,
+    &'a crate::ConeLirFoundation,
     &'a crate::StrongTypeReferenceDefinitionsV2,
 );
 macro_rules! resolve_record {

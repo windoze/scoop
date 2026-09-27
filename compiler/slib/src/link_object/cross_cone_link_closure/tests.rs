@@ -5,9 +5,8 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, StrongCallableDefinitionOwner,
 };
 use scoop_lir::{
-    CallingConvention, CanonicalLirFoundation, CrossConeLirBridgeSectionV1,
-    ExternalCallableRootPlan, LirTargetProfile, OdrFreeLirFoundation,
-    SelectedDependencyLirCallableV1,
+    CallingConvention, CanonicalLirFoundation, ConeLirFoundation, CrossConeLirBridgeSectionV1,
+    ExternalCallableRootPlan, LirTargetProfile, SelectedDependencyLirCallableV1,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -108,8 +107,7 @@ fn bridge(
     consumer: ConeIdentity,
     selected: Vec<SelectedDependencyLirCallableV1>,
 ) -> CrossConeLirBridgeSectionV1 {
-    let foundation =
-        OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
+    let foundation = ConeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
     CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), selected).unwrap()
 }
 

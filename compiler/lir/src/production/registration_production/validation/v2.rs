@@ -12,7 +12,7 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
     pub fn replay(
         self,
         target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
 
         type_definitions: &StrongTypeReferenceDefinitionsV2,

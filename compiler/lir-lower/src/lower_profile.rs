@@ -1,15 +1,15 @@
-//! Profile finalization shares one physical lowering and one strong sealer.
+//! All production profiles share one physical lowering and complete LIR output.
 
 use super::*;
 use scoop_identity::{CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph};
 
-/// Lowers the existing strong profile with its source display diagnostics.
+/// Lowers the complete MIR input with its source display diagnostics.
 pub fn lower(
     input: &mir::ConeMirInput,
     external_descriptors: &[lir::ExternalTypeDescriptor],
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
-) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+) -> Result<lir::ConeLirOutput, LirLoweringError> {
     seal(
         input,
         lowering::lower_graph(
@@ -30,7 +30,7 @@ pub fn lower_with_diagnostics(
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+) -> Result<lir::ConeLirOutput, LirLoweringError> {
     let mut lowered = lowering::lower_graph(
         input,
         external_descriptors,
@@ -45,13 +45,13 @@ pub fn lower_with_diagnostics(
 fn canonicalize(
     module: &mut lir::Module,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-) -> Result<(), StrongLirLoweringError> {
+) -> Result<(), LirLoweringError> {
     for (_, descriptor) in module.meta.type_descriptors.iter_mut() {
         descriptor.diagnostic_name = CanonicalExactTypeDiagnosticName::from_validated_graph(
             descriptor.identity.exact_type(),
             diagnostics,
         )
-        .map_err(StrongLirLoweringError::Diagnostic)?
+        .map_err(LirLoweringError::Diagnostic)?
         .into_string();
     }
     Ok(())
@@ -65,7 +65,7 @@ pub fn lower_with_layout_dependencies(
     target_profile: lir::LirTargetProfile,
     selected_layout: &lir::StrongProductionDependencySelectionV2<'_>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+) -> Result<lir::ConeLirOutput, LirLoweringError> {
     let mut lowered = lowering::lower_graph(
         input,
         &[],
@@ -80,8 +80,8 @@ pub fn lower_with_layout_dependencies(
 fn seal(
     input: &mir::ConeMirInput,
     lowered: lowering::LoweredModule,
-) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
-    lir::SingleConeStrongLirOutput::try_new(
+) -> Result<lir::ConeLirOutput, LirLoweringError> {
+    lir::ConeLirOutput::try_new(
         lowered.module,
         input
             .materialization()
@@ -90,5 +90,5 @@ fn seal(
             .map(|root| root.declaration().clone())
             .collect(),
     )
-    .map_err(StrongLirLoweringError::Output)
+    .map_err(LirLoweringError::Output)
 }

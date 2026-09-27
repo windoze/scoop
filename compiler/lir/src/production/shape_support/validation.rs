@@ -15,11 +15,11 @@ use super::{
     ShapeSupportAvailabilityV1, StrongExactShapeSupportV1, StrongShapeDefinitionV1,
     StrongShapeRegistrationV1,
 };
-use crate::{OdrFreeLirFoundation, StrongRegistrationIdentitySurfaceV1};
+use crate::{ConeLirFoundation, StrongRegistrationIdentitySurfaceV1};
 
 pub(super) fn build_closure(
     source: &SourceDeclarationKey,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: &StrongRegistrationIdentitySurfaceV1,
 ) -> Result<ParamFreeShapeSupportClosureV1, ParamFreeShapeSupportBuildError> {
     validate_source(source, foundation.producer())?;
@@ -98,7 +98,7 @@ fn validate_source(
 
 fn generated_exact_support(
     key: GeneratedNominalKey,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: &StrongRegistrationIdentitySurfaceV1,
 ) -> Result<StrongExactShapeSupportV1, ParamFreeShapeSupportBuildError> {
     let nominal = PersistentTypeId::from_generated_key(&key)
@@ -108,7 +108,7 @@ fn generated_exact_support(
 
 fn exact_shape_support(
     nominal: PersistentTypeId,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: &StrongRegistrationIdentitySurfaceV1,
 ) -> Result<StrongExactShapeSupportV1, ParamFreeShapeSupportBuildError> {
     let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal))
@@ -188,7 +188,7 @@ fn exact_shape_support(
 
 fn strong_definition<I: PersistentId>(
     semantic_id: I,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
     symbol_key: PersistentSymbolKey,
@@ -205,7 +205,7 @@ fn strong_definition<I: PersistentId>(
 
 fn strong_registration<I: PersistentId>(
     semantic_id: I,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     registrations: &[crate::StrongRegistrationIdentityV1<I>],
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
@@ -240,7 +240,7 @@ fn strong_registration<I: PersistentId>(
 }
 
 fn require_definition(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<ObjectDefinitionPlanId, ParamFreeShapeSupportBuildError> {
@@ -257,7 +257,7 @@ fn require_definition(
 }
 
 fn require_primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     plan: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, ParamFreeShapeSupportBuildError> {
     let atoms = foundation
@@ -278,7 +278,7 @@ fn require_primary_atom(
 }
 
 fn require_symbol(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
 ) -> Result<PersistentSymbolRequest, ParamFreeShapeSupportBuildError> {
     let request = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)

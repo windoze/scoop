@@ -29,7 +29,7 @@ impl<'input> ProductionValidatedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -57,7 +57,7 @@ impl<'input> ProductionValidatedSingleConeLinkSections<'input> {
             link_identity_closure,
             production_manifest,
         } = self;
-        let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundations.lir)
+        let partition = StrongProducerUnitPartitionV1::from_foundation(&foundations.lir)
             .map_err(StrongLinkMaterializationError::ProducerUnits)?;
         let link_identity_closure = link_identity_closure
             .validate_materializations(&partition)
@@ -102,7 +102,7 @@ impl<'input> MaterializationCheckedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -191,7 +191,7 @@ impl<'input> CBridgeCheckedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -296,7 +296,7 @@ impl<'input> BuiltinObjectCheckedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -386,7 +386,7 @@ impl<'input> DigestPatchCheckedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 
@@ -523,7 +523,7 @@ impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

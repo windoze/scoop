@@ -23,7 +23,7 @@ pub struct PlannedGeneratedCBridgeObjectInputV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedBuiltinObjectProductionV1 {
     pub(in crate::object_production) target_selection: ValidatedLirTargetSelection,
-    pub(in crate::object_production) foundation: OdrFreeLirFoundation,
+    pub(in crate::object_production) foundation: ConeLirFoundation,
     pub(in crate::object_production) production: StrongProductionSectionV1,
     pub(in crate::object_production) c_bridge_profile: CBridgeToolchainProfileV1,
     pub(in crate::object_production) c_bridge_production: CBridgeProductionSetV1,
@@ -75,7 +75,7 @@ impl PlannedBuiltinObjectProductionV1 {
         self.target_selection
     }
 
-    pub const fn foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn foundation(&self) -> &ConeLirFoundation {
         &self.foundation
     }
 

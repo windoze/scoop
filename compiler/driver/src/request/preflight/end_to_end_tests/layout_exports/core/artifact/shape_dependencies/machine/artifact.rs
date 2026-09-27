@@ -13,7 +13,7 @@ pub(super) struct Destination<'a> {
 
 pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
     source: PublicationInput<'_, '_>,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     emitted: scoop_codegen::EmittedStrongObjectSetV2,

@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) fn check<'a, 'p>(
     source_input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    output: &lir::SingleConeStrongLirOutput,
+    output: &lir::ConeLirOutput,
     selected: &lir::StrongProductionDependencySelectionV2<'a>,
     provider: Provider<'a, 'p>,
     source: PublicationInput<'_, '_>,

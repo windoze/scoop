@@ -11,7 +11,7 @@ const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 pub(super) struct Fixture {
     source: SourceDeclarationKey,
-    foundation: OdrFreeLirFoundation,
+    foundation: ConeLirFoundation,
     layouts: CanonicalExactLayoutExportsV1,
     descriptors: CanonicalExactDescriptorExportsV1,
 }
@@ -82,7 +82,7 @@ impl Fixture {
         PersistentTypeId::from_source_declaration(&self.source).unwrap()
     }
 
-    pub(super) const fn foundation(&self) -> &OdrFreeLirFoundation {
+    pub(super) const fn foundation(&self) -> &ConeLirFoundation {
         &self.foundation
     }
 
@@ -97,7 +97,7 @@ impl Fixture {
 
 fn descriptor(
     shape: &layouts::Shape,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     graph: &Graph,
 ) -> ExactDescriptorExportV1 {
     let exact = shape.exact.id();
@@ -141,7 +141,7 @@ fn descriptor(
     })
 }
 
-fn foundation(provider: ConeIdentity, built: &layouts::LayoutFixture) -> OdrFreeLirFoundation {
+fn foundation(provider: ConeIdentity, built: &layouts::LayoutFixture) -> ConeLirFoundation {
     let mut layouts = Vec::new();
     let mut scans = Vec::new();
     let mut plans = Vec::new();
@@ -177,7 +177,7 @@ fn foundation(provider: ConeIdentity, built: &layouts::LayoutFixture) -> OdrFree
     canonical.set_definition_plans(plans).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    OdrFreeLirFoundation::try_new(provider, canonical).unwrap()
+    ConeLirFoundation::try_new(provider, canonical).unwrap()
 }
 
 fn add_subject(

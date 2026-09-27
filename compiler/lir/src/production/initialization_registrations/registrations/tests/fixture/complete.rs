@@ -135,7 +135,7 @@ impl Fixture {
         canonical.set_definition_plans(definitions).unwrap();
         canonical.set_definition_atoms(atoms).unwrap();
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-        fixture.foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+        fixture.foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
         fixture.digests =
             StrongDigestFinalizationPlanV1::new(nodes.into_values().collect(), &fixture.foundation)
                 .unwrap();

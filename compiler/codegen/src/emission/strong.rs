@@ -62,7 +62,7 @@ impl EmittedStrongObjectMemberV1 {
 #[derive(Debug)]
 pub struct EmittedStrongObjectSet<P> {
     target_selection: scoop_lir::ValidatedLirTargetSelection,
-    foundation: scoop_lir::OdrFreeLirFoundation,
+    foundation: scoop_lir::ConeLirFoundation,
     production: P,
     partition: StrongScoopLirObjectPartitionV1,
     members: Vec<EmittedStrongObjectMemberV1>,
@@ -81,7 +81,7 @@ impl<P> EmittedStrongObjectSet<P> {
         self.target_selection
     }
 
-    pub const fn foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
+    pub const fn foundation(&self) -> &scoop_lir::ConeLirFoundation {
         &self.foundation
     }
 
@@ -128,7 +128,7 @@ impl RenderedStrongObjectModuleV1 {
 /// Emits provisional objects and retains their production and patch records
 /// for `.slib` packaging.
 pub fn emit_object_set(
-    input: &scoop_lir::SingleConeStrongLirOutput,
+    input: &scoop_lir::ConeLirOutput,
     coordinate: &scoop_lir::ConeCoordinate,
     direct_dependencies: &[scoop_lir::ConeIdentity],
     entry_source: scoop_lir::EntryProductionSourceV1,
@@ -146,7 +146,7 @@ pub fn emit_object_set(
 
 /// Emits the complete LIR and Strong V2 production records for one Cone.
 pub fn emit_object_set_v2(
-    input: &scoop_lir::SingleConeStrongLirOutput,
+    input: &scoop_lir::ConeLirOutput,
     production: scoop_lir::StrongProductionSectionV2,
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
@@ -161,7 +161,7 @@ pub fn emit_object_set_v2(
 }
 
 fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: Clone, I: Clone>(
-    input: &scoop_lir::SingleConeStrongLirOutput,
+    input: &scoop_lir::ConeLirOutput,
     production: scoop_lir::StrongProductionSection<D, C, I>,
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
@@ -284,7 +284,7 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
 }
 
 fn validate_object_set_input(
-    input: &scoop_lir::SingleConeStrongLirOutput,
+    input: &scoop_lir::ConeLirOutput,
     profile: ValidatedBackendProfile,
 ) -> Result<(), CodegenError> {
     validation::validate_module(input.module())?;
@@ -297,7 +297,7 @@ fn validate_object_set_input(
 
 /// Render every physical strong object module without writing artifacts.
 pub fn render_llvm_ir_members(
-    input: &scoop_lir::SingleConeStrongLirOutput,
+    input: &scoop_lir::ConeLirOutput,
     coordinate: &scoop_lir::ConeCoordinate,
     direct_dependencies: &[scoop_lir::ConeIdentity],
     entry_source: scoop_lir::EntryProductionSourceV1,

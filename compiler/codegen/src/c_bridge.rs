@@ -50,7 +50,7 @@ impl GeneratedCBridgeSourceSetV1 {
 /// Render exactly one C translation unit for every canonical generated
 /// bridge unit. Empty bridge plans produce an empty source set.
 pub fn render_c_bridge_source_set(
-    input: &scoop_lir::SingleConeStrongLirOutput,
+    input: &scoop_lir::ConeLirOutput,
 ) -> Result<GeneratedCBridgeSourceSetV1, CodegenError> {
     validation::validate_native_boundary(input.module())?;
     render_source_set(input.module(), input.foundation())
@@ -61,18 +61,19 @@ pub(crate) fn render_c_bridge_source_set_for_module(
     module: &Module,
 ) -> Result<GeneratedCBridgeSourceSetV1, CodegenError> {
     validation::validate_native_boundary(module)?;
-    let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
+    let foundation = scoop_lir::ConeLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("cannot seal generated C bridge input: {error}")))?;
     render_source_set(module, &foundation)
 }
 
 fn render_source_set(
     module: &Module,
-    foundation: &scoop_lir::OdrFreeLirFoundation,
+    foundation: &scoop_lir::ConeLirFoundation,
 ) -> Result<GeneratedCBridgeSourceSetV1, CodegenError> {
-    let plan = scoop_lir::GeneratedBridgePlanSetV1::from_odr_free_foundation(foundation).map_err(
-        |error| CodegenError(format!("cannot plan generated C bridge sources: {error}")),
-    )?;
+    let plan =
+        scoop_lir::GeneratedBridgePlanSetV1::from_foundation(foundation).map_err(|error| {
+            CodegenError(format!("cannot plan generated C bridge sources: {error}"))
+        })?;
     let mut units = Vec::with_capacity(plan.units().len());
     for unit_plan in plan.units() {
         units.push(GeneratedCBridgeSourceUnitV1 {

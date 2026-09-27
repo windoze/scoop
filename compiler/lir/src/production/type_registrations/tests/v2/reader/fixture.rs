@@ -60,7 +60,7 @@ fn physical_definition(subject: Subject) -> StrongShapeDefinitionRefV1 {
         ])
         .unwrap(),
     );
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
     StrongShapeDefinitionRefV1::from_foundation(subject, &foundation).unwrap()
 }
 

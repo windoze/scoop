@@ -5,7 +5,7 @@ use super::{
     ParamFreeLirCallableResolutionError, SelectedDependencyLirCallableResolutionError,
     SelectedDependencyLirCallableV1, validation,
 };
-use crate::{DecodedCallableAbiRecordV1, OdrFreeLirFoundation};
+use crate::{ConeLirFoundation, DecodedCallableAbiRecordV1};
 use scoop_identity::{
     DecodedDependencyCallableDeclarationId, DecodedPersistentId, PersistentIdResolver,
     ValidatedIdentityGraph,
@@ -129,7 +129,7 @@ impl DecodedCrossConeLirBridgeSectionV1 {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError> {
         let actual = encode(&self).map_err(CrossConeLirBridgeValidationError::Encode)?;
         let producer = foundation.producer();

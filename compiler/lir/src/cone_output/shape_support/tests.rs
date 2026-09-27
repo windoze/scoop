@@ -183,7 +183,7 @@ fn core_output_rejects_reference_box_and_mismatched_descriptor_layout() {
 fn v2_writer_preserves_legacy_relation_bytes_for_a_final_lir_module() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let module = fixture_module(coordinate.identity().unwrap());
-    let output = crate::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
+    let output = crate::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     let v1 = output
         .build_production_section(
             coordinate.clone(),

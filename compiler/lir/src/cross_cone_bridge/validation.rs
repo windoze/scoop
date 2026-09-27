@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     CallableAbiBuildError, CallableAbiRecordV1, CallableAbiValidationError, CallingConvention,
-    ExternalCallableRootPlan, OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1,
+    ConeLirFoundation, ExternalCallableRootPlan,
 };
 use scoop_identity::{
     ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
@@ -42,16 +42,14 @@ pub(super) fn build_callable(
 }
 
 pub(super) fn validate_section_relations(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     exports: &[ParamFreeLirCallableExportV1],
     selected: &[SelectedDependencyLirCallableV1],
 ) -> Result<(), CrossConeLirBridgeRelationError> {
     let producer = foundation.producer();
 
-    let definitions = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(foundation)
-        .map_err(CrossConeLirBridgeRelationError::DefinitionSurface)?;
     for (index, export) in exports.iter().enumerate() {
-        validate_export(index, export, foundation, &definitions)?;
+        validate_export(index, export, foundation)?;
     }
     validate_selected(producer, selected)
 }
@@ -106,12 +104,11 @@ pub(super) fn canonical_order(
 fn validate_export(
     index: usize,
     export: &ParamFreeLirCallableExportV1,
-    foundation: &OdrFreeLirFoundation,
-    definitions: &StrongObjectSymbolSurfaceV1,
+    foundation: &ConeLirFoundation,
 ) -> Result<(), CrossConeLirBridgeRelationError> {
     export
         .callable
-        .validate_against(foundation, definitions)
+        .validate_against(foundation)
         .map_err(|error| match error {
             CallableAbiValidationError::Contract(error) => {
                 CrossConeLirBridgeRelationError::Contract(error)

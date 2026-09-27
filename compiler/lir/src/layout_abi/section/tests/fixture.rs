@@ -27,13 +27,13 @@ pub(super) fn source(provider: ConeIdentity, name: &str) -> SourceDeclarationKey
 
 pub(super) fn empty_exports(provider: ConeIdentity) -> LayoutAbiExportConstituentsV1 {
     let foundation =
-        crate::OdrFreeLirFoundation::try_new(provider, crate::CanonicalLirFoundation::empty())
+        crate::ConeLirFoundation::try_new(provider, crate::CanonicalLirFoundation::empty())
             .unwrap();
     exports(&foundation, Vec::new())
 }
 
 pub(super) fn exports(
-    foundation: &crate::OdrFreeLirFoundation,
+    foundation: &crate::ConeLirFoundation,
     records: Vec<crate::ExactLayoutExportV1>,
 ) -> LayoutAbiExportConstituentsV1 {
     let layouts =
@@ -73,7 +73,7 @@ pub(super) fn section<'a>(
 pub(super) fn empty_struct(
     provider: ConeIdentity,
     name: &str,
-) -> (crate::ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
+) -> (crate::ExactValueLayoutV1, crate::ConeLirFoundation) {
     let identity = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
         PersistentTypeId::from_source_declaration(&source(provider, name)).unwrap(),
     ))
@@ -94,7 +94,7 @@ pub(super) fn struct_with_field(
     name: &str,
     field_name: &str,
     external: &crate::ExactLayoutExportV1,
-) -> (crate::ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
+) -> (crate::ExactValueLayoutV1, crate::ConeLirFoundation) {
     let owner = source(provider, name);
     let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
         PersistentTypeId::from_source_declaration(&owner).unwrap(),
@@ -130,7 +130,7 @@ fn bound(
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
     role: RepresentationRole,
     scan_role: ScanRole,
-) -> (crate::ExactLayoutIdentityV1, crate::OdrFreeLirFoundation) {
+) -> (crate::ExactLayoutIdentityV1, crate::ConeLirFoundation) {
     let layout =
         CborIdentityRecord::from_key(LayoutKey::new(exact.id(), TARGET.wire_id(), role)).unwrap();
     let scan = CborIdentityRecord::from_key(ScanKey::new(layout.id(), scan_role)).unwrap();
@@ -160,7 +160,7 @@ fn bound(
     foundation.set_definition_plans(plans).unwrap();
     foundation.set_definition_atoms(atoms).unwrap();
     foundation.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    let foundation = crate::OdrFreeLirFoundation::try_new(provider, foundation).unwrap();
+    let foundation = crate::ConeLirFoundation::try_new(provider, foundation).unwrap();
     let identity =
         crate::ExactLayoutIdentityV1::from_foundation(TARGET, exact, role, &foundation).unwrap();
     (identity, foundation)

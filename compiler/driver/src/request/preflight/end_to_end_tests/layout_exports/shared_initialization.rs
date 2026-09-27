@@ -4,8 +4,7 @@ pub(super) fn check(
     name: &str,
     mir: &mir::CoreBootstrapBridgeSectionV1,
     ordinary: &lir::CrossConeLirBridgeSectionV1,
-    lir: &lir::SingleConeStrongLirOutput,
-    strong: &lir::StrongProductionSectionV2,
+    lir: &lir::ConeLirOutput,
 ) {
     let source = mir
         .strong_callable_bridges()
@@ -25,8 +24,7 @@ pub(super) fn check(
         abi.root_plan(),
         lir::ExternalCallableRootPlan::ManagedStatepoint
     );
-    abi.validate_against(lir.foundation(), strong.canonical_definitions())
-        .unwrap();
+    abi.validate_against(lir.foundation()).unwrap();
     if name.starts_with("shared-init-abi-") {
         let snapshot = crate::workspace_root()
             .join("tests/fixtures/m23-core-layout-exports")

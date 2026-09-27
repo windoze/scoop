@@ -152,13 +152,13 @@ fn rejects_missing_and_orphan_library_requirements() {
 fn foundation(
     contracts: Vec<NativeExternalContractRecord>,
     requirements: Vec<CanonicalNativeLibraryRequirementV1>,
-) -> OdrFreeLirFoundation {
+) -> ConeLirFoundation {
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_native_contracts(contracts).unwrap();
     canonical
         .set_native_link_requirements(requirements)
         .unwrap();
-    OdrFreeLirFoundation::try_new(producer(), canonical).unwrap()
+    ConeLirFoundation::try_new(producer(), canonical).unwrap()
 }
 
 fn contract_record(

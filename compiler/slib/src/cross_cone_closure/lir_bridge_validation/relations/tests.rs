@@ -20,8 +20,8 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CallingConvention, CanonicalLirFoundation, CrossConeLirBridgeSectionV1,
-    ExternalCallableRootPlan, OdrFreeLirFoundation, ParamFreeLirCallableExportV1,
+    CallingConvention, CanonicalLirFoundation, ConeLirFoundation, CrossConeLirBridgeSectionV1,
+    ExternalCallableRootPlan, ParamFreeLirCallableExportV1,
 };
 use scoop_mir::{
     CallableSignatureRecord, CallableSignatureSubject, CanonicalMirFoundation,
@@ -93,7 +93,7 @@ struct Fixture {
     signature: ExactCallableSignature,
     interface: CrossConeHirInterfaceSectionV1,
     mir: CrossConeMirBridgeSectionV1,
-    lir_foundation: OdrFreeLirFoundation,
+    lir_foundation: ConeLirFoundation,
 }
 
 impl Fixture {
@@ -293,7 +293,7 @@ fn interface(callable: CallableInterfaceRecordV1) -> CrossConeHirInterfaceSectio
 fn lir_foundation(
     artifact: ConeIdentity,
     target: StrongCallableDefinitionOwner,
-) -> OdrFreeLirFoundation {
+) -> ConeLirFoundation {
     let body_key = CallableBodyKey::strong(target);
     let body = PersistentCallableBodyId::from_key(&body_key).unwrap();
     let definition = CborIdentityRecord::from_key(
@@ -323,9 +323,9 @@ fn lir_foundation(
     foundation.set_definition_plans(vec![definition]).unwrap();
     foundation.set_definition_atoms(vec![atom]).unwrap();
     foundation.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    OdrFreeLirFoundation::try_new(artifact, foundation).unwrap()
+    ConeLirFoundation::try_new(artifact, foundation).unwrap()
 }
 
-fn empty_lir_foundation(artifact: ConeIdentity) -> OdrFreeLirFoundation {
-    OdrFreeLirFoundation::try_new(artifact, CanonicalLirFoundation::empty()).unwrap()
+fn empty_lir_foundation(artifact: ConeIdentity) -> ConeLirFoundation {
+    ConeLirFoundation::try_new(artifact, CanonicalLirFoundation::empty()).unwrap()
 }

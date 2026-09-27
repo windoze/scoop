@@ -13,7 +13,7 @@ fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols(
                 &lir::SelectedExternalLirSet::empty(input.module().cone),
                 lir::LirTargetProfile::DARWIN_AARCH64,
             ),
-            Err(StrongLirLoweringError::ExternalCallableCountMismatch { mir: 1, lir: 0 })
+            Err(LirLoweringError::ExternalCallableCountMismatch { mir: 1, lir: 0 })
         ));
 
         let output = super::super::lower(
@@ -71,7 +71,7 @@ fn dependency_strong_lowering_rejects_gc_effect_drift() {
             &selected_lir,
             lir::LirTargetProfile::DARWIN_AARCH64,
         ),
-        Err(StrongLirLoweringError::ExternalCallableGcEffectMismatch {
+        Err(LirLoweringError::ExternalCallableGcEffectMismatch {
             mir: mir::GcEffect::Managed,
             lir: scoop_identity::GcEffect::NoGc,
             ..
@@ -374,11 +374,9 @@ fn dependency_input(
         root_plan,
     )
     .unwrap();
-    let lir_foundation = lir::OdrFreeLirFoundation::try_new(
-        input.module().cone,
-        lir::CanonicalLirFoundation::empty(),
-    )
-    .unwrap();
+    let lir_foundation =
+        lir::ConeLirFoundation::try_new(input.module().cone, lir::CanonicalLirFoundation::empty())
+            .unwrap();
     let lir_bridge = lir::CrossConeLirBridgeSectionV1::try_new(
         &lir_foundation,
         Vec::new(),

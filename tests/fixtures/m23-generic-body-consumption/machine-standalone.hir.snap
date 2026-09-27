@@ -1,0 +1,10 @@
+Module
+  fun primitive(): Int
+    val local0
+      IntegerLiteral 40 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    return
+      ImportedGenericCall identity<Int> : Int
+        Local $dependency.parameter.value : Int
+  output library

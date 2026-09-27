@@ -116,17 +116,17 @@ mod tests {
 
     use super::*;
     use crate::{
-        AppleClangCompilerIdentityV1, CanonicalLirFoundation, DarwinBuildToolIdV1,
-        DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-        OdrFreeLirFoundation,
+        AppleClangCompilerIdentityV1, CanonicalLirFoundation, ConeLirFoundation,
+        DarwinBuildToolIdV1, DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractV1,
+        DarwinPackedVersionV1,
     };
 
     #[test]
     fn absent_generated_bridges_produce_the_explicit_not_used_variant() {
         let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty())
+            ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty())
                 .unwrap();
-        let plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
+        let plan = GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap();
         let production = CBridgeProductionSetV1::from_generated_bridge_plan(&plan, &profile());
         assert_eq!(production, CBridgeProductionSetV1::NotUsed);
         assert_eq!(hex(&encode(&production).unwrap()), "a10001");

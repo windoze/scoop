@@ -384,11 +384,9 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     relocation_symbols: &[&[u8]],
 ) -> SemanticFixture {
     let fixture = fixture(Some(native_name));
-    let bridge_plan =
-        GeneratedBridgePlanSetV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&fixture.foundation).unwrap();
     let member_plan = member_plan(&fixture, &bridge_plan);
-    let surface =
-        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
+    let surface = StrongObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
     let symbol_plan = PlannedStrongObjectSymbolSetV1::new(
         LirTargetProfile::DARWIN_AARCH64,
         &surface,

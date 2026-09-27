@@ -353,7 +353,7 @@ fn check_core_layout_exports(names: &[&str]) {
 fn identity_graph(
     hir: &hir::DependencyHirOutput,
     mir: &mir::ConeMirInput,
-    lir: Option<&lir::SingleConeStrongLirOutput>,
+    lir: Option<&lir::ConeLirOutput>,
 ) -> ValidatedIdentityGraph {
     let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();
     let mir = mir.foundation();

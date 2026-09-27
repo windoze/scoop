@@ -20,7 +20,7 @@ struct CallableAbiTable {
 impl CanonicalExactCallableAbiExportsV1 {
     pub fn try_new(
         target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         mut records: Vec<ExactCallableAbiExportV1>,
     ) -> Result<Self, ExactCallableAbiTableError> {
         records.sort_unstable_by_key(ExactCallableAbiExportV1::target);

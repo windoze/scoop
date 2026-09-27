@@ -3,11 +3,11 @@ use super::*;
 pub(in super::super) fn identities(
     hir: &hir::DependencyHirOutput,
     mir: &mir::ConeMirInput,
-    lir: Option<&lir::SingleConeStrongLirOutput>,
+    lir: Option<&lir::ConeLirOutput>,
     core: &scoop_slib::PhysicalImportsReplayedCrossConeLayoutSections,
 ) -> (
     ValidatedIdentityGraph,
-    lir::OdrFreeLirFoundation,
+    lir::ConeLirFoundation,
     hir::OdrFreeHirFoundation,
 ) {
     let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();

@@ -1,0 +1,28 @@
+package dependency.generics
+
+public fun <T> identity(value: T): T = value
+
+public fun <T> checked(value: T, count: Int): T {
+    try {
+        if (count > 0) { return identity(value) }
+        return value
+    } finally {
+        val marker = identity(count)
+    }
+}
+
+public fun <T> recover(error: Throwable, fallback: T): T {
+    try {
+        throw error
+    } catch (caught: Throwable) {
+        return identity(fallback)
+    } finally {
+        val marker = identity(0)
+    }
+}
+
+public fun <T> defaulted(value: T, second: T = try {
+    identity(value)
+} finally {
+    val marker = identity(0)
+}): T = second

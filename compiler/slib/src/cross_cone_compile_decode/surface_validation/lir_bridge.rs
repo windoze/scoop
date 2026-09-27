@@ -6,7 +6,7 @@ use scoop_identity::{
     GcEffect, ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError, OdrFreeLirFoundation,
+    ConeLirFoundation, CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError,
     StrongProductionSectionV1,
 };
 use scoop_mir::{CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation};
@@ -82,7 +82,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         &self.mir_cross_cone_bridge
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

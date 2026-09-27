@@ -31,17 +31,17 @@ pub use wire::{
 };
 
 mod bridge_layouts;
+mod cone;
 mod identities;
 mod imported;
 mod projection;
-mod strong_profile;
 pub use bridge_layouts::GeneratedBridgeLayoutClosureError;
 pub(crate) use bridge_layouts::{bridge_unit_keys, required_generated_bridge_layouts};
-pub use imported::{ImportedLirFoundation, ImportedLirId};
-pub use strong_profile::{
-    DefinitionAtomResolutionError, OdrFreeLirFoundation, OdrFreeLirFoundationError,
-    OdrFreeLirFoundationProjectionError,
+pub use cone::{
+    ConeLirFoundation, ConeLirFoundationError, ConeLirFoundationProjectionError,
+    DefinitionAtomResolutionError,
 };
+pub use imported::{ImportedLirFoundation, ImportedLirId};
 
 type LayoutRecord = CborIdentityRecord<PersistentLayoutId, LayoutKey>;
 type ScanRecord = CborIdentityRecord<PersistentScanId, ScanKey>;
@@ -542,6 +542,12 @@ pub enum LirFoundationBuildError {
     GeneratedBridgeLayouts(GeneratedBridgeLayoutClosureError),
     GeneratedBridgeAtomHash(HashError),
     DefinitionIdentity(ObjectDefinitionIdentityError),
+    ConflictingDefinitionOwner {
+        entity: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+        first: OdrMemberId,
+        second: OdrMemberId,
+    },
     DefinitionHash(HashError),
     StaticStorageSemantics(crate::StrongStaticStorageSemanticPlanBuildError),
     SymbolRequest(scoop_identity::PersistentSymbolError),
@@ -616,6 +622,15 @@ impl fmt::Display for LirFoundationBuildError {
             Self::GeneratedBridgeLayouts(error) => error.fmt(formatter),
             Self::GeneratedBridgeAtomHash(error) => error.fmt(formatter),
             Self::DefinitionIdentity(error) => error.fmt(formatter),
+            Self::ConflictingDefinitionOwner {
+                entity,
+                role,
+                first,
+                second,
+            } => write!(
+                formatter,
+                "{entity:?} {role:?} has conflicting ODR members {first:?} and {second:?}"
+            ),
             Self::DefinitionHash(error) => error.fmt(formatter),
             Self::StaticStorageSemantics(error) => error.fmt(formatter),
             Self::SymbolRequest(error) => error.fmt(formatter),

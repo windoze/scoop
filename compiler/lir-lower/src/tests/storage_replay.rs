@@ -226,8 +226,8 @@ fn aggregate_and_scan_overflow_return_errors_to_the_lowering_boundary() {
         error,
         StorageLoweringError::Scan(lir::RefScanValidationError::OffsetOverflow)
     );
-    let error: StrongLirLoweringError = error.into();
-    assert!(matches!(error, StrongLirLoweringError::StorageReplay(_)));
+    let error: LirLoweringError = error.into();
+    assert!(matches!(error, LirLoweringError::StorageReplay(_)));
     assert!(std::error::Error::source(&error).is_some());
 }
 

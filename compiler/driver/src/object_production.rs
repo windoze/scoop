@@ -9,8 +9,8 @@ use scoop_codegen::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CBridgeToolchainProfileV1,
-    CanonicalNativeExternalRequirementBuildError, GeneratedBridgeUnitId, LirTargetProfile,
-    ObjectDefinitionPlanId, OdrFreeLirFoundation, StrongProducerUnitPartitionV1,
+    CanonicalNativeExternalRequirementBuildError, ConeLirFoundation, GeneratedBridgeUnitId,
+    LirTargetProfile, ObjectDefinitionPlanId, StrongProducerUnitPartitionV1,
     StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
 use scoop_slib::{

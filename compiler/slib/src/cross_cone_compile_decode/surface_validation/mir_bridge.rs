@@ -3,7 +3,7 @@
 use scoop_hir::{CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1};
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{
-    DecodedCrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV1, OdrFreeLirFoundation,
+    ConeLirFoundation, DecodedCrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV1,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError,
@@ -62,7 +62,7 @@ impl MirBridgeValidatedCrossConeHirFrontSections<'_> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

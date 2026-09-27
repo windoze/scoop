@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) fn digest_plan(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     cell: &DefinitionArtifacts,
     descriptor: &DefinitionArtifacts,
     registration: &DefinitionArtifacts,

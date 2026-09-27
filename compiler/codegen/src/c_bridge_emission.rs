@@ -66,7 +66,7 @@ impl EmittedGeneratedCBridgeObjectSetV1 {
 /// Generate and compile exactly one canonical C translation unit for every
 /// bridge unit in a sealed strong LIR product.
 pub fn emit_c_bridge_object_set(
-    input: &scoop_lir::SingleConeStrongLirOutput,
+    input: &scoop_lir::ConeLirOutput,
     temporary_parent: &Path,
     profile: &scoop_lir::ValidatedCBridgeToolchainInvocation,
 ) -> Result<EmittedGeneratedCBridgeObjectSetV1, CodegenError> {
@@ -76,13 +76,14 @@ pub fn emit_c_bridge_object_set(
             CodegenError(format!("invalid generated-C toolchain projection: {error}"))
         })?;
     let target = input.module().meta.target_profile;
-    let symbol_surface =
-        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(input.foundation())
-            .map_err(|error| {
-                CodegenError(format!(
-                    "cannot plan generated-C atom boundary symbols: {error}"
-                ))
-            })?;
+    let symbol_surface = scoop_lir::StrongObjectSymbolSurfaceV1::from_foundation(
+        input.foundation(),
+    )
+    .map_err(|error| {
+        CodegenError(format!(
+            "cannot plan generated-C atom boundary symbols: {error}"
+        ))
+    })?;
     let sources = render_c_bridge_source_set(input)?;
     emit_source_set_with_compiler(
         sources,

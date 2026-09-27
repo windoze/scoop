@@ -7,7 +7,7 @@ impl ExactValueLayoutV1 {
     pub fn scalar(
         identity: ExactLayoutIdentityV1,
         kind: ScalarRepresentationKindV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(
             &identity,
@@ -36,7 +36,7 @@ impl ExactValueLayoutV1 {
     pub fn qualified_pointer(
         identity: ExactLayoutIdentityV1,
         kind: NichePointerKind,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         let layout = match kind {
             NichePointerKind::Managed => {
@@ -98,7 +98,7 @@ impl ExactValueLayoutV1 {
 
     pub fn unit(
         identity: ExactLayoutIdentityV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
         if !is_unit(identity.exact_key()) {

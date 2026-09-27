@@ -8,8 +8,8 @@ use scoop_identity::{
     SourceNativeExternalContractKey, SourceNativeSymbol,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, LirTargetProfile,
-    OdrFreeLirFoundation,
+    CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation,
+    LirTargetProfile,
 };
 
 use super::super::strong_relocation_closure::tests::{
@@ -207,7 +207,7 @@ pub(in crate::link_object) fn native_surface(
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_native_contracts(contracts).unwrap();
     canonical.set_native_link_requirements(libraries).unwrap();
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+    let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
     CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,

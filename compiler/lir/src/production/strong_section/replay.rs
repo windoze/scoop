@@ -15,7 +15,7 @@ impl DecodedStrongProductionSectionV2 {
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         target: crate::LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
         type_definitions: &crate::StrongTypeReferenceDefinitionsV2,

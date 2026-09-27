@@ -102,7 +102,7 @@ pub(in crate::object_production) fn final_link_object_members(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CodeFingerprintedObjectProductionV1 {
     pub(in crate::object_production) target_selection: ValidatedLirTargetSelection,
-    pub(in crate::object_production) lir_foundation: OdrFreeLirFoundation,
+    pub(in crate::object_production) lir_foundation: ConeLirFoundation,
     pub(in crate::object_production) c_bridge_profile: CBridgeToolchainProfileV1,
     pub(in crate::object_production) members: Vec<SlibMember>,
     pub(in crate::object_production) production_manifest: SingleConeProductionManifestV1,
@@ -113,7 +113,7 @@ impl CodeFingerprintedObjectProductionV1 {
         self.target_selection
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.lir_foundation
     }
 

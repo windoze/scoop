@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::{
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
+    ConeLirFoundation, StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
 };
 use scoop_identity::{
     DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomKey,
@@ -20,7 +20,7 @@ impl StrongInitializationUnitDefinitionRefV2 {
     /// complete registration/section is committed.
     pub fn from_foundation(
         unit: PersistentInitializationUnitId,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
     ) -> Result<Self, Error> {
@@ -89,7 +89,7 @@ impl ArtifactRole {
 fn artifact(
     unit: PersistentInitializationUnitId,
     role: ArtifactRole,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> Result<StrongInitializationArtifactRefV2, Error> {
     let key = ObjectDefinitionPlanKey::strong(
         foundation.producer(),

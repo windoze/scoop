@@ -16,7 +16,7 @@ use super::{
     StrongInitializationUnitSemanticPlanSet,
 };
 use crate::{
-    DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -30,7 +30,7 @@ impl<D: crate::StrongInitializationDependencyReference>
     StrongInitializationUnitRegistrationPlanSet<D>
 {
     pub fn new(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         semantics: &StrongInitializationUnitSemanticPlanSet<D>,
         digests: &StrongDigestFinalizationPlanV1,

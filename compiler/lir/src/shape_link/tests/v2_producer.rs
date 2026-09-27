@@ -98,7 +98,7 @@ fn exercise_dependency_production(provider: Provider) {
     )
     .unwrap();
 
-    let output = SingleConeStrongLirOutput::try_new(consumer, Vec::new()).unwrap();
+    let output = ConeLirOutput::try_new(consumer, Vec::new()).unwrap();
     let pending = output
         .build_production_section_v2(
             consumer_coordinate.clone(),

@@ -55,7 +55,7 @@ impl ExactValueLayoutV1 {
         identity: ExactLayoutIdentityV1,
         interior_mutable: bool,
         fields: &[NominalLayoutFieldInputV1<'_>],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
         let declared = nominal_fields(&identity, fields)?;
@@ -79,7 +79,7 @@ impl ExactValueLayoutV1 {
         fields: &[NominalLayoutFieldInputV1<'_>],
         contract: &scoop_identity::CanonicalCAbiLayoutFingerprintRecord,
         dependencies: &[&ExactValueLayoutV1],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(
             &identity,
@@ -124,7 +124,7 @@ impl ExactValueLayoutV1 {
     pub fn tuple(
         identity: ExactLayoutIdentityV1,
         elements: &[&ExactValueLayoutV1],
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
         let mut values = reserve(elements.len())?;

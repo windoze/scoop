@@ -5,8 +5,8 @@ use scoop_wire::{
 
 use super::*;
 use crate::{
-    CanonicalExactDescriptorExportsV1, CanonicalExactLayoutExportsV1,
-    DecodedParamFreeShapeSupportRolesV1, OdrFreeLirFoundation,
+    CanonicalExactDescriptorExportsV1, CanonicalExactLayoutExportsV1, ConeLirFoundation,
+    DecodedParamFreeShapeSupportRolesV1,
 };
 
 impl WireEncode for ParamFreeShapeSupportExportV1 {
@@ -63,7 +63,7 @@ impl DecodedCanonicalParamFreeShapeSupportExportsV1 {
         sources: &[SourceDeclarationKey],
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<CanonicalParamFreeShapeSupportExportsV1, ParamFreeShapeSupportTableError> {
         let expected = CanonicalParamFreeShapeSupportExportsV1::from_sources(
             sources,

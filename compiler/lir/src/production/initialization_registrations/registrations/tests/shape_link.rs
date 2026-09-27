@@ -144,7 +144,7 @@ fn layout_exports(
     descriptors: CanonicalExactDescriptorExportsV1,
     dispatch: CanonicalExactDispatchExportsV1,
     callables: CanonicalExactCallableAbiExportsV1,
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
 ) -> LayoutAbiExportConstituentsV1 {
     let shape_support = CanonicalParamFreeShapeSupportExportsV1::from_sources(
         &[],
@@ -165,8 +165,7 @@ fn layout_exports(
 }
 
 fn empty_layout_exports(provider: ConeIdentity) -> LayoutAbiExportConstituentsV1 {
-    let foundation =
-        OdrFreeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
+    let foundation = ConeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
     let layouts = CanonicalExactLayoutExportsV1::try_new(TARGET, &foundation, Vec::new()).unwrap();
     let descriptors =
         CanonicalExactDescriptorExportsV1::try_new(TARGET, &foundation, Vec::new()).unwrap();

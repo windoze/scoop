@@ -66,7 +66,7 @@ fn dependency_descriptor_and_dispatch_body_require_selected_physical_closure() {
 }
 
 fn empty_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
-    let foundation = crate::OdrFreeLirFoundation::try_new(
+    let foundation = crate::ConeLirFoundation::try_new(
         ConeIdentity::SINGLE_FILE,
         crate::CanonicalLirFoundation::empty(),
     )

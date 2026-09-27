@@ -15,7 +15,7 @@ use super::{
     StrongStaticStorageSemanticPlanV1,
 };
 use crate::{
-    DigestInputRefV1, DigestNodeV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    ConeLirFoundation, DigestInputRefV1, DigestNodeV1, StrongDigestFinalizationPlanV1,
     StrongRegistrationIdentitySurfaceV1,
 };
 
@@ -147,7 +147,7 @@ pub struct StrongStaticStorageRegistrationPlanSetV1 {
 
 impl StrongStaticStorageRegistrationPlanSetV1 {
     pub fn new(
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         semantics: &StrongStaticStorageSemanticPlanSetV1,
         digests: &StrongDigestFinalizationPlanV1,
@@ -218,7 +218,7 @@ impl StrongStaticStorageRegistrationPlanSetV1 {
 }
 
 fn build_registration(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     semantic: &StrongStaticStorageSemanticPlanV1,
     identity: &crate::StrongRegistrationIdentityV1<scoop_identity::PersistentStaticStorageId>,
     digests: &StrongDigestFinalizationPlanV1,
@@ -432,7 +432,7 @@ fn build_registration(
 }
 
 fn require_initial_artifacts(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     storage_definition: ObjectDefinitionPlanId,
     semantic: &StrongStaticStorageSemanticPlanV1,
 ) -> Result<StrongStaticStorageInitialArtifactPlanV1, StrongStaticStorageRegistrationPlanBuildError>
@@ -502,7 +502,7 @@ fn require_initial_artifacts(
 }
 
 fn require_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: &ObjectDefinitionAtomKey,
 ) -> Result<ObjectDefinitionAtomId, StrongStaticStorageRegistrationPlanBuildError> {
     foundation
@@ -516,7 +516,7 @@ fn require_atom(
 }
 
 fn require_definition(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<&crate::DefinitionPlanRecord, StrongStaticStorageRegistrationPlanBuildError> {
@@ -530,7 +530,7 @@ fn require_definition(
 }
 
 fn require_primary_atom(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     definition: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongStaticStorageRegistrationPlanBuildError> {
     let atoms = foundation
@@ -553,7 +553,7 @@ fn require_primary_atom(
 }
 
 fn require_symbol_key(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
 ) -> Result<PersistentSymbolRequest, StrongStaticStorageRegistrationPlanBuildError> {
     let symbol = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
@@ -563,7 +563,7 @@ fn require_symbol_key(
 }
 
 fn require_symbol(
-    foundation: &OdrFreeLirFoundation,
+    foundation: &ConeLirFoundation,
     symbol: PersistentSymbolRequest,
 ) -> Result<(), StrongStaticStorageRegistrationPlanBuildError> {
     foundation

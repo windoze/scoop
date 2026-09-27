@@ -20,7 +20,7 @@ impl FunctionLowerer<'_> {
             .cstr_count
             .checked_add(1)
             .expect("one callable cannot contain more than u32::MAX trap strings");
-        let identity = lir::CallableCStringIdentity::new(self.producer, self.callable_owner, path)
+        let identity = lir::CallableCStringIdentity::new(self.producer, self.callable_body, path)
             .expect("a callable trap string has a canonical associated-atom identity");
         let global = self.globals.alloc(lir::Global {
             address_kind: lir::PointerKind::Raw,

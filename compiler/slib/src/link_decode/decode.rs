@@ -288,7 +288,7 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
         &self.foundations.mir
     }
 
-    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
         &self.foundations.lir
     }
 

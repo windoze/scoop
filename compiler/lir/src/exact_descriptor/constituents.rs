@@ -1,8 +1,9 @@
 use super::*;
 use crate::{
-    CanonicalExactDispatchExportsV1, CanonicalExactLayoutExportsV1, ExternalStrongShapeSubjectV1,
-    LirTargetProfile, OdrFreeLirFoundation, StrongShapeDefinitionRefV1, StrongShapeRegistrationV1,
-    StrongTypeDescriptorRefV2, StrongTypeDescriptorSemanticPlanV2, TypeDescriptorInlineScanV1,
+    CanonicalExactDispatchExportsV1, CanonicalExactLayoutExportsV1, ConeLirFoundation,
+    ExternalStrongShapeSubjectV1, LirTargetProfile, StrongShapeDefinitionRefV1,
+    StrongShapeRegistrationV1, StrongTypeDescriptorRefV2, StrongTypeDescriptorSemanticPlanV2,
+    TypeDescriptorInlineScanV1,
 };
 use scoop_identity::{
     CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph, PersistentExactTypeId,
@@ -30,7 +31,7 @@ impl ExactDescriptorExportV1 {
         layouts: &CanonicalExactLayoutExportsV1,
         dispatch: &CanonicalExactDispatchExportsV1,
         diagnostics: &impl ExactTypeDiagnosticGraph,
-        foundation: &OdrFreeLirFoundation,
+        foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactDescriptorError> {
         if layouts.provider() != foundation.producer()
             || dispatch.provider() != foundation.producer()
