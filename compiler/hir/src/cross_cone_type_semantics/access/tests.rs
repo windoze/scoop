@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use scoop_identity::{
-    CanonicalIdentifier, DeclarationScope, DecodedPersistentId, DefinitionOrigin,
-    DefinitionOwnerAtom, DefinitionOwnerChain, ExactTypeKey, NormalizedSourcePath, PackagePath,
+    CanonicalIdentifier, ConeIdentity, DeclarationScope, DecodedPersistentId, DefinitionOrigin,
+    DefinitionOwnerAtom, DefinitionOwnerChain, NormalizedSourcePath, PackagePath,
     PersistentGenericTypeId, PersistentIdResolver, PersistentKeyResolver,
     PersistentSourceContextId, PersistentTypeId, SourceContextKey, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, SourceSpan,
+    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::{ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1};
+use crate::{ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1, SourceNominalId};
 
 struct Fixture {
     owner: SourceNominalId,
@@ -18,7 +18,6 @@ struct Fixture {
     member_key: SourceDeclarationKey,
     origin: ExportDefinitionSourceV1,
     context: SourceContextKey,
-    exact: PersistentExactTypeId,
 }
 
 fn fixture(kind: SourceNominalKind) -> Fixture {
@@ -50,7 +49,6 @@ fn fixture(kind: SourceNominalKind) -> Fixture {
     );
     let id = PersistentTypeId::from_source_declaration(&owner_key).unwrap();
     let owner = SourceNominalId::Concrete(id);
-    let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(id)).unwrap();
     let member_key = SourceDeclarationKey::nominal(
         site(DefinitionOwnerChain::from_outer_to_inner(vec![
             DefinitionOwnerAtom::Type(id),
@@ -65,7 +63,6 @@ fn fixture(kind: SourceNominalKind) -> Fixture {
         member_key,
         origin,
         context,
-        exact,
     }
 }
 
@@ -97,15 +94,6 @@ impl PersistentIdResolver<PersistentGenericTypeId> for Fixture {
         _: DecodedPersistentId<PersistentGenericTypeId>,
     ) -> Result<PersistentGenericTypeId, Self::Error> {
         Err("no generic nominal in this fixture")
-    }
-}
-impl PersistentIdResolver<PersistentExactTypeId> for Fixture {
-    type Error = &'static str;
-    fn resolve(
-        &mut self,
-        id: DecodedPersistentId<PersistentExactTypeId>,
-    ) -> Result<PersistentExactTypeId, Self::Error> {
-        id.verify(self.exact).map_err(|_| "unknown exact")
     }
 }
 impl PersistentKeyResolver<PersistentSourceContextId, SourceContextKey> for Fixture {
@@ -154,89 +142,6 @@ impl DeclarationAccessSourceSemanticAuthority<&'static str> for Fixture {
         } else {
             Err("unknown owner")
         }
-    }
-}
-
-#[test]
-fn empty_and_universal_domains_have_distinct_fixed_wire() {
-    assert_eq!(
-        encode(&PersistentAccessDomainV1::empty()).unwrap(),
-        [0xa1, 0, 1]
-    );
-    assert_eq!(
-        encode(&PersistentAccessDomainV1::universal()).unwrap(),
-        [0xa2, 0, 2, 1, 0x80]
-    );
-    assert!(PersistentAccessDomainV1::empty().is_empty());
-    assert!(!PersistentAccessDomainV1::empty().is_universal());
-    assert!(PersistentAccessDomainV1::universal().is_universal());
-    let cone = PersistentAccessConstraintV1::Cone(ConeIdentity::CORE);
-    assert_eq!(
-        encode(&cone).unwrap(),
-        [
-            b"\xa2\x00\x01\x01\x58\x20".as_slice(),
-            ConeIdentity::CORE.as_array()
-        ]
-        .concat()
-    );
-}
-
-#[test]
-fn domains_round_trip_all_constraint_kinds() {
-    let mut fixture = fixture(SourceNominalKind::Class);
-    let constraints = vec![
-        PersistentAccessConstraintV1::SubclassesOf(fixture.exact),
-        PersistentAccessConstraintV1::LexicalOwner(fixture.owner),
-        PersistentAccessConstraintV1::File(fixture.origin.origin().source().clone()),
-        PersistentAccessConstraintV1::Cone(ConeIdentity::CORE),
-    ];
-    let domain = PersistentAccessDomainV1::try_from_constraints(constraints).unwrap();
-    let decoded: DecodedPersistentAccessDomainV1 =
-        decode_canonical(&encode(&domain).unwrap()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture).unwrap(), domain);
-    assert_eq!(domain.intersect(&domain).unwrap(), domain);
-    assert!(
-        domain
-            .intersect(&PersistentAccessDomainV1::empty())
-            .unwrap()
-            .is_empty()
-    );
-    assert_eq!(
-        domain
-            .intersect(&PersistentAccessDomainV1::universal())
-            .unwrap(),
-        domain
-    );
-}
-
-#[test]
-fn repeated_or_reversed_constraints_are_rejected_without_repair() {
-    let mut fixture = fixture(SourceNominalKind::Class);
-    let cone = PersistentAccessConstraintV1::Cone(ConeIdentity::CORE);
-    assert!(
-        PersistentAccessDomainV1::try_from_constraints(vec![cone.clone(), cone.clone()]).is_err()
-    );
-    let decode_constraint = |constraint: &PersistentAccessConstraintV1| {
-        decode_canonical::<DecodedPersistentAccessConstraintV1>(&encode(constraint).unwrap())
-            .unwrap()
-    };
-    let duplicate = DecodedPersistentAccessDomainV1::Conjunction(vec![
-        decode_constraint(&cone),
-        decode_constraint(&cone),
-    ]);
-    assert!(duplicate.resolve(&mut fixture).is_err());
-    let lexical = PersistentAccessConstraintV1::LexicalOwner(fixture.owner);
-    let reversed = DecodedPersistentAccessDomainV1::Conjunction(vec![
-        decode_constraint(&lexical),
-        decode_constraint(&cone),
-    ]);
-    assert!(reversed.resolve(&mut fixture).is_err());
-    for bytes in [
-        &[0xa1, 0, 3][..],
-        &[0xa2, 0, 1, 1, 0][..],
-        &[0xa1, 0, 2][..],
-    ] {
-        assert!(decode_canonical::<DecodedPersistentAccessDomainV1>(bytes).is_err());
     }
 }
 

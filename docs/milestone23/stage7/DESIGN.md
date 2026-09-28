@@ -168,6 +168,8 @@ generic host 的普通方法和 accessor 具有 exact owner；generic method 另
 
 泛型成员的普通调用和强制 `super` 调用保留不同的调用方式。泛型宿主上的普通虚方法、接口方法及访问器复用具体方法的 direct/virtual/interface dispatch；方法自身有类型参数时保持 final/direct。类的虚表、类和值类型的接口表可引用外来普通定义，或当前消费方从模板物化的具体方法；抽象槽沿现有参数完整的抽象方法与 trap 路径处理。共有模板的再次发布保留这项选择，不能把普通动态调用重新导出成强制直接调用。
 
+protected 访问区域使用普通或泛型声明的原 typed nominal owner；词法类和声明类的继承关系不依赖 machine exact type。显式 receiver 的静态类仍须是提供访问上下文的类或其子类，构造器、方法、属性 setter 与 protected override 共用原可见性和槽覆盖规则。泛型 application 的实参替换及不变性继续由类型检查负责，访问检查不制造擦除后的类型或额外访问证明。产物以原声明 visibility 和 owner 表达访问规则，`InheritanceSlotContractV1` 不再重复保存 domain field 5；reader 保留身份、签名和实现引用检查，不重放已完成的访问域语义。
+
 泛型抽象成员只有共有声明，没有共享执行正文。消费方从已验证声明取得实际 owner、宿主 binder、完整 receiver/参数/结果、effect 和原 definition origin，建立与本地抽象方法相同的参数局部值，进入既有 abstract trap lowering；不能为通过正文导入而制造空的共有 body record。抽象 setter 的隐式参数使用原 accessor 声明位置，普通参数继续保留自己的源码位置。默认实现继续消费真实模板正文，接口继承和抽象 override 保留实际所选声明。同一具体方法同时被调用根和接口表引用时，MIR 复用一个函数与实例记录。导入 struct/enum 在存储和父接口完成后，沿与 class 相同的 source dispatch selection 建立完整接口实现；实际装箱和 adjust thunk 使用该完整 conformance，不从方法名重建选择。
 
 接口声明的槽契约与实际机器表项分开表示：接口 record 保存必需的原 slot、槽位置和完成替换的完整签名，不能保存虚构的自身 itable。类和值类型的实际 itable 保留必需实现，并按接口槽契约校验身份、顺序与完整签名。槽契约只引用自身签名类型；只有实际目标产生 callable 依赖，根默认正文没有被调用或被更具体的抽象声明压制时不物化。普通接口与泛型 application 共用此结构；源码覆写选择仍来自 HIR，不在 MIR/meta 增加第二套选择算法。
@@ -410,7 +412,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
 | `org.scoop-lang.hir/cross-cone-interface` | `/36` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置 |
-| `org.scoop-lang.hir/cross-cone-type-semantics` | `/9` | exact application 的完整 facts、继承和 actual type uses；不增加来源资格 |
+| `org.scoop-lang.hir/cross-cone-type-semantics` | `/10` | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5，复用声明 visibility 和 typed owner |
 | `org.scoop-lang.mir/cross-cone-type-bridge` | `/4` | 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
 | `org.scoop-lang.lir/cross-cone-layout-abi` | `/5` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用；完整 callable ABI 保留实际 callable member |

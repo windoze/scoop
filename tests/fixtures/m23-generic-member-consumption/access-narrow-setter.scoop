@@ -1,0 +1,8 @@
+package consumer.members
+
+import templates.members.*
+
+public class Derived<T> public constructor(value: T): ProtectedBox<T>(value) {
+    public override var state: T = value
+        private set(next) { field = next }
+}

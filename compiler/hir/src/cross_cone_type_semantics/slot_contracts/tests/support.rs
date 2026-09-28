@@ -168,7 +168,6 @@ impl Fixture {
             nominal(owner),
             self.declaration(slot),
             self.signature(owner, vec![]),
-            PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal()),
             implementation,
             self.access(owner, DeclaredVisibilityV1::Public),
         )

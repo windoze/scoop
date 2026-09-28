@@ -1,0 +1,3 @@
+span=157..162
+expression=state
+visibility of `$set$state` does not cover inherited slot `ProtectedBox<T0>.$set$state`

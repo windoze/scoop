@@ -1,6 +1,6 @@
 use super::*;
 
-impl Replay<'_, '_> {
+impl Replay<'_> {
     pub(super) fn binding(
         &self,
         original: &mir::ParamFreeMirCallableBindingV1,

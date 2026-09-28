@@ -32,7 +32,7 @@ pub enum AccessConstraint {
     File(SourceIdentity),
     LexicalOwner(VisibilityOwner),
     SubclassesOf(ClassId),
-    ImportedSubclassesOf(scoop_identity::PersistentTypeId),
+    ImportedSubclassesOf(crate::SourceNominalId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

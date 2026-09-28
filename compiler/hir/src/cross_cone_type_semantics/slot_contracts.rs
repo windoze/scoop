@@ -4,7 +4,7 @@ use scoop_identity::{PersistentDispatchSlotId, PersistentTypeId};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::wire;
-use crate::{CallableModalityV1, DeclarationAccessSourceV1, PersistentSlotContractDomainV1};
+use crate::{CallableModalityV1, DeclarationAccessSourceV1};
 
 mod declaration;
 mod decode;
@@ -32,7 +32,6 @@ pub struct InheritanceSlotContractV1 {
     declaration_owner: PersistentTypeId,
     declaration: InheritanceCallableDeclarationV1,
     signature: InheritanceCallableSignatureV1,
-    domain: PersistentSlotContractDomainV1,
     implementation: InheritanceSlotImplementationV1,
     declaration_access: DeclarationAccessSourceV1,
 }
@@ -42,7 +41,6 @@ impl InheritanceSlotContractV1 {
         declaration_owner: PersistentTypeId,
         declaration: InheritanceCallableDeclarationV1,
         signature: InheritanceCallableSignatureV1,
-        domain: PersistentSlotContractDomainV1,
         implementation: InheritanceSlotImplementationV1,
         declaration_access: DeclarationAccessSourceV1,
     ) -> Result<Self, InheritanceSlotContractBuildError> {
@@ -70,7 +68,6 @@ impl InheritanceSlotContractV1 {
             declaration_owner,
             declaration,
             signature,
-            domain,
             implementation,
             declaration_access,
         })
@@ -87,9 +84,6 @@ impl InheritanceSlotContractV1 {
     pub const fn signature(&self) -> &InheritanceCallableSignatureV1 {
         &self.signature
     }
-    pub const fn domain(&self) -> &PersistentSlotContractDomainV1 {
-        &self.domain
-    }
     pub const fn implementation(&self) -> &InheritanceSlotImplementationV1 {
         &self.implementation
     }
@@ -99,7 +93,7 @@ impl InheritanceSlotContractV1 {
 }
 impl WireEncode for InheritanceSlotContractV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.slot.encode(encoder)?;
         encoder.field(2)?;
@@ -108,8 +102,6 @@ impl WireEncode for InheritanceSlotContractV1 {
         self.declaration.encode(encoder)?;
         encoder.field(4)?;
         self.signature.encode(encoder)?;
-        encoder.field(5)?;
-        self.domain.encode(encoder)?;
         encoder.field(6)?;
         self.implementation.encode(encoder)?;
         encoder.field(7)?;

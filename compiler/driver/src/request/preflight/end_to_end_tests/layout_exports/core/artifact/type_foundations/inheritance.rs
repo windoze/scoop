@@ -10,11 +10,6 @@ pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
             for record in checked.section().inheritance().records() {
                 assert_eq!(graph.get(record.owner()).unwrap().edges(), record.edges());
             }
-            for declaration in checked.metadata().public.nominal_interfaces().all_records() {
-                graph
-                    .replay_nominal_access(declaration.declaration())
-                    .unwrap();
-            }
         })
         .unwrap();
 

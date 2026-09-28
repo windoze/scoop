@@ -3,6 +3,60 @@ use super::*;
 
 #[test]
 fn generic_member_templates_republish_and_execute_from_artifacts() {
+    check_member_cases(
+        &[
+            "standalone",
+            "method-arguments",
+            "signature-support",
+            "value-method",
+            "plain-owner",
+            "inherited",
+            "captured",
+            "virtual",
+            "abi",
+            "overloads",
+            "interface-class",
+            "interface-abstract",
+            "interface-struct",
+            "interface-enum",
+            "interface-local",
+            "interface-abi",
+            "interface-properties",
+            "interface-value-property",
+        ],
+        &[],
+    );
+}
+
+#[test]
+fn protected_generic_members_republish_and_execute_from_artifacts() {
+    check_member_cases(
+        &[
+            "access-method",
+            "access-super",
+            "access-setter",
+            "access-property-override",
+            "access-secondary",
+            "access-lexical",
+            "access-abi",
+            "access-ordinary",
+            "access-object",
+        ],
+        &[
+            "access-base-receiver",
+            "access-sibling-receiver",
+            "access-constructor-error",
+            "access-setter-error",
+            "access-base-setter",
+            "access-private-setter",
+            "access-narrow-override",
+            "access-public-override",
+            "access-narrow-setter",
+        ],
+    );
+}
+
+fn check_member_cases(cases: &[&str], rejected: &[&str]) {
     let target = resolved_target().expect("generic member publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -32,26 +86,7 @@ fn generic_member_templates_republish_and_execute_from_artifacts() {
     .unwrap();
     let runtime = runtime::build(&target, &sysroot.path().join("runtime"));
     let runtime_fixtures = crate::workspace_root().join("tests/fixtures/m23-imported-classes");
-    for case in [
-        "standalone",
-        "method-arguments",
-        "signature-support",
-        "value-method",
-        "plain-owner",
-        "inherited",
-        "captured",
-        "virtual",
-        "abi",
-        "overloads",
-        "interface-class",
-        "interface-abstract",
-        "interface-struct",
-        "interface-enum",
-        "interface-local",
-        "interface-abi",
-        "interface-properties",
-        "interface-value-property",
-    ] {
+    for &case in cases {
         eprintln!("generic member case: {case}");
         let name = format!("generic-member-{case}");
         let coordinate = ConeCoordinate::new("dev.example", &name, "0.1.0").unwrap();
@@ -230,5 +265,52 @@ fn generic_member_templates_republish_and_execute_from_artifacts() {
                 "{case} publishes its actual box and adjust definitions"
             );
         }
+    }
+
+    for &case in rejected {
+        let root = sysroot.path().join(case);
+        let source = source(case);
+        write_manifest_cone(&root, "dev.example", case, "library", &source);
+        write_dependency_manifest(&root, case, &[&provider_coordinate]);
+        let destination = sysroot.path().join(format!("output/{case}.slib"));
+        let error = build_manifest_request(
+            sysroot.path(),
+            &target,
+            &root,
+            &destination,
+            vec![provider.artifact().path().to_path_buf()],
+            Vec::new(),
+        )
+        .build_and_publish()
+        .unwrap_err();
+        let SingleConeProductionError::Production(error) = error else {
+            panic!("{case} must be diagnosed during compilation: {error:?}")
+        };
+        let CurrentConeProductionFailure::Hir(current_hir::CurrentConeHirStageError::Lowering(
+            diagnostics,
+        )) = error.cause()
+        else {
+            panic!("{case} must be diagnosed before MIR: {error:?}")
+        };
+        let actual = diagnostics
+            .iter()
+            .map(|diagnostic| {
+                assert_eq!(diagnostic.file, 0, "{case} belongs to the consumer source");
+                let span = diagnostic.span.unwrap();
+                format!(
+                    "span={}..{}\nexpression={}\n{}\n",
+                    span.start,
+                    span.end,
+                    &source[span.start as usize..span.end as usize],
+                    diagnostic.message
+                )
+            })
+            .collect::<String>();
+        let snapshot = fixtures.join(format!("{case}.diagnostic.snap"));
+        if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
+            std::fs::write(&snapshot, &actual).unwrap();
+        }
+        assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap(), "{case}");
+        assert!(!destination.exists());
     }
 }

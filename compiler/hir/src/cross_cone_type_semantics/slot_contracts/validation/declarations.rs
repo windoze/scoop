@@ -10,18 +10,17 @@ use super::{
 };
 use crate::{
     CheckedNominalInheritanceGraphV1, DeclarationAccessSourceV1, DeclaredVisibilityV1,
-    InheritanceCallableDeclarationV1 as Decl, InheritanceCallableSignatureV1,
-    ReplayedDeclarationAccessDomainsV1, SourceNominalId,
+    InheritanceCallableDeclarationV1 as Decl, InheritanceCallableSignatureV1, SourceNominalId,
 };
 
-pub(super) fn validate<'s, 'g, 'a, A: InheritanceSlotContractSemanticAuthority<E>, E>(
-    graph: &'g CheckedNominalInheritanceGraphV1<'a>,
+pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
+    graph: &CheckedNominalInheritanceGraphV1<'_>,
     declaration: Decl,
     owner: PersistentTypeId,
     signature: &InheritanceCallableSignatureV1,
     access: &DeclarationAccessSourceV1,
     authority: &'s A,
-) -> Result<(Declaration<'s>, ReplayedDeclarationAccessDomainsV1<'g, 'a>), Error<E>> {
+) -> Result<Declaration<'s>, Error<E>> {
     let key = match declaration {
         Decl::Function(id) => {
             let key = authority.function_key(id).map_err(Error::Foundation)?;
@@ -103,13 +102,10 @@ pub(super) fn validate<'s, 'g, 'a, A: InheritanceSlotContractSemanticAuthority<E
     if access.declared_visibility() == DeclaredVisibilityV1::Private {
         return Err(Error::PrivateDeclaration);
     }
-    let checked = graph
+    graph
         .check_declaration_source(access, key, authority)
         .map_err(Error::Source)?;
-    let domains = graph
-        .replay_declaration_access(checked)
-        .map_err(Error::Access)?;
-    Ok((Declaration { key, exact_owner }, domains))
+    Ok(Declaration { key, exact_owner })
 }
 
 pub(super) fn root_key(declaration: Decl, kind: SourceDeclarationKind) -> Option<DispatchSlotKey> {

@@ -1,5 +1,7 @@
 use super::*;
 
+mod access;
+
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

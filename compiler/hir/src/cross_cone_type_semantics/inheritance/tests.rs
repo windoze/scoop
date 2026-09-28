@@ -25,10 +25,9 @@ fn checked_graph_accepts_diamond_interface_closure_and_lexical_sources() {
     assert!(graph.is_subclass(derived.exact, base.exact).unwrap());
     assert!(!graph.is_subclass(base.exact, derived.exact).unwrap());
     assert!(!graph.is_subclass(nested.exact, base.exact).unwrap());
-    assert!(
-        graph
-            .lexically_contains(derived.source, nested.source)
-            .unwrap()
+    assert_eq!(
+        graph.source(nested.source).unwrap().access.lexical_owners(),
+        &[derived.source],
     );
 }
 

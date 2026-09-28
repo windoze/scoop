@@ -357,19 +357,12 @@ pub(crate) fn lower_core_bootstrap(
 }
 
 /// Projects complete HIR and dependency declarations into the type section.
-/// Inherited slot domains are reused from the dependency's checked contracts.
 pub fn produce_cross_cone_type_semantics(
     output: &hir::DependencyHirOutput,
     metadata: hir::SharedTypeMetadataV1<'_>,
     dependencies: &[hir::SharedTypeMetadataV1<'_>],
-    dependency_inheritance: &[&hir::CanonicalNominalInheritanceInterfacesV1],
 ) -> Result<hir::CrossConeTypeSemanticsSectionV1, hir::CrossConeTypeSemanticsProductionError> {
-    hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(
-        output,
-        metadata,
-        dependencies,
-        dependency_inheritance,
-    )
+    hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(output, metadata, dependencies)
 }
 
 fn finish_output(

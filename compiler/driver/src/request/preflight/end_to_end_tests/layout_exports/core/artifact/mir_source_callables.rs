@@ -21,52 +21,50 @@ pub(super) fn check(
     if !name.starts_with("shared-callables-") && name != "shared-accessors-combined" {
         return;
     }
-    source
-        .with_inheritance_graph(&[],  |graph| {
-            let replay = Replay {
-                source,
-                foundation,
-                ordinary,
-                section,
-                graph,
-            };
-            replay
-                .validate(ordinary, section.callables())
-                .unwrap();
-            inventory::check(&replay);
-            signatures::check(&replay);
-            if name.starts_with("shared-callables-") {
-                assert!(replay.function("privateHelper").is_some());
-            }
-            if name == "shared-callables-combined" {
-                let declaration = Declaration::Function(replay.function("sharedCallableDeferred").unwrap());
-                assert!(ordinary.export(declaration).is_some());
-                assert!(section.callables().get(declaration.implementation()).is_none());
-                let records = ordinary.exports().iter().filter(|binding| binding.declaration() != declaration).cloned().collect();
-                assert!(matches!(replay.reject(&replay.ordinary(records), section.callables().entries().to_vec()),
-                    Error::Missing { declaration: actual, partition: Partition::Ordinary } if actual == declaration));
-            }
+    let replay = Replay {
+        source,
+        foundation,
+        ordinary,
+        section,
+    };
+    replay.validate(ordinary, section.callables()).unwrap();
+    inventory::check(&replay);
+    signatures::check(&replay);
+    if name.starts_with("shared-callables-") {
+        assert!(replay.function("privateHelper").is_some());
+    }
+    if name == "shared-callables-combined" {
+        let declaration = Declaration::Function(replay.function("sharedCallableDeferred").unwrap());
+        assert!(ordinary.export(declaration).is_some());
+        assert!(
+            section
+                .callables()
+                .get(declaration.implementation())
+                .is_none()
+        );
+        let records = ordinary
+            .exports()
+            .iter()
+            .filter(|binding| binding.declaration() != declaration)
+            .cloned()
+            .collect();
+        assert!(
+            matches!(replay.reject(&replay.ordinary(records), section.callables().entries().to_vec()),
+                    Error::Missing { declaration: actual, partition: Partition::Ordinary } if actual == declaration)
+        );
+    }
 
-            replay
-                .validate(ordinary, section.callables())
-                .unwrap();
-
-
-
-
-        })
-        .unwrap();
+    replay.validate(ordinary, section.callables()).unwrap();
 }
 
-struct Replay<'s, 'g> {
+struct Replay<'s> {
     source: hir::CheckedSharedTypeFoundationV1<'s>,
     foundation: &'s mir::CanonicalMirFoundation,
     ordinary: &'s mir::CrossConeMirBridgeSectionV1,
     section: &'s mir::CrossConeMirTypeBridgeSectionV1<'s>,
-    graph: &'g hir::CheckedNominalInheritanceGraphV1<'g>,
 }
 
-impl Replay<'_, '_> {
+impl Replay<'_> {
     fn validate(
         &self,
         ordinary: &mir::CrossConeMirBridgeSectionV1,
@@ -75,7 +73,6 @@ impl Replay<'_, '_> {
         scoop_slib::validate_shared_mir_source_callables(
             self.source,
             &[],
-            self.graph,
             ordinary,
             &mir::StrongCallableBridgeSurfaceV1::from_foundation(self.foundation),
             bindings,

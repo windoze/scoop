@@ -63,21 +63,6 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             .ok_or(InheritanceQueryError::UnknownExact(exact))?;
         Ok(exact)
     }
-
-    pub(in crate::cross_cone_type_semantics) fn lexically_contains(
-        &self,
-        outer: SourceNominalId,
-        inner: SourceNominalId,
-    ) -> Result<bool, InheritanceQueryError> {
-        self.sources
-            .get(&outer)
-            .ok_or(InheritanceQueryError::UnknownSource(outer))?;
-        let source = self
-            .sources
-            .get(&inner)
-            .ok_or(InheritanceQueryError::UnknownSource(inner))?;
-        Ok(outer == inner || source.access.lexical_owners().contains(&outer))
-    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

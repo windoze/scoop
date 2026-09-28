@@ -56,10 +56,6 @@ pub(super) fn assemble(
                 public: dependency.hir_interface(),
             })
             .collect::<Vec<_>>(),
-        &dependencies
-            .iter()
-            .map(|dependency| dependency.hir_type_semantics().inheritance())
-            .collect::<Vec<_>>(),
     )
     .map_err(Error::HirTypes)?;
     let mir_input = scoop_mir_lower::MirTypeBridgeExportInputV1 {

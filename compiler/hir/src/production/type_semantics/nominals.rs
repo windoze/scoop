@@ -29,7 +29,6 @@ pub(super) fn produce(
     output: &DependencyHirOutput,
     metadata: SharedTypeMetadataV1<'_>,
     dependencies: &[SharedTypeMetadataV1<'_>],
-    dependency_inheritance: &[&CanonicalNominalInheritanceInterfacesV1],
 ) -> Result<CrossConeTypeSemanticsSectionV1, Error> {
     let export = output.output().export.module();
     let local = output.output().local.module();
@@ -71,7 +70,6 @@ pub(super) fn produce(
     let slots = inheritance::SlotContracts::new(
         export,
         dependencies,
-        dependency_inheritance,
         &inheritance_inventory,
         &slot_selections,
     )?;

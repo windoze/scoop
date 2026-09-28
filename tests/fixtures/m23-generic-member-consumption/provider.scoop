@@ -103,3 +103,24 @@ public class PropertyItem<T> public constructor(public override var value: T): M
 public struct PropertyCell<T>(val stored: T): ReadOnlyProperty<T> {
     public override val value: T get() = this.stored
 }
+
+public open class ProtectedBox<T> protected constructor(protected val stored: T) {
+    protected open fun secret(): T = this.stored
+    protected fun <U> choose(value: U): U = value
+    public fun readVirtual(): T = this.secret()
+    public fun replaceVirtual(next: T): T {
+        val previous = this.state
+        this.state = next
+        return previous
+    }
+    public open var state: T = stored
+        protected set(next) { field = next }
+    protected var restricted: T = stored
+        private set(next) { field = next }
+}
+
+public open class ProtectedMiddle<T> protected constructor(value: T): ProtectedBox<T>(value)
+
+public class ProtectedChild<T> public constructor(value: T): ProtectedMiddle<T>(value) {
+    public fun read(): T = this.secret()
+}

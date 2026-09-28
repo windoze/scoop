@@ -68,7 +68,6 @@ fn replace(
         original.declaration_owner(),
         original.declaration(),
         original.signature().clone(),
-        original.domain().clone(),
         implementation,
         original.declaration_access().clone(),
     )

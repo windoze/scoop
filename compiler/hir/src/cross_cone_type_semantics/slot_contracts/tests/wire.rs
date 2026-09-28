@@ -29,10 +29,26 @@ fn complete_slot_wire_round_trips_abstract_concrete_and_default_targets() {
     ];
     for record in records {
         let bytes = encode(&record).unwrap();
-        assert_eq!(bytes[0], 0xa7);
+        assert_eq!(bytes[0], 0xa6);
         let decoded: DecodedInheritanceSlotContractV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.clone().resolve(&mut fixture).unwrap(), record);
+        let retired = [
+            &[0xa7, 1][..],
+            &encode(&record.slot()).unwrap(),
+            &[2],
+            &encode(&record.declaration_owner()).unwrap(),
+            &[3],
+            &encode(&record.declaration()).unwrap(),
+            &[4],
+            &encode(record.signature()).unwrap(),
+            &[5, 0xa2, 0, 2, 1, 0x80, 6],
+            &encode(record.implementation()).unwrap(),
+            &[7],
+            &encode(record.declaration_access()).unwrap(),
+        ]
+        .concat();
+        assert!(decode_canonical::<DecodedInheritanceSlotContractV1>(&retired).is_err());
     }
     assert!(decode_canonical::<DecodedInheritanceSlotImplementationV1>(&[0xa1, 0, 1]).is_err());
     assert!(

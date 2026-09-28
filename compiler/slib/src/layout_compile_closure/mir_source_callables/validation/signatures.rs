@@ -5,7 +5,6 @@ pub(super) fn exact(
     declaration: Declaration,
     metadata: hir::SharedTypeMetadataV1<'_>,
     source: &hir::CallableDeclarationRecordV1,
-    inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     signature: &ExactCallableSignature,
 ) -> Result<(), Error> {
     Error::require(
@@ -20,7 +19,7 @@ pub(super) fn exact(
             Error::require(
                 declaration,
                 Component::Receiver,
-                source.receiver().is_none() && inheritance.get(exact).is_some(),
+                source.receiver().is_none(),
             )?;
             Some(exact)
         }
@@ -66,7 +65,6 @@ pub(super) fn binding(
     declaration: Declaration,
     metadata: hir::SharedTypeMetadataV1<'_>,
     source: &hir::CallableDeclarationRecordV1,
-    inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     binding: &mir::ParamFreeMirCallableBindingV1,
 ) -> Result<(), Error> {
     let semantic = binding.semantic_signature();
@@ -81,7 +79,7 @@ pub(super) fn binding(
         Component::LoweredSignature,
         binding.lowered_signature() == semantic,
     )?;
-    exact(declaration, metadata, source, inheritance, semantic.exact())?;
+    exact(declaration, metadata, source, semantic.exact())?;
     let gc = match source.effects().gc_effect() {
         scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
         scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,

@@ -1,19 +1,19 @@
 use std::fmt;
 
 use scoop_identity::{
-    PersistentDispatchSlotId, PersistentFunctionId, PersistentIdResolver, PersistentKeyResolver,
-    PersistentPropertyAccessorId, PersistentSourceContextId, SourceContextKey,
+    ConeIdentity, PersistentDispatchSlotId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentIdResolver, PersistentKeyResolver, PersistentPropertyAccessorId,
+    PersistentSourceContextId, SourceContextKey,
 };
 use scoop_wire::WireError;
 
 use super::*;
-use crate::{
-    DeclarationAccessSourceResolutionError, PersistentAccessResolutionError,
-    PersistentAccessResolver,
-};
+use crate::{DeclarationAccessSourceResolutionError, SourceNominalIdResolver};
 
 pub trait InheritanceSlotResolver<E>:
-    PersistentAccessResolver<E>
+    SourceNominalIdResolver<E>
+    + PersistentIdResolver<ConeIdentity, Error = E>
+    + PersistentIdResolver<PersistentExactTypeId, Error = E>
     + PersistentIdResolver<PersistentDispatchSlotId, Error = E>
     + PersistentIdResolver<PersistentFunctionId, Error = E>
     + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
@@ -21,7 +21,9 @@ pub trait InheritanceSlotResolver<E>:
 {
 }
 impl<R, E> InheritanceSlotResolver<E> for R where
-    R: PersistentAccessResolver<E>
+    R: SourceNominalIdResolver<E>
+        + PersistentIdResolver<ConeIdentity, Error = E>
+        + PersistentIdResolver<PersistentExactTypeId, Error = E>
         + PersistentIdResolver<PersistentDispatchSlotId, Error = E>
         + PersistentIdResolver<PersistentFunctionId, Error = E>
         + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
@@ -95,10 +97,6 @@ impl DecodedInheritanceSlotContractV1 {
             .signature
             .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Signature)?;
-        let domain = self
-            .domain
-            .resolve(resolver)
-            .map_err(InheritanceSlotResolutionError::Domain)?;
         let implementation = self.implementation.resolve(resolver)?;
         let access = self
             .declaration_access
@@ -109,7 +107,6 @@ impl DecodedInheritanceSlotContractV1 {
             owner,
             declaration,
             signature,
-            PersistentSlotContractDomainV1::new(domain),
             implementation,
             access,
         )
@@ -122,7 +119,6 @@ pub enum InheritanceSlotResolutionError<E> {
     Resource(WireError),
     Identity(E),
     Signature(InheritanceCallableSignatureResolutionError<E>),
-    Domain(PersistentAccessResolutionError<E>),
     Source(DeclarationAccessSourceResolutionError<E>),
     Contract(InheritanceSlotContractBuildError),
 }
@@ -132,7 +128,6 @@ impl<E: fmt::Display> fmt::Display for InheritanceSlotResolutionError<E> {
             Self::Resource(error) => error.fmt(f),
             Self::Identity(error) => error.fmt(f),
             Self::Signature(error) => error.fmt(f),
-            Self::Domain(error) => error.fmt(f),
             Self::Source(error) => error.fmt(f),
             Self::Contract(error) => error.fmt(f),
         }

@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn check(replay: &Replay<'_, '_>) {
+pub(super) fn check(replay: &Replay<'_>) {
     for binding in replay
         .section
         .callables()
@@ -98,7 +98,7 @@ pub(super) fn check(replay: &Replay<'_, '_>) {
     ordinary_signature(replay);
 }
 
-fn ordinary_signature(replay: &Replay<'_, '_>) {
+fn ordinary_signature(replay: &Replay<'_>) {
     let id = replay.function("sharedCallablePass").unwrap();
     let declaration = Declaration::Function(id);
     let original = replay.ordinary.export(declaration).unwrap();
@@ -129,7 +129,7 @@ fn ordinary_signature(replay: &Replay<'_, '_>) {
 }
 
 fn reject_ordinary_signature(
-    replay: &Replay<'_, '_>,
+    replay: &Replay<'_>,
     declaration: Declaration,
     signature: &mir::MirBridgeCallableSignatureV1,
 ) -> Error {

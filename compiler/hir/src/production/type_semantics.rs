@@ -18,9 +18,8 @@ impl CrossConeTypeSemanticsSectionV1 {
         output: &DependencyHirOutput,
         metadata: crate::SharedTypeMetadataV1<'_>,
         dependencies: &[crate::SharedTypeMetadataV1<'_>],
-        dependency_inheritance: &[&crate::CanonicalNominalInheritanceInterfacesV1],
     ) -> Result<Self, CrossConeTypeSemanticsProductionError> {
-        nominals::produce(output, metadata, dependencies, dependency_inheritance)
+        nominals::produce(output, metadata, dependencies)
     }
 }
 

@@ -79,7 +79,6 @@ fn interface_default_targets_keep_provider_identity_and_conformance() {
             record.declaration_owner,
             record.declaration,
             record.signature.clone(),
-            record.domain.clone(),
             InheritanceSlotImplementationV1::Concrete(target),
             record.declaration_access.clone()
         ),
@@ -105,7 +104,6 @@ fn targets_match_implementation_modality_and_callable_roles() {
             record.declaration_owner,
             record.declaration,
             record.signature.clone(),
-            record.domain.clone(),
             InheritanceSlotImplementationV1::Concrete(target),
             record.declaration_access.clone(),
         ),
@@ -119,7 +117,6 @@ fn targets_match_implementation_modality_and_callable_roles() {
             support::nominal(owner),
             fixture.declaration(slot),
             fixture.signature(owner, vec![]),
-            PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal()),
             InheritanceSlotImplementationV1::Concrete(target),
             fixture.access(owner, DeclaredVisibilityV1::Public)
         ),

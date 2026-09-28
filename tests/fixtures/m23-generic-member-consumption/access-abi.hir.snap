@@ -1,0 +1,162 @@
+Module
+  struct Large
+    field0 first: Reference
+    field1 second: Reference
+    field2 third: Reference
+    property0 val first: Reference getter0=storage <stored struct0-field0>
+    property1 val second: Reference getter1=storage <stored struct0-field1>
+    property2 val third: Reference getter2=storage <stored struct0-field2>
+  class Reference(value: Int)
+    field0 property3: Int
+    property3 val value: Int getter3=storage <stored field0 init=parameter3>
+  class Derived<T>(value: T0)
+  fun result(): Int
+    val local0
+      IntegerLiteral 10 : Int
+    val local1
+      Local $argument.0 : Int
+    val local6
+      ClassInit Reference : Reference
+        Local $parameter.value : Int
+    val local2
+      IntegerLiteral 12 : Int
+    val local3
+      Local $argument.0 : Int
+    val local7
+      ClassInit Reference : Reference
+        Local $parameter.value : Int
+    val local4
+      IntegerLiteral 20 : Int
+    val local5
+      Local $argument.0 : Int
+    val local8
+      ClassInit Reference : Reference
+        Local $parameter.value : Int
+    val local9
+      Local $argument.0 : Reference
+    val local10
+      Local $argument.1 : Reference
+    val local11
+      Local $argument.2 : Reference
+    val local12
+      StructInit Large : Large
+        Local $parameter.first : Reference
+        Local $parameter.second : Reference
+        Local $parameter.third : Reference
+    val local13
+      Local $argument.0 : Large
+    val local14
+      ClassInit Derived<Large> : Derived<Large>
+        Local $parameter.value : Large
+    val local15
+      UnitLiteral : Unit
+    val local16
+      Local $argument.0 : Unit
+    val local17
+      ClassInit Derived<Unit> : Derived<Unit>
+        Local $parameter.value : Unit
+    val local18
+      UnitLiteral : Unit
+    val local19
+      Local $argument.0 : Unit
+    val local20
+      MethodCall Derived.replace : Unit
+        Local $receiver : Derived<Unit>
+        Local $parameter.next : Unit
+    val local33
+      Local holder : Derived<Large>
+    val local21
+      IntegerLiteral 1 : Int
+    val local22
+      Local $argument.0 : Int
+    val local27
+      ClassInit Reference : Reference
+        Local $parameter.value : Int
+    val local23
+      IntegerLiteral 2 : Int
+    val local24
+      Local $argument.0 : Int
+    val local28
+      ClassInit Reference : Reference
+        Local $parameter.value : Int
+    val local25
+      IntegerLiteral 3 : Int
+    val local26
+      Local $argument.0 : Int
+    val local29
+      ClassInit Reference : Reference
+        Local $parameter.value : Int
+    val local30
+      Local $argument.0 : Reference
+    val local31
+      Local $argument.1 : Reference
+    val local32
+      Local $argument.2 : Reference
+    val local34
+      StructInit Large : Large
+        Local $parameter.first : Reference
+        Local $parameter.second : Reference
+        Local $parameter.third : Reference
+    val local35
+      Local $argument.0 : Large
+    val local36
+      MethodCall Derived.replace : Large
+        Local $receiver : Derived<Large>
+        Local $parameter.next : Large
+    val local37
+      IntegerLiteral 0 : Int
+    val local38
+      Local $argument.0 : Int
+    val local39
+      ClassInit Reference : Reference
+        Local $parameter.value : Int
+    val local40
+      FieldAccess class field value : Int
+        FieldAccess field 0 : Reference
+          Local value : Large
+    val local41
+      FieldAccess class field value : Int
+        FieldAccess field 1 : Reference
+          Local value : Large
+    val local42
+      Local $dependency.argument.0 : Int
+    val local43
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local44
+      FieldAccess class field value : Int
+        FieldAccess field 2 : Reference
+          Local value : Large
+    val local45
+      Local $dependency.argument.0 : Int
+    val local46
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local47
+      FieldAccess class field value : Int
+        Local allocated : Reference
+    val local48
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      ClassInit Derived<T0> : Derived<T0>
+        Local $parameter.value : T0
+    val local4
+      Local value : T0
+    val local5
+      Local $argument.0 : T0
+    return
+      MethodCall Derived.replace : T0
+        Local $receiver : Derived<T0>
+        Local $parameter.next : T0
+  output library

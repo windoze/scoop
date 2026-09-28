@@ -11,14 +11,8 @@ pub(super) fn produce_type_semantics(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
 ) -> Result<hir::CrossConeTypeSemanticsSectionV1, hir::CrossConeTypeSemanticsProductionError> {
-    with_metadata(output, public, |metadata, dependencies, core| {
-        let core_types = crate::produce_cross_cone_type_semantics(core, dependencies[0], &[], &[])?;
-        crate::produce_cross_cone_type_semantics(
-            output,
-            metadata,
-            dependencies,
-            &[core_types.inheritance()],
-        )
+    with_metadata(output, public, |metadata, dependencies, _| {
+        crate::produce_cross_cone_type_semantics(output, metadata, dependencies)
     })
 }
 

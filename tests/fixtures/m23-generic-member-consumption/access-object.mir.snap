@@ -1,0 +1,201 @@
+Module
+  global0 $singleton$Saved: Saved managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object-private:main.scoop:Saved singleton lazy global0 initializer=@fn5 ensure=@fn6 failure=1 deps=[]
+  class Saved vtable=3 itables=0
+  class ProtectedBox<Int> vtable=3 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      call @fn6 direct
+      val $receiver: Saved
+        Type Saved
+        GlobalRead $singleton$Saved
+      call $call.1: Int = @fn4 direct
+        Type Saved
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun secret @fn1(this: ProtectedBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ProtectedBox<Int>
+          Local this
+  fun state @fn2(this: ProtectedBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type ProtectedBox<Int>
+          Local this
+  fun state @fn3(this: ProtectedBox<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun Saved.read @fn4(this: Saved) -> Int
+    bb0 entry
+      val $dependency.receiver: ProtectedBox<Int>
+        Type ProtectedBox<Int>
+        Retype ProtectedBox<Int>
+          Type Saved
+          Local this
+      call $call.1: Int = @fn1 virtual[0]
+        Type ProtectedBox<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun $init$body$0 @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Saved
+        ClassAlloc Saved
+      call @fn7 direct
+        Type Saved
+        Local $new.1
+      global_assign $singleton$Saved
+        Type Saved
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Saved
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Saved
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Saved
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Saved
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Saved
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun init.Saved.$c0 @fn7(this: Saved) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.stored: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ProtectedBox<Int>
+        Retype ProtectedBox<Int>
+          Type Saved
+          Local this
+        Type Int
+        Local $dependency.parameter.stored
+      return
+  fun init.ProtectedBox.$c0 @fn8(this: ProtectedBox<Int>, stored: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local stored
+      field_set 1
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local stored
+      field_set 2
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local stored
+      return
+  instance mi0 function=@fn1 <- secret
+  instance mi1 function=@fn2 <- state
+  instance mi2 function=@fn3 <- state
+  output library

@@ -5,9 +5,8 @@ use super::{
     declarations,
 };
 use crate::{
-    CheckedNominalInheritanceGraphV1, DeclaredVisibilityV1, InheritanceQueryError,
-    InheritanceSlotContractV1, InheritanceSlotImplementationV1, NominalInheritanceModalityV1,
-    SourceNominalId,
+    CheckedNominalInheritanceGraphV1, InheritanceQueryError, InheritanceSlotContractV1,
+    InheritanceSlotImplementationV1, NominalInheritanceModalityV1, SourceNominalId,
 };
 
 pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
@@ -31,7 +30,7 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
     if !member {
         return Err(Error::SlotIdentity);
     }
-    let (root, root_domains) = declarations::validate(
+    let root = declarations::validate(
         graph,
         record.declaration(),
         record.declaration_owner(),
@@ -52,39 +51,26 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
     {
         return Err(Error::SlotIdentity);
     }
-    let domain = graph
-        .validate_access_domain(record.domain().domain())
-        .map_err(Error::Access)?;
-    if domain.domain() != root_domains.lookup().domain() {
-        return Err(Error::Domain);
-    }
     let is_abstract = matches!(
         record.implementation(),
         InheritanceSlotImplementationV1::Abstract(_)
     );
-    if is_abstract {
-        if !matches!(
+    if is_abstract
+        && !matches!(
             node.edges().modality(),
             NominalInheritanceModalityV1::Abstract | NominalInheritanceModalityV1::Interface
-        ) {
-            return Err(Error::AbstractObligation);
-        }
-        let owner_domains = graph.replay_nominal_domains(owner).map_err(Error::Access)?;
-        if !domain
-            .covers(owner_domains.inheritance())
-            .map_err(Error::Access)?
-        {
-            return Err(Error::AbstractObligation);
-        }
+        )
+    {
+        return Err(Error::AbstractObligation);
     }
     let target = record.implementation().target();
     let target_data;
-    let (implementation, access) = if target.declaration() == record.declaration()
+    let implementation = if target.declaration() == record.declaration()
         && target.owner() == record.declaration_owner()
         && target.signature() == record.signature()
         && target.declaration_access() == record.declaration_access()
     {
-        (&root, &root_domains)
+        &root
     } else {
         target_data = declarations::validate(
             graph,
@@ -94,19 +80,10 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
             target.declaration_access(),
             authority,
         )?;
-        (&target_data.0, &target_data.1)
+        &target_data
     };
     if root.key.name() != implementation.key.name() {
         return Err(Error::TargetName);
-    }
-    let preserves_protected = record.declaration_access().declared_visibility()
-        == DeclaredVisibilityV1::Protected
-        && target.declaration_access().declared_visibility() == DeclaredVisibilityV1::Protected
-        && graph
-            .is_subclass(implementation.exact_owner, root.exact_owner)
-            .map_err(Error::Inheritance)?;
-    if !preserves_protected && !access.declared().covers(&domain).map_err(Error::Access)? {
-        return Err(Error::Domain);
     }
     let source = graph
         .source(SourceNominalId::Concrete(target.owner()))

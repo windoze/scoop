@@ -1,0 +1,119 @@
+Module
+  class Derived<Int> vtable=3 itables=0
+  class ProtectedMiddle<Int> vtable=3 itables=0
+  class ProtectedBox<Int> vtable=3 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Derived<Int>
+        ClassAlloc Derived<Int>
+      call @fn5 direct
+        Type Derived<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $receiver: Derived<Int>
+        Type Derived<Int>
+        Local $new.1
+      call $call.2: Int = @fn4 direct
+        Type Derived<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.2
+  fun secret @fn1(this: ProtectedBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ProtectedBox<Int>
+          Local this
+  fun state @fn2(this: ProtectedBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type ProtectedBox<Int>
+          Local this
+  fun state @fn3(this: ProtectedBox<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun Derived.read @fn4(this: Derived<Int>) -> Int
+    bb0 entry
+      val $dependency.receiver: ProtectedBox<Int>
+        Type ProtectedBox<Int>
+        Retype ProtectedBox<Int>
+          Type Derived<Int>
+          Local this
+      call $call.1: Int = @fn1 virtual[0]
+        Type ProtectedBox<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun init.Derived.$c0 @fn5(this: Derived<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type ProtectedMiddle<Int>
+        Retype ProtectedMiddle<Int>
+          Type Derived<Int>
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun init.ProtectedMiddle.$c0 @fn6(this: ProtectedMiddle<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call @fn7 direct
+        Type ProtectedBox<Int>
+        Retype ProtectedBox<Int>
+          Type ProtectedMiddle<Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.1
+      return
+  fun init.ProtectedBox.$c1 @fn7(this: ProtectedBox<Int>, stored: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local stored
+      field_set 1
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local stored
+      field_set 2
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local stored
+      return
+  instance mi0 function=@fn1 <- secret
+  instance mi1 function=@fn2 <- state
+  instance mi2 function=@fn3 <- state
+  instance mi3 function=@fn4 <- Derived.read
+  output library

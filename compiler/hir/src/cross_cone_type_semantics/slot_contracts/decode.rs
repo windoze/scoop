@@ -2,9 +2,7 @@ use scoop_identity::{DecodedPersistentId, PersistentDispatchSlotId, PersistentTy
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{DecodedInheritanceCallableDeclarationV1, DecodedInheritanceCallableSignatureV1, wire};
-use crate::{
-    CallableModalityV1, DecodedDeclarationAccessSourceV1, DecodedPersistentAccessDomainV1,
-};
+use crate::{CallableModalityV1, DecodedDeclarationAccessSourceV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedInheritanceSlotTargetV1 {
@@ -87,13 +85,12 @@ pub struct DecodedInheritanceSlotContractV1 {
     pub(super) declaration_owner: DecodedPersistentId<PersistentTypeId>,
     pub(super) declaration: DecodedInheritanceCallableDeclarationV1,
     pub(super) signature: DecodedInheritanceCallableSignatureV1,
-    pub(super) domain: DecodedPersistentAccessDomainV1,
     pub(super) implementation: DecodedInheritanceSlotImplementationV1,
     pub(super) declaration_access: DecodedDeclarationAccessSourceV1,
 }
 impl WireEncode for DecodedInheritanceSlotContractV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.slot.encode(encoder)?;
         encoder.field(2)?;
@@ -102,8 +99,6 @@ impl WireEncode for DecodedInheritanceSlotContractV1 {
         self.declaration.encode(encoder)?;
         encoder.field(4)?;
         self.signature.encode(encoder)?;
-        encoder.field(5)?;
-        self.domain.encode(encoder)?;
         encoder.field(6)?;
         self.implementation.encode(encoder)?;
         encoder.field(7)?;
@@ -112,13 +107,12 @@ impl WireEncode for DecodedInheritanceSlotContractV1 {
 }
 impl WireDecode for DecodedInheritanceSlotContractV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(7)?;
+        decoder.expect_map(6)?;
         Ok(Self {
             slot: decoder.field(1, DecodedPersistentId::decode)?,
             declaration_owner: decoder.field(2, DecodedPersistentId::decode)?,
             declaration: decoder.field(3, DecodedInheritanceCallableDeclarationV1::decode)?,
             signature: decoder.field(4, DecodedInheritanceCallableSignatureV1::decode)?,
-            domain: decoder.field(5, DecodedPersistentAccessDomainV1::decode)?,
             implementation: decoder.field(6, DecodedInheritanceSlotImplementationV1::decode)?,
             declaration_access: decoder.field(7, DecodedDeclarationAccessSourceV1::decode)?,
         })

@@ -1,0 +1,54 @@
+Module
+  class Derived<T>(value: T0, replacement: T0)
+    field0 property0: T0
+    property0 val replacement: T0 getter0=storage <stored field0 init=parameter1>
+  fun result(): Int
+    val local0
+      IntegerLiteral 20 : Int
+    val local1
+      IntegerLiteral 22 : Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : Int
+    val local4
+      ClassInit Derived<Int> : Derived<Int>
+        Local $parameter.value : Int
+        Local $parameter.replacement : Int
+    val local5
+      ReferenceUpcast : ProtectedBox<Int>
+        Local value : Derived<Int>
+    val local6
+      Local value : Derived<Int>
+    val local8
+      MethodCall Derived.original : Int
+        Local $receiver : Derived<Int>
+    val local7
+      Local base : ProtectedBox<Int>
+    val local9
+      ImportedGenericCall readVirtual<Int> : Int
+        Local $dependency.receiver : ProtectedBox<Int>
+    val local10
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local value : T0
+    val local3
+      Local $argument.0 : T0
+    val local4
+      Local $argument.1 : T0
+    val local5
+      ReferenceUpcast : ProtectedBox<T0>
+        ClassInit Derived<T0> : Derived<T0>
+          Local $parameter.value : T0
+          Local $parameter.replacement : T0
+    return
+      ImportedGenericCall readVirtual<T0> : T0
+        Local $dependency.receiver : ProtectedBox<T0>
+  output library

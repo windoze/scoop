@@ -15,7 +15,7 @@ type Declaration = InheritanceCallableDeclarationV1;
 pub(in crate::production::type_semantics) struct SlotContracts<'a> {
     sources: BTreeMap<Declaration, DispatchSource>,
     selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
-    roots: BTreeMap<PersistentDispatchSlotId, DispatchRoot>,
+    roots: BTreeMap<PersistentDispatchSlotId, Declaration>,
 }
 
 struct DispatchSource {
@@ -23,16 +23,10 @@ struct DispatchSource {
     callable: InheritanceSourceCallableV1,
 }
 
-struct DispatchRoot {
-    declaration: Declaration,
-    lookup: PersistentSlotContractDomainV1,
-}
-
 impl<'a> SlotContracts<'a> {
     pub(in crate::production::type_semantics) fn new(
         export: &ExportHir,
         dependencies: &[SharedTypeMetadataV1<'_>],
-        dependency_inheritance: &[&CanonicalNominalInheritanceInterfacesV1],
         inventory: &CanonicalSourceInheritanceInventoriesV1,
         selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
     ) -> Result<Self, Error> {
@@ -87,7 +81,6 @@ impl<'a> SlotContracts<'a> {
             required.insert(selection.selection().declaration());
         }
         let mut sources = BTreeMap::new();
-        let mut local_domains = BTreeMap::new();
         for (id, function) in export.functions.iter() {
             let Some(declaration) = source_callables::identity(export, id) else {
                 continue;
@@ -104,10 +97,6 @@ impl<'a> SlotContracts<'a> {
             let ExactTypeKey::Nominal(owner) = identity.key() else {
                 return Err(Error::GenericOdrRequired(identity.id()));
             };
-            local_domains.insert(
-                declaration,
-                PersistentSlotContractDomainV1::new(domain(export, &function.access.lookup.0)?),
-            );
             sources.insert(
                 declaration,
                 DispatchSource {
@@ -136,32 +125,6 @@ impl<'a> SlotContracts<'a> {
             let (callable, owner) = source_callables::imported(*metadata, declaration)?;
             sources.insert(declaration, DispatchSource { owner, callable });
         }
-        let roots = roots
-            .into_iter()
-            .map(|(slot, declaration)| {
-                let lookup = if let Some(domain) = local_domains.remove(&declaration) {
-                    domain
-                } else {
-                    let owner = sources[&declaration].owner;
-                    let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner))
-                        .map_err(invalid)?;
-                    dependency_inheritance
-                        .iter()
-                        .find_map(|table| table.get(exact))
-                        .and_then(|owner| owner.slots().get(slot))
-                        .ok_or_else(|| invalid("dependency dispatch root has no slot contract"))?
-                        .domain()
-                        .clone()
-                };
-                Ok((
-                    slot,
-                    DispatchRoot {
-                        declaration,
-                        lookup,
-                    },
-                ))
-            })
-            .collect::<Result<_, Error>>()?;
         Ok(Self {
             sources,
             selections,
@@ -181,11 +144,10 @@ impl<'a> SlotContracts<'a> {
                     continue;
                 }
 
-                let root = self
+                let declaration = *self
                     .roots
                     .get(slot)
                     .ok_or_else(|| invalid("dispatch slot has no source root declaration"))?;
-                let declaration = root.declaration;
                 let source = self.source(declaration)?;
 
                 let selection = self.selections.get(owner, *slot).ok_or_else(|| {
@@ -207,7 +169,6 @@ impl<'a> SlotContracts<'a> {
                     source.owner,
                     declaration,
                     source.callable.signature().clone(),
-                    root.lookup.clone(),
                     implementation,
                     source.callable.declaration_access().clone(),
                 )
@@ -243,54 +204,4 @@ fn insert<K: Ord, V>(map: &mut BTreeMap<K, V>, key: K, value: V) -> Result<(), E
         return Err(invalid("duplicate dispatch projection identity"));
     }
     Ok(())
-}
-
-fn domain(export: &ExportHir, source: &AccessDomain) -> Result<PersistentAccessDomainV1, Error> {
-    if source.is_empty() {
-        return Ok(PersistentAccessDomainV1::empty());
-    }
-    let constraints = source
-        .constraints()
-        .iter()
-        .map(|constraint| match constraint {
-            AccessConstraint::Cone(cone) => Ok(PersistentAccessConstraintV1::Cone(*cone)),
-            AccessConstraint::File(file) => Ok(PersistentAccessConstraintV1::File(file.clone())),
-            AccessConstraint::LexicalOwner(owner) => {
-                persistent_owner(export, *owner).map(PersistentAccessConstraintV1::LexicalOwner)
-            }
-            AccessConstraint::ImportedSubclassesOf(class) => {
-                scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(*class))
-                    .map(PersistentAccessConstraintV1::SubclassesOf)
-                    .map_err(invalid)
-            }
-            AccessConstraint::SubclassesOf(class) => {
-                let ty = export.class_applications[export.classes[*class].self_application]
-                    .canonical_type;
-                exact(export, ty).map(PersistentAccessConstraintV1::SubclassesOf)
-            }
-        })
-        .collect::<Result<Vec<_>, Error>>()?;
-    PersistentAccessDomainV1::try_from_constraints(constraints).map_err(|error| {
-        Error::InvalidTable {
-            table: "access-domain",
-            reason: error.to_string(),
-        }
-    })
-}
-
-fn persistent_owner(export: &ExportHir, owner: VisibilityOwner) -> Result<SourceNominalId, Error> {
-    let identity = match owner {
-        VisibilityOwner::Class(id) => &export.nominal_identities[id],
-        VisibilityOwner::Interface(id) => &export.nominal_identities[id],
-        VisibilityOwner::Struct(id) => &export.nominal_identities[id],
-        VisibilityOwner::Enum(id) => &export.nominal_identities[id],
-        VisibilityOwner::Object(id) => &export.nominal_identities[id],
-    };
-    let source = identity.source().ok_or(Error::MissingExactIdentity {
-        context: "slot lexical owner",
-    })?;
-    Ok(match source {
-        HirSourceNominalIdentity::Concrete(record) => SourceNominalId::Concrete(record.id()),
-        HirSourceNominalIdentity::Generic(record) => SourceNominalId::GenericTemplate(record.id()),
-    })
 }

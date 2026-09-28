@@ -18,9 +18,7 @@ impl Lowerer {
             candidate.interface().declared_visibility() == hir::DeclaredVisibilityV1::Protected
                 && !self.imported_callable_is_accessible(candidate.interface(), Some(receiver))
         })?;
-        let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(base)) =
-            declaration.interface().owner()
-        else {
+        let hir::PublicDeclarationOwnerV1::Nominal(base) = declaration.interface().owner() else {
             return None;
         };
         let current = self
@@ -102,9 +100,7 @@ impl Lowerer {
             hir::DeclaredVisibilityV1::Public => true,
             hir::DeclaredVisibilityV1::Internal | hir::DeclaredVisibilityV1::Private => false,
             hir::DeclaredVisibilityV1::Protected => {
-                let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(base)) =
-                    declaration.owner()
-                else {
+                let hir::PublicDeclarationOwnerV1::Nominal(base) = declaration.owner() else {
                     return false;
                 };
                 let Some(scope) = self.current_owner else {
@@ -125,7 +121,7 @@ impl Lowerer {
     pub(crate) fn class_inherits_imported(
         &self,
         class: hir::ClassId,
-        base: scoop_identity::PersistentTypeId,
+        base: hir::SourceNominalId,
     ) -> bool {
         let mut current = self.classes[class].base_class;
         let mut seen = Vec::new();
@@ -139,13 +135,56 @@ impl Lowerer {
                     self.classes[self.class_applications[*application].template].base_class
                 }
                 hir::Type::ImportedClass(class) => {
-                    if class.declaration.owner() == hir::SourceNominalId::Concrete(base) {
-                        return true;
-                    }
-                    class.base_class
+                    return self
+                        .imported_class_is_same_or_subclass_of(class.declaration.owner(), base);
                 }
                 _ => unreachable!("a resolved class base has a class type"),
             };
+        }
+        false
+    }
+
+    pub(super) fn imported_class_is_same_or_subclass_of(
+        &self,
+        derived: hir::SourceNominalId,
+        base: hir::SourceNominalId,
+    ) -> bool {
+        let mut current = Some(derived);
+        while let Some(owner) = current {
+            if owner == base {
+                return true;
+            }
+            let dependencies = self
+                .dependencies
+                .as_ref()
+                .expect("imported classes retain their dependency declarations");
+            let declaration = dependencies
+                .nominal_declaration(owner)
+                .expect("imported class ancestry retains each declaration");
+            current = declaration
+                .interface
+                .exact_supertypes()
+                .values()
+                .iter()
+                .find_map(|parent| {
+                    let owner = match parent {
+                        scoop_identity::SignatureTypeKey::Nominal(id) => {
+                            hir::SourceNominalId::Concrete(*id)
+                        }
+                        scoop_identity::SignatureTypeKey::NominalApplication { origin, .. } => {
+                            hir::SourceNominalId::GenericTemplate(*origin)
+                        }
+                        _ => unreachable!("resolved nominal parents are nominal references"),
+                    };
+                    let parent = dependencies
+                        .nominal_declaration(owner)
+                        .expect("imported parents retain their declarations");
+                    matches!(
+                        parent.interface.source_shape(),
+                        hir::NominalSourceShapeV1::Class(_)
+                    )
+                    .then_some(owner)
+                });
         }
         false
     }

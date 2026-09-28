@@ -428,11 +428,24 @@
 
 本项完成泛型接口及上述 ODR 装箱、结构 payload 与 adapter 场景的产物运行闭环。其他生成执行实体、delegate 和剩余组合仍沿下面主线推进，M23-7 尚未完成。
 
+## 2026-09-28：泛型 protected 访问与产物格式简化
+
+- 导入 protected 区域使用已有 `SourceNominalId`，同时保留普通声明与 generic template 的原身份。继承关系沿共有声明及其真实父类查询，词法类、显式接收者、构造器、方法和独立 setter 共用原规则；泛型实参不变性继续由正常类型检查负责。protected override 保留原槽区域，public 槽与 setter 的覆盖检查没有放宽。
+- 删除持久 slot 中可从声明推导的 domain、重复访问域重放及只有测试调用的 protected 访问证明 API；`InheritanceSlotContractV1` 的 field 5 退役且不复用。声明位置、typed owner、签名、effect、slot、abstract target modality、实际实现引用与继承路径检查保留。`cross-cone-type-semantics/10`、required inventory、固定 profile descriptor 与 fingerprint 同步，旧 major 和旧七字段 slot 均拒绝；三份规范、M23-7 设计与 M23-6 后续修订说明一致，runtime C ABI 保持。
+- 修复普通类继承泛型基类时的产物读取：实际 Strong 成员仍以自身普通声明的 exact type 为 receiver，MIR 签名按原 owner 精确匹配，不再额外要求该类进入只覆盖非泛型继承闭包的旧 HIR inheritance 清单。类型存在性复用共有声明和实际 MIR 表示，不生成替代布局或访问凭证。
+- 新增 9 组正例与 9 组反例及 36 份 golden。正例覆盖两组 binder 的 protected 方法、继承链与 `super`、虚方法覆写、主次构造器、独立 setter、protected setter 覆写及基类静态调用、本地函数词法捕获、ZST、含三个引用的大值、普通子类与 object。每组均发布 provider 后移走源码，消费并再次发布，下游只读产物并为新类型实例化，最后链接普通运行与移动 GC；provider 未预先实例化泛型的断言保持。反例对基类/兄弟类接收者、外部构造、setter 不可见及覆写缩窄逐一锁定源码位置、诊断，并确认不产生目标产物。
+- 新增 HIR 正反例与 foundation 生成检查通过；原有 18 组泛型成员、接口和值类型装箱真实产物回归通过，既有 HIR/MIR/LIR golden 保持一致。HIR 与 slib 的 1457 项库测试通过，包含新格式固定字节、指纹和旧版本拒绝验证。
+- 同步更新 43 份既有 core 与 shape dependency 产物快照，逐份确认仅 `artifact` 指纹变化，代码、runtime 指纹、依赖图和物理定义保持一致。未通过更新开关接受其他输出差异。
+- 最终依次执行 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，均通过；随后关闭全部快照更新开关，使用本轮构建的真实配套 `scoopc` 执行 `cargo test --workspace --no-fail-fast`，5167 项通过、0 失败、0 忽略。其中 driver 全部 127 项通过，耗时 346.54 秒；完整日志位于 `/tmp/scoop-m23-7-protected-workspace-verified.log`。
+- 确认构建、测试和配套编译器进程全部结束，且 `target` 中没有打开的文件；通过 Cargo metadata 核对实际目录、确认非符号链接并恢复标准缓存标记后，执行 `cargo clean --target-dir target`，删除 2802 个构建文件，回收 5.7 GiB。
+
+本项完成上述泛型访问及覆写组合的真实产物闭环；M23-7 的其余主线仍须继续，未宣布阶段完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、虚调用和 `super`、泛型接口及属性闭环基础上，补齐 protected 访问、消费方覆写与 setter 的其他组合，以及递归扫描程序的实际对象 atom。
+3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object 闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

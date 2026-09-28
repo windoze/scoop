@@ -136,36 +136,6 @@ impl Fixture {
         .unwrap();
         self.records.insert(node.exact, record);
     }
-
-    pub fn visibility(&mut self, node: Node, visibility: DeclaredVisibilityV1) {
-        let previous = &self.access[&node.source];
-        let access = DeclarationAccessSourceV1::try_new(
-            visibility,
-            previous.lexical_owners().to_vec(),
-            previous.definition_origin().clone(),
-        )
-        .unwrap();
-        self.access.insert(node.source, access);
-    }
-
-    pub fn member(&self, owner: Node) -> (SourceDeclarationKey, DeclarationAccessSourceV1) {
-        let mut chain = self.access[&owner.source].lexical_owners().to_vec();
-        chain.push(owner.source);
-        let key = SourceDeclarationKey::function(
-            site(&chain),
-            CanonicalIdentifier::new("member").unwrap(),
-            0,
-            None,
-            vec![],
-        );
-        let access = DeclarationAccessSourceV1::try_new(
-            DeclaredVisibilityV1::Protected,
-            chain,
-            self.origins[&owner.source].clone(),
-        )
-        .unwrap();
-        (key, access)
-    }
 }
 
 pub(in crate::cross_cone_type_semantics) fn site(

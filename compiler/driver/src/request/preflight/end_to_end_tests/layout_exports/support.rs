@@ -160,7 +160,6 @@ pub(super) fn with_pair(
             foundation: &core_hir,
             public: core.production().hir_interface(),
         }],
-        &[default_dependency.hir_type_semantics().inheritance()],
     )
     .unwrap();
     let types = match provider_exports {

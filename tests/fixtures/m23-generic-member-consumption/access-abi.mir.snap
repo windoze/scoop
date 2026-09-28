@@ -1,0 +1,512 @@
+Module
+  struct Large (first: Reference, second: Reference, third: Reference)
+  enum CoroutineStep<Large>
+    Completed(value: Large)
+    Suspended()
+  enum CoroutineSlot<Large>
+    Empty()
+    Value(value: Large)
+  enum CoroutineStep<Reference>
+    Completed(value: Reference)
+    Suspended()
+  enum CoroutineSlot<Reference>
+    Empty()
+    Value(value: Reference)
+  class Reference vtable=0 itables=0
+  class Derived<Large> vtable=3 itables=0
+  class ProtectedMiddle<Large> vtable=3 itables=0
+  class ProtectedBox<Large> vtable=3 itables=0
+  class Derived<Unit> vtable=3 itables=0
+  class ProtectedMiddle<Unit> vtable=3 itables=0
+  class ProtectedBox<Unit> vtable=3 itables=0
+  class box<Large> vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=22f4440996747fe3853cb31a8f0bf29303d3d13a8b20045097574bdd3aee644a exact_id=335731232d4b6677318f082ff5bd1a0373d84cb39ee5d4352b3db0996618e288
+  generated_exact_type get1 location=class7 nominal_id=f8ca5288748032b44af4fbea616256af18830f43e8c52e0b5548e4cc2ba44cc6 exact_id=736e74ab025dd98bc03fb98b9aeade3f0c9428de42e66de41d97d3f956d5f7e4
+  generated_exact_type get2 location=enum3 nominal_id=425df98a376a83a1481a485bb76e2c3b024091b28f185592767ead1e0e66f1b4 exact_id=82728f1c9b5f6ec79b71e4cbd1ccfd871d845cfb347948d1a7139ad3c7742e8d
+  generated_exact_type get3 location=enum0 nominal_id=954c132d704b600825c140babc7af005effa75bbece6e2793572d3821d011c01 exact_id=d8cf3962fb7a8aa69fe529626d328a7a8c8c84bb150050fdf179a333c75e538a
+  generated_exact_type get4 location=enum2 nominal_id=86a1e2e8b2146478164b0637ca892bd132bfa60fcc2771d81d7d76c5339a3d75 exact_id=f22bd9b76be6ed91bffe0b7017d718c611010b22c1901afb72b236daa786fc30
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Reference
+        ClassAlloc Reference
+      call @fn9 direct
+        Type Reference
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.0: Reference
+        Type Reference
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Reference
+        ClassAlloc Reference
+      call @fn9 direct
+        Type Reference
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $argument.1: Reference
+        Type Reference
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Reference
+        ClassAlloc Reference
+      call @fn9 direct
+        Type Reference
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val $argument.2: Reference
+        Type Reference
+        Local $new.3
+      val $parameter.first: Reference
+        Type Reference
+        Local $argument.0
+      val $parameter.second: Reference
+        Type Reference
+        Local $argument.1
+      val $parameter.third: Reference
+        Type Reference
+        Local $argument.2
+      call $argument.0: Large = @fn16 direct
+        Type Reference
+        Local $parameter.first
+        Type Reference
+        Local $parameter.second
+        Type Reference
+        Local $parameter.third
+      val $parameter.value: Large
+        Type Large
+        Local $argument.0
+      assign $new.4
+        Type Derived<Large>
+        ClassAlloc Derived<Large>
+      call @fn10 direct
+        Type Derived<Large>
+        Local $new.4
+        Type Large
+        Local $parameter.value
+      val holder: Derived<Large>
+        Type Derived<Large>
+        Local $new.4
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      assign $new.5
+        Type Derived<Unit>
+        ClassAlloc Derived<Unit>
+      call @fn11 direct
+        Type Derived<Unit>
+        Local $new.5
+        Type Unit
+        Local $parameter.value
+      val $receiver: Derived<Unit>
+        Type Derived<Unit>
+        Local $new.5
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $parameter.next: Unit
+        Type Unit
+        Local $argument.0
+      call @fn7 direct
+        Type Derived<Unit>
+        Local $receiver
+        Type Unit
+        Local $parameter.next
+      val token: Unit
+        Type Unit
+        UnitLiteral
+      val $receiver: Derived<Large>
+        Type Derived<Large>
+        Local holder
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type Reference
+        ClassAlloc Reference
+      call @fn9 direct
+        Type Reference
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      val $argument.0: Reference
+        Type Reference
+        Local $new.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.7
+        Type Reference
+        ClassAlloc Reference
+      call @fn9 direct
+        Type Reference
+        Local $new.7
+        Type Int
+        Local $parameter.value
+      val $argument.1: Reference
+        Type Reference
+        Local $new.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.8
+        Type Reference
+        ClassAlloc Reference
+      call @fn9 direct
+        Type Reference
+        Local $new.8
+        Type Int
+        Local $parameter.value
+      val $argument.2: Reference
+        Type Reference
+        Local $new.8
+      val $parameter.first: Reference
+        Type Reference
+        Local $argument.0
+      val $parameter.second: Reference
+        Type Reference
+        Local $argument.1
+      val $parameter.third: Reference
+        Type Reference
+        Local $argument.2
+      call $argument.0: Large = @fn16 direct
+        Type Reference
+        Local $parameter.first
+        Type Reference
+        Local $parameter.second
+        Type Reference
+        Local $parameter.third
+      val $parameter.next: Large
+        Type Large
+        Local $argument.0
+      call value: Large = @fn8 direct
+        Type Derived<Large>
+        Local $receiver
+        Type Large
+        Local $parameter.next
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.9
+        Type Reference
+        ClassAlloc Reference
+      call @fn9 direct
+        Type Reference
+        Local $new.9
+        Type Int
+        Local $parameter.value
+      val allocated: Reference
+        Type Reference
+        Local $new.9
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 0
+            Type Large
+            Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 1
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 2
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          Local allocated
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun secret @fn1(this: ProtectedBox<Large>) -> Large
+    bb0 entry
+      return
+        Type Large
+        FieldAccess 0
+          Type ProtectedBox<Large>
+          Local this
+  fun state @fn2(this: ProtectedBox<Large>) -> Large
+    bb0 entry
+      return
+        Type Large
+        FieldAccess 1
+          Type ProtectedBox<Large>
+          Local this
+  fun state @fn3(this: ProtectedBox<Large>, next: Large) -> Unit
+    bb0 entry
+      field_set 1
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local next
+      return
+  fun secret @fn4(this: ProtectedBox<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type ProtectedBox<Unit>
+        Local this
+      return
+  fun state @fn5(this: ProtectedBox<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 1
+        Type ProtectedBox<Unit>
+        Local this
+      return
+  fun state @fn6(this: ProtectedBox<Unit>, next: Unit) -> Unit
+    bb0 entry
+      field_set 1
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local next
+      return
+  fun Derived.replace @fn7(this: Derived<Unit>, next: Unit) -> Unit
+    bb0 entry
+      val $place.0: Derived<Unit>
+        Type Derived<Unit>
+        Local this
+      call @fn6 virtual[2]
+        Type ProtectedBox<Unit>
+        Retype ProtectedBox<Unit>
+          Type Derived<Unit>
+          Local $place.0
+        Type Unit
+        Local next
+      val $dependency.receiver: ProtectedBox<Unit>
+        Type ProtectedBox<Unit>
+        Retype ProtectedBox<Unit>
+          Type Derived<Unit>
+          Local this
+      call @fn4 virtual[0]
+        Type ProtectedBox<Unit>
+        Local $dependency.receiver
+      return
+  fun Derived.replace @fn8(this: Derived<Large>, next: Large) -> Large
+    bb0 entry
+      val $place.0: Derived<Large>
+        Type Derived<Large>
+        Local this
+      call @fn3 virtual[2]
+        Type ProtectedBox<Large>
+        Retype ProtectedBox<Large>
+          Type Derived<Large>
+          Local $place.0
+        Type Large
+        Local next
+      val $dependency.receiver: ProtectedBox<Large>
+        Type ProtectedBox<Large>
+        Retype ProtectedBox<Large>
+          Type Derived<Large>
+          Local this
+      call $call.1: Large = @fn1 virtual[0]
+        Type ProtectedBox<Large>
+        Local $dependency.receiver
+      return
+        Type Large
+        Local $call.1
+  fun init.Reference.$c0 @fn9(this: Reference, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Reference
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Derived.$c1 @fn10(this: Derived<Large>, value: Large) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Large
+        Type Large
+        Local value
+      val $dependency.parameter.value: Large
+        Type Large
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type ProtectedMiddle<Large>
+        Retype ProtectedMiddle<Large>
+          Type Derived<Large>
+          Local this
+        Type Large
+        Local $dependency.parameter.value
+      return
+  fun init.Derived.$c1 @fn11(this: Derived<Unit>, value: Unit) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type ProtectedMiddle<Unit>
+        Retype ProtectedMiddle<Unit>
+          Type Derived<Unit>
+          Local this
+        Type Unit
+        Local $dependency.parameter.value
+      return
+  fun init.ProtectedMiddle.$c0 @fn12(this: ProtectedMiddle<Large>, value: Large) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Large
+        Type Large
+        Local value
+      val $dependency.constructor.local.1: Large
+        Type Large
+        Local $dependency.constructor.local.0
+      call @fn14 direct
+        Type ProtectedBox<Large>
+        Retype ProtectedBox<Large>
+          Type ProtectedMiddle<Large>
+          Local this
+        Type Large
+        Local $dependency.constructor.local.1
+      return
+  fun init.ProtectedMiddle.$c0 @fn13(this: ProtectedMiddle<Unit>, value: Unit) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Unit
+        Type Unit
+        Local value
+      val $dependency.constructor.local.1: Unit
+        Type Unit
+        Local $dependency.constructor.local.0
+      call @fn15 direct
+        Type ProtectedBox<Unit>
+        Retype ProtectedBox<Unit>
+          Type ProtectedMiddle<Unit>
+          Local this
+        Type Unit
+        Local $dependency.constructor.local.1
+      return
+  fun init.ProtectedBox.$c1 @fn14(this: ProtectedBox<Large>, stored: Large) -> Unit
+    bb0 entry
+      field_set 0
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local stored
+      field_set 1
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local stored
+      field_set 2
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local stored
+      return
+  fun init.ProtectedBox.$c1 @fn15(this: ProtectedBox<Unit>, stored: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local stored
+      field_set 1
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local stored
+      field_set 2
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local stored
+      return
+  fun ctor.Large.$c0 @fn16(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
+    bb0 entry
+      return
+        Type Large
+        StructInit Large
+          Type Reference
+          Local first
+          Type Reference
+          Local second
+          Type Reference
+          Local third
+  coroutine_step cs0 CoroutineStep<Large> result=Large
+  coroutine_step cs1 CoroutineStep<Reference> result=Reference
+  coroutine_slot cl0 CoroutineSlot<Large> value=Large
+  coroutine_slot cl1 CoroutineSlot<Reference> value=Reference
+  instance mi0 function=@fn1 <- secret
+  instance mi1 function=@fn2 <- state
+  instance mi2 function=@fn3 <- state
+  instance mi3 function=@fn4 <- secret
+  instance mi4 function=@fn5 <- state
+  instance mi5 function=@fn6 <- state
+  instance mi6 function=@fn7 <- Derived.replace
+  instance mi7 function=@fn8 <- Derived.replace
+  output library

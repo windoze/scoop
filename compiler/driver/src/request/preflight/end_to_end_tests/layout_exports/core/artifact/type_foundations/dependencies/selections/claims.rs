@@ -115,7 +115,6 @@ fn signature(checked: CheckedSharedTypeFoundationV1<'_>, core: CheckedSharedType
         slot.declaration_owner(),
         slot.declaration(),
         changed(slot.signature()),
-        slot.domain().clone(),
         Implementation::Concrete(target),
         slot.declaration_access().clone(),
     )

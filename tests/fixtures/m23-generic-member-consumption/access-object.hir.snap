@@ -1,0 +1,24 @@
+Module
+  object Saved : ProtectedBox<Int> <object0 type0 value0 root0 init0>
+  fun $init$body$0(): Unit
+    assign singleton-root#0
+      ClassInit Saved : Saved
+  fun $init$ensure$0(): Unit
+  fun result(): Int
+    val local0
+      SingletonValue Saved : Saved
+    return
+      MethodCall Saved.read : Int
+        Local $receiver : Saved
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedConstructorInit ProtectedChild : ProtectedChild<T0>
+        Local $dependency.parameter.value : T0
+    return
+      ImportedGenericCall read<T0> : T0
+        Local $dependency.receiver : ProtectedChild<T0>
+  output library

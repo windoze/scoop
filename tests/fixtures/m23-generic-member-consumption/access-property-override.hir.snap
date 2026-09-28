@@ -1,0 +1,73 @@
+Module
+  class Derived<T>(value: T0)
+    field0 property0: T0
+    property0 override var state: T0 getter0=body(Derived.$get$state) setter0=body(Derived.$set$state) <stored field0 init=expression> overrides=[imported(ProtectedBox<T0>,57dcc6a3312828a638a659d014c7f13cd54e967aee9387324c11caedc045d4f7)]
+  fun result(): Int
+    val local0
+      IntegerLiteral 20 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ClassInit Derived<Int> : Derived<Int>
+        Local $parameter.value : Int
+    val local3
+      ReferenceUpcast : ProtectedBox<Int>
+        Local value : Derived<Int>
+    val local4
+      Local base : ProtectedBox<Int>
+    val local5
+      IntegerLiteral 22 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    val local7
+      ImportedGenericCall replaceVirtual<Int> : Int
+        Local $dependency.receiver : ProtectedBox<Int>
+        Local $dependency.parameter.next : Int
+    val local8
+      ImportedGenericCall state<Int> : Int
+        Local base : ProtectedBox<Int>
+    val local9
+      MethodCall Derived.$get$state : Int
+        Local value : Derived<Int>
+    val local10
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 0 : Int
+    val local11
+      Local previous : Int
+    val local12
+      MethodCall Derived.$get$state : Int
+        Local value : Derived<Int>
+    val local13
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      ReferenceUpcast : ProtectedBox<T0>
+        ClassInit Derived<T0> : Derived<T0>
+          Local $parameter.value : T0
+    val local4
+      Local holder : ProtectedBox<T0>
+    val local5
+      Local value : T0
+    val local6
+      Local $dependency.argument.0 : T0
+    ImportedGenericCall replaceVirtual<T0> : T0
+      Local $dependency.receiver : ProtectedBox<T0>
+      Local $dependency.parameter.next : T0
+    return
+      ImportedGenericCall state<T0> : T0
+        Local holder : ProtectedBox<T0>
+  output library

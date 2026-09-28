@@ -15,7 +15,6 @@ mod signatures;
 pub fn validate_shared_mir_source_callables(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
     dependencies: &[hir::CheckedSharedTypeFoundationV1<'_>],
-    inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
     strong: &mir::StrongCallableBridgeSurfaceV1,
     callables: &mir::CanonicalMirCallableBindingsV1,
@@ -76,13 +75,7 @@ pub fn validate_shared_mir_source_callables(
             Component::Implementation,
             binding.implementation() == declaration.implementation(),
         )?;
-        signatures::exact(
-            declaration,
-            metadata,
-            source,
-            inheritance,
-            binding.signature(),
-        )?;
+        signatures::exact(declaration, metadata, source, binding.signature())?;
         let gc = match source.effects().gc_effect() {
             scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
             scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
@@ -102,7 +95,7 @@ pub fn validate_shared_mir_source_callables(
                 declaration,
                 partition: Partition::TypeBridge,
             })?;
-        signatures::binding(declaration, metadata, source, inheritance, binding)?;
+        signatures::binding(declaration, metadata, source, binding)?;
     }
     for binding in ordinary.exports() {
         if !ordinary_expected.contains_key(&binding.declaration()) {

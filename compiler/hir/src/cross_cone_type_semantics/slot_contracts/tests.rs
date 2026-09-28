@@ -77,7 +77,6 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
             support::nominal(owner),
             fixture.declaration(slot),
             root,
-            PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal()),
             InheritanceSlotImplementationV1::Concrete(target),
             fixture.access(owner, DeclaredVisibilityV1::Public)
         ),

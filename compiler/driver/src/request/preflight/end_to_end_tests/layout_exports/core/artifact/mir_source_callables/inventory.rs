@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn check(replay: &Replay<'_, '_>) {
+pub(super) fn check(replay: &Replay<'_>) {
     let records = replay.section.callables().entries();
     let binding = records
         .iter()

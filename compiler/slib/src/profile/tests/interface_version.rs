@@ -13,10 +13,10 @@ fn source_interface_v35_requires_template_evaluation_locations() {
 }
 
 #[test]
-fn type_semantics_v9_requires_actual_application_facts() {
+fn type_semantics_v10_retires_duplicate_slot_domains() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        9,
+        10,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }

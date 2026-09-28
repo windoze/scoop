@@ -72,7 +72,6 @@ pub(super) fn validate_sources(
                 validate_shared_mir_source_callables(
                     *source,
                     dependencies,
-                    graph,
                     parts.mir_ordinary,
                     parts.mir_core.strong_callable_bridges(),
                     mir.callables(),

@@ -55,12 +55,10 @@ impl Lowerer {
             }
             hir::DeclaredVisibilityV1::Private => hir::AccessDomain::empty(),
             hir::DeclaredVisibilityV1::Protected => match parent {
-                Some(hir::SourceNominalId::Concrete(owner)) => {
-                    hir::AccessDomain::from_constraints([
-                        hir::AccessConstraint::ImportedSubclassesOf(owner),
-                    ])
-                }
-                _ => hir::AccessDomain::empty(),
+                Some(owner) => hir::AccessDomain::from_constraints([
+                    hir::AccessConstraint::ImportedSubclassesOf(owner),
+                ]),
+                None => hir::AccessDomain::empty(),
             },
         }
     }

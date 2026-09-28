@@ -1,11 +1,7 @@
-use scoop_identity::{
-    ExactTypeKey, GeneratedNominalKey, PersistentExactTypeId, PersistentTypeId,
-    SourceDeclarationKind,
-};
+use scoop_identity::{ExactTypeKey, GeneratedNominalKey, PersistentExactTypeId, PersistentTypeId};
 
 use super::{
-    CheckedNominalInheritanceGraphV1, InheritanceGraphError, InheritanceQueryError,
-    NominalInheritanceSemanticAuthority,
+    CheckedNominalInheritanceGraphV1, InheritanceGraphError, NominalInheritanceSemanticAuthority,
 };
 use crate::{NominalRepresentationShapeV1, SourceNominalId};
 
@@ -78,47 +74,5 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             },
         );
         Ok(())
-    }
-
-    pub(in crate::cross_cone_type_semantics) fn access_class_exact(
-        &self,
-        source: PersistentExactTypeId,
-    ) -> Result<PersistentExactTypeId, InheritanceQueryError> {
-        if let Some(relation) = self.object_backings.get(&source) {
-            return Ok(relation.backing_class);
-        }
-        self.require_class(source)?;
-        Ok(source)
-    }
-
-    pub(in crate::cross_cone_type_semantics) fn receiver_is_access_subtype(
-        &self,
-        receiver: PersistentExactTypeId,
-        access_subject: PersistentExactTypeId,
-    ) -> Result<bool, InheritanceQueryError> {
-        if self.object_backings.contains_key(&access_subject) {
-            // A source object is final. Its physical backing-class id is not a
-            // source static receiver type and cannot be substituted here.
-
-            self.nodes
-                .get(&receiver)
-                .ok_or(InheritanceQueryError::UnknownExact(receiver))?;
-            return Ok(receiver == access_subject);
-        }
-        self.is_subclass(receiver, access_subject)
-    }
-
-    pub(in crate::cross_cone_type_semantics) fn is_class_access_scope(
-        &self,
-        source: SourceNominalId,
-    ) -> Result<bool, InheritanceQueryError> {
-        let declaration = self
-            .sources
-            .get(&source)
-            .ok_or(InheritanceQueryError::UnknownSource(source))?;
-        Ok(matches!(
-            declaration.key.declaration_kind(),
-            SourceDeclarationKind::Class | SourceDeclarationKind::Object
-        ))
     }
 }

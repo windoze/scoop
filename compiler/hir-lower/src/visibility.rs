@@ -477,28 +477,7 @@ impl Lowerer {
             (
                 hir::AccessConstraint::ImportedSubclassesOf(derived),
                 hir::AccessConstraint::ImportedSubclassesOf(base),
-            ) => {
-                let mut current = Some(*derived);
-                while let Some(class) = current {
-                    if class == *base {
-                        return true;
-                    }
-                    current = self
-                        .types
-                        .iter()
-                        .find_map(|(_, ty)| match ty {
-                            hir::Type::ImportedClass(class_type)
-                                if class_type.declaration.owner()
-                                    == hir::SourceNominalId::Concrete(class) =>
-                            {
-                                class_type.base_class
-                            }
-                            _ => None,
-                        })
-                        .and_then(|base| self.imported_nominal_declaration(base));
-                }
-                false
-            }
+            ) => self.imported_class_is_same_or_subclass_of(*derived, *base),
             _ => false,
         }
     }

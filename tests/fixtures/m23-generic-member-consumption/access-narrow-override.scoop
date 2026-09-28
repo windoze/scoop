@@ -1,0 +1,5 @@
+import templates.members.*
+
+public class Derived<T> public constructor(value: T): ProtectedBox<T>(value) {
+    override fun secret(): T = this.stored
+}
