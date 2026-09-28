@@ -21,6 +21,7 @@ pub(crate) fn build(
         &lowerer.singleton_published_roots,
         &lowerer.properties,
         &lowerer.delegate_storages,
+        &lowerer.generic_delegate_templates,
         nominal_identities,
         property_identities,
     )

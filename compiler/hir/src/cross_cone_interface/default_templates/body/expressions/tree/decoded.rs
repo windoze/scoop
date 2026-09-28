@@ -73,6 +73,7 @@ enum DecodedDefaultExpressionKindV1 {
     Local(u32),
     Capture(u32),
     GlobalRead(DecodedPersistentId<PersistentPropertyId>),
+    GenericDelegateStorageRead(crate::DecodedDefaultGenericDelegateReferenceV1),
     SingletonValue(DecodedPersistentId<PersistentObjectValueId>),
     Lambda(DecodedDefaultLambdaV1),
     AnonymousFunction(DecodedDefaultAnonymousFunctionV1),
@@ -237,6 +238,7 @@ pub trait DefaultExpressionReferenceResolver<E>:
     + DefaultConstructorReferenceResolver<E>
     + DefaultFieldReferenceResolver<E>
     + PersistentIdResolver<PersistentPropertyId, Error = E>
+    + PersistentIdResolver<scoop_identity::PersistentExtensionPropertyId, Error = E>
     + PersistentIdResolver<PersistentObjectValueId, Error = E>
     + PersistentIdResolver<PersistentCallbackRegistrationId, Error = E>
     + PersistentIdResolver<ConeIdentity, Error = E>
@@ -249,6 +251,7 @@ impl<R, E> DefaultExpressionReferenceResolver<E> for R where
         + DefaultConstructorReferenceResolver<E>
         + DefaultFieldReferenceResolver<E>
         + PersistentIdResolver<PersistentPropertyId, Error = E>
+        + PersistentIdResolver<scoop_identity::PersistentExtensionPropertyId, Error = E>
         + PersistentIdResolver<PersistentObjectValueId, Error = E>
         + PersistentIdResolver<PersistentCallbackRegistrationId, Error = E>
         + PersistentIdResolver<ConeIdentity, Error = E>

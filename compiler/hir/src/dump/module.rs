@@ -565,6 +565,15 @@ fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut Strin
             }
         },
         PropertyRepresentation::AccessorOnly => "accessor-only".to_string(),
+        PropertyRepresentation::GenericDelegated { template } => {
+            let delegate = &module.generic_delegate_templates[*template];
+            format!(
+                "generic-delegated template{} type={} init{}",
+                template.into_raw(),
+                type_name(module, delegate.ty),
+                delegate.initialization.into_raw()
+            )
+        }
         PropertyRepresentation::Delegated { storage } => {
             let delegate = &module.delegate_storages[*storage];
             let location = match delegate.location {

@@ -30,6 +30,11 @@ impl BodyProjection<'_, '_> {
         kind: &StatementKind,
     ) -> Result<DefaultStatementKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
+            StatementKind::GenericDelegateEnsure(reference) => {
+                DefaultStatementKindV1::GenericDelegateEnsure(
+                    self.generic_delegate_reference(reference)?,
+                )
+            }
             StatementKind::Expr(expression) => {
                 DefaultStatementKindV1::Expr(Box::new(self.expression(expression)?))
             }
@@ -110,6 +115,11 @@ impl BodyProjection<'_, '_> {
         target: &crate::AssignTarget,
     ) -> Result<DefaultAssignTargetV1, super::super::DefaultBodyProjectionError> {
         Ok(match target {
+            crate::AssignTarget::GenericDelegateStorage(reference) => {
+                DefaultAssignTargetV1::GenericDelegateStorage(
+                    self.generic_delegate_reference(reference)?,
+                )
+            }
             crate::AssignTarget::Local(local) => DefaultAssignTargetV1::Local {
                 local: self.local(*local)?,
             },

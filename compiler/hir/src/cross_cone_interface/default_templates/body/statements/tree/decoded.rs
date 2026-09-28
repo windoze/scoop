@@ -30,6 +30,7 @@ pub struct DecodedDefaultStatementV1 {
 enum DecodedDefaultStatementKindV1 {
     Expr(Box<DecodedDefaultExpressionV1>),
     InitializationEnsure(DecodedPersistentId<PersistentInitializationUnitId>),
+    GenericDelegateEnsure(crate::DecodedDefaultGenericDelegateReferenceV1),
     LocalFunction(DecodedDefaultLocalFunctionV1),
     Return(DecodedOptionalDefaultExpressionV1),
     ValDecl {
@@ -84,6 +85,13 @@ impl DecodedDefaultStatementV1 {
                     function
                         .resolve(resolver, locals)
                         .map_err(DefaultStatementResolutionError::LocalFunction)?,
+                )
+            }
+            DecodedDefaultStatementKindV1::GenericDelegateEnsure(reference) => {
+                DefaultStatementKindV1::GenericDelegateEnsure(
+                    reference
+                        .resolve(resolver)
+                        .map_err(DefaultStatementResolutionError::InitializationUnit)?,
                 )
             }
             DecodedDefaultStatementKindV1::Return(value) => DefaultStatementKindV1::Return(
@@ -197,6 +205,7 @@ impl WireEncode for DecodedDefaultStatementKindV1 {
         match self {
             Self::Expr(value) => encode_one(encoder, 1, value.as_ref()),
             Self::InitializationEnsure(unit) => encode_one(encoder, 2, unit),
+            Self::GenericDelegateEnsure(reference) => encode_one(encoder, 15, reference),
             Self::LocalFunction(function) => encode_one(encoder, 3, function),
             Self::Return(value) => encode_one(encoder, 4, value),
             Self::ValDecl { pattern, init } => encode_two(encoder, 5, pattern, init.as_ref()),
@@ -243,6 +252,12 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
                 decoder
                     .field(1, DecodedDefaultLocalFunctionV1::decode)
                     .map(Self::LocalFunction)
+            }
+            15 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, crate::DecodedDefaultGenericDelegateReferenceV1::decode)
+                    .map(Self::GenericDelegateEnsure)
             }
             4 => {
                 expect_sum_length(decoder, fields, 2)?;

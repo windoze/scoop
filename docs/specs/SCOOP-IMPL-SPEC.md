@@ -1104,6 +1104,8 @@ LLVM 按每个实际对象区分声明与定义：当前对象中的 ODR 定义�
 
 generic delegated extension 的 binder 只从 receiver 静态类型求得。source template 不预分配参数自由 global；实际 application 使用既有 `InitializationUnitKey::GenericDelegatedExtensionApplication`，创建完整的 `LazyAccess` concrete unit。`by` 与 `provideDelegate` 不接收某次访问的 receiver 值；get/set 才接收该值。普通赋值先求值 receiver 和 RHS，再进入 setter 的 ensure；复合赋值先通过 getter ensure，再求值 RHS，遵守既有调用求值规则。初始化成功发布 effective delegate，失败保存在同一 application 的 failure root；重入、并发等待与 GC 沿用现有 coordinator，不增加 runtime dictionary 或新的状态机。
 
+Export HIR 的 generic delegate template 与具体存储使用不同 typed id。模板中的 ensure、存储读写带有完整符号化 receiver 实参，LocalConcrete 按 property 与实际类型组复用 `GenericDelegateStorageSpecializationId`，该实体关联完整 storage 与 unit，随后读写进入普通 global 操作。声明级 initializer/ensure 只提供各自 generated template identity；实际函数根由 initialization application context 决定，模板不能作为参数自由 startup 根物化。
+
 共有 production manifest 先沿原生产与读取入口升至 `single-cone-production/2`，在原十字段后增加必需 field 11 的物理 ODR member 目录；field 5 明确为 Strong registration 子集，field 4 仍覆盖全部注册。目录从已完成的 member 摘要构建，与已有对象索引的全部 ODR primary definition 精确匹配；不能遗漏缺少摘要的实际定义，也不为普通外部引用或纯语义 member 建物理条目。group/member 按 ID bytes 严格排序且无重复，group 不得为空，目录整体可为空。member 保存 role 和32-byte ABI/definition，具体 wire 见阶段设计第 10 节。Code 的 manifest 投影保留 field 1～6 并增加同义 field 11，不包含自身 CodeFingerprint。reader 比较已解析目录与本次读取已经重建的 group/member/role/ABI/definition，不重放对象解析或摘要计算。所有当前 production profile 的 inventory、fingerprint 与缓存随 `/2` 迁移；Strong profile 仍在原语义边界拒绝 ODR，其目录为空。
 
 生产切到 `org.scoop-lang.slib-profile/cross-cone-generic/1`，以共有源码接口、完整类型/ABI、Strong/ODR production 和逐 member ODR 目录组成一个正式路径，替换原完整 layout-strong producer/reader。共有 HIR/MIR 查询和产物装配直接借用 canonical foundation；reader 共享已验证的完整数据，`OdrFree` 只用于历史 Strong 格式边界，不包围泛型输出或依赖。普通参数自由桥从同一 foundation 选择相应 Strong 子集。

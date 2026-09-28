@@ -9,6 +9,7 @@ use crate::{
 
 mod bindings;
 mod expressions;
+mod generic_delegate;
 mod initialization;
 mod nested;
 mod patterns;

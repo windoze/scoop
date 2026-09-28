@@ -319,6 +319,7 @@ fn storage_role(
             Ok(ClassStorageRole::Delegate)
         }
         PropertyRepresentation::AccessorOnly
+        | PropertyRepresentation::GenericDelegated { .. }
         | PropertyRepresentation::Const { .. }
         | PropertyRepresentation::NativeStorage { .. } => {
             Err(HirFieldIdentityError::PropertyStorageMismatch {

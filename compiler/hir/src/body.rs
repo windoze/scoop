@@ -41,6 +41,7 @@ pub enum StatementKind {
     /// its storage. LocalConcrete's unit declaration carries the exact cycle
     /// throw target selected for the current core-authority branch.
     InitializationEnsure(InitializationUnitId),
+    GenericDelegateEnsure(GenericDelegateReference),
     /// Compile-time declaration marker. The lifted body lives in
     /// `Module::local_functions`; executing this statement has no effect.
     LocalFunction(LocalFunctionId),
@@ -104,6 +105,7 @@ pub struct CatchClause {
 pub enum AssignTarget {
     Local(LocalId),
     Global(GlobalId),
+    GenericDelegateStorage(GenericDelegateReference),
     /// Publish a fully constructed singleton into its moving-GC-aware root.
     SingletonPublishedRoot(SingletonPublishedRootId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
@@ -282,6 +284,7 @@ pub enum ExprKind {
     },
     Local(LocalId),
     GlobalRead(GlobalId),
+    GenericDelegateStorageRead(GenericDelegateReference),
     /// Read the unique value after passing its exactly-once gate.
     SingletonValue(SingletonValueId),
     /// Read the defining Cone's singleton through its actual object declaration.

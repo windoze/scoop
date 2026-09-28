@@ -1054,17 +1054,26 @@ impl Lowerer {
     }
 
     fn prepend_accessor_initialization_ensure(
-        &self,
+        &mut self,
         source: &PropertyAccessorSource,
         body: &mut hir::Body,
     ) {
         let Some(&unit) = self.runtime_accessor_units.get(&source.function) else {
             return;
         };
+        let kind = match self.initialization_units[unit].kind {
+            hir::InitializationUnitKind::GenericDelegatedExtension { template, .. } => {
+                hir::StatementKind::GenericDelegateEnsure(self.generic_delegate_reference(template))
+            }
+            hir::InitializationUnitKind::EagerTopLevel { .. }
+            | hir::InitializationUnitKind::LazySingleton { .. } => {
+                hir::StatementKind::InitializationEnsure(unit)
+            }
+        };
         body.statements.insert(
             0,
             hir::Statement {
-                kind: hir::StatementKind::InitializationEnsure(unit),
+                kind,
                 span: source.declaration.span,
             },
         );

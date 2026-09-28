@@ -82,6 +82,7 @@ pub enum PropertyRepresentation {
     Stored(StoredProperty),
     AccessorOnly,
     Delegated { storage: DelegateStorageId },
+    GenericDelegated { template: GenericDelegateTemplateId },
     Const { value: ConstPropertyValue },
     NativeStorage { storage: GlobalId },
 }
@@ -98,6 +99,21 @@ pub struct DelegateStorage {
     pub property: PropertyId,
     pub ty: TypeId,
     pub location: DelegateStorageLocation,
+}
+
+/// A receiver-parameterized delegate has no source-level physical global.
+#[derive(Debug, Clone)]
+pub struct GenericDelegateTemplate {
+    pub property: PropertyId,
+    pub ty: TypeId,
+    pub initialization: InitializationUnitId,
+}
+
+/// Complete symbolic arguments at one use of a delegate template.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericDelegateReference {
+    pub template: GenericDelegateTemplateId,
+    pub arguments: NonEmptyVec<TypeId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

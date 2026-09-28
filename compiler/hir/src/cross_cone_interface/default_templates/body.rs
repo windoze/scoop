@@ -3,6 +3,10 @@ mod callables;
 mod data_flow;
 mod export_body;
 mod expressions;
+mod generic_delegate;
+pub use generic_delegate::{
+    DecodedDefaultGenericDelegateReferenceV1, DefaultGenericDelegateReferenceV1,
+};
 mod nested;
 mod operators;
 mod patterns;

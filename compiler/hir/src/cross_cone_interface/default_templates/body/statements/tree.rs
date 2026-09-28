@@ -49,6 +49,7 @@ impl DefaultStatementV1 {
 pub enum DefaultStatementKindV1 {
     Expr(Box<DefaultExpressionV1>),
     InitializationEnsure(PersistentInitializationUnitId),
+    GenericDelegateEnsure(crate::DefaultGenericDelegateReferenceV1),
     LocalFunction(DefaultLocalFunctionV1),
     Return(crate::OptionalDefaultExpressionV1),
     ValDecl {
@@ -129,6 +130,7 @@ fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBu
         }
         DefaultStatementKindV1::Expr(_)
         | DefaultStatementKindV1::InitializationEnsure(_)
+        | DefaultStatementKindV1::GenericDelegateEnsure(_)
         | DefaultStatementKindV1::LocalFunction(_)
         | DefaultStatementKindV1::Return(_)
         | DefaultStatementKindV1::ValDecl { .. }

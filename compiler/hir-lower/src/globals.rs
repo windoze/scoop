@@ -39,7 +39,6 @@ struct PendingOrdinary<'a> {
 pub(crate) struct PendingRuntimeInitializer {
     pub(crate) unit: hir::InitializationUnitId,
     pub(crate) function: hir::FunctionId,
-    pub(crate) storage: hir::GlobalId,
     pub(crate) file: usize,
     pub(crate) span: ast::Span,
     pub(crate) kind: PendingRuntimeInitializerKind,
@@ -48,14 +47,24 @@ pub(crate) struct PendingRuntimeInitializer {
 #[derive(Clone)]
 pub(crate) enum PendingRuntimeInitializerKind {
     Stored {
+        storage: hir::GlobalId,
         ty: hir::TypeId,
         expression: ast::Expr,
     },
     Delegated {
         property: hir::PropertyId,
-        delegate_storage: hir::DelegateStorageId,
+        storage: PendingDelegateStorage,
         expression: ast::Expr,
     },
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum PendingDelegateStorage {
+    Global {
+        storage: hir::GlobalId,
+        delegate: hir::DelegateStorageId,
+    },
+    Generic(hir::GenericDelegateTemplateId),
 }
 
 impl Lowerer {
@@ -690,10 +699,10 @@ impl Lowerer {
             .push(PendingRuntimeInitializer {
                 unit,
                 function: initializer,
-                storage: global,
                 file: declaration.file,
                 span: declaration.declaration.span,
                 kind: PendingRuntimeInitializerKind::Stored {
+                    storage: global,
                     ty: declaration.ty,
                     expression,
                 },
@@ -751,7 +760,7 @@ impl Lowerer {
             let outer_definition_root = self
                 .definition_root
                 .replace(hir::LexicalDefinitionRoot::Function(pending.function));
-            self.type_params_in_scope.clear();
+            self.type_params_in_scope = self.signatures[&pending.function].type_params.clone();
             self.current_return_ty = self.unit;
             self.current_fn_name = self.functions[pending.function].name.clone();
             self.push_suspension_context(SuspensionContext::Forbidden(
@@ -766,8 +775,21 @@ impl Lowerer {
 
             let mut statements = Vec::new();
             let mut sink = Vec::new();
+            let target = match &pending.kind {
+                PendingRuntimeInitializerKind::Stored { storage, .. }
+                | PendingRuntimeInitializerKind::Delegated {
+                    storage: PendingDelegateStorage::Global { storage, .. },
+                    ..
+                } => hir::AssignTarget::Global(*storage),
+                PendingRuntimeInitializerKind::Delegated {
+                    storage: PendingDelegateStorage::Generic(template),
+                    ..
+                } => hir::AssignTarget::GenericDelegateStorage(
+                    self.generic_delegate_reference(*template),
+                ),
+            };
             let value = match &pending.kind {
-                PendingRuntimeInitializerKind::Stored { ty, expression } => {
+                PendingRuntimeInitializerKind::Stored { ty, expression, .. } => {
                     self.lower_expr(expression, &mut sink, Some(*ty))
                         .and_then(|value| {
                             if self.is_subtype(value.ty, *ty) {
@@ -787,7 +809,7 @@ impl Lowerer {
                 }
                 PendingRuntimeInitializerKind::Delegated {
                     property,
-                    delegate_storage,
+                    storage,
                     expression,
                 } => self
                     .lower_expr(expression, &mut sink, None)
@@ -806,21 +828,23 @@ impl Lowerer {
                         }
                     })
                     .inspect(|effective| {
-                        self.globals[pending.storage].ty = effective.ty;
-                        self.delegate_storages[*delegate_storage].ty = effective.ty;
-                        debug_assert_eq!(
-                            self.delegate_storages[*delegate_storage].property,
-                            *property
-                        );
+                        match *storage {
+                            PendingDelegateStorage::Global { storage, delegate } => {
+                                self.globals[storage].ty = effective.ty;
+                                self.delegate_storages[delegate].ty = effective.ty;
+                                debug_assert_eq!(self.delegate_storages[delegate].property, *property);
+                            }
+                            PendingDelegateStorage::Generic(template) => {
+                                self.generic_delegate_templates[template].ty = effective.ty;
+                                debug_assert_eq!(self.generic_delegate_templates[template].property, *property);
+                            }
+                        }
                     }),
             };
             if let Some(value) = value {
                 statements.extend(sink);
                 statements.push(hir::Statement {
-                    kind: hir::StatementKind::Assign {
-                        target: hir::AssignTarget::Global(pending.storage),
-                        value,
-                    },
+                    kind: hir::StatementKind::Assign { target, value },
                     span: pending.span,
                 });
             }
@@ -1106,17 +1130,7 @@ impl Lowerer {
             return;
         }
         match &declaration.body {
-            ast::PropertyBodySyntax::Computed(_) => {}
-            ast::PropertyBodySyntax::Delegated { by_span, .. }
-                if !declaration.type_params.is_empty() =>
-            {
-                self.error(
-                    *by_span,
-                    "generic extension properties cannot be delegated".to_string(),
-                );
-                return;
-            }
-            ast::PropertyBodySyntax::Delegated { .. } => {}
+            ast::PropertyBodySyntax::Computed(_) | ast::PropertyBodySyntax::Delegated { .. } => {}
             _ => {
                 self.error(
                     declaration.span,
@@ -1174,13 +1188,23 @@ impl Lowerer {
         assert_eq!(extension, expected_extension);
         let (property, capability) =
             if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
-                self.allocate_runtime_extension_delegate(
-                    declaration,
-                    file_index,
-                    access,
-                    extension,
-                    property_ty,
-                )
+                if self.extension_properties[extension].type_params.is_empty() {
+                    self.allocate_runtime_extension_delegate(
+                        declaration,
+                        file_index,
+                        access,
+                        extension,
+                        property_ty,
+                    )
+                } else {
+                    self.allocate_generic_extension_delegate(
+                        declaration,
+                        file_index,
+                        access,
+                        extension,
+                        property_ty,
+                    )
+                }
             } else {
                 let Some(capability) = self.allocate_property_accessors(
                     expected_property,

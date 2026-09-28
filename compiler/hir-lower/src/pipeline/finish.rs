@@ -377,6 +377,7 @@ impl Lowerer {
             property_getters: self.property_getters,
             property_setters: self.property_setters,
             delegate_storages: self.delegate_storages,
+            generic_delegate_templates: self.generic_delegate_templates,
             type_aliases: self.type_aliases,
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,

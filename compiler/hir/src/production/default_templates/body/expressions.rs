@@ -39,6 +39,11 @@ impl BodyProjection<'_, '_> {
         origin: crate::DefinitionOrigin,
     ) -> Result<DefaultExpressionKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
+            ExprKind::GenericDelegateStorageRead(reference) => {
+                DefaultExpressionKindV1::GenericDelegateStorageRead(
+                    self.generic_delegate_reference(reference)?,
+                )
+            }
             ExprKind::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
                 value: value.clone(),
                 owner: match owner {

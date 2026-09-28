@@ -1,8 +1,13 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use super::{PendingOrdinary, PendingRuntimeInitializer, PendingRuntimeInitializerKind};
+use super::{
+    PendingDelegateStorage, PendingOrdinary, PendingRuntimeInitializer,
+    PendingRuntimeInitializerKind,
+};
 use crate::Lowerer;
+
+mod generic;
 
 struct RuntimeDelegateRequest<'a> {
     declaration: &'a ast::PropertyDecl,
@@ -144,12 +149,14 @@ impl Lowerer {
             .push(PendingRuntimeInitializer {
                 unit,
                 function: initializer,
-                storage: global,
                 file,
                 span: declaration.span,
                 kind: PendingRuntimeInitializerKind::Delegated {
                     property,
-                    delegate_storage,
+                    storage: PendingDelegateStorage::Global {
+                        storage: global,
+                        delegate: delegate_storage,
+                    },
                     expression: (**expression).clone(),
                 },
             });

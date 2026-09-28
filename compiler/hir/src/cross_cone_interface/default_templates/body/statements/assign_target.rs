@@ -12,6 +12,7 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultAssignTargetV1 {
+    GenericDelegateStorage(crate::DefaultGenericDelegateReferenceV1),
     Local {
         local: LocalValueSelector,
     },
@@ -37,6 +38,9 @@ impl DefaultAssignTargetV1 {
         I: TemplateLocalIndexResolver,
     {
         match self {
+            Self::GenericDelegateStorage(reference) => Ok(
+                IndexedDefaultAssignTargetV1::GenericDelegateStorage(reference),
+            ),
             Self::Local { local } => resolver
                 .resolve_template_local_index(local)
                 .map(|local_index| IndexedDefaultAssignTargetV1::Local { local_index })
@@ -74,6 +78,7 @@ impl DefaultAssignTargetV1 {
 
 #[derive(Debug)]
 pub enum IndexedDefaultAssignTargetV1<'a> {
+    GenericDelegateStorage(&'a crate::DefaultGenericDelegateReferenceV1),
     Local {
         local_index: u32,
     },
@@ -93,6 +98,7 @@ pub enum IndexedDefaultAssignTargetV1<'a> {
 impl WireEncode for IndexedDefaultAssignTargetV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::GenericDelegateStorage(reference) => encode_one(encoder, 5, *reference),
             Self::Local { local_index } => encode_u32_payload(encoder, 1, *local_index),
             Self::Global { property } => encode_one(encoder, 2, *property),
             Self::Index { array, index } => encode_two(encoder, 3, array, index),
@@ -103,6 +109,7 @@ impl WireEncode for IndexedDefaultAssignTargetV1<'_> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedDefaultAssignTargetV1 {
+    GenericDelegateStorage(crate::DecodedDefaultGenericDelegateReferenceV1),
     Local {
         local_index: u32,
     },
@@ -130,6 +137,10 @@ impl DecodedDefaultAssignTargetV1 {
         L: TemplateLocalSelectorResolver,
     {
         match self {
+            Self::GenericDelegateStorage(reference) => reference
+                .resolve(resolver)
+                .map(DefaultAssignTargetV1::GenericDelegateStorage)
+                .map_err(DefaultAssignTargetResolutionError::Global),
             Self::Local { local_index } => locals
                 .resolve_template_local_selector(local_index)
                 .map(|local| DefaultAssignTargetV1::Local { local })
@@ -173,6 +184,7 @@ impl DecodedDefaultAssignTargetV1 {
 impl WireEncode for DecodedDefaultAssignTargetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::GenericDelegateStorage(reference) => encode_one(encoder, 5, reference),
             Self::Local { local_index } => encode_u32_payload(encoder, 1, *local_index),
             Self::Global { property } => encode_one(encoder, 2, property),
             Self::Index { array, index } => encode_two(encoder, 3, array.as_ref(), index.as_ref()),
@@ -186,6 +198,12 @@ impl WireDecode for DecodedDefaultAssignTargetV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            5 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, crate::DecodedDefaultGenericDelegateReferenceV1::decode)
+                    .map(Self::GenericDelegateStorage)
+            }
             1 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder

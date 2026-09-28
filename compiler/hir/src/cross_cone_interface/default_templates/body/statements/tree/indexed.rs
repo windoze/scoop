@@ -27,6 +27,7 @@ pub struct IndexedDefaultStatementV1<'a> {
 enum IndexedDefaultStatementKindV1<'a> {
     Expr(IndexedDefaultExpressionV1<'a>),
     InitializationEnsure(&'a PersistentInitializationUnitId),
+    GenericDelegateEnsure(&'a crate::DefaultGenericDelegateReferenceV1),
     LocalFunction(IndexedDefaultLocalFunctionV1<'a>),
     Return(IndexedOptionalDefaultExpressionV1<'a>),
     ValDecl {
@@ -75,6 +76,9 @@ impl DefaultStatementV1 {
             }
             DefaultStatementKindV1::InitializationEnsure(unit) => {
                 IndexedDefaultStatementKindV1::InitializationEnsure(unit)
+            }
+            DefaultStatementKindV1::GenericDelegateEnsure(reference) => {
+                IndexedDefaultStatementKindV1::GenericDelegateEnsure(reference)
             }
             DefaultStatementKindV1::LocalFunction(function) => {
                 IndexedDefaultStatementKindV1::LocalFunction(
@@ -173,6 +177,7 @@ impl WireEncode for IndexedDefaultStatementKindV1<'_> {
         match self {
             Self::Expr(value) => encode_one(encoder, 1, value),
             Self::InitializationEnsure(unit) => encode_one(encoder, 2, *unit),
+            Self::GenericDelegateEnsure(reference) => encode_one(encoder, 15, *reference),
             Self::LocalFunction(function) => encode_one(encoder, 3, function),
             Self::Return(value) => encode_one(encoder, 4, value),
             Self::ValDecl { pattern, init } => encode_two(encoder, 5, pattern, init),

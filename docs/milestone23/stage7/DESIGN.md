@@ -376,6 +376,8 @@ callable 与 safepoint registration 的 canonical LIR 直接投影已有实际 p
 
 source HIR 增加独立 generic delegate template，不能把它先降成 `ManagedGlobal`。具体化后使用本地 typed `GenericDelegateStorageSpecializationId` 关联完整 unit 和 storage；持久身份直接复用已有 `InitializationUnitKey::GenericDelegatedExtensionApplication { property, receiver_arguments }` 及 storage role，不建立第二套 persistent specialization key。
 
+模板保存所属 property、effective delegate 的符号化类型和声明级 initialization unit。源级 ensure、storage read/write 使用明确的 template 引用及按 property binder 顺序排列的非空类型实参；这些节点只参与普通的类型替换，不查询运行时接收者。具体化以 property 与完整实参组复用同一 specialization，再把读写变为该 specialization 的普通全局存储操作。initializer 与 ensure 仍由 unit 关联各自的 generated callable，源码模板本身不成为参数自由初始化根；非泛型 unit 的现有根选择保持。
+
 receiver arguments 按 property binder 声明序排列；透明 alias、re-export、getter/setter 使用方式及不同 receiver 对象都不改变 key。不同 arguments 各有独立 delegate 与失败状态。
 
 initializer/ensure 的 `GeneratedCallableKey::Initialization` 仍只引用声明级 extension-property unit 与各自 role；application unit 只进入 `CallableMaterializationContext::InitializationApplication`。其中的 local generic function 使用既有 `EnclosingInitializationApplication`。不能把具体 receiver arguments 写回 source template identity，也不能让 getter、setter、initializer 和 ensure 共用 callable ID。
@@ -435,6 +437,8 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 HIR identity-foundation `/3`、MIR identity-foundation `/1`、现有 compiler protocol、参数自由调用桥及 generated-C verifier 的 bytes 合同不变；它们不是另一条 generic 生产路径。三层 outer schema、callable-body-v1、persistent identity schema 和 `persistent-v1` 保持。LIR foundation `/2` 已用于本阶段，因此 M24 对应 major 顺延为 `/3`，其三层 outer schema 升代仍按 M24 设计。
 
 HIR cross-cone-interface 的新增字段直接保存三张 canonical 表：field 11=按 typed callable owner 排序的 body records，field 12=按 nominal/constructor owner 排序的 common/delegation initialization records，field 13=按 extension property ID 排序的 delegate templates。每条记录引用共有声明、签名和定义位置，内含完整 body/sequence 与该记录实际需要的 predicates；无对应内容时表为空。禁止用空 body 表示 abstract、intrinsic 或缺失实现。
+
+委托存储引用统一为 `{1=PersistentExtensionPropertyId, 2=非空 SignatureTypeKey 实参数组}`，按 property binder 声明顺序编码。共有 expression tag 60 表示该存储的读取，statement tag 15 表示该 application 的 ensure，assignment-target tag 5 表示初始化写入；三者 payload field 1 保存同一引用。旧节点及其字段保持原编码。这些引用与 field 13 一起随 `/36` 生产、读取和消费，不能仅发布引用而遗漏模板。
 
 生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 为共享表达式增加必需的求值位置，`/36` 增加必需 field 13；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression 是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`；同一位置同时是定义和求值位置时也显式保存。expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
 

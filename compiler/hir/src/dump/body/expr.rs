@@ -10,6 +10,10 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
     match &expr.kind {
+        ExprKind::GenericDelegateStorageRead(reference) => out.push_str(&format!(
+            "{pad}DelegateStorageRead {} : {ty}\n",
+            generic_delegate_name(module, reference)
+        )),
         ExprKind::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?} : {ty}\n"));
         }

@@ -58,6 +58,7 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             Self::Local(local_index) => encode_one(encoder, 12, &U32Wire(*local_index)),
             Self::Capture(index) => encode_one(encoder, 59, &U32Wire(*index)),
             Self::GlobalRead(property) => encode_one(encoder, 13, *property),
+            Self::GenericDelegateStorageRead(reference) => encode_one(encoder, 60, *reference),
             Self::SingletonValue(value) => encode_one(encoder, 14, *value),
             Self::Lambda(lambda) => encode_one(encoder, 15, lambda),
             Self::AnonymousFunction(function) => encode_one(encoder, 16, function),

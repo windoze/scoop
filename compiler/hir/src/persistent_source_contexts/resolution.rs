@@ -290,7 +290,8 @@ fn validate_initialization_source(
         HirSourceContextReferenceKind::InitializationUnit,
     )?;
     match inputs.initialization_units[unit].kind {
-        InitializationUnitKind::EagerTopLevel { property, .. } => {
+        InitializationUnitKind::EagerTopLevel { property, .. }
+        | InitializationUnitKind::GenericDelegatedExtension { property, .. } => {
             property_owner(inputs, context, property, source)?;
         }
         InitializationUnitKind::LazySingleton { value, .. } => {

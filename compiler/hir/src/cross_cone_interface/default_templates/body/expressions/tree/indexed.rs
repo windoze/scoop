@@ -62,6 +62,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     Local(u32),
     Capture(u32),
     GlobalRead(&'a scoop_identity::PersistentPropertyId),
+    GenericDelegateStorageRead(&'a crate::DefaultGenericDelegateReferenceV1),
     SingletonValue(&'a scoop_identity::PersistentObjectValueId),
     Lambda(IndexedDefaultLambdaV1<'a>),
     AnonymousFunction(IndexedDefaultAnonymousFunctionV1<'a>),
@@ -293,6 +294,9 @@ impl DefaultExpressionV1 {
             ),
             DefaultExpressionKindV1::GlobalRead(property) => {
                 IndexedDefaultExpressionKindV1::GlobalRead(property)
+            }
+            DefaultExpressionKindV1::GenericDelegateStorageRead(reference) => {
+                IndexedDefaultExpressionKindV1::GenericDelegateStorageRead(reference)
             }
             DefaultExpressionKindV1::SingletonValue(value) => {
                 IndexedDefaultExpressionKindV1::SingletonValue(value)

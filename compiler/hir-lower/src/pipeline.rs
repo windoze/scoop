@@ -295,6 +295,7 @@ impl Lowerer {
             property_getters: Arena::new(),
             property_setters: Arena::new(),
             delegate_storages: Arena::new(),
+            generic_delegate_templates: Arena::new(),
             source_type_aliases: Arena::new(),
             top_level_namespaces: crate::namespace::TopLevelNamespaces::default(),
             type_aliases: Arena::new(),

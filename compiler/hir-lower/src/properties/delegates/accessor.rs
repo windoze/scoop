@@ -23,10 +23,6 @@ impl Lowerer {
         mut body: hir::Body,
     ) -> hir::Body {
         let property = self.properties[source.property].clone();
-        let hir::PropertyRepresentation::Delegated { storage } = property.representation else {
-            return body;
-        };
-        let delegate = self.delegate_storages[storage].clone();
         let parameters = self.functions[source.function].params.clone();
         let this_ref = match property.owner {
             hir::PropertyOwner::TopLevel => self.unit_delegate_argument(property.span),
@@ -54,33 +50,49 @@ impl Lowerer {
                 unreachable!("value types and interfaces cannot own delegated storage")
             }
         };
-        let storage_read = match delegate.location {
-            hir::DelegateStorageLocation::ClassField(field) => {
-                let hir::Type::Class(application) = self.types[this_ref.ty] else {
-                    self.error(
-                        property.span,
-                        "a class delegated-property accessor requires a class receiver".to_string(),
-                    );
-                    return body;
-                };
-                let application_value = self.class_applications[application].clone();
-                let storage_ty = self.instantiate_ty(delegate.ty, &application_value.arguments);
-                hir::Expr {
-                    kind: hir::ExprKind::FieldAccess {
-                        receiver: Box::new(this_ref.clone()),
-                        field: hir::FieldRef::ClassField { application, field },
-                    },
-                    ty: storage_ty,
-                    span: property.span,
-                    origin: self.expression_origin(property.span),
-                }
-            }
-            hir::DelegateStorageLocation::ManagedGlobal(global) => hir::Expr {
-                kind: hir::ExprKind::GlobalRead(global),
-                ty: delegate.ty,
+        let storage_read = match property.representation {
+            hir::PropertyRepresentation::GenericDelegated { template } => hir::Expr {
+                kind: hir::ExprKind::GenericDelegateStorageRead(
+                    self.generic_delegate_reference(template),
+                ),
+                ty: self.generic_delegate_templates[template].ty,
                 span: property.span,
                 origin: self.expression_origin(property.span),
             },
+            hir::PropertyRepresentation::Delegated { storage } => {
+                let delegate = self.delegate_storages[storage].clone();
+                match delegate.location {
+                    hir::DelegateStorageLocation::ClassField(field) => {
+                        let hir::Type::Class(application) = self.types[this_ref.ty] else {
+                            self.error(
+                                property.span,
+                                "a class delegated-property accessor requires a class receiver"
+                                    .to_string(),
+                            );
+                            return body;
+                        };
+                        let application_value = self.class_applications[application].clone();
+                        let storage_ty =
+                            self.instantiate_ty(delegate.ty, &application_value.arguments);
+                        hir::Expr {
+                            kind: hir::ExprKind::FieldAccess {
+                                receiver: Box::new(this_ref.clone()),
+                                field: hir::FieldRef::ClassField { application, field },
+                            },
+                            ty: storage_ty,
+                            span: property.span,
+                            origin: self.expression_origin(property.span),
+                        }
+                    }
+                    hir::DelegateStorageLocation::ManagedGlobal(global) => hir::Expr {
+                        kind: hir::ExprKind::GlobalRead(global),
+                        ty: delegate.ty,
+                        span: property.span,
+                        origin: self.expression_origin(property.span),
+                    },
+                }
+            }
+            _ => unreachable!("generated delegate accessors retain a delegate representation"),
         };
 
         let signature = self.signatures[&source.function].clone();

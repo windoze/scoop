@@ -43,6 +43,7 @@ impl HirInitializationUnitIdentities {
         published_roots: &Arena<SingletonPublishedRoot>,
         properties: &Arena<Property>,
         delegate_storages: &Arena<DelegateStorage>,
+        generic_delegates: &Arena<crate::GenericDelegateTemplate>,
         nominal_identities: &HirNominalIdentities,
         property_identities: &HirPropertyIdentities,
     ) -> Result<Self, HirInitializationUnitIdentityError> {
@@ -63,6 +64,31 @@ impl HirInitializationUnitIdentities {
                 &mut seen_functions,
             )?;
             let key = match unit.kind {
+                InitializationUnitKind::GenericDelegatedExtension { property, template } => {
+                    if unit.schedule != InitializationSchedule::LazyAccess {
+                        return Err(HirInitializationUnitIdentityError::Schedule {
+                            unit: raw_index(unit_id),
+                        });
+                    }
+                    let delegate = &generic_delegates[template];
+                    if delegate.property != property
+                        || delegate.initialization != unit_id
+                        || !matches!(properties[delegate.property].representation,
+                            PropertyRepresentation::GenericDelegated { template: owner } if owner == template)
+                    {
+                        return Err(HirInitializationUnitIdentityError::StorageRelation {
+                            unit: raw_index(unit_id),
+                        });
+                    }
+                    let HirPropertyIdentity::Extension(property) =
+                        &property_identities[delegate.property]
+                    else {
+                        return Err(HirInitializationUnitIdentityError::PropertyKind {
+                            unit: raw_index(unit_id),
+                        });
+                    };
+                    InitializationUnitKey::ExtensionProperty(property.id())
+                }
                 InitializationUnitKind::EagerTopLevel { property, storage } => {
                     if unit.schedule != InitializationSchedule::EagerStartup {
                         return Err(HirInitializationUnitIdentityError::Schedule {

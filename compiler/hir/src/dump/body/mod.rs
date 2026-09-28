@@ -3,6 +3,17 @@ use super::*;
 mod expr;
 use expr::dump_expr;
 
+fn generic_delegate_name(module: &Module, reference: &GenericDelegateReference) -> String {
+    let property = module.generic_delegate_templates[reference.template].property;
+    let arguments = reference
+        .arguments
+        .iter()
+        .map(|ty| type_name(module, *ty))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{}<{arguments}>", module.properties[property].name)
+}
+
 fn initializing_field_name(module: &Module, field: InitializingClassFieldRef) -> &str {
     match field {
         InitializingClassFieldRef::Declared { field, .. } => {
@@ -32,6 +43,10 @@ pub(super) fn dump_statements(
     for statement in statements {
         let pad = "  ".repeat(indent);
         match &statement.kind {
+            StatementKind::GenericDelegateEnsure(reference) => out.push_str(&format!(
+                "{pad}ensure delegate {}\n",
+                generic_delegate_name(module, reference)
+            )),
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
             StatementKind::InitializationEnsure(unit) => out.push_str(&format!(
                 "{pad}ensure init{} {}\n",
@@ -59,6 +74,10 @@ pub(super) fn dump_statements(
             }
             StatementKind::Assign { target, value } => {
                 match target {
+                    AssignTarget::GenericDelegateStorage(reference) => out.push_str(&format!(
+                        "{pad}assign delegate {}\n",
+                        generic_delegate_name(module, reference)
+                    )),
                     AssignTarget::Local(local) => {
                         out.push_str(&format!("{pad}assign {}\n", locals[*local].name))
                     }

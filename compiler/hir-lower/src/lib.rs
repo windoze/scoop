@@ -642,6 +642,7 @@ pub(crate) struct Lowerer {
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
     pub(crate) property_setters: Arena<hir::PropertySetter>,
     pub(crate) delegate_storages: Arena<hir::DelegateStorage>,
+    pub(crate) generic_delegate_templates: Arena<hir::GenericDelegateTemplate>,
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,

@@ -136,6 +136,17 @@ impl DecodedDefaultExpressionKindV1 {
             Self::GlobalRead(property) => {
                 DefaultExpressionKindV1::GlobalRead(resolve_persistent(property, resolver, 13, 1)?)
             }
+            Self::GenericDelegateStorageRead(reference) => {
+                DefaultExpressionKindV1::GenericDelegateStorageRead(
+                    reference.resolve(resolver).map_err(|error| {
+                        DefaultExpressionResolutionError::Persistent {
+                            variant_tag: 60,
+                            field: 1,
+                            error,
+                        }
+                    })?,
+                )
+            }
             Self::SingletonValue(value) => {
                 DefaultExpressionKindV1::SingletonValue(resolve_persistent(value, resolver, 14, 1)?)
             }

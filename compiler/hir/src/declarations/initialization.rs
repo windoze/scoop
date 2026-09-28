@@ -26,6 +26,10 @@ pub enum InitializationSchedule {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {
+    GenericDelegatedExtension {
+        property: PropertyId,
+        template: GenericDelegateTemplateId,
+    },
     EagerTopLevel {
         property: PropertyId,
         storage: GlobalId,

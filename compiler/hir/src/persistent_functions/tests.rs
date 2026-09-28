@@ -141,6 +141,7 @@ impl Fixture {
             &published_roots,
             &properties,
             &delegate_storages,
+            &Arena::new(),
             &nominal_identities,
             &property_identities,
         )

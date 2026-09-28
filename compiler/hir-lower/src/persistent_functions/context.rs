@@ -201,6 +201,12 @@ impl FunctionIdentityBuilder<'_> {
     ) -> Result<CallableContext, PersistentFunctionIdentityError> {
         let declaration = &self.lowerer.initialization_units[unit];
         let mut owners = match declaration.kind {
+            hir::InitializationUnitKind::GenericDelegatedExtension { property, .. } => {
+                let identity = &self.properties[property];
+                let mut owners = identity.declaration().owners().owners().to_vec();
+                owners.push(identity.definition_owner());
+                owners
+            }
             hir::InitializationUnitKind::EagerTopLevel { property, .. } => {
                 let identity = &self.properties[property];
                 let mut owners = identity.declaration().owners().owners().to_vec();
