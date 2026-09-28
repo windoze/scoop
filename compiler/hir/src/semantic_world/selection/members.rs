@@ -163,9 +163,7 @@ impl ImportedDependencySelectionPlan {
                     .name
             }
             CallableCatalogName::Constructor => {
-                let PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner)) =
-                    entry.interface.owner()
-                else {
+                let PublicDeclarationOwnerV1::Nominal(owner) = entry.interface.owner() else {
                     return Err(ImportedDependencyCandidateError::MissingCallableSource(
                         declaration,
                     ));
@@ -173,7 +171,8 @@ impl ImportedDependencySelectionPlan {
                 let nominal = self.catalog.nominals.get(&owner).ok_or(
                     ImportedDependencyCandidateError::MissingCallableSource(declaration),
                 )?;
-                let scoop_identity::DeclarationName::Named(name) = nominal.identity.key().name()
+                let scoop_identity::DeclarationName::Named(name) =
+                    nominal.identity.declaration().name()
                 else {
                     return Err(ImportedDependencyCandidateError::MissingCallableSource(
                         declaration,
@@ -195,14 +194,13 @@ impl ImportedDependencySelectionPlan {
 
     pub fn constructor_candidates(
         &self,
-        owner: scoop_identity::PersistentTypeId,
+        owner: SourceNominalId,
     ) -> Result<Vec<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
         self.catalog
             .callables
             .values()
             .filter(|entry| {
-                entry.interface.owner()
-                    == PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner))
+                entry.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
                     && matches!(entry.name, CallableCatalogName::Constructor)
             })
             .map(|entry| self.callable_declaration(entry.interface.declaration()))

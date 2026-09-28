@@ -26,7 +26,8 @@ impl Lowerer {
             .and_then(|dependencies| dependencies.singleton_owner(value))
             .ok_or(ImportedSignatureTypeError::Structural)?
             .identity
-            .id();
+            .concrete_id()
+            .ok_or(ImportedSignatureTypeError::Structural)?;
         self.imported_signature_type(&SignatureTypeKey::Nominal(owner))
     }
 

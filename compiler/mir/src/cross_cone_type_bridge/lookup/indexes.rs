@@ -72,3 +72,34 @@ borrowed_index!(
     DuplicateSchema,
     owner
 );
+
+impl MirTypeBridgeTypeIndexV1<'_> {
+    /// Reuses exact facts for applications without adding Strong type exports.
+    pub fn with_gc_facts<'a>(
+        &'a self,
+        facts: &'a dyn Fn(PersistentExactTypeId) -> Option<MirGcKindV1>,
+    ) -> impl MirTypeBridgeTypeLookupV1 + Copy + 'a + use<'a> {
+        TypeFactsLookup { types: self, facts }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct TypeFactsLookup<'a> {
+    types: &'a dyn MirTypeBridgeTypeLookupV1,
+    facts: &'a dyn Fn(PersistentExactTypeId) -> Option<MirGcKindV1>,
+}
+
+impl sealed::Sealed for TypeFactsLookup<'_> {}
+impl MirTypeBridgeTypeLookupV1 for TypeFactsLookup<'_> {
+    fn get(&self, exact: PersistentExactTypeId) -> Option<&ParamFreeMirTypeExportV1> {
+        self.types.get(exact)
+    }
+
+    fn record_count(&self) -> usize {
+        self.types.record_count()
+    }
+
+    fn gc_kind(&self, exact: PersistentExactTypeId) -> Option<MirGcKindV1> {
+        self.types.gc_kind(exact).or_else(|| (self.facts)(exact))
+    }
+}

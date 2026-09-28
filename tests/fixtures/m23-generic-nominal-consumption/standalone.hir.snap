@@ -1,0 +1,77 @@
+Module
+  class Number(value: Int)
+    field0 property0: Int
+    property0 val value: Int getter0=storage <stored field0 init=parameter0>
+  fun result(): Int
+    val local0
+      IntegerLiteral 41 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ClassInit Number : Number
+        Local $parameter.value : Int
+    val local3
+      Local $dependency.argument.0 : Number
+    val local4
+      ImportedGenericCall pack<Number> : Parcel<Number>
+        Local $dependency.parameter.value : Number
+    val local5
+      Local $dependency.argument.0 : Parcel<Number>
+    val local6
+      ImportedGenericCall relay<Number> : Parcel<Number>
+        Local $dependency.parameter.value : Parcel<Number>
+    val local7
+      IntegerLiteral 1 : Int
+    val local8
+      Local $argument.0 : Int
+    val local9
+      ClassInit Number : Number
+        Local $parameter.value : Int
+    val local10
+      Local $dependency.argument.0 : Number
+    val local11
+      ImportedGenericCall pack<Number> : Parcel<Number>
+        Local $dependency.parameter.value : Number
+    val local14
+      Local first : Parcel<Number>
+    val local12
+      IntegerLiteral 0 : Int
+    val local13
+      Local $argument.0 : Int
+    val local15
+      ClassInit Number : Number
+        Local $parameter.value : Int
+    val local16
+      Local $dependency.argument.0 : Parcel<Number>
+    val local17
+      Local $dependency.argument.1 : Number
+    val local24
+      FieldAccess class field value : Int
+        ImportedGenericCall unpack<Number> : Number
+          Local $dependency.parameter.value : Parcel<Number>
+          Local $dependency.parameter.fallback : Number
+    val local20
+      Local second : Parcel<Number>
+    val local18
+      IntegerLiteral 0 : Int
+    val local19
+      Local $argument.0 : Int
+    val local21
+      ClassInit Number : Number
+        Local $parameter.value : Int
+    val local22
+      Local $dependency.argument.0 : Parcel<Number>
+    val local23
+      Local $dependency.argument.1 : Number
+    val local25
+      FieldAccess class field value : Int
+        ImportedGenericCall unpack<Number> : Number
+          Local $dependency.parameter.value : Parcel<Number>
+          Local $dependency.parameter.fallback : Number
+    val local26
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  output library

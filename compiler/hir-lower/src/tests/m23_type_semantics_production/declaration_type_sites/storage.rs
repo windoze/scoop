@@ -2,6 +2,60 @@ use super::*;
 use scoop_identity::{ExactTypeKey, SourceDeclarationKey};
 
 #[test]
+fn generic_fields_keep_each_application_and_reject_a_different_owner() {
+    let source = "public enum Parcel<T> { Item(T) }\n\
+                  public fun first(): Parcel<Int> = Parcel.Item(1)\n\
+                  public fun second(): Parcel<Long> = Parcel.Item(2L)\n";
+    with_hir_source(source, |output, _| {
+        let interface = public_interface(output);
+        let mut foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
+        foundation
+            .complete_cross_cone_interface_source_points(
+                output.output().export.module(),
+                &interface,
+            )
+            .unwrap();
+        let local = output.output().local.module();
+        let mut fields = BTreeSet::new();
+        let mut owners = BTreeSet::new();
+        let mut values = BTreeSet::new();
+        for site in interface
+            .external_references()
+            .records()
+            .iter()
+            .flat_map(|reference| reference.type_sites().records())
+        {
+            let Site::EnumVariantFieldStorage {
+                owner,
+                field,
+                exact,
+            } = site
+            else {
+                continue;
+            };
+            fields.insert(*field);
+            owners.insert(*owner);
+            values.insert(*exact);
+            foundation
+                .validate_declaration_type_position(local.cone, site.position(), &[])
+                .unwrap();
+            assert!(
+                foundation
+                    .validate_declaration_type_position(
+                        local.cone,
+                        Position::EnumVariantFieldStorage(*exact, *field),
+                        &[],
+                    )
+                    .is_err()
+            );
+        }
+        assert_eq!(fields.len(), 1);
+        assert_eq!(owners.len(), 2);
+        assert_eq!(values.len(), 2);
+    });
+}
+
+#[test]
 fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
     for name in [
         "storage-standalone",
@@ -39,7 +93,14 @@ fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
                 counts[index] += 1;
                 foundation
                     .validate_declaration_type_position(local.cone, site.position(), &[])
-                    .unwrap();
+                    .unwrap_or_else(|error| match site {
+                        Site::FieldStorage { owner, field, .. } => panic!(
+                            "{name}: {error:?}; owner={:?}; field={:?}",
+                            identities.canonical_key::<_, ExactTypeKey>(*owner),
+                            identities.canonical_key::<_, scoop_identity::FieldIdentityKey>(*field),
+                        ),
+                        _ => panic!("{name}: {error:?}"),
+                    });
                 assert!(
                     foundation
                         .validate_declaration_type_position(

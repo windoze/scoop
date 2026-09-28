@@ -65,11 +65,35 @@ fn type_name(
     type_params: &[hir::TypeParamDecl],
     ty: TypeId,
 ) -> String {
+    let imported_name = |declaration: &hir::ImportedNominalDeclaration, arguments: &[TypeId]| {
+        let name = declaration.name();
+        if arguments.is_empty() {
+            name.to_owned()
+        } else {
+            let arguments = arguments
+                .iter()
+                .map(|argument| {
+                    type_name(
+                        types,
+                        function_types,
+                        structs,
+                        enums,
+                        classes,
+                        interfaces,
+                        applications,
+                        type_params,
+                        *argument,
+                    )
+                })
+                .collect::<Vec<_>>();
+            format!("{name}<{}>", arguments.join(", "))
+        }
+    };
     match &types[ty] {
-        Type::ImportedStruct(structure) => structure.declaration.name().to_owned(),
-        Type::ImportedEnum(structure) => structure.declaration.name().to_owned(),
-        Type::ImportedClass(structure) => structure.declaration.name().to_owned(),
-        Type::ImportedInterface(structure) => structure.declaration.name().to_owned(),
+        Type::ImportedStruct(value) => imported_name(&value.declaration, &value.arguments),
+        Type::ImportedEnum(value) => imported_name(&value.declaration, &value.arguments),
+        Type::ImportedClass(value) => imported_name(&value.declaration, &value.arguments),
+        Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),

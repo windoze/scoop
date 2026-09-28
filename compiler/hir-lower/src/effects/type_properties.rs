@@ -51,8 +51,44 @@ impl Lowerer {
         visiting: &mut HashSet<hir::TypeId>,
     ) -> Option<HashSet<hir::TypeParamId>> {
         match &self.types[ty] {
-            hir::Type::ImportedStruct(structure) => structure.gc_free.then(HashSet::new),
-            hir::Type::ImportedEnum(structure) => structure.gc_free.then(HashSet::new),
+            hir::Type::ImportedStruct(structure) => {
+                if !visiting.insert(ty) {
+                    return None;
+                }
+                let mut requirements = HashSet::new();
+                for field in structure.fields.iter() {
+                    let Some(required) =
+                        self.gc_free_requirements_inner(field.ty, environment, visiting)
+                    else {
+                        visiting.remove(&ty);
+                        return None;
+                    };
+                    requirements.extend(required);
+                }
+                visiting.remove(&ty);
+                Some(requirements)
+            }
+            hir::Type::ImportedEnum(structure) => {
+                if !visiting.insert(ty) {
+                    return None;
+                }
+                let mut requirements = HashSet::new();
+                for field in structure
+                    .variants
+                    .iter()
+                    .flat_map(|variant| &variant.fields)
+                {
+                    let Some(required) =
+                        self.gc_free_requirements_inner(field.ty, environment, visiting)
+                    else {
+                        visiting.remove(&ty);
+                        return None;
+                    };
+                    requirements.extend(required);
+                }
+                visiting.remove(&ty);
+                Some(requirements)
+            }
             hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean

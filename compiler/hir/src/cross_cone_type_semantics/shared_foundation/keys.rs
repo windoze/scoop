@@ -42,7 +42,21 @@ impl<'a> MetadataTypes<'a, '_> {
         self,
         owner: PersistentTypeId,
     ) -> Result<&'a NominalInterfaceRecordV1, Error> {
-        let origin = self.nominal_key(owner)?.origin();
+        self.nominal_declaration(SourceNominalId::Concrete(owner))
+    }
+
+    pub(crate) fn nominal_declaration(
+        self,
+        owner: SourceNominalId,
+    ) -> Result<&'a NominalInterfaceRecordV1, Error> {
+        let origin = match owner {
+            SourceNominalId::Concrete(owner) => self.nominal_key(owner)?.origin(),
+            SourceNominalId::GenericTemplate(owner) => self
+                .current
+                .identities
+                .canonical_key::<_, SourceDeclarationKey>(owner)?
+                .origin(),
+        };
         let public = if origin == self.current.provider {
             self.current.public
         } else {
@@ -51,8 +65,11 @@ impl<'a> MetadataTypes<'a, '_> {
 
         public
             .nominal_interfaces()
-            .declaration(SourceNominalId::Concrete(owner))
-            .ok_or(Error::MissingNominal(owner))
+            .declaration(owner)
+            .ok_or(match owner {
+                SourceNominalId::Concrete(owner) => Error::MissingNominal(owner),
+                SourceNominalId::GenericTemplate(owner) => Error::MissingGenericNominal(owner),
+            })
     }
 
     pub(super) fn dependency(

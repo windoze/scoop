@@ -4,9 +4,15 @@ impl Concretizer<'_> {
     pub(in crate::concretize) fn lower_imported_interface(
         &mut self,
         source: &export::ImportedInterfaceType,
+        substitution: &[concrete::TypeId],
     ) -> concrete::TypeId {
         let declaration = &source.declaration;
-        let identity = declaration.identity.id();
+        let arguments = source
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect::<Vec<_>>();
+        let identity = (declaration.owner(), arguments.clone());
         if let Some(id) = self.imported_interfaces.get(&identity) {
             return self.interface_type[id];
         }
@@ -15,20 +21,23 @@ impl Concretizer<'_> {
                 .expect("concrete interface ids fit in u32")
                 .into(),
         );
-        let family = concrete::InterfaceFamilyId::from_raw(
-            u32::try_from(self.source.interfaces.len() + self.imported_interfaces.len())
-                .expect("concrete interface families fit in u32"),
-        );
+        let next_family = self.source.interfaces.len() + self.imported_interface_families.len();
+        let family = *self
+            .imported_interface_families
+            .entry(declaration.owner())
+            .or_insert_with(|| {
+                concrete::InterfaceFamilyId::from_raw(
+                    u32::try_from(next_family).expect("concrete interface families fit in u32"),
+                )
+            });
         let ty = self.intern_type(concrete::TypeKind::Interface(id), false);
         let allocated = self.interfaces.alloc(concrete::InterfaceDef {
-            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
-                declaration.identity.clone(),
-            )),
+            origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
             canonical_type: ty,
             name: declaration.name().to_owned(),
             owner: None,
             family,
-            type_arguments: Vec::new(),
+            type_arguments: arguments,
             methods: Vec::new(),
             span: scoop_ast::Span::new(0, 0),
         });
@@ -36,7 +45,7 @@ impl Concretizer<'_> {
         self.imported_interfaces.insert(identity, id);
         self.interface_type.insert(id, ty);
         for parent in &source.parents {
-            self.lower_type(*parent, &[]);
+            self.lower_type(*parent, substitution);
         }
         let methods = source
             .methods
@@ -47,7 +56,7 @@ impl Concretizer<'_> {
                     (id, method.slot.id()),
                     concrete::InterfaceMethodSlot::from_raw(index as u32),
                 );
-                self.lower_imported_interface_method(method)
+                self.lower_imported_interface_method(method, substitution)
             })
             .collect();
         self.interfaces[id].methods = methods;
@@ -56,6 +65,7 @@ impl Concretizer<'_> {
     pub(in crate::concretize) fn lower_imported_interface_method(
         &mut self,
         method: &export::ImportedInterfaceMethod,
+        substitution: &[concrete::TypeId],
     ) -> concrete::MethodSig {
         let effects = method.declaration.effects();
         concrete::MethodSig {
@@ -84,7 +94,7 @@ impl Concretizer<'_> {
                 .enumerate()
                 .map(|(index, (name, ty))| concrete::Param {
                     name: name.clone(),
-                    ty: self.lower_type(*ty, &[]),
+                    ty: self.lower_type(*ty, substitution),
                     local: concrete::LocalId::from_raw(
                         u32::try_from(index + 1)
                             .expect("method parameter index fits in u32")
@@ -92,7 +102,7 @@ impl Concretizer<'_> {
                     ),
                 })
                 .collect(),
-            return_ty: self.lower_type(method.return_type, &[]),
+            return_ty: self.lower_type(method.return_type, substitution),
             span: scoop_ast::Span::new(0, 0),
         }
     }

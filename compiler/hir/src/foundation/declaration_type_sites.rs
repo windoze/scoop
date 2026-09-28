@@ -38,9 +38,9 @@ impl CanonicalHirFoundation {
             }
             HirDependencyTypePositionV1::BackingStorage(property)
             | HirDependencyTypePositionV1::DelegateStorage(property) => input.property(property),
-            HirDependencyTypePositionV1::FieldStorage(field) => input.field(field),
-            HirDependencyTypePositionV1::EnumVariantFieldStorage(field) => {
-                input.variant_field(field)
+            HirDependencyTypePositionV1::FieldStorage(owner, field) => input.field(owner, field),
+            HirDependencyTypePositionV1::EnumVariantFieldStorage(owner, field) => {
+                input.variant_field(owner, field)
             }
             HirDependencyTypePositionV1::ConstructorInitializerResult(root) => {
                 input.constructor_initializer(root)
@@ -201,12 +201,17 @@ impl<'a> Input<'a> {
     }
 
     fn origin(&mut self, subject: DefinitionOriginSubject) -> Result<(), Error> {
-        let foundation: &CanonicalHirFoundation = self.foundation;
+        Self::source_origin(self.foundation, subject)
+    }
 
+    fn source_origin(
+        foundation: &CanonicalHirFoundation,
+        subject: DefinitionOriginSubject,
+    ) -> Result<(), Error> {
         let origin = foundation
             .definition_origin(subject)
             .ok_or(Error::MissingOrigin(subject))?;
-        self.foundation
+        foundation
             .validate_definition_origin_location(origin.origin().source().cone(), origin.origin())
             .map_err(|source| Error::Origin(Box::new(source)))
     }

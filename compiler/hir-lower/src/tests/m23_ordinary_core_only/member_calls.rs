@@ -80,17 +80,40 @@ fn imported_core_members_preserve_source_argument_diagnostics() {
             "value.toInt32(1)",
             "dependency function `toInt32` expects 0 argument(s), but 1 were supplied",
         ),
-        (
-            "managed.scoop",
-            "value.div(2)",
-            "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: integer division exception constructor requires a materialized dependency layout; its owner has source-only representation",
-        ),
     ] {
         let source = fixture(name);
         constants::with_input(&source, |input| {
             assert_error(input, &source, expression, message)
         });
     }
+}
+
+#[test]
+fn imported_managed_integer_operation_materializes_generic_exception_storage() {
+    let source = fixture("managed.scoop");
+    constants::with_input(&source, |input| {
+        let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
+            .unwrap_or_else(|errors| panic!("{errors:#?}"));
+        let local = output.output().local.module();
+        assert!(
+            local
+                .classes
+                .iter()
+                .any(|(_, class)| class.name == "ArithmeticException")
+        );
+        let (_, option) = local
+            .enums
+            .iter()
+            .find(|(_, enumeration)| enumeration.name == "Option")
+            .expect("the exception's message storage retains its generic application");
+        assert_eq!(option.type_arguments.len(), 1);
+        assert!(
+            local
+                .exact_type_identities
+                .nominal_specialization(option.canonical_type)
+                .is_some()
+        );
+    });
 }
 
 #[test]

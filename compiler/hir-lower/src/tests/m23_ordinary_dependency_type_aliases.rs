@@ -173,21 +173,23 @@ fn dependency_alias_resolves_the_actual_foreign_struct() {
 }
 
 #[test]
-fn dependency_alias_to_generic_application_reports_the_generic_gate() {
+fn dependency_alias_to_generic_application_preserves_arguments() {
     let provider = dependency_source(vec![
         generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
         public_type_alias("IntBox", ty_generic("Box", vec![ty_named("Int")])),
     ]);
     let consumer = consumer_source("IntBox", "ImportedBox");
 
-    let diagnostics = lower_alias_fixture("generic-alias-provider", provider, consumer)
-        .expect_err("a foreign generic alias needs the M23-7 generic capability");
-
-    assert!(diagnostics.iter().any(|diagnostic| {
-        diagnostic
-            .message
-            .contains("SCOOP_HIR_CROSS_CONE_GENERIC_REQUIRED")
-    }));
+    let output = lower_alias_fixture("generic-alias-provider", provider, consumer)
+        .expect("a foreign alias resolves the complete generic application");
+    assert_eq!(output.facade_target_name.as_deref(), Some("Box<Int>"));
+    assert_eq!(output.selected_aliases, 1);
+    assert_eq!(
+        output.facade_source,
+        Some(scoop_hir::TypeAliasSourceTarget::ImportedAlias(
+            output.provider_alias
+        ))
+    );
 }
 
 fn qualified(parts: &[&str]) -> scoop_ast::QualifiedNameSyntax {

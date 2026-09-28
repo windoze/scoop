@@ -43,12 +43,7 @@ impl Lowerer {
                 None
             }
             hir::ImportedTarget::GenericType(_) => {
-                self.error(
-                    name.span,
-                    ImportedCapabilityRequirement::Generic
-                        .diagnostic(&format!("dependency generic type `{}`", name.text)),
-                );
-                None
+                self.resolve_imported_nominal_type_arguments(binding, name, &[])
             }
             target => {
                 self.error(

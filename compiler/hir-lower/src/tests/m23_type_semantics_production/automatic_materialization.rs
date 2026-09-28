@@ -35,16 +35,37 @@ fn nominal_names(local: &concrete::Module) -> BTreeSet<&str> {
 }
 
 #[test]
-fn automatic_nominal_roots_do_not_materialize_source_only_members_or_constructors() {
+fn automatic_nominal_roots_materialize_closed_storage_and_defer_generic_inheritance() {
     let mut snapshot = String::new();
     for case in ["standalone", "combined", "shape-demand"] {
         with_hir_source(&fixture(case), |output, _| {
             let local = output.output().local.module();
             let names = nominal_names(local);
-            assert!(
-                names.iter().all(|name| name.starts_with("Ready")),
-                "{names:?}"
-            );
+            let expected: &[&str] = match case {
+                "standalone" => &["ReadyValue"],
+                "combined" => &[
+                    "DeferredBox",
+                    "DeferredConstructor",
+                    "ReadyCycleA",
+                    "ReadyCycleB",
+                    "ReadyDirect",
+                    "ReadyEmpty",
+                ],
+                "shape-demand" => &[
+                    "DeferredBase",
+                    "DeferredDerived",
+                    "DeferredEnum",
+                    "DeferredGeneric",
+                    "DeferredGetter",
+                    "DeferredSetter",
+                    "DeferredStorage",
+                    "ReadyDirect",
+                    "ReadyOuter",
+                    "ReadyPrivateConstructor",
+                ],
+                _ => unreachable!(),
+            };
+            assert_eq!(names, expected.iter().copied().collect(), "{case}");
             assert!(local.initialization_units.is_empty());
             let mut rows = names
                 .iter()
@@ -65,8 +86,9 @@ fn automatic_nominal_roots_do_not_materialize_source_only_members_or_constructor
                 ));
             }
             for (_, function) in local.functions.iter() {
-                assert!(!function.name.contains("Deferred"), "{}", function.name);
-                assert_ne!(function.name, "ReadyDirect.take");
+                if case == "combined" {
+                    assert_ne!(function.name, "ReadyDirect.take");
+                }
                 rows.push(format!("  function {}\n", function.name));
             }
             rows.sort();
@@ -119,7 +141,10 @@ fn actual_local_uses_request_complete_source_only_instances() {
                 .iter()
                 .any(|(_, function)| function.name == "DeferredAccessorBox.$get$value")
         );
-        assert!(output.output().local.materialization().roots().is_empty());
+        let roots = output.output().local.materialization().roots();
+        assert_eq!(roots.len(), 1);
+        assert!(matches!(roots[0].declaration().name(),
+            scoop_identity::DeclarationName::Named(name) if name.as_str() == "DeferredWrapper"));
     });
 }
 

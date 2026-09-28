@@ -37,8 +37,16 @@ impl WireEncode for HirDependencyTypeSiteV1 {
             Self::LocalValue { local, exact } => declaration(encoder, 3, local, exact),
             Self::BackingStorage { property, exact } => declaration(encoder, 4, property, exact),
             Self::DelegateStorage { property, exact } => declaration(encoder, 5, property, exact),
-            Self::FieldStorage { field, exact } => declaration(encoder, 6, field, exact),
-            Self::EnumVariantFieldStorage { field, exact } => declaration(encoder, 7, field, exact),
+            Self::FieldStorage {
+                owner,
+                field,
+                exact,
+            } => storage(encoder, 6, field, exact, owner),
+            Self::EnumVariantFieldStorage {
+                owner,
+                field,
+                exact,
+            } => storage(encoder, 7, field, exact, owner),
             Self::ConstructorInitializerResult { constructor, exact } => {
                 declaration(encoder, 8, constructor, exact)
             }
@@ -47,6 +55,24 @@ impl WireEncode for HirDependencyTypeSiteV1 {
             }
         }
     }
+}
+
+pub(super) fn storage(
+    encoder: &mut Encoder,
+    tag: u64,
+    field: &impl WireEncode,
+    exact: &impl WireEncode,
+    owner: &impl WireEncode,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(4)?;
+    encoder.field(0)?;
+    encoder.unsigned(tag)?;
+    encoder.field(1)?;
+    field.encode(encoder)?;
+    encoder.field(2)?;
+    exact.encode(encoder)?;
+    encoder.field(3)?;
+    owner.encode(encoder)
 }
 
 pub(super) fn declaration(

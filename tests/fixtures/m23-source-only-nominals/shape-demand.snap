@@ -1,3 +1,9 @@
+DeferredBase
+DeferredDerived
+DeferredEnum
+DeferredGetter
+DeferredSetter
+DeferredStorage
 ReadyDirect
 ReadyOuter
 ReadyPrivateConstructor

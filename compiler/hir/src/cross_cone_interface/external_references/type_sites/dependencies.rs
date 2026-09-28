@@ -25,10 +25,14 @@ impl CanonicalExternalHirReferencesV1 {
             if reference.type_sites().is_empty() {
                 continue;
             }
-            let ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(owner)) =
-                reference.target()
-            else {
-                return Err(Error::Target(reference.target()));
+            let owner = match reference.target() {
+                ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(owner)) => owner,
+                // The consumer materializes this application as ODR. Its
+                // arguments retain their own validated nominal occurrences.
+                ExternalHirTargetV1::Nominal(NominalDeclarationOwner::GenericTemplate(_)) => {
+                    continue;
+                }
+                target => return Err(Error::Target(target)),
             };
 
             let source = identities

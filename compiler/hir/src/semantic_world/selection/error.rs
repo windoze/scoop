@@ -11,11 +11,11 @@ use crate::NominalCallableClassificationError;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedDependencySelectionPlanBuildError {
     MissingDispatchSlot(scoop_identity::PersistentDispatchSlotId),
-    MissingNominal(scoop_identity::PersistentTypeId),
+    MissingNominal(crate::SourceNominalId),
     MissingNominalField(scoop_identity::PersistentFieldId),
     MissingEnumVariant(scoop_identity::PersistentEnumVariantId),
     MissingEnumField(scoop_identity::PersistentEnumVariantFieldId),
-    DuplicateNominal(scoop_identity::PersistentTypeId),
+    DuplicateNominal(crate::SourceNominalId),
     NominalClassifier(crate::NominalExactLeafClassifierBuildError),
     Classification(NominalCallableClassificationError),
     Initialization(crate::HirInitializationUseError),
@@ -45,7 +45,7 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
             }
             Self::MissingNominal(id) => write!(
                 formatter,
-                "dependency nominal {id} has no declaration identity"
+                "dependency nominal {id:?} has no declaration identity"
             ),
             Self::MissingNominalField(id) => write!(
                 formatter,
@@ -61,7 +61,7 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
             ),
             Self::DuplicateNominal(id) => write!(
                 formatter,
-                "dependency nominal {id} is defined more than once"
+                "dependency nominal {id:?} is defined more than once"
             ),
             Self::NominalClassifier(error) => error.fmt(formatter),
             Self::Classification(error) => error.fmt(formatter),

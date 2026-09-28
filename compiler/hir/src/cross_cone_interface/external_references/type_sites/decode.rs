@@ -59,10 +59,12 @@ pub enum DecodedHirDependencyTypeSiteV1 {
         exact: DecodedPersistentId<PersistentExactTypeId>,
     },
     FieldStorage {
+        owner: DecodedPersistentId<PersistentExactTypeId>,
         field: DecodedPersistentId<PersistentFieldId>,
         exact: DecodedPersistentId<PersistentExactTypeId>,
     },
     EnumVariantFieldStorage {
+        owner: DecodedPersistentId<PersistentExactTypeId>,
         field: DecodedPersistentId<PersistentEnumVariantFieldId>,
         exact: DecodedPersistentId<PersistentExactTypeId>,
     },
@@ -120,16 +122,24 @@ impl DecodedHirDependencyTypeSiteV1 {
                 property: property.resolve(resolver).map_err(Error::Identity)?,
                 exact: resolver.resolve(exact).map_err(Error::Identity)?,
             },
-            Self::FieldStorage { field, exact } => HirDependencyTypeSiteV1::FieldStorage {
+            Self::FieldStorage {
+                owner,
+                field,
+                exact,
+            } => HirDependencyTypeSiteV1::FieldStorage {
+                owner: resolver.resolve(owner).map_err(Error::Identity)?,
                 field: resolver.resolve(field).map_err(Error::Identity)?,
                 exact: resolver.resolve(exact).map_err(Error::Identity)?,
             },
-            Self::EnumVariantFieldStorage { field, exact } => {
-                HirDependencyTypeSiteV1::EnumVariantFieldStorage {
-                    field: resolver.resolve(field).map_err(Error::Identity)?,
-                    exact: resolver.resolve(exact).map_err(Error::Identity)?,
-                }
-            }
+            Self::EnumVariantFieldStorage {
+                owner,
+                field,
+                exact,
+            } => HirDependencyTypeSiteV1::EnumVariantFieldStorage {
+                owner: resolver.resolve(owner).map_err(Error::Identity)?,
+                field: resolver.resolve(field).map_err(Error::Identity)?,
+                exact: resolver.resolve(exact).map_err(Error::Identity)?,
+            },
             Self::ConstructorInitializerResult { constructor, exact } => {
                 HirDependencyTypeSiteV1::ConstructorInitializerResult {
                     constructor: constructor.resolve(resolver).map_err(Error::Identity)?,
@@ -192,17 +202,19 @@ impl WireDecode for DecodedHirDependencyTypeSiteV1 {
                 })
             }
             6 => {
-                super::wire::require_fields(decoder, fields, 3)?;
+                super::wire::require_fields(decoder, fields, 4)?;
                 Ok(Self::FieldStorage {
                     field: decoder.field(1, DecodedPersistentId::decode)?,
                     exact: decoder.field(2, DecodedPersistentId::decode)?,
+                    owner: decoder.field(3, DecodedPersistentId::decode)?,
                 })
             }
             7 => {
-                super::wire::require_fields(decoder, fields, 3)?;
+                super::wire::require_fields(decoder, fields, 4)?;
                 Ok(Self::EnumVariantFieldStorage {
                     field: decoder.field(1, DecodedPersistentId::decode)?,
                     exact: decoder.field(2, DecodedPersistentId::decode)?,
+                    owner: decoder.field(3, DecodedPersistentId::decode)?,
                 })
             }
             8 => {

@@ -6,6 +6,8 @@ impl Lowerer {
     pub(super) fn imported_struct_type(
         &mut self,
         declaration: Arc<hir::ImportedNominalDeclaration>,
+        arguments: Vec<hir::TypeId>,
+        bindings: &ImportedTypeBindings,
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
         let hir::NominalSourceShapeV1::Struct(shape) = declaration.interface.source_shape() else {
             return Err(ImportedSignatureTypeError::Structural);
@@ -14,9 +16,9 @@ impl Lowerer {
         // which can refer back through a reference type to this exact value.
         let mut structure = hir::ImportedStructType {
             declaration: Arc::clone(&declaration),
+            arguments,
             fields: Vec::new(),
             interfaces: Vec::new(),
-            gc_free: false,
         };
         let ty = self.intern_type(hir::Type::ImportedStruct(Arc::new(structure.clone())));
         structure.fields = shape
@@ -27,18 +29,14 @@ impl Lowerer {
                 Ok(hir::ImportedNominalField {
                     identity: field.field(),
                     name: source.name.clone(),
-                    ty: self.imported_signature_type(field.value_type())?,
+                    ty: self.imported_signature_type_with_bindings(field.value_type(), bindings)?,
                 })
             })
             .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-        structure.gc_free = structure
-            .fields
-            .iter()
-            .all(|field| self.is_gc_free(field.ty));
         // An interface method can contain another value using this payload.
         // Publish the completed fields before resolving those method types.
         self.types[ty] = hir::Type::ImportedStruct(Arc::new(structure.clone()));
-        structure.interfaces = self.imported_value_interfaces(&declaration)?;
+        structure.interfaces = self.imported_value_interfaces(&declaration, bindings)?;
         self.types[ty] = hir::Type::ImportedStruct(Arc::new(structure));
         Ok(ty)
     }
@@ -46,15 +44,17 @@ impl Lowerer {
     pub(super) fn imported_enum_type(
         &mut self,
         declaration: Arc<hir::ImportedNominalDeclaration>,
+        arguments: Vec<hir::TypeId>,
+        bindings: &ImportedTypeBindings,
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
         let hir::NominalSourceShapeV1::Enum(shape) = declaration.interface.source_shape() else {
             return Err(ImportedSignatureTypeError::Structural);
         };
         let mut enumeration = hir::ImportedEnumType {
             declaration: Arc::clone(&declaration),
+            arguments,
             variants: Vec::new(),
             interfaces: Vec::new(),
-            gc_free: false,
         };
         let ty = self.intern_type(hir::Type::ImportedEnum(Arc::new(enumeration.clone())));
         enumeration.variants = shape
@@ -70,7 +70,10 @@ impl Lowerer {
                         Ok(hir::ImportedEnumField {
                             identity: field.field(),
                             name: name.clone(),
-                            ty: self.imported_signature_type(field.value_type())?,
+                            ty: self.imported_signature_type_with_bindings(
+                                field.value_type(),
+                                bindings,
+                            )?,
                         })
                     })
                     .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
@@ -82,13 +85,8 @@ impl Lowerer {
                 })
             })
             .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-        enumeration.gc_free = enumeration
-            .variants
-            .iter()
-            .flat_map(|variant| &variant.fields)
-            .all(|field| self.is_gc_free(field.ty));
         self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration.clone()));
-        enumeration.interfaces = self.imported_value_interfaces(&declaration)?;
+        enumeration.interfaces = self.imported_value_interfaces(&declaration, bindings)?;
         self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration));
         Ok(ty)
     }
@@ -96,13 +94,14 @@ impl Lowerer {
     fn imported_value_interfaces(
         &mut self,
         declaration: &hir::ImportedNominalDeclaration,
+        bindings: &ImportedTypeBindings,
     ) -> Result<Vec<hir::TypeId>, ImportedSignatureTypeError> {
         declaration
             .interface
             .exact_supertypes()
             .values()
             .iter()
-            .map(|parent| self.imported_signature_type(parent))
+            .map(|parent| self.imported_signature_type_with_bindings(parent, bindings))
             .collect()
     }
 }

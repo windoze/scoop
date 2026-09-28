@@ -2,17 +2,37 @@ standalone
   struct-constructor ReadyValue arity=1
   type ReadyValue
 combined
+  class-constructor DeferredConstructor arity=1
   class-constructor ReadyCycleA arity=1
   class-constructor ReadyCycleB arity=1
   class-constructor ReadyDirect arity=0
   struct-constructor ReadyEmpty arity=0
+  type DeferredBox
+  type DeferredConstructor
   type ReadyCycleA
   type ReadyCycleB
   type ReadyDirect
   type ReadyEmpty
 shape-demand
+  class-constructor DeferredBase arity=0
+  class-constructor DeferredDerived arity=0
+  class-constructor DeferredStorage arity=1
   class-constructor ReadyDirect arity=0
   class-constructor ReadyOuter arity=0
+  class-constructor ReadyPrivateConstructor arity=1
+  function DeferredBase.$get$value
+  function DeferredBase.$set$value
+  function DeferredGetter.$get$value
+  function DeferredSetter.$get$value
+  function DeferredSetter.$set$value
+  function ReadyDirect.take
+  type DeferredBase
+  type DeferredDerived
+  type DeferredEnum
+  type DeferredGeneric
+  type DeferredGetter
+  type DeferredSetter
+  type DeferredStorage
   type ReadyDirect
   type ReadyOuter
   type ReadyPrivateConstructor

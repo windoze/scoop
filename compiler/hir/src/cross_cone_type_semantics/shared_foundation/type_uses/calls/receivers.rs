@@ -30,7 +30,9 @@ impl Graph<'_> {
         })?;
         for owner in nominals {
             let SourceNominalId::Concrete(owner) = owner else {
-                return Err(Error::NonConcreteSignature);
+                // The complete traversal already includes every argument. The
+                // application itself is a local ODR representation.
+                continue;
             };
             let declaration = self
                 .current

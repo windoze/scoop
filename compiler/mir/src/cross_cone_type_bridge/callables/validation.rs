@@ -76,6 +76,9 @@ impl MirCallableBridgeAuthority<'_> {
         for (signature, requires_gc_free) in
             [(&binding.semantic, true), (&binding.lowered, !primary)]
         {
+            if !requires_gc_free || signature.gc_effect() != crate::GcEffect::NoGc {
+                continue;
+            }
             for exact in signature
                 .exact()
                 .receiver()
@@ -85,10 +88,7 @@ impl MirCallableBridgeAuthority<'_> {
                 .chain([signature.exact().result()])
             {
                 let gc = self.gc_kind(exact)?;
-                if requires_gc_free
-                    && signature.gc_effect() == crate::GcEffect::NoGc
-                    && gc != MirGcKindV1::GcFree
-                {
+                if gc != MirGcKindV1::GcFree {
                     return Err(MirCallableBridgeError::NoGcContainsReferences { exact });
                 }
             }
@@ -266,9 +266,10 @@ impl MirCallableBridgeAuthority<'_> {
     fn gc_kind(&self, exact: PersistentExactTypeId) -> Result<MirGcKindV1, MirCallableBridgeError> {
         let key = self.identities.canonical_key::<_, ExactTypeKey>(exact)?;
         match key.as_ref() {
-            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
-                Ok(self.type_export(exact)?.facts().gc())
-            }
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => self
+                .types
+                .gc_kind(exact)
+                .ok_or(MirCallableBridgeError::MissingType { exact }),
             ExactTypeKey::Tuple(elements) => {
                 let mut gc = MirGcKindV1::GcFree;
                 for element in elements.as_slice() {

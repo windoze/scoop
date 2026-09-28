@@ -1,25 +1,35 @@
 use super::*;
 use scoop_identity::{
-    DefinitionOwnerAtom, FieldIdentityView, GeneratedNominalKey, InitializationUnitKey,
-    NominalDeclarationOwner, PersistentEnumVariantFieldId, PersistentFieldId,
-    PersistentInitializationUnitId, SourceDeclarationKind,
+    DefinitionOwnerAtom, ExactTypeKey, FieldIdentityView, GeneratedNominalKey,
+    InitializationUnitKey, NominalDeclarationOwner, PersistentEnumVariantFieldId,
+    PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId,
+    SourceDeclarationKind,
 };
 
 impl Input<'_> {
-    pub(super) fn field(&mut self, field: PersistentFieldId) -> Result<(), Error> {
-        let at = HirDependencyTypePositionV1::FieldStorage(field);
-        let key = self.key(&self.foundation.fields, field)?;
+    pub(super) fn field(
+        &mut self,
+        exact_owner: PersistentExactTypeId,
+        field: PersistentFieldId,
+    ) -> Result<(), Error> {
+        let at = HirDependencyTypePositionV1::FieldStorage(exact_owner, field);
+        let (foundation, key) = self.source_record(field, |foundation| &foundation.fields)?;
         match key.view() {
             FieldIdentityView::SourceDeclared { owner, .. }
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. } => {
-                self.nominal(owner)?;
+                self.storage_owner(exact_owner, owner, at)?;
             }
             FieldIdentityView::Generated { owner, key } => {
-                let generated = self.key(&self.foundation.generated_types, owner)?;
+                let generated = self.key(&foundation.generated_types, owner)?;
                 let GeneratedNominalKey::ObjectBackingClass { object } = generated else {
                     return Err(Error::StoragePosition(at));
                 };
+                if self.key(&self.foundation.exact_types, exact_owner)?
+                    != &ExactTypeKey::Nominal(*object)
+                {
+                    return Err(Error::StoragePosition(at));
+                }
                 self.nominal(NominalDeclarationOwner::Concrete(*object))?;
                 let property = key
                     .object_backing_property()
@@ -27,20 +37,44 @@ impl Input<'_> {
                 self.property(PropertyOwner::Property(property))?;
             }
         }
-        self.origin(DefinitionOriginSubject::Field(field))
+        Self::source_origin(foundation, DefinitionOriginSubject::Field(field))
     }
 
     pub(super) fn variant_field(
         &mut self,
+        exact_owner: PersistentExactTypeId,
         field: PersistentEnumVariantFieldId,
     ) -> Result<(), Error> {
-        let at = HirDependencyTypePositionV1::EnumVariantFieldStorage(field);
-        let foundation = self.foundation;
-        let key = self.key(&foundation.enum_variant_fields, field)?;
+        let at = HirDependencyTypePositionV1::EnumVariantFieldStorage(exact_owner, field);
+        let (foundation, key) =
+            self.source_record(field, |foundation| &foundation.enum_variant_fields)?;
         let variant = self.key(&foundation.enum_variants, key.variant())?;
         let owner = variant.source_owner().ok_or(Error::StoragePosition(at))?;
-        self.nominal(owner)?;
-        self.origin(DefinitionOriginSubject::EnumVariantField(field))
+        self.storage_owner(exact_owner, owner, at)?;
+        Self::source_origin(foundation, DefinitionOriginSubject::EnumVariantField(field))
+    }
+
+    fn storage_owner(
+        &mut self,
+        exact: PersistentExactTypeId,
+        expected: NominalDeclarationOwner,
+        at: HirDependencyTypePositionV1,
+    ) -> Result<(), Error> {
+        match (self.key(&self.foundation.exact_types, exact)?, expected) {
+            (ExactTypeKey::Nominal(actual), NominalDeclarationOwner::Concrete(expected))
+                if *actual == expected =>
+            {
+                self.nominal(NominalDeclarationOwner::Concrete(expected))?;
+            }
+            (
+                ExactTypeKey::NominalApplication { origin, .. },
+                NominalDeclarationOwner::GenericTemplate(expected),
+            ) if *origin == expected => {
+                self.source_record(expected, |foundation| &foundation.generic_types)?;
+            }
+            _ => return Err(Error::StoragePosition(at)),
+        }
+        Ok(())
     }
 
     pub(super) fn constructor_initializer(

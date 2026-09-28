@@ -33,6 +33,7 @@ pub(super) fn read(
         )?
         .resolve_callables(
             &fixture.types.foundation,
+            &|_| None,
             &direct,
             dependencies.iter().map(|section| {
                 (

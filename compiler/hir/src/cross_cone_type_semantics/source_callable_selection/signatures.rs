@@ -72,7 +72,11 @@ impl<'a> MaterializableSignatures<'a> {
             SignatureTypeKey::Nominal(source) => {
                 self.owner(Some(SourceNominalId::Concrete(*source)))
             }
-            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => false,
+            SignatureTypeKey::NominalApplication { arguments, .. } => arguments
+                .as_slice()
+                .iter()
+                .all(|argument| self.ty(argument)),
+            SignatureTypeKey::Binder { .. } => false,
             SignatureTypeKey::Tuple(elements) => {
                 for element in elements.as_slice() {
                     if !self.ty(element) {

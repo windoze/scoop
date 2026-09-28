@@ -132,6 +132,26 @@ impl RelationReducer<'_> {
         right_ty: hir::TypeId,
         origin: ConstraintOrigin,
     ) -> Result<(), ConstraintFailure> {
+        if let (
+            Some((left_declaration, left_arguments)),
+            Some((right_declaration, right_arguments)),
+        ) = (
+            self.lowerer.types[left_ty]
+                .clone()
+                .imported_nominal_application(),
+            self.lowerer.types[right_ty]
+                .clone()
+                .imported_nominal_application(),
+        ) {
+            return self.equal_nominal_arguments(
+                left_declaration.owner() == right_declaration.owner(),
+                left,
+                right,
+                left_arguments.to_vec(),
+                right_arguments.to_vec(),
+                origin,
+            );
+        }
         match (
             self.lowerer.types[left_ty].clone(),
             self.lowerer.types[right_ty].clone(),
@@ -293,6 +313,35 @@ impl RelationReducer<'_> {
     ) -> Result<(), ConstraintFailure> {
         if matches!(self.lowerer.types[right_ty], Type::Any) {
             return Ok(());
+        }
+        if let Some((declaration, arguments)) = self.lowerer.types[right_ty]
+            .clone()
+            .imported_nominal_application()
+        {
+            let mut pending = vec![left_ty];
+            let mut seen = Vec::new();
+            while let Some(candidate) = pending.pop() {
+                if seen.contains(&candidate) {
+                    continue;
+                }
+                seen.push(candidate);
+                if let Some((actual, actual_arguments)) = self.lowerer.types[candidate]
+                    .clone()
+                    .imported_nominal_application()
+                    && actual.owner() == declaration.owner()
+                {
+                    return self.equal_nominal_arguments(
+                        true,
+                        left,
+                        right,
+                        actual_arguments.to_vec(),
+                        arguments.to_vec(),
+                        origin,
+                    );
+                }
+                pending.extend(self.lowerer.direct_nominal_supertypes(candidate));
+            }
+            return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
         }
         match (
             self.lowerer.types[left_ty].clone(),
@@ -673,6 +722,11 @@ pub(super) fn type_contains_session_parameter(
     session: &InferenceSession,
     ty: hir::TypeId,
 ) -> bool {
+    if let Some((_, arguments)) = lowerer.types[ty].imported_nominal_application() {
+        return arguments
+            .iter()
+            .any(|argument| type_contains_session_parameter(lowerer, session, *argument));
+    }
     let children: Vec<hir::TypeId> = match &lowerer.types[ty] {
         Type::Param(parameter) => return session.variable_for(*parameter).is_some(),
         Type::Struct(application) => lowerer.struct_applications[*application].arguments.clone(),

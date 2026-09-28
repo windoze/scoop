@@ -72,25 +72,6 @@ fn build_edges(
 }
 
 pub(super) fn exact(export: &ExportHir, ty: TypeId) -> Result<PersistentExactTypeId, Error> {
-    let exact = source_exact(export, ty)?;
-    let generic_application = match &export.types[ty] {
-        Type::Struct(application) => !export.struct_applications[*application]
-            .arguments
-            .is_empty(),
-        Type::Enum(application) => !export.enum_applications[*application].arguments.is_empty(),
-        Type::Class(application) => !export.class_applications[*application].arguments.is_empty(),
-        Type::Interface(application) => !export.interface_applications[*application]
-            .arguments
-            .is_empty(),
-        _ => false,
-    };
-    if generic_application {
-        return Err(Error::GenericOdrRequired(exact));
-    }
-    Ok(exact)
-}
-
-fn source_exact(export: &ExportHir, ty: TypeId) -> Result<PersistentExactTypeId, Error> {
     export
         .type_identities
         .get(ty)

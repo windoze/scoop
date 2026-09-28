@@ -117,8 +117,15 @@ impl Lowerer {
             hir::Type::ImportedStruct(_)
             | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
-            | hir::Type::ImportedInterface(_)
-            | hir::Type::Unit
+            | hir::Type::ImportedInterface(_) => {
+                let (_, arguments) = self.types[ty]
+                    .imported_nominal_application()
+                    .expect("matched imported nominal");
+                for &argument in arguments {
+                    self.collect_pointee_parameters(argument, visiting, out);
+                }
+            }
+            hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
             | hir::Type::String

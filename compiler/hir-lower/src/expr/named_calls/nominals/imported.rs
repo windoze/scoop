@@ -31,17 +31,18 @@ impl Lowerer {
             failures.push(Box::new(self));
             return;
         }
-        let candidates = match dependencies.constructor_candidates(owner) {
-            Ok(candidates) => candidates,
-            Err(error) => {
-                self.error(
-                    call.span,
-                    format!("invalid dependency constructor declaration: {error}"),
-                );
-                failures.push(Box::new(self));
-                return;
-            }
-        };
+        let candidates =
+            match dependencies.constructor_candidates(hir::SourceNominalId::Concrete(owner)) {
+                Ok(candidates) => candidates,
+                Err(error) => {
+                    self.error(
+                        call.span,
+                        format!("invalid dependency constructor declaration: {error}"),
+                    );
+                    failures.push(Box::new(self));
+                    return;
+                }
+            };
         if candidates.is_empty() {
             self.error(
                 call.span,

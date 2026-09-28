@@ -7,6 +7,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 
 mod machine;
 mod metadata;
+mod nominals;
 
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -35,10 +36,24 @@ fn with_consumer<T>(
         &super::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> Result<T, Vec<crate::Diagnostic>> {
+    with_provider_consumer(PROVIDER, source, verify)
+}
+
+fn with_provider_consumer<T>(
+    provider: &str,
+    source: &str,
+    verify: impl FnOnce(
+        hir::DependencyHirOutput,
+        &hir::ImportedSemanticWorld,
+        &hir::CanonicalHirFoundation,
+        &hir::CrossConeHirInterfaceSectionV1,
+        &super::m23_ordinary_core_only::support::TrustedCoreFixture,
+    ) -> T,
+) -> Result<T, Vec<crate::Diagnostic>> {
     let mut core = trusted_core();
     let coordinate = ConeCoordinate::new("test", "generic-provider", "1.0.0").unwrap();
     let (foundation, interface) =
-        project_dependency_text(&core, &coordinate, PROVIDER, &["Boolean"]);
+        project_dependency_text(&core, &coordinate, provider, &["Boolean"]);
     let imported = core.import_dependency_foundation(&coordinate, &foundation, 73);
     let aliases = empty_alias_expansions();
     let consumer = parsed_ordinary_text(source);

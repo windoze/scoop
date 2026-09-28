@@ -1,0 +1,567 @@
+Module
+  struct Marker ()
+  struct Wide (left: Int, marker: Marker, right: Number)
+  enum Parcel<Wide>
+    Empty()
+    Item(_0: Wide)
+  enum Parcel<Parcel<Wide>>
+    Empty()
+    Item(_0: Parcel<Wide>)
+  enum Parcel<Number>
+    Empty()
+    Item(_0: Number)
+  enum Parcel<Marker>
+    Empty()
+    Item(_0: Marker)
+  class Number vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $argument.1: Marker = @fn15 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Number
+        ClassAlloc Number
+      call @fn14 direct
+        Type Number
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.2: Number
+        Type Number
+        Local $new.1
+      val $parameter.left: Int
+        Type Int
+        Local $argument.0
+      val $parameter.marker: Marker
+        Type Marker
+        Local $argument.1
+      val $parameter.right: Number
+        Type Number
+        Local $argument.2
+      call fallback: Wide = @fn16 direct
+        Type Int
+        Local $parameter.left
+        Type Marker
+        Local $parameter.marker
+        Type Number
+        Local $parameter.right
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      call $argument.1: Marker = @fn15 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Number
+        ClassAlloc Number
+      call @fn14 direct
+        Type Number
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $argument.2: Number
+        Type Number
+        Local $new.2
+      val $parameter.left: Int
+        Type Int
+        Local $argument.0
+      val $parameter.marker: Marker
+        Type Marker
+        Local $argument.1
+      val $parameter.right: Number
+        Type Number
+        Local $argument.2
+      call $dependency.argument.0: Wide = @fn16 direct
+        Type Int
+        Local $parameter.left
+        Type Marker
+        Local $parameter.marker
+        Type Number
+        Local $parameter.right
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $dependency.argument.0: Parcel<Parcel<Wide>> = @fn1 direct
+        Type Wide
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local fallback
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $dependency.argument.1: Parcel<Wide> = @fn2 direct
+        Type Wide
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Parcel<Parcel<Wide>>
+        Type Parcel<Parcel<Wide>>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Parcel<Wide>
+        Type Parcel<Wide>
+        Local $dependency.argument.1
+      call $dependency.argument.0: Parcel<Wide> = @fn3 direct
+        Type Parcel<Parcel<Wide>>
+        Local $dependency.parameter.value
+        Type Parcel<Wide>
+        Local $dependency.parameter.fallback
+      val $dependency.argument.1: Wide
+        Type Wide
+        Local fallback
+      val $dependency.parameter.value: Parcel<Wide>
+        Type Parcel<Wide>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Wide
+        Type Wide
+        Local $dependency.argument.1
+      call value: Wide = @fn4 direct
+        Type Parcel<Wide>
+        Local $dependency.parameter.value
+        Type Wide
+        Local $dependency.parameter.fallback
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Number
+        ClassAlloc Number
+      call @fn14 direct
+        Type Number
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val $argument.0: Number
+        Type Number
+        Local $new.3
+      val $parameter.value: Number
+        Type Number
+        Local $argument.0
+      call number: Number = @fn5 direct
+        Type Number
+        Local $parameter.value
+      call $argument.0: Marker = @fn15 direct
+      val $parameter.value: Marker
+        Type Marker
+        Local $argument.0
+      call empty: Marker = @fn6 direct
+        Type Marker
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Wide
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          FieldAccess 2
+            Type Wide
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local number
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun nested @fn1(value: Wide) -> Parcel<Parcel<Wide>>
+    bb0 entry
+      val $dependency.local.1: Wide
+        Type Wide
+        Local value
+      val $dependency.local.2: Wide
+        Type Wide
+        Local $dependency.local.1
+      call $dependency.local.3: Parcel<Wide> = @fn2 direct
+        Type Wide
+        Local $dependency.local.2
+      val $dependency.local.4: Parcel<Wide>
+        Type Parcel<Wide>
+        Local $dependency.local.3
+      call $call.1: Parcel<Parcel<Wide>> = @fn7 direct
+        Type Parcel<Wide>
+        Local $dependency.local.4
+      return
+        Type Parcel<Parcel<Wide>>
+        Local $call.1
+  fun pack @fn2(value: Wide) -> Parcel<Wide>
+    bb0 entry
+      val $dependency.local.1: Wide
+        Type Wide
+        Local value
+      val $dependency.local.2: Wide
+        Type Wide
+        Local $dependency.local.1
+      return
+        Type Parcel<Wide>
+        VariantConstruct Parcel<Wide> v1
+          Type Wide
+          Local $dependency.local.2
+  fun unpack @fn3(value: Parcel<Parcel<Wide>>, fallback: Parcel<Wide>) -> Parcel<Wide>
+    bb0 entry
+      val $when.1: Parcel<Parcel<Wide>>
+        Type Parcel<Parcel<Wide>>
+        Local value
+      val $pattern.subject.2: Parcel<Parcel<Wide>>
+        Type Parcel<Parcel<Wide>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Parcel<Wide>> v0
+          Type Parcel<Parcel<Wide>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.3
+        Type Parcel<Wide>
+        Local fallback
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Parcel<Parcel<Wide>>
+        Type Parcel<Parcel<Wide>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Parcel<Wide>> v1
+          Type Parcel<Parcel<Wide>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Parcel<Wide>
+        Local $dependency.local.3
+    bb4 pattern.pass.4
+      val $dependency.local.2: Parcel<Wide>
+        Type Parcel<Wide>
+        VariantPayloadProject Parcel<Parcel<Wide>> v1 f0
+          Type Parcel<Parcel<Wide>>
+          Local $pattern.subject.3
+      assign $dependency.local.3
+        Type Parcel<Wide>
+        Local $dependency.local.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun unpack @fn4(value: Parcel<Wide>, fallback: Wide) -> Wide
+    bb0 entry
+      val $when.1: Parcel<Wide>
+        Type Parcel<Wide>
+        Local value
+      val $pattern.subject.2: Parcel<Wide>
+        Type Parcel<Wide>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Wide> v0
+          Type Parcel<Wide>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.3
+        Type Wide
+        Local fallback
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Parcel<Wide>
+        Type Parcel<Wide>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Wide> v1
+          Type Parcel<Wide>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Wide
+        Local $dependency.local.3
+    bb4 pattern.pass.4
+      val $dependency.local.2: Wide
+        Type Wide
+        VariantPayloadProject Parcel<Wide> v1 f0
+          Type Parcel<Wide>
+          Local $pattern.subject.3
+      assign $dependency.local.3
+        Type Wide
+        Local $dependency.local.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun localRelay @fn5(value: Number) -> Number
+    bb0 entry
+      val $dependency.argument.0: Number
+        Type Number
+        Local value
+      val $dependency.parameter.value: Number
+        Type Number
+        Local $dependency.argument.0
+      call $dependency.argument.0: Parcel<Number> = @fn8 direct
+        Type Number
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      call $dependency.argument.0: Parcel<Number> = @fn9 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+      val $dependency.argument.1: Number
+        Type Number
+        Local value
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Number
+        Type Number
+        Local $dependency.argument.1
+      call $call.1: Number = @fn10 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+        Type Number
+        Local $dependency.parameter.fallback
+      return
+        Type Number
+        Local $call.1
+  fun localRelay @fn6(value: Marker) -> Marker
+    bb0 entry
+      val $dependency.argument.0: Marker
+        Type Marker
+        Local value
+      val $dependency.parameter.value: Marker
+        Type Marker
+        Local $dependency.argument.0
+      call $dependency.argument.0: Parcel<Marker> = @fn11 direct
+        Type Marker
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Parcel<Marker>
+        Type Parcel<Marker>
+        Local $dependency.argument.0
+      call $dependency.argument.0: Parcel<Marker> = @fn12 direct
+        Type Parcel<Marker>
+        Local $dependency.parameter.value
+      val $dependency.argument.1: Marker
+        Type Marker
+        Local value
+      val $dependency.parameter.value: Parcel<Marker>
+        Type Parcel<Marker>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Marker
+        Type Marker
+        Local $dependency.argument.1
+      call $call.1: Marker = @fn13 direct
+        Type Parcel<Marker>
+        Local $dependency.parameter.value
+        Type Marker
+        Local $dependency.parameter.fallback
+      return
+        Type Marker
+        Local $call.1
+  fun pack @fn7(value: Parcel<Wide>) -> Parcel<Parcel<Wide>>
+    bb0 entry
+      val $dependency.local.1: Parcel<Wide>
+        Type Parcel<Wide>
+        Local value
+      val $dependency.local.2: Parcel<Wide>
+        Type Parcel<Wide>
+        Local $dependency.local.1
+      return
+        Type Parcel<Parcel<Wide>>
+        VariantConstruct Parcel<Parcel<Wide>> v1
+          Type Parcel<Wide>
+          Local $dependency.local.2
+  fun pack @fn8(value: Number) -> Parcel<Number>
+    bb0 entry
+      val $dependency.local.1: Number
+        Type Number
+        Local value
+      val $dependency.local.2: Number
+        Type Number
+        Local $dependency.local.1
+      return
+        Type Parcel<Number>
+        VariantConstruct Parcel<Number> v1
+          Type Number
+          Local $dependency.local.2
+  fun relay @fn9(value: Parcel<Number>) -> Parcel<Number>
+    bb0 entry
+      return
+        Type Parcel<Number>
+        Local value
+  fun unpack @fn10(value: Parcel<Number>, fallback: Number) -> Number
+    bb0 entry
+      val $when.1: Parcel<Number>
+        Type Parcel<Number>
+        Local value
+      val $pattern.subject.2: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Number> v0
+          Type Parcel<Number>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.3
+        Type Number
+        Local fallback
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Number> v1
+          Type Parcel<Number>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Number
+        Local $dependency.local.3
+    bb4 pattern.pass.4
+      val $dependency.local.2: Number
+        Type Number
+        VariantPayloadProject Parcel<Number> v1 f0
+          Type Parcel<Number>
+          Local $pattern.subject.3
+      assign $dependency.local.3
+        Type Number
+        Local $dependency.local.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun pack @fn11(value: Marker) -> Parcel<Marker>
+    bb0 entry
+      val $dependency.local.1: Marker
+        Type Marker
+        Local value
+      val $dependency.local.2: Marker
+        Type Marker
+        Local $dependency.local.1
+      return
+        Type Parcel<Marker>
+        VariantConstruct Parcel<Marker> v1
+          Type Marker
+          Local $dependency.local.2
+  fun relay @fn12(value: Parcel<Marker>) -> Parcel<Marker>
+    bb0 entry
+      return
+        Type Parcel<Marker>
+        Local value
+  fun unpack @fn13(value: Parcel<Marker>, fallback: Marker) -> Marker
+    bb0 entry
+      val $when.1: Parcel<Marker>
+        Type Parcel<Marker>
+        Local value
+      val $pattern.subject.2: Parcel<Marker>
+        Type Parcel<Marker>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Marker> v0
+          Type Parcel<Marker>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.3
+        Type Marker
+        Local fallback
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Parcel<Marker>
+        Type Parcel<Marker>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Marker> v1
+          Type Parcel<Marker>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Marker
+        Local $dependency.local.3
+    bb4 pattern.pass.4
+      val $dependency.local.2: Marker
+        Type Marker
+        VariantPayloadProject Parcel<Marker> v1 f0
+          Type Parcel<Marker>
+          Local $pattern.subject.3
+      assign $dependency.local.3
+        Type Marker
+        Local $dependency.local.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.Number.$c0 @fn14(this: Number, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Number
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Marker.$c0 @fn15() -> Marker <no-gc>
+    bb0 entry
+      return
+        Type Marker
+        StructInit Marker
+  fun ctor.Wide.$c1 @fn16(left: Int, marker: Marker, right: Number) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        StructInit Wide
+          Type Int
+          Local left
+          Type Marker
+          Local marker
+          Type Number
+          Local right
+  instance mi0 function=@fn1 <- nested
+  instance mi1 function=@fn2 <- pack
+  instance mi2 function=@fn3 <- unpack
+  instance mi3 function=@fn4 <- unpack
+  instance mi4 function=@fn5 <- localRelay
+  instance mi5 function=@fn6 <- localRelay
+  instance mi6 function=@fn7 <- pack
+  instance mi7 function=@fn8 <- pack
+  instance mi8 function=@fn9 <- relay
+  instance mi9 function=@fn10 <- unpack
+  instance mi10 function=@fn11 <- pack
+  instance mi11 function=@fn12 <- relay
+  instance mi12 function=@fn13 <- unpack
+  output library

@@ -488,7 +488,8 @@ impl Lowerer {
                         .iter()
                         .find_map(|(_, ty)| match ty {
                             hir::Type::ImportedClass(class_type)
-                                if class_type.declaration.identity.id() == class =>
+                                if class_type.declaration.owner()
+                                    == hir::SourceNominalId::Concrete(class) =>
                             {
                                 class_type.base_class
                             }

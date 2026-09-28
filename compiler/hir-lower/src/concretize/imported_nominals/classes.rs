@@ -4,9 +4,15 @@ impl Concretizer<'_> {
     pub(in crate::concretize) fn lower_imported_class(
         &mut self,
         source: &export::ImportedClassType,
+        substitution: &[concrete::TypeId],
     ) -> concrete::TypeId {
         let declaration = &source.declaration;
-        let identity = declaration.identity.id();
+        let arguments = source
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect::<Vec<_>>();
+        let identity = (declaration.owner(), arguments.clone());
         if let Some(id) = self.imported_classes.get(&identity) {
             return self.class_type[id];
         }
@@ -25,14 +31,12 @@ impl Concretizer<'_> {
         );
         let ty = self.intern_type(concrete::TypeKind::Class(id), false);
         let allocated = self.classes.alloc(concrete::ClassDef {
-            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
-                declaration.identity.clone(),
-            )),
+            origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
             canonical_type: ty,
             modifier,
             name: declaration.name().to_owned(),
             owner: None,
-            type_arguments: Vec::new(),
+            type_arguments: arguments,
             representation: concrete::ClassRepresentation::Declared {
                 fields: Vec::new(),
                 base_class: None,
@@ -53,11 +57,11 @@ impl Concretizer<'_> {
             .map(|field| concrete::Field {
                 identity: field.identity,
                 name: field.name.clone(),
-                ty: self.lower_type(field.ty, &[]),
+                ty: self.lower_type(field.ty, substitution),
             })
             .collect();
         let base_class = source.base_class.map(|base| {
-            let base = self.lower_type(base, &[]);
+            let base = self.lower_type(base, substitution);
             let concrete::TypeKind::Class(base) = self.types[base].kind else {
                 unreachable!("a resolved class base retains its class type")
             };
@@ -66,7 +70,7 @@ impl Concretizer<'_> {
         let interfaces = source
             .interfaces
             .iter()
-            .map(|ty| self.lower_type(*ty, &[]))
+            .map(|ty| self.lower_type(*ty, substitution))
             .collect();
         self.classes[id].representation =
             concrete::ClassRepresentation::Declared { fields, base_class };
@@ -80,7 +84,7 @@ impl Concretizer<'_> {
             })
             .collect();
         self.classes[id].interface_implementations =
-            self.lower_interface_implementations(&source.interface_implementations, &[]);
+            self.lower_interface_implementations(&source.interface_implementations, substitution);
         ty
     }
 }

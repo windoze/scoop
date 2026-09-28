@@ -31,6 +31,7 @@ impl FactProjector<'_> {
     pub(super) fn is_locally_owned(&self, ty: concrete::TypeId) -> Result<bool, Error> {
         let exact = self.exact(ty)?;
         Ok(self.root_exacts.contains(&exact)
+            || self.is_generic_application(ty)
             || self.declared_origin(ty) == Some(self.local.cone)
             || matches!(
                 self.local.types[ty].kind,
@@ -42,6 +43,9 @@ impl FactProjector<'_> {
     }
 
     pub(super) fn dependency_provider(&self, ty: concrete::TypeId) -> Option<ConeIdentity> {
+        if self.is_generic_application(ty) {
+            return None;
+        }
         self.declared_origin(ty)
             .filter(|origin| *origin != self.local.cone)
     }

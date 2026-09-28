@@ -277,10 +277,7 @@ impl Lowerer {
                     .as_ref()
                     .and_then(|dependencies| {
                         dependencies
-                            .callable_for_slot(
-                                hir::SourceNominalId::Concrete(interface.declaration.identity.id()),
-                                slot,
-                            )
+                            .callable_for_slot(interface.declaration.owner(), slot)
                             .expect("resolved interface callable is available")
                     })
                     .expect("resolved interface slots have a callable declaration");

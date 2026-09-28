@@ -45,7 +45,8 @@ fn source_only_nominals_preserve_complete_declarations_and_close_machine_depende
                     hir::SourceNominalId::Concrete(owner) => {
                         let exact =
                             PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner)).unwrap();
-                        let ready = name.as_str().starts_with("Ready");
+                        let ready = name.as_str().starts_with("Ready")
+                            || name.as_str() == "DeferredConstructor";
                         assert_eq!(
                             section.representation_support().get(owner).is_some(),
                             ready,

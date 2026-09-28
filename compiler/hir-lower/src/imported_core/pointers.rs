@@ -14,14 +14,14 @@ impl Lowerer {
             return self.resolve_imported_dependency_type_target(binding, name, true);
         };
         let CoreLoweringAuthority::Imported(core) = &self.core else {
-            return self.resolve_imported_dependency_type_target(binding, name, true);
+            return self.resolve_imported_nominal_type_arguments(binding, name, arguments);
         };
         let role = if declaration.persistent() == core.fundamental_types().ptr().persistent() {
             hir::IntrinsicTypeKind::Ptr
         } else if declaration.persistent() == core.fundamental_types().fun_ptr().persistent() {
             hir::IntrinsicTypeKind::FunPtr
         } else {
-            return self.resolve_imported_dependency_type_target(binding, name, true);
+            return self.resolve_imported_nominal_type_arguments(binding, name, arguments);
         };
         let [argument] = arguments else {
             self.error(

@@ -29,10 +29,14 @@ impl CanonicalExternalHirReferencesV1 {
                 if !site.role().requires_shape_support() {
                     continue;
                 }
-                let ExternalHirTargetV1::Nominal(SourceNominalId::Concrete(owner)) =
-                    reference.target()
-                else {
-                    return Err(Error::Target(reference.target()));
+                let owner = match reference.target() {
+                    ExternalHirTargetV1::Nominal(SourceNominalId::Concrete(owner)) => owner,
+                    // Generic shape definitions follow the consumer's ODR
+                    // application, not a provider-owned Strong shape.
+                    ExternalHirTargetV1::Nominal(SourceNominalId::GenericTemplate(_)) => {
+                        continue;
+                    }
+                    target => return Err(Error::Target(target)),
                 };
 
                 let exact = identities

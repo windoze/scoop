@@ -7,24 +7,16 @@ pub(in crate::production) fn from_type(
     let ty = super::arena_get(&export.types, ty)?;
     let identity = match ty {
         crate::Type::ImportedStruct(structure) => {
-            return Some(NominalDeclarationOwner::Concrete(
-                structure.declaration.identity.id(),
-            ));
+            return Some(structure.declaration.owner());
         }
         crate::Type::ImportedEnum(structure) => {
-            return Some(NominalDeclarationOwner::Concrete(
-                structure.declaration.identity.id(),
-            ));
+            return Some(structure.declaration.owner());
         }
         crate::Type::ImportedClass(structure) => {
-            return Some(NominalDeclarationOwner::Concrete(
-                structure.declaration.identity.id(),
-            ));
+            return Some(structure.declaration.owner());
         }
         crate::Type::ImportedInterface(structure) => {
-            return Some(NominalDeclarationOwner::Concrete(
-                structure.declaration.identity.id(),
-            ));
+            return Some(structure.declaration.owner());
         }
         crate::Type::Unit => {
             return Some(core_builtin_owner(

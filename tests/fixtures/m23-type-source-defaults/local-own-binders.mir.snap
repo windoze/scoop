@@ -6,12 +6,12 @@
     Value(value: LocalGenericHost)
   class LocalGenericHost vtable=0 itables=0
   class GenericLocalHost<String> vtable=0 itables=0
-  fun main @fn23() -> Unit
+  fun main @fn24() -> Unit
     bb0 entry
       assign $new.1
         Type LocalGenericHost
         ClassAlloc LocalGenericHost
-      call @fn41 direct
+      call @fn44 direct
         Type LocalGenericHost
         Local $new.1
       val plain: LocalGenericHost
@@ -36,7 +36,7 @@
       val $parameter.unused: Int
         Type Int
         Local $argument.0
-      call $call.2: Int = @fn24 direct
+      call $call.2: Int = @fn25 direct
         Type Int
         Local $parameter.seed
         Type Int
@@ -54,7 +54,7 @@
       val $parameter.value: Int
         Type Int
         Local $result.1
-      call $call.3: Int = @fn25 direct
+      call $call.3: Int = @fn26 direct
         Type LocalGenericHost
         Local $receiver
         Type Int
@@ -70,7 +70,7 @@
       assign $new.4
         Type GenericLocalHost<String>
         ClassAlloc GenericLocalHost<String>
-      call @fn43 direct
+      call @fn45 direct
         Type GenericLocalHost<String>
         Local $new.4
         Type String
@@ -103,7 +103,7 @@
       val $parameter.unused: Int
         Type Int
         Local $argument.0
-      call $call.5: (String, String) = @fn26 direct
+      call $call.5: (String, String) = @fn27 direct
         Type GenericLocalHost<String>
         Local $receiver
         Type String
@@ -129,7 +129,7 @@
       val $parameter.value: (String, String)
         Type (String, String)
         Local $result.2
-      call $call.6: (String, String) = @fn27 direct
+      call $call.6: (String, String) = @fn28 direct
         Type GenericLocalHost<String>
         Local $receiver
         Type Int
@@ -175,7 +175,7 @@
       val $parameter.second: String
         Type String
         Local $argument.1
-      call $call.7: String = @fn28 direct
+      call $call.7: String = @fn29 direct
         Type String
         Local $parameter.seed
         Type String
@@ -195,12 +195,12 @@
       val $parameter.value: String
         Type String
         Local $result.0
-      call $parameter.value: String = @fn29 direct
+      call $parameter.value: String = @fn30 direct
         Type String
         Local $parameter.seed
         Type String
         Local $parameter.value
-      call $call.8: String = @fn30 direct
+      call $call.8: String = @fn31 direct
         Type GenericLocalHost<String>
         Local $receiver
         Type Int
@@ -231,7 +231,7 @@
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $call.9: Int = @fn31 direct
+      call $call.9: Int = @fn32 direct
         Type Int
         Local $parameter.seed
         Type Int
@@ -251,23 +251,23 @@
       val $parameter.value: Int
         Type Int
         Local $result.0
-      call $call.10: Int = @fn32 direct
+      call $call.10: Int = @fn33 direct
         Type Int
         Local $parameter.seed
         Type Int
         Local $parameter.value
       return
-  fun $local.1.keep @fn24($capture.seed: Int, unused: Int) -> Int
+  fun $local.1.keep @fn25($capture.seed: Int, unused: Int) -> Int
     bb0 entry
       return
         Type Int
         Local $capture.seed
-  fun LocalGenericHost.pick @fn25(this: LocalGenericHost, seed: Int, value: Int) -> Int
+  fun LocalGenericHost.pick @fn26(this: LocalGenericHost, seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun $local.2.combine @fn26($capture.this: GenericLocalHost<String>, $capture.second: String, unused: Int) -> (String, String)
+  fun $local.2.combine @fn27($capture.this: GenericLocalHost<String>, $capture.second: String, unused: Int) -> (String, String)
     bb0 entry
       return
         Type (String, String)
@@ -278,40 +278,40 @@
             Local $capture.this
           Type String
           Local $capture.second
-  fun GenericLocalHost.direct @fn27(this: GenericLocalHost<String>, first: Int, second: String, value: (String, String)) -> (String, String)
+  fun GenericLocalHost.direct @fn28(this: GenericLocalHost<String>, first: Int, second: String, value: (String, String)) -> (String, String)
     bb0 entry
       return
         Type (String, String)
         Local value
-  fun $local.0.keep @fn28($capture.seed: String, first: String, second: String) -> String
+  fun $local.0.keep @fn29($capture.seed: String, first: String, second: String) -> String
     bb0 entry
       return
         Type String
         Local $capture.seed
-  fun genericLocalDependency @fn29(seed: String, value: String) -> String
+  fun genericLocalDependency @fn30(seed: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun GenericLocalHost.expanded @fn30(this: GenericLocalHost<String>, first: Int, second: String, value: String) -> String
+  fun GenericLocalHost.expanded @fn31(this: GenericLocalHost<String>, first: Int, second: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun $local.0.keep @fn31($capture.seed: Int, first: Int, second: Int) -> Int
+  fun $local.0.keep @fn32($capture.seed: Int, first: Int, second: Int) -> Int
     bb0 entry
       return
         Type Int
         Local $capture.seed
-  fun genericLocalDependency @fn32(seed: Int, value: Int) -> Int
+  fun genericLocalDependency @fn33(seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun init.LocalGenericHost.$c7 @fn41(this: LocalGenericHost) -> Unit
+  fun init.LocalGenericHost.$c7 @fn44(this: LocalGenericHost) -> Unit
     bb0 entry
       return
-  fun init.GenericLocalHost.$c8 @fn43(this: GenericLocalHost<String>, stored: String) -> Unit
+  fun init.GenericLocalHost.$c8 @fn45(this: GenericLocalHost<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
         Type GenericLocalHost<String>
@@ -321,12 +321,12 @@
       return
   coroutine_step cs0 CoroutineStep<LocalGenericHost> result=LocalGenericHost
   coroutine_slot cl0 CoroutineSlot<LocalGenericHost> value=LocalGenericHost
-  instance mi0 function=@fn24 <- $local.1.keep
-  instance mi1 function=@fn25 <- LocalGenericHost.pick
-  instance mi2 function=@fn26 <- $local.2.combine
-  instance mi3 function=@fn27 <- GenericLocalHost.direct
-  instance mi4 function=@fn28 <- $local.0.keep
-  instance mi5 function=@fn29 <- genericLocalDependency
-  instance mi6 function=@fn30 <- GenericLocalHost.expanded
-  instance mi7 function=@fn31 <- $local.0.keep
-  instance mi8 function=@fn32 <- genericLocalDependency
+  instance mi0 function=@fn25 <- $local.1.keep
+  instance mi1 function=@fn26 <- LocalGenericHost.pick
+  instance mi2 function=@fn27 <- $local.2.combine
+  instance mi3 function=@fn28 <- GenericLocalHost.direct
+  instance mi4 function=@fn29 <- $local.0.keep
+  instance mi5 function=@fn30 <- genericLocalDependency
+  instance mi6 function=@fn31 <- GenericLocalHost.expanded
+  instance mi7 function=@fn32 <- $local.0.keep
+  instance mi8 function=@fn33 <- genericLocalDependency

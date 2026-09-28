@@ -31,6 +31,7 @@ pub enum SharedTypeMetadataError {
     TypeUseInventory,
     SourceOnlyNominal(PersistentTypeId),
     MissingNominal(PersistentTypeId),
+    MissingGenericNominal(scoop_identity::PersistentGenericTypeId),
     MissingFact(PersistentExactTypeId),
     ForeignFact(PersistentExactTypeId),
     FactInventory,

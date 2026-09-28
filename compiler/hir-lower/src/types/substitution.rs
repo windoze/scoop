@@ -2,6 +2,11 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn type_contains_param(&self, ty: TypeId) -> bool {
+        if let Some((_, arguments)) = self.types[ty].imported_nominal_application() {
+            return arguments
+                .iter()
+                .any(|argument| self.type_contains_param(*argument));
+        }
         match &self.types[ty] {
             Type::Param(_) => true,
             Type::Ptr(element) => self.type_contains_param(*element),
@@ -43,6 +48,17 @@ impl Lowerer {
     /// every parameter is bound (unbound parameters are diagnosed at
     /// the use site first).
     pub(crate) fn instantiate_ty(&mut self, ty: TypeId, type_args: &[TypeId]) -> TypeId {
+        if let Some((declaration, arguments)) =
+            self.types[ty].clone().imported_nominal_application()
+        {
+            let arguments = arguments
+                .iter()
+                .map(|argument| self.instantiate_ty(*argument, type_args))
+                .collect();
+            return self
+                .imported_nominal_application(declaration.owner(), arguments)
+                .expect("substitution preserves a resolved dependency nominal declaration");
+        }
         match self.types[ty].clone() {
             Type::Param(index) => type_args[index.into_raw() as usize],
             Type::Struct(application) => {
@@ -127,6 +143,17 @@ impl Lowerer {
         ty: TypeId,
         bindings: &[(hir::TypeParamId, TypeId)],
     ) -> TypeId {
+        if let Some((declaration, arguments)) =
+            self.types[ty].clone().imported_nominal_application()
+        {
+            let arguments = arguments
+                .iter()
+                .map(|argument| self.instantiate_method_ty(*argument, bindings))
+                .collect();
+            return self
+                .imported_nominal_application(declaration.owner(), arguments)
+                .expect("substitution preserves a resolved dependency nominal declaration");
+        }
         match self.types[ty].clone() {
             Type::Param(parameter) => bindings
                 .iter()
@@ -206,6 +233,17 @@ impl Lowerer {
         ty: TypeId,
         bindings: &[Option<TypeId>],
     ) -> Option<TypeId> {
+        if let Some((declaration, arguments)) =
+            self.types[ty].clone().imported_nominal_application()
+        {
+            let arguments = arguments
+                .iter()
+                .map(|argument| self.try_substitute(*argument, bindings))
+                .collect::<Option<Vec<_>>>()?;
+            return self
+                .imported_nominal_application(declaration.owner(), arguments)
+                .ok();
+        }
         match self.types[ty].clone() {
             Type::Param(index) => bindings.get(index.into_raw() as usize).copied().flatten(),
             Type::Struct(application) => {

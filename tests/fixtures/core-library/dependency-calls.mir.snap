@@ -1,5 +1,5 @@
   global0 $singleton$LocalTools: LocalTools managed initial=zeroed-for-runtime-unit
-  init0 object:LocalTools singleton lazy global0 initializer=@fn25 ensure=@fn26 failure=1 deps=[]
+  init0 object:LocalTools singleton lazy global0 initializer=@fn26 ensure=@fn27 failure=1 deps=[]
   enum CoroutineStep<LocalTools>
     Completed(value: LocalTools)
     Suspended()
@@ -7,11 +7,11 @@
     Empty()
     Value(value: LocalTools)
   class LocalTools vtable=0 itables=0
-  fun userCoreDependency @fn23() -> Unit
+  fun userCoreDependency @fn24() -> Unit
     bb0 entry
       call external0 direct
       return
-  fun userCoreCombined @fn24(flag: Boolean) -> Unit
+  fun userCoreCombined @fn25(flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -38,8 +38,8 @@
       goto bb6
     bb6 if.merge.6
       return
-  fun init.LocalTools.$c7 @fn30(this: LocalTools) -> Unit
+  fun init.LocalTools.$c7 @fn38(this: LocalTools) -> Unit
     bb0 entry
       return
-  coroutine_step cs14 CoroutineStep<LocalTools> result=LocalTools
-  coroutine_slot cl14 CoroutineSlot<LocalTools> value=LocalTools
+  coroutine_step cs19 CoroutineStep<LocalTools> result=LocalTools
+  coroutine_slot cl19 CoroutineSlot<LocalTools> value=LocalTools

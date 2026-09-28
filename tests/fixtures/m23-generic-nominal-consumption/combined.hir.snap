@@ -1,0 +1,154 @@
+Module
+  struct Marker
+  struct Wide
+    field0 left: Int
+    field1 marker: Marker
+    field2 right: Number
+    property0 val left: Int getter0=storage <stored struct1-field0>
+    property1 val marker: Marker getter1=storage <stored struct1-field1>
+    property2 val right: Number getter2=storage <stored struct1-field2>
+  class Number(value: Int)
+    field0 property3: Int
+    property3 val value: Int getter3=storage <stored field0 init=parameter3>
+  fun localRelay<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedGenericCall pack<T0> : Parcel<T0>
+        Local $dependency.parameter.value : T0
+    val local4
+      Local $dependency.argument.0 : Parcel<T0>
+    val local5
+      ImportedGenericCall relay<T0> : Parcel<T0>
+        Local $dependency.parameter.value : Parcel<T0>
+    val local6
+      Local value : T0
+    val local7
+      Local $dependency.argument.0 : Parcel<T0>
+    val local8
+      Local $dependency.argument.1 : T0
+    return
+      ImportedGenericCall unpack<T0> : T0
+        Local $dependency.parameter.value : Parcel<T0>
+        Local $dependency.parameter.fallback : T0
+  fun result(): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      StructInit Marker : Marker
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    val local4
+      ClassInit Number : Number
+        Local $parameter.value : Int
+    val local5
+      Local $argument.0 : Int
+    val local6
+      Local $argument.1 : Marker
+    val local7
+      Local $argument.2 : Number
+    val local8
+      StructInit Wide : Wide
+        Local $parameter.left : Int
+        Local $parameter.marker : Marker
+        Local $parameter.right : Number
+    val local11
+      IntegerLiteral 20 : Int
+    val local12
+      StructInit Marker : Marker
+    val local9
+      IntegerLiteral 21 : Int
+    val local10
+      Local $argument.0 : Int
+    val local13
+      ClassInit Number : Number
+        Local $parameter.value : Int
+    val local14
+      Local $argument.0 : Int
+    val local15
+      Local $argument.1 : Marker
+    val local16
+      Local $argument.2 : Number
+    val local17
+      StructInit Wide : Wide
+        Local $parameter.left : Int
+        Local $parameter.marker : Marker
+        Local $parameter.right : Number
+    val local18
+      Local $dependency.argument.0 : Wide
+    val local21
+      ImportedGenericCall nested<Wide> : Parcel<Parcel<Wide>>
+        Local $dependency.parameter.value : Wide
+    val local19
+      Local fallback : Wide
+    val local20
+      Local $dependency.argument.0 : Wide
+    val local22
+      ImportedGenericCall pack<Wide> : Parcel<Wide>
+        Local $dependency.parameter.value : Wide
+    val local23
+      Local $dependency.argument.0 : Parcel<Parcel<Wide>>
+    val local24
+      Local $dependency.argument.1 : Parcel<Wide>
+    val local25
+      ImportedGenericCall unpack<Parcel<Wide>> : Parcel<Wide>
+        Local $dependency.parameter.value : Parcel<Parcel<Wide>>
+        Local $dependency.parameter.fallback : Parcel<Wide>
+    val local26
+      Local fallback : Wide
+    val local27
+      Local $dependency.argument.0 : Parcel<Wide>
+    val local28
+      Local $dependency.argument.1 : Wide
+    val local29
+      ImportedGenericCall unpack<Wide> : Wide
+        Local $dependency.parameter.value : Parcel<Wide>
+        Local $dependency.parameter.fallback : Wide
+    val local30
+      IntegerLiteral 1 : Int
+    val local31
+      Local $argument.0 : Int
+    val local32
+      ClassInit Number : Number
+        Local $parameter.value : Int
+    val local33
+      Local $argument.0 : Number
+    val local34
+      Call localRelay<Number> : Number
+        Local $parameter.value : Number
+    val local35
+      StructInit Marker : Marker
+    val local36
+      Local $argument.0 : Marker
+    val local37
+      Call localRelay<Marker> : Marker
+        Local $parameter.value : Marker
+    val local38
+      FieldAccess field 0 : Int
+        Local value : Wide
+    val local39
+      FieldAccess class field value : Int
+        FieldAccess field 2 : Number
+          Local value : Wide
+    val local40
+      Local $dependency.argument.0 : Int
+    val local41
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local42
+      FieldAccess class field value : Int
+        Local number : Number
+    val local43
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  output library
+  instance localRelay<Number>
+  instance localRelay<Marker>

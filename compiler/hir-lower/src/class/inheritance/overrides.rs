@@ -405,10 +405,7 @@ impl Lowerer {
                 .dependencies
                 .as_ref()
                 .expect("an imported interface has a dependency catalog")
-                .callable_for_slot(
-                    hir::SourceNominalId::Concrete(interface.declaration.identity.id()),
-                    slot,
-                )
+                .callable_for_slot(interface.declaration.owner(), slot)
                 .expect("resolved interface callable")
                 .expect("resolved interface slot");
             for (index, parameter) in signature.params.iter().enumerate() {

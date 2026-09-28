@@ -1,0 +1,216 @@
+Module
+  enum Parcel<Number>
+    Empty()
+    Item(_0: Number)
+  class Number vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Number
+        ClassAlloc Number
+      call @fn4 direct
+        Type Number
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Number
+        Type Number
+        Local $new.1
+      val $dependency.parameter.value: Number
+        Type Number
+        Local $dependency.argument.0
+      call $dependency.argument.0: Parcel<Number> = @fn1 direct
+        Type Number
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      call first: Parcel<Number> = @fn2 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Number
+        ClassAlloc Number
+      call @fn4 direct
+        Type Number
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Number
+        Type Number
+        Local $new.2
+      val $dependency.parameter.value: Number
+        Type Number
+        Local $dependency.argument.0
+      call second: Parcel<Number> = @fn1 direct
+        Type Number
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Parcel<Number>
+        Type Parcel<Number>
+        Local first
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Number
+        ClassAlloc Number
+      call @fn4 direct
+        Type Number
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.1: Number
+        Type Number
+        Local $new.3
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Number
+        Type Number
+        Local $dependency.argument.1
+      call $call.4: Number = @fn3 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+        Type Number
+        Local $dependency.parameter.fallback
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.4
+      val $dependency.argument.0: Parcel<Number>
+        Type Parcel<Number>
+        Local second
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.5
+        Type Number
+        ClassAlloc Number
+      call @fn4 direct
+        Type Number
+        Local $new.5
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.1: Number
+        Type Number
+        Local $new.5
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Number
+        Type Number
+        Local $dependency.argument.1
+      call $call.6: Number = @fn3 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+        Type Number
+        Local $dependency.parameter.fallback
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.6
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun pack @fn1(value: Number) -> Parcel<Number>
+    bb0 entry
+      val $dependency.local.1: Number
+        Type Number
+        Local value
+      val $dependency.local.2: Number
+        Type Number
+        Local $dependency.local.1
+      return
+        Type Parcel<Number>
+        VariantConstruct Parcel<Number> v1
+          Type Number
+          Local $dependency.local.2
+  fun relay @fn2(value: Parcel<Number>) -> Parcel<Number>
+    bb0 entry
+      return
+        Type Parcel<Number>
+        Local value
+  fun unpack @fn3(value: Parcel<Number>, fallback: Number) -> Number
+    bb0 entry
+      val $when.1: Parcel<Number>
+        Type Parcel<Number>
+        Local value
+      val $pattern.subject.2: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Number> v0
+          Type Parcel<Number>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.3
+        Type Number
+        Local fallback
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Number> v1
+          Type Parcel<Number>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Number
+        Local $dependency.local.3
+    bb4 pattern.pass.4
+      val $dependency.local.2: Number
+        Type Number
+        VariantPayloadProject Parcel<Number> v1 f0
+          Type Parcel<Number>
+          Local $pattern.subject.3
+      assign $dependency.local.3
+        Type Number
+        Local $dependency.local.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.Number.$c0 @fn4(this: Number, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Number
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn1 <- pack
+  instance mi1 function=@fn2 <- relay
+  instance mi2 function=@fn3 <- unpack
+  output library

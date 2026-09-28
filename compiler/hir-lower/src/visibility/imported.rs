@@ -79,7 +79,7 @@ impl Lowerer {
             &self.imported_declaration_domain(
                 root.interface().declared_visibility(),
                 Some(owner.interface.declaration()),
-                owner.identity.key().origin(),
+                owner.identity.declaration().origin(),
             ),
         );
         Some(hir::SlotContractDomain(domain))
@@ -143,7 +143,7 @@ impl Lowerer {
                     self.classes[self.class_applications[*application].template].base_class
                 }
                 hir::Type::ImportedClass(class) => {
-                    if class.declaration.identity.id() == base {
+                    if class.declaration.owner() == hir::SourceNominalId::Concrete(base) {
                         return true;
                     }
                     class.base_class

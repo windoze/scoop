@@ -35,9 +35,7 @@ impl Projection<'_> {
                     }
                 }
                 Type::ImportedInterface(interface) => {
-                    let owner = PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(
-                        interface.declaration.identity.id(),
-                    ));
+                    let owner = PublicDeclarationOwnerV1::Nominal(interface.declaration.owner());
                     for method in &interface.methods {
                         if method.declaration.owner() == owner {
                             self.push(

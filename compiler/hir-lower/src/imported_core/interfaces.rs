@@ -8,6 +8,8 @@ impl Lowerer {
     pub(super) fn imported_interface_type(
         &mut self,
         declaration: Arc<hir::ImportedNominalDeclaration>,
+        arguments: Vec<hir::TypeId>,
+        bindings: &ImportedTypeBindings,
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
         let hir::NominalDispatchOrderV1::Interface { parents, members } =
             declaration.interface.declaration_details().dispatch_order()
@@ -16,6 +18,7 @@ impl Lowerer {
         };
         let mut interface = hir::ImportedInterfaceType {
             declaration: Arc::clone(&declaration),
+            arguments,
             parents: Vec::new(),
             methods: Vec::new(),
         };
@@ -23,7 +26,7 @@ impl Lowerer {
         // before returning the complete HIR product.
         let ty = self.intern_type(hir::Type::ImportedInterface(Arc::new(interface.clone())));
         for parent in parents {
-            let parent_ty = self.imported_signature_type(parent)?;
+            let parent_ty = self.imported_signature_type_with_bindings(parent, bindings)?;
             let hir::Type::ImportedInterface(parent) = &self.types[parent_ty] else {
                 return Err(ImportedSignatureTypeError::Structural);
             };
@@ -47,10 +50,7 @@ impl Lowerer {
                 .as_ref()
                 .and_then(|dependencies| {
                     dependencies
-                        .callable_for_slot(
-                            hir::SourceNominalId::Concrete(declaration.identity.id()),
-                            member.slot(),
-                        )
+                        .callable_for_slot(declaration.owner(), member.slot())
                         .ok()
                         .flatten()
                 })
@@ -69,10 +69,17 @@ impl Lowerer {
                         .and_then(|source| source.parameters().parameters().get(index))
                         .map(|parameter| parameter.name().as_str().to_owned())
                         .unwrap_or_else(|| format!("$parameter.{index}"));
-                    Ok((name, self.imported_signature_type(parameter.value_type())?))
+                    Ok((
+                        name,
+                        self.imported_signature_type_with_bindings(
+                            parameter.value_type(),
+                            bindings,
+                        )?,
+                    ))
                 })
                 .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-            let return_type = self.imported_signature_type(callable.result())?;
+            let return_type =
+                self.imported_signature_type_with_bindings(callable.result(), bindings)?;
             interface.methods.push(hir::ImportedInterfaceMethod {
                 slot: declaration
                     .dispatch_slots

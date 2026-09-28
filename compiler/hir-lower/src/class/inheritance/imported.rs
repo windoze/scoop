@@ -48,10 +48,7 @@ impl Lowerer {
                 .dependencies
                 .as_ref()
                 .expect("dependency class has a catalog")
-                .member_callable_candidates(
-                    hir::SourceNominalId::Concrete(class.declaration.identity.id()),
-                    lookup,
-                );
+                .member_callable_candidates(class.declaration.owner(), lookup);
             let candidates = match candidates {
                 Ok(candidates) => candidates,
                 Err(error) => {

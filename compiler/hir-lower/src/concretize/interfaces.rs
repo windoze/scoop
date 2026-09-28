@@ -51,7 +51,7 @@ impl Concretizer<'_> {
                 let (method, method_arguments) = match instance {
                     InterfaceMethodInstance::Local { member, arguments } => (member, arguments),
                     InterfaceMethodInstance::Imported(method) => {
-                        return self.lower_imported_interface_method(method);
+                        return self.lower_imported_interface_method(method, &arguments);
                     }
                 };
                 let function =

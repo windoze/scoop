@@ -1,5 +1,5 @@
 DeferredBox Struct Final binders=1 supers=0 fields=1 constructors=1 members=1 machine=false
-DeferredConstructor Class Final binders=0 supers=0 fields=0 constructors=1 members=0 machine=false
+DeferredConstructor Class Final binders=0 supers=0 fields=0 constructors=1 members=0 machine=true
 DeferredCycleA Class Final binders=0 supers=0 fields=1 constructors=1 members=1 machine=false
 DeferredCycleB Class Final binders=0 supers=1 fields=1 constructors=1 members=1 machine=false
 DeferredDerived Class Final binders=0 supers=1 fields=0 constructors=1 members=0 machine=false

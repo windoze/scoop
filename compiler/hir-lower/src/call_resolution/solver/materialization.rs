@@ -62,6 +62,21 @@ impl Lowerer {
         ty: hir::TypeId,
         origin: ConstraintOrigin,
     ) -> Result<Option<hir::TypeId>, ConstraintFailure> {
+        if let Some((declaration, arguments)) =
+            self.types[ty].clone().imported_nominal_application()
+        {
+            let Some(arguments) = self.materialize_types(session, bindings, arguments, origin)?
+            else {
+                return Ok(None);
+            };
+            return self
+                .imported_nominal_application(declaration.owner(), arguments)
+                .map(Some)
+                .map_err(|_| ConstraintFailure {
+                    origin,
+                    kind: ConstraintFailureKind::UnresolvedTerm(TypeTerm::Type(ty)),
+                });
+        }
         match self.types[ty].clone() {
             Type::Param(parameter) => {
                 let variable = session.variable_for(parameter).ok_or(ConstraintFailure {

@@ -14,7 +14,7 @@ enum SymbolicType {
     Boolean,
     String,
     Struct(hir::StructId, Vec<SymbolicType>),
-    ImportedNominal(scoop_identity::PersistentTypeId),
+    ImportedNominal(hir::SourceNominalId, Vec<SymbolicType>),
     Class(hir::ClassId, Vec<SymbolicType>),
     Interface(hir::InterfaceId, Vec<SymbolicType>),
     Any,
@@ -168,18 +168,38 @@ impl Lowerer {
         bindings: &HashMap<hir::TypeParamId, SymbolicType>,
     ) -> SymbolicType {
         match &self.types[ty] {
-            hir::Type::ImportedStruct(structure) => {
-                SymbolicType::ImportedNominal(structure.declaration.identity.id())
-            }
-            hir::Type::ImportedEnum(structure) => {
-                SymbolicType::ImportedNominal(structure.declaration.identity.id())
-            }
-            hir::Type::ImportedClass(structure) => {
-                SymbolicType::ImportedNominal(structure.declaration.identity.id())
-            }
-            hir::Type::ImportedInterface(structure) => {
-                SymbolicType::ImportedNominal(structure.declaration.identity.id())
-            }
+            hir::Type::ImportedStruct(structure) => SymbolicType::ImportedNominal(
+                structure.declaration.owner(),
+                structure
+                    .arguments
+                    .iter()
+                    .map(|argument| self.symbolic_type(*argument, bindings))
+                    .collect(),
+            ),
+            hir::Type::ImportedEnum(structure) => SymbolicType::ImportedNominal(
+                structure.declaration.owner(),
+                structure
+                    .arguments
+                    .iter()
+                    .map(|argument| self.symbolic_type(*argument, bindings))
+                    .collect(),
+            ),
+            hir::Type::ImportedClass(structure) => SymbolicType::ImportedNominal(
+                structure.declaration.owner(),
+                structure
+                    .arguments
+                    .iter()
+                    .map(|argument| self.symbolic_type(*argument, bindings))
+                    .collect(),
+            ),
+            hir::Type::ImportedInterface(structure) => SymbolicType::ImportedNominal(
+                structure.declaration.owner(),
+                structure
+                    .arguments
+                    .iter()
+                    .map(|argument| self.symbolic_type(*argument, bindings))
+                    .collect(),
+            ),
             hir::Type::Unit => SymbolicType::Unit,
             hir::Type::Integer(kind) => SymbolicType::Integer(*kind),
             hir::Type::Boolean => SymbolicType::Boolean,

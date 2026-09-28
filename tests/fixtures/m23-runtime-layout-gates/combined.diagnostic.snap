@@ -1,3 +1,0 @@
-span=145..163
-expression=withDefault(first)
-SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: runtime cast failure constructor requires a materialized dependency layout; its owner has source-only representation

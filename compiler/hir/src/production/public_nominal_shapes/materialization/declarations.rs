@@ -17,7 +17,15 @@ impl Graph {
             Requirement::EnumVariantField { field, .. } => {
                 self.require(owner, field.value_type())?
             }
-            Requirement::Inheritance { parent, .. } => self.require(owner, parent)?,
+            Requirement::Inheritance { parent, .. } => {
+                // The ordinary inheritance section describes unapplied parents.
+                // Generic storage does not require a parent dispatch schema.
+                if matches!(parent, SignatureTypeKey::NominalApplication { .. }) {
+                    self.block(owner)?;
+                } else {
+                    self.require(owner, parent)?;
+                }
+            }
             Requirement::Constructor { callable, .. } | Requirement::Slot { callable, .. } => {
                 if !callable.type_parameters().is_empty()
                     || callable.effects().execution() == Effect::Suspend
@@ -45,9 +53,12 @@ impl Graph {
                     self.edge(dependency, owner)?;
                 }
             }
-            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
-                self.block(owner)?;
+            SignatureTypeKey::NominalApplication { arguments, .. } => {
+                for argument in arguments.as_slice() {
+                    self.require(owner, argument)?;
+                }
             }
+            SignatureTypeKey::Binder { .. } => self.block(owner)?,
             SignatureTypeKey::Tuple(elements) => {
                 for element in elements.as_slice() {
                     self.require(owner, element)?;

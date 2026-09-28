@@ -1029,7 +1029,17 @@ HIR foundation 从已有 concrete exact type 表发布每个实际名义类型 a
 
 HIR 根据实际调用、构造、成员、类型操作和委托访问建立实例化工作队列，在当前消费 Cone 完成全部类型替换、bound 与已有 GC-free/CLayout 条件检查。模板声明、已解析 application、本地 concrete 实体使用不同 typed ID；实例 key 使用 origin 与完整 exact arguments，不含消费 Cone 或首次调用位置。已选普通外来函数仍引用定义方实现；泛型正文引用的 private/internal 参数自由 helper 由其定义 Cone 提供普通可链接定义，消费方不复制正文，不重做名字查找。泛型递归继续按语言规范 3.2 检查 SCC 中参数替换环，正常递归复用实例；引用字段不递归展开值布局，不以数量、深度或时间预算判定合法性。
 
-共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造和委托模板后续分别迁移到 `/33`、`/34`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。
+消费方名义声明目录统一以 `NominalDeclarationOwner` 查询参数自由声明与泛型模板；它直接保留共有声明及原 canonical identity，不向当前 Cone 的源码名义 arena 分配声明。导入类型保存该原声明与完整有序实参，字段、variant payload、父类型和成员签名按声明 binder 替换；类型相等、签名推断与参数替换均比较原声明和实参，不能仅比较声明 ID。具体化以原声明和替换后的 concrete 实参复用同一个实例，沿现有 exact type builder 产生 `NominalApplication` 与 specialization group。普通外来参数自由类型继续引用 provider 的表示，泛型 application 在当前 Cone 产生所需表示；不能按 provider 曾经物化的实例清单限制后者，也不能把 application 登记成普通外来 Strong 类型。该导入模型消费已有共有声明，不新增重复声明 wire 表。
+
+参数自由外部类型用途表只选择实际由依赖提供的 Strong 表示。泛型名义 application 的模板引用继续由完整 HIR 声明引用与 type-site 关系检查，其本次表示由消费方的 ODR 物化记录覆盖；遍历签名和 type site 时仍递归保留实参中的外来参数自由类型用途，不能把原泛型声明当作一个缺失的 provider Strong 实例。字段与 payload 中的类型参数参与现有 GC-free 条件和 pointee 检查，不能把尚含 binder 的导入值类型预先固定为 GC-free 或非 GC-free。
+
+自身不含 binder 的声明，不因字段或 callable 签名引用已具体化的泛型 application 而成为 source-only。共有表示闭包与自动物化根按完整实参判断是否具体，原参数自由名义类型及其普通构造器仍由定义 Cone 提供 Strong 定义，其所需泛型表示通过同一队列生成 ODR 定义。已有 exact fact 和签名检查直接替换原声明 binder，不另建泛型语义验证器；未求值默认值及未调用模板仍不成为发射根。该规则取代 M23-6 对含任意泛型 application 的普通声明所施加的阶段限制。
+
+`hir/cross-cone-interface/34` 为字段 type site 增加必需的所属类型 exact identity。tag 6=FieldStorage 与 tag 7=EnumVariantFieldStorage 使用四字段 product：field 0 为 tag，field 1 为原 typed field ID，field 2 为实际字段 exact type，field 3 为所属名义类型 exact type。位置键为所属 exact type 与原 field ID，同一模板的不同 application 不再互相冲突；同一位置仍只能有一个字段类型。原字段必须属于该 exact nominal 的原声明；object 使用源对象的 exact type，字段则属于由该对象派生的 `ObjectBackingClass`。泛型 application 可引用可达 provider 的原字段定义位置。消费方物化的外来泛型表示同样记录自己的字段用途，普通外来 Strong 表示仍由 provider 记录。reader 检查这些 typed 引用与 owner 关系，不重跑字段类型推断。旧 `/33` 字段位置缺少实例信息，需要重建产物和缓存。
+
+普通 MIR type bridge 的字段与 callable 签名可包含已具体化的泛型 application。其普通依赖闭包只递归选择实参中的 Strong 类型；application 自身的实际表示和物理成员沿共有 ODR 路径关联。callable 的 GC 合同检查仅在需要 GC-free 的 `NoGC` 签名上查询，直接复用共有 exact facts；不为取得该事实而把泛型 application 伪装成参数自由 MIR 类型导出，也不在 MIR meta 中重新计算泛型字段语义。
+
+共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造模板迁移到 `/33`，字段实例位置迁移到 `/34`，委托模板后续迁移到 `/35`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。
 
 MIR 共有机器输入消费依赖输出中唯一的 canonical foundation；callable 物化根保留完整 Strong/ODR signature subject。参数自由 bridge、entry 与 compiler protocol 从同一 foundation 选择对应的 Strong 记录，不排斥其他 ODR 函数。core bootstrap bridge 的 Strong callable 表覆盖该 Strong 子集，原 bytes 合同不变；ODR 的 signature、application 和 member 仍由既有 canonical 表保存。历史 Strong 产物边界继续拒绝 ODR，不在内部的共有机器输入上施加这一旧 profile 限制。
 

@@ -16,6 +16,9 @@ mod sealed {
 pub trait MirTypeBridgeTypeLookupV1: sealed::Sealed {
     fn get(&self, exact: PersistentExactTypeId) -> Option<&ParamFreeMirTypeExportV1>;
     fn record_count(&self) -> usize;
+    fn gc_kind(&self, exact: PersistentExactTypeId) -> Option<MirGcKindV1> {
+        self.get(exact).map(|record| record.facts().gc())
+    }
 }
 pub trait MirTypeBridgeCallableLookupV1: sealed::Sealed {
     fn get(&self, target: StrongCallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>>;

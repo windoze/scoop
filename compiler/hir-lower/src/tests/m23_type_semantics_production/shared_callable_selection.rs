@@ -8,7 +8,7 @@ use scoop_identity::{
 fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstract_overrides() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-core-layout-exports");
-    for (case, count) in [("standalone", 2), ("combined", 12)] {
+    for (case, count) in [("standalone", 2), ("combined", 14)] {
         let source =
             std::fs::read_to_string(directory.join(format!("shared-callables-{case}.scoop")))
                 .unwrap();

@@ -10,9 +10,15 @@ impl Concretizer<'_> {
     pub(super) fn lower_imported_struct(
         &mut self,
         source: &export::ImportedStructType,
+        substitution: &[concrete::TypeId],
     ) -> concrete::TypeId {
         let declaration = &source.declaration;
-        let identity = declaration.identity.id();
+        let arguments = source
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect::<Vec<_>>();
+        let identity = (declaration.owner(), arguments.clone());
         if let Some(id) = self.imported_structs.get(&identity) {
             return self.struct_type[id];
         }
@@ -25,7 +31,7 @@ impl Concretizer<'_> {
                 .expect("concrete struct ids fit in u32")
                 .into(),
         );
-        let ty = self.intern_type(concrete::TypeKind::Struct(id), source.gc_free);
+        let ty = self.intern_type(concrete::TypeKind::Struct(id), false);
         let c_layout = match shape.c_layout_policy() {
             export::NominalCLayoutPolicyV1::Ordinary => None,
             export::NominalCLayoutPolicyV1::CLayout { contract } => Some(contract),
@@ -42,14 +48,12 @@ impl Concretizer<'_> {
             }
         };
         let allocated = self.structs.alloc(concrete::StructDef {
-            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
-                declaration.identity.clone(),
-            )),
+            origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
             canonical_type: ty,
             name: declaration.name().to_owned(),
             owner: None,
-            type_arguments: Vec::new(),
-            gc_free: source.gc_free,
+            type_arguments: arguments,
+            gc_free: false,
             representation: concrete::StructRepresentation::Declared {
                 attributes: export::StructAttributes {
                     no_gc: false,
@@ -69,13 +73,13 @@ impl Concretizer<'_> {
         assert_eq!(allocated, id);
         self.imported_structs.insert(identity, id);
         self.struct_type.insert(id, ty);
-        let fields = source
+        let fields: Vec<_> = source
             .fields
             .iter()
             .map(|field| concrete::DeclaredStructField {
                 identity: field.identity,
                 name: field.name.clone(),
-                ty: self.lower_type(field.ty, &[]),
+                ty: self.lower_type(field.ty, substitution),
             })
             .collect();
         let concrete::StructRepresentation::Declared {
@@ -85,17 +89,27 @@ impl Concretizer<'_> {
         else {
             unreachable!("an imported source struct keeps its declared representation")
         };
+        let gc_free = fields.iter().all(|field| self.types[field.ty].gc_free);
         *concrete_fields = fields;
-        self.structs[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces);
+        self.structs[id].gc_free = gc_free;
+        self.types[ty].gc_free = gc_free;
+        self.structs[id].interfaces =
+            self.lower_imported_value_interfaces(&source.interfaces, substitution);
         ty
     }
 
     pub(super) fn lower_imported_enum(
         &mut self,
         source: &export::ImportedEnumType,
+        substitution: &[concrete::TypeId],
     ) -> concrete::TypeId {
         let declaration = &source.declaration;
-        let identity = declaration.identity.id();
+        let arguments = source
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect::<Vec<_>>();
+        let identity = (declaration.owner(), arguments.clone());
         if let Some(id) = self.imported_enums.get(&identity) {
             return self.enum_type[id];
         }
@@ -104,16 +118,14 @@ impl Concretizer<'_> {
                 .expect("concrete enum ids fit in u32")
                 .into(),
         );
-        let ty = self.intern_type(concrete::TypeKind::Enum(id), source.gc_free);
+        let ty = self.intern_type(concrete::TypeKind::Enum(id), false);
         let allocated = self.enums.alloc(concrete::EnumDef {
-            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
-                declaration.identity.clone(),
-            )),
+            origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
             canonical_type: ty,
             name: declaration.name().to_owned(),
             owner: None,
-            type_arguments: Vec::new(),
-            gc_free: source.gc_free,
+            type_arguments: arguments,
+            gc_free: false,
             variants: Vec::new(),
             // Callable and dispatch definitions remain in the provider.
             interfaces: Vec::new(),
@@ -134,7 +146,7 @@ impl Concretizer<'_> {
                     .map(|field| concrete::VariantField {
                         identity: field.identity,
                         name: field.name.clone(),
-                        ty: self.lower_type(field.ty, &[]),
+                        ty: self.lower_type(field.ty, substitution),
                     })
                     .collect();
                 concrete::Variant {
@@ -146,13 +158,21 @@ impl Concretizer<'_> {
             })
             .collect();
         self.enums[id].variants = variants;
-        self.enums[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces);
+        let gc_free = self.enums[id]
+            .variants
+            .iter()
+            .all(|variant| variant.gc_free);
+        self.enums[id].gc_free = gc_free;
+        self.types[ty].gc_free = gc_free;
+        self.enums[id].interfaces =
+            self.lower_imported_value_interfaces(&source.interfaces, substitution);
         ty
     }
 
     fn lower_imported_value_interfaces(
         &mut self,
         roots: &[export::TypeId],
+        substitution: &[concrete::TypeId],
     ) -> Vec<concrete::TypeId> {
         let mut pending: Vec<_> = roots.iter().rev().copied().collect();
         let mut visited = Vec::new();
@@ -166,7 +186,7 @@ impl Concretizer<'_> {
                 unreachable!("dependency value supertypes are resolved interfaces")
             };
             pending.extend(source.parents.iter().rev().copied());
-            interfaces.push(self.lower_type(ty, &[]));
+            interfaces.push(self.lower_type(ty, substitution));
         }
         interfaces
     }

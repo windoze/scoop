@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v33_requires_generic_initialization_templates() {
+fn source_interface_v34_requires_exact_nominal_storage_owners() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        33,
+        34,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,

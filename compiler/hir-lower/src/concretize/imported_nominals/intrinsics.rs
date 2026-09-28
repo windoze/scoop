@@ -38,14 +38,12 @@ impl Concretizer<'_> {
         application: concrete::IntrinsicTypeRepresentation,
     ) {
         let declaration = &source.declaration;
-        let identity = declaration.identity.id();
+        let identity = (declaration.owner(), Vec::new());
         if self.imported_structs.contains_key(&identity) {
             return;
         }
         let id = self.structs.alloc(concrete::StructDef {
-            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
-                declaration.identity.clone(),
-            )),
+            origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
             canonical_type: ty,
             name: declaration.name().to_owned(),
             owner: None,
@@ -63,7 +61,7 @@ impl Concretizer<'_> {
         });
         self.imported_structs.insert(identity, id);
         self.struct_type.insert(id, ty);
-        self.structs[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces);
+        self.structs[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces, &[]);
     }
 
     pub(in crate::concretize) fn ensure_coercion_box_sources(

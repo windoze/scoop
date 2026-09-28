@@ -5,7 +5,7 @@ use scoop_identity::CallableTemplateOrigin;
 fn shared_constructor_selection_keeps_only_required_source_constructor_bodies() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-core-layout-exports");
-    for (case, count) in [("standalone", 4), ("combined", 12)] {
+    for (case, count) in [("standalone", 4), ("combined", 13)] {
         let source =
             std::fs::read_to_string(directory.join(format!("shared-constructors-{case}.scoop")))
                 .unwrap();

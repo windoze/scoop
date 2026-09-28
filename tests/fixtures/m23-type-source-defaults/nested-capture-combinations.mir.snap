@@ -1,14 +1,14 @@
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn36 captures=1
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn37 captures=1
-  closure cc2 $Closure$lambda4 type=function_type0 invoke=@fn39 captures=1
-  closure cc3 $Closure$reference0 type=function_type0 invoke=@fn42 captures=1
-  fun localDefault @fn23(seed: String) -> String
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn37 captures=1
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn38 captures=1
+  closure cc2 $Closure$lambda4 type=function_type0 invoke=@fn40 captures=1
+  closure cc3 $Closure$reference0 type=function_type0 invoke=@fn43 captures=1
+  fun localDefault @fn24(seed: String) -> String
     bb0 entry
       branch bb1 bb2
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      call $call.1: String = @fn28 direct
+      call $call.1: String = @fn29 direct
         Type String
         Local seed
       assign $result.3
@@ -24,28 +24,28 @@
       val $parameter.value: String
         Type String
         Local $result.3
-      call $call.2: String = @fn29 direct
+      call $call.2: String = @fn30 direct
         Type String
         Local $parameter.value
       return
         Type String
         Local $call.2
-  fun capturedCallback @fn24(seed: String, value: () -> String) -> () -> String
+  fun capturedCallback @fn25(seed: String, value: () -> String) -> () -> String
     bb0 entry
       return
         Type () -> String
         Local value
-  fun capturedReference @fn25(seed: String, value: () -> String) -> () -> String
+  fun capturedReference @fn26(seed: String, value: () -> String) -> () -> String
     bb0 entry
       return
         Type () -> String
         Local value
-  fun unused @fn26(seed: String, value: () -> String) -> () -> String
+  fun unused @fn27(seed: String, value: () -> String) -> () -> String
     bb0 entry
       return
         Type () -> String
         Local value
-  fun main @fn27() -> Unit
+  fun main @fn28() -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -69,7 +69,7 @@
       val $parameter.unused: Int
         Type Int
         Local $argument.0
-      call $call.1: String = @fn30 direct
+      call $call.1: String = @fn31 direct
         Type String
         Local $parameter.seed
         Type Int
@@ -87,7 +87,7 @@
       val $parameter.value: String
         Type String
         Local $result.0
-      call $call.2: String = @fn31 direct
+      call $call.2: String = @fn32 direct
         Type String
         Local $parameter.seed
         Type Int
@@ -116,7 +116,7 @@
       val $parameter.unused: String
         Type String
         Local $argument.0
-      call $call.3: Int = @fn32 direct
+      call $call.3: Int = @fn33 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -134,7 +134,7 @@
       val $parameter.value: Int
         Type Int
         Local $result.0
-      call $call.4: Int = @fn33 direct
+      call $call.4: Int = @fn34 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -153,7 +153,7 @@
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call $call.5: Int = @fn34 direct
+      call $call.5: Int = @fn35 direct
         Type String
         Local $parameter.left
         Type Int
@@ -164,7 +164,7 @@
       val $parameter.seed: String
         Type String
         Local $argument.0
-      call $call.6: String = @fn23 direct
+      call $call.6: String = @fn24 direct
         Type String
         Local $parameter.seed
       val $argument.0: String
@@ -177,7 +177,7 @@
         Type Boolean
         BoolLiteral true
     bb7 if.then.7
-      call result: String = @fn35 direct
+      call result: String = @fn36 direct
         Type String
         Local $parameter.seed
       val callback: () -> String
@@ -205,7 +205,7 @@
       val $parameter.value: () -> String
         Type () -> String
         Local $result.1
-      call $call.7: () -> String = @fn24 direct
+      call $call.7: () -> String = @fn25 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -223,7 +223,7 @@
         Type Boolean
         BoolLiteral true
     bb10 if.then.10
-      call result: String = @fn35 direct
+      call result: String = @fn36 direct
         Type String
         Local $parameter.seed
       val callback: () -> String
@@ -251,7 +251,7 @@
       val $parameter.value: () -> String
         Type () -> String
         Local $result.1
-      call $call.9: () -> String = @fn24 direct
+      call $call.9: () -> String = @fn25 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -294,7 +294,7 @@
       val $parameter.value: () -> String
         Type () -> String
         Local $result.2
-      call $call.11: () -> String = @fn25 direct
+      call $call.11: () -> String = @fn26 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -337,7 +337,7 @@
       val $parameter.value: () -> String
         Type () -> String
         Local $result.2
-      call $call.13: () -> String = @fn25 direct
+      call $call.13: () -> String = @fn26 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -346,37 +346,37 @@
         Type () -> String
         Local $call.13
       return
-  fun $local.5.copy @fn28($capture.seed: String) -> String
+  fun $local.5.copy @fn29($capture.seed: String) -> String
     bb0 entry
       return
         Type String
         Local $capture.seed
-  fun $local.4.choose @fn29(value: String) -> String
+  fun $local.4.choose @fn30(value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun $local.0.copy @fn30($capture.seed: String, unused: Int) -> String
+  fun $local.0.copy @fn31($capture.seed: String, unused: Int) -> String
     bb0 entry
       return
         Type String
         Local $capture.seed
-  fun genericCapture @fn31(seed: String, ignored: Int, value: String) -> String
+  fun genericCapture @fn32(seed: String, ignored: Int, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun $local.0.copy @fn32($capture.seed: Int, unused: String) -> Int
+  fun $local.0.copy @fn33($capture.seed: Int, unused: String) -> Int
     bb0 entry
       return
         Type Int
         Local $capture.seed
-  fun genericCapture @fn33(seed: Int, ignored: String, value: Int) -> Int
+  fun genericCapture @fn34(seed: Int, ignored: String, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun forward @fn34(left: String, right: Int) -> Int
+  fun forward @fn35(left: String, right: Int) -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -400,7 +400,7 @@
       val $parameter.unused: String
         Type String
         Local $argument.0
-      call $call.1: Int = @fn32 direct
+      call $call.1: Int = @fn33 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -418,7 +418,7 @@
       val $parameter.value: Int
         Type Int
         Local $result.0
-      call $call.2: Int = @fn33 direct
+      call $call.2: Int = @fn34 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -428,40 +428,40 @@
       return
         Type Int
         Local $call.2
-  fun $local.1.copy @fn35($capture.seed: String) -> String
+  fun $local.1.copy @fn36($capture.seed: String) -> String
     bb0 entry
       return
         Type String
         Local $capture.seed
-  fun $lambda.0 @fn36($closure: () -> String) -> String
+  fun $lambda.0 @fn37($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc0 0
           Type () -> String
           Local $closure
-  fun $lambda.1 @fn37($closure: () -> String) -> String
+  fun $lambda.1 @fn38($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc1 0
           Type () -> String
           Local $closure
-  fun $local.2.copy @fn38($capture.seed: String) -> String
+  fun $local.2.copy @fn39($capture.seed: String) -> String
     bb0 entry
       return
         Type String
         Local $capture.seed
-  fun $lambda.2 @fn39($closure: () -> String) -> String
+  fun $lambda.2 @fn40($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc2 0
           Type () -> String
           Local $closure
-  fun $reference.0 @fn42($closure: () -> String) -> String
+  fun $reference.0 @fn43($closure: () -> String) -> String
     bb0 entry
-      call $call.1: String = @fn38 direct
+      call $call.1: String = @fn39 direct
         Type String
         ClosureCapture cc3 0
           Type () -> String
@@ -469,8 +469,8 @@
       return
         Type String
         Local $call.1
-  instance mi0 function=@fn30 <- $local.0.copy
-  instance mi1 function=@fn31 <- genericCapture
-  instance mi2 function=@fn32 <- $local.0.copy
-  instance mi3 function=@fn33 <- genericCapture
-  instance mi4 function=@fn34 <- forward
+  instance mi0 function=@fn31 <- $local.0.copy
+  instance mi1 function=@fn32 <- genericCapture
+  instance mi2 function=@fn33 <- $local.0.copy
+  instance mi3 function=@fn34 <- genericCapture
+  instance mi4 function=@fn35 <- forward

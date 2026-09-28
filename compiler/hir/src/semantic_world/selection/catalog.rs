@@ -56,8 +56,7 @@ pub(super) struct TypeAliasCatalogEntry {
 pub(super) struct DependencyCatalog {
     pub(super) static_namespaces:
         BTreeMap<crate::SourceNominalId, Vec<crate::DirectNamedPublicBindingGroup>>,
-    pub(super) nominals:
-        BTreeMap<scoop_identity::PersistentTypeId, Arc<super::ImportedNominalDeclaration>>,
+    pub(super) nominals: BTreeMap<crate::SourceNominalId, Arc<super::ImportedNominalDeclaration>>,
     pub(super) nominal_visibilities: BTreeMap<crate::SourceNominalId, crate::DeclaredVisibilityV1>,
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
@@ -97,7 +96,7 @@ impl ImportedSemanticWorld<'_> {
                 static_namespaces.insert(owner, namespace.snapshot());
             }
             for declaration in super::nominals::declarations(provider)? {
-                let id = declaration.identity.id();
+                let id = declaration.owner();
                 if nominals.insert(id, declaration).is_some() {
                     return Err(ImportedDependencySelectionPlanBuildError::DuplicateNominal(
                         id,

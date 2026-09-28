@@ -3,6 +3,7 @@ use super::*;
 mod helpers;
 mod initialization;
 mod machine;
+mod nominals;
 mod publication;
 mod siblings;
 

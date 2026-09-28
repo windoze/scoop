@@ -55,7 +55,7 @@ fn producer_keeps_final_direct_methods_in_the_m23_5_partition() {
 }
 
 #[test]
-fn producer_preserves_generic_storage_as_source_only() {
+fn producer_materializes_closed_generic_storage() {
     let core = trusted_core();
     let mut source = file(vec![
         generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
@@ -74,12 +74,12 @@ fn producer_preserves_generic_storage_as_source_only() {
 
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
     assert_eq!(public.nominal_interfaces().records().len(), 2);
-    assert!(production.representation_support().records().is_empty());
-    assert!(production.inheritance().records().is_empty());
+    assert_eq!(production.representation_support().records().len(), 1);
+    assert_eq!(production.inheritance().records().len(), 1);
 }
 
 #[test]
-fn producer_preserves_generic_class_backing_field_as_source_only() {
+fn producer_materializes_closed_generic_class_backing_fields() {
     let core = trusted_core();
     let mut source = file(vec![
         generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
@@ -102,12 +102,12 @@ fn producer_preserves_generic_class_backing_field_as_source_only() {
 
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
     assert_eq!(public.nominal_interfaces().records().len(), 2);
-    assert!(production.representation_support().records().is_empty());
-    assert!(production.inheritance().records().is_empty());
+    assert_eq!(production.representation_support().records().len(), 1);
+    assert_eq!(production.inheritance().records().len(), 1);
 }
 
 #[test]
-fn producer_preserves_generic_constructor_parameter_as_source_only() {
+fn producer_materializes_closed_generic_constructor_parameters() {
     let core = trusted_core();
     let mut holder = class_decl(
         ast::ClassModifier::Final,
@@ -139,8 +139,8 @@ fn producer_preserves_generic_constructor_parameter_as_source_only() {
 
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
     assert_eq!(public.nominal_interfaces().records().len(), 2);
-    assert!(production.representation_support().records().is_empty());
-    assert!(production.inheritance().records().is_empty());
+    assert_eq!(production.representation_support().records().len(), 1);
+    assert_eq!(production.inheritance().records().len(), 1);
 }
 
 #[test]

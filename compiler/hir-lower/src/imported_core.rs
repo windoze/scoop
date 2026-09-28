@@ -57,16 +57,16 @@ impl Lowerer {
 
     pub(crate) fn imported_nominal_declaration(&self, ty: hir::TypeId) -> Option<PersistentTypeId> {
         if let hir::Type::ImportedStruct(ty) = &self.types[ty] {
-            return Some(ty.declaration.identity.id());
+            return ty.declaration.identity.concrete_id();
         }
         if let hir::Type::ImportedEnum(ty) = &self.types[ty] {
-            return Some(ty.declaration.identity.id());
+            return ty.declaration.identity.concrete_id();
         }
         if let hir::Type::ImportedClass(ty) = &self.types[ty] {
-            return Some(ty.declaration.identity.id());
+            return ty.declaration.identity.concrete_id();
         }
         if let hir::Type::ImportedInterface(ty) = &self.types[ty] {
-            return Some(ty.declaration.identity.id());
+            return ty.declaration.identity.concrete_id();
         }
         let CoreLoweringAuthority::Imported(authority) = &self.core else {
             return None;
@@ -144,9 +144,18 @@ impl Lowerer {
                 }
                 self.imported_nominal_type(*identity)
             }
-            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
-                Err(ImportedSignatureTypeError::Generic)
+            SignatureTypeKey::NominalApplication { origin, arguments } => {
+                let arguments = arguments
+                    .as_slice()
+                    .iter()
+                    .map(|argument| self.imported_signature_type_with_bindings(argument, bindings))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.imported_nominal_application(
+                    hir::SourceNominalId::GenericTemplate(*origin),
+                    arguments,
+                )
             }
+            SignatureTypeKey::Binder { .. } => Err(ImportedSignatureTypeError::Generic),
             SignatureTypeKey::Tuple(elements) => {
                 let elements = elements
                     .as_slice()

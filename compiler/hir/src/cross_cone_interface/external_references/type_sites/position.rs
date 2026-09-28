@@ -15,8 +15,8 @@ pub enum HirDependencyTypePositionV1 {
     LocalValue(PersistentLocalValueId),
     BackingStorage(PropertyOwner),
     DelegateStorage(PropertyOwner),
-    FieldStorage(PersistentFieldId),
-    EnumVariantFieldStorage(PersistentEnumVariantFieldId),
+    FieldStorage(PersistentExactTypeId, PersistentFieldId),
+    EnumVariantFieldStorage(PersistentExactTypeId, PersistentEnumVariantFieldId),
     ConstructorInitializerResult(CallableMaterialization),
     InitializationCycleMessage(PersistentInitializationUnitId),
 }

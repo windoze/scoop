@@ -26,9 +26,12 @@ impl Graph<'_> {
             if reference.type_sites().is_empty() {
                 continue;
             }
-            let ExternalHirTargetV1::Nominal(SourceNominalId::Concrete(owner)) = reference.target()
-            else {
-                return Err(Error::NonConcreteSignature);
+            let owner = match reference.target() {
+                ExternalHirTargetV1::Nominal(SourceNominalId::Concrete(owner)) => owner,
+                // The template reference is checked by HIR type-site relations;
+                // this consumer owns the application representation as ODR.
+                ExternalHirTargetV1::Nominal(SourceNominalId::GenericTemplate(_)) => continue,
+                _ => return Err(Error::NonConcreteSignature),
             };
             for site in reference.type_sites().records() {
                 let kind = match site {

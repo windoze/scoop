@@ -37,6 +37,18 @@ pub(super) fn resolve(
         .unwrap()
         .resolve_callables(
             input.mir.foundation(),
+            &|exact| {
+                input
+                    .source
+                    .exact_facts()
+                    .get(exact)
+                    .map(|facts| match facts.gc() {
+                        hir::ExactTypeGcV1::GcFree => mir::MirGcKindV1::GcFree,
+                        hir::ExactTypeGcV1::ContainsManagedReferences => {
+                            mir::MirGcKindV1::ContainsManagedReferences
+                        }
+                    })
+            },
             &direct,
             dependencies.iter().map(|section| {
                 (

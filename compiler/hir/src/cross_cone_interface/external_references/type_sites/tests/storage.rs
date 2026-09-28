@@ -56,6 +56,13 @@ fn semantic_storage_sites_keep_distinct_tags_and_typed_identity_domains() {
         (
             6,
             HirDependencyTypeSiteV1::FieldStorage {
+                owner: scoop_identity::PersistentExactTypeId::from_key(
+                    &scoop_identity::ExactTypeKey::Nominal(
+                        scoop_identity::PersistentTypeId::from_source_declaration(&structure)
+                            .unwrap(),
+                    ),
+                )
+                .unwrap(),
                 field,
                 exact: fixture.unit,
             },
@@ -63,6 +70,13 @@ fn semantic_storage_sites_keep_distinct_tags_and_typed_identity_domains() {
         (
             7,
             HirDependencyTypeSiteV1::EnumVariantFieldStorage {
+                owner: scoop_identity::PersistentExactTypeId::from_key(
+                    &scoop_identity::ExactTypeKey::Nominal(
+                        scoop_identity::PersistentTypeId::from_source_declaration(&enumeration)
+                            .unwrap(),
+                    ),
+                )
+                .unwrap(),
                 field: payload,
                 exact: fixture.unit,
             },
@@ -83,7 +97,8 @@ fn semantic_storage_sites_keep_distinct_tags_and_typed_identity_domains() {
         ),
     ] {
         let bytes = encode(&original).unwrap();
-        assert_eq!(&bytes[..3], &[0xa3, 0, tag]);
+        let fields = if matches!(tag, 6 | 7) { 4 } else { 3 };
+        assert_eq!(&bytes[..3], &[0xa0 + fields, 0, tag]);
         let raw: DecodedHirDependencyTypeSiteV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&raw).unwrap(), bytes);
         if tag == 8 {
@@ -94,7 +109,7 @@ fn semantic_storage_sites_keep_distinct_tags_and_typed_identity_domains() {
                 Err(HirDependencyTypeSiteResolutionError::Identity(_))
             ));
         }
-        for length in [2, 4] {
+        for length in [fields - 1, fields + 1] {
             let mut wrong = bytes.clone();
             wrong[0] = 0xa0 + length;
             assert!(decode_canonical::<DecodedHirDependencyTypeSiteV1>(&wrong).is_err());

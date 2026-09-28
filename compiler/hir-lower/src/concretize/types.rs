@@ -148,10 +148,16 @@ impl Concretizer<'_> {
             }
             export::Type::Boolean => self.intern_type(concrete::TypeKind::Boolean, true),
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
-            export::Type::ImportedStruct(structure) => self.lower_imported_struct(&structure),
-            export::Type::ImportedEnum(enumeration) => self.lower_imported_enum(&enumeration),
-            export::Type::ImportedClass(class) => self.lower_imported_class(&class),
-            export::Type::ImportedInterface(interface) => self.lower_imported_interface(&interface),
+            export::Type::ImportedStruct(structure) => {
+                self.lower_imported_struct(&structure, substitution)
+            }
+            export::Type::ImportedEnum(enumeration) => {
+                self.lower_imported_enum(&enumeration, substitution)
+            }
+            export::Type::ImportedClass(class) => self.lower_imported_class(&class, substitution),
+            export::Type::ImportedInterface(interface) => {
+                self.lower_imported_interface(&interface, substitution)
+            }
             export::Type::Struct(application) => {
                 let value = self.source.struct_applications[application].clone();
                 if matches!(

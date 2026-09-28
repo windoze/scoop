@@ -96,6 +96,12 @@ impl<'a> Collector<'a> {
                 }
                 Ok(())
             }
+            ExactTypeKey::NominalApplication { arguments, .. } if transient => {
+                for argument in arguments.as_slice() {
+                    self.exact_in(*argument, true)?;
+                }
+                Ok(())
+            }
             // Structural pointer values use their target representation. Their
             // pointee/signature identities do not require a physical type export.
             ExactTypeKey::Function { .. }

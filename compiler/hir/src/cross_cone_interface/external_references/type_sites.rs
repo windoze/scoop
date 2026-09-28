@@ -53,10 +53,12 @@ pub enum HirDependencyTypeSiteV1 {
         exact: PersistentExactTypeId,
     },
     FieldStorage {
+        owner: PersistentExactTypeId,
         field: PersistentFieldId,
         exact: PersistentExactTypeId,
     },
     EnumVariantFieldStorage {
+        owner: PersistentExactTypeId,
         field: PersistentEnumVariantFieldId,
         exact: PersistentExactTypeId,
     },
@@ -125,9 +127,11 @@ impl HirDependencyTypeSiteV1 {
             Self::DelegateStorage { property, .. } => {
                 HirDependencyTypePositionV1::DelegateStorage(*property)
             }
-            Self::FieldStorage { field, .. } => HirDependencyTypePositionV1::FieldStorage(*field),
-            Self::EnumVariantFieldStorage { field, .. } => {
-                HirDependencyTypePositionV1::EnumVariantFieldStorage(*field)
+            Self::FieldStorage { owner, field, .. } => {
+                HirDependencyTypePositionV1::FieldStorage(*owner, *field)
+            }
+            Self::EnumVariantFieldStorage { owner, field, .. } => {
+                HirDependencyTypePositionV1::EnumVariantFieldStorage(*owner, *field)
             }
             Self::ConstructorInitializerResult { constructor, .. } => {
                 HirDependencyTypePositionV1::ConstructorInitializerResult(*constructor)

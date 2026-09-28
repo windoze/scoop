@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum NominalTemplate {
+    Imported(hir::SourceNominalId),
     Struct(hir::StructId),
     Class(hir::ClassId),
     Enum(hir::EnumId),
@@ -67,6 +68,13 @@ impl Lowerer {
     }
 
     fn nominal_application(&self, ty: TypeId) -> Option<NominalApplication> {
+        if let Some((declaration, arguments)) = self.types[ty].imported_nominal_application() {
+            return Some(NominalApplication {
+                ty,
+                template: NominalTemplate::Imported(declaration.owner()),
+                arguments: arguments.to_vec(),
+            });
+        }
         let (template, arguments) = match self.types[ty] {
             Type::Struct(application) => {
                 let application = &self.struct_applications[application];
@@ -107,6 +115,12 @@ impl Lowerer {
 
     fn nominal_template_name(&self, template: NominalTemplate) -> &str {
         match template {
+            NominalTemplate::Imported(owner) => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                .expect("resolved dependency nominal retains its declaration")
+                .name(),
             NominalTemplate::Struct(id) => &self.structs[id].name,
             NominalTemplate::Class(id) => &self.classes[id].name,
             NominalTemplate::Enum(id) => &self.enums[id].name,
@@ -116,6 +130,16 @@ impl Lowerer {
 
     fn nominal_parameter_name(&self, template: NominalTemplate, index: usize) -> &str {
         match template {
+            NominalTemplate::Imported(owner) => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                .expect("resolved dependency nominal retains its declaration")
+                .interface
+                .type_parameters()
+                .binders()[index]
+                .name()
+                .as_str(),
             NominalTemplate::Struct(id) => &self.structs[id].type_params[index].name,
             NominalTemplate::Class(id) => &self.classes[id].type_params[index].name,
             NominalTemplate::Enum(id) => &self.enums[id].type_params[index].name,
@@ -123,7 +147,7 @@ impl Lowerer {
         }
     }
 
-    fn direct_nominal_supertypes(&mut self, ty: TypeId) -> Vec<TypeId> {
+    pub(crate) fn direct_nominal_supertypes(&mut self, ty: TypeId) -> Vec<TypeId> {
         match self.types[ty].clone() {
             Type::Class(application) => {
                 let application = self.class_applications[application].clone();
@@ -188,11 +212,15 @@ impl Lowerer {
             }
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::ImportedStruct(_)
-            | Type::ImportedEnum(_)
-            | Type::ImportedClass(_)
-            | Type::ImportedInterface(_)
-            | Type::Unit
+            Type::ImportedStruct(value) => value.interfaces.clone(),
+            Type::ImportedEnum(value) => value.interfaces.clone(),
+            Type::ImportedInterface(value) => value.parents.clone(),
+            Type::ImportedClass(value) => value
+                .base_class
+                .into_iter()
+                .chain(value.interfaces.iter().copied())
+                .collect(),
+            Type::Unit
             | Type::Any
             | Type::Tuple(_)
             | Type::Function(_)

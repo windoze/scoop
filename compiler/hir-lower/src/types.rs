@@ -82,16 +82,16 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
         (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::ImportedStruct(x), Type::ImportedStruct(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::ImportedEnum(x), Type::ImportedEnum(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::ImportedClass(x), Type::ImportedClass(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::ImportedInterface(x), Type::ImportedInterface(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,

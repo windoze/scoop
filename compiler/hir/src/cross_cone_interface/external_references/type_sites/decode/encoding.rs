@@ -48,12 +48,16 @@ impl WireEncode for DecodedHirDependencyTypeSiteV1 {
             Self::DelegateStorage { property, exact } => {
                 super::super::wire::declaration(encoder, 5, property, exact)
             }
-            Self::FieldStorage { field, exact } => {
-                super::super::wire::declaration(encoder, 6, field, exact)
-            }
-            Self::EnumVariantFieldStorage { field, exact } => {
-                super::super::wire::declaration(encoder, 7, field, exact)
-            }
+            Self::FieldStorage {
+                owner,
+                field,
+                exact,
+            } => super::super::wire::storage(encoder, 6, field, exact, owner),
+            Self::EnumVariantFieldStorage {
+                owner,
+                field,
+                exact,
+            } => super::super::wire::storage(encoder, 7, field, exact, owner),
             Self::ConstructorInitializerResult { constructor, exact } => {
                 super::super::wire::declaration(encoder, 8, constructor, exact)
             }

@@ -63,9 +63,12 @@ impl Graph<'_> {
     ) -> Result<(), Error> {
         match signature {
             SignatureTypeKey::Nominal(owner) => self.select(*owner, kind)?,
-            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
-                return Err(Error::NonConcreteSignature);
+            SignatureTypeKey::NominalApplication { arguments, .. } => {
+                for argument in arguments.as_slice() {
+                    self.signature(argument, kind)?;
+                }
             }
+            SignatureTypeKey::Binder { .. } => return Err(Error::NonConcreteSignature),
             SignatureTypeKey::Tuple(elements) => {
                 for element in elements.as_slice() {
                     self.signature(element, kind)?;

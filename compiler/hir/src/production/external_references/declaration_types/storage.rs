@@ -20,12 +20,20 @@ pub(super) fn collect<E>(
         };
         if declaration
             .and_then(crate::HirNominalIdentity::source)
-            .is_some_and(|source| source.declaration().origin() != module.cone)
+            .is_some_and(|source| {
+                matches!(source, crate::HirSourceNominalIdentity::Concrete(record)
+                    if record.key().origin() != module.cone)
+            })
         {
-            // A dependency value representation does not declare fields in
-            // this Cone. Its storage references are recorded by its provider.
+            // Strong storage is recorded by its provider. A generic
+            // application records the fields of this local ODR instance.
             continue;
         }
+        let owner = module
+            .exact_type_identities
+            .get(ty)
+            .ok_or(Error::DeclarationType(ty))?
+            .id();
         match &module.types[ty].kind {
             TypeKind::Struct(id) => {
                 if let StructRepresentation::Declared { fields, .. } =
@@ -33,6 +41,7 @@ pub(super) fn collect<E>(
                 {
                     for field in fields {
                         output.add(field.ty, |exact| Site::FieldStorage {
+                            owner,
                             field: field.identity,
                             exact,
                         })?;
@@ -45,6 +54,7 @@ pub(super) fn collect<E>(
                 {
                     for field in fields {
                         output.add(field.ty, |exact| Site::FieldStorage {
+                            owner,
                             field: field.identity,
                             exact,
                         })?;
@@ -55,6 +65,7 @@ pub(super) fn collect<E>(
                 for variant in &module.enums[*id].variants {
                     for field in &variant.fields {
                         output.add(field.ty, |exact| Site::EnumVariantFieldStorage {
+                            owner,
                             field: field.identity,
                             exact,
                         })?;

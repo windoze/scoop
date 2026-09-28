@@ -15,7 +15,7 @@ impl Lowerer {
         let Type::ImportedClass(class) = &self.types[owner] else {
             unreachable!("dependency base initialization has a class owner")
         };
-        let identity = class.declaration.identity.id();
+        let identity = class.declaration.owner();
         let name = ast::Ident {
             text: class.declaration.name().to_owned(),
             span,

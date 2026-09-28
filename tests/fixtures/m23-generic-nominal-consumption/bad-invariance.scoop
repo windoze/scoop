@@ -1,0 +1,9 @@
+import dependency.nominals.Parcel
+import dependency.nominals.pack
+
+class Number(val value: Int)
+public fun invalid(): Int {
+    val actual = pack(Number(1))
+    val value: Parcel<Any> = actual
+    return 0
+}

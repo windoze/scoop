@@ -5,7 +5,7 @@ impl Lowerer {
         &self,
         declaration: &hir::ImportedNominalDeclaration,
     ) -> hir::AccessDomain {
-        let key = declaration.identity.key();
+        let key = declaration.identity.declaration();
         let mut domain = hir::AccessDomain::universal();
         let mut parent = None;
         for owner in key.owners().owners() {

@@ -52,9 +52,7 @@ impl Lowerer {
                     return Err(());
                 }
                 let ty = self
-                    .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
-                        declaration.identity.id(),
-                    ))
+                    .imported_nominal_application(declaration.owner(), Vec::new())
                     .map_err(|error| {
                         self.error(
                             name.span,

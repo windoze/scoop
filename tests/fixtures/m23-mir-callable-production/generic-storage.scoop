@@ -1,0 +1,4 @@
+public struct Payload<T>(val value: T)
+public struct Holder(val payload: Payload<Int>)
+
+@NoGC public fun keepPayload(value: Payload<Int>): Payload<Int> = value

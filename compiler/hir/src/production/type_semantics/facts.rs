@@ -80,9 +80,6 @@ impl FactProjector<'_> {
             self.dependency_types.insert(exact);
             return Ok(());
         }
-        if self.is_generic_application(ty) {
-            return Err(Error::GenericOdrRequired(exact));
-        }
         if !force_local && !self.is_locally_owned(ty)? {
             return Err(Error::MissingLocalSupport(exact));
         }

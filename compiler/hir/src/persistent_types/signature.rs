@@ -48,18 +48,54 @@ impl<'a> HirSignatureTypeMapper<'a> {
             return Err(HirSignatureTypeMappingError::RecursiveType(raw_index(ty)));
         }
         let key = match &self.inputs.types[ty] {
-            Type::ImportedStruct(structure) => {
-                SignatureTypeKey::Nominal(structure.declaration.identity.id())
-            }
-            Type::ImportedEnum(structure) => {
-                SignatureTypeKey::Nominal(structure.declaration.identity.id())
-            }
-            Type::ImportedClass(structure) => {
-                SignatureTypeKey::Nominal(structure.declaration.identity.id())
-            }
-            Type::ImportedInterface(structure) => {
-                SignatureTypeKey::Nominal(structure.declaration.identity.id())
-            }
+            Type::ImportedStruct(structure) => self.map_nominal(
+                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+                binders,
+                visiting,
+            )?,
+            Type::ImportedEnum(structure) => self.map_nominal(
+                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+                binders,
+                visiting,
+            )?,
+            Type::ImportedClass(structure) => self.map_nominal(
+                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+                binders,
+                visiting,
+            )?,
+            Type::ImportedInterface(structure) => self.map_nominal(
+                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+                binders,
+                visiting,
+            )?,
             Type::Unit => SignatureTypeKey::Nominal(
                 self.inputs
                     .nominal_identities

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use scoop_identity::{
     CborIdentityRecord, DeclarationName, EnumVariantFieldSelector, FieldIdentityView,
-    PersistentTypeId, SourceDeclarationKey,
+    PersistentTypeId,
 };
 
 use super::{ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError};
@@ -12,7 +12,7 @@ use crate::{NativeBoundaryCAbiV1, NominalInterfaceRecordV1, SourceNominalId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImportedNominalDeclaration {
-    pub identity: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
+    pub identity: crate::HirSourceNominalIdentity,
     pub interface: NominalInterfaceRecordV1,
     pub field_sources: Vec<ImportedNominalFieldSource>,
     pub variant_names: Vec<ImportedEnumVariantNames>,
@@ -38,8 +38,12 @@ pub struct ImportedEnumVariantNames {
 }
 
 impl ImportedNominalDeclaration {
+    pub const fn owner(&self) -> SourceNominalId {
+        self.interface.declaration()
+    }
+
     pub fn name(&self) -> &str {
-        match self.identity.key().name() {
+        match self.identity.declaration().name() {
             DeclarationName::Named(name) => name.as_str(),
             _ => unreachable!("source nominal declarations have names"),
         }
@@ -50,7 +54,14 @@ impl ImportedDependencySelectionPlan {
     /// Queries declaration identity directly, including private storage support.
     /// Source visibility is checked by the caller's binding or member lookup.
     pub fn nominal(&self, id: PersistentTypeId) -> Option<&Arc<ImportedNominalDeclaration>> {
-        self.catalog.nominals.get(&id)
+        self.nominal_declaration(SourceNominalId::Concrete(id))
+    }
+
+    pub fn nominal_declaration(
+        &self,
+        owner: SourceNominalId,
+    ) -> Option<&Arc<ImportedNominalDeclaration>> {
+        self.catalog.nominals.get(&owner)
     }
 
     /// Lexical scope visibility does not require a generic owner's machine type.
@@ -99,17 +110,26 @@ pub(super) fn declarations(
         .interface()
         .nominal_interfaces()
         .all_records()
-        .filter_map(|interface| match interface.declaration() {
-            SourceNominalId::Concrete(id) => Some((id, interface)),
-            SourceNominalId::GenericTemplate(_) => None,
-        })
-        .map(|(id, interface)| {
-            let identity = canonical
-                .type_source_nominal_records()
-                .iter()
-                .find(|record| record.id() == id)
-                .ok_or(Error::MissingNominal(id))?
-                .clone();
+        .map(|interface| {
+            let owner = interface.declaration();
+            let identity = match owner {
+                SourceNominalId::Concrete(id) => crate::HirSourceNominalIdentity::Concrete(
+                    canonical
+                        .type_source_nominal_records()
+                        .iter()
+                        .find(|record| record.id() == id)
+                        .ok_or(Error::MissingNominal(owner))?
+                        .clone(),
+                ),
+                SourceNominalId::GenericTemplate(id) => crate::HirSourceNominalIdentity::Generic(
+                    canonical
+                        .type_source_generic_records()
+                        .iter()
+                        .find(|record| record.id() == id)
+                        .ok_or(Error::MissingNominal(owner))?
+                        .clone(),
+                ),
+            };
             let field_sources = interface
                 .source_shape()
                 .declared_fields()
@@ -143,7 +163,14 @@ pub(super) fn declarations(
                 })
                 .collect::<Result<Vec<_>, Error>>()?;
             let c_abi = foundation
-                .native_boundary_type(crate::NativeBoundaryNominalOwner::Concrete(id))
+                .native_boundary_type(match owner {
+                    SourceNominalId::Concrete(id) => {
+                        crate::NativeBoundaryNominalOwner::Concrete(id)
+                    }
+                    SourceNominalId::GenericTemplate(id) => {
+                        crate::NativeBoundaryNominalOwner::GenericTemplate(id)
+                    }
+                })
                 .map_or(NativeBoundaryCAbiV1::SourceRepresentation, |record| {
                     record.c_abi()
                 });

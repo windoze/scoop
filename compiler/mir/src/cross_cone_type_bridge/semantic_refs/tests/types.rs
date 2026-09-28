@@ -107,8 +107,11 @@ fn structural_fields_preserve_types_without_standalone_materialization() {
         assert!(collector.finish().unwrap().targets().is_empty());
     }
     let mut collector = collector::Collector::new(&graph);
-    assert!(matches!(collector.field(exacts[5]),
-        Err(MirTypeBridgeReferenceError::StructuralExecutionGate(id)) if id == exacts[5]));
+    collector.field(exacts[5]).unwrap();
+    assert_eq!(
+        collector.finish().unwrap().targets(),
+        &[MirTypeBridgeTargetV1::Type(structural_leaf(&fixture))]
+    );
 }
 
 fn structural_graph(fixture: &Fixture) -> (ValidatedIdentityGraph, Vec<PersistentExactTypeId>) {

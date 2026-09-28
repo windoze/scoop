@@ -137,18 +137,50 @@ impl<'a> TypeIdentityBuilder<'a> {
                     .id(),
             )?,
             Type::Struct(application) => self.struct_application(ty, application)?,
-            Type::ImportedStruct(structure) => {
-                self.nominal_exact(ty, structure.declaration.identity.id())?
-            }
-            Type::ImportedEnum(structure) => {
-                self.nominal_exact(ty, structure.declaration.identity.id())?
-            }
-            Type::ImportedClass(structure) => {
-                self.nominal_exact(ty, structure.declaration.identity.id())?
-            }
-            Type::ImportedInterface(structure) => {
-                self.nominal_exact(ty, structure.declaration.identity.id())?
-            }
+            Type::ImportedStruct(structure) => self.nominal_application(
+                ty,
+                HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+            )?,
+            Type::ImportedEnum(structure) => self.nominal_application(
+                ty,
+                HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+            )?,
+            Type::ImportedClass(structure) => self.nominal_application(
+                ty,
+                HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+            )?,
+            Type::ImportedInterface(structure) => self.nominal_application(
+                ty,
+                HirNominalIdentity::Source(structure.declaration.identity.clone()),
+                structure
+                    .declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len(),
+                &structure.arguments,
+            )?,
             Type::Enum(application) => self.enum_application(ty, application)?,
             Type::Class(application) => self.class_application(ty, application)?,
             Type::Interface(application) => self.interface_application(ty, application)?,

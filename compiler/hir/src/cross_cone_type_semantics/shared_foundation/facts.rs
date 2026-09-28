@@ -8,7 +8,7 @@ use crate::{
     CanonicalExactTypeFactsV1, CheckedExactTypeFactV1, EnumSourceShapeV1, ExactEnumVariantFactsV1,
     ExactTypeFactShapeV1 as Shape, ExactTypeFactsDependencyLookupV1,
     ExactTypeFactsSemanticAuthority, ExactTypeFactsV1, ExactTypeGcV1, IntrinsicTypeKind,
-    NominalCLayoutPolicyV1, NominalSourceShapeV1,
+    NominalCLayoutPolicyV1, NominalSourceShapeV1, SourceNominalId,
 };
 
 pub(super) fn validate<'a>(
@@ -80,7 +80,9 @@ impl Replay<'_, '_> {
             return Err(Error::ByValueCycle(exact));
         }
         let shape = match key.as_ref() {
-            ExactTypeKey::Nominal(owner) => self.nominal_shape(*owner)?,
+            ExactTypeKey::Nominal(owner) => {
+                self.nominal_shape(SourceNominalId::Concrete(*owner), &[])?
+            }
             ExactTypeKey::Tuple(elements) => {
                 let mut children = Vec::new();
                 scoop_wire::allocation::try_reserve(
@@ -98,7 +100,10 @@ impl Replay<'_, '_> {
                 Shape::Pointer
             }
             ExactTypeKey::Function { .. } => Shape::Reference,
-            ExactTypeKey::NominalApplication { .. } => return Err(Error::GenericFact(exact)),
+            ExactTypeKey::NominalApplication { origin, arguments } => self.nominal_shape(
+                SourceNominalId::GenericTemplate(*origin),
+                &[arguments.as_slice().to_vec()],
+            )?,
         };
         self.active.remove(&exact);
 
@@ -106,38 +111,48 @@ impl Replay<'_, '_> {
         Ok(())
     }
 
-    fn nominal_shape(&mut self, owner: PersistentTypeId) -> Result<Shape, Error> {
-        if owner == CoreBuiltinNominal::Unit.identity_record().id() {
+    fn nominal_shape(
+        &mut self,
+        owner: SourceNominalId,
+        bindings: &[Vec<PersistentExactTypeId>],
+    ) -> Result<Shape, Error> {
+        if owner == SourceNominalId::Concrete(CoreBuiltinNominal::Unit.identity_record().id()) {
             return Ok(Shape::Unit);
         }
-        if owner == CoreBuiltinNominal::Any.identity_record().id() {
+        if owner == SourceNominalId::Concrete(CoreBuiltinNominal::Any.identity_record().id()) {
             return Ok(Shape::Reference);
         }
-        let nominal = self.types.nominal(owner)?;
+        let nominal = self.types.nominal_declaration(owner)?;
         match nominal.source_shape() {
             NominalSourceShapeV1::Struct(source) => {
-                let fields = self.fields(source.fields().iter().map(|field| field.value_type()))?;
+                let fields = self.fields(
+                    source.fields().iter().map(|field| field.value_type()),
+                    bindings,
+                )?;
                 Ok(match source.c_layout_policy() {
                     NominalCLayoutPolicyV1::Ordinary => Shape::OrdinaryStruct { fields },
                     NominalCLayoutPolicyV1::CLayout { .. } => Shape::CLayoutStruct { fields },
                 })
             }
-            NominalSourceShapeV1::Enum(source) => self.enumeration(source),
+            NominalSourceShapeV1::Enum(source) => self.enumeration(source, bindings),
             NominalSourceShapeV1::Class(_)
             | NominalSourceShapeV1::Object(_)
             | NominalSourceShapeV1::Interface => Ok(Shape::Reference),
             NominalSourceShapeV1::Intrinsic(representation) => match representation.family() {
                 IntrinsicTypeKind::Integer(_) | IntrinsicTypeKind::Boolean => Ok(Shape::Scalar),
-                IntrinsicTypeKind::String => Ok(Shape::Reference),
-                IntrinsicTypeKind::Array
-                | IntrinsicTypeKind::MutableArray
-                | IntrinsicTypeKind::Ptr
-                | IntrinsicTypeKind::FunPtr => Err(Error::IntrinsicNominal(owner)),
+                IntrinsicTypeKind::String
+                | IntrinsicTypeKind::Array
+                | IntrinsicTypeKind::MutableArray => Ok(Shape::Reference),
+                IntrinsicTypeKind::Ptr | IntrinsicTypeKind::FunPtr => Ok(Shape::Pointer),
             },
         }
     }
 
-    fn enumeration(&mut self, source: &EnumSourceShapeV1) -> Result<Shape, Error> {
+    fn enumeration(
+        &mut self,
+        source: &EnumSourceShapeV1,
+        bindings: &[Vec<PersistentExactTypeId>],
+    ) -> Result<Shape, Error> {
         let mut variants = Vec::new();
         scoop_wire::allocation::try_reserve(
             &mut variants,
@@ -145,7 +160,10 @@ impl Replay<'_, '_> {
             &WirePath::root(),
         )?;
         for variant in source.variants() {
-            let fields = self.fields(variant.fields().iter().map(|field| field.value_type()))?;
+            let fields = self.fields(
+                variant.fields().iter().map(|field| field.value_type()),
+                bindings,
+            )?;
             // Every field is recursively replayed by the shared facts validator.
             // This derived annotation is checked against those same child facts.
             let mut gc = ExactTypeGcV1::GcFree;
@@ -166,11 +184,12 @@ impl Replay<'_, '_> {
     fn fields<'s>(
         &mut self,
         fields: impl ExactSizeIterator<Item = &'s SignatureTypeKey>,
+        bindings: &[Vec<PersistentExactTypeId>],
     ) -> Result<Vec<PersistentExactTypeId>, Error> {
         let mut exacts = Vec::new();
         scoop_wire::allocation::try_reserve(&mut exacts, fields.len(), &WirePath::root())?;
         for field in fields {
-            let exact = self.types.exact(field)?;
+            let exact = self.types.exact_with_bindings(field, bindings)?;
             self.visit(exact)?;
             exacts.push(exact);
         }

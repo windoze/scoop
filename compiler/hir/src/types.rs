@@ -52,6 +52,21 @@ pub enum Type {
     Param(TypeParamId),
 }
 
+impl Type {
+    /// The original dependency declaration and the complete application arguments.
+    pub fn imported_nominal_application(
+        &self,
+    ) -> Option<(&std::sync::Arc<ImportedNominalDeclaration>, &[TypeId])> {
+        match self {
+            Self::ImportedStruct(value) => Some((&value.declaration, &value.arguments)),
+            Self::ImportedEnum(value) => Some((&value.declaration, &value.arguments)),
+            Self::ImportedClass(value) => Some((&value.declaration, &value.arguments)),
+            Self::ImportedInterface(value) => Some((&value.declaration, &value.arguments)),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedIntrinsicType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
@@ -61,9 +76,9 @@ pub struct ImportedIntrinsicType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedStructType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub arguments: Vec<TypeId>,
     pub fields: Vec<ImportedNominalField>,
     pub interfaces: Vec<TypeId>,
-    pub gc_free: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +91,7 @@ pub struct ImportedNominalField {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedClassType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub arguments: Vec<TypeId>,
     pub fields: Vec<ImportedNominalField>,
     pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
@@ -93,6 +109,7 @@ pub struct ImportedVirtualMethod {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedInterfaceType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub arguments: Vec<TypeId>,
     pub parents: Vec<TypeId>,
     pub methods: Vec<ImportedInterfaceMethod>,
 }
@@ -113,9 +130,9 @@ pub struct ImportedInterfaceMethod {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedEnumType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub arguments: Vec<TypeId>,
     pub variants: Vec<ImportedEnumValueVariant>,
     pub interfaces: Vec<TypeId>,
-    pub gc_free: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,16 +174,16 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::ImportedStruct(x), Type::ImportedStruct(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::ImportedEnum(x), Type::ImportedEnum(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::ImportedClass(x), Type::ImportedClass(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::ImportedInterface(x), Type::ImportedInterface(y)) => {
-            x.declaration.identity.id() == y.declaration.identity.id()
+            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
@@ -197,11 +214,23 @@ pub(crate) fn type_name_with_params(
     ty: TypeId,
     params: &[TypeParamDecl],
 ) -> String {
+    let imported_name = |declaration: &ImportedNominalDeclaration, arguments: &[TypeId]| {
+        let name = declaration.name();
+        if arguments.is_empty() {
+            name.to_owned()
+        } else {
+            let arguments = arguments
+                .iter()
+                .map(|argument| type_name_with_params(module, *argument, params))
+                .collect::<Vec<_>>();
+            format!("{name}<{}>", arguments.join(", "))
+        }
+    };
     match &module.types[ty] {
-        Type::ImportedStruct(structure) => structure.declaration.name().to_owned(),
-        Type::ImportedEnum(enumeration) => enumeration.declaration.name().to_owned(),
-        Type::ImportedClass(class) => class.declaration.name().to_owned(),
-        Type::ImportedInterface(class) => class.declaration.name().to_owned(),
+        Type::ImportedStruct(value) => imported_name(&value.declaration, &value.arguments),
+        Type::ImportedEnum(value) => imported_name(&value.declaration, &value.arguments),
+        Type::ImportedClass(value) => imported_name(&value.declaration, &value.arguments),
+        Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),

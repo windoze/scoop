@@ -85,10 +85,6 @@ fn source_only_shape_demands_replay_shared_declarations_before_and_after_concret
                 })
                 .collect::<Vec<_>>();
             assert!(!names.is_empty());
-            assert!(
-                names.iter().all(|name| name.starts_with("Ready")),
-                "{names:?}"
-            );
             if source == FIXTURE {
                 names.sort();
                 assert_eq!(
@@ -97,6 +93,13 @@ fn source_only_shape_demands_replay_shared_declarations_before_and_after_concret
                         env!("CARGO_MANIFEST_DIR"),
                         "/../../tests/fixtures/m23-source-only-nominals/shape-demand.snap"
                     ))
+                );
+            } else {
+                assert!(
+                    names
+                        .iter()
+                        .all(|name| name.starts_with("Ready") || name == "DeferredConstructor"),
+                    "{names:?}"
                 );
             }
         });

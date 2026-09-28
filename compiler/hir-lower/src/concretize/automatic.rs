@@ -53,22 +53,41 @@ impl Concretizer<'_> {
             export::Type::Param(_) => false,
             export::Type::Struct(application) => {
                 let application = &self.source.struct_applications[*application];
-                application.arguments.is_empty()
-                    && self.automatic_nominal(&self.source.nominal_identities[application.template])
+                (!application.arguments.is_empty()
+                    || self
+                        .automatic_nominal(&self.source.nominal_identities[application.template]))
+                    && application
+                        .arguments
+                        .iter()
+                        .all(|ty| self.automatic_type(*ty))
             }
             export::Type::Class(application) => {
                 let application = &self.source.class_applications[*application];
-                application.arguments.is_empty() && self.automatic_class(application.template)
+                (!application.arguments.is_empty() || self.automatic_class(application.template))
+                    && application
+                        .arguments
+                        .iter()
+                        .all(|ty| self.automatic_type(*ty))
             }
             export::Type::Interface(application) => {
                 let application = &self.source.interface_applications[*application];
-                application.arguments.is_empty()
-                    && self.automatic_nominal(&self.source.nominal_identities[application.template])
+                (!application.arguments.is_empty()
+                    || self
+                        .automatic_nominal(&self.source.nominal_identities[application.template]))
+                    && application
+                        .arguments
+                        .iter()
+                        .all(|ty| self.automatic_type(*ty))
             }
             export::Type::Enum(application) => {
                 let application = &self.source.enum_applications[*application];
-                application.arguments.is_empty()
-                    && self.automatic_nominal(&self.source.nominal_identities[application.template])
+                (!application.arguments.is_empty()
+                    || self
+                        .automatic_nominal(&self.source.nominal_identities[application.template]))
+                    && application
+                        .arguments
+                        .iter()
+                        .all(|ty| self.automatic_type(*ty))
             }
             export::Type::Tuple(elements) => elements.iter().all(|ty| self.automatic_type(*ty)),
             export::Type::Ptr(pointee) => self.automatic_type(*pointee),
