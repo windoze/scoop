@@ -71,6 +71,7 @@ impl Type {
 pub struct ImportedIntrinsicType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

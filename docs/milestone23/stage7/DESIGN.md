@@ -112,6 +112,8 @@ lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的
 
 导入的 callable reference 保留定义方的完整 invoke key、词法父模板和有序宿主实参；已选目标区分实际模板 application 与普通依赖 callable use。命名函数、局部函数、绑定成员及绑定扩展复用现有 concrete 函数引用与 MIR invoke，普通依赖目标直接引用提供方代码，不在消费方伪造源码函数。实际引用目标随创建表达式进入既有可执行依赖集合，尚未实例化的模板引用不成为机器根。局部函数的捕获值按原前置参数 ABI 传入；绑定接收者在创建表达式处只求值一次，保留值拷贝或引用拷贝，以及原 virtual/interface 派发。环境字段、局部值身份和 GC 扫描沿既有闭包路径处理。
 
+导入的 bound member 与直接成员引用使用定义处已经选择的声明。class bound 的目标沿原成员 application 降低；interface bound 保留完整接口 application、原成员与 dispatch slot、接收者参数及替换后的签名，待接收者具体化后从实际 conformance 选取实现。普通调用与绑定函数引用共用该选择：值类型直接调用其实际方法，class 实现保留原 virtual 派发，接口接收者或留给派生类的 abstract obligation 使用原接口槽；不得把所有 bound 调用统一改成装箱和接口调用。外来普通类型和 core primitive 的实现同样来自共有声明中的 conformance，不复制为本地源码声明，不在 MIR 重新做成员查找。需要的实际目标进入既有可执行依赖集合，未选中的声明仍只作为模板支持。
+
 导入模板中的局部具名函数声明与本地声明一样不产生运行时语句。实际直接调用复用原 typed callee 及完整类型实参，把已解析捕获表达式按原顺序放在显式参数之前，并进入已有导入 callable 的具体化队列；不为声明标记生成 Unit 占位表达式，也不把 provider 的源码函数复制为当前 Cone 的 `FunctionId`。
 
 无自身类型参数的局部声明保持 `PersistentFunctionId`，其继承实参通过 enclosing callable application 或 initialization application 表达；局部 generic 声明另外保留自身实参组。initializer 中的生成正文沿原 generated callable、unit 与 property/type 关系取得声明所属 Cone，不增加可按名字导入的 initializer binding。词法正文从已有正文表读取，不成为可按名字导入的源码接口。该正文的 binder 已在定义处检查，消费端保存有序替换参数及已有条件约束；它们与需要参与源码推断的声明参数使用不同表示，不能伪造一组无约束声明参数来填充接口。

@@ -296,6 +296,11 @@ pub enum ExprKind {
     AnonymousFunction(AnonymousFunctionId),
     ImportedClosure(Box<crate::ImportedClosure>),
     ImportedCallableReference(Box<crate::ImportedCallableReference>),
+    ImportedMethodCall {
+        receiver: Box<Expr>,
+        callee: crate::ImportedMethodCallee,
+        args: Vec<Expr>,
+    },
     CallableReference(CallableReferenceId),
     /// A variance-preserving function-value adaptation. `Expr::ty` is the
     /// target type; the typed entity also records both concrete HIR

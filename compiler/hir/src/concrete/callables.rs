@@ -103,34 +103,34 @@ pub struct CallableReference {
 
 #[derive(Debug, Clone)]
 pub enum CallableReferenceTarget {
-    Named(CallableReferenceCallee),
+    Named(CallableTarget),
     Local {
         local_function: LocalFunctionId,
         callee: Callable,
     },
     BoundMember {
         receiver: Box<Expr>,
-        callee: CallableReferenceCallee,
+        callee: CallableTarget,
     },
     BoundExtension {
         receiver: Box<Expr>,
-        callee: CallableReferenceCallee,
+        callee: CallableTarget,
     },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CallableReferenceCallee {
+pub enum CallableTarget {
     Local(Callable),
     Imported(ImportedDependencyCallableUseId),
 }
 
 impl CallableReferenceTarget {
-    pub fn callee(&self) -> CallableReferenceCallee {
+    pub fn callee(&self) -> CallableTarget {
         match self {
             Self::Named(callee)
             | Self::BoundMember { callee, .. }
             | Self::BoundExtension { callee, .. } => *callee,
-            Self::Local { callee, .. } => CallableReferenceCallee::Local(*callee),
+            Self::Local { callee, .. } => CallableTarget::Local(*callee),
         }
     }
 }

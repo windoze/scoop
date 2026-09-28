@@ -66,10 +66,23 @@ impl Lowerer {
         self.imported_intrinsic_types.insert(
             kind,
             hir::ImportedIntrinsicType {
-                declaration,
-                interfaces,
+                declaration: declaration.clone(),
+                interfaces: interfaces.clone(),
+                interface_implementations: Vec::new(),
             },
         );
+        let ty = match kind {
+            hir::IntrinsicTypeKind::Integer(kind) => self.intern_type(hir::Type::Integer(kind)),
+            hir::IntrinsicTypeKind::Boolean => self.boolean,
+            hir::IntrinsicTypeKind::String => self.intern_type(hir::Type::String),
+            _ => unreachable!("non-generic intrinsic declarations are scalar types"),
+        };
+        let implementations =
+            self.resolve_imported_interface_implementations(ty, &declaration, &interfaces)?;
+        self.imported_intrinsic_types
+            .get_mut(&kind)
+            .expect("an intrinsic declaration was reserved before its conformance")
+            .interface_implementations = implementations;
         Ok(())
     }
 }

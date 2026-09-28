@@ -47,19 +47,13 @@ impl Lowerer {
                 hir::ImportedCallableReferenceTarget::Local(application)
             }
             hir::DefaultCallableReferenceTargetV1::BoundMember { receiver, callee } => {
-                let hir::DefaultMethodCalleeV1::Callable(callee) = callee else {
-                    return Err(ImportedDefaultMaterializationError::Plan(
-                        "dependency bound-member template requires a resolved callable target"
-                            .into(),
-                    ));
-                };
                 hir::ImportedCallableReferenceTarget::BoundMember {
                     receiver: Box::new(
                         self.materialize_imported_default_expression(receiver, context)?,
                     ),
-                    callee: self.materialize_imported_callable_target(
+                    callee: self.materialize_imported_method_callee(
                         callee,
-                        MemberCallKind::Ordinary,
+                        creation.concrete().definition.span,
                         context,
                     )?,
                 }

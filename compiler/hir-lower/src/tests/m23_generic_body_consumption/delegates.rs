@@ -11,7 +11,7 @@ fn fixture(name: &str) -> String {
 
 #[test]
 fn imported_initializer_references_keep_provider_invokes_and_capture_values() {
-    use hir::concrete::{CallableReferenceCallee, CallableReferenceTarget};
+    use hir::concrete::{CallableReferenceTarget, CallableTarget};
     use scoop_identity::{
         CallableInstantiationOwner, CallableMaterializationContext, GeneratedCallableKey,
     };
@@ -57,7 +57,7 @@ fn imported_initializer_references_keep_provider_invokes_and_capture_values() {
                     .map(|use_| use_.callee())
                     .collect::<std::collections::BTreeSet<_>>();
                 for (id, reference) in module.callable_references.iter() {
-                    if let CallableReferenceCallee::Imported(callee) = reference.target.callee() {
+                    if let CallableTarget::Imported(callee) = reference.target.callee() {
                         assert!(
                             executable.contains(&callee),
                             "an invoked dependency is a machine root"

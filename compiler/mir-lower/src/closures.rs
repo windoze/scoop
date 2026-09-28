@@ -19,11 +19,11 @@ impl Lowerer {
     pub(super) fn lower_reference_callee(
         &mut self,
         _module: &hir::Module,
-        callable: hir::CallableReferenceCallee,
+        callable: hir::CallableTarget,
     ) -> mir::Callee {
         let callable = match callable {
-            hir::CallableReferenceCallee::Local(callable) => callable,
-            hir::CallableReferenceCallee::Imported(callee) => {
+            hir::CallableTarget::Local(callable) => callable,
+            hir::CallableTarget::Imported(callee) => {
                 return mir::Callee::External(
                     self.imported_dependency_callable_map[&callee].callable,
                 );
@@ -40,11 +40,11 @@ impl Lowerer {
         &mut self,
         module: &hir::Module,
         _receiver_ty: hir::TypeId,
-        callable: hir::CallableReferenceCallee,
+        callable: hir::CallableTarget,
     ) -> mir::CallKind {
         let callable = match callable {
-            hir::CallableReferenceCallee::Local(callable) => callable,
-            hir::CallableReferenceCallee::Imported(callee) => {
+            hir::CallableTarget::Local(callable) => callable,
+            hir::CallableTarget::Imported(callee) => {
                 return match module.imported_dependency_callables[callee].dispatch() {
                     scoop_hir::ImportedDependencyDispatch::Direct => mir::CallKind::Direct,
                     scoop_hir::ImportedDependencyDispatch::Virtual { slot } => {

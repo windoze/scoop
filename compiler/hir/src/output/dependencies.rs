@@ -50,8 +50,8 @@ impl DependencyHirOutput {
                     } => *callable,
                     concrete::ExprKind::CallableReference(id) => {
                         match local.callable_references[*id].target.callee() {
-                            concrete::CallableReferenceCallee::Imported(callable) => callable,
-                            concrete::CallableReferenceCallee::Local(_) => return Ok(()),
+                            concrete::CallableTarget::Imported(callable) => callable,
+                            concrete::CallableTarget::Local(_) => return Ok(()),
                         }
                     }
                     _ => return Ok(()),

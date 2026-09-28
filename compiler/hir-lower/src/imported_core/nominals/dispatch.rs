@@ -76,7 +76,7 @@ impl Lowerer {
         Ok(())
     }
 
-    pub(super) fn resolve_imported_interface_implementations(
+    pub(in crate::imported_core) fn resolve_imported_interface_implementations(
         &mut self,
         ty: hir::TypeId,
         declaration: &hir::ImportedNominalDeclaration,

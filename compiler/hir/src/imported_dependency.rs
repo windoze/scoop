@@ -10,6 +10,8 @@ mod closures;
 pub use closures::*;
 mod references;
 pub use references::*;
+mod methods;
+pub use methods::*;
 
 /// A dependency body normalized into the consumer's type and value domains.
 /// Its declaration remains owned by the provider, outside `Module::functions`.

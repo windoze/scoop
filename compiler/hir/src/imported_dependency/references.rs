@@ -1,6 +1,7 @@
 use crate::{
     Capture, DefinitionOrigin, Expr, FunctionTypeId, ImportedCallableTemplateParent,
-    ImportedDependencyCallableUseId, ImportedGenericCallableApplicationId, TypeId,
+    ImportedDependencyCallableUseId, ImportedGenericCallableApplicationId, ImportedMethodCallee,
+    TypeId,
 };
 
 /// A resolved dependency target shared by direct calls and callable references.
@@ -16,7 +17,7 @@ pub enum ImportedCallableReferenceTarget {
     Local(ImportedGenericCallableApplicationId),
     BoundMember {
         receiver: Box<Expr>,
-        callee: ImportedCallableTarget,
+        callee: ImportedMethodCallee,
     },
     BoundExtension {
         receiver: Box<Expr>,
@@ -25,12 +26,11 @@ pub enum ImportedCallableReferenceTarget {
 }
 
 impl ImportedCallableReferenceTarget {
-    pub fn callee(&self) -> ImportedCallableTarget {
+    pub fn callee(&self) -> Option<ImportedCallableTarget> {
         match self {
-            Self::Named(callee)
-            | Self::BoundMember { callee, .. }
-            | Self::BoundExtension { callee, .. } => *callee,
-            Self::Local(application) => ImportedCallableTarget::Application(*application),
+            Self::Named(callee) | Self::BoundExtension { callee, .. } => Some(*callee),
+            Self::BoundMember { callee, .. } => callee.declared_callable(),
+            Self::Local(application) => Some(ImportedCallableTarget::Application(*application)),
         }
     }
 

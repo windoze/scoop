@@ -184,7 +184,7 @@ impl Concretizer<'_> {
         let source = self.source.callable_references[source_id].clone();
         let target = match source.target {
             export::CallableReferenceTarget::Named(callee) => {
-                concrete::CallableReferenceTarget::Named(concrete::CallableReferenceCallee::Local(
+                concrete::CallableReferenceTarget::Named(concrete::CallableTarget::Local(
                     self.lower_callable(callee, substitution),
                 ))
             }
@@ -218,13 +218,13 @@ impl Concretizer<'_> {
                 };
                 concrete::CallableReferenceTarget::BoundMember {
                     receiver: Box::new(receiver),
-                    callee: concrete::CallableReferenceCallee::Local(callee),
+                    callee: concrete::CallableTarget::Local(callee),
                 }
             }
             export::CallableReferenceTarget::BoundExtension { receiver, callee } => {
                 concrete::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(self.lower_expr(&receiver, substitution, locals)),
-                    callee: concrete::CallableReferenceCallee::Local(
+                    callee: concrete::CallableTarget::Local(
                         self.lower_callable(callee, substitution),
                     ),
                 }

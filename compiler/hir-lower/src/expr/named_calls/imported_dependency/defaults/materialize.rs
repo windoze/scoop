@@ -14,6 +14,7 @@ mod callable;
 mod closures;
 mod constructors;
 mod delegates;
+mod methods;
 mod references;
 mod statements;
 
@@ -404,6 +405,17 @@ impl Lowerer {
                     context,
                 )?
             }
+            Kind::MethodCall {
+                receiver,
+                callee,
+                arguments,
+            } => hir::ExprKind::ImportedMethodCall {
+                receiver: Box::new(
+                    self.materialize_imported_default_expression(receiver, context)?,
+                ),
+                callee: self.materialize_imported_method_callee(callee, span, context)?,
+                args: self.materialize_imported_default_expressions(arguments, context)?,
+            },
             Kind::PrimitiveBinary { kind, lhs, rhs } => hir::ExprKind::PrimitiveBinary {
                 kind: (*kind).into(),
                 lhs: Box::new(self.materialize_imported_default_expression(lhs, context)?),
@@ -486,7 +498,6 @@ impl Lowerer {
             | Kind::FunctionAddress(_)
             | Kind::ForeignCallbackRegister { .. }
             | Kind::ForeignCallbackOperation { .. }
-            | Kind::MethodCall { .. }
             | Kind::DirectSuperMethodCall { .. }
             | Kind::ArrayLiteral(_)
             | Kind::ArrayAssembly(_)
