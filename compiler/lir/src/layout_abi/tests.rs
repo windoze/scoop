@@ -1,4 +1,5 @@
 use super::*;
+use scoop_identity::StrongCallableDefinitionOwner;
 use scoop_identity::{
     CanonicalIdentifier, ConeCoordinate, DeclarationScope, DefinitionOwnerChain, DispatchTableKey,
     ExactTypeKey, LayoutKey, PackagePath, PendingIdentityValidation, PersistentExactTypeId,
@@ -52,7 +53,9 @@ fn fixture() -> (
         LayoutAbiSemanticTargetV1::Layout(layout),
         LayoutAbiSemanticTargetV1::Descriptor(exact),
         LayoutAbiSemanticTargetV1::Dispatch(dispatch),
-        LayoutAbiSemanticTargetV1::Callable(StrongCallableDefinitionOwner::Function(function)),
+        LayoutAbiSemanticTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::Function(function),
+        )),
         LayoutAbiSemanticTargetV1::ShapeSupport(nominal),
     ];
     let mut pending = PendingIdentityValidation::new();

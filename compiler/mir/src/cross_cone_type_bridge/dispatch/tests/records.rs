@@ -11,7 +11,9 @@ impl Fixture {
                 .lowered_signature()
                 .clone(),
             MirDispatchImplementationV1::DirectStrongTarget {
-                target: self.target(usize::from(derived)),
+                target: scoop_identity::CallableDefinitionOwner::Strong(
+                    self.target(usize::from(derived)),
+                ),
                 receiver: if derived {
                     MirDispatchReceiverAdaptationV1::ReferenceDispatch
                 } else {
@@ -29,13 +31,15 @@ impl Fixture {
             .map(|(position, slot)| {
                 let implementation = if owner == VALUE {
                     MirDispatchImplementationV1::AdjustThunkTarget(
-                        StrongCallableDefinitionOwner::GeneratedCallable(
-                            self.boxing[usize::from(interface == LEFT) * 2 + slot - 1].id(),
+                        scoop_identity::CallableDefinitionOwner::Strong(
+                            StrongCallableDefinitionOwner::GeneratedCallable(
+                                self.boxing[usize::from(interface == LEFT) * 2 + slot - 1].id(),
+                            ),
                         ),
                     )
                 } else if slot == 2 {
                     MirDispatchImplementationV1::InterfaceDefaultTarget {
-                        target: self.target(4),
+                        target: scoop_identity::CallableDefinitionOwner::Strong(self.target(4)),
                         receiver: if interface == ROOT {
                             MirDispatchReceiverAdaptationV1::Identity
                         } else {
@@ -44,13 +48,15 @@ impl Fixture {
                     }
                 } else if owner == DERIVED {
                     MirDispatchImplementationV1::DirectStrongTarget {
-                        target: self.target(5),
+                        target: scoop_identity::CallableDefinitionOwner::Strong(self.target(5)),
                         receiver: MirDispatchReceiverAdaptationV1::ReferenceDispatch,
                     }
                 } else {
                     MirDispatchImplementationV1::AbstractObligation {
                         declaration: DispatchDeclarationOwner::Function(self.methods[3].id()),
-                        trap_target: self.target(3),
+                        trap_target: scoop_identity::CallableDefinitionOwner::Strong(
+                            self.target(3),
+                        ),
                         receiver: if interface == ROOT {
                             MirDispatchReceiverAdaptationV1::Identity
                         } else {

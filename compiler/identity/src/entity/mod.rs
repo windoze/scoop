@@ -3,6 +3,9 @@ mod bridge;
 mod c_abi;
 mod callable;
 mod callable_body;
+mod callable_definition;
+
+pub use callable_definition::{CallableDefinitionOwner, DecodedCallableDefinitionOwner};
 mod callback;
 mod core_builtin;
 mod dependency_callable;

@@ -11,7 +11,9 @@ fn object_edges_keep_source_backing_ensure_and_unit_separate() {
         expected(vec![
             MirTypeBridgeTargetV1::Type(record.read().object()),
             MirTypeBridgeTargetV1::Type(record.backing()),
-            MirTypeBridgeTargetV1::Callable(record.ensure()),
+            MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+                record.ensure()
+            )),
             MirTypeBridgeTargetV1::InitializationUnit(record.unit()),
         ])
     );

@@ -39,12 +39,12 @@ impl<'a> LocalView<'a> {
                 .map(MirCallableRecordRefV1::Lowered)
                 .or_else(|| {
                     let declaration = match target {
-                        StrongCallableDefinitionOwner::Function(id) => {
-                            scoop_identity::DependencyCallableDeclarationId::Function(id)
-                        }
-                        StrongCallableDefinitionOwner::PropertyAccessor(id) => {
-                            scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(id)
-                        }
+                        scoop_identity::CallableDefinitionOwner::Strong(
+                            StrongCallableDefinitionOwner::Function(id),
+                        ) => scoop_identity::DependencyCallableDeclarationId::Function(id),
+                        scoop_identity::CallableDefinitionOwner::Strong(
+                            StrongCallableDefinitionOwner::PropertyAccessor(id),
+                        ) => scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(id),
                         _ => return None,
                     };
                     self.direct

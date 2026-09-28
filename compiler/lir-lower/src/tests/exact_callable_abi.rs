@@ -63,7 +63,10 @@ pub(super) fn fixture() -> (
 fn callable_abi_producer_binds_real_materialization_and_emitted_unit_signature() {
     let (input, output, target, signature) = fixture();
     let result = lower_exact_callable_abi_export(&input, &output, target, &signature).unwrap();
-    assert_eq!(result.target(), target);
+    assert_eq!(
+        result.target(),
+        scoop_identity::CallableDefinitionOwner::Strong(target)
+    );
     assert_eq!(result.canonical_signature().signature(), signature.exact());
     assert_eq!(
         result.canonical_signature().result(),
@@ -105,6 +108,6 @@ fn callable_abi_producer_rejects_signature_and_effect_before_export() {
             &output,
             target,
             &wrong),
-        Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MirSignature(actual))) if actual == target
+        Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MirSignature(actual))) if actual == scoop_identity::CallableDefinitionOwner::Strong(target)
     ));
 }

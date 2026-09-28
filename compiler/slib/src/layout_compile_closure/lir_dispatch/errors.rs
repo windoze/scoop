@@ -1,5 +1,5 @@
 use scoop_identity::{
-    ConeIdentity, PersistentDispatchTableId, PersistentExactTypeId, StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, ConeIdentity, PersistentDispatchTableId, PersistentExactTypeId,
 };
 use scoop_lir as lir;
 use scoop_wire::{HashError, WireError};
@@ -13,8 +13,8 @@ pub enum SharedLirDispatchValidationError {
     MissingType(PersistentExactTypeId),
     MissingSchema(PersistentExactTypeId),
     FiniteInheritance(PersistentExactTypeId),
-    MissingCallable(StrongCallableDefinitionOwner),
-    DuplicateCallable(StrongCallableDefinitionOwner),
+    MissingCallable(CallableDefinitionOwner),
+    DuplicateCallable(CallableDefinitionOwner),
     MissingValueLayout(PersistentExactTypeId),
     DuplicateValueLayout(PersistentExactTypeId),
     Replay {

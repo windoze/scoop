@@ -4,12 +4,17 @@ use scoop_identity::{
     PropertyAccessorKey, SourceDeclarationKey,
 };
 
+mod applications;
 mod generated;
 mod traps;
 
 #[derive(Debug)]
 pub enum MirCallableBridgeError {
+    Hash(scoop_wire::HashError),
+    OdrMember(scoop_identity::OdrMemberIdentityError),
+    InvalidDispatchDeclaration,
     Reference(IdentityReferenceError),
+    DefinitionReference(scoop_identity::CallableBodyResolutionError<IdentityReferenceError>),
     ExactSignature(scoop_identity::ExactCallableSignatureResolutionError<IdentityReferenceError>),
     Type(MirTypeBridgeError),
     Resource(WireError),
@@ -22,10 +27,10 @@ pub enum MirCallableBridgeError {
         callable: PersistentGeneratedCallableId,
     },
     MissingImplementation {
-        implementation: StrongCallableDefinitionOwner,
+        implementation: CallableDefinitionOwner,
     },
     FoundationSignatureMismatch {
-        implementation: StrongCallableDefinitionOwner,
+        implementation: CallableDefinitionOwner,
     },
     MissingType {
         exact: PersistentExactTypeId,
@@ -42,15 +47,27 @@ pub enum MirCallableBridgeError {
     InvalidAdjustTarget,
     InvalidTrapDeclaration,
     DuplicateImplementation {
-        implementation: StrongCallableDefinitionOwner,
+        implementation: CallableDefinitionOwner,
     },
     NonCanonicalBindingOrder {
         index: usize,
     },
 }
+impl From<scoop_wire::HashError> for MirCallableBridgeError {
+    fn from(error: scoop_wire::HashError) -> Self {
+        Self::Hash(error)
+    }
+}
 impl From<IdentityReferenceError> for MirCallableBridgeError {
     fn from(value: IdentityReferenceError) -> Self {
         Self::Reference(value)
+    }
+}
+impl From<scoop_identity::CallableBodyResolutionError<IdentityReferenceError>>
+    for MirCallableBridgeError
+{
+    fn from(value: scoop_identity::CallableBodyResolutionError<IdentityReferenceError>) -> Self {
+        Self::DefinitionReference(value)
     }
 }
 impl std::fmt::Display for MirCallableBridgeError {
@@ -65,10 +82,7 @@ impl MirCallableBridgeAuthority<'_> {
         &self,
         binding: &ParamFreeMirCallableBindingV1,
     ) -> Result<(), MirCallableBridgeError> {
-        if binding.origin.implementation() != binding.implementation {
-            return Err(MirCallableBridgeError::OriginMismatch);
-        }
-        self.validate_origin(&binding.origin)?;
+        self.validate_definition_origin(binding)?;
         let primary = matches!(
             binding.role,
             MirCallableLoweringRoleV1::PrimaryValueConstructor { .. }
@@ -126,7 +140,29 @@ impl MirCallableBridgeAuthority<'_> {
         {
             return Err(MirCallableBridgeError::SignatureMismatch);
         }
-        match (&binding.origin, binding.role) {
+        let expanded;
+        let origin = if let MirCallableOriginV1::Application(application) = binding.origin {
+            let key = self
+                .identities
+                .canonical_key::<_, scoop_identity::CallableApplicationKey>(application)?;
+            use scoop_identity::CallableTemplateOrigin as Template;
+            expanded = match key.origin() {
+                Template::Function(id) => MirCallableOriginV1::Function(id),
+                Template::Constructor(id) => MirCallableOriginV1::Constructor(id),
+                Template::Accessor(id) => MirCallableOriginV1::Accessor(id),
+                Template::GenericFunction(_) | Template::VariantConstructor(_) => {
+                    return if binding.role == MirCallableLoweringRoleV1::Ordinary {
+                        self.same_signatures(binding)
+                    } else {
+                        Err(MirCallableBridgeError::RoleMismatch)
+                    };
+                }
+            };
+            &expanded
+        } else {
+            &binding.origin
+        };
+        match (origin, binding.role) {
             (MirCallableOriginV1::Function(_), MirCallableLoweringRoleV1::Ordinary) => {
                 self.same_signatures(binding)
             }
@@ -228,6 +264,10 @@ impl MirCallableBridgeAuthority<'_> {
 
     fn validate_origin(&self, origin: &MirCallableOriginV1) -> Result<(), MirCallableBridgeError> {
         match origin {
+            MirCallableOriginV1::Application(id) => {
+                self.identities
+                    .canonical_key::<_, scoop_identity::CallableApplicationKey>(*id)?;
+            }
             MirCallableOriginV1::Function(id) => {
                 self.identities
                     .canonical_key::<_, SourceDeclarationKey>(*id)?;
@@ -302,9 +342,14 @@ impl MirCallableBridgeAuthority<'_> {
     }
     fn foundation_signature(
         &self,
-        implementation: StrongCallableDefinitionOwner,
+        implementation: CallableDefinitionOwner,
     ) -> Result<&ExactCallableSignature, MirCallableBridgeError> {
-        let subject = crate::CallableSignatureSubject::strong(implementation.callable_owner());
+        let subject = match implementation {
+            CallableDefinitionOwner::Strong(owner) => {
+                crate::CallableSignatureSubject::strong(owner.callable_owner())
+            }
+            CallableDefinitionOwner::Odr(member) => crate::CallableSignatureSubject::odr(member),
+        };
         let entries = self.foundation.callable_signatures();
         entries
             .binary_search_by(|entry| entry.subject().compare_sort_key(subject))
@@ -323,19 +368,11 @@ impl MirCallableBridgeAuthority<'_> {
         let exact = self.identities.canonical_key::<_, ExactTypeKey>(owner)?;
         if !matches!((key.owners().owners().last(), exact.as_ref()),
             (Some(DefinitionOwnerAtom::Type(declared)), ExactTypeKey::Nominal(actual)) if declared == actual)
+            && !matches!((key.owners().owners().last(), exact.as_ref()),
+                (Some(DefinitionOwnerAtom::GenericType(declared)), ExactTypeKey::NominalApplication { origin, .. }) if declared == origin)
         {
             return Err(MirCallableBridgeError::ConstructorOwnerMismatch);
         }
         Ok(())
-    }
-}
-pub(super) fn declaration_implementation(
-    declaration: DispatchDeclarationOwner,
-) -> StrongCallableDefinitionOwner {
-    match declaration {
-        DispatchDeclarationOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
-        DispatchDeclarationOwner::Accessor(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(id)
-        }
     }
 }

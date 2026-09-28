@@ -3,6 +3,7 @@ use scoop_identity::{DecodedGeneratedCallableKey, PersistentIdResolver};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MirCallableOriginV1 {
+    Application(scoop_identity::PersistentCallableApplicationId),
     Function(PersistentFunctionId),
     Constructor(PersistentConstructorId),
     Accessor(PersistentPropertyAccessorId),
@@ -12,19 +13,21 @@ pub enum MirCallableOriginV1 {
     },
 }
 impl MirCallableOriginV1 {
-    pub const fn implementation(&self) -> StrongCallableDefinitionOwner {
-        match self {
+    pub const fn implementation(&self) -> Option<StrongCallableDefinitionOwner> {
+        Some(match self {
+            Self::Application(_) => return None,
             Self::Function(id) => StrongCallableDefinitionOwner::Function(*id),
             Self::Constructor(id) => StrongCallableDefinitionOwner::Constructor(*id),
             Self::Accessor(id) => StrongCallableDefinitionOwner::PropertyAccessor(*id),
             Self::Generated { callable, .. } => {
                 StrongCallableDefinitionOwner::GeneratedCallable(*callable)
             }
-        }
+        })
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedMirCallableOriginV1 {
+    Application(DecodedPersistentId<scoop_identity::PersistentCallableApplicationId>),
     Function(DecodedPersistentId<PersistentFunctionId>),
     Constructor(DecodedPersistentId<PersistentConstructorId>),
     Accessor(DecodedPersistentId<PersistentPropertyAccessorId>),
@@ -39,6 +42,7 @@ impl DecodedMirCallableOriginV1 {
         graph: &mut ValidatedIdentityGraph,
     ) -> Result<MirCallableOriginV1, MirCallableBridgeError> {
         Ok(match self {
+            Self::Application(id) => MirCallableOriginV1::Application(graph.resolve(id)?),
             Self::Function(id) => MirCallableOriginV1::Function(graph.resolve(id)?),
             Self::Constructor(id) => MirCallableOriginV1::Constructor(graph.resolve(id)?),
             Self::Accessor(id) => MirCallableOriginV1::Accessor(graph.resolve(id)?),
@@ -67,6 +71,11 @@ macro_rules! encode_origin {
         impl WireEncode for $ty {
             fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
                 match self {
+                    Self::Application(id) => {
+                        tag(encoder, 2, 5)?;
+                        encoder.field(1)?;
+                        id.encode(encoder)
+                    }
                     Self::Function(id) => {
                         tag(encoder, 2, 1)?;
                         encoder.field(1)?;
@@ -102,6 +111,9 @@ impl WireDecode for DecodedMirCallableOriginV1 {
         let kind = decoder.field(0, Decoder::unsigned)?;
         fields(decoder, count, if kind == 4 { 3 } else { 2 })?;
         match kind {
+            5 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::Application),
             1 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::Function),

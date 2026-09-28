@@ -29,7 +29,7 @@ impl WireDecode for DecodedLayoutAbiSemanticTargetV1 {
             1 => Self::Layout(decoder.field(1, DecodedPersistentId::decode)?),
             2 => Self::Descriptor(decoder.field(1, DecodedPersistentId::decode)?),
             3 => Self::Dispatch(decoder.field(1, DecodedPersistentId::decode)?),
-            4 => Self::Callable(decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?),
+            4 => Self::Callable(decoder.field(1, DecodedCallableDefinitionOwner::decode)?),
             5 => Self::ShapeSupport(decoder.field(1, DecodedPersistentId::decode)?),
             tag => return Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         })

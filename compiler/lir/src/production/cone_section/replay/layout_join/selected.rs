@@ -101,7 +101,7 @@ fn callable(
             continue;
         };
         if import.provider() == provider
-            && PersistentCallableBodyId::from_key(&CallableBodyKey::strong(candidate))? == body
+            && PersistentCallableBodyId::from_key(&candidate.body_key())? == body
         {
             owner = Some(candidate);
             matches = matches.saturating_add(1);

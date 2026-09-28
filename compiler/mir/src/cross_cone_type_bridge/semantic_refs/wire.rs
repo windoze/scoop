@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::DecodedStrongCallableDefinitionOwner;
+use scoop_identity::DecodedCallableDefinitionOwner;
 
 macro_rules! encode_target {
     ($ty:ty) => {
@@ -29,7 +29,7 @@ impl WireDecode for DecodedMirTypeBridgeTargetV1 {
         fields(decoder, count, 2)?;
         Ok(match decoder.field(0, Decoder::unsigned)? {
             1 => Self::Type(decoder.field(1, DecodedPersistentId::decode)?),
-            2 => Self::Callable(decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?),
+            2 => Self::Callable(decoder.field(1, DecodedCallableDefinitionOwner::decode)?),
             3 => Self::Dispatch(decoder.field(1, DecodedPersistentId::decode)?),
             4 => Self::Object(decoder.field(1, DecodedPersistentId::decode)?),
             5 => Self::ShapeSupport(decoder.field(1, DecodedPersistentId::decode)?),

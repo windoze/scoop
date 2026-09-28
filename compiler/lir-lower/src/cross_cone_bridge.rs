@@ -99,7 +99,7 @@ fn lower_export(
     .and_then(|body| body.abi_record(&output.module().enums))
     .map_err(|source| CrossConeLirBridgeLoweringError::CallableAbi {
         declaration,
-        source,
+        source: Box::new(source),
     })?;
     lir::ParamFreeLirCallableExportV1::from_abi(declaration, callable).map_err(|source| {
         CrossConeLirBridgeLoweringError::Export {
@@ -191,7 +191,7 @@ pub enum CrossConeLirBridgeLoweringError {
     },
     CallableAbi {
         declaration: DependencyCallableDeclarationId,
-        source: crate::CallableAbiProjectionError,
+        source: Box<crate::CallableAbiProjectionError>,
     },
     Export {
         declaration: DependencyCallableDeclarationId,

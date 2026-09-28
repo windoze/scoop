@@ -76,7 +76,9 @@ pub(super) fn project(
                 &mut uses,
                 lir::LayoutAbiDependencyV1::new(
                     callable.provider(),
-                    lir::LayoutAbiSemanticTargetV1::Callable(callable.target()),
+                    lir::LayoutAbiSemanticTargetV1::Callable(
+                        scoop_identity::CallableDefinitionOwner::Strong(callable.target()),
+                    ),
                 ),
             )?;
         }

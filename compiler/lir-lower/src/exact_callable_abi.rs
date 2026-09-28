@@ -1,6 +1,6 @@
 //! Callable ABI publication from the same materialized MIR and LIR bodies.
 
-use scoop_identity::StrongCallableDefinitionOwner;
+use scoop_identity::CallableDefinitionOwner;
 use scoop_lir as lir;
 use scoop_mir as mir;
 
@@ -8,9 +8,10 @@ use scoop_mir as mir;
 pub fn lower_exact_callable_abi_export(
     input: &mir::ConeMirInput,
     output: &lir::ConeLirOutput,
-    target: StrongCallableDefinitionOwner,
+    target: impl Into<CallableDefinitionOwner>,
     signature: &mir::MirBridgeCallableSignatureV1,
 ) -> Result<lir::ExactCallableAbiExportV1, ExactCallableAbiLoweringError> {
+    let target = target.into();
     if input.module().cone != output.foundation().producer() {
         return Err(ExactCallableAbiLoweringError::Provider);
     }
@@ -25,12 +26,12 @@ pub fn lower_exact_callable_abi_export(
         return Err(ExactCallableAbiLoweringError::GcEffect);
     }
     let abi = materialized
-        .abi_record(&output.module().enums)
+        .canonical_signature(&output.module().enums)
         .map_err(ExactCallableAbiLoweringError::Materialization)?;
     lir::ExactCallableAbiExportV1::from_signature(
         output.module().meta.target_profile,
         target,
-        abi.abi_signature().clone(),
+        abi,
         output.foundation(),
     )
     .map_err(ExactCallableAbiLoweringError::Abi)

@@ -29,7 +29,7 @@ fn direct_receiver_tags_cannot_hide_wrong_or_unrelated_receiver() {
         unreachable!()
     };
     entries[0].implementation = MirDispatchImplementationV1::DirectStrongTarget {
-        target: fixture.target(1),
+        target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target(1)),
         receiver: MirDispatchReceiverAdaptationV1::Identity,
     };
     assert!(matches!(
@@ -40,7 +40,7 @@ fn direct_receiver_tags_cannot_hide_wrong_or_unrelated_receiver() {
         unreachable!()
     };
     entries[0].implementation = MirDispatchImplementationV1::DirectStrongTarget {
-        target: fixture.target(2),
+        target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target(2)),
         receiver: MirDispatchReceiverAdaptationV1::ReferenceDispatch,
     };
     assert!(matches!(
@@ -52,7 +52,7 @@ fn direct_receiver_tags_cannot_hide_wrong_or_unrelated_receiver() {
         unreachable!()
     };
     entries[0].implementation = MirDispatchImplementationV1::DirectStrongTarget {
-        target: fixture.target(0),
+        target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target(0)),
         receiver: MirDispatchReceiverAdaptationV1::ReferenceDispatch,
     };
     assert!(matches!(
@@ -71,7 +71,7 @@ fn value_interface_default_cannot_bypass_boxing_adjust_or_inherit_wrong_interfac
         .find(|entry| entry.slot() == fixture.slots[2].id())
         .unwrap();
     entry.implementation = MirDispatchImplementationV1::InterfaceDefaultTarget {
-        target: fixture.target(4),
+        target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target(4)),
         receiver: MirDispatchReceiverAdaptationV1::Identity,
     };
     assert!(matches!(
@@ -110,7 +110,7 @@ fn slot_positions_duplicates_and_concrete_abstract_obligations_are_rejected() {
         .unwrap();
     entry.implementation = MirDispatchImplementationV1::AbstractObligation {
         declaration: DispatchDeclarationOwner::Function(fixture.methods[3].id()),
-        trap_target: fixture.target(3),
+        trap_target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target(3)),
         receiver: if interface == fixture.exact(ROOT) {
             MirDispatchReceiverAdaptationV1::Identity
         } else {
@@ -267,7 +267,9 @@ fn adjust_cannot_move_to_another_interface_with_the_same_slot_shape() {
     for entry in &mut table.entries {
         let index = usize::from(entry.slot() == fixture.slots[2].id());
         entry.implementation = MirDispatchImplementationV1::AdjustThunkTarget(
-            StrongCallableDefinitionOwner::GeneratedCallable(fixture.boxing[index].id()),
+            scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::GeneratedCallable(fixture.boxing[index].id()),
+            ),
         );
     }
     assert!(matches!(
@@ -351,7 +353,7 @@ fn abstract_class_keeps_original_typed_trap_and_derived_replaces_only_target() {
     };
     entries[0].implementation = MirDispatchImplementationV1::AbstractObligation {
         declaration: DispatchDeclarationOwner::Function(fixture.methods[0].id()),
-        trap_target: fixture.target(0),
+        trap_target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target(0)),
         receiver: MirDispatchReceiverAdaptationV1::Identity,
     };
     let table = CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records).unwrap();

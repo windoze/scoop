@@ -1,22 +1,22 @@
 use super::*;
-use scoop_identity::{DecodedDispatchDeclarationOwner, DecodedStrongCallableDefinitionOwner};
+use scoop_identity::{DecodedCallableDefinitionOwner, DecodedDispatchDeclarationOwner};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DecodedImplementation {
     AbstractObligation {
         declaration: DecodedDispatchDeclarationOwner,
-        trap_target: DecodedStrongCallableDefinitionOwner,
+        trap_target: DecodedCallableDefinitionOwner,
         receiver: MirDispatchReceiverAdaptationV1,
     },
     DirectStrongTarget {
-        target: DecodedStrongCallableDefinitionOwner,
+        target: DecodedCallableDefinitionOwner,
         receiver: MirDispatchReceiverAdaptationV1,
     },
     InterfaceDefaultTarget {
-        target: DecodedStrongCallableDefinitionOwner,
+        target: DecodedCallableDefinitionOwner,
         receiver: MirDispatchReceiverAdaptationV1,
     },
-    AdjustThunkTarget(DecodedStrongCallableDefinitionOwner),
+    AdjustThunkTarget(DecodedCallableDefinitionOwner),
 }
 impl DecodedImplementation {
     pub(super) fn resolve(
@@ -113,11 +113,11 @@ impl WireDecode for DecodedImplementation {
         Ok(match value {
             1 => Self::AbstractObligation {
                 declaration: decoder.field(1, DecodedDispatchDeclarationOwner::decode)?,
-                trap_target: decoder.field(2, DecodedStrongCallableDefinitionOwner::decode)?,
+                trap_target: decoder.field(2, DecodedCallableDefinitionOwner::decode)?,
                 receiver: decoder.field(3, MirDispatchReceiverAdaptationV1::decode)?,
             },
             2 | 3 => {
-                let target = decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?;
+                let target = decoder.field(1, DecodedCallableDefinitionOwner::decode)?;
                 let receiver = decoder.field(2, MirDispatchReceiverAdaptationV1::decode)?;
                 if value == 2 {
                     Self::DirectStrongTarget { target, receiver }
@@ -125,9 +125,7 @@ impl WireDecode for DecodedImplementation {
                     Self::InterfaceDefaultTarget { target, receiver }
                 }
             }
-            4 => Self::AdjustThunkTarget(
-                decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
-            ),
+            4 => Self::AdjustThunkTarget(decoder.field(1, DecodedCallableDefinitionOwner::decode)?),
             tag => return Err(error(decoder, WireErrorKind::UnknownTag { tag })),
         })
     }

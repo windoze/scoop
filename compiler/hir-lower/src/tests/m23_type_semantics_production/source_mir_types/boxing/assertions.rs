@@ -33,7 +33,9 @@ pub(super) fn actual(
             .unwrap();
         assert_eq!(
             root.subject(),
-            scoop_mir::CallableSignatureSubject::Strong(target.callable_owner())
+            scoop_mir::CallableSignatureSubject::Strong(
+                target.strong_owner().unwrap().callable_owner()
+            )
         );
         let calls: Vec<_> = input.module().functions[adjust.function()]
             .body

@@ -43,7 +43,9 @@ pub(super) fn actual(
         );
     }
     for binding in bindings.entries() {
-        let StrongCallableDefinitionOwner::Constructor(declaration) = binding.implementation()
+        let scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::Constructor(declaration),
+        ) = binding.implementation()
         else {
             panic!("only constructors are produced")
         };
@@ -162,7 +164,10 @@ pub(super) fn dump(
     };
     let mut lines = Vec::new();
     for binding in bindings.entries() {
-        let StrongCallableDefinitionOwner::Constructor(id) = binding.implementation() else {
+        let scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::Constructor(id),
+        ) = binding.implementation()
+        else {
             unreachable!()
         };
         let semantic = binding.semantic_signature();

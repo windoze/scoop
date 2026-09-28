@@ -27,13 +27,9 @@ fn ordinary_library_exports_members_with_available_machine_signatures() {
                 .records()
                 .iter()
                 .map(|callable| callable.target())
-                .chain(
-                    result
-                        .direct_callables()
-                        .exports()
-                        .iter()
-                        .map(|callable| callable.target()),
-                )
+                .chain(result.direct_callables().exports().iter().map(|callable| {
+                    scoop_identity::CallableDefinitionOwner::from(callable.target())
+                }))
                 .map(|target| assertions::callable_name(input, target))
                 .collect::<Vec<_>>();
             assert!(names.contains(&"Published.ready"));

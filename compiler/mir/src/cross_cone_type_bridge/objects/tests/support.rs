@@ -255,7 +255,7 @@ impl Fixture {
                     ParamFreeMirCallableBindingV1::try_new(
                         authority,
                         origin.clone(),
-                        origin.implementation(),
+                        origin.implementation().unwrap(),
                         signature.clone(),
                         signature.clone(),
                         MirCallableLoweringRoleV1::ObjectEnsure { unit: unit.id() },

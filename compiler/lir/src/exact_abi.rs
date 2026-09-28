@@ -3,8 +3,7 @@
 use std::sync::Arc;
 
 use scoop_identity::{
-    CanonicalScoopAbiFunctionSignature, GcEffect, PersistentCallableBodyId,
-    StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, CanonicalScoopAbiFunctionSignature, GcEffect, PersistentCallableBodyId,
 };
 use scoop_wire::{WireError, WirePath};
 
@@ -55,7 +54,7 @@ pub struct ExactCallableAbiExportV1(Arc<CallableAbiBodyV1>);
 
 #[derive(Debug, Eq, PartialEq)]
 struct CallableAbiBodyV1 {
-    target: StrongCallableDefinitionOwner,
+    target: CallableDefinitionOwner,
     target_profile: LirTargetProfile,
     signature: CanonicalScoopAbiFunctionSignature,
     protocol: ExactCallableProtocolV1,
@@ -67,14 +66,14 @@ impl ExactCallableAbiExportV1 {
     /// Attaches the complete ABI from the defining body to its physical symbol.
     pub fn from_signature(
         target_profile: LirTargetProfile,
-        target: StrongCallableDefinitionOwner,
+        target: impl Into<CallableDefinitionOwner>,
         signature: CanonicalScoopAbiFunctionSignature,
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactCallableAbiError> {
-        replay::callable(target_profile, target, signature, foundation)
+        replay::callable(target_profile, target.into(), signature, foundation)
     }
 
-    pub fn target(&self) -> StrongCallableDefinitionOwner {
+    pub fn target(&self) -> CallableDefinitionOwner {
         self.0.target
     }
     pub fn target_profile(&self) -> LirTargetProfile {

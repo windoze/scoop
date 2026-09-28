@@ -53,10 +53,10 @@ impl ValidatedCrossConeSemanticClosure {
                         .callables()
                         .get(target)
                         .ok_or(Error::MissingExport { provider, target })?;
-                    callables.push(SelectedExternalMirCallable::from_lowered(
-                        provider,
-                        definition.clone(),
-                    ));
+                    callables.push(
+                        SelectedExternalMirCallable::from_lowered(provider, definition.clone())
+                            .map_err(|_| Error::SignatureMismatch { provider, target })?,
+                    );
                 }
                 objects.push(object.clone());
                 Ok(())

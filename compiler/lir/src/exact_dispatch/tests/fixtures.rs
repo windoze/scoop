@@ -108,7 +108,7 @@ impl DirectFixture {
             slot: self.slot,
             slot_signature: self.slot_signature.clone(),
             implementation: ExactDispatchImplementationV1::DirectStrongTarget {
-                target: self.target,
+                target: scoop_identity::CallableDefinitionOwner::Strong(self.target),
                 receiver: ExactDispatchReceiverAdaptationV1::Identity,
             },
             abi: DispatchCallableAbiV1::Exact {
@@ -128,7 +128,7 @@ impl DirectFixture {
             slot: self.slot,
             slot_signature: self.slot_signature.clone(),
             implementation: ExactDispatchImplementationV1::DirectStrongTarget {
-                target: self.target,
+                target: scoop_identity::CallableDefinitionOwner::Strong(self.target),
                 receiver: ExactDispatchReceiverAdaptationV1::ReferenceDispatch,
             },
             abi: DispatchCallableAbiV1::Exact {
@@ -195,9 +195,11 @@ fn named_pointer(name: &str) -> ExactLayoutExportV1 {
 
 fn callable_foundation(name: &str) -> (StrongCallableDefinitionOwner, ConeLirFoundation) {
     let target = StrongCallableDefinitionOwner::Function(source_function(name));
-    let (definition, symbol) = ExternalStrongShapeSubjectV1::Callable(target)
-        .expected_definition(ConeIdentity::SINGLE_FILE)
-        .unwrap();
+    let (definition, symbol) = ExternalStrongShapeSubjectV1::Callable(
+        scoop_identity::CallableDefinitionOwner::Strong(target),
+    )
+    .expected_definition(ConeIdentity::SINGLE_FILE)
+    .unwrap();
     let definition = CborIdentityRecord::from_key(definition).unwrap();
     let atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
         definition.id(),

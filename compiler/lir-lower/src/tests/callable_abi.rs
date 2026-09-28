@@ -69,11 +69,11 @@ fn ordinary_and_layout_publication_reject_a_missing_materialized_body_with_the_s
     let output = lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     assert!(matches!(
         crate::lower_cross_cone_bridge_section(&input, &mir_bridge(&input, target, signature.exact()), &output),
-        Err(CrossConeLirBridgeLoweringError::CallableAbi { source: CallableAbiProjectionError::MissingLirBody(actual), .. }) if actual == target
+        Err(CrossConeLirBridgeLoweringError::CallableAbi { source, .. }) if matches!(*source, CallableAbiProjectionError::MissingLirBody(actual) if actual == scoop_identity::CallableDefinitionOwner::Strong(target))
     ));
     assert!(matches!(
         crate::lower_exact_callable_abi_export(&input, &output, target, &signature),
-        Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MissingLirBody(actual))) if actual == target
+        Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MissingLirBody(actual))) if actual == scoop_identity::CallableDefinitionOwner::Strong(target)
     ));
 }
 
@@ -133,11 +133,11 @@ fn both_publication_roles_reject_physical_gc_and_argument_drift() {
             .unwrap_err();
             if gc_drift {
                 assert!(
-                    matches!(error, CallableAbiProjectionError::GcEffect(actual) if actual == target)
+                    matches!(error, CallableAbiProjectionError::GcEffect(actual) if actual == scoop_identity::CallableDefinitionOwner::Strong(target))
                 );
             } else {
                 assert!(
-                    matches!(error, CallableAbiProjectionError::ArgumentCount { target: actual, mir: 0, lir: 1 } if actual == target)
+                    matches!(error, CallableAbiProjectionError::ArgumentCount { target: actual, mir: 0, lir: 1 } if actual == scoop_identity::CallableDefinitionOwner::Strong(target))
                 );
             }
         }

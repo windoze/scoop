@@ -1,8 +1,19 @@
 use super::super::imported_classes::runtime;
 use super::*;
 
+mod dispatch;
+
 #[test]
 fn generic_initializations_survive_publication_and_execute_with_moving_gc() {
+    check_initializations(&["standalone", "combined"]);
+}
+
+#[test]
+fn generic_dispatch_survives_publication_and_executes_with_moving_gc() {
+    check_initializations(&["dispatch", "dispatch-combined"]);
+}
+
+fn check_initializations(cases: &[&str]) {
     let target = resolved_target().expect("generic initialization requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -12,7 +23,7 @@ fn generic_initializations_survive_publication_and_execute_with_moving_gc() {
     let runtime = runtime::build(&target, &sysroot.path().join("runtime"));
     let runtime_fixtures = crate::workspace_root().join("tests/fixtures/m23-imported-classes");
 
-    for case in ["standalone", "combined"] {
+    for &case in cases {
         let provider_name = format!("generic-initialization-{case}");
         let provider_coordinate =
             ConeCoordinate::new("dev.example", &provider_name, "0.1.0").unwrap();
@@ -120,12 +131,17 @@ fn generic_initializations_survive_publication_and_execute_with_moving_gc() {
                 .generic_initializations()
                 .records()
                 .len(),
-            if case == "standalone" { 2 } else { 5 },
+            if case == "combined" { 5 } else { 2 },
         );
         let production = sections.lir_strong_production();
         let shapes = production.canonical_shape_definitions().definitions();
         let expected_types = if case == "standalone" { 2 } else { 4 };
-        assert_eq!(shapes.len(), expected_types * 6);
+        if case.starts_with("dispatch") {
+            dispatch::check(sections, if case == "dispatch" { 1 } else { 2 });
+            assert!(!shapes.is_empty());
+        } else {
+            assert_eq!(shapes.len(), expected_types * 6);
+        }
         for shape in shapes {
             let definition = closure
                 .odr_definitions()
@@ -150,6 +166,10 @@ fn generic_initializations_survive_publication_and_execute_with_moving_gc() {
                 );
             }
         }
-        assert_eq!(registrations, expected_types);
+        if case.starts_with("dispatch") {
+            assert!(registrations >= 2);
+        } else {
+            assert_eq!(registrations, expected_types);
+        }
     }
 }

@@ -8,6 +8,7 @@ enum SelectedCallableDefinition {
     Direct(SelectedDependencyMirCallableV1),
     Lowered {
         provider: ConeIdentity,
+        target: StrongCallableDefinitionOwner,
         definition: Box<ParamFreeMirCallableBindingV1>,
     },
 }
@@ -25,13 +26,21 @@ impl SelectedExternalMirCallable {
     }
 
     /// Retains the provider's complete source and physical lowering signatures.
-    pub fn from_lowered(provider: ConeIdentity, definition: ParamFreeMirCallableBindingV1) -> Self {
-        Self {
+    pub fn from_lowered(
+        provider: ConeIdentity,
+        definition: ParamFreeMirCallableBindingV1,
+    ) -> Result<Self, crate::MirCallableBridgeError> {
+        let scoop_identity::CallableDefinitionOwner::Strong(target) = definition.implementation()
+        else {
+            return Err(crate::MirCallableBridgeError::RoleMismatch);
+        };
+        Ok(Self {
             definition: SelectedCallableDefinition::Lowered {
                 provider,
+                target,
                 definition: Box::new(definition),
             },
-        }
+        })
     }
 
     pub const fn direct_record(&self) -> Option<&SelectedDependencyMirCallableV1> {
@@ -51,7 +60,7 @@ impl SelectedExternalMirCallable {
     pub fn implementation(&self) -> StrongCallableDefinitionOwner {
         match &self.definition {
             SelectedCallableDefinition::Direct(record) => record.implementation(),
-            SelectedCallableDefinition::Lowered { definition, .. } => definition.implementation(),
+            SelectedCallableDefinition::Lowered { target, .. } => *target,
         }
     }
 

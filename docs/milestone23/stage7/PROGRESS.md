@@ -347,11 +347,24 @@
 
 本项完成泛型 payload 私有存储依赖与原消费产物运行闭环；泛型 class dispatch、构造模板的实际导入及其余 M23-7 验收继续实施。
 
+## 2026-09-28：泛型名义实例的 callable 与分发表使用实际 ODR 目标
+
+- MIR callable binding、分发表和 LIR exact ABI 共用 `CallableDefinitionOwner::Strong/Odr`，沿已有 callable body、application、specialization group 和 member identity 表达实际定义。泛型 method、accessor、class initializer 和 struct constructor 从已经完成的 LocalConcrete HIR 与 MIR 正文生成完整记录；普通调用入口仍保持其原 Strong 约束，没有把模板声明充作机器定义。
+- 泛型 class 的共有分发表直接投影实际 MIR vtable/itable，保留原 slot identity、顺序、完整签名、GC effect、继承覆写、接口默认实现和 abstract trap。泛型抽象接口方法生成真实 trap 正文，删除旧 shell 路径及其重复 suspend 登记。语义依赖沿具体 receiver 的继承关系找到实际 Strong/ODR callable；等值 ODR 类型、callable 和 dispatch 记录可在原 MIR 依赖索引中复用，Strong 重复与矛盾记录仍拒绝。
+- LocalConcrete HIR 分别保存直接接口与完整传递实现集合，接口保留实际父接口。MIR 类型导出使用直接关系，实际派发表继续使用完整接口集合；导入与本地具体化执行同一规则，reader 保留与原声明的精确关系检查。LIR ABI、分发表、物理引用、对象和注册继续进入原 production 与 ODR 合并通道。
+- `mir/cross-cone-type-bridge` 升至 `/3`，`lir/cross-cone-layout-abi` 升至 `/5`，`lir/cross-cone-layout-link-closure` 升至 `/3`。required inventory、profile descriptor、固定 fingerprint、旧 major 拒绝测试及三份 spec、设计说明同步；`cone-production/2` 和 runtime C ABI 保持，旧产物与缓存需要重建。
+- 新增独立与组合 dispatch fixture 和六份 HIR/MIR/LIR golden，覆盖泛型继承、虚方法覆写、多层接口、默认方法、abstract trap 和引用 payload。核对每个实际 slot 的 ODR 正文、完整 MIR/LIR ABI 与 WeakODR 符号，反例拒绝错误 application member 和以 Strong 模板声明代替实际定义。两例均完成 provider 发布并移走源码、consumer 再发布并移走源码、下游仅以 `.slib` 编译、真实链接、普通运行及移动 GC，保留实际收集断言；原构造初始化的 standalone/combined 两例也恢复完整运行闭环。
+- core 的异常及含闭合泛型字段的普通声明现在核对实际类型、布局、构造和访问器导出，替换旧的 source-only 假定。整数异常默认实参改为正式发布正例，MIR golden 保留零除异常的分配、外部初始化、throw 和有符号溢出分支。源码清单反例继续检查声明所需表示；删除实际 application 类型记录的反例移至完整 MIR 引用闭包，避免把所有 HIR application 强制变成机器根。既有 dispatch 与依赖图快照中的 slot、实体 ID 和顺序保持，实际定义目标显式增加 Strong 包装。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过，无警告。关闭全部快照更新开关后，非 driver 工作区的 5037 项测试全部通过，无失败或忽略，包含 1258 项 HIR lowering、114 项 MIR lowering、584 项 slib 和 2 项文档测试。首次完整 driver 库验证有 98 项通过、25 项失败；修复后关闭更新开关复验 26 项相关测试，全部通过，涵盖全部 25 项原失败，耗时 302.08 秒。其余 97 项库测试及 7 项 CLI、1 项配套编译器测试已在本批首次完整 driver 运行中通过；本记录不将分批验证写成一次完整工作区命令。
+- 确认全部构建、测试与配套编译器进程结束，且 `target` 中没有打开的文件。核对该目录为本工作区构建缓存后恢复缺失的标准 Cargo 缓存标记，执行 `cargo clean --target-dir target`，删除 3001 个构建文件，回收 6.6 GiB。
+
+本项完成 provider 已物化泛型 class 的共有 callable、dispatch 与产物运行闭环。消费方从模板构造、继承和再次实例化完整泛型 method，以及 ODR boxing/adjust 等组合继续沿剩余主线推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化模板的实际消费，以及 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 补齐实际泛型 class 的共有 dispatch 清单，恢复构造初始化的产物回归；继续完成消费方泛型名义类型的构造、继承、属性与派发组合，扩展 ZST/大值/引用 ABI 组合及递归扫描程序的实际对象 atom。
+3. 在已完成的泛型 class 共有 callable/dispatch 和构造初始化产物回归基础上，继续完成消费方泛型名义类型的构造、继承、属性与派发组合，扩展 ZST/大值/引用 ABI 组合及递归扫描程序的实际对象 atom。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

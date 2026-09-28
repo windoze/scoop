@@ -110,8 +110,9 @@ impl LayoutAbiExportConstituentsV1 {
                 .get(target)
                 .map(LayoutAbiSemanticRecordV1::Callable)
                 .or_else(|| {
-                    self.direct_callables
-                        .export_for_target(target)
+                    target
+                        .strong_owner()
+                        .and_then(|target| self.direct_callables.export_for_target(target))
                         .map(LayoutAbiSemanticRecordV1::DirectCallable)
                 }),
             LayoutAbiSemanticTargetV1::ShapeSupport(source) => self

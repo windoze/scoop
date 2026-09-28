@@ -37,7 +37,9 @@ fn exercise_dependency_production(provider: Provider) {
     .unwrap();
     let callable_import = ExternalShapeLinkImportV1::replay(
         &provider_view,
-        ExternalStrongShapeSubjectV1::Callable(provider.callable),
+        ExternalStrongShapeSubjectV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            provider.callable,
+        )),
         consumer.cone,
     )
     .unwrap();
@@ -56,7 +58,9 @@ fn exercise_dependency_production(provider: Provider) {
         ),
         LayoutAbiDependencyV1::new(
             provider.identity,
-            LayoutAbiSemanticTargetV1::Callable(provider.callable),
+            LayoutAbiSemanticTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+                provider.callable,
+            )),
         ),
     ];
     roots.sort_unstable();
@@ -156,7 +160,9 @@ fn exercise_dependency_production(provider: Provider) {
         )
         .unwrap(),
         StrongShapeDefinitionRefV1::from_foundation(
-            ExternalStrongShapeSubjectV1::Callable(provider.callable),
+            ExternalStrongShapeSubjectV1::Callable(
+                scoop_identity::CallableDefinitionOwner::Strong(provider.callable),
+            ),
             provider.output.foundation(),
         )
         .unwrap(),

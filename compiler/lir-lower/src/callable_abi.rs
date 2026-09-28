@@ -1,9 +1,6 @@
 //! Shared binding of callable ABI publication to actual MIR and LIR bodies.
 
-use scoop_identity::{
-    CallableBodyKey, ExactCallableSignature, PersistentCallableBodyId,
-    StrongCallableDefinitionOwner,
-};
+use scoop_identity::{CallableDefinitionOwner, ExactCallableSignature, PersistentCallableBodyId};
 use scoop_lir as lir;
 use scoop_mir as mir;
 
@@ -15,32 +12,37 @@ pub(crate) struct LocalCallableMaterialization<'a> {
     pub(crate) lir: &'a lir::Function,
     module: &'a mir::Module,
     signature: &'a ExactCallableSignature,
-    target: StrongCallableDefinitionOwner,
+    target: CallableDefinitionOwner,
 }
 
 impl<'a> LocalCallableMaterialization<'a> {
     pub(crate) fn resolve(
         input: &'a mir::ConeMirInput,
         functions: &'a [lir::Function],
-        target: StrongCallableDefinitionOwner,
+        target: impl Into<CallableDefinitionOwner>,
         signature: &ExactCallableSignature,
     ) -> Result<Self, CallableAbiProjectionError> {
-        let owner = target.callable_owner();
-        let strong = input
-            .production()
-            .strong_callable_bridges()
-            .get(owner)
+        let target = target.into();
+        let subject = match target {
+            CallableDefinitionOwner::Strong(owner) => {
+                mir::CallableSignatureSubject::Strong(owner.callable_owner())
+            }
+            CallableDefinitionOwner::Odr(member) => mir::CallableSignatureSubject::Odr(member),
+        };
+        let exact = input
+            .foundation()
+            .callable_signature(subject)
             .ok_or(CallableAbiProjectionError::MissingMirSignature(target))?;
-        if strong.signature() != signature {
+        if exact.signature() != signature {
             return Err(CallableAbiProjectionError::MirSignature(target));
         }
         let root = input
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| root.subject() == mir::CallableSignatureSubject::Strong(owner))
+            .find(|root| root.subject() == subject)
             .ok_or(CallableAbiProjectionError::MissingMirBody(target))?;
-        let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))
+        let body = PersistentCallableBodyId::from_key(&target.body_key())
             .map_err(CallableAbiProjectionError::Identity)?;
         let lir = functions
             .iter()
@@ -50,15 +52,16 @@ impl<'a> LocalCallableMaterialization<'a> {
             module: input.module(),
             mir: &input.module().functions[root.function()],
             lir,
-            signature: strong.signature(),
+            signature: exact.signature(),
             target,
         })
     }
 
-    pub(crate) fn abi_record(
+    pub(crate) fn canonical_signature(
         &self,
         enums: &lir::EnumDefs,
-    ) -> Result<lir::CallableAbiRecordV1, CallableAbiProjectionError> {
+    ) -> Result<scoop_identity::CanonicalScoopAbiFunctionSignature, CallableAbiProjectionError>
+    {
         let root_plan = match self.mir.gc_effect {
             mir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
             mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
@@ -90,9 +93,24 @@ impl<'a> LocalCallableMaterialization<'a> {
             self.mir.gc_effect,
             &self.lir.signature,
         );
+        Ok(abi)
+    }
+
+    pub(crate) fn abi_record(
+        &self,
+        enums: &lir::EnumDefs,
+    ) -> Result<lir::CallableAbiRecordV1, CallableAbiProjectionError> {
+        let CallableDefinitionOwner::Strong(target) = self.target else {
+            return Err(CallableAbiProjectionError::MirSignature(self.target));
+        };
+        let abi = self.canonical_signature(enums)?;
+        let root_plan = match self.mir.gc_effect {
+            mir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
+            mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
+        };
         lir::CallableAbiRecordV1::new(
             self.module.cone,
-            self.target,
+            target,
             abi,
             self.lir.signature.calling_convention(),
             root_plan,

@@ -33,34 +33,26 @@ pub(super) fn check(
         ],
         _ => return,
     };
-    let names = bridge
-        .callables()
-        .entries()
-        .iter()
-        .map(|binding| binding.implementation())
-        .chain(
-            input
-                .ordinary
-                .exports()
-                .iter()
-                .map(|record| record.implementation()),
-        )
-        .map(|implementation| {
-            let root = input
-                .mir
-                .materialization()
-                .callable_roots()
-                .iter()
-                .find(|root| {
-                    root.subject()
-                        == scoop_mir::CallableSignatureSubject::Strong(
-                            implementation.callable_owner(),
-                        )
-                })
-                .unwrap();
-            input.mir.module().functions[root.function()].name.as_str()
-        })
-        .collect::<Vec<_>>();
+    let names =
+        bridge
+            .callables()
+            .entries()
+            .iter()
+            .map(|binding| binding.implementation())
+            .chain(input.ordinary.exports().iter().map(|record| {
+                scoop_identity::CallableDefinitionOwner::from(record.implementation())
+            }))
+            .map(|implementation| {
+                let root = input
+                    .mir
+                    .materialization()
+                    .callable_roots()
+                    .iter()
+                    .find(|root| root.subject() == implementation.into())
+                    .unwrap();
+                input.mir.module().functions[root.function()].name.as_str()
+            })
+            .collect::<Vec<_>>();
     for &(name, present) in cases {
         assert_eq!(names.contains(&name), present, "source callable {name}");
     }

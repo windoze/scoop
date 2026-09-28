@@ -1,21 +1,21 @@
-use scoop_identity::StrongCallableDefinitionOwner;
+use scoop_identity::CallableDefinitionOwner;
 
 #[derive(Debug)]
 pub enum CallableAbiProjectionError {
-    MissingMirSignature(StrongCallableDefinitionOwner),
-    MirSignature(StrongCallableDefinitionOwner),
-    MissingMirBody(StrongCallableDefinitionOwner),
-    MissingLirBody(StrongCallableDefinitionOwner),
-    GcEffect(StrongCallableDefinitionOwner),
-    CallingConvention(StrongCallableDefinitionOwner),
+    MissingMirSignature(CallableDefinitionOwner),
+    MirSignature(CallableDefinitionOwner),
+    MissingMirBody(CallableDefinitionOwner),
+    MissingLirBody(CallableDefinitionOwner),
+    GcEffect(CallableDefinitionOwner),
+    CallingConvention(CallableDefinitionOwner),
     ArgumentCount {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         mir: usize,
         lir: usize,
     },
     Identity(scoop_wire::HashError),
     Abi {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         source: scoop_lir::CallableAbiBuildError,
     },
 }

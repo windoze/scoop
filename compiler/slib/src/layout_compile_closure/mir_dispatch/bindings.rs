@@ -41,7 +41,7 @@ impl Replay<'_> {
         target: StrongCallableDefinitionOwner,
     ) -> Result<mir::MirCallableRecordRefV1<'_>, Error> {
         self.callables
-            .get(target)
+            .get(scoop_identity::CallableDefinitionOwner::Strong(target))
             .ok_or(Error::MissingCallable(target))
     }
 
@@ -113,7 +113,10 @@ impl Replay<'_> {
             owner,
             slot,
             Component::CallableRole,
-            binding.lowering_role() == &mir::MirCallableLoweringRoleV1::BoxingAdjust { target },
+            binding.lowering_role()
+                == &mir::MirCallableLoweringRoleV1::BoxingAdjust {
+                    target: scoop_identity::CallableDefinitionOwner::Strong(target),
+                },
         )?;
         insert(&mut self.adjustments, callable)?;
         Ok(implementation)

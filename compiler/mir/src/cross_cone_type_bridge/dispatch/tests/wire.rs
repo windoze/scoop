@@ -48,7 +48,9 @@ fn reader_requires_a_closed_callable_target_table() {
             .callables
             .entries()
             .iter()
-            .filter(|binding| binding.implementation() != target)
+            .filter(|binding| {
+                binding.implementation() != scoop_identity::CallableDefinitionOwner::Strong(target)
+            })
             .cloned()
             .collect(),
     )
@@ -56,6 +58,6 @@ fn reader_requires_a_closed_callable_target_table() {
     let decoded: DecodedCanonicalMirDispatchSchemasV1 =
         decode_canonical(&encode(&table).unwrap()).unwrap();
     assert!(
-        matches!(decoded.validate(&mut fixture.graph, &fixture.types, &fixture.callables), Err(MirDispatchSchemaError::MissingCallable { target: missing }) if missing == target)
+        matches!(decoded.validate(&mut fixture.graph, &fixture.types, &fixture.callables), Err(MirDispatchSchemaError::MissingCallable { target: missing }) if missing == scoop_identity::CallableDefinitionOwner::Strong(target))
     );
 }

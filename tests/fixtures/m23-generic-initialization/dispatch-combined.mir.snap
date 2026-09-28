@@ -1,0 +1,230 @@
+Module
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class Base<Payload> vtable=2 itables=2
+  class Derived<Payload> vtable=2 itables=2
+  interface Source<Payload>
+  interface Root<Payload>
+  generated_exact_type get0 location=enum1 nominal_id=c5fcfd3ea818e73a2952cfbe553b94ced26c809ee644174ca7ee282db1a3cddb exact_id=d1ba0e42c6d6ec2f3846a8efd8611d020ca0378552d31716d2411b0ca16aeab9
+  generated_exact_type get1 location=enum0 nominal_id=23a2cc86897c22417140aa777c616df8eaea32f138bb36d908ce455a7e6159a8 exact_id=fc7549417b8464b4fe3438b74b5dff0df8fa7d13a8965c2e636a16466e4326b0
+  fun Payload.$get$value @fn0(this: Payload) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local this
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn10 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $parameter.item: Payload
+        Type Payload
+        Local $argument.0
+      assign $new.2
+        Type Derived<Payload>
+        ClassAlloc Derived<Payload>
+      call @fn11 direct
+        Type Derived<Payload>
+        Local $new.2
+        Type Payload
+        Local $parameter.item
+      val base: Base<Payload>
+        Type Base<Payload>
+        Retype Base<Payload>
+          Type Derived<Payload>
+          Local $new.2
+      val source: Source<Payload>
+        Type Source<Payload>
+        Retype Source<Payload>
+          Type Base<Payload>
+          Local base
+      val $argument.0: Source<Payload>
+        Type Source<Payload>
+        Local source
+      val $parameter.source: Source<Payload>
+        Type Source<Payload>
+        Local $argument.0
+      call value: Payload = @fn6 direct
+        Type Source<Payload>
+        Local $parameter.source
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Payload
+        ClassAlloc Payload
+      call @fn10 direct
+        Type Payload
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val first: Payload
+        Type Payload
+        Local $new.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type Payload
+        ClassAlloc Payload
+      call @fn10 direct
+        Type Payload
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val second: Payload
+        Type Payload
+        Local $new.4
+      call $dependency.receiver: Int = @fn0 direct
+        Type Payload
+        Local value
+      val $receiver: Base<Payload>
+        Type Base<Payload>
+        Local base
+      call $dependency.argument.0: Int = @fn3 virtual[1]
+        Type Base<Payload>
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Base.get @fn2(this: Base<Payload>) -> Payload
+    bb0 entry
+      trap @str0
+  fun Base.offset @fn3(this: Base<Payload>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun Derived.get @fn4(this: Derived<Payload>) -> Payload
+    bb0 entry
+      call $call.1: Payload = @fn7 direct
+        Type Derived<Payload>
+        Local this
+      return
+        Type Payload
+        Local $call.1
+  fun Derived.offset @fn5(this: Derived<Payload>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun read @fn6(source: Source<Payload>) -> Payload
+    bb0 entry
+      val $receiver: Source<Payload>
+        Type Source<Payload>
+        Local source
+      val $receiver: Source<Payload>
+        Type Source<Payload>
+        Local source
+      call $argument.0: Payload = @fn9 interface Root<Payload>[0]
+        Type Root<Payload>
+        Retype Root<Payload>
+          Type Source<Payload>
+          Local $receiver
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      call $call.1: Payload = @fn8 interface Root<Payload>[1]
+        Type Root<Payload>
+        Retype Root<Payload>
+          Type Source<Payload>
+          Local $receiver
+        Type Payload
+        Local $parameter.value
+      return
+        Type Payload
+        Local $call.1
+  fun Base.$get$item @fn7(this: Base<Payload>) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        FieldAccess 0
+          Type Base<Payload>
+          Local this
+  fun Root.echo @fn8(this: Root<Payload>, value: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local value
+  fun Root.get @fn9(this: Root<Payload>) -> Payload
+    bb0 entry
+      trap @str1
+  fun init.Payload.$c0 @fn10(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Derived.$c2 @fn11(this: Derived<Payload>, item: Payload) -> Unit
+    bb0 entry
+      val $argument.0: Payload
+        Type Payload
+        Local item
+      val $parameter.item: Payload
+        Type Payload
+        Local $argument.0
+      call @fn12 direct
+        Type Base<Payload>
+        Retype Base<Payload>
+          Type Derived<Payload>
+          Local this
+        Type Payload
+        Local $parameter.item
+      return
+  fun init.Base.$c1 @fn12(this: Base<Payload>, item: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Payload>
+        Local this
+        Type Payload
+        Local item
+      return
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  instance mi0 function=@fn2 <- Base.get
+  instance mi1 function=@fn3 <- Base.offset
+  instance mi2 function=@fn4 <- Derived.get
+  instance mi3 function=@fn5 <- Derived.offset
+  instance mi4 function=@fn6 <- read
+  instance mi5 function=@fn7 <- Base.$get$item
+  instance mi6 function=@fn8 <- Root.echo
+  instance mi7 function=@fn9 <- Root.get
+  str @str0 "call to abstract method `Base.get`"
+  str @str1 "call to abstract method `Root.get`"
+  output library

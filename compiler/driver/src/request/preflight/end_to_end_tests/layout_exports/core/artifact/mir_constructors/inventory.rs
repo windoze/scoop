@@ -3,7 +3,7 @@ use super::*;
 pub(super) fn check(replay: &Replay<'_>, combined: bool) {
     assert_eq!(
         replay.fixture_bindings().count(),
-        if combined { 12 } else { 4 }
+        if combined { 13 } else { 4 }
     );
     for binding in replay.fixture_bindings() {
         let records = replay

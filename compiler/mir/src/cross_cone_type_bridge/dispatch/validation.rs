@@ -14,6 +14,7 @@ impl MirDispatchSchemaAuthority<'_> {
             representation,
             MirTypeRepresentationV1::Intrinsic(crate::MirParamFreeIntrinsicV1::String)
                 | MirTypeRepresentationV1::Class { .. }
+                | MirTypeRepresentationV1::InlineArray { .. }
                 | MirTypeRepresentationV1::Object { .. }
                 | MirTypeRepresentationV1::ObjectBacking { .. }
         );
@@ -73,7 +74,15 @@ impl MirDispatchSchemaAuthority<'_> {
             ) {
                 return Err(MirDispatchSchemaError::SlotRole { slot: entry.slot() });
             }
-            let declaration = self.callable(declaration_target(key.owner()))?;
+            let declaration = self.callable(
+                dispatch_declaration_target(
+                    self.identities,
+                    self.types,
+                    key.owner(),
+                    interface.unwrap_or(owner),
+                )
+                .map_err(|error| MirDispatchSchemaError::Signature(Box::new(error)))?,
+            )?;
             let original = declaration.lowered_signature();
             let receiver = original
                 .exact()
@@ -101,7 +110,7 @@ impl MirDispatchSchemaAuthority<'_> {
 
     fn callable(
         &self,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     ) -> Result<MirCallableRecordRefV1<'_>, MirDispatchSchemaError> {
         self.callables
             .get(target)
@@ -122,7 +131,19 @@ impl MirDispatchSchemaAuthority<'_> {
                 trap_target,
                 receiver,
             } => {
-                if declaration_target(supplied) != trap_target
+                if dispatch_declaration_target(
+                    self.identities,
+                    self.types,
+                    supplied,
+                    target
+                        .lowered_signature()
+                        .exact()
+                        .receiver()
+                        .into_option()
+                        .ok_or_else(invalid)?,
+                )
+                .map_err(|error| MirDispatchSchemaError::Signature(Box::new(error)))?
+                    != trap_target
                     || !matches!(
                         target.lowering_role(),
                         MirCallableLoweringRoleV1::PureVirtualTrap { .. }
@@ -246,17 +267,6 @@ impl MirDispatchSchemaAuthority<'_> {
             }
         }
         Ok(())
-    }
-}
-
-pub(super) fn declaration_target(
-    declaration: DispatchDeclarationOwner,
-) -> StrongCallableDefinitionOwner {
-    match declaration {
-        DispatchDeclarationOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
-        DispatchDeclarationOwner::Accessor(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(id)
-        }
     }
 }
 

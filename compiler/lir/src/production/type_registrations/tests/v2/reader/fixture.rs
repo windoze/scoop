@@ -30,7 +30,9 @@ pub(super) fn catalog(
         {
             if let Callable::DependencyExternal { body, .. } = slot {
                 assert_eq!(*body, foreign_body());
-                subjects.insert(Subject::Callable(foreign_owner()));
+                subjects.insert(Subject::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(foreign_owner()),
+                ));
             }
         }
     }

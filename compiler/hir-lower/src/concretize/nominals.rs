@@ -133,6 +133,7 @@ impl Concretizer<'_> {
             type_arguments: arguments.clone(),
             gc_free: false,
             representation,
+            direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
@@ -171,6 +172,11 @@ impl Concretizer<'_> {
             !source.attributes.no_gc || gc_free,
             "HIR diagnoses an invalid @NoGC struct specialization"
         );
+        self.structs[id].direct_interfaces = source
+            .interfaces
+            .iter()
+            .map(|interface| self.lower_type(*interface, &arguments))
+            .collect();
         self.structs[id].interfaces = interfaces;
         self.structs[id].interface_implementations = interface_implementations;
         self.structs[id].gc_free = gc_free;
@@ -302,6 +308,7 @@ impl Concretizer<'_> {
             type_arguments: arguments.clone(),
             gc_free: false,
             variants: Vec::new(),
+            direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
@@ -363,6 +370,11 @@ impl Concretizer<'_> {
             "HIR diagnoses an invalid @NoGC enum specialization"
         );
         self.enums[id].variants = variants;
+        self.enums[id].direct_interfaces = source
+            .interfaces
+            .iter()
+            .map(|interface| self.lower_type(*interface, &arguments))
+            .collect();
         self.enums[id].interfaces = interfaces;
         self.enums[id].interface_implementations = interface_implementations;
         self.enums[id].gc_free = gc_free;

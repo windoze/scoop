@@ -75,5 +75,7 @@ borrowed_index!(
     owner,
     DuplicateSchema,
     owner,
-    |_: &ParamFreeMirDispatchSchemaV1, _: &ParamFreeMirDispatchSchemaV1| false
+    |left: &ParamFreeMirDispatchSchemaV1, right: &ParamFreeMirDispatchSchemaV1| left
+        .is_application()
+        && left == right
 );

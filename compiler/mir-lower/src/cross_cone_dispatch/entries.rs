@@ -5,7 +5,7 @@ impl Context<'_> {
         &self,
         owner: PersistentExactTypeId,
         schema: &hir::InheritanceSlotSchemaV1,
-        targets: &[StrongCallableDefinitionOwner],
+        targets: &[CallableDefinitionOwner],
     ) -> Result<Vec<mir::MirDispatchEntryV1>, Error> {
         let mut entries = reserve(schema.slots().len())?;
         for (position, (slot, target)) in schema.slots().iter().zip(targets).enumerate() {

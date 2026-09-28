@@ -11,7 +11,10 @@ pub(super) fn validate(
     Error::require(
         declaration,
         Component::Implementation,
-        binding.implementation() == StrongCallableDefinitionOwner::Constructor(declaration)
+        binding.implementation()
+            == scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::Constructor(declaration),
+            )
             && binding.origin() == &mir::MirCallableOriginV1::Constructor(declaration),
     )?;
     let Some(hir::SourceNominalId::Concrete(owner)) = source.owner().nominal_owner() else {

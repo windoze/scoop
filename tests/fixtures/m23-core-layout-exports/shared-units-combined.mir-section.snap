@@ -1,4 +1,4 @@
-types=81 callables=27 dispatch=23 objects=2 shapes=22 units=5 selected=0
+types=103 callables=36 dispatch=31 objects=2 shapes=29 units=5 selected=0
 unit companion:SharedUnitOwner.Companion: Ordinary Managed
 unit object-private:layout_probe.scoop:SharedUnitHidden: Ordinary Managed
 unit object:SharedUnitService: Ordinary Managed

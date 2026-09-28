@@ -1,13 +1,11 @@
-use scoop_identity::{
-    DecodedCanonicalScoopAbiFunctionSignature, DecodedStrongCallableDefinitionOwner,
-};
+use scoop_identity::{DecodedCallableDefinitionOwner, DecodedCanonicalScoopAbiFunctionSignature};
 use scoop_wire::{Decoder, WireDecode, WireErrorKind, encode_canonical_temporary};
 
 use super::*;
 
 #[derive(Debug)]
 pub struct DecodedExactCallableAbiExportV1 {
-    target: DecodedStrongCallableDefinitionOwner,
+    target: DecodedCallableDefinitionOwner,
     signature: DecodedCanonicalScoopAbiFunctionSignature,
     convention: crate::CallingConvention,
     protocol: ExactCallableProtocolV1,
@@ -70,17 +68,28 @@ impl DecodedCanonicalExactCallableAbiExportsV1 {
     }
 }
 
-fn target_matches(
-    raw: DecodedStrongCallableDefinitionOwner,
-    expected: StrongCallableDefinitionOwner,
-) -> bool {
-    use DecodedStrongCallableDefinitionOwner as D;
-    use StrongCallableDefinitionOwner as E;
+fn target_matches(raw: DecodedCallableDefinitionOwner, expected: CallableDefinitionOwner) -> bool {
+    use scoop_identity::{
+        DecodedStrongCallableDefinitionOwner as D, StrongCallableDefinitionOwner as E,
+    };
     match (raw, expected) {
-        (D::Function(raw), E::Function(expected)) => raw.verify(expected).is_ok(),
-        (D::Constructor(raw), E::Constructor(expected)) => raw.verify(expected).is_ok(),
-        (D::PropertyAccessor(raw), E::PropertyAccessor(expected)) => raw.verify(expected).is_ok(),
-        (D::GeneratedCallable(raw), E::GeneratedCallable(expected)) => raw.verify(expected).is_ok(),
+        (
+            DecodedCallableDefinitionOwner::Strong(raw),
+            CallableDefinitionOwner::Strong(expected),
+        ) => match (raw, expected) {
+            (D::Function(raw), E::Function(expected)) => raw.verify(expected).is_ok(),
+            (D::Constructor(raw), E::Constructor(expected)) => raw.verify(expected).is_ok(),
+            (D::PropertyAccessor(raw), E::PropertyAccessor(expected)) => {
+                raw.verify(expected).is_ok()
+            }
+            (D::GeneratedCallable(raw), E::GeneratedCallable(expected)) => {
+                raw.verify(expected).is_ok()
+            }
+            _ => false,
+        },
+        (DecodedCallableDefinitionOwner::Odr(raw), CallableDefinitionOwner::Odr(expected)) => {
+            raw.verify(expected.member()).is_ok()
+        }
         _ => false,
     }
 }
@@ -104,7 +113,7 @@ impl WireDecode for DecodedExactCallableAbiExportV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
-            target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
+            target: decoder.field(1, DecodedCallableDefinitionOwner::decode)?,
             signature: decoder.field(2, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
             convention: decoder.field(3, crate::CallingConvention::decode)?,
             protocol: decoder.field(4, ExactCallableProtocolV1::decode)?,

@@ -1,13 +1,13 @@
 use super::*;
 use scoop_identity::{
-    DecodedPersistentId, DecodedStrongCallableDefinitionOwner, IdentityReferenceError,
+    DecodedCallableDefinitionOwner, DecodedPersistentId, IdentityReferenceError,
     PersistentIdResolver, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DecodedExternalStrongShapeSubjectV1 {
-    Callable(DecodedStrongCallableDefinitionOwner),
+    Callable(DecodedCallableDefinitionOwner),
     Layout(DecodedPersistentId<PersistentLayoutId>),
     Scan(DecodedPersistentId<PersistentScanId>),
     TypeDescriptor(DecodedPersistentId<PersistentExactTypeId>),
@@ -27,7 +27,7 @@ impl DecodedExternalStrongShapeSubjectV1 {
         Ok(match self {
             Self::Callable(id) => ExternalStrongShapeSubjectV1::Callable(
                 id.resolve(identities)
-                    .map_err(ExternalShapeSubjectResolutionError::Identity)?,
+                    .map_err(ExternalShapeSubjectResolutionError::Callable)?,
             ),
             Self::Layout(id) => ExternalStrongShapeSubjectV1::Layout(
                 identities
@@ -134,7 +134,7 @@ impl WireDecode for DecodedExternalStrongShapeSubjectV1 {
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
             1 => Ok(Self::Callable(
-                decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
+                decoder.field(1, DecodedCallableDefinitionOwner::decode)?,
             )),
             2 => Ok(Self::Layout(decoder.field(1, DecodedPersistentId::decode)?)),
             3 => Ok(Self::Scan(decoder.field(1, DecodedPersistentId::decode)?)),
@@ -170,6 +170,7 @@ impl WireDecode for DecodedExternalStrongShapeSubjectV1 {
 
 #[derive(Debug)]
 pub enum ExternalShapeSubjectResolutionError {
+    Callable(scoop_identity::CallableBodyResolutionError<IdentityReferenceError>),
     Resource(WireError),
     Identity(IdentityReferenceError),
 }

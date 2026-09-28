@@ -43,12 +43,12 @@ impl MirCallableBridgeAuthority<'_> {
                 MirCallableLoweringRoleV1::DispatchAdjust { target },
             ) => {
                 let expected = match target {
-                    StrongCallableDefinitionOwner::Function(id) => {
-                        CallableTemplateOwner::Function(id)
-                    }
-                    StrongCallableDefinitionOwner::PropertyAccessor(id) => {
-                        CallableTemplateOwner::Accessor(id)
-                    }
+                    CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(
+                        id,
+                    )) => CallableTemplateOwner::Function(id),
+                    CallableDefinitionOwner::Strong(
+                        StrongCallableDefinitionOwner::PropertyAccessor(id),
+                    ) => CallableTemplateOwner::Accessor(id),
                     _ => return Err(MirCallableBridgeError::InvalidAdjustTarget),
                 };
                 if key_target.context() != CallableMaterializationContext::NoSubstitution
@@ -119,8 +119,9 @@ impl MirCallableBridgeAuthority<'_> {
                 _,
             ) => Err(MirCallableBridgeError::RoleMismatch),
             _ => {
-                let StrongCallableDefinitionOwner::GeneratedCallable(callable) =
-                    binding.implementation
+                let CallableDefinitionOwner::Strong(
+                    StrongCallableDefinitionOwner::GeneratedCallable(callable),
+                ) = binding.implementation
                 else {
                     return Err(MirCallableBridgeError::OriginMismatch);
                 };
@@ -166,12 +167,14 @@ impl MirCallableBridgeAuthority<'_> {
         binding: &ParamFreeMirCallableBindingV1,
         slot: PersistentDispatchSlotId,
         implementor: PersistentExactTypeId,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     ) -> Result<(), MirCallableBridgeError> {
         if !matches!(
             target,
-            StrongCallableDefinitionOwner::Function(_)
-                | StrongCallableDefinitionOwner::PropertyAccessor(_)
+            CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(_))
+                | CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::PropertyAccessor(
+                    _
+                ))
         ) {
             return Err(MirCallableBridgeError::InvalidAdjustTarget);
         }

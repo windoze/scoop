@@ -1,12 +1,13 @@
 //! Borrowed constituent queries. These indexes do not grant import selection.
 
 use super::*;
-use scoop_identity::StrongCallableDefinitionOwner;
 
 mod callables;
+mod declarations;
 mod indexes;
 
 pub use callables::*;
+pub use declarations::dispatch_declaration_target;
 pub use indexes::*;
 
 mod sealed {
@@ -21,7 +22,7 @@ pub trait MirTypeBridgeTypeLookupV1: sealed::Sealed {
     }
 }
 pub trait MirTypeBridgeCallableLookupV1: sealed::Sealed {
-    fn get(&self, target: StrongCallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>>;
+    fn get(&self, target: CallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>>;
     fn record_count(&self) -> usize;
 }
 pub trait MirTypeBridgeSchemaLookupV1: sealed::Sealed {
@@ -40,7 +41,7 @@ impl MirTypeBridgeTypeLookupV1 for CanonicalParamFreeMirTypeExportsV1 {
 }
 impl sealed::Sealed for CanonicalMirCallableBindingsV1 {}
 impl MirTypeBridgeCallableLookupV1 for CanonicalMirCallableBindingsV1 {
-    fn get(&self, target: StrongCallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>> {
+    fn get(&self, target: CallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>> {
         self.get(target).map(MirCallableRecordRefV1::Lowered)
     }
     fn record_count(&self) -> usize {
@@ -61,15 +62,9 @@ impl MirTypeBridgeSchemaLookupV1 for CanonicalMirDispatchSchemasV1 {
 pub enum MirTypeBridgeLookupError {
     Resource(WireError),
     RecordCountOverflow,
-    DuplicateType {
-        exact: PersistentExactTypeId,
-    },
-    DuplicateCallable {
-        target: StrongCallableDefinitionOwner,
-    },
-    DuplicateSchema {
-        owner: PersistentExactTypeId,
-    },
+    DuplicateType { exact: PersistentExactTypeId },
+    DuplicateCallable { target: CallableDefinitionOwner },
+    DuplicateSchema { owner: PersistentExactTypeId },
 }
 impl From<WireError> for MirTypeBridgeLookupError {
     fn from(value: WireError) -> Self {

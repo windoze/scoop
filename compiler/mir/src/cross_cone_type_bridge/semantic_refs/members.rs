@@ -10,13 +10,18 @@ impl Collector<'_> {
     /// callables from the frozen M23-5 partition.
     pub fn member_target(
         &mut self,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     ) -> Result<(), MirTypeBridgeReferenceError> {
         let source = match target {
-            StrongCallableDefinitionOwner::Function(id) => {
+            CallableDefinitionOwner::Odr(_) => {
+                return self.push(MirTypeBridgeTargetV1::Callable(target));
+            }
+            CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(id)) => {
                 self.graph.canonical_key::<_, SourceDeclarationKey>(id)?
             }
-            StrongCallableDefinitionOwner::PropertyAccessor(id) => {
+            CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::PropertyAccessor(
+                id,
+            )) => {
                 let accessor = self.graph.canonical_key::<_, PropertyAccessorKey>(id)?;
                 let PropertyOwner::Property(property) = accessor.owner() else {
                     return Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(target));
@@ -49,9 +54,12 @@ impl Collector<'_> {
     }
     pub fn dispatch_target(
         &mut self,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        if let StrongCallableDefinitionOwner::GeneratedCallable(id) = target {
+        if let CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::GeneratedCallable(
+            id,
+        )) = target
+        {
             let key = self.graph.canonical_key::<_, GeneratedCallableKey>(id)?;
             if !matches!(
                 key.as_ref(),

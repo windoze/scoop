@@ -90,7 +90,10 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
     assert_eq!(rows.concat(), std::fs::read_to_string(snapshot).unwrap());
 }
 
-fn callable(replay: &Replay<'_>, target: StrongCallableDefinitionOwner) -> String {
+fn callable(replay: &Replay<'_>, target: scoop_identity::CallableDefinitionOwner) -> String {
+    let scoop_identity::CallableDefinitionOwner::Strong(target) = target else {
+        return format!("{target:?}");
+    };
     let identities = replay.source.metadata().identities;
     match target {
         StrongCallableDefinitionOwner::Function(id) => format!(

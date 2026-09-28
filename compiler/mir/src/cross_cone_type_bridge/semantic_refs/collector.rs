@@ -14,6 +14,9 @@ impl MirTypeBridgeSemanticReferencesV1 {
 
 #[derive(Debug)]
 pub enum MirTypeBridgeReferenceError {
+    InvalidSlot,
+    Callable(Box<MirCallableBridgeError>),
+    DefinitionReference(scoop_identity::CallableBodyResolutionError<IdentityReferenceError>),
     Resource(WireError),
     Identity(IdentityReferenceError),
     Hash(scoop_wire::HashError),
@@ -23,7 +26,7 @@ pub enum MirTypeBridgeReferenceError {
     GenericUnitGate(PersistentInitializationUnitId),
     Initialization(Box<MirObjectBridgeError>),
     GeneratedExecutionGate,
-    NonMemberCallableTarget(StrongCallableDefinitionOwner),
+    NonMemberCallableTarget(CallableDefinitionOwner),
 }
 impl From<WireError> for MirTypeBridgeReferenceError {
     fn from(value: WireError) -> Self {
@@ -138,14 +141,10 @@ impl<'a> Collector<'a> {
         &mut self,
         slot: scoop_identity::PersistentDispatchSlotId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        let key = self.graph.canonical_key::<_, DispatchSlotKey>(slot)?;
-        self.member_target(match key.owner() {
-            DispatchDeclarationOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
-            DispatchDeclarationOwner::Accessor(id) => {
-                StrongCallableDefinitionOwner::PropertyAccessor(id)
-            }
-        })
+        self.graph.canonical_key::<_, DispatchSlotKey>(slot)?;
+        Ok(())
     }
+
     pub fn finish(
         mut self,
     ) -> Result<MirTypeBridgeSemanticReferencesV1, MirTypeBridgeReferenceError> {
@@ -155,5 +154,13 @@ impl<'a> Collector<'a> {
         Ok(MirTypeBridgeSemanticReferencesV1 {
             targets: self.targets,
         })
+    }
+}
+
+impl From<scoop_identity::CallableBodyResolutionError<IdentityReferenceError>>
+    for MirTypeBridgeReferenceError
+{
+    fn from(error: scoop_identity::CallableBodyResolutionError<IdentityReferenceError>) -> Self {
+        Self::DefinitionReference(error)
     }
 }

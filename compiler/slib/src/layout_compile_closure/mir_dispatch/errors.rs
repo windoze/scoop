@@ -16,6 +16,7 @@ pub enum SharedMirDispatchComponent {
 
 #[derive(Debug)]
 pub enum SharedMirDispatchValidationError {
+    Identity(scoop_identity::IdentityReferenceError),
     Resource(WireError),
     Shared(Box<hir::SharedTypeMetadataError>),
     Lookup(mir::MirTypeBridgeLookupError),
@@ -97,3 +98,9 @@ impl std::fmt::Display for Error {
     }
 }
 impl std::error::Error for Error {}
+
+impl From<scoop_identity::IdentityReferenceError> for SharedMirDispatchValidationError {
+    fn from(error: scoop_identity::IdentityReferenceError) -> Self {
+        Self::Identity(error)
+    }
+}

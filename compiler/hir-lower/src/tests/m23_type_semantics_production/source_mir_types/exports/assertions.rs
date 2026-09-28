@@ -25,7 +25,11 @@ pub(super) fn actual(
             .find(|root| {
                 root.subject()
                     == scoop_mir::CallableSignatureSubject::Strong(
-                        record.implementation().callable_owner(),
+                        record
+                            .implementation()
+                            .strong_owner()
+                            .unwrap()
+                            .callable_owner(),
                     )
             })
             .unwrap();
@@ -169,7 +173,11 @@ pub(super) fn dump(
             .find(|root| {
                 root.subject()
                     == scoop_mir::CallableSignatureSubject::Strong(
-                        record.implementation().callable_owner(),
+                        record
+                            .implementation()
+                            .strong_owner()
+                            .unwrap()
+                            .callable_owner(),
                     )
             })
             .unwrap();

@@ -52,7 +52,9 @@ pub(super) fn project(
             &mut uses,
             mir::MirTypeBridgeDependencyV1::new(
                 root.provider(),
-                mir::MirTypeBridgeTargetV1::Callable(root.implementation()),
+                mir::MirTypeBridgeTargetV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(root.implementation()),
+                ),
             ),
         )?;
     }

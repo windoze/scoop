@@ -19,7 +19,9 @@ impl TargetIndex {
             scoop_wire::allocation::try_reserve(&mut rows, view.direct.exports().len(), &path)?;
             rows.extend(view.direct.exports().iter().map(|record| {
                 (
-                    MirTypeBridgeTargetV1::Callable(record.implementation()),
+                    MirTypeBridgeTargetV1::Callable(
+                        scoop_identity::CallableDefinitionOwner::Strong(record.implementation()),
+                    ),
                     owner,
                 )
             }));
@@ -44,6 +46,19 @@ impl TargetIndex {
                 ) => {
                     matches!(left.origin(), MirTypeOriginV1::NominalApplication(_)) && left == right
                 }
+                (
+                    Some(MirTypeBridgeSemanticRecordV1::Callable(left)),
+                    Some(MirTypeBridgeSemanticRecordV1::Callable(right)),
+                ) => {
+                    matches!(
+                        left.implementation(),
+                        scoop_identity::CallableDefinitionOwner::Odr(_)
+                    ) && left == right
+                }
+                (
+                    Some(MirTypeBridgeSemanticRecordV1::Dispatch(left)),
+                    Some(MirTypeBridgeSemanticRecordV1::Dispatch(right)),
+                ) => left.is_application() && left == right,
                 _ => false,
             };
             if !compatible {

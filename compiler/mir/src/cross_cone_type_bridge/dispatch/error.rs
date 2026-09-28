@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum MirDispatchSchemaError {
+    DefinitionReference(scoop_identity::CallableBodyResolutionError<IdentityReferenceError>),
     Reference(IdentityReferenceError),
     Resource(WireError),
     Lookup(MirTypeBridgeLookupError),
@@ -10,7 +11,7 @@ pub enum MirDispatchSchemaError {
         exact: PersistentExactTypeId,
     },
     MissingCallable {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     },
     MissingSchema {
         owner: PersistentExactTypeId,
@@ -95,3 +96,11 @@ impl std::fmt::Display for MirDispatchSchemaError {
     }
 }
 impl std::error::Error for MirDispatchSchemaError {}
+
+impl From<scoop_identity::CallableBodyResolutionError<IdentityReferenceError>>
+    for MirDispatchSchemaError
+{
+    fn from(error: scoop_identity::CallableBodyResolutionError<IdentityReferenceError>) -> Self {
+        Self::DefinitionReference(error)
+    }
+}

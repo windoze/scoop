@@ -64,6 +64,7 @@ impl Concretizer<'_> {
             owner: None,
             type_arguments: arguments,
             representation,
+            direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             // Dependency method bodies remain in the provider.
@@ -102,7 +103,7 @@ impl Concretizer<'_> {
             self.classes[id].representation =
                 concrete::ClassRepresentation::Declared { fields, base_class };
         }
-        self.classes[id].interfaces = interfaces;
+        self.classes[id].direct_interfaces = interfaces;
         self.classes[id].methods = source
             .virtual_methods
             .iter()
@@ -113,6 +114,11 @@ impl Concretizer<'_> {
             .collect();
         self.classes[id].interface_implementations =
             self.lower_interface_implementations(&source.interface_implementations, substitution);
+        self.classes[id].interfaces = self.classes[id]
+            .interface_implementations
+            .iter()
+            .map(|implementation| self.interface_type[&implementation.interface])
+            .collect();
         ty
     }
 }

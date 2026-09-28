@@ -1,4 +1,4 @@
-use scoop_identity::{ConeIdentity, StrongCallableDefinitionOwner};
+use scoop_identity::{CallableDefinitionOwner, ConeIdentity};
 use scoop_lir as lir;
 use scoop_wire::WireError;
 
@@ -9,7 +9,7 @@ pub enum SharedLirCallableAbiValidationError {
     DependencyProvider(ConeIdentity),
     DependencyTarget(ConeIdentity),
     Callable {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         source: Box<lir::ExactCallableAbiError>,
     },
     Table(lir::ExactCallableAbiTableError),

@@ -5,7 +5,7 @@ pub(super) struct Context<'a> {
     pub input: &'a mir::ConeMirInput,
     pub authority: mir::MirDispatchSchemaAuthority<'a>,
     pub physical: BTreeMap<PersistentExactTypeId, &'a mir::Type>,
-    roots: BTreeMap<mir::FunctionId, CallableOwner>,
+    roots: BTreeMap<mir::FunctionId, CallableDefinitionOwner>,
 }
 impl<'a> Context<'a> {
     pub fn new(
@@ -19,9 +19,9 @@ impl<'a> Context<'a> {
         }
         let mut roots = BTreeMap::new();
         for root in input.materialization().callable_roots() {
-            if let mir::CallableSignatureSubject::Strong(owner) = root.subject() {
-                roots.insert(root.function(), owner);
-            }
+            let target =
+                CallableDefinitionOwner::try_from(root.subject()).map_err(Error::InvalidTarget)?;
+            roots.insert(root.function(), target);
         }
         Ok(Self {
             source,
@@ -31,26 +31,16 @@ impl<'a> Context<'a> {
             roots,
         })
     }
-    pub fn target(
-        &self,
-        function: mir::FunctionId,
-    ) -> Result<StrongCallableDefinitionOwner, Error> {
-        match *self
-            .roots
+    pub fn target(&self, function: mir::FunctionId) -> Result<CallableDefinitionOwner, Error> {
+        self.roots
             .get(&function)
-            .ok_or(Error::MissingStrongRoot(function))?
-        {
-            CallableOwner::Function(id) => Ok(StrongCallableDefinitionOwner::Function(id)),
-            CallableOwner::Accessor(id) => Ok(StrongCallableDefinitionOwner::PropertyAccessor(id)),
-            CallableOwner::Generated(id) => {
-                Ok(StrongCallableDefinitionOwner::GeneratedCallable(id))
-            }
-            target => Err(Error::InvalidTarget(target)),
-        }
+            .copied()
+            .ok_or(Error::MissingStrongRoot(function))
     }
+
     pub fn callable(
         &self,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     ) -> Result<mir::MirCallableRecordRefV1<'_>, Error> {
         self.authority
             .callables
@@ -85,26 +75,26 @@ impl<'a> Context<'a> {
     }
 }
 
-pub(super) fn declaration_target(
-    declaration: DispatchDeclarationOwner,
-) -> StrongCallableDefinitionOwner {
+pub(super) fn declaration_target(declaration: DispatchDeclarationOwner) -> CallableDefinitionOwner {
     match declaration {
-        DispatchDeclarationOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
+        DispatchDeclarationOwner::Function(id) => {
+            StrongCallableDefinitionOwner::Function(id).into()
+        }
         DispatchDeclarationOwner::Accessor(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(id)
+            StrongCallableDefinitionOwner::PropertyAccessor(id).into()
         }
     }
 }
 pub(super) fn source_target(
     declaration: hir::InheritanceCallableDeclarationV1,
-) -> StrongCallableDefinitionOwner {
+) -> CallableDefinitionOwner {
     match declaration {
         hir::InheritanceCallableDeclarationV1::Function(id) => {
-            StrongCallableDefinitionOwner::Function(id)
+            StrongCallableDefinitionOwner::Function(id).into()
         }
         hir::InheritanceCallableDeclarationV1::Getter(id)
         | hir::InheritanceCallableDeclarationV1::Setter(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(id)
+            StrongCallableDefinitionOwner::PropertyAccessor(id).into()
         }
     }
 }

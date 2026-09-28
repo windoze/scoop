@@ -13,7 +13,11 @@ fn root(
         .find(|root| {
             root.subject()
                 == scoop_mir::CallableSignatureSubject::Strong(
-                    binding.implementation().callable_owner(),
+                    binding
+                        .implementation()
+                        .strong_owner()
+                        .unwrap()
+                        .callable_owner(),
                 )
         })
         .unwrap()
@@ -80,14 +84,18 @@ pub(super) fn actual(
                 Role::Ordinary | Role::PureVirtualTrap { .. },
             ) => assert_eq!(
                 binding.implementation(),
-                StrongCallableDefinitionOwner::Function(id)
+                scoop_identity::CallableDefinitionOwner::Strong(
+                    StrongCallableDefinitionOwner::Function(id)
+                )
             ),
             (
                 CallableTemplateOwner::Accessor(id),
                 Role::Accessor | Role::PureVirtualTrap { .. },
             ) => assert_eq!(
                 binding.implementation(),
-                StrongCallableDefinitionOwner::PropertyAccessor(id)
+                scoop_identity::CallableDefinitionOwner::Strong(
+                    StrongCallableDefinitionOwner::PropertyAccessor(id)
+                )
             ),
             other => panic!("unexpected source callable: {other:?}"),
         }

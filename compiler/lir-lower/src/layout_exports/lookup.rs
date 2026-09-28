@@ -63,7 +63,7 @@ pub(super) fn validate_dependencies(
 }
 
 pub(super) fn callable<'a>(
-    target: StrongCallableDefinitionOwner,
+    target: CallableDefinitionOwner,
     local: &'a lir::CanonicalExactCallableAbiExportsV1,
     dependencies: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
     direct: &'a lir::CrossConeLirBridgeSectionV1,
@@ -89,7 +89,10 @@ pub(super) fn callable<'a>(
         }
     }
     for table in std::iter::once(direct).chain(direct_dependencies.iter().copied()) {
-        if let Some(record) = table.export_for_target(target) {
+        if let Some(record) = target
+            .strong_owner()
+            .and_then(|target| table.export_for_target(target))
+        {
             if found.is_some() {
                 return Err(Error::AmbiguousCallable(target));
             }

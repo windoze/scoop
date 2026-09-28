@@ -1041,6 +1041,10 @@ HIR 根据实际调用、构造、成员、类型操作和委托访问建立实�
 
 `lir/cross-cone-layout-abi/4` 的原 exact layout 与 descriptor 表接受上述 application 的实际 ODR 定义。registration fingerprint 根据原 definition plan 的 Strong/ODR owner 选择既有摘要节点，不能把 ODR registration 当成普通 Strong registration；同一 ODR 布局的多个物理 provider 可提供相同表示，引用保留各自真实定义位置。旧 `/3` 产物需重建，不新增第二套布局或 descriptor 格式。
 
+共有 callable binding、dispatch target 与 exact callable ABI 使用同一实际定义目标：普通 `StrongCallableDefinitionOwner` 或已有 `CallableOdrMemberId`。该封闭和类型只细化既有 `CallableBodyKey` 的 Strong/ODR 两支，不产生另一种 callable identity；program gateway 不属于名义类型的方法定义。ODR binding 从已经完成的 callable materialization、完整逻辑签名和实际 GC effect 取得来源与 ABI，目标保留原 group/member，不把模板声明改写成消费方 Strong。MIR dispatch 对实际 nominal application 保存完整 vtable/itable、原 typed slot、替换后的 slot contract、实际实现及 receiver adjustment；接口默认实现、抽象 trap 和继承覆写沿用已有 lowering 角色。LocalConcreteHir 保留完成替换的直接接口与完整接口实现集合，接口自身保留直接父接口；MIR 类型记录投影直接继承关系，物理派发表使用完整实现集合，不能把继承所得接口改写为直接声明。LIR 从这些实际目标连接既有 body、canonical ABI、definition plan 和物理派发表。生成与读取复用已经确定的具体化选择和签名，不重新执行源码重载、可见性或覆写检查。泛型 class 只有在其实际表为空时才可导出空表。同一 ODR application 的等值 callable binding 与 dispatch schema 可以在共有语义查询中复用，优先当前产物，其余按 provider identity 稳定选择；矛盾记录和普通 Strong 重复仍拒绝。
+
+上述定义目标编码为两字段 sum：field 0 的 tag 1 表示 Strong、tag 2 表示 ODR；field 1 分别保存原 Strong owner product 或已有 callable member ID。callable origin 新增 tag 5，field 1 为原 `PersistentCallableApplicationId`；该 application 直接关联原模板及完整实参，生成 callable 继续保存原 generated key。`mir/cross-cone-type-bridge` 升至 `/3`，`lir/cross-cone-layout-abi` 升至 `/5`，保存实际 callable 物理引用的 `lir/cross-cone-layout-link-closure` 升至 `/3`；旧版本产物与缓存重建。既有 callable-body identity、ODR group/member identity 和 runtime C ABI 保持。
+
 共有 LIR 语义闭包按 `(provider, target)` 保留实际记录；相同语义 target 只允许对应同一 ODR definition plan 的不同物理 provider，普通 Strong target 和同一 provider 内的重复记录仍拒绝。带 provider 的布局、descriptor、dispatch 与根引用必须解析到指定记录；只有未指定物理位置的语义引用按 Cone identity 的稳定顺序选择已有记录。闭包不提前丢弃物理候选，各产物内容已在各自读取边界核对，跨产物定义兼容性由原 ODR member 合并入口统一检查。
 
 MIR 对实际选中的外部调用登记完整物理签名的类型，包括 receiver、参数和结果；构造初始化器的 `Unit` 结果也必须进入原 exact type 表。类型直接由完整 HIR 的 exact identity 查询并沿既有类型 lowering 转换，不把未选中的 provider 声明变成机器根。LIR 据此分类调用 ABI，不从符号名猜测缺失类型。

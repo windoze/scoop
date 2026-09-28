@@ -7,7 +7,9 @@ fn six_target_kinds_have_distinct_fixed_wire_and_typed_resolution() {
     let object = fixture.object(1);
     let values = [
         MirTypeBridgeTargetV1::Type(object.read().object()),
-        MirTypeBridgeTargetV1::Callable(object.ensure()),
+        MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            object.ensure(),
+        )),
         MirTypeBridgeTargetV1::Dispatch(object.read().object()),
         MirTypeBridgeTargetV1::Object(object.value()),
         MirTypeBridgeTargetV1::ShapeSupport(fixture.objects[1].id()),

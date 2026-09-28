@@ -30,7 +30,9 @@ impl MirTypeBridgeSemanticReferencesV1 {
             match role {
                 GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
                     collector.push(MirTypeBridgeTargetV1::Callable(
-                        StrongCallableDefinitionOwner::Constructor(*constructor),
+                        scoop_identity::CallableDefinitionOwner::Strong(
+                            StrongCallableDefinitionOwner::Constructor(*constructor),
+                        ),
                     ))?;
                 }
                 GeneratedCallableKey::Initialization { unit, .. } => {

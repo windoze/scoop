@@ -12,18 +12,20 @@ fn wire_preserves_all_four_dispatch_implementation_branches() {
     let implementations = [
         ExactDispatchImplementationV1::AbstractObligation {
             declaration,
-            trap_target: fixture.target,
+            trap_target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target),
             receiver: ExactDispatchReceiverAdaptationV1::Identity,
         },
         ExactDispatchImplementationV1::DirectStrongTarget {
-            target: fixture.target,
+            target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target),
             receiver: ExactDispatchReceiverAdaptationV1::Identity,
         },
         ExactDispatchImplementationV1::InterfaceDefaultTarget {
-            target: fixture.target,
+            target: scoop_identity::CallableDefinitionOwner::Strong(fixture.target),
             receiver: ExactDispatchReceiverAdaptationV1::Identity,
         },
-        ExactDispatchImplementationV1::AdjustThunkTarget(fixture.target),
+        ExactDispatchImplementationV1::AdjustThunkTarget(
+            scoop_identity::CallableDefinitionOwner::Strong(fixture.target),
+        ),
     ];
     let entries: Vec<_> = implementations
         .into_iter()

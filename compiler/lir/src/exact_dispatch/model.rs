@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use scoop_identity::{
-    DispatchDeclarationOwner, ExactCallableSignature, GcEffect, PersistentDispatchSlotId,
-    PersistentDispatchTableId, PersistentExactTypeId, StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, DispatchDeclarationOwner, ExactCallableSignature, GcEffect,
+    PersistentDispatchSlotId, PersistentDispatchTableId, PersistentExactTypeId,
 };
 
 use crate::{
@@ -53,22 +53,22 @@ pub enum ExactDispatchReceiverAdaptationV1 {
 pub enum ExactDispatchImplementationV1 {
     AbstractObligation {
         declaration: DispatchDeclarationOwner,
-        trap_target: StrongCallableDefinitionOwner,
+        trap_target: CallableDefinitionOwner,
         receiver: ExactDispatchReceiverAdaptationV1,
     },
     DirectStrongTarget {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         receiver: ExactDispatchReceiverAdaptationV1,
     },
     InterfaceDefaultTarget {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         receiver: ExactDispatchReceiverAdaptationV1,
     },
-    AdjustThunkTarget(StrongCallableDefinitionOwner),
+    AdjustThunkTarget(CallableDefinitionOwner),
 }
 
 impl ExactDispatchImplementationV1 {
-    pub const fn target(self) -> StrongCallableDefinitionOwner {
+    pub const fn target(self) -> CallableDefinitionOwner {
         match self {
             Self::AbstractObligation { trap_target, .. } => trap_target,
             Self::DirectStrongTarget { target, .. }

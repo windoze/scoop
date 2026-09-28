@@ -12,17 +12,23 @@ fn adjusts_keep_the_exact_target_and_receiver_conversion() {
         StrongCallableDefinitionOwner::GeneratedCallable(fixture.boxing.id()),
         MirBridgeCallableSignatureV1::new(semantic.clone(), crate::GcEffect::NoGc),
         signature(lowered.clone()),
-        MirCallableLoweringRoleV1::BoxingAdjust { target },
+        MirCallableLoweringRoleV1::BoxingAdjust {
+            target: scoop_identity::CallableDefinitionOwner::Strong(target),
+        },
     )
     .unwrap();
     for (identity, role) in [
         (
             &fixture.adjust,
-            MirCallableLoweringRoleV1::DispatchAdjust { target },
+            MirCallableLoweringRoleV1::DispatchAdjust {
+                target: scoop_identity::CallableDefinitionOwner::Strong(target),
+            },
         ),
         (
             &fixture.boxing,
-            MirCallableLoweringRoleV1::BoxingAdjust { target },
+            MirCallableLoweringRoleV1::BoxingAdjust {
+                target: scoop_identity::CallableDefinitionOwner::Strong(target),
+            },
         ),
     ] {
         fixture
@@ -44,7 +50,9 @@ fn adjusts_keep_the_exact_target_and_receiver_conversion() {
             semantic.clone(),
             lowered.clone(),
             MirCallableLoweringRoleV1::DispatchAdjust {
-                target: StrongCallableDefinitionOwner::Function(fixture.abstract_method.id())
+                target: scoop_identity::CallableDefinitionOwner::Strong(
+                    StrongCallableDefinitionOwner::Function(fixture.abstract_method.id())
+                )
             }
         ),
         Err(MirCallableBridgeError::InvalidAdjustTarget)
@@ -54,7 +62,9 @@ fn adjusts_keep_the_exact_target_and_receiver_conversion() {
             generated(&fixture.adjust),
             semantic,
             lowered,
-            MirCallableLoweringRoleV1::BoxingAdjust { target }
+            MirCallableLoweringRoleV1::BoxingAdjust {
+                target: scoop_identity::CallableDefinitionOwner::Strong(target)
+            }
         ),
         Err(MirCallableBridgeError::RoleMismatch)
     ));

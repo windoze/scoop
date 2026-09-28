@@ -62,6 +62,7 @@ impl Concretizer<'_> {
             owner: self.lower_nominal_owner(source.owner),
             type_arguments: arguments.clone(),
             representation,
+            direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
@@ -109,6 +110,11 @@ impl Concretizer<'_> {
             };
             base
         });
+        self.classes[id].direct_interfaces = source
+            .interfaces
+            .iter()
+            .map(|interface| self.lower_type(*interface, &arguments))
+            .collect();
         self.classes[id].interfaces = interfaces;
         self.classes[id].interface_implementations = interface_implementations;
         match &mut self.classes[id].representation {

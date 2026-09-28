@@ -52,7 +52,7 @@ impl Replay<'_> {
                 )?;
                 Implementation::AbstractObligation {
                     declaration: declaration(selected.declaration()),
-                    trap_target: target,
+                    trap_target: scoop_identity::CallableDefinitionOwner::Strong(target),
                     receiver: adaptation(&signature, &expected),
                 }
             }
@@ -66,12 +66,14 @@ impl Replay<'_> {
                             slot: contract.slot(),
                         });
                     };
-                    Implementation::AdjustThunkTarget(self.adjustment(
-                        owner,
-                        contract.slot(),
-                        interface_exact,
-                        source,
-                    )?)
+                    Implementation::AdjustThunkTarget(
+                        scoop_identity::CallableDefinitionOwner::Strong(self.adjustment(
+                            owner,
+                            contract.slot(),
+                            interface_exact,
+                            source,
+                        )?),
+                    )
                 } else {
                     let expected = bindings::signature(
                         source.signature(),
@@ -88,9 +90,15 @@ impl Replay<'_> {
                         contract.implementation(),
                         hir::InheritanceSlotImplementationV1::InterfaceDefault(_)
                     ) {
-                        Implementation::InterfaceDefaultTarget { target, receiver }
+                        Implementation::InterfaceDefaultTarget {
+                            target: scoop_identity::CallableDefinitionOwner::Strong(target),
+                            receiver,
+                        }
                     } else {
-                        Implementation::DirectStrongTarget { target, receiver }
+                        Implementation::DirectStrongTarget {
+                            target: scoop_identity::CallableDefinitionOwner::Strong(target),
+                            receiver,
+                        }
                     }
                 }
             }

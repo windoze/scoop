@@ -15,10 +15,10 @@ pub enum MirCallableLoweringRoleV1 {
     },
     Accessor,
     DispatchAdjust {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     },
     BoxingAdjust {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     },
     ObjectEnsure {
         unit: PersistentInitializationUnitId,
@@ -47,10 +47,10 @@ pub enum DecodedMirCallableLoweringRoleV1 {
     },
     Accessor,
     DispatchAdjust {
-        target: DecodedStrongCallableDefinitionOwner,
+        target: DecodedCallableDefinitionOwner,
     },
     BoxingAdjust {
-        target: DecodedStrongCallableDefinitionOwner,
+        target: DecodedCallableDefinitionOwner,
     },
     ObjectEnsure {
         unit: DecodedPersistentId<PersistentInitializationUnitId>,
@@ -149,10 +149,10 @@ impl WireDecode for DecodedMirCallableLoweringRoleV1 {
             },
             4 => Self::Accessor,
             5 => Self::DispatchAdjust {
-                target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
+                target: decoder.field(1, DecodedCallableDefinitionOwner::decode)?,
             },
             6 => Self::BoxingAdjust {
-                target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
+                target: decoder.field(1, DecodedCallableDefinitionOwner::decode)?,
             },
             7 => Self::ObjectEnsure {
                 unit: decoder.field(1, DecodedPersistentId::decode)?,

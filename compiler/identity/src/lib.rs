@@ -79,6 +79,7 @@ pub use entity::{
     LexicalCallableRole, LexicalParentError, OptionalExactOwner, SourceFieldKey,
     StaticNoGcCallbackStorageBridgeId, StaticNoGcCallbackStorageBridgeIdentityError,
 };
+pub use entity::{CallableDefinitionOwner, DecodedCallableDefinitionOwner};
 pub use entity::{
     CallableOdrMemberId, DecodedOdrMemberDiscriminator, DecodedOdrMemberKey,
     DecodedSpecializationKey, OdrIdentityResolutionError, OdrMemberDiscriminator,

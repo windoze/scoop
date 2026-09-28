@@ -38,15 +38,18 @@ impl Concretizer<'_> {
             owner: None,
             family,
             type_arguments: arguments,
+            parents: Vec::new(),
             methods: Vec::new(),
             span: scoop_ast::Span::new(0, 0),
         });
         assert_eq!(allocated, id);
         self.imported_interfaces.insert(identity, id);
         self.interface_type.insert(id, ty);
-        for parent in &source.parents {
-            self.lower_type(*parent, substitution);
-        }
+        self.interfaces[id].parents = source
+            .parents
+            .iter()
+            .map(|parent| self.lower_type(*parent, substitution))
+            .collect();
         let methods = source
             .methods
             .iter()

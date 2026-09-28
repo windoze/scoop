@@ -106,7 +106,7 @@ impl MirObjectBridgeAuthority<'_> {
         }
         let binding = self
             .callables
-            .get(ensure)
+            .get(ensure.into())
             .ok_or(MirObjectBridgeError::MissingEnsure { target: ensure })?;
         if !matches!(binding.origin().as_ref(), MirCallableOriginV1::Generated { role: GeneratedCallableKey::Initialization { unit: owner, role: InitializationCallableRole::Ensure }, .. } if *owner == unit)
             || binding.lowering_role() != &(MirCallableLoweringRoleV1::ObjectEnsure { unit })

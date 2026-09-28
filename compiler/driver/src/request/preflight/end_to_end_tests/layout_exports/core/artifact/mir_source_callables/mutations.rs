@@ -7,7 +7,10 @@ impl Replay<'_, '_> {
         signature: mir::MirBridgeCallableSignatureV1,
         role: mir::MirCallableLoweringRoleV1,
     ) -> mir::ParamFreeMirCallableBindingV1 {
-        let foundation = self.changed_foundation(original.implementation(), signature.exact());
+        let foundation = self.changed_foundation(
+            original.implementation().strong_owner().unwrap(),
+            signature.exact(),
+        );
         mir::ParamFreeMirCallableBindingV1::try_new(
             mir::MirCallableBridgeAuthority {
                 identities: self.source.metadata().identities,

@@ -8,7 +8,10 @@ pub(super) fn check(replay: &Replay<'_, '_>) {
         .unwrap();
     let required = declaration(binding).unwrap();
     let mut missing = records.to_vec();
-    missing.retain(|binding| binding.implementation() != required.implementation());
+    missing.retain(|binding| {
+        binding.implementation()
+            != scoop_identity::CallableDefinitionOwner::Strong(required.implementation())
+    });
     assert!(matches!(replay.reject(replay.ordinary, missing),
         Error::Missing { declaration, partition: Partition::TypeBridge } if declaration == required));
 

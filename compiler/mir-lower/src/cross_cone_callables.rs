@@ -7,6 +7,7 @@ use scoop_identity::{
 };
 use scoop_mir as mir;
 use scoop_wire::{WireError, WirePath};
+mod applications;
 mod binding;
 mod roles;
 
@@ -64,6 +65,8 @@ pub fn lower_source_callable_bindings(
         return Err(Error::MissingSourceMaterialization(missing));
     }
 
+    applications::append(local, input, identities, types, &mut records)?;
+
     Ok(mir::CanonicalMirCallableBindingsV1::try_new(records)?)
 }
 
@@ -92,6 +95,7 @@ impl SourceContract {
 
 #[derive(Debug)]
 pub enum SourceMirCallableProductionError {
+    ApplicationMaterialization(scoop_identity::CallableMaterialization),
     Resource(WireError),
     Encoding(scoop_wire::cbor::EncodeError),
     SharedSource(Box<hir::SharedTypeMetadataError>),

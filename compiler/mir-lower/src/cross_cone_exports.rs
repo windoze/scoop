@@ -93,6 +93,7 @@ pub fn lower_type_bridge_exports(
         mir::MirTypeBridgeCallableIndexV1::try_new(&callable_tables, &direct_tables)
             .map_err(Error::Lookup)?;
     let dispatch = crate::lower_dispatch_schemas(
+        input.hir.output().local.module(),
         input.source,
         input.mir,
         &types,

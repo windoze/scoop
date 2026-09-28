@@ -102,7 +102,9 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
                 &mut imports,
                 RequiredImport {
                     provider: callable.provider(),
-                    subject: Subject::Callable(callable.target()),
+                    subject: Subject::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+                        callable.target(),
+                    )),
                     symbol: callable.expected_symbol(),
                     definition: callable.required_definition(),
                 },
@@ -122,7 +124,9 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
                     &mut imports,
                     RequiredImport {
                         provider: callable.provider(),
-                        subject: Subject::Callable(callable.target()),
+                        subject: Subject::Callable(
+                            scoop_identity::CallableDefinitionOwner::Strong(callable.target()),
+                        ),
                         symbol: callable.expected_symbol(),
                         definition: callable.required_definition(),
                     },

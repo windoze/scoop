@@ -7,7 +7,7 @@ pub enum LayoutAbiSemanticTargetV1 {
     Layout(PersistentLayoutId),
     Descriptor(PersistentExactTypeId),
     Dispatch(PersistentDispatchTableId),
-    Callable(StrongCallableDefinitionOwner),
+    Callable(CallableDefinitionOwner),
     ShapeSupport(PersistentTypeId),
 }
 
@@ -18,7 +18,7 @@ pub enum DecodedLayoutAbiSemanticTargetV1 {
     Layout(DecodedPersistentId<PersistentLayoutId>),
     Descriptor(DecodedPersistentId<PersistentExactTypeId>),
     Dispatch(DecodedPersistentId<PersistentDispatchTableId>),
-    Callable(DecodedStrongCallableDefinitionOwner),
+    Callable(DecodedCallableDefinitionOwner),
     ShapeSupport(DecodedPersistentId<PersistentTypeId>),
 }
 

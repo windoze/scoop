@@ -62,39 +62,21 @@ pub(super) fn assert_normalized_integer_defaults(
     }
 }
 
-pub(super) fn assert_integer_exception_requires_layout(
+pub(super) fn assert_integer_exception_uses_shared_layout(
     target: &scoop_toolchain::ResolvedTargetProfile,
     workspace: &Path,
     core: &Path,
 ) {
     let source = workspace.join("integer-exception.scoop");
     std::fs::write(&source, include_str!("../../../../../../../tests/fixtures/core-library/integer-default-exception-consumer.scoop")).unwrap();
-    let output = workspace.join("integer-exception.slib");
-    let error = consumer_request(target, &source, &output, core, StageDumpPolicy::None)
-        .build_and_publish()
-        .unwrap_err();
-    let SingleConeProductionError::Production(error) = error else {
-        panic!("integer exception rejection must originate in HIR")
-    };
-    let CurrentConeProductionFailure::Hir(CurrentConeHirStageError::Lowering(diagnostics)) =
-        error.cause()
-    else {
-        panic!("missing exception layout must be rejected before MIR: {error:?}")
-    };
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].file, 0);
-    assert_eq!(
-        diagnostics[0].message,
-        "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: integer division exception constructor requires a materialized dependency layout; its owner has source-only representation"
+    let output = build_consumer_emitting(
+        target,
+        &source,
+        &workspace.join("integer-exception.slib"),
+        core,
+        StageDumpPolicy::Stage(StageDumpKind::Mir),
     );
-    let text = std::fs::read_to_string(&source).unwrap();
-    let start = text.find("userCoreManagedIntegerDefault()").unwrap() as u32;
-    assert_eq!(
-        diagnostics[0].span,
-        Some(scoop_ast::Span::new(
-            start,
-            start + "userCoreManagedIntegerDefault()".len() as u32
-        ))
-    );
-    assert!(!output.exists());
+    let dump = output.emitted_dump().unwrap();
+    assert_eq!(dump.kind(), StageDumpKind::Mir);
+    insta::assert_snapshot!("integer_exception_mir", dump.text());
 }

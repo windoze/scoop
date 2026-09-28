@@ -1,6 +1,6 @@
 use scoop_identity::{
-    DecodedDispatchDeclarationOwner, DecodedExactCallableSignature, DecodedPersistentId,
-    DecodedStrongCallableDefinitionOwner, GcEffect,
+    DecodedCallableDefinitionOwner, DecodedDispatchDeclarationOwner, DecodedExactCallableSignature,
+    DecodedPersistentId, GcEffect,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -79,19 +79,19 @@ impl WireDecode for DecodedExactDispatchImplementationV1 {
         match (fields, tag) {
             (4, 1) => Ok(Self::AbstractObligation {
                 declaration: decoder.field(1, DecodedDispatchDeclarationOwner::decode)?,
-                trap_target: decoder.field(2, DecodedStrongCallableDefinitionOwner::decode)?,
+                trap_target: decoder.field(2, DecodedCallableDefinitionOwner::decode)?,
                 receiver: decoder.field(3, DecodedExactDispatchReceiverAdaptationV1::decode)?,
             }),
             (3, 2) => Ok(Self::DirectStrongTarget {
-                target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
+                target: decoder.field(1, DecodedCallableDefinitionOwner::decode)?,
                 receiver: decoder.field(2, DecodedExactDispatchReceiverAdaptationV1::decode)?,
             }),
             (3, 3) => Ok(Self::InterfaceDefaultTarget {
-                target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
+                target: decoder.field(1, DecodedCallableDefinitionOwner::decode)?,
                 receiver: decoder.field(2, DecodedExactDispatchReceiverAdaptationV1::decode)?,
             }),
             (2, 4) => decoder
-                .field(1, DecodedStrongCallableDefinitionOwner::decode)
+                .field(1, DecodedCallableDefinitionOwner::decode)
                 .map(Self::AdjustThunkTarget),
             _ => Err(unknown_tag(decoder, tag)),
         }

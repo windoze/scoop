@@ -116,7 +116,8 @@ pub fn validate_shared_mir_source_callables(
         let declaration = match binding.origin() {
             mir::MirCallableOriginV1::Function(id) => Declaration::Function(*id),
             mir::MirCallableOriginV1::Accessor(id) => Declaration::PropertyAccessor(*id),
-            mir::MirCallableOriginV1::Constructor(_)
+            mir::MirCallableOriginV1::Application(_)
+            | mir::MirCallableOriginV1::Constructor(_)
             | mir::MirCallableOriginV1::Generated { .. } => continue,
         };
 

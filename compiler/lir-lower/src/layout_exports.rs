@@ -1,8 +1,8 @@
 //! Complete physical export assembly from one sealed MIR/LIR production pair.
 
 use scoop_identity::{
-    ConeCoordinate, ConeIdentity, ExactTypeDiagnosticCatalog, PersistentDispatchTableId,
-    PersistentExactTypeId, StrongCallableDefinitionOwner, ValidatedIdentityGraph,
+    CallableDefinitionOwner, ConeCoordinate, ConeIdentity, ExactTypeDiagnosticCatalog,
+    PersistentDispatchTableId, PersistentExactTypeId, ValidatedIdentityGraph,
 };
 use scoop_lir as lir;
 use scoop_mir as mir;

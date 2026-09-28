@@ -1,9 +1,10 @@
 //! Complete representation-neutral MIR type exports and their typed references.
 
 use scoop_identity::{
-    DecodedPersistentId, ExactTypeKey, GeneratedNominalKey, IdentityReferenceError,
-    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
-    PersistentFieldId, PersistentTypeId, ValidatedIdentityGraph,
+    CallableDefinitionOwner, DecodedCallableDefinitionOwner, DecodedPersistentId, ExactTypeKey,
+    GeneratedNominalKey, IdentityReferenceError, PersistentEnumVariantFieldId,
+    PersistentEnumVariantId, PersistentExactTypeId, PersistentFieldId, PersistentTypeId,
+    ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath};
 

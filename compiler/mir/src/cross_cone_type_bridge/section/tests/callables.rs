@@ -86,8 +86,10 @@ fn value_method_selection_closes_both_signatures_and_preserves_gc_effect() {
     let mut provider = Fixture::new("method-provider");
     let target = value_method(&mut provider);
     let mut consumer = Fixture::new("method-consumer");
-    let relation =
-        MirTypeBridgeDependencyV1::new(provider.provider, MirTypeBridgeTargetV1::Callable(target));
+    let relation = MirTypeBridgeDependencyV1::new(
+        provider.provider,
+        MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(target)),
+    );
     let dispatch_relation = MirTypeBridgeDependencyV1::new(
         provider.provider,
         MirTypeBridgeTargetV1::Dispatch(provider.types.payload.id()),
@@ -116,7 +118,9 @@ fn a_foundation_signature_cannot_replace_a_missing_callable_export() {
     let (function, _) = add_function(&mut provider, "private");
     provider.production = production(provider.provider, &provider.types.foundation);
     let mut consumer = Fixture::new("private-consumer");
-    let target = MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(function));
+    let target = MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+        StrongCallableDefinitionOwner::Function(function),
+    ));
     consumer.uses = vec![MirTypeBridgeDependencyV1::new(provider.provider, target)];
     let graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();

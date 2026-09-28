@@ -61,7 +61,9 @@ pub(super) fn check(
             .ordinary
             .exports()
             .iter()
-            .filter(|record| record.target() != missing)
+            .filter(|record| {
+                scoop_identity::CallableDefinitionOwner::Strong(record.target()) != missing
+            })
             .cloned()
             .collect(),
         input.ordinary.selected().to_vec(),

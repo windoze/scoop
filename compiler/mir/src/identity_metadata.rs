@@ -20,6 +20,35 @@ pub enum CallableSignatureSubject {
     Odr(CallableOdrMemberId),
 }
 
+impl From<scoop_identity::CallableDefinitionOwner> for CallableSignatureSubject {
+    fn from(owner: scoop_identity::CallableDefinitionOwner) -> Self {
+        match owner {
+            scoop_identity::CallableDefinitionOwner::Strong(owner) => {
+                Self::Strong(owner.callable_owner())
+            }
+            scoop_identity::CallableDefinitionOwner::Odr(member) => Self::Odr(member),
+        }
+    }
+}
+
+impl TryFrom<CallableSignatureSubject> for scoop_identity::CallableDefinitionOwner {
+    type Error = CallableOwner;
+
+    fn try_from(subject: CallableSignatureSubject) -> Result<Self, Self::Error> {
+        use scoop_identity::StrongCallableDefinitionOwner as Strong;
+        Ok(match subject {
+            CallableSignatureSubject::Odr(member) => Self::Odr(member),
+            CallableSignatureSubject::Strong(owner) => Self::Strong(match owner {
+                CallableOwner::Function(id) => Strong::Function(id),
+                CallableOwner::Constructor(id) => Strong::Constructor(id),
+                CallableOwner::Accessor(id) => Strong::PropertyAccessor(id),
+                CallableOwner::Generated(id) => Strong::GeneratedCallable(id),
+                other => return Err(other),
+            }),
+        })
+    }
+}
+
 impl CallableSignatureSubject {
     pub const fn strong(owner: CallableOwner) -> Self {
         Self::Strong(owner)

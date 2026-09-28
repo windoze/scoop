@@ -20,7 +20,7 @@ fn class_initializer_has_a_separate_receiver_and_unit_result() {
         ParamFreeMirCallableBindingV1::try_new(
             fixture.authority(),
             origin.clone(),
-            origin.implementation(),
+            origin.implementation().unwrap(),
             suspended,
             binding.lowered_signature().clone(),
             role

@@ -113,7 +113,12 @@ impl Replay<'_> {
                     .map(|bridge| {
                         mir::CallableSignatureRecord::new(
                             bridge.subject(),
-                            if bridge.implementation() == original.implementation().callable_owner()
+                            if bridge.implementation()
+                                == original
+                                    .implementation()
+                                    .strong_owner()
+                                    .unwrap()
+                                    .callable_owner()
                             {
                                 lowered.exact().clone()
                             } else {

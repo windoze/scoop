@@ -75,7 +75,9 @@ pub(crate) fn validate_executable_hir_calls(
                         .and_then(|(selected, dependencies)| {
                             let relation = MirTypeBridgeDependencyV1::new(
                                 provider,
-                                MirTypeBridgeTargetV1::Callable(target),
+                                MirTypeBridgeTargetV1::Callable(
+                                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                                ),
                             );
                             selected
                                 .selected_relations()

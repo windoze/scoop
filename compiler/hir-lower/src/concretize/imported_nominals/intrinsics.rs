@@ -53,6 +53,7 @@ impl Concretizer<'_> {
                 declaration: family,
                 application,
             },
+            direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             // The provider owns the callable bodies and boxing adapters.
             interface_implementations: Vec::new(),
@@ -61,6 +62,11 @@ impl Concretizer<'_> {
         });
         self.imported_structs.insert(identity, id);
         self.struct_type.insert(id, ty);
+        self.structs[id].direct_interfaces = source
+            .interfaces
+            .iter()
+            .map(|interface| self.lower_type(*interface, &[]))
+            .collect();
         self.structs[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces, &[]);
     }
 

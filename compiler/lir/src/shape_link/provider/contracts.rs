@@ -13,7 +13,9 @@ impl<'a> ShapeLinkProviderV1<'a> {
             Subject::Callable(target) => {
                 let (signature, calling_convention, protocol, body) = match (
                     self.parts.callables.get(target),
-                    self.parts.ordinary.export_for_target(target),
+                    target
+                        .strong_owner()
+                        .and_then(|target| self.parts.ordinary.export_for_target(target)),
                 ) {
                     (Some(record), None) => {
                         if record.physical_definition() != physical {

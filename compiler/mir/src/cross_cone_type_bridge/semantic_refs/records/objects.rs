@@ -8,7 +8,9 @@ impl MirTypeBridgeSemanticReferencesV1 {
         let mut collector = Collector::new(graph);
         collector.exact(record.read().object())?;
         collector.exact(record.backing())?;
-        collector.push(MirTypeBridgeTargetV1::Callable(record.ensure()))?;
+        collector.push(MirTypeBridgeTargetV1::Callable(
+            scoop_identity::CallableDefinitionOwner::Strong(record.ensure()),
+        ))?;
         collector.push(MirTypeBridgeTargetV1::InitializationUnit(record.unit()))?;
         collector.finish()
     }

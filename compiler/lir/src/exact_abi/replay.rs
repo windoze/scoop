@@ -1,11 +1,11 @@
-use scoop_identity::{CallableBodyKey, PersistentExactTypeId};
+use scoop_identity::PersistentExactTypeId;
 
 use super::*;
 use crate::ExternalStrongShapeSubjectV1;
 
 pub(super) fn callable(
     target_profile: LirTargetProfile,
-    target: StrongCallableDefinitionOwner,
+    target: CallableDefinitionOwner,
     signature: CanonicalScoopAbiFunctionSignature,
     foundation: &ConeLirFoundation,
 ) -> Result<ExactCallableAbiExportV1, ExactCallableAbiError> {
@@ -13,7 +13,7 @@ pub(super) fn callable(
         GcEffect::Managed => ExactCallableProtocolV1::OrdinaryManaged,
         GcEffect::NoGc => ExactCallableProtocolV1::OrdinaryNoGc,
     };
-    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
+    let body = PersistentCallableBodyId::from_key(&target.body_key())?;
 
     if !foundation
         .callable_bodies()

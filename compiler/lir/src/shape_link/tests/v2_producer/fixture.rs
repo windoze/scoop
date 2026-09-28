@@ -238,7 +238,7 @@ pub(super) fn consumer_layout_section<'a>(
             scoop_identity::GcEffect::Managed,
         ),
         implementation: ExactDispatchImplementationV1::DirectStrongTarget {
-            target: provider.callable,
+            target: scoop_identity::CallableDefinitionOwner::Strong(provider.callable),
             receiver: ExactDispatchReceiverAdaptationV1::Identity,
         },
         abi: DispatchCallableAbiV1::Exact {

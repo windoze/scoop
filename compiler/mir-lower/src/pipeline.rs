@@ -62,9 +62,8 @@ impl Lowerer {
         // `BodyLowerer::lower_call`). HIR has already closed and instantiated
         // every generic dependency before this stage starts.
         // Member functions are declared too (hir-lower keeps them out of
-        // `top_level`). Closed abstract interface declarations emit the same
-        // fatal bodies as abstract class methods. Generic interface shells
-        // retain their separate application materialization path.
+        // `top_level`). Abstract interface declarations emit the same fatal
+        // bodies as abstract class methods, including concrete applications.
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
@@ -94,20 +93,13 @@ impl Lowerer {
             };
             // The typed dispatch identity is authoritative; MIR does not
             // infer interface ownership from a qualified source name.
-            let hir::MethodDispatch::Interface { interface, slot } = method.dispatch else {
+            let hir::MethodDispatch::Interface { .. } = method.dispatch else {
                 continue;
             };
-            let implementation =
-                module.interfaces[interface].methods[slot.into_raw() as usize].implementation;
-            if implementation == hir::InterfaceMemberImplementation::Body
-                || module.interfaces[interface].type_arguments.is_empty()
-            {
-                let id = self.declare_function(module, hir_id);
-                user_functions.push((hir_id, id));
-            } else {
-                self.declare_interface_method(module, hir_id);
-            }
+            let id = self.declare_function(module, hir_id);
+            user_functions.push((hir_id, id));
         }
+
         for (hir_id, interface) in module.interfaces.iter() {
             let mir_id = self.interfaces.mir_id(hir_id);
             let methods = (0..interface.methods.len())
@@ -222,25 +214,6 @@ impl Lowerer {
             function.return_ty = return_ty;
             function.body = body;
         }
-        for (hir_id, function) in module.functions.iter() {
-            if function.is_suspend
-                && !module.top_level.contains(&hir_id)
-                && self.function_map.contains_key(&hir_id)
-            {
-                let return_ty = self.functions[self.function_map[&hir_id]].return_ty.clone();
-                self.suspend_sources.push(SuspendSource {
-                    function: self.function_map[&hir_id],
-                    materialization: module.functions[hir_id].materialization,
-                    odr_group: materialization_odr_group(
-                        module,
-                        module.functions[hir_id].materialization,
-                    ),
-                    logical_signature: exact_function_signature(module, hir_id),
-                    source_return: return_ty,
-                });
-            }
-        }
-
         self.materialize_shape_types(module, shape_support);
 
         // Finalize boxed value types to a fixed point. Function-type bridges

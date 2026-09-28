@@ -1,4 +1,4 @@
-scoop=78 bridges=0 final_members=78
+scoop=80 bridges=0 final_members=80
 scoop=8 bridges=1 final_members=9
 reject Members(Identity, Missing)
 reject Members(Identity, Extra)

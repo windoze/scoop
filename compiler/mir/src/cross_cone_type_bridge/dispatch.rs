@@ -2,9 +2,7 @@
 //! selection remains an enclosing HIR/MIR production join.
 
 use super::*;
-use scoop_identity::{
-    DispatchDeclarationOwner, PersistentDispatchSlotId, StrongCallableDefinitionOwner,
-};
+use scoop_identity::{DispatchDeclarationOwner, PersistentDispatchSlotId};
 
 mod error;
 mod graph;
@@ -25,3 +23,6 @@ fn reserve<T>(count: usize) -> Result<Vec<T>, WireError> {
 
 #[cfg(test)]
 pub(in crate::cross_cone_type_bridge) mod tests;
+
+#[cfg(test)]
+use scoop_identity::StrongCallableDefinitionOwner;

@@ -5,7 +5,7 @@ pub(super) fn targets(
     owner: PersistentExactTypeId,
     ty: &mir::Type,
     schema: &hir::InheritanceSlotSchemaV1,
-) -> Result<Vec<StrongCallableDefinitionOwner>, Error> {
+) -> Result<Vec<CallableDefinitionOwner>, Error> {
     let mismatch = || Error::TableMismatch {
         owner,
         role: schema.role(),
@@ -105,7 +105,8 @@ pub(super) fn targets(
             mir::TableSlot::External(callable) => context.input.module().meta.external_callables
                 [*callable]
                 .reference()
-                .implementation(),
+                .implementation()
+                .into(),
             mir::TableSlot::Runtime(_) => return Err(mismatch()),
         });
     }

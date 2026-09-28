@@ -2,9 +2,8 @@
 
 use super::*;
 use scoop_identity::{
-    CallableBodyKey, ConeIdentity, PersistentCallableBodyId, PersistentDispatchTableId,
-    PersistentExactTypeId, PersistentInitializationUnitId, PersistentLayoutId, PersistentScanId,
-    PersistentTypeId, StrongCallableDefinitionOwner,
+    ConeIdentity, PersistentCallableBodyId, PersistentDispatchTableId, PersistentExactTypeId,
+    PersistentInitializationUnitId, PersistentLayoutId, PersistentScanId, PersistentTypeId,
 };
 use scoop_wire::{HashError, WireError};
 
@@ -46,8 +45,8 @@ pub enum StrongProductionLayoutJoinError {
     DescriptorProduction(PersistentExactTypeId),
     MissingDispatchProduction(PersistentDispatchTableId),
     DispatchProduction(PersistentDispatchTableId),
-    MissingCallableProduction(StrongCallableDefinitionOwner),
-    CallableProduction(StrongCallableDefinitionOwner),
+    MissingCallableProduction(scoop_identity::CallableDefinitionOwner),
+    CallableProduction(scoop_identity::CallableDefinitionOwner),
     ShapeSupportProduction(PersistentTypeId),
     StaticStorageLayout {
         provider: ConeIdentity,

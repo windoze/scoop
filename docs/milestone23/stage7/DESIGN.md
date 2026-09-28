@@ -158,6 +158,8 @@ generic nominal 的字段、variant payload、base/interface application、const
 
 generic host 的普通方法和 accessor 具有 exact owner；generic method 另有 own arguments，二者顺序和身份沿用语言 3.2。interface default、abstract override、`super<I>`、protected receiver、属性 setter 权限、constructor readiness 继续在前端按实际声明检查。
 
+共有 callable binding、dispatch 和 exact callable ABI 的目标统一为既有 Strong owner 或 typed ODR callable member，转换为同一 `CallableBodyKey`；不增加新的实体 ID 或泛型专用发布表。实际 application 的虚表与接口表保留原 slot identity、完成替换的 slot signature、真实目标及 receiver adjustment。LocalConcreteHir 保留替换后的直接接口与完整实现集合，接口自身保留直接父接口；MIR 类型记录表达直接继承，物理派发表保留完整实现。来源来自完成的 callable materialization，物理 ABI 与定义来自实际 MIR/LIR；reader 只检查这些既有记录间的必要关联。继承、接口默认实现和抽象 trap 继续使用原 lowering 角色，不能以空派发表代替非空 generic dispatch。
+
 value/ref、GC-free、enum variant facts、ZST 和 `Option` niche 在 concrete 输出中必须完备。别名先展开为原 exact target，不产生新实例；不同 nominal arguments 即使 ABI 相同也保留不同 exact identity、TD 和 ODR member。
 
 ### 4.3 终止性
@@ -389,11 +391,11 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
 | `org.scoop-lang.hir/cross-cone-interface` | `/35` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/9` | exact application 的完整 facts、继承和 actual type uses；不增加来源资格 |
-| `org.scoop-lang.mir/cross-cone-type-bridge` | `/2` | 原类型表示表新增 application origin tag 3，保存实际替换后的字段、payload、facts 与父类型；复用 exact layout/ABI 和 Strong/ODR 定义引用 |
+| `org.scoop-lang.mir/cross-cone-type-bridge` | `/3` | 原类型表示表保存 application origin；callable 和 dispatch 使用 Strong/ODR 定义目标，callable origin tag 5 引用真实 application |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
-| `org.scoop-lang.lir/cross-cone-layout-abi` | `/4` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用 |
+| `org.scoop-lang.lir/cross-cone-layout-abi` | `/5` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用；完整 callable ABI 保留实际 callable member |
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |
-| `org.scoop-lang.lir/cross-cone-layout-link-closure` | `/3` | layout/descriptor/helper 的实际 ODR 引用 |
+| `org.scoop-lang.lir/cross-cone-layout-link-closure` | `/3` | layout/descriptor/helper/callable 的实际 Strong/ODR 物理引用 |
 | `org.scoop-lang.lir/link-identity-closure` | `/4` | ODR definition、symbol、relocation 与 member-aware materialization |
 | `org.scoop-lang.lir/cone-production` | `/2` | 取代完整 layout 路径的 Strong production `/14`，统一表示完整 Strong/ODR 定义、六类 registration、image、digest plan 与实际 shape 内容摘要 |
 | `org.scoop-lang.link-object/scoop-lir` | `/3` | 同一 Mach-O verifier 支持并核对实际 ODR 对象与 member 摘要 |

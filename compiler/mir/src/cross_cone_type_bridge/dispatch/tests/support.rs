@@ -251,7 +251,7 @@ impl Fixture {
                 ParamFreeMirCallableBindingV1::try_new(
                     authority,
                     origin.clone(),
-                    origin.implementation(),
+                    origin.implementation().unwrap(),
                     signature.clone(),
                     signature,
                     if index == 3 {
@@ -275,7 +275,7 @@ impl Fixture {
                 ParamFreeMirCallableBindingV1::try_new(
                     authority,
                     origin.clone(),
-                    origin.implementation(),
+                    origin.implementation().unwrap(),
                     bindings[target].lowered_signature().clone(),
                     MirBridgeCallableSignatureV1::new(
                         sig(
@@ -285,7 +285,9 @@ impl Fixture {
                         crate::GcEffect::Managed,
                     ),
                     MirCallableLoweringRoleV1::BoxingAdjust {
-                        target: fixture.target(target),
+                        target: scoop_identity::CallableDefinitionOwner::Strong(
+                            fixture.target(target),
+                        ),
                     },
                 )
                 .unwrap(),

@@ -1660,6 +1660,8 @@ M23-7 的共有对象读取将 `link-identity-closure` 升至 `/4`，加入实�
 
 正式 layout 产物沿同一发布与读取入口切换到 `cross-cone-generic/1`，原 layout-strong 产物需重建。共有语义与 ABI 查询直接使用完整 canonical HIR/MIR foundation；`OdrFree` 只限制历史 Strong 格式，不作为泛型输出的中间表示。必需 section 按实际 payload 分步升级，首条泛型函数闭环使用已经生产的 HIR interface `/32` 等 section、`cone-production/1` 及完整 ODR 目录；已落地的构造初始化模板将 HIR interface 升至 `/33`，区分泛型字段实例的位置表示再升至 `/34`，实际名义类型 shape 内容由 `cone-production/2` 的必需 field 14 承载；共用该结构的历史 Strong production 升至 `/15`，继续使用空 shape 表并拒绝 ODR。后续委托等格式落地后同步升级 section、descriptor fingerprint 和缓存，不预写缺失正文或假空表。该迁移过程及最终完整 inventory 见实现规范 2.13 和 M23-7 设计第 10 节；所有语言与阶段验收要求保持。
 
+实际泛型名义应用的成员与派发表保留原模板声明及完整实参，机器定义沿已有 ODR member 发布；接口默认方法、抽象槽和继承覆写在产物消费时保留同一语言语义。对应完整 callable 与派发格式使用 MIR `cross-cone-type-bridge/3`、LIR `cross-cone-layout-abi/5` 和 `cross-cone-layout-link-closure/3`，旧版本产物及缓存重建；字段、类型与 callable identity 及 runtime C ABI 保持，具体字段见实现规范 2.13。
+
 本地 class、struct 和 enum 实现参数自由的依赖接口时，前端直接消费共有接口声明的完整父接口、typed slot、签名、默认实现和访问域。HIR 的 conformance 引用实际接口类型及本地/外来槽声明，目标为本地方法 application 或共有依赖 callable；不得为复用本地检查而复制外来函数声明、正文或生成同名替身。MIR 的 dispatch 表保留本地函数或实际外部 callable 引用，默认实现与抽象槽 trap 沿定义方原有 target 解析，LIR 使用现有 canonical ABI、外部定义与 relocation 路径。override、缺失实现、默认方法冲突、setter 能力和签名/effect 规则在同一前端检查中完成；类型、成员和 dispatch 独立及组合场景须经真实源码产物消费和单 image 普通/移动 GC 运行验收。
 
 本地 interface 可以继承参数自由的依赖接口。父边保留实际 TypeId，override 关系保留实际本地或外来槽声明；继承的成员按父接口声明顺序进入完整槽表，菱形继承按声明身份去重，被覆盖的槽按已解析 override 关系消除。显式成员及当前 this 的隐式成员查找沿本地与依赖声明的同一父图进行，本地和外来候选共同执行语言规定的适用性与最具体选择；不能以声明存储位置决定优先级，也不能将外来成员复制为本地声明。该接口再次发布后，下游按实际父类型、槽与 provider 消费，保持 canonical ABI、默认方法、属性和装箱语义。

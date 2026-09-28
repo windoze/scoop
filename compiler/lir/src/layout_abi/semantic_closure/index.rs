@@ -11,7 +11,9 @@ impl LayoutAbiTargetIndex {
         let mut rows = Vec::new();
         for (owner, view) in views.iter().enumerate() {
             for record in view.direct_callables().exports() {
-                let target = LayoutAbiSemanticTargetV1::Callable(record.target());
+                let target = LayoutAbiSemanticTargetV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(record.target()),
+                );
                 scoop_wire::allocation::try_reserve(&mut rows, 1, &path)?;
                 rows.push((target, view.provider(), owner));
             }
@@ -51,7 +53,7 @@ impl LayoutAbiTargetIndex {
                 .binary_search_by_key(&(target, expected), |row| (row.0, row.1))
                 .map(|index| self.rows[index].2)
                 .map_err(|_| LayoutAbiSemanticClosureError::Provider {
-                    target,
+                    target: Box::new(target),
                     expected,
                     actual: row.1,
                 }),

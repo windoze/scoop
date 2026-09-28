@@ -73,7 +73,8 @@ pub(super) fn binding(
     Error::require(
         declaration,
         Component::Implementation,
-        binding.implementation() == declaration.implementation(),
+        binding.implementation()
+            == scoop_identity::CallableDefinitionOwner::Strong(declaration.implementation()),
     )?;
     Error::require(
         declaration,

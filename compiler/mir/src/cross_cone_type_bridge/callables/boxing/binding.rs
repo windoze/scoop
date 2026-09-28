@@ -48,7 +48,7 @@ pub(super) fn project(
         }
     };
     let source = source
-        .get(target)
+        .get(target.into())
         .ok_or(Error::MissingTargetBinding(target))?;
     if !matches!(
         source.lowering_role(),
@@ -89,6 +89,8 @@ pub(super) fn project(
             lowered.clone(),
             input.module().functions[adjust.function()].gc_effect,
         ),
-        MirCallableLoweringRoleV1::BoxingAdjust { target },
+        MirCallableLoweringRoleV1::BoxingAdjust {
+            target: target.into(),
+        },
     )?)
 }

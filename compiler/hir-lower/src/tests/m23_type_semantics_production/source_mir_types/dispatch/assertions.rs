@@ -37,7 +37,12 @@ pub(super) fn object_overrides(
                 .find(|root| {
                     root.subject()
                         == scoop_mir::CallableSignatureSubject::Strong(
-                            entry.implementation().target().callable_owner(),
+                            entry
+                                .implementation()
+                                .target()
+                                .strong_owner()
+                                .unwrap()
+                                .callable_owner(),
                         )
                 })
                 .unwrap();
@@ -106,7 +111,9 @@ pub(super) fn actual(
                 .iter()
                 .find(|root| {
                     root.subject()
-                        == scoop_mir::CallableSignatureSubject::Strong(target.callable_owner())
+                        == scoop_mir::CallableSignatureSubject::Strong(
+                            target.strong_owner().unwrap().callable_owner(),
+                        )
                 })
                 .unwrap();
             let binding = authority.callables.get(target).unwrap();
@@ -183,7 +190,12 @@ pub(super) fn dump(
                 text.push_str(&format!(
                     "    {} {role} {}\n",
                     entry.position().get(),
-                    targets[&entry.implementation().target().callable_owner()]
+                    targets[&entry
+                        .implementation()
+                        .target()
+                        .strong_owner()
+                        .unwrap()
+                        .callable_owner()]
                 ));
             }
         }

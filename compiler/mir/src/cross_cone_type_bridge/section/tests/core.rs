@@ -116,20 +116,26 @@ fn ordinary_callable_exports_resolve_through_shared_typed_targets() {
     ] {
         consumer.uses = vec![MirTypeBridgeDependencyV1::new(
             provider,
-            MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(target)),
+            MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::Function(target),
+            )),
         )];
         let section = consumer
             .section(&[core.dependency_view(), direct.dependency_view()], &graph)
             .unwrap();
         let Some(MirTypeBridgeSemanticRecordV1::Callable(record)) = section.selected().record(
             provider,
-            MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(target)),
+            MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::Function(target),
+            )),
         ) else {
             panic!("ordinary declaration resolves to its complete callable record")
         };
         assert_eq!(
             record.implementation(),
-            StrongCallableDefinitionOwner::Function(target)
+            scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::Function(target)
+            )
         );
         assert_eq!(record.semantic_signature(), record.lowered_signature());
     }

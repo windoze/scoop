@@ -97,7 +97,9 @@ pub fn replay_shared_lir_dependency_graph(
         {
             committed.push(lir::LayoutAbiDependencyV1::new(
                 reference.origin(),
-                lir::LayoutAbiSemanticTargetV1::Callable(target),
+                lir::LayoutAbiSemanticTargetV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                ),
             ));
         }
     }

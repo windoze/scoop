@@ -22,19 +22,19 @@ fn type_semantics_v9_requires_actual_application_facts() {
 }
 
 #[test]
-fn mir_type_bridge_v2_requires_actual_application_representations() {
+fn mir_type_bridge_v3_requires_application_callables_and_dispatch() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        2,
+        3,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn lir_layout_abi_v4_requires_application_definitions() {
+fn lir_layout_abi_v5_requires_application_callable_definitions() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        4,
+        5,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }

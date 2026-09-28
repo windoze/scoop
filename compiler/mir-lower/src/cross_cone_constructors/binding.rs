@@ -90,7 +90,9 @@ impl<'a> Producer<'a> {
         let roots = self.input.materialization().callable_roots();
         let signatures = &self.input.module().meta.callable_signatures;
 
-        let implementation = origin.implementation();
+        let implementation = origin
+            .implementation()
+            .ok_or(Error::MissingMaterialization(declaration))?;
         let index = roots
             .binary_search_by(|root| {
                 root.subject()

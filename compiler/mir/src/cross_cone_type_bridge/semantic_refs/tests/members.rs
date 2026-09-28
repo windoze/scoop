@@ -16,22 +16,22 @@ fn member_dependencies_are_disjoint_from_top_level_and_extension_callables() {
 
     let mut collector = Collector::new(&dispatch.graph);
     collector
-        .member_target(StrongCallableDefinitionOwner::Function(
-            dispatch.methods[0].id(),
+        .member_target(scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::Function(dispatch.methods[0].id()),
         ))
         .unwrap();
     let objects = ObjectFixture::new();
 
     let mut collector = Collector::new(&objects.graph);
     collector
-        .member_target(StrongCallableDefinitionOwner::PropertyAccessor(
-            objects.accessors[1].id(),
+        .member_target(scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::PropertyAccessor(objects.accessors[1].id()),
         ))
         .unwrap();
     for accessor in [objects.accessors[0].id(), objects.accessors[2].id()] {
         let target = StrongCallableDefinitionOwner::PropertyAccessor(accessor);
         assert!(
-            matches!(collector.member_target(target), Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(actual)) if actual == target)
+            matches!(collector.member_target(scoop_identity::CallableDefinitionOwner::Strong(target)), Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(actual)) if actual == scoop_identity::CallableDefinitionOwner::Strong(target))
         );
     }
     let fixture = TypeFixture::new();
@@ -42,8 +42,11 @@ fn member_dependencies_are_disjoint_from_top_level_and_extension_callables() {
         panic!()
     };
     assert!(matches!(
-        Collector::new(&fixture.graph)
-            .member_target(StrongCallableDefinitionOwner::Function(function)),
+        Collector::new(&fixture.graph).member_target(
+            scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::Function(function)
+            )
+        ),
         Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(_))
     ));
 }
@@ -79,7 +82,9 @@ fn extension_receiver_is_rejected_even_with_a_nominal_lexical_owner() {
     hir.resolve_identities(&mut pending).unwrap();
     let graph = pending.finish().unwrap();
     assert!(matches!(
-        Collector::new(&graph).member_target(StrongCallableDefinitionOwner::Function(method.id())),
+        Collector::new(&graph).member_target(scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::Function(method.id())
+        )),
         Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(_))
     ));
 }
@@ -89,7 +94,9 @@ fn initialization_generated_role_cannot_be_a_dispatch_target() {
     let fixture = ObjectFixture::new();
     assert!(matches!(
         Collector::new(&fixture.graph).dispatch_target(
-            StrongCallableDefinitionOwner::GeneratedCallable(fixture.ensures[0].id())
+            scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::GeneratedCallable(fixture.ensures[0].id())
+            )
         ),
         Err(MirTypeBridgeReferenceError::GeneratedExecutionGate)
     ));

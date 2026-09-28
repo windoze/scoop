@@ -61,7 +61,9 @@ pub(super) fn check(
         for export in sections.lir_exports().callables().records() {
             if !matches!(
                 export.target(),
-                StrongCallableDefinitionOwner::Constructor(_)
+                scoop_identity::CallableDefinitionOwner::Strong(
+                    StrongCallableDefinitionOwner::Constructor(_)
+                )
             ) || export.canonical_signature().gc_effect() != GcEffect::NoGc
             {
                 continue;

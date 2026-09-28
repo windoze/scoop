@@ -101,10 +101,10 @@ impl ValidatedCrossConeSemanticClosure {
         {
             return Err(Error::SignatureMismatch { provider, target });
         }
-        selected.push(SelectedExternalMirCallable::from_lowered(
-            provider,
-            definition.clone(),
-        ));
+        selected.push(
+            SelectedExternalMirCallable::from_lowered(provider, definition.clone())
+                .map_err(|_| Error::SignatureMismatch { provider, target })?,
+        );
         Ok(())
     }
 }

@@ -8,7 +8,13 @@ impl MirCallableBridgeAuthority<'_> {
         slot: PersistentDispatchSlotId,
     ) -> Result<(), MirCallableBridgeError> {
         let key = self.identities.canonical_key::<_, DispatchSlotKey>(slot)?;
-        let root = declaration_implementation(key.owner());
+        let receiver = binding
+            .semantic
+            .exact()
+            .receiver()
+            .into_option()
+            .ok_or(MirCallableBridgeError::InvalidTrapDeclaration)?;
+        let root = dispatch_declaration_target(self.identities, self.types, key.owner(), receiver)?;
         if root == binding.implementation {
             return Ok(());
         }
@@ -61,7 +67,7 @@ impl MirCallableBridgeAuthority<'_> {
 
     fn trap_receiver(
         &self,
-        declaration: StrongCallableDefinitionOwner,
+        declaration: CallableDefinitionOwner,
         signature: &ExactCallableSignature,
     ) -> Result<PersistentExactTypeId, MirCallableBridgeError> {
         let exact = signature
@@ -69,14 +75,47 @@ impl MirCallableBridgeAuthority<'_> {
             .into_option()
             .ok_or(MirCallableBridgeError::InvalidTrapDeclaration)?;
         let record = self.type_export(exact)?;
+        let declaration = match declaration {
+            CallableDefinitionOwner::Odr(member) => {
+                let member = self
+                    .identities
+                    .canonical_key::<_, scoop_identity::OdrMemberKey>(member.member())?;
+                let scoop_identity::OdrMemberDiscriminator::CallableApplication(application) =
+                    member.discriminator()
+                else {
+                    return Err(MirCallableBridgeError::InvalidTrapDeclaration);
+                };
+                let application = self
+                    .identities
+                    .canonical_key::<_, scoop_identity::CallableApplicationKey>(*application)?;
+                let template = match application.origin() {
+                    scoop_identity::CallableTemplateOrigin::Function(id) => {
+                        DispatchDeclarationOwner::Function(id)
+                    }
+                    scoop_identity::CallableTemplateOrigin::Accessor(id) => {
+                        DispatchDeclarationOwner::Accessor(id)
+                    }
+                    _ => return Err(MirCallableBridgeError::InvalidTrapDeclaration),
+                };
+                if dispatch_declaration_target(self.identities, self.types, template, exact)?
+                    != declaration
+                {
+                    return Err(MirCallableBridgeError::InvalidTrapDeclaration);
+                }
+                return Ok(exact);
+            }
+            strong => strong,
+        };
         let MirTypeOriginV1::SourceNominal(nominal) = *record.origin() else {
             return Err(MirCallableBridgeError::InvalidTrapDeclaration);
         };
         let key = match declaration {
-            StrongCallableDefinitionOwner::Function(id) => self
+            CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(id)) => self
                 .identities
                 .canonical_key::<_, SourceDeclarationKey>(id)?,
-            StrongCallableDefinitionOwner::PropertyAccessor(id) => {
+            CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::PropertyAccessor(
+                id,
+            )) => {
                 let accessor = self
                     .identities
                     .canonical_key::<_, PropertyAccessorKey>(id)?;

@@ -2,8 +2,8 @@
 
 use super::*;
 use scoop_identity::{
-    DecodedStrongCallableDefinitionOwner, DispatchDeclarationOwner, ExactCallableSignature,
-    GeneratedCallableKey, PersistentConstructorId, PersistentDispatchSlotId, PersistentFunctionId,
+    DispatchDeclarationOwner, ExactCallableSignature, GeneratedCallableKey,
+    PersistentConstructorId, PersistentDispatchSlotId, PersistentFunctionId,
     PersistentGeneratedCallableId, PersistentInitializationUnitId, PersistentPropertyAccessorId,
     StrongCallableDefinitionOwner,
 };

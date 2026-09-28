@@ -114,16 +114,14 @@ pub(super) fn bytes(result: &lir::LayoutAbiExportConstituentsV1) -> [Vec<u8>; 5]
 
 pub(super) fn callable_name(
     input: LayoutAbiExportInputV1<'_>,
-    target: scoop_identity::StrongCallableDefinitionOwner,
+    target: scoop_identity::CallableDefinitionOwner,
 ) -> &str {
     let root = input
         .mir
         .materialization()
         .callable_roots()
         .iter()
-        .find(|root| {
-            root.subject() == scoop_mir::CallableSignatureSubject::Strong(target.callable_owner())
-        })
+        .find(|root| root.subject() == target.into())
         .unwrap();
     &input.mir.module().functions[root.function()].name
 }

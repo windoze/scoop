@@ -42,22 +42,38 @@ pub(super) fn check(
     source_only_callable(hir, input);
     reject_missing_string_vtable(input);
     let (names, local_only) = source_only_descriptors(&hir.cross_cone_section, input, result);
-    let mut expected = vec![
+    let previously_deferred: &[&str] = match name {
+        "shared-callables-combined" => &["SharedSourceOnlyHolder"],
+        "shared-ordinary-combined" => &["SharedOrdinaryDeferred", "SharedOrdinaryDeferredValue"],
+        _ => &[],
+    };
+    for name in [
         "ArithmeticException",
         "ClassCastException",
         "Exception",
         "IllegalStateException",
         "IndexOutOfBoundsException",
         "UnwrapException",
-    ];
-    let source_only: &[&str] = match name {
-        "shared-callables-combined" => &["SharedSourceOnlyHolder"],
-        "shared-ordinary-combined" => &["SharedOrdinaryDeferred", "SharedOrdinaryDeferredValue"],
-        _ => &[],
-    };
-    expected.extend_from_slice(source_only);
-    expected.sort();
-    assert_eq!(names, expected);
+    ]
+    .into_iter()
+    .chain(previously_deferred.iter().copied())
+    {
+        let local = input
+            .mir
+            .module()
+            .meta
+            .source_exact_types
+            .iter()
+            .find(|local| mir::type_name(input.mir.module(), local.ty()) == name)
+            .unwrap();
+        let exact = local.identity_record().id();
+        assert!(input.bridge.types().get(exact).is_some());
+        assert!(result.descriptors().get(exact).is_some());
+    }
+    assert!(
+        names.is_empty(),
+        "unexpected source-only descriptors: {names:?}"
+    );
     assert_eq!(
         local_only,
         match name {
@@ -102,7 +118,10 @@ fn source_only_callable(
             })
     );
     assert!(input.bridge.callables().entries().iter().all(|callable| {
-        callable.implementation() != StrongCallableDefinitionOwner::Function(identity.id())
+        callable.implementation()
+            != scoop_identity::CallableDefinitionOwner::Strong(
+                StrongCallableDefinitionOwner::Function(identity.id()),
+            )
     }));
 }
 
@@ -130,8 +149,21 @@ fn source_only_descriptors(
         if let Some(local) = local
             && let mir::SourceExactTypeOwner::NominalApplication(group) = local.owner()
         {
-            assert!(input.bridge.types().get(exact).is_none());
-            assert!(result.descriptors().get(exact).is_none());
+            let ty = input.bridge.types().get(exact).unwrap();
+            let ExactTypeKey::NominalApplication { origin, .. } = local.identity_record().key()
+            else {
+                panic!("a nominal application retains its template origin")
+            };
+            assert_eq!(
+                ty.origin(),
+                &mir::MirTypeOriginV1::NominalApplication(*origin)
+            );
+            let published = result.descriptors().get(exact).unwrap();
+            assert_eq!(published.exact(), exact);
+            assert_eq!(
+                published.definition().symbol(),
+                descriptor.identity.symbol_request()
+            );
             let member = descriptor.identity.odr_member_record().unwrap();
             assert_eq!(member.key().group(), group);
             assert_eq!(
@@ -142,6 +174,7 @@ fn source_only_descriptors(
                 descriptor.identity.symbol_request().linkage(),
                 scoop_identity::LinkageClass::OdrWeak
             );
+            exported += 1;
             continue;
         }
         if let Some(local) = local {

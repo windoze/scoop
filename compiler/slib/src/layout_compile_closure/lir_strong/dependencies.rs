@@ -68,7 +68,9 @@ pub(super) fn definitions(
                 }
             };
             types.push(lir::StrongShapeDefinitionRefV1::from_foundation(
-                lir::ExternalStrongShapeSubjectV1::Callable(target),
+                lir::ExternalStrongShapeSubjectV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                ),
                 foundation,
             )?);
         }

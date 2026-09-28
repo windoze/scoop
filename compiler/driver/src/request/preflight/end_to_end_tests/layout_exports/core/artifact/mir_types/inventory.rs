@@ -7,7 +7,12 @@ use scoop_identity::{
 
 pub(super) fn check(replay: &Replay<'_, '_>) {
     let records = replay.section.types().records();
-    for record in records {
+    // Application inventory follows machine roots, not the source declaration
+    // inventory checked here. Its required references close in the MIR section.
+    for record in records
+        .iter()
+        .filter(|record| !matches!(record.origin(), mir::MirTypeOriginV1::NominalApplication(_)))
+    {
         let mut missing = records.to_vec();
         missing.retain(|candidate| candidate.exact() != record.exact());
         let error = replay.reject(missing);

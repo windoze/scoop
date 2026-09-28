@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use scoop_identity::{
-    CanonicalScoopAbiFunctionSignature, ConeIdentity, PersistentCallableBodyId,
-    PersistentSymbolKey, RepresentationRole, StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, CanonicalScoopAbiFunctionSignature, ConeIdentity,
+    PersistentCallableBodyId, PersistentSymbolKey, RepresentationRole,
 };
 
 use super::ExactDispatchError;
@@ -27,10 +27,10 @@ pub enum DispatchCallableAbiV1<'a> {
 }
 
 impl DispatchCallableAbiV1<'_> {
-    pub fn target(self) -> StrongCallableDefinitionOwner {
+    pub fn target(self) -> CallableDefinitionOwner {
         match self {
             Self::Exact { record, .. } => record.target(),
-            Self::Direct { record, .. } => record.target(),
+            Self::Direct { record, .. } => record.target().into(),
         }
     }
 
@@ -67,7 +67,7 @@ impl DispatchCallableAbiV1<'_> {
             Self::Exact { record, .. } => Ok(record.definition().semantic_id()),
             Self::Direct { record, .. } => match record.expected_symbol().key() {
                 PersistentSymbolKey::CallableBody(body) => Ok(body),
-                _ => Err(ExactDispatchError::AbiDefinition(record.target())),
+                _ => Err(ExactDispatchError::AbiDefinition(record.target().into())),
             },
         }
     }

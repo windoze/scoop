@@ -31,7 +31,7 @@ pub(super) fn check(
             .direct_callables()
             .exports()
             .iter()
-            .find(|record| assertions::callable_name(input, record.target()) == name)
+            .find(|record| assertions::callable_name(input, record.target().into()) == name)
             .unwrap()
     };
     let value = named("SharedAbiEmpty.wide");

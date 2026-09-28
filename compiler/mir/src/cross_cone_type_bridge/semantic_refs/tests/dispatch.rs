@@ -17,9 +17,11 @@ fn class_and_diamond_edges_keep_slot_declaration_and_chosen_target() {
         [BASE, ROOT, LEFT, RIGHT, DIAMOND]
             .map(|index| MirTypeBridgeTargetV1::Dispatch(fixture.exact(index))),
     );
-    targets.extend(
-        [0, 1, 3, 4, 5].map(|index| MirTypeBridgeTargetV1::Callable(fixture.target(index))),
-    );
+    targets.extend([0, 1, 3, 4, 5].map(|index| {
+        MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            fixture.target(index),
+        ))
+    }));
     assert_eq!(references.targets(), expected(targets));
 }
 
@@ -39,7 +41,9 @@ fn boxed_default_preserves_payload_and_both_interface_receivers() {
             MirTypeBridgeTargetV1::Type(fixture.exact(LEFT)),
             MirTypeBridgeTargetV1::Type(fixture.exact(VALUE)),
             MirTypeBridgeTargetV1::Type(fixture.exact(UNIT)),
-            MirTypeBridgeTargetV1::Callable(fixture.target(4)),
+            MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+                fixture.target(4)
+            )),
         ])
     );
 }
@@ -55,7 +59,9 @@ fn abstract_interface_and_value_dispatch_keep_traps_and_real_adjusts() {
         assert!(
             references
                 .targets()
-                .contains(&MirTypeBridgeTargetV1::Callable(fixture.target(3)))
+                .contains(&MirTypeBridgeTargetV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(fixture.target(3))
+                ))
         );
         for table in record.itables() {
             for entry in table.entries() {

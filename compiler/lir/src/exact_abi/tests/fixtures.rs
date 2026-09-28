@@ -21,9 +21,11 @@ pub(super) fn foundation(
         ))
         .unwrap(),
     );
-    let (definition, symbol) = ExternalStrongShapeSubjectV1::Callable(target)
-        .expected_definition(ConeIdentity::SINGLE_FILE)
-        .unwrap();
+    let (definition, symbol) = ExternalStrongShapeSubjectV1::Callable(
+        scoop_identity::CallableDefinitionOwner::Strong(target),
+    )
+    .expected_definition(ConeIdentity::SINGLE_FILE)
+    .unwrap();
     let definition = CborIdentityRecord::from_key(definition).unwrap();
     let atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
         definition.id(),

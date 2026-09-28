@@ -3,7 +3,7 @@ use super::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParamFreeMirCallableBindingV1 {
     pub(super) origin: MirCallableOriginV1,
-    pub(super) implementation: StrongCallableDefinitionOwner,
+    pub(super) implementation: CallableDefinitionOwner,
     pub(super) semantic: MirBridgeCallableSignatureV1,
     pub(super) lowered: MirBridgeCallableSignatureV1,
     pub(super) role: MirCallableLoweringRoleV1,
@@ -12,14 +12,14 @@ impl ParamFreeMirCallableBindingV1 {
     pub fn try_new(
         authority: MirCallableBridgeAuthority<'_>,
         origin: MirCallableOriginV1,
-        implementation: StrongCallableDefinitionOwner,
+        implementation: impl Into<CallableDefinitionOwner>,
         semantic: MirBridgeCallableSignatureV1,
         lowered: MirBridgeCallableSignatureV1,
         role: MirCallableLoweringRoleV1,
     ) -> Result<Self, MirCallableBridgeError> {
         let binding = Self {
             origin,
-            implementation,
+            implementation: implementation.into(),
             semantic,
             lowered,
             role,
@@ -30,7 +30,7 @@ impl ParamFreeMirCallableBindingV1 {
     pub const fn origin(&self) -> &MirCallableOriginV1 {
         &self.origin
     }
-    pub const fn implementation(&self) -> StrongCallableDefinitionOwner {
+    pub const fn implementation(&self) -> CallableDefinitionOwner {
         self.implementation
     }
     pub const fn semantic_signature(&self) -> &MirBridgeCallableSignatureV1 {
@@ -80,11 +80,11 @@ impl CanonicalMirCallableBindingsV1 {
     }
     pub fn get(
         &self,
-        implementation: StrongCallableDefinitionOwner,
+        implementation: impl Into<CallableDefinitionOwner>,
     ) -> Option<&ParamFreeMirCallableBindingV1> {
         self.entries
             .binary_search_by_key(
-                &implementation,
+                &implementation.into(),
                 ParamFreeMirCallableBindingV1::implementation,
             )
             .ok()

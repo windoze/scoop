@@ -54,7 +54,33 @@ pub(super) fn validate(
     }
     for record in dispatch.records() {
         if !required.contains(&record.owner()) {
-            return Err(Error::Unexpected(record.owner()));
+            let metadata = source.metadata();
+            let key = metadata
+                .identities
+                .canonical_key::<_, scoop_identity::ExactTypeKey>(record.owner())?;
+            if !matches!(
+                key.as_ref(),
+                scoop_identity::ExactTypeKey::NominalApplication { .. }
+            ) {
+                return Err(Error::Unexpected(record.owner()));
+            }
+            for entry in record
+                .vtable()
+                .entries()
+                .iter()
+                .chain(record.itables().iter().flat_map(|table| table.entries()))
+            {
+                if let Some(binding) = replay.callables.get(entry.implementation().target())
+                    && let mir::MirCallableOriginV1::Generated {
+                        callable,
+                        role:
+                            GeneratedCallableKey::BoxingAdjust { .. }
+                            | GeneratedCallableKey::DispatchAdjust { .. },
+                    } = binding.origin().as_ref()
+                {
+                    replay.adjustments.insert(*callable);
+                }
+            }
         }
     }
     Ok(())

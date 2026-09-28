@@ -105,7 +105,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     equality::assert_equality(&target, workspace.path(), &artifact);
     intrinsics::assert_normalized_integer_defaults(&target, workspace.path(), &artifact);
     default_data_flow::assert_branching_defaults(&target, workspace.path(), &artifact);
-    intrinsics::assert_integer_exception_requires_layout(&target, workspace.path(), &artifact);
+    intrinsics::assert_integer_exception_uses_shared_layout(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().summary().direct_dependencies(),

@@ -46,6 +46,7 @@ impl Collector<'_> {
                 Ok(())
             }
             TypeKind::Interface(id) => {
+                self.types(self.module.interfaces[*id].parents.iter().copied())?;
                 let declaration = &module.interfaces[*id];
                 self.types(declaration.type_arguments.iter().copied())?;
                 for method in &declaration.methods {

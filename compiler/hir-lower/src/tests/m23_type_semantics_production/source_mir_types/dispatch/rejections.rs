@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) fn check(
+    local: &hir::LocalConcreteHir,
     input: &ConeMirInput,
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     types: &CanonicalParamFreeMirTypeExportsV1,
@@ -8,12 +9,13 @@ pub(super) fn check(
 ) {
     let empty = CanonicalParamFreeMirTypeExportsV1::default();
     assert!(matches!(
-        lower_dispatch_schemas(hir, input, &empty, authority, &[]),
+        lower_dispatch_schemas(local, hir, input, &empty, authority, &[]),
         Err(Error::MissingType(_))
     ));
     let callables = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
     assert!(matches!(
         lower_dispatch_schemas(
+            local,
             hir,
             input,
             types,
@@ -27,6 +29,7 @@ pub(super) fn check(
     ));
     assert!(matches!(
         lower_dispatch_schemas(
+            local,
             hir,
             input,
             types,
@@ -41,5 +44,5 @@ pub(super) fn check(
         ))
     ));
 
-    lower_dispatch_schemas(hir, input, types, authority, &[]).unwrap();
+    lower_dispatch_schemas(local, hir, input, types, authority, &[]).unwrap();
 }

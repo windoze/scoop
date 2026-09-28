@@ -216,12 +216,19 @@ fn materialize_callable<'a>(
     validate_provider(selected, provider)?;
 
     let record = selected
-        .semantic_record(provider, LayoutAbiSemanticTargetV1::Callable(target))
+        .semantic_record(
+            provider,
+            LayoutAbiSemanticTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+                target,
+            )),
+        )
         .ok_or(LayoutExternalMaterializationError::MissingCallable { provider, target })?;
     let import = physical_import(
         selected,
         provider,
-        ExternalStrongShapeSubjectV1::Callable(target),
+        ExternalStrongShapeSubjectV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            target,
+        )),
     )?;
     let ShapeLinkContractV1::CallableAbi {
         canonical_signature,
@@ -306,7 +313,7 @@ pub enum LayoutExternalMaterializationError {
     },
     CallableKind(StrongCallableDefinitionOwner),
     CallableContract(StrongCallableDefinitionOwner),
-    PhysicalCallable(StrongCallableDefinitionOwner),
+    PhysicalCallable(scoop_identity::CallableDefinitionOwner),
     MissingPhysicalImport {
         provider: ConeIdentity,
         subject: ExternalStrongShapeSubjectV1,

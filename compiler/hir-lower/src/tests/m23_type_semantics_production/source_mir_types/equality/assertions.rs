@@ -28,7 +28,11 @@ pub(super) fn actual(input: &ConeMirInput, bindings: &CanonicalMirCallableBindin
             .find(|root| {
                 root.subject()
                     == scoop_mir::CallableSignatureSubject::Strong(
-                        binding.implementation().callable_owner(),
+                        binding
+                            .implementation()
+                            .strong_owner()
+                            .unwrap()
+                            .callable_owner(),
                     )
             })
             .unwrap();
@@ -51,7 +55,11 @@ pub(super) fn dump(input: &ConeMirInput, bindings: &CanonicalMirCallableBindings
             .find(|root| {
                 root.subject()
                     == scoop_mir::CallableSignatureSubject::Strong(
-                        binding.implementation().callable_owner(),
+                        binding
+                            .implementation()
+                            .strong_owner()
+                            .unwrap()
+                            .callable_owner(),
                     )
             })
             .unwrap();

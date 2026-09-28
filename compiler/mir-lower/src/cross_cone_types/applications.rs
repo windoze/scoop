@@ -55,7 +55,12 @@ fn project(
         interfaces: Vec::new(),
     };
     let representation = match (ty, &local.types[source].kind) {
-        (mir::Type::Struct(id), source::TypeKind::Struct(_)) => {
+        (mir::Type::Struct(id), source::TypeKind::Struct(source)) => {
+            bases.interfaces = local.structs[*source]
+                .direct_interfaces
+                .iter()
+                .map(|ty| local.exact_type_identities[*ty].id())
+                .collect();
             let mir::StructRepresentation::Declared {
                 fields,
                 c_layout,
@@ -83,13 +88,32 @@ fn project(
                 interior_mutable: *interior_mutable,
             }
         }
-        (mir::Type::Enum(id, _), source::TypeKind::Enum(_)) => Repr::Enum {
-            variants: representation::fields::variants(module, &module.enums[*id].variants)?,
-        },
-        (mir::Type::Interface(_), source::TypeKind::Interface(_)) => Repr::Interface,
+        (mir::Type::Enum(id, _), source::TypeKind::Enum(source)) => {
+            bases.interfaces = local.enums[*source]
+                .direct_interfaces
+                .iter()
+                .map(|ty| local.exact_type_identities[*ty].id())
+                .collect();
+            Repr::Enum {
+                variants: representation::fields::variants(module, &module.enums[*id].variants)?,
+            }
+        }
+        (mir::Type::Interface(_), source::TypeKind::Interface(source)) => {
+            bases.interfaces = local.interfaces[*source]
+                .parents
+                .iter()
+                .map(|ty| local.exact_type_identities[*ty].id())
+                .collect();
+            Repr::Interface
+        }
         (mir::Type::Class(id), source::TypeKind::Class(source)) => {
             let class = &module.classes[*id];
             let source = &local.classes[*source];
+            bases.interfaces = source
+                .direct_interfaces
+                .iter()
+                .map(|ty| local.exact_type_identities[*ty].id())
+                .collect();
             match &class.representation {
                 mir::ClassRepresentation::Declared { fields, base_class } => {
                     let inherited =
@@ -114,11 +138,6 @@ fn project(
                             &mir::Type::Class(*base),
                         )?);
                     }
-                    for interface in &source.interfaces {
-                        bases
-                            .interfaces
-                            .push(local.exact_type_identities[*interface].id());
-                    }
                     bases.interfaces.sort_unstable();
                     Repr::Class {
                         kind: match class.modifier {
@@ -140,5 +159,7 @@ fn project(
         }
         _ => return Err(mismatch()),
     };
+    bases.interfaces.sort_unstable();
+    bases.interfaces.dedup();
     Ok((representation, bases))
 }

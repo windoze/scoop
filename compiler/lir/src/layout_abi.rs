@@ -4,9 +4,9 @@
 //! selected-use or machine-import authority by themselves.
 
 use scoop_identity::{
-    ConeIdentity, DecodedPersistentId, DecodedStrongCallableDefinitionOwner,
+    CallableDefinitionOwner, ConeIdentity, DecodedCallableDefinitionOwner, DecodedPersistentId,
     IdentityReferenceError, PersistentDispatchTableId, PersistentExactTypeId, PersistentLayoutId,
-    PersistentTypeId, StrongCallableDefinitionOwner, ValidatedIdentityGraph,
+    PersistentTypeId, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath};
 
@@ -29,6 +29,7 @@ pub use target::{DecodedLayoutAbiSemanticTargetV1, LayoutAbiSemanticTargetV1};
 #[derive(Debug)]
 pub enum LayoutAbiDependencyError {
     Identity(IdentityReferenceError),
+    Callable(scoop_identity::CallableBodyResolutionError<IdentityReferenceError>),
     Resource(WireError),
 }
 
@@ -58,7 +59,7 @@ pub enum LayoutAbiSemanticClosureError {
     DuplicateTarget(LayoutAbiSemanticTargetV1),
     MissingTarget(LayoutAbiSemanticTargetV1),
     Provider {
-        target: LayoutAbiSemanticTargetV1,
+        target: Box<LayoutAbiSemanticTargetV1>,
         expected: ConeIdentity,
         actual: ConeIdentity,
     },
@@ -93,3 +94,11 @@ fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
 
 #[cfg(test)]
 mod tests;
+
+impl From<scoop_identity::CallableBodyResolutionError<IdentityReferenceError>>
+    for LayoutAbiDependencyError
+{
+    fn from(error: scoop_identity::CallableBodyResolutionError<IdentityReferenceError>) -> Self {
+        Self::Callable(error)
+    }
+}

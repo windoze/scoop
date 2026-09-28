@@ -3,7 +3,7 @@ use super::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedParamFreeMirCallableBindingV1 {
     origin: DecodedMirCallableOriginV1,
-    implementation: DecodedStrongCallableDefinitionOwner,
+    implementation: DecodedCallableDefinitionOwner,
     semantic: DecodedMirBridgeCallableSignatureV1,
     lowered: DecodedMirBridgeCallableSignatureV1,
     role: DecodedMirCallableLoweringRoleV1,
@@ -61,7 +61,7 @@ impl WireDecode for DecodedParamFreeMirCallableBindingV1 {
         decoder.expect_map(5)?;
         Ok(Self {
             origin: decoder.field(1, DecodedMirCallableOriginV1::decode)?,
-            implementation: decoder.field(2, DecodedStrongCallableDefinitionOwner::decode)?,
+            implementation: decoder.field(2, DecodedCallableDefinitionOwner::decode)?,
             semantic: decoder.field(3, DecodedMirBridgeCallableSignatureV1::decode)?,
             lowered: decoder.field(4, DecodedMirBridgeCallableSignatureV1::decode)?,
             role: decoder.field(5, DecodedMirCallableLoweringRoleV1::decode)?,

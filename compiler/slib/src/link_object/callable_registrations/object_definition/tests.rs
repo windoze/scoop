@@ -39,11 +39,14 @@ fn dependency_targets_have_distinct_stable_runtime_tags() {
     expected.extend_from_slice(&encode_runtime(&target).unwrap());
     assert_eq!(encode_runtime(&requirement).unwrap(), expected);
 
-    let subject = ExternalStrongShapeSubjectV1::Callable(target);
+    let subject = ExternalStrongShapeSubjectV1::Callable(
+        scoop_identity::CallableDefinitionOwner::Strong(target),
+    );
     let requirement =
         CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { provider, subject };
     let mut expected = 12_u32.to_le_bytes().to_vec();
     expected.extend_from_slice(provider.as_array());
+    expected.extend_from_slice(&1_u32.to_le_bytes());
     expected.extend_from_slice(&1_u32.to_le_bytes());
     expected.extend_from_slice(&encode_runtime(&target).unwrap());
     assert_eq!(encode_runtime(&requirement).unwrap(), expected);

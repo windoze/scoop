@@ -181,7 +181,9 @@ fn boxing_target(replay: &Replay<'_>) {
         original.implementation(),
         original.semantic_signature().clone(),
         original.lowered_signature().clone(),
-        mir::MirCallableLoweringRoleV1::BoxingAdjust { target: spare },
+        mir::MirCallableLoweringRoleV1::BoxingAdjust {
+            target: scoop_identity::CallableDefinitionOwner::Strong(spare),
+        },
     )
     .unwrap();
     let callables = mir::CanonicalMirCallableBindingsV1::try_new(
@@ -226,6 +228,6 @@ fn boxing_target(replay: &Replay<'_>) {
     )
     .unwrap();
     assert!(
-        matches!(replay.validate(replay.section.dispatch(), &missing), Err(Error::MissingCallable(target)) if target == original.implementation())
+        matches!(replay.validate(replay.section.dispatch(), &missing), Err(Error::MissingCallable(target)) if scoop_identity::CallableDefinitionOwner::Strong(target) == original.implementation())
     );
 }

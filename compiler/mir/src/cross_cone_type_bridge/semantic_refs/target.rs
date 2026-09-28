@@ -1,11 +1,11 @@
 use super::*;
-use scoop_identity::{DecodedStrongCallableDefinitionOwner, PersistentIdResolver};
+use scoop_identity::{DecodedCallableDefinitionOwner, PersistentIdResolver};
 
 /// A dependency key is not an authorized imported use or a selected handle.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MirTypeBridgeTargetV1 {
     Type(PersistentExactTypeId),
-    Callable(StrongCallableDefinitionOwner),
+    Callable(CallableDefinitionOwner),
     Dispatch(PersistentExactTypeId),
     Object(PersistentObjectValueId),
     ShapeSupport(PersistentTypeId),
@@ -15,7 +15,7 @@ pub enum MirTypeBridgeTargetV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DecodedMirTypeBridgeTargetV1 {
     Type(DecodedPersistentId<PersistentExactTypeId>),
-    Callable(DecodedStrongCallableDefinitionOwner),
+    Callable(DecodedCallableDefinitionOwner),
     Dispatch(DecodedPersistentId<PersistentExactTypeId>),
     Object(DecodedPersistentId<PersistentObjectValueId>),
     ShapeSupport(DecodedPersistentId<PersistentTypeId>),

@@ -1,7 +1,7 @@
 use scoop_identity::{
-    DecodedDispatchDeclarationOwner, DecodedExactCallableSignature, DecodedPersistentId,
-    DecodedStrongCallableDefinitionOwner, GcEffect, PersistentDispatchSlotId,
-    PersistentDispatchTableId, PersistentExactTypeId,
+    DecodedCallableDefinitionOwner, DecodedDispatchDeclarationOwner, DecodedExactCallableSignature,
+    DecodedPersistentId, GcEffect, PersistentDispatchSlotId, PersistentDispatchTableId,
+    PersistentExactTypeId,
 };
 use scoop_wire::{WireError, WirePath, encode_canonical_temporary};
 
@@ -60,18 +60,18 @@ enum DecodedExactDispatchReceiverAdaptationV1 {
 enum DecodedExactDispatchImplementationV1 {
     AbstractObligation {
         declaration: DecodedDispatchDeclarationOwner,
-        trap_target: DecodedStrongCallableDefinitionOwner,
+        trap_target: DecodedCallableDefinitionOwner,
         receiver: DecodedExactDispatchReceiverAdaptationV1,
     },
     DirectStrongTarget {
-        target: DecodedStrongCallableDefinitionOwner,
+        target: DecodedCallableDefinitionOwner,
         receiver: DecodedExactDispatchReceiverAdaptationV1,
     },
     InterfaceDefaultTarget {
-        target: DecodedStrongCallableDefinitionOwner,
+        target: DecodedCallableDefinitionOwner,
         receiver: DecodedExactDispatchReceiverAdaptationV1,
     },
-    AdjustThunkTarget(DecodedStrongCallableDefinitionOwner),
+    AdjustThunkTarget(DecodedCallableDefinitionOwner),
 }
 
 impl DecodedExactDispatchExportV1 {

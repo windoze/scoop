@@ -29,15 +29,18 @@ impl Concretizer<'_> {
             owner: self.lower_nominal_owner(source.owner),
             family: concrete::InterfaceFamilyId::from_raw(source_id.into_raw().into_u32()),
             type_arguments: arguments.clone(),
+            parents: Vec::new(),
             methods: Vec::new(),
             span: source.span,
         });
         assert_eq!(allocated, id);
         self.interface_by_key.insert(key, id);
         self.interface_type.insert(id, ty);
-        for parent in &source.parents {
-            self.lower_type(*parent, &arguments);
-        }
+        self.interfaces[id].parents = source
+            .parents
+            .iter()
+            .map(|parent| self.lower_type(*parent, &arguments))
+            .collect();
         let source_ty = self.source.interface_applications[source.self_application].canonical_type;
         let method_instances = self.interface_method_instances(source_ty, &arguments);
         let methods = method_instances

@@ -18,21 +18,36 @@ impl MirTypeBridgeSemanticReferencesV1 {
             collector.push(MirTypeBridgeTargetV1::Dispatch(*interface))?;
         }
         for entry in record.vtable().entries() {
-            collector.entry(entry)?;
+            collector.entry(entry, types)?;
         }
         for interface in record.itables() {
             collector.exact(interface.interface())?;
             collector.push(MirTypeBridgeTargetV1::Dispatch(interface.interface()))?;
             for entry in interface.entries() {
-                collector.entry(entry)?;
+                collector.entry(entry, types)?;
             }
         }
         collector.finish()
     }
 }
 impl Collector<'_> {
-    fn entry(&mut self, entry: &MirDispatchEntryV1) -> Result<(), MirTypeBridgeReferenceError> {
-        self.slot(entry.slot())?;
+    fn entry(
+        &mut self,
+        entry: &MirDispatchEntryV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
+    ) -> Result<(), MirTypeBridgeReferenceError> {
+        let key = self
+            .graph
+            .canonical_key::<_, DispatchSlotKey>(entry.slot())?;
+        let receiver = entry
+            .signature()
+            .exact()
+            .receiver()
+            .into_option()
+            .ok_or(MirTypeBridgeReferenceError::InvalidSlot)?;
+        let target = dispatch_declaration_target(self.graph, types, key.owner(), receiver)
+            .map_err(|error| MirTypeBridgeReferenceError::Callable(Box::new(error)))?;
+        self.push(MirTypeBridgeTargetV1::Callable(target))?;
         self.signature(entry.signature())?;
         self.dispatch_target(entry.implementation().target())
     }

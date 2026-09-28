@@ -1,4 +1,5 @@
 use super::*;
+use scoop_identity::StrongCallableDefinitionOwner;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, DeclarationScope, DefinitionAtomRole,
     DefinitionAtomSubkey, DefinitionOwnerChain, DispatchTableKey, ExactTypeKey,
@@ -62,7 +63,9 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
     .unwrap();
     use ExternalStrongShapeSubjectV1 as Subject;
     [
-        Subject::Callable(StrongCallableDefinitionOwner::Function(function)),
+        Subject::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::Function(function),
+        )),
         Subject::Layout(layout),
         Subject::Scan(scan),
         Subject::TypeDescriptor(exact),

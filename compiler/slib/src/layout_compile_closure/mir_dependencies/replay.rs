@@ -68,7 +68,9 @@ pub fn replay_shared_mir_dependency_graph(
         }) {
             committed.push(mir::MirTypeBridgeDependencyV1::new(
                 reference.origin(),
-                mir::MirTypeBridgeTargetV1::Callable(target),
+                mir::MirTypeBridgeTargetV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                ),
             ));
         }
     }

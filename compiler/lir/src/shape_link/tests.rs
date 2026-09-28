@@ -52,7 +52,9 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
     let exact = bound.identity.exact();
     use ExternalStrongShapeSubjectV1 as S;
     [
-        S::Callable(StrongCallableDefinitionOwner::Function(function)),
+        S::Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            StrongCallableDefinitionOwner::Function(function),
+        )),
         S::Layout(bound.identity.layout()),
         S::Scan(bound.foundation.scans()[0].id()),
         S::TypeDescriptor(exact),

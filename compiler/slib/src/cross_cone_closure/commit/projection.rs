@@ -107,10 +107,15 @@ impl ValidatedCrossConeSemanticClosure {
                         target,
                     });
                 }
-                projected.push(SelectedExternalMirCallable::from_lowered(
-                    provider,
-                    definition.clone(),
-                ));
+                projected.push(
+                    SelectedExternalMirCallable::from_lowered(provider, definition.clone())
+                        .map_err(
+                            |_| CrossConeMirSelectionProjectionError::SignatureMismatch {
+                                provider,
+                                target,
+                            },
+                        )?,
+                );
             }
         }
 

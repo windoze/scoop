@@ -22,21 +22,21 @@ pub enum MirDispatchReceiverAdaptationV1 {
 pub enum MirDispatchImplementationV1 {
     AbstractObligation {
         declaration: DispatchDeclarationOwner,
-        trap_target: StrongCallableDefinitionOwner,
+        trap_target: CallableDefinitionOwner,
         receiver: MirDispatchReceiverAdaptationV1,
     },
     DirectStrongTarget {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         receiver: MirDispatchReceiverAdaptationV1,
     },
     InterfaceDefaultTarget {
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         receiver: MirDispatchReceiverAdaptationV1,
     },
-    AdjustThunkTarget(StrongCallableDefinitionOwner),
+    AdjustThunkTarget(CallableDefinitionOwner),
 }
 impl MirDispatchImplementationV1 {
-    pub const fn target(self) -> StrongCallableDefinitionOwner {
+    pub const fn target(self) -> CallableDefinitionOwner {
         match self {
             Self::AbstractObligation { trap_target, .. } => trap_target,
             Self::DirectStrongTarget { target, .. }
@@ -116,6 +116,7 @@ impl MirInterfaceDispatchTableV1 {
 /// by the canonical schema table rather than inferred from sorted slot ids.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParamFreeMirDispatchSchemaV1 {
+    application: bool,
     pub(super) owner: PersistentExactTypeId,
     pub(super) vtable: MirClassVtableSchemaV1,
     pub(super) itables: Vec<MirInterfaceDispatchTableV1>,
@@ -128,6 +129,10 @@ impl ParamFreeMirDispatchSchemaV1 {
         itables: Vec<MirInterfaceDispatchTableV1>,
     ) -> Result<Self, MirDispatchSchemaError> {
         let record = Self {
+            application: matches!(
+                authority.type_export(owner)?.origin(),
+                MirTypeOriginV1::NominalApplication(_)
+            ),
             owner,
             vtable,
             itables,
@@ -137,6 +142,9 @@ impl ParamFreeMirDispatchSchemaV1 {
     }
     pub const fn owner(&self) -> PersistentExactTypeId {
         self.owner
+    }
+    pub(in crate::cross_cone_type_bridge) const fn is_application(&self) -> bool {
+        self.application
     }
     pub const fn vtable(&self) -> &MirClassVtableSchemaV1 {
         &self.vtable

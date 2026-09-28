@@ -77,6 +77,8 @@ pub struct StructDef {
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub representation: StructRepresentation,
+    /// Direct source conformance after substituting this nominal's arguments.
+    pub direct_interfaces: Vec<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
@@ -125,6 +127,8 @@ pub struct EnumDef {
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub variants: Vec<Variant>,
+    /// Direct source conformance after substituting this nominal's arguments.
+    pub direct_interfaces: Vec<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
@@ -306,6 +310,8 @@ pub struct ClassDef {
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub representation: ClassRepresentation,
+    /// Direct source conformance, excluding inherited implementations.
+    pub direct_interfaces: Vec<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<ClassMethod>,
@@ -456,6 +462,7 @@ pub struct InterfaceDef {
     pub owner: Option<NominalOwner>,
     pub family: InterfaceFamilyId,
     pub type_arguments: Vec<TypeId>,
+    pub parents: Vec<TypeId>,
     pub methods: Vec<MethodSig>,
     pub span: Span,
 }

@@ -34,11 +34,15 @@ pub(in crate::request::preflight) fn select_lir_dependencies<'a>(
         }) {
             roots.push(lir::LayoutAbiDependencyV1::new(
                 provider,
-                lir::LayoutAbiSemanticTargetV1::Callable(target),
+                lir::LayoutAbiSemanticTargetV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                ),
             ));
             physical.push((
                 provider,
-                lir::ExternalStrongShapeSubjectV1::Callable(target),
+                lir::ExternalStrongShapeSubjectV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                ),
             ));
         }
     }
@@ -68,7 +72,9 @@ pub(in crate::request::preflight) fn select_lir_dependencies<'a>(
                 let reference = input.module().meta.external_callables[*callable].reference();
                 physical.push((
                     reference.provider(),
-                    lir::ExternalStrongShapeSubjectV1::Callable(reference.implementation()),
+                    lir::ExternalStrongShapeSubjectV1::Callable(
+                        scoop_identity::CallableDefinitionOwner::Strong(reference.implementation()),
+                    ),
                 ));
             }
         }

@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::{
-    ConeIdentity, PersistentExactTypeId, RepresentationRole, StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, ConeIdentity, PersistentExactTypeId, RepresentationRole,
 };
 use std::collections::BTreeSet;
 
@@ -48,7 +48,7 @@ impl<'a> Abis<'a> {
     }
     pub(super) fn callable(
         &self,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     ) -> Result<lir::DispatchCallableAbiV1<'a>, Error> {
         let mut found = None;
         for table in std::iter::once(self.0.local_callables)
@@ -78,7 +78,10 @@ impl<'a> Abis<'a> {
         for table in std::iter::once(self.0.local_direct_callables)
             .chain(self.0.dependency_direct_callables.iter().copied())
         {
-            if let Some(record) = table.export_for_target(target) {
+            if let Some(record) = target
+                .strong_owner()
+                .and_then(|target| table.export_for_target(target))
+            {
                 if found.is_some() {
                     return Err(Error::DuplicateCallable(target));
                 }

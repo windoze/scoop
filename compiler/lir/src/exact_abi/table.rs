@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use scoop_identity::{
-    CallableBodyKey, ConeIdentity, PersistentCallableBodyId, StrongCallableDefinitionOwner,
-};
+use scoop_identity::{CallableDefinitionOwner, ConeIdentity, PersistentCallableBodyId};
 use scoop_wire::{HashError, WireError};
 
 use super::*;
@@ -35,7 +33,7 @@ impl CanonicalExactCallableAbiExportsV1 {
             if record.physical_definition().provider() != foundation.producer() {
                 return Err(ExactCallableAbiTableError::Provider(callable));
             }
-            let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(callable))?;
+            let body = PersistentCallableBodyId::from_key(&callable.body_key())?;
 
             if !foundation.contains_callable_body(body) {
                 return Err(ExactCallableAbiTableError::Body(callable));
@@ -68,10 +66,13 @@ impl CanonicalExactCallableAbiExportsV1 {
         &self.0.records
     }
 
-    pub fn get(&self, target: StrongCallableDefinitionOwner) -> Option<&ExactCallableAbiExportV1> {
+    pub fn get(
+        &self,
+        target: impl Into<CallableDefinitionOwner>,
+    ) -> Option<&ExactCallableAbiExportV1> {
         self.0
             .records
-            .binary_search_by_key(&target, ExactCallableAbiExportV1::target)
+            .binary_search_by_key(&target.into(), ExactCallableAbiExportV1::target)
             .ok()
             .map(|index| &self.0.records[index])
     }
@@ -83,11 +84,11 @@ pub enum ExactCallableAbiTableError {
     LayoutTarget,
     CountOverflow,
     Count,
-    Duplicate(StrongCallableDefinitionOwner),
-    Target(StrongCallableDefinitionOwner),
-    Provider(StrongCallableDefinitionOwner),
-    Body(StrongCallableDefinitionOwner),
-    Definition(StrongCallableDefinitionOwner),
+    Duplicate(CallableDefinitionOwner),
+    Target(CallableDefinitionOwner),
+    Provider(CallableDefinitionOwner),
+    Body(CallableDefinitionOwner),
+    Definition(CallableDefinitionOwner),
     PhysicalDefinition(crate::StrongShapeDefinitionError),
     Record {
         index: usize,

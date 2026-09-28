@@ -2,19 +2,22 @@
 
 use scoop_hir as hir;
 use scoop_identity::{
-    CallableOwner, DispatchDeclarationOwner, DispatchSlotKey, ExactCallableSignature,
-    PersistentDispatchSlotId, PersistentExactTypeId, StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, CallableOwner, DispatchDeclarationOwner, DispatchSlotKey,
+    ExactCallableSignature, PersistentDispatchSlotId, PersistentExactTypeId,
+    StrongCallableDefinitionOwner,
 };
 use scoop_mir as mir;
 use scoop_wire::{WireError, WirePath};
 use std::collections::BTreeMap;
 
+mod applications;
 mod context;
 mod entries;
 mod physical;
 use context::*;
 
 pub fn lower_dispatch_schemas(
+    local: &hir::LocalConcreteHir,
     source: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::ConeMirInput,
     local_types: &mir::CanonicalParamFreeMirTypeExportsV1,
@@ -35,6 +38,8 @@ pub fn lower_dispatch_schemas(
             records.push(context.record(source, *backing)?);
         }
     }
+
+    applications::append(local, &context, local_types, &mut records)?;
 
     if let Some(builtin) = input.module().meta.source_exact_types.get(&mir::Type::Any) {
         let exact = builtin.identity_record().id();
@@ -63,11 +68,14 @@ type Error = SourceMirDispatchProductionError;
 #[derive(Debug)]
 pub enum SourceMirDispatchProductionError {
     Resource(WireError),
+    RuntimeSlot(mir::RuntimeFn),
+    Application(PersistentExactTypeId),
+    Callable(mir::MirCallableBridgeError),
     Schema(mir::MirDispatchSchemaError),
     Identity(scoop_identity::IdentityReferenceError),
     MissingType(PersistentExactTypeId),
     MissingPhysicalType(PersistentExactTypeId),
-    MissingCallable(StrongCallableDefinitionOwner),
+    MissingCallable(CallableDefinitionOwner),
     MissingStrongRoot(mir::FunctionId),
     InvalidTarget(CallableOwner),
     MissingSelection {
@@ -109,4 +117,10 @@ fn reserve<T>(count: usize) -> Result<Vec<T>, Error> {
     let mut values = Vec::new();
     scoop_wire::allocation::try_reserve(&mut values, count, &WirePath::root())?;
     Ok(values)
+}
+
+impl From<mir::MirCallableBridgeError> for SourceMirDispatchProductionError {
+    fn from(error: mir::MirCallableBridgeError) -> Self {
+        Self::Callable(error)
+    }
 }

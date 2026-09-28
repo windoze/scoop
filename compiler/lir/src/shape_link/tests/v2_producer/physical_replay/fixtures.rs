@@ -98,7 +98,9 @@ pub(super) fn imports<'a>(
         .semantic();
     use ExternalStrongShapeSubjectV1::*;
     let subjects = [
-        Callable(provider.callable),
+        Callable(scoop_identity::CallableDefinitionOwner::Strong(
+            provider.callable,
+        )),
         Layout(layout.identity().layout()),
         Scan(layout.scan()),
         TypeDescriptor(provider.exact),

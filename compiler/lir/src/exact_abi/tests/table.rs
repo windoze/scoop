@@ -3,7 +3,7 @@ use super::*;
 fn records() -> (
     ConeLirFoundation,
     Vec<ExactCallableAbiExportV1>,
-    Vec<StrongCallableDefinitionOwner>,
+    Vec<scoop_identity::CallableDefinitionOwner>,
 ) {
     let (first, first_foundation) = fixtures::foundation("first", true);
     let (second, second_foundation) = fixtures::foundation("second", true);
@@ -75,7 +75,7 @@ fn records() -> (
         .unwrap()
     };
     let records = vec![make(second), make(first)];
-    (foundation, records, vec![first, second])
+    (foundation, records, vec![first.into(), second.into()])
 }
 
 #[test]

@@ -1,4 +1,5 @@
 use super::*;
+use scoop_identity::CallableBodyKey;
 use scoop_identity::{
     CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, PackagePath,
     PersistentExactTypeId, PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,

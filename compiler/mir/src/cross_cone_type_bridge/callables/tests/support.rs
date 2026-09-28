@@ -332,7 +332,7 @@ impl Fixture {
         ParamFreeMirCallableBindingV1::try_new(
             self.authority(),
             origin.clone(),
-            origin.implementation(),
+            origin.implementation().unwrap(),
             signature(semantic),
             signature(lowered),
             role,

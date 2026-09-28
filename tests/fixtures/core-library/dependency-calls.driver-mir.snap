@@ -1,5 +1,5 @@
   global0 $singleton$LocalTools: LocalTools managed initial=zeroed-for-runtime-unit
-  init0 object:LocalTools singleton lazy global0 initializer=@fn25 ensure=@fn26 failure=1 deps=[]
+  init0 object:LocalTools singleton lazy global0 initializer=@fn26 ensure=@fn27 failure=1 deps=[]
   enum CoroutineStep<LocalTools>
     Completed(value: LocalTools)
     Suspended()
@@ -7,11 +7,11 @@
     Empty()
     Value(value: LocalTools)
   class LocalTools vtable=0 itables=0
-  fun userCoreDependency @fn23() -> Unit
+  fun userCoreDependency @fn24() -> Unit
     bb0 entry
       call external0 direct
       return
-  fun userCoreCombined @fn24(flag: Boolean) -> Unit
+  fun userCoreCombined @fn25(flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -38,19 +38,19 @@
       goto bb6
     bb6 if.merge.6
       return
-  fun $init$body$0 @fn25() -> Unit
+  fun $init$body$0 @fn26() -> Unit
     bb0 entry
       assign $new.1
         Type LocalTools
         ClassAlloc LocalTools
-      call @fn30 direct
+      call @fn39 direct
         Type LocalTools
         Local $new.1
       global_assign $singleton$LocalTools
         Type LocalTools
         Local $new.1
       return
-  fun $init$ensure$0 @fn26() -> Unit
+  fun $init$ensure$0 @fn27() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -95,7 +95,7 @@
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn25 direct
+      call @fn26 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:LocalTools
@@ -142,14 +142,14 @@
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:LocalTools
-      call @fn22 direct
+      call @fn23 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun init.LocalTools.$c18 @fn30(this: LocalTools) -> Unit
+  fun init.LocalTools.$c18 @fn39(this: LocalTools) -> Unit
     bb0 entry
       return
-  coroutine_step cs14 CoroutineStep<LocalTools> result=LocalTools
-  coroutine_slot cl14 CoroutineSlot<LocalTools> value=LocalTools
+  coroutine_step cs20 CoroutineStep<LocalTools> result=LocalTools
+  coroutine_slot cl20 CoroutineSlot<LocalTools> value=LocalTools

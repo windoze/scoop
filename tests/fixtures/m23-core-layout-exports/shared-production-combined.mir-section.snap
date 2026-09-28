@@ -1,4 +1,4 @@
-types=89 callables=29 dispatch=25 objects=2 shapes=24 units=3 selected=0
+types=111 callables=38 dispatch=33 objects=2 shapes=31 units=3 selected=0
 unit companion:SharedProductionOwner.Companion: Ordinary Managed
 unit object:SharedProductionService: Ordinary Managed
 unit top-level:sharedProductionValue: Ordinary Managed

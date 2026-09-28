@@ -1,5 +1,5 @@
 use scoop_identity::{
-    PersistentDispatchSlotId, PersistentDispatchTableId, StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, PersistentDispatchSlotId, PersistentDispatchTableId,
 };
 use scoop_wire::{HashError, WireError};
 
@@ -13,13 +13,13 @@ pub enum ExactDispatchError {
     SlotCount { expected: usize, actual: usize },
     Position { expected: u32, actual: u32 },
     DuplicateSlot(PersistentDispatchSlotId),
-    AbiTarget(StrongCallableDefinitionOwner),
-    AbiTargetProfile(StrongCallableDefinitionOwner),
-    AbiDefinition(StrongCallableDefinitionOwner),
-    AbiSignature(StrongCallableDefinitionOwner),
-    ReceiverAdaptation(StrongCallableDefinitionOwner),
-    ReceiverLayout(StrongCallableDefinitionOwner),
-    UnexpectedReceiverLayout(StrongCallableDefinitionOwner),
+    AbiTarget(CallableDefinitionOwner),
+    AbiTargetProfile(CallableDefinitionOwner),
+    AbiDefinition(CallableDefinitionOwner),
+    AbiSignature(CallableDefinitionOwner),
+    ReceiverAdaptation(CallableDefinitionOwner),
+    ReceiverLayout(CallableDefinitionOwner),
+    UnexpectedReceiverLayout(CallableDefinitionOwner),
     MissingPhysicalCallable(u32),
     PhysicalCallable(u32),
     DefinitionSubject(PersistentDispatchTableId),

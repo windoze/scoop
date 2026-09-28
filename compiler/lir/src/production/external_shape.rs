@@ -2,13 +2,13 @@
 //!
 //! Identity resolution and physical definition binding are constituents. A
 //! selected layout closure must additionally prove export and use authority,
-//! including object/initialization authorization for storage and unit subjects.
+//! including object/initialization ownership for storage and unit subjects.
 
 use scoop_identity::{
-    CallableBodyKey, ConeIdentity, ObjectDefinitionPlanKey, PersistentCallableBodyId,
+    CallableDefinitionOwner, ConeIdentity, ObjectDefinitionPlanKey, PersistentCallableBodyId,
     PersistentDispatchTableId, PersistentExactTypeId, PersistentInitializationUnitId,
     PersistentLayoutId, PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey,
-    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
@@ -20,7 +20,7 @@ pub use wire::*;
 /// These tags belong to the layout Link capability, not persistent identity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ExternalStrongShapeSubjectV1 {
-    Callable(StrongCallableDefinitionOwner),
+    Callable(CallableDefinitionOwner),
     Layout(PersistentLayoutId),
     Scan(PersistentScanId),
     TypeDescriptor(PersistentExactTypeId),
@@ -56,8 +56,13 @@ impl ExternalStrongShapeSubjectV1 {
     ) -> Result<(ObjectDefinitionPlanKey, PersistentSymbolKey), StrongShapeDefinitionError> {
         let (entity, role, symbol) = self.definition_parts()?;
         Ok((
-            ObjectDefinitionPlanKey::strong(provider, entity, role)
-                .map_err(StrongShapeDefinitionError::DefinitionIdentity)?,
+            match self {
+                Self::Callable(CallableDefinitionOwner::Odr(member)) => {
+                    ObjectDefinitionPlanKey::odr(member.member())
+                }
+                _ => ObjectDefinitionPlanKey::strong(provider, entity, role)
+                    .map_err(StrongShapeDefinitionError::DefinitionIdentity)?,
+            },
             symbol,
         ))
     }
@@ -77,7 +82,7 @@ impl ExternalStrongShapeSubjectV1 {
         use StrongDefinitionRole as Role;
         Ok(match self {
             Self::Callable(owner) => {
-                let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(owner))?;
+                let body = PersistentCallableBodyId::from_key(&owner.body_key())?;
                 (
                     Entity::callable_body(body),
                     Role::CallableBody,

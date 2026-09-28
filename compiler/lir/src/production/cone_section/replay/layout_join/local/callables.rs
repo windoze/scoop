@@ -6,7 +6,7 @@ pub(super) fn validate(
 ) -> Result<(), StrongProductionLayoutJoinError> {
     for record in section.callables().records() {
         let target = record.target();
-        let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
+        let body = PersistentCallableBodyId::from_key(&target.body_key())?;
         let registration = production
             .callable_registrations()
             .registrations()

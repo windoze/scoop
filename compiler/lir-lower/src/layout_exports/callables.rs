@@ -15,7 +15,7 @@ pub(super) fn lower(
             )
             .map_err(|source| Error::Callable {
                 target: binding.implementation(),
-                source,
+                source: Box::new(source),
             })?,
         );
     }

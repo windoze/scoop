@@ -101,6 +101,11 @@ impl ExternalCallable {
         required_definition: ObjectDefinitionPlanId,
         signature: ScoopAbiSignature,
     ) -> Result<Self, crate::LayoutExternalMaterializationError> {
+        let scoop_identity::CallableDefinitionOwner::Strong(target) = record.target() else {
+            return Err(crate::LayoutExternalMaterializationError::PhysicalCallable(
+                record.target(),
+            ));
+        };
         let root_plan = match record.call_protocol() {
             crate::ExactCallableProtocolV1::OrdinaryManaged => {
                 crate::ExternalCallableRootPlan::ManagedStatepoint
@@ -129,7 +134,7 @@ impl ExternalCallable {
         Ok(Self {
             origin: ExternalCallableOrigin::LayoutV1,
             provider,
-            target: record.target(),
+            target,
             body: record.definition().semantic_id(),
             canonical_signature: record.canonical_signature().clone(),
             signature,

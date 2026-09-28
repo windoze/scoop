@@ -12,9 +12,9 @@ pub enum MirCallableRecordRefV1<'a> {
 }
 
 impl<'a> MirCallableRecordRefV1<'a> {
-    pub fn implementation(self) -> StrongCallableDefinitionOwner {
+    pub fn implementation(self) -> CallableDefinitionOwner {
         match self {
-            Self::Direct(record) => record.implementation(),
+            Self::Direct(record) => record.implementation().into(),
             Self::Lowered(record) => record.implementation(),
         }
     }
@@ -89,21 +89,23 @@ impl<'a> MirTypeBridgeCallableIndexV1<'a> {
             records.extend(table.exports().iter().map(MirCallableRecordRefV1::Direct));
         }
         records.sort_unstable_by_key(|record| record.implementation());
-        if let Some(pair) = records
-            .windows(2)
-            .find(|pair| pair[0].implementation() == pair[1].implementation())
-        {
+        if let Some(pair) = records.windows(2).find(|pair| {
+            pair[0].implementation() == pair[1].implementation()
+                && !(matches!(pair[0].implementation(), CallableDefinitionOwner::Odr(_))
+                    && pair[0] == pair[1])
+        }) {
             return Err(MirTypeBridgeLookupError::DuplicateCallable {
                 target: pair[0].implementation(),
             });
         }
+        records.dedup_by_key(|record| record.implementation());
         Ok(Self { records })
     }
 }
 
 impl sealed::Sealed for MirTypeBridgeCallableIndexV1<'_> {}
 impl MirTypeBridgeCallableLookupV1 for MirTypeBridgeCallableIndexV1<'_> {
-    fn get(&self, target: StrongCallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>> {
+    fn get(&self, target: CallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>> {
         self.records
             .binary_search_by_key(&target, |record| record.implementation())
             .ok()

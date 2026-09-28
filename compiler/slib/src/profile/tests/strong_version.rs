@@ -72,12 +72,12 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
         (
             lir_cross_cone_layout_abi_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1][..],
+            &[1, 2, 3, 4][..],
         ),
         (
             lir_cross_cone_layout_link_closure_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1][..],
+            &[1, 2][..],
         ),
     ] {
         for &version in rejected {
