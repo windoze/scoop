@@ -95,27 +95,21 @@ fn actual_source_callables_reject_missing_inputs() {
 }
 
 #[test]
-fn closed_generic_no_gc_signatures_reuse_exact_facts_without_strong_type_exports() {
+fn closed_generic_no_gc_signatures_use_actual_application_type_exports() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m23-mir-callable-production/generic-storage.scoop"
     ));
-    with_production(source, |output, input, hir, graph, types| {
+    with_production(source, |output, input, hir, graph, _| {
         use scoop_mir::{MirGcKindV1, MirTypeBridgeTypeLookupV1};
+        let types =
+            scoop_mir_lower::lower_type_exports(output.output().local.module(), hir, input, graph)
+                .unwrap();
         let unit = dependencies::unit(input, graph);
-        let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
-        let facts = |exact| {
-            hir.exact_facts().get(exact).map(|fact| match fact.gc() {
-                hir::ExactTypeGcV1::GcFree => MirGcKindV1::GcFree,
-                hir::ExactTypeGcV1::ContainsManagedReferences => {
-                    MirGcKindV1::ContainsManagedReferences
-                }
-            })
-        };
-        let lookup = index.with_gc_facts(&facts);
+        let index = MirTypeBridgeTypeIndexV1::try_new(&[&types, &unit]).unwrap();
         let public = public_interface(output);
         let bindings =
-            lower_source_callable_bindings(output, &public, hir, input, graph, &lookup, &[])
+            lower_source_callable_bindings(output, &public, hir, input, graph, &index, &[])
                 .unwrap();
         let signature = bindings
             .entries()
@@ -126,18 +120,46 @@ fn closed_generic_no_gc_signatures_reuse_exact_facts_without_strong_type_exports
             .exact();
         let exact = signature.parameters()[0];
         assert_eq!(signature.result(), exact);
-        assert!(index.get(exact).is_none());
-        assert_eq!(lookup.gc_kind(exact), Some(MirGcKindV1::GcFree));
+        assert!(matches!(
+            index.get(exact).unwrap().origin(),
+            scoop_mir::MirTypeOriginV1::NominalApplication(_)
+        ));
+        assert_eq!(index.gc_kind(exact), Some(MirGcKindV1::GcFree));
         let raw: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
         assert_eq!(
-            raw.validate(graph, input.foundation(), &lookup).unwrap(),
+            raw.validate(graph, input.foundation(), &index).unwrap(),
             bindings
         );
 
-        let invalid = |id| (id == exact).then_some(MirGcKindV1::ContainsManagedReferences);
-        let lookup = index.with_gc_facts(&invalid);
+        let invalid = types
+            .records()
+            .iter()
+            .map(|record| {
+                if record.exact() != exact {
+                    return record.clone();
+                }
+                scoop_mir::ParamFreeMirTypeExportV1::try_new(
+                    scoop_mir::MirTypeBridgeAuthority {
+                        identities: graph,
+                        foundation: input.foundation(),
+                    },
+                    exact,
+                    record.origin().clone(),
+                    scoop_mir::MirTypeFactsV1::try_new(
+                        record.facts().kind(),
+                        MirGcKindV1::ContainsManagedReferences,
+                    )
+                    .unwrap(),
+                    record.representation().clone(),
+                    record.base_and_interfaces().clone(),
+                )
+                .unwrap()
+            })
+            .collect();
+        let invalid = CanonicalParamFreeMirTypeExportsV1::try_new(invalid).unwrap();
+        let index = MirTypeBridgeTypeIndexV1::try_new(&[&invalid, &unit]).unwrap();
         let raw: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
-        assert!(matches!(raw.validate(graph, input.foundation(), &lookup),
+        assert!(matches!(raw.validate(graph, input.foundation(), &index),
             Err(scoop_mir::MirCallableBridgeError::NoGcContainsReferences { exact: found })
                 if found == exact));
     });

@@ -99,7 +99,21 @@ impl MirTypeBridgeAuthority<'_> {
         let exact = self
             .identities
             .canonical_key::<_, ExactTypeKey>(record.exact())?;
-        if exact.as_ref() != &ExactTypeKey::Nominal(origin.nominal()) {
+        let matches = match (exact.as_ref(), origin) {
+            (
+                ExactTypeKey::Nominal(actual),
+                MirTypeOriginV1::SourceNominal(expected)
+                | MirTypeOriginV1::GeneratedNominal {
+                    nominal: expected, ..
+                },
+            ) => actual == expected,
+            (
+                ExactTypeKey::NominalApplication { origin: actual, .. },
+                MirTypeOriginV1::NominalApplication(expected),
+            ) => actual == expected,
+            _ => false,
+        };
+        if !matches {
             return Err(MirTypeBridgeError::ExactOriginMismatch {
                 exact: record.exact(),
             });
@@ -146,6 +160,33 @@ impl MirTypeBridgeAuthority<'_> {
                     self.validate_object_backing(*nominal, *backing)?;
                 }
             }
+            MirTypeOriginV1::NominalApplication(origin) => {
+                let key = self
+                    .identities
+                    .canonical_key::<_, SourceDeclarationKey>(*origin)?;
+                let matches = matches!(
+                    (key.declaration_kind(), record.representation()),
+                    (
+                        SourceDeclarationKind::Struct,
+                        MirTypeRepresentationV1::Struct { .. }
+                    ) | (
+                        SourceDeclarationKind::Enum,
+                        MirTypeRepresentationV1::Enum { .. }
+                    ) | (
+                        SourceDeclarationKind::Class,
+                        MirTypeRepresentationV1::Class { .. }
+                            | MirTypeRepresentationV1::InlineArray { .. }
+                    ) | (
+                        SourceDeclarationKind::Interface,
+                        MirTypeRepresentationV1::Interface
+                    )
+                );
+                if !matches {
+                    return Err(MirTypeBridgeError::OriginRepresentationMismatch {
+                        exact: record.exact(),
+                    });
+                }
+            }
             MirTypeOriginV1::GeneratedNominal { nominal, role } => {
                 self.validate_generated(*nominal, role, record)?
             }
@@ -179,6 +220,7 @@ impl MirTypeBridgeAuthority<'_> {
             ) => facts.kind() == Kind::NonZeroValue && facts.gc() == MirGcKindV1::GcFree,
             Repr::Intrinsic(MirParamFreeIntrinsicV1::String)
             | Repr::Class { .. }
+            | Repr::InlineArray { .. }
             | Repr::Interface
             | Repr::Object { .. }
             | Repr::ObjectBacking { .. }
@@ -263,9 +305,13 @@ impl MirTypeBridgeAuthority<'_> {
         exact: PersistentExactTypeId,
     ) -> Result<SourceDeclarationKind, MirTypeBridgeError> {
         let key = self.identities.canonical_key::<_, ExactTypeKey>(exact)?;
-        let ExactTypeKey::Nominal(nominal) = key.as_ref() else {
-            return Err(MirTypeBridgeError::ExactOriginMismatch { exact });
-        };
-        Ok(self.source_nominal(*nominal)?.declaration_kind())
+        match key.as_ref() {
+            ExactTypeKey::Nominal(nominal) => Ok(self.source_nominal(*nominal)?.declaration_kind()),
+            ExactTypeKey::NominalApplication { origin, .. } => Ok(self
+                .identities
+                .canonical_key::<_, SourceDeclarationKey>(*origin)?
+                .declaration_kind()),
+            _ => Err(MirTypeBridgeError::ExactOriginMismatch { exact }),
+        }
     }
 }

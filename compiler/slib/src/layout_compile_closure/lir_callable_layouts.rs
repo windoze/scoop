@@ -66,7 +66,12 @@ impl<'a> Layouts<'a> {
         let mut found = None;
         for table in std::iter::once(self.local).chain(self.dependencies.iter().copied()) {
             if let Some(value) = table.find_exact_role(exact, RepresentationRole::ManagedValue) {
-                if found.replace(value).is_some() {
+                if found
+                    .replace(value)
+                    .is_some_and(|previous: &lir::ExactLayoutExportV1| {
+                        !previous.has_same_odr_definition(value)
+                    })
+                {
                     return Err(lir::ExactCallableAbiError::DuplicateValueLayout { exact });
                 }
             }

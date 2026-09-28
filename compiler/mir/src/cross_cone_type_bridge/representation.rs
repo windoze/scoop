@@ -59,6 +59,9 @@ pub enum MirTypeRepresentationV1 {
         declared_fields: Vec<MirRepresentationFieldV1>,
     },
     Interface,
+    InlineArray {
+        element: PersistentExactTypeId,
+    },
     Object {
         backing: PersistentExactTypeId,
     },
@@ -85,6 +88,7 @@ impl MirTypeRepresentationV1 {
             | Self::ObjectBacking { declared_fields } => declared_fields,
             Self::BoxedValue { payload } => std::slice::from_ref(payload),
             Self::Intrinsic(_)
+            | Self::InlineArray { .. }
             | Self::Enum { .. }
             | Self::Interface
             | Self::Object { .. }

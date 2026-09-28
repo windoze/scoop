@@ -2,7 +2,7 @@ use super::*;
 use hir::NominalRepresentationShapeV1 as Source;
 use mir::MirTypeRepresentationV1 as Repr;
 
-mod fields;
+pub(super) mod fields;
 
 type Backing = (PersistentTypeId, PersistentExactTypeId, Repr);
 

@@ -1,5 +1,6 @@
 //! Type and finite-shape agreement with the shared HIR declarations.
 
+mod applications;
 mod errors;
 mod helpers;
 mod representation;

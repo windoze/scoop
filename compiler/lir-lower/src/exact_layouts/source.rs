@@ -25,9 +25,7 @@ impl<'a> Projection<'a> {
                 mir::Type::Class(id) => mir::Type::Class(*id),
                 mir::Type::Interface(id) => mir::Type::Interface(*id),
                 mir::Type::Struct(id) => mir::Type::Struct(*id),
-                mir::Type::Enum(id, arguments) if arguments.is_empty() => {
-                    mir::Type::Enum(*id, Vec::new())
-                }
+                mir::Type::Enum(id, arguments) => mir::Type::Enum(*id, arguments.clone()),
                 _ => return Err(ExactLayoutLoweringError::SourceRepresentation(exact)),
             };
             self.validate_location(&ty, exact)?;
@@ -108,6 +106,19 @@ impl<'a> Projection<'a> {
         let exact = source.exact();
 
         match (source.representation(), ty) {
+            (Kind::InlineArray { element }, mir::Type::Class(id)) => {
+                let mir::ClassRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::Array { element: actual }
+                    | mir::IntrinsicTypeRepresentation::MutableArray { element: actual },
+                ) = &self.module.classes[*id].representation
+                else {
+                    return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
+                };
+                if *element != self.exact_of(actual)? {
+                    return Err(ExactLayoutLoweringError::SourceFields(exact));
+                }
+                Ok(())
+            }
             (Kind::Intrinsic(Intrinsic::Unit), mir::Type::Unit)
             | (Kind::Intrinsic(Intrinsic::Boolean), mir::Type::Boolean)
             | (Kind::Intrinsic(Intrinsic::String), mir::Type::String)
@@ -139,8 +150,7 @@ impl<'a> Projection<'a> {
                     mir::MirTypeCLayoutPolicyV1::Ordinary => None,
                     mir::MirTypeCLayoutPolicyV1::CLayout(contract) => Some(*contract),
                 };
-                if !definition.type_arguments.is_empty()
-                    || expected_c != *actual_c
+                if expected_c != *actual_c
                     || interior_mutable != actual_mutable
                     || definition.gc_free != (source.facts().gc() == mir::MirGcKindV1::GcFree)
                     || fields.len() != actual.len()
@@ -164,8 +174,7 @@ impl<'a> Projection<'a> {
                 mir::Type::Enum(id, _),
             ) => {
                 let definition = &self.module.enums[*id];
-                if !definition.type_arguments.is_empty()
-                    || variants.len() != definition.variants.len()
+                if variants.len() != definition.variants.len()
                     || definition.gc_free != (source.facts().gc() == mir::MirGcKindV1::GcFree)
                 {
                     return Err(ExactLayoutLoweringError::SourceRepresentation(exact));

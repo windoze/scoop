@@ -108,18 +108,6 @@ impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
                     .collect::<Vec<_>>();
                 let mir = mir.resolve_callables(
                     parts.mir_foundation,
-                    &|exact| {
-                        parts
-                            .hir_types
-                            .exact_facts()
-                            .get(exact)
-                            .map(|facts| match facts.gc() {
-                                scoop_hir::ExactTypeGcV1::GcFree => scoop_mir::MirGcKindV1::GcFree,
-                                scoop_hir::ExactTypeGcV1::ContainsManagedReferences => {
-                                    scoop_mir::MirGcKindV1::ContainsManagedReferences
-                                }
-                            })
-                    },
                     &direct_callables,
                     reachable.iter().map(|position| {
                         let mir = &resolved[*position].mir;

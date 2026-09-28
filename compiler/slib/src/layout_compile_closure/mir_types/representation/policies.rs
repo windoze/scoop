@@ -1,7 +1,9 @@
 use scoop_hir as hir;
 use scoop_mir as mir;
 
-pub(super) fn c_layout(source: hir::NominalCLayoutPolicyV1) -> mir::MirTypeCLayoutPolicyV1 {
+pub(in crate::layout_compile_closure::mir_types) fn c_layout(
+    source: hir::NominalCLayoutPolicyV1,
+) -> mir::MirTypeCLayoutPolicyV1 {
     match source {
         hir::NominalCLayoutPolicyV1::Ordinary => mir::MirTypeCLayoutPolicyV1::Ordinary,
         hir::NominalCLayoutPolicyV1::CLayout { contract } => {

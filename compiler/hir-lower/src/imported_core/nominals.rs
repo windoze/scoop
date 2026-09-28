@@ -63,6 +63,14 @@ impl Lowerer {
             hir::NominalSourceShapeV1::Enum(_) => {
                 self.imported_enum_type(declaration, arguments, &bindings)
             }
+            hir::NominalSourceShapeV1::Intrinsic(representation)
+                if matches!(
+                    representation.family(),
+                    hir::IntrinsicTypeKind::Array | hir::IntrinsicTypeKind::MutableArray
+                ) =>
+            {
+                self.imported_class_type(declaration, arguments, &bindings)
+            }
             hir::NominalSourceShapeV1::Intrinsic(_) => Err(ImportedSignatureTypeError::Structural),
         }
     }

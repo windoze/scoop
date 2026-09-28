@@ -182,6 +182,21 @@ impl CanonicalHirFoundation {
             .find(|record| record.id().as_array() == bytes)
     }
 
+    /// Applications actually present in local-concrete HIR, excluding uninstantiated source signatures.
+    pub fn nominal_application_keys(&self) -> impl Iterator<Item = ExactTypeKey> + '_ {
+        self.odr_groups
+            .iter()
+            .filter_map(|record| match record.key() {
+                SpecializationKey::Nominal { origin, arguments } => {
+                    Some(ExactTypeKey::NominalApplication {
+                        origin: *origin,
+                        arguments: arguments.clone(),
+                    })
+                }
+                _ => None,
+            })
+    }
+
     pub(crate) fn exact_type_id_by_key(&self, key: &ExactTypeKey) -> Option<PersistentExactTypeId> {
         self.exact_types
             .iter()

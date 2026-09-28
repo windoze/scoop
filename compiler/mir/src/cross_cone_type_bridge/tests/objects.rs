@@ -32,7 +32,7 @@ fn object_backing_retains_hir_identity_and_can_inherit_a_source_class() {
         fixture
             .foundation
             .as_canonical()
-            .generated_type_key(backing.origin().nominal())
+            .generated_type_key(fixture.backing.id())
             .is_none(),
         "HIR-owned backing classes are not MIR-generated helpers"
     );

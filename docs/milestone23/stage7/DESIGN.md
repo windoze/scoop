@@ -387,7 +387,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
 | `org.scoop-lang.hir/cross-cone-interface` | `/35` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/9` | exact application 的完整 facts、继承和 actual type uses；不增加来源资格 |
-| `org.scoop-lang.mir/cross-cone-type-bridge` | `/2` | exact specialized type/callable、生成实体与 Strong/ODR 定义引用 |
+| `org.scoop-lang.mir/cross-cone-type-bridge` | `/2` | 原类型表示表新增 application origin tag 3，保存实际替换后的字段、payload、facts 与父类型；复用 exact layout/ABI 和 Strong/ODR 定义引用 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
 | `org.scoop-lang.lir/cross-cone-layout-abi` | `/4` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用 |
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |

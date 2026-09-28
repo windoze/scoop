@@ -26,23 +26,15 @@ pub fn lower_type_bridge_exports(
 ) -> Result<mir::MirTypeBridgeExportConstituentsV1, Error> {
     input.validate()?;
     let initialization_uses = initialization::project(input)?;
-    let types = crate::lower_type_exports(input.source, input.mir, input.identities)
-        .map_err(Error::Types)?;
+    let types = crate::lower_type_exports(
+        input.hir.output().local.module(),
+        input.source,
+        input.mir,
+        input.identities,
+    )
+    .map_err(Error::Types)?;
     let tables = with_local(&types, dependencies.types)?;
     let type_index = mir::MirTypeBridgeTypeIndexV1::try_new(&tables).map_err(Error::Lookup)?;
-    let gc_facts = |exact| {
-        input
-            .source
-            .exact_facts()
-            .get(exact)
-            .map(|facts| match facts.gc() {
-                hir::ExactTypeGcV1::GcFree => mir::MirGcKindV1::GcFree,
-                hir::ExactTypeGcV1::ContainsManagedReferences => {
-                    mir::MirGcKindV1::ContainsManagedReferences
-                }
-            })
-    };
-    let type_index = type_index.with_gc_facts(&gc_facts);
     let source_callables = crate::lower_source_callable_bindings(
         input.hir,
         input.public,

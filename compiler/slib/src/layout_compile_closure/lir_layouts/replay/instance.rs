@@ -21,6 +21,10 @@ impl Replay<'_> {
             Kind::Intrinsic(Intrinsic::String) => {
                 lir::ExactInstanceLayoutV1::inline_bytes(identity, foundation)?
             }
+            Kind::InlineArray { element } => {
+                let element = self.value_dependency(*element)?;
+                lir::ExactInstanceLayoutV1::inline_array(identity, &element, foundation)?
+            }
             Kind::Interface => {
                 lir::ExactInstanceLayoutV1::abstract_reference(identity, foundation)?
             }
@@ -38,9 +42,13 @@ impl Replay<'_> {
                 let Kind::ObjectBacking { declared_fields } = backing_shape.representation() else {
                     return Err(Error::SourceObject(source.exact()));
                 };
+                let mir::MirTypeOriginV1::GeneratedNominal { nominal, .. } = backing_shape.origin()
+                else {
+                    return Err(Error::SourceObject(source.exact()));
+                };
                 let backing = self
                     .identities
-                    .canonical_record::<_, GeneratedNominalKey>(backing_shape.origin().nominal())?;
+                    .canonical_record::<_, GeneratedNominalKey>(*nominal)?;
                 self.class(identity, backing_shape, declared_fields, Some(&backing))?
             }
             Kind::BoxedValue { payload } => {

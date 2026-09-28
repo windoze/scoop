@@ -312,11 +312,25 @@
 
 本次按用户要求提交当前工作进度。消费方泛型名义类型的前端与字段实例位置已接通，闭合泛型存储的 LIR 发布闭环继续实施，M23-7 仍未完成。
 
+## 2026-09-28：保存实际泛型表示与布局通道进度
+
+- 原 MIR 类型表示表新增实际 nominal application，origin 保留 `PersistentGenericTypeId`，完整实参使用原 exact key；字段、enum variant 与 payload 保留原 typed ID。struct、enum、class 存储及 Array/MutableArray 元素沿同一表投影，普通 Strong 与 application 的 ODR 定义继续区分。相同 application 的等值 MIR 表示可以复用，矛盾表示和普通 Strong 重复仍拒绝。
+- HIR exact facts 纳入已经具体化的 nominal application 及实际存储依赖；导入 enum 直接使用 concrete variant 保留的身份，删除回到当前 ExportHir 查找外来声明的路径。导入 Array/MutableArray 保留实际 intrinsic family 与元素类型。MIR 只要求实际机器实例和其引用闭包，不强制将 HIR 的全部 specialization group 发射成机器类型。
+- 实际 application 接入既有 LIR value/instance layout、descriptor 与类型 registration。registration 根据原 definition plan 选择 Strong 或 ODR 摘要节点；布局查询可以复用不同物理 producer 的等值 ODR 定义。删除上一批临时加入的 GC facts 回调，`NoGC` 检查统一查询完整 MIR 类型记录中的既有 facts。
+- MIR 为实际选中的外部调用登记 receiver、参数与结果的完整物理签名类型，补齐隐式异常 initializer 的 `Unit` 结果。沿完整 HIR 的 exact identity 和既有类型 lowering 转换，不从名字补造类型，也不把未选中的 provider 声明变成机器根。
+- HIR `cross-cone-type-semantics/9`、MIR `cross-cone-type-bridge/2`、LIR `cross-cone-layout-abi/4` 与 required inventory、canonical profile descriptor、固定 fingerprint 同步。补齐旧 major 在 Compile/Link 两种 view、含 optional 混装时的拒绝测试；三份 spec 与设计说明同步，runtime C ABI 保持。
+- 新增独立和组合源码 fixture，覆盖泛型值、嵌套 enum payload、class 引用与泛型数组；核对实际 HIR/MIR 生产、表示往返、原 owner 和 field ID、等值记录合并、矛盾表示拒绝及 `NoGC` 引用事实拒绝。`cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过，lint 无警告。
+- 非 driver 全工作区首次验证有 5033 项通过、1 项旧断言失败。该断言仍要求 application 没有独立 MIR 类型表示；更新为核对 application 自身的类型依赖，同时保留原结构类型规则，并复跑全部 338 项 MIR 测试，全部通过。合计 5035 项独立非 driver 测试通过，无忽略，包含 1256 项 HIR lowering 和 584 项 slib 测试；定向运行的 18 项 profile 与 24 项类型表示测试已包含在总数中。
+- 真实 core 已能生产、发布并被消费方读取，但两条 driver 回归仍未通过：`runtime_exception_storage_is_materialized_before_mir_and_publication` 在消费方遇到 `Layout(Selection(Semantic(DuplicateTarget(Layout(...)))))`，共有 LIR 语义闭包仍拒绝重复 ODR 布局；`generic_nominal_consumers_create_payload_instances_from_artifacts` 在 standalone 消费方遇到 `Layout(MirSection(MissingDependency(Type(...))))`，泛型 payload 的类型依赖尚未完整闭合。原 fixture 保留，四份 runtime 正例 MIR golden 尚未生成，本批没有新的完整发布、链接或移动 GC 成功结论。
+- 确认构建、测试及编译器进程结束，且 `target` 中没有打开的文件。核对该目录为本工作区构建缓存后恢复缺失的标准 Cargo 缓存标记，执行 `cargo clean --target-dir target`，删除 2897 个构建文件，回收 6.0 GiB。
+
+本次按用户要求提交当前工作进度。实际泛型表示已进入共有类型与布局通道，产物语义闭包仍须继续补齐；消费方构造、继承与完整派发及其余阶段验收尚未完成，M23-7 仍未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化模板的实际消费，以及 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 先接通普通 owner 持有泛型存储时的实际 ODR 布局与 ABI 查询，恢复原 core 和消费方的真实发布运行回归；继续完成消费方泛型名义类型的构造、继承、属性、dispatch、ZST/大值/引用 ABI 与递归扫描程序的实际对象 atom。
+3. 补齐共有 LIR 语义闭包对重复 ODR 布局的处理，以及消费方泛型 payload 的 MIR 类型依赖，恢复原 core 异常和消费方的真实发布运行回归；继续完成消费方泛型名义类型的构造、继承、属性、dispatch、ZST/大值/引用 ABI 与递归扫描程序的实际对象 atom。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

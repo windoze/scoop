@@ -111,10 +111,8 @@ pub(crate) fn replay_parts(
     if registration.symbol() != registration_physical.symbol() {
         return Err(ExactDescriptorError::RegistrationSymbol(exact));
     }
-    let expected_fingerprint = scoop_identity::DigestNodeId::from_key(
-        &scoop_identity::DigestNodeKey::strong_registration(registration.definition_plan()),
-    )
-    .map_err(ExactDescriptorError::RegistrationFingerprintHash)?;
+    let expected_fingerprint =
+        registration_fingerprint(exact, registration.definition_plan(), foundation)?;
     if registration.fingerprint_node() != expected_fingerprint {
         return Err(ExactDescriptorError::RegistrationFingerprint(exact));
     }

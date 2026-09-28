@@ -423,6 +423,8 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 
 `CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/8`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
 
+M23-7 的实际泛型存储将该 section 升至 `/9`，并沿 MIR `cross-cone-type-bridge/2`、LIR `cross-cone-layout-abi/4` 传递实际表示和 ODR 定义。异常字段复用这条布局与 GC 路径，外部 initializer 保留完整物理签名；registration 使用原 definition plan 所属的 Strong 或 ODR 摘要节点。格式与阶段职责见实现规范 2.13，本项不修改 runtime C ABI。
+
 ### 5.1 Scoop exception record 与抛出
 
 - M25起异常runtime只建立在Itanium Level I unwind接口上，不使用C++ ABI。runtime私有的`ScoopExceptionRecord`包含恰好一个满足目标对齐要求的`_Unwind_Exception`、catch/rethrow/lifetime元数据，以及按对象TypeDescriptor大小和对齐保存的Scoop对象payload；各部分的具体offset不属于生成代码ABI，raw unwind pointer与payload之间只能经runtime入口转换。

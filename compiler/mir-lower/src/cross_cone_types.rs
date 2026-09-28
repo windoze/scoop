@@ -7,6 +7,7 @@ use scoop_identity::{
 use scoop_mir as mir;
 use scoop_wire::WirePath;
 
+mod applications;
 mod builtins;
 mod representation;
 mod resources;
@@ -14,6 +15,7 @@ use resources::reserve;
 
 /// Combines actual source representations and the sealed finite shape plan.
 pub fn lower_type_exports(
+    local: &hir::LocalConcreteHir,
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
@@ -25,6 +27,7 @@ pub fn lower_type_exports(
     let mut records = source.into_records();
     reserve(&mut records, finite.records().len())?;
     records.extend(finite.into_records());
+    applications::append(local, hir, input, identities, &mut records)?;
 
     Ok(mir::CanonicalParamFreeMirTypeExportsV1::try_new(records)?)
 }
@@ -150,6 +153,7 @@ pub enum SourceMirTypeProductionError {
     MissingFacts(PersistentExactTypeId),
     MissingInheritance(PersistentExactTypeId),
     MissingFieldType,
+    ApplicationRepresentation(PersistentExactTypeId),
     RepresentationMismatch(PersistentTypeId),
     IncompleteSurface { expected: usize, actual: usize },
     Identity(String),

@@ -16,7 +16,6 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
     pub fn resolve_callables<'a>(
         self,
         foundation: &crate::CanonicalMirFoundation,
-        gc_facts: &dyn Fn(PersistentExactTypeId) -> Option<MirGcKindV1>,
         direct_callables: &[&crate::CrossConeMirBridgeSectionV1],
         dependencies: impl ExactSizeIterator<
             Item = (
@@ -41,7 +40,6 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
             schemas.push(dispatch);
         }
         let index = MirTypeBridgeTypeIndexV1::try_new(&tables)?;
-        let index = index.with_gc_facts(gc_facts);
         let callables = self.callables.validate(graph, foundation, &index)?;
         let object_values = self.object_values.validate(graph, &index, &callables)?;
         callable_tables.push(&callables);

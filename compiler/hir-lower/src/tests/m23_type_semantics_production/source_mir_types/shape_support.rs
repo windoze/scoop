@@ -10,7 +10,13 @@ fn actual_mir_shape_families_replay_and_match_bound_materializations() {
             .join("../../tests/fixtures/m23-mir-shape-support");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let (bytes, projection) = with_production(&source, |output, input, hir, graph, _| {
-            let types = scoop_mir_lower::lower_type_exports(hir, input, graph).unwrap();
+            let types = scoop_mir_lower::lower_type_exports(
+                output.output().local.module(),
+                hir,
+                input,
+                graph,
+            )
+            .unwrap();
             let families =
                 CanonicalMirShapeSupportsV1::from_strong_input(input, graph, &types).unwrap();
             assertions::bindings(input, &families);
@@ -38,8 +44,14 @@ fn actual_mir_shape_families_replay_and_match_bound_materializations() {
         });
         with_production(
             &format!("private struct Unrelated() {{}}\n{source}"),
-            |_, input, hir, graph, _| {
-                let types = scoop_mir_lower::lower_type_exports(hir, input, graph).unwrap();
+            |output, input, hir, graph, _| {
+                let types = scoop_mir_lower::lower_type_exports(
+                    output.output().local.module(),
+                    hir,
+                    input,
+                    graph,
+                )
+                .unwrap();
                 let families =
                     CanonicalMirShapeSupportsV1::from_strong_input(input, graph, &types).unwrap();
                 assert_eq!(encode(&families).unwrap(), bytes);

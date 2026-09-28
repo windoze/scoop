@@ -9,12 +9,11 @@ mod ownership;
 mod shapes;
 
 pub(super) fn produce(
-    export: &ExportHir,
     local: &LocalConcreteHir,
     root_exacts: &BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<CanonicalExactTypeFactsV1, Error> {
-    let candidate = project(export, local, root_exacts, required_exacts)?;
+    let candidate = project(local, root_exacts, required_exacts)?;
     CanonicalExactTypeFactsV1::try_new(candidate.local_facts.into_values().collect()).map_err(
         |error| Error::InvalidTable {
             table: "exact-facts",
@@ -24,13 +23,11 @@ pub(super) fn produce(
 }
 
 fn project<'a>(
-    export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<FactProjector<'a>, Error> {
     let mut projector = FactProjector {
-        export,
         local,
         root_exacts,
         local_facts: BTreeMap::new(),
@@ -45,15 +42,31 @@ fn project<'a>(
         projector.visit_exact(*exact, root_exacts.contains(exact))?;
     }
     for (ty, _) in local.types.iter() {
-        if projector.is_local_builtin(ty) {
+        if projector.is_local_builtin(ty)
+            || local
+                .exact_type_identities
+                .nominal_specialization(ty)
+                .is_some()
+        {
             projector.visit_exact(projector.exact(ty)?, false)?;
+        }
+        if local
+            .exact_type_identities
+            .nominal_specialization(ty)
+            .is_some()
+            && let concrete::TypeKind::Class(class) = local.types[ty].kind
+            && let concrete::ClassRepresentation::Declared { fields, .. } =
+                &local.classes[class].representation
+        {
+            for field in fields {
+                projector.visit_exact(projector.exact(field.ty)?, false)?;
+            }
         }
     }
     Ok(projector)
 }
 
 struct FactProjector<'a> {
-    export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
     local_facts: BTreeMap<PersistentExactTypeId, ExactTypeFactsV1>,

@@ -11,7 +11,13 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
             .join("../../tests/fixtures/m23-mir-object-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let (bytes, projection) = with_production(&source, |output, input, hir, graph, _| {
-            let types = scoop_mir_lower::lower_type_exports(hir, input, graph).unwrap();
+            let types = scoop_mir_lower::lower_type_exports(
+                output.output().local.module(),
+                hir,
+                input,
+                graph,
+            )
+            .unwrap();
             let unit = dependencies::unit(input, graph);
             assert!(
                 unit.records()
@@ -35,8 +41,14 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
         });
         with_production(
             &format!("private object Unrelated {{}}\n{source}"),
-            |_, input, hir, graph, _| {
-                let types = scoop_mir_lower::lower_type_exports(hir, input, graph).unwrap();
+            |output, input, hir, graph, _| {
+                let types = scoop_mir_lower::lower_type_exports(
+                    output.output().local.module(),
+                    hir,
+                    input,
+                    graph,
+                )
+                .unwrap();
                 let unit = dependencies::unit(input, graph);
                 let index = MirTypeBridgeTypeIndexV1::try_new(&[&types, &unit]).unwrap();
                 let product = Production::from_strong_input(input, &types, graph, &index).unwrap();
@@ -67,17 +79,35 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
 
 #[test]
 fn actual_object_production_rejects_missing_dependencies() {
-    with_production("public object Registry {}", |_, input, hir, graph, _| {
-        let types = scoop_mir_lower::lower_type_exports(hir, input, graph).unwrap();
-        let unit = dependencies::unit(input, graph);
-        rejections::check(input, graph, &types, &unit);
-    });
-    with_production("public val number: Int = 3", |_, input, hir, graph, _| {
-        let types = scoop_mir_lower::lower_type_exports(hir, input, graph).unwrap();
-        let unit = dependencies::unit(input, graph);
-        let index = MirTypeBridgeTypeIndexV1::try_new(&[&types, &unit]).unwrap();
-        let product = Production::from_strong_input(input, &types, graph, &index).unwrap();
-        assert!(product.objects().records().is_empty());
-        assert!(product.callables().entries().is_empty());
-    });
+    with_production(
+        "public object Registry {}",
+        |output, input, hir, graph, _| {
+            let types = scoop_mir_lower::lower_type_exports(
+                output.output().local.module(),
+                hir,
+                input,
+                graph,
+            )
+            .unwrap();
+            let unit = dependencies::unit(input, graph);
+            rejections::check(input, graph, &types, &unit);
+        },
+    );
+    with_production(
+        "public val number: Int = 3",
+        |output, input, hir, graph, _| {
+            let types = scoop_mir_lower::lower_type_exports(
+                output.output().local.module(),
+                hir,
+                input,
+                graph,
+            )
+            .unwrap();
+            let unit = dependencies::unit(input, graph);
+            let index = MirTypeBridgeTypeIndexV1::try_new(&[&types, &unit]).unwrap();
+            let product = Production::from_strong_input(input, &types, graph, &index).unwrap();
+            assert!(product.objects().records().is_empty());
+            assert!(product.callables().entries().is_empty());
+        },
+    );
 }

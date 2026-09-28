@@ -30,11 +30,27 @@ impl TargetIndex {
             })?;
         }
 
-        rows.sort_unstable_by_key(|row| row.0);
+        rows.sort_unstable_by_key(|row| (row.0, row.1 != 0, views[row.1].provider));
 
-        if let Some(pair) = rows.windows(2).find(|pair| pair[0].0 == pair[1].0) {
-            return Err(MirTypeBridgeSectionError::DuplicateTarget(pair[0].0));
+        for pair in rows.windows(2).filter(|pair| pair[0].0 == pair[1].0) {
+            let target = pair[0].0;
+            let compatible = match (
+                views[pair[0].1].record(target),
+                views[pair[1].1].record(target),
+            ) {
+                (
+                    Some(MirTypeBridgeSemanticRecordV1::Type(left)),
+                    Some(MirTypeBridgeSemanticRecordV1::Type(right)),
+                ) => {
+                    matches!(left.origin(), MirTypeOriginV1::NominalApplication(_)) && left == right
+                }
+                _ => false,
+            };
+            if !compatible {
+                return Err(MirTypeBridgeSectionError::DuplicateTarget(target));
+            }
         }
+        rows.dedup_by_key(|row| row.0);
         Ok(Self { rows })
     }
     pub fn owner(&self, target: MirTypeBridgeTargetV1) -> Result<usize, MirTypeBridgeSectionError> {

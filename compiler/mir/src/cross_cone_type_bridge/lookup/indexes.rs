@@ -1,7 +1,7 @@
 use super::*;
 
 macro_rules! borrowed_index {
-    ($name:ident, $lookup:ident, $table:ty, $record:ty, $key:ty, $records:ident, $key_fn:ident, $error:ident, $field:ident) => {
+    ($name:ident, $lookup:ident, $table:ty, $record:ty, $key:ty, $records:ident, $key_fn:ident, $error:ident, $field:ident, $merge:expr) => {
         /// An index that borrows records without changing export tables.
         #[derive(Debug)]
         pub struct $name<'a> {
@@ -24,14 +24,14 @@ macro_rules! borrowed_index {
                 }
                 records.sort_unstable_by_key(|record| record.$key_fn());
 
-                if let Some(pair) = records
-                    .windows(2)
-                    .find(|pair| pair[0].$key_fn() == pair[1].$key_fn())
-                {
+                if let Some(pair) = records.windows(2).find(|pair| {
+                    pair[0].$key_fn() == pair[1].$key_fn() && !($merge)(pair[0], pair[1])
+                }) {
                     return Err(MirTypeBridgeLookupError::$error {
                         $field: pair[0].$key_fn(),
                     });
                 }
+                records.dedup_by_key(|record| record.$key_fn());
                 Ok(Self { records })
             }
         }
@@ -59,7 +59,11 @@ borrowed_index!(
     records,
     exact,
     DuplicateType,
-    exact
+    exact,
+    |left: &ParamFreeMirTypeExportV1, right: &ParamFreeMirTypeExportV1| matches!(
+        left.origin(),
+        MirTypeOriginV1::NominalApplication(_)
+    ) && left == right
 );
 borrowed_index!(
     MirTypeBridgeSchemaIndexV1,
@@ -70,36 +74,6 @@ borrowed_index!(
     records,
     owner,
     DuplicateSchema,
-    owner
+    owner,
+    |_: &ParamFreeMirDispatchSchemaV1, _: &ParamFreeMirDispatchSchemaV1| false
 );
-
-impl MirTypeBridgeTypeIndexV1<'_> {
-    /// Reuses exact facts for applications without adding Strong type exports.
-    pub fn with_gc_facts<'a>(
-        &'a self,
-        facts: &'a dyn Fn(PersistentExactTypeId) -> Option<MirGcKindV1>,
-    ) -> impl MirTypeBridgeTypeLookupV1 + Copy + 'a + use<'a> {
-        TypeFactsLookup { types: self, facts }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct TypeFactsLookup<'a> {
-    types: &'a dyn MirTypeBridgeTypeLookupV1,
-    facts: &'a dyn Fn(PersistentExactTypeId) -> Option<MirGcKindV1>,
-}
-
-impl sealed::Sealed for TypeFactsLookup<'_> {}
-impl MirTypeBridgeTypeLookupV1 for TypeFactsLookup<'_> {
-    fn get(&self, exact: PersistentExactTypeId) -> Option<&ParamFreeMirTypeExportV1> {
-        self.types.get(exact)
-    }
-
-    fn record_count(&self) -> usize {
-        self.types.record_count()
-    }
-
-    fn gc_kind(&self, exact: PersistentExactTypeId) -> Option<MirGcKindV1> {
-        self.types.gc_kind(exact).or_else(|| (self.facts)(exact))
-    }
-}

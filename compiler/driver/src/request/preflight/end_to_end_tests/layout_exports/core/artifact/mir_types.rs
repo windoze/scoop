@@ -26,6 +26,7 @@ pub(super) fn check(
             };
             scoop_slib::validate_shared_mir_type_exports(
                 source,
+                &[],
                 graph,
                 core,
                 section.types(),
@@ -60,6 +61,7 @@ impl Replay<'_, '_> {
         let types = mir::CanonicalParamFreeMirTypeExportsV1::try_new(records).unwrap();
         scoop_slib::validate_shared_mir_type_exports(
             self.source,
+            &[],
             self.graph,
             self.core,
             &types,

@@ -52,40 +52,10 @@ impl FactProjector<'_> {
             }
             TypeKind::Enum(id) => {
                 let enumeration = &self.local.enums[*id];
-                let exact = self.exact(ty)?;
-                let owner = enumeration
-                    .origin
-                    .source()
-                    .map(super::super::nominals::source_id)
-                    .ok_or(Error::MissingExactIdentity {
-                        context: "enum representation type",
-                    })?;
-                let source_enum = self
-                    .export
-                    .enums
-                    .iter()
-                    .find_map(|(id, _)| {
-                        (self.export.nominal_identities[id]
-                            .source()
-                            .map(super::super::nominals::source_id)
-                            == Some(owner))
-                        .then_some(id)
-                    })
-                    .ok_or(Error::MissingConcreteType(exact))?;
                 let mut variants = Vec::with_capacity(enumeration.variants.len());
-                for (index, variant) in enumeration.variants.iter().enumerate() {
-                    let index = u32::try_from(index).map_err(|_| Error::InvalidFact {
-                        exact,
-                        reason: "enum variant count exceeds typed identity index".into(),
-                    })?;
-                    let reference = EnumVariantRef::checked(&self.export.enums, source_enum, index)
-                        .ok_or_else(|| Error::InvalidFact {
-                            exact,
-                            reason: format!("missing enum variant identity at index {index}"),
-                        })?;
-                    let variant_id = self.export.enum_member_identities[reference].id();
+                for variant in &enumeration.variants {
                     variants.push(ExactEnumVariantFactsV1 {
-                        variant: variant_id,
+                        variant: variant.identity,
                         fields: exacts(
                             self.local,
                             &variant

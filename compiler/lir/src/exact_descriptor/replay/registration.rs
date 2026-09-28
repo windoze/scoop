@@ -83,3 +83,24 @@ pub(crate) fn validate_registration_plan(
     }
     Ok(())
 }
+
+/// Resolves the existing Strong or ODR registration digest from its actual plan.
+pub(crate) fn registration_fingerprint(
+    exact: PersistentExactTypeId,
+    definition: scoop_identity::ObjectDefinitionPlanId,
+    foundation: &ConeLirFoundation,
+) -> Result<scoop_identity::DigestNodeId, ExactDescriptorError> {
+    let plan = foundation
+        .definition_plan(definition)
+        .ok_or(ExactDescriptorError::RegistrationDefinition(exact))?;
+    let key = match plan.key().owner() {
+        scoop_identity::ObjectDefinitionPlanOwner::Strong { .. } => {
+            scoop_identity::DigestNodeKey::strong_registration(plan.id())
+        }
+        scoop_identity::ObjectDefinitionPlanOwner::Odr { member } => {
+            scoop_identity::DigestNodeKey::odr_member_definition(member)
+        }
+    };
+    scoop_identity::DigestNodeId::from_key(&key)
+        .map_err(ExactDescriptorError::RegistrationFingerprintHash)
+}

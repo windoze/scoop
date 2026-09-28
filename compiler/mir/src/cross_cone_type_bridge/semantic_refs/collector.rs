@@ -89,16 +89,12 @@ impl<'a> Collector<'a> {
     ) -> Result<(), MirTypeBridgeReferenceError> {
         let key = self.graph.canonical_key::<_, ExactTypeKey>(exact)?;
         match key.as_ref() {
-            ExactTypeKey::Nominal(_) => self.push(MirTypeBridgeTargetV1::Type(exact)),
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
+                self.push(MirTypeBridgeTargetV1::Type(exact))
+            }
             ExactTypeKey::Tuple(elements) if transient => {
                 for element in elements.as_slice() {
                     self.exact_in(*element, true)?;
-                }
-                Ok(())
-            }
-            ExactTypeKey::NominalApplication { arguments, .. } if transient => {
-                for argument in arguments.as_slice() {
-                    self.exact_in(*argument, true)?;
                 }
                 Ok(())
             }

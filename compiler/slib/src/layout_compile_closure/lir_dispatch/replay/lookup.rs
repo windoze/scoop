@@ -105,7 +105,12 @@ impl<'a> Abis<'a> {
             std::iter::once(self.0.local_layouts).chain(self.0.dependency_layouts.iter().copied())
         {
             if let Some(value) = table.find_exact_role(exact, RepresentationRole::ManagedValue) {
-                if found.replace(value).is_some() {
+                if found
+                    .replace(value)
+                    .is_some_and(|previous: &lir::ExactLayoutExportV1| {
+                        !previous.has_same_odr_definition(value)
+                    })
+                {
                     return Err(Error::DuplicateValueLayout(exact));
                 }
             }

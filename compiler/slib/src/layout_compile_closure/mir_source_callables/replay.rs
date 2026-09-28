@@ -63,6 +63,7 @@ pub(super) fn validate_sources(
             let mut validate = || -> Result<_, Error> {
                 super::super::mir_types::validate_shared_mir_type_exports(
                     *source,
+                    dependencies,
                     graph,
                     parts.hir_core,
                     mir.types(),

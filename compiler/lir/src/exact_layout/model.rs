@@ -25,6 +25,34 @@ pub enum ExactLayoutBodyKindV1<'a> {
 }
 
 impl ExactLayoutExportV1 {
+    /// Equal ODR definitions may be supplied by different physical producers.
+    pub fn has_same_odr_definition(&self, other: &Self) -> bool {
+        let identity = self.identity();
+        let other_identity = other.identity();
+        let scan = self.scan_definition();
+        let other_scan = other.scan_definition();
+        if identity.definition().symbol().linkage() != scoop_identity::LinkageClass::OdrWeak
+            || identity.exact_record() != other_identity.exact_record()
+            || identity.layout_key() != other_identity.layout_key()
+            || identity.definition() != other_identity.definition()
+            || self.scan() != other.scan()
+            || scan.definition() != other_scan.definition()
+            || scan.primary() != other_scan.primary()
+            || scan.symbol() != other_scan.symbol()
+        {
+            return false;
+        }
+        match (&self.0, &other.0) {
+            (LayoutBody::Value(left), LayoutBody::Value(right)) => {
+                left.value == right.value && left.representation == right.representation
+            }
+            (LayoutBody::Instance(left), LayoutBody::Instance(right)) => {
+                left.shape == right.shape && left.representation == right.representation
+            }
+            _ => false,
+        }
+    }
+
     pub fn value_handle(&self) -> Option<Arc<ExactValueLayoutV1>> {
         match &self.0 {
             LayoutBody::Value(value) => Some(Arc::clone(value)),

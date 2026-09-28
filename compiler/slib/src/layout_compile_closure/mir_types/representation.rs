@@ -9,7 +9,7 @@ use super::{
     validation::{Comparison, gc},
 };
 
-mod policies;
+pub(super) mod policies;
 
 pub(super) fn validate(
     comparison: &mut Comparison<'_, '_>,

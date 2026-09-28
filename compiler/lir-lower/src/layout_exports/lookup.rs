@@ -12,7 +12,9 @@ impl Layouts<'_> {
         let mut found = None;
         for table in std::iter::once(self.local).chain(self.dependencies.iter().copied()) {
             if let Some(record) = table.find_exact_role(exact, RepresentationRole::ManagedValue) {
-                if found.is_some() {
+                if found.is_some_and(|previous: &lir::ExactLayoutExportV1| {
+                    !previous.has_same_odr_definition(record)
+                }) {
                     return Err(Error::AmbiguousLayout(exact));
                 }
                 found = Some(record);

@@ -109,7 +109,11 @@ impl<'a> Replay<'a> {
             for record in dependency.records() {
                 let id = record.identity().layout();
 
-                if self.dependencies.contains_key(&id) {
+                if self
+                    .dependencies
+                    .get(&id)
+                    .is_some_and(|previous| !previous.has_same_odr_definition(record))
+                {
                     return Err(Error::AmbiguousDependency(id));
                 }
 

@@ -41,11 +41,31 @@ pub fn lower_current_cone(
             Ok((object.clone(), ensure))
         })
         .collect::<Result<Vec<_>, CurrentConeMirLoweringError>>()?;
+    let mut signature_types = std::collections::BTreeSet::new();
+    for (_, callable) in callables.iter() {
+        let signature = selected_callables
+            .resolve_callable(callable.reference())
+            .expect("every external use retains its selected callable")
+            .signature();
+        for exact in signature
+            .receiver()
+            .into_option()
+            .into_iter()
+            .chain(signature.parameters().iter().copied())
+            .chain(std::iter::once(signature.result()))
+        {
+            let ty = hir.exact_type_identities.type_for_identity(exact).ok_or(
+                CurrentConeMirLoweringError::MissingExternalSignatureType(exact),
+            )?;
+            signature_types.insert(ty);
+        }
+    }
     let module = lower_with_dependencies(
         &output.output().local,
         callables,
         dependency_mapping,
         objects,
+        &signature_types.into_iter().collect::<Vec<_>>(),
     );
     mir::DependencyMirOutput::try_new(module, selected_callables)
         .map_err(CurrentConeMirLoweringError::InvalidOutput)
@@ -199,6 +219,7 @@ pub enum CurrentConeMirLoweringError {
     MissingDependencyMirCallable {
         index: u32,
     },
+    MissingExternalSignatureType(scoop_identity::PersistentExactTypeId),
     InvalidOutput(mir::DependencyMirOutputError),
 }
 

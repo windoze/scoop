@@ -141,7 +141,13 @@ impl Projection<'_> {
                 if table.target() != self.output.module().meta.target_profile {
                     return Err(ExactLayoutLoweringError::Target);
                 }
-                if found.is_some() || table.provider() == self.output.foundation().producer() {
+                if found
+                    .as_ref()
+                    .is_some_and(|previous: &lir::ExactLayoutExportV1| {
+                        !previous.has_same_odr_definition(record)
+                    })
+                    || table.provider() == self.output.foundation().producer()
+                {
                     return Err(ExactLayoutLoweringError::AmbiguousDependency(id));
                 }
                 found = Some(record.clone());

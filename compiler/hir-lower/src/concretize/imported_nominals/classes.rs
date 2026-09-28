@@ -30,6 +30,32 @@ impl Concretizer<'_> {
                 .into(),
         );
         let ty = self.intern_type(concrete::TypeKind::Class(id), false);
+        let representation = match declaration.interface.source_shape() {
+            export::NominalSourceShapeV1::Intrinsic(source) => {
+                let [element] = arguments.as_slice() else {
+                    unreachable!("intrinsic array arity was checked in HIR")
+                };
+                let application = match source.family() {
+                    export::IntrinsicTypeKind::Array => {
+                        concrete::IntrinsicTypeRepresentation::Array { element: *element }
+                    }
+                    export::IntrinsicTypeKind::MutableArray => {
+                        concrete::IntrinsicTypeRepresentation::MutableArray { element: *element }
+                    }
+                    _ => unreachable!(
+                        "imported intrinsic classes retain their resolved array family"
+                    ),
+                };
+                concrete::ClassRepresentation::Intrinsic {
+                    declaration: source.family(),
+                    application,
+                }
+            }
+            _ => concrete::ClassRepresentation::Declared {
+                fields: Vec::new(),
+                base_class: None,
+            },
+        };
         let allocated = self.classes.alloc(concrete::ClassDef {
             origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
             canonical_type: ty,
@@ -37,10 +63,7 @@ impl Concretizer<'_> {
             name: declaration.name().to_owned(),
             owner: None,
             type_arguments: arguments,
-            representation: concrete::ClassRepresentation::Declared {
-                fields: Vec::new(),
-                base_class: None,
-            },
+            representation,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             // Dependency method bodies remain in the provider.
@@ -72,8 +95,13 @@ impl Concretizer<'_> {
             .iter()
             .map(|ty| self.lower_type(*ty, substitution))
             .collect();
-        self.classes[id].representation =
-            concrete::ClassRepresentation::Declared { fields, base_class };
+        if matches!(
+            self.classes[id].representation,
+            concrete::ClassRepresentation::Declared { .. }
+        ) {
+            self.classes[id].representation =
+                concrete::ClassRepresentation::Declared { fields, base_class };
+        }
         self.classes[id].interfaces = interfaces;
         self.classes[id].methods = source
             .virtual_methods

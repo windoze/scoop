@@ -26,6 +26,7 @@ impl Replay<'_> {
             )?,
             Kind::Intrinsic(Intrinsic::String)
             | Kind::Class { .. }
+            | Kind::InlineArray { .. }
             | Kind::Interface
             | Kind::Object { .. }
             | Kind::ObjectBacking { .. }

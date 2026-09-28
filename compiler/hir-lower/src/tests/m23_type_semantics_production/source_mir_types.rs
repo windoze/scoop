@@ -3,6 +3,7 @@ use scoop_identity::PendingIdentityValidation;
 use scoop_mir::{CanonicalParamFreeMirTypeExportsV1, MirTypeOriginV1};
 use scoop_wire::{WireDecode, WireEncode, decode_canonical, encode};
 
+mod applications;
 mod assertions;
 mod boxing;
 mod callables;
@@ -95,7 +96,13 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
             records.extend(finite.into_records());
             let combined = CanonicalParamFreeMirTypeExportsV1::try_new(records).unwrap();
             assert_eq!(
-                scoop_mir_lower::lower_type_exports(hir_types, strong, graph).unwrap(),
+                scoop_mir_lower::lower_type_exports(
+                    output.output().local.module(),
+                    hir_types,
+                    strong,
+                    graph
+                )
+                .unwrap(),
                 combined
             );
             let restored: scoop_mir::DecodedCanonicalParamFreeMirTypeExportsV1 = decoded(&combined);
@@ -132,8 +139,8 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
 fn source_mir_types_enforce_resources_and_complete_source_membership() {
     with_production(
         "public struct Empty() {}",
-        |_, strong, source, graph, table| {
-            assertions::rejections(strong, source, graph, table);
+        |output, strong, source, graph, table| {
+            assertions::rejections(output.output().local.module(), strong, source, graph, table);
             source_dispatch::with_hir_source("public struct Different() {}", |output, _| {
                 let other =
                     produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();

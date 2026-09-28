@@ -11,6 +11,7 @@ use super::{Error, SharedMirTypeComponent as Component};
 /// This does not validate callables, dispatch, selected uses or machine layouts.
 pub fn validate_shared_mir_type_exports(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
+    dependencies: &[hir::CheckedSharedTypeFoundationV1<'_>],
     inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     core: &hir::CoreBootstrapInterfaceSectionV1,
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
@@ -35,6 +36,16 @@ pub fn validate_shared_mir_type_exports(
         comparison.facts(exact, record)?;
         comparison.inheritance(exact, record)?;
         super::representation::validate(&mut comparison, representation, record)?;
+    }
+    for record in types.records() {
+        if matches!(record.origin(), mir::MirTypeOriginV1::NominalApplication(_)) {
+            let key = source
+                .metadata()
+                .identities
+                .canonical_key::<_, scoop_identity::ExactTypeKey>(record.exact())
+                .map_err(hir::SharedTypeMetadataError::from)?;
+            super::applications::validate(&mut comparison, dependencies, key.as_ref())?;
+        }
     }
     for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
         if builtin.declaration_key().origin() == source.provider() {

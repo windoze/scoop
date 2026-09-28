@@ -114,11 +114,8 @@ fn classes(replay: &Replay<'_, '_>) {
         .iter()
         .find(|record| {
             matches!(record.representation(), Repr::Class { .. })
-                && replay
-                    .source
-                    .representations()
-                    .get(record.origin().nominal())
-                    .is_some()
+                && matches!(record.origin(), mir::MirTypeOriginV1::SourceNominal(owner)
+                    if replay.source.representations().get(*owner).is_some())
         })
         .unwrap();
     let mut shape = record.representation().clone();

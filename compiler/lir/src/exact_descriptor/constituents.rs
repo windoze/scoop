@@ -73,9 +73,8 @@ impl ExactDescriptorExportV1 {
             ExternalStrongShapeSubjectV1::TypeRegistration(exact),
             foundation,
         )?;
-        let fingerprint = scoop_identity::DigestNodeId::from_key(
-            &scoop_identity::DigestNodeKey::strong_registration(physical.definition()),
-        )?;
+        let fingerprint =
+            replay::registration_fingerprint(exact, physical.definition(), foundation)?;
         let registration = StrongShapeRegistrationV1::from_artifact(
             exact,
             physical.definition(),

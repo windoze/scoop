@@ -72,6 +72,7 @@ pub(super) fn dump(
 }
 
 pub(super) fn rejections(
+    local: &hir::LocalConcreteHir,
     strong: &scoop_mir::ConeMirInput,
     source: &hir::CrossConeTypeSemanticsSectionV1,
     graph: &scoop_identity::ValidatedIdentityGraph,
@@ -89,11 +90,11 @@ pub(super) fn rejections(
         Err(scoop_mir_lower::SourceMirTypeProductionError::Bridge(_))
     ));
 
-    let complete = scoop_mir_lower::lower_type_exports(source, strong, graph).unwrap();
+    let complete = scoop_mir_lower::lower_type_exports(local, source, strong, graph).unwrap();
     assert!(complete.records().len() > table.records().len());
 
     assert_eq!(
-        scoop_mir_lower::lower_type_exports(source, strong, graph).unwrap(),
+        scoop_mir_lower::lower_type_exports(local, source, strong, graph).unwrap(),
         complete
     );
 }

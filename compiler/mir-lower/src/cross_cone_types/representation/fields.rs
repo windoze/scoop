@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn exact(
+pub(in crate::cross_cone_types) fn exact(
     module: &mir::Module,
     ty: &mir::Type,
 ) -> Result<PersistentExactTypeId, SourceMirTypeProductionError> {
@@ -38,7 +38,7 @@ pub(super) fn class(
     Ok(projected)
 }
 
-pub(super) fn variants(
+pub(in crate::cross_cone_types) fn variants(
     module: &mir::Module,
     variants: &[mir::VariantDef],
 ) -> Result<Vec<mir::MirRepresentationVariantV1>, SourceMirTypeProductionError> {

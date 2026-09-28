@@ -1,7 +1,6 @@
 use super::*;
 use scoop_identity::{
     EnumVariantFieldKey, EnumVariantIdentityKey, FieldIdentityKey, FieldIdentityView,
-    NominalDeclarationOwner,
 };
 
 impl MirTypeBridgeAuthority<'_> {
@@ -9,7 +8,19 @@ impl MirTypeBridgeAuthority<'_> {
         &self,
         record: &ParamFreeMirTypeExportV1,
     ) -> Result<(), MirTypeBridgeError> {
-        let owner = record.origin().nominal();
+        let owner = record.origin().owner();
+        if let MirTypeRepresentationV1::InlineArray { element } = record.representation() {
+            let key = self
+                .identities
+                .canonical_key::<_, ExactTypeKey>(record.exact())?;
+            if !matches!(key.as_ref(), ExactTypeKey::NominalApplication { arguments, .. } if arguments.as_slice() == [*element])
+            {
+                return Err(MirTypeBridgeError::OriginRepresentationMismatch {
+                    exact: record.exact(),
+                });
+            }
+            self.identities.canonical_key::<_, ExactTypeKey>(*element)?;
+        }
         let mut fields = std::collections::BTreeSet::new();
         for field in record.representation().fields() {
             if !fields.insert(field.field) {
@@ -20,15 +31,15 @@ impl MirTypeBridgeAuthority<'_> {
                 .canonical_key::<_, FieldIdentityKey>(field.field)?;
             let correct_owner = match (record.origin(), key.view()) {
                 (
-                    MirTypeOriginV1::SourceNominal(_),
+                    MirTypeOriginV1::SourceNominal(_) | MirTypeOriginV1::NominalApplication(_),
                     FieldIdentityView::SourceDeclared { owner: actual, .. }
                     | FieldIdentityView::SourcePropertyBacking { owner: actual, .. }
                     | FieldIdentityView::SourcePropertyDelegate { owner: actual, .. },
-                ) => actual == NominalDeclarationOwner::Concrete(owner),
-                (
-                    MirTypeOriginV1::GeneratedNominal { .. },
-                    FieldIdentityView::Generated { owner: actual, .. },
                 ) => actual == owner,
+                (
+                    MirTypeOriginV1::GeneratedNominal { nominal, .. },
+                    FieldIdentityView::Generated { owner: actual, .. },
+                ) => actual == *nominal,
                 _ => false,
             };
             if !correct_owner {
@@ -48,8 +59,10 @@ impl MirTypeBridgeAuthority<'_> {
             let key = self
                 .identities
                 .canonical_key::<_, EnumVariantIdentityKey>(variant.variant)?;
-            if matches!(record.origin(), MirTypeOriginV1::SourceNominal(_))
-                && key.source_owner() != Some(NominalDeclarationOwner::Concrete(owner))
+            if matches!(
+                record.origin(),
+                MirTypeOriginV1::SourceNominal(_) | MirTypeOriginV1::NominalApplication(_)
+            ) && key.source_owner() != Some(owner)
             {
                 return Err(MirTypeBridgeError::VariantOwner {
                     variant: variant.variant,

@@ -96,7 +96,7 @@ fn nested_tuple_fields_expand_only_to_nominal_leaves() {
 fn structural_fields_preserve_types_without_standalone_materialization() {
     let fixture = Fixture::new();
     let (graph, exacts) = structural_graph(&fixture);
-    for exact in &exacts {
+    for exact in &exacts[..5] {
         let mut collector = collector::Collector::new(&graph);
         assert!(matches!(collector.exact(*exact),
             Err(MirTypeBridgeReferenceError::StructuralExecutionGate(id)) if id == *exact));
@@ -106,11 +106,19 @@ fn structural_fields_preserve_types_without_standalone_materialization() {
         collector.field(*exact).unwrap();
         assert!(collector.finish().unwrap().targets().is_empty());
     }
+}
+
+#[test]
+fn nominal_applications_require_their_own_materialized_type() {
+    let fixture = Fixture::new();
+    let (graph, exacts) = structural_graph(&fixture);
+    let application = exacts[5];
     let mut collector = collector::Collector::new(&graph);
-    collector.field(exacts[5]).unwrap();
+    collector.exact(application).unwrap();
+    collector.field(application).unwrap();
     assert_eq!(
         collector.finish().unwrap().targets(),
-        &[MirTypeBridgeTargetV1::Type(structural_leaf(&fixture))]
+        &[MirTypeBridgeTargetV1::Type(application)]
     );
 }
 

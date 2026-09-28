@@ -50,11 +50,14 @@ fn source_origin_cannot_relabel_another_exact_or_representation_family() {
         Err(MirTypeBridgeError::OriginRepresentationMismatch { .. })
     ));
     let boxed = fixture.boxed_export();
+    let MirTypeOriginV1::GeneratedNominal { nominal, .. } = boxed.origin() else {
+        panic!("boxed origin")
+    };
     assert!(matches!(
         ParamFreeMirTypeExportV1::try_new(
             fixture.authority(),
             boxed.exact(),
-            MirTypeOriginV1::SourceNominal(boxed.origin().nominal()),
+            MirTypeOriginV1::SourceNominal(*nominal),
             boxed.facts(),
             boxed.representation().clone(),
             no_bases()

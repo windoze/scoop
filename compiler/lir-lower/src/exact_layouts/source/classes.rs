@@ -20,7 +20,7 @@ impl Projection<'_> {
             mir::ClassModifier::Open => mir::MirClassKindV1::Open,
             mir::ClassModifier::Abstract => mir::MirClassKindV1::Abstract,
         };
-        if !definition.type_arguments.is_empty() || kind.is_some_and(|kind| kind != actual_kind) {
+        if kind.is_some_and(|kind| kind != actual_kind) {
             return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
         }
         let base_count = match (base_class, source.base_and_interfaces().base) {

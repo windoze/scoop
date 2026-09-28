@@ -184,6 +184,7 @@ pub fn lower(
         Arena::new(),
         HashMap::new(),
         Vec::new(),
+        &[],
     ))
 }
 
@@ -195,6 +196,7 @@ fn lower_with_dependencies(
         (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
     >,
     imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
+    external_signature_types: &[hir::TypeId],
 ) -> mir::Module {
     let module = output.module();
     let shape_support = output.materialization().roots();
@@ -274,7 +276,7 @@ fn lower_with_dependencies(
         external_callables,
         imported_dependency_callable_map,
     }
-    .run(module, shape_support)
+    .run(module, shape_support, external_signature_types)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

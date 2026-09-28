@@ -1243,6 +1243,8 @@ class StringBuilder {
 
 `CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/8`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
 
+M23-7 的实际泛型存储将该 section 升至 `/9`，把已具体化 application 的类型事实接入原表；MIR 类型表示与 LIR 布局分别使用 `cross-cone-type-bridge/2` 和 `cross-cone-layout-abi/4`。普通字段与异常字段可以持有同一实际泛型表示，外部 initializer 的完整物理签名进入 MIR 类型登记；格式与阶段职责见实现规范 2.13，runtime C ABI 保持。
+
 - generic class可以继承`Throwable`；其每个exact application都是不同异常类型并拥有不同TypeDescriptor。`catch (e: Error<Int>)`只接收该exact application及普通派生class，`catch (e: Throwable)`仍可接收全部application；不存在`Error<*>`式通配catch。
 
 ### 11.8 迭代与区间

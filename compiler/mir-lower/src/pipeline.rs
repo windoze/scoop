@@ -9,6 +9,7 @@ impl Lowerer {
         mut self,
         module: &hir::Module,
         shape_support: &[scoop_hir::LocalShapeSupportRoot],
+        external_signature_types: &[hir::TypeId],
     ) -> mir::Module {
         // Struct / class / interface ids first (types can reference
         // any of them regardless of declaration order), then the temporary
@@ -38,6 +39,21 @@ impl Lowerer {
         // and the vtable both keep the base's as a prefix.
         let class_order = topo_class_order(module);
         self.fill_class_fields(module, &class_order);
+        for &ty in external_signature_types {
+            Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            }
+            .lower(
+                ty,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+        }
         self.lower_extern_functions(module);
 
         // Declare every fully concrete user function first, so calls resolve

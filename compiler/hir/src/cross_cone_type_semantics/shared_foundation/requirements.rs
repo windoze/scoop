@@ -10,6 +10,19 @@ pub(super) fn project(
     materialization: &NominalMaterializationClosure,
 ) -> Result<(), Error> {
     let types = replay.types;
+    for key in types.current.foundation.nominal_application_keys() {
+        let exact = scoop_identity::PersistentExactTypeId::from_key(&key)
+            .map_err(|error| Error::Key(error.to_string()))?;
+        replay.visit(exact)?;
+        let scoop_identity::ExactTypeKey::NominalApplication { origin, arguments } = key else {
+            unreachable!("nominal application keys")
+        };
+        let declaration = types.nominal_declaration(SourceNominalId::GenericTemplate(origin))?;
+        let bindings = [arguments.as_slice().to_vec()];
+        for field in declaration.source_shape().declared_fields() {
+            replay.visit(types.exact_with_bindings(field.value_type(), &bindings)?)?;
+        }
+    }
     for owner in materialization.sources() {
         if types.nominal_key(*owner)?.origin() != types.current.provider {
             return Err(Error::NominalOwner(*owner));

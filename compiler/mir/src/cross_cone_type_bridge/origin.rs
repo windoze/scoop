@@ -1,19 +1,26 @@
 use super::*;
-use scoop_identity::{DecodedGeneratedNominalKey, PersistentIdResolver};
+use scoop_identity::{
+    DecodedGeneratedNominalKey, NominalDeclarationOwner, PersistentGenericTypeId,
+    PersistentIdResolver,
+};
 
 /// Generated origins retain their canonical role and are never source aliases.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MirTypeOriginV1 {
     SourceNominal(PersistentTypeId),
+    NominalApplication(PersistentGenericTypeId),
     GeneratedNominal {
         nominal: PersistentTypeId,
         role: GeneratedNominalKey,
     },
 }
 impl MirTypeOriginV1 {
-    pub const fn nominal(&self) -> PersistentTypeId {
+    pub const fn owner(&self) -> NominalDeclarationOwner {
         match self {
-            Self::SourceNominal(nominal) | Self::GeneratedNominal { nominal, .. } => *nominal,
+            Self::SourceNominal(nominal) | Self::GeneratedNominal { nominal, .. } => {
+                NominalDeclarationOwner::Concrete(*nominal)
+            }
+            Self::NominalApplication(origin) => NominalDeclarationOwner::GenericTemplate(*origin),
         }
     }
 }
@@ -24,6 +31,11 @@ impl WireEncode for MirTypeOriginV1 {
                 tag(encoder, 2, 1)?;
                 encoder.field(1)?;
                 nominal.encode(encoder)
+            }
+            Self::NominalApplication(origin) => {
+                tag(encoder, 2, 3)?;
+                encoder.field(1)?;
+                origin.encode(encoder)
             }
             Self::GeneratedNominal { nominal, role } => {
                 tag(encoder, 3, 2)?;
@@ -38,6 +50,7 @@ impl WireEncode for MirTypeOriginV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedMirTypeOriginV1 {
     SourceNominal(DecodedPersistentId<PersistentTypeId>),
+    NominalApplication(DecodedPersistentId<PersistentGenericTypeId>),
     GeneratedNominal {
         nominal: DecodedPersistentId<PersistentTypeId>,
         role: DecodedGeneratedNominalKey,
@@ -52,6 +65,9 @@ impl DecodedMirTypeOriginV1 {
             Self::SourceNominal(nominal) => {
                 Ok(MirTypeOriginV1::SourceNominal(identities.resolve(nominal)?))
             }
+            Self::NominalApplication(origin) => Ok(MirTypeOriginV1::NominalApplication(
+                identities.resolve(origin)?,
+            )),
             Self::GeneratedNominal { nominal, role } => {
                 let nominal = identities.resolve(nominal)?;
                 if matches!(
@@ -95,6 +111,12 @@ impl WireDecode for DecodedMirTypeOriginV1 {
                     role: decoder.field(2, DecodedGeneratedNominalKey::decode)?,
                 })
             }
+            3 => {
+                fields(decoder, count, 2)?;
+                Ok(Self::NominalApplication(
+                    decoder.field(1, DecodedPersistentId::decode)?,
+                ))
+            }
             tag => Err(error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
@@ -106,6 +128,11 @@ impl WireEncode for DecodedMirTypeOriginV1 {
                 tag(encoder, 2, 1)?;
                 encoder.field(1)?;
                 nominal.encode(encoder)
+            }
+            Self::NominalApplication(origin) => {
+                tag(encoder, 2, 3)?;
+                encoder.field(1)?;
+                origin.encode(encoder)
             }
             Self::GeneratedNominal { nominal, role } => {
                 tag(encoder, 3, 2)?;

@@ -47,7 +47,7 @@ pub(super) fn produce(
     let concrete = source_inventory::from_required(output, &required, &materialization)?;
     let root_exacts = concrete.iter().map(|nominal| nominal.exact).collect();
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
-    let facts = facts::produce(export, local, &root_exacts, &fact_requirements)?;
+    let facts = facts::produce(local, &root_exacts, &fact_requirements)?;
     let mut representations = Vec::with_capacity(concrete.len());
     for nominal in &concrete {
         let source_id = SourceNominalId::Concrete(nominal.owner);

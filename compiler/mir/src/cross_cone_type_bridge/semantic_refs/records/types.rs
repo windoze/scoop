@@ -6,6 +6,9 @@ impl MirTypeBridgeSemanticReferencesV1 {
         graph: &ValidatedIdentityGraph,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
         let mut collector = Collector::new(graph);
+        if let MirTypeRepresentationV1::InlineArray { element } = record.representation() {
+            collector.field(*element)?;
+        }
 
         for field in record.representation().fields() {
             collector.field(field.value)?;

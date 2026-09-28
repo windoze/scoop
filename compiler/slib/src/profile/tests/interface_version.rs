@@ -13,10 +13,28 @@ fn source_interface_v34_requires_exact_nominal_storage_owners() {
 }
 
 #[test]
-fn type_semantics_v8_requires_actual_abstract_slot_targets() {
+fn type_semantics_v9_requires_actual_application_facts() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        8,
+        9,
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
+    );
+}
+
+#[test]
+fn mir_type_bridge_v2_requires_actual_application_representations() {
+    assert_retired_version(
+        mir_cross_cone_type_bridge_capability(),
+        2,
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
+    );
+}
+
+#[test]
+fn lir_layout_abi_v4_requires_application_definitions() {
+    assert_retired_version(
+        lir_cross_cone_layout_abi_capability(),
+        4,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
@@ -41,18 +59,21 @@ fn assert_retired_version(
 ) {
     let contract = CapabilityContractRegistry::contract(&current).unwrap();
     assert_eq!(current.major_version(), major);
-    assert_eq!(contract.location(), SectionLocation::Hir);
     assert_eq!(contract.required_for(), MemberPurposeSet::COMPILE);
-    assert_eq!(contract.sinks(), FingerprintSinkSet::HIR);
     for retired in 1..major {
         let old = CapabilityId::new(current.namespace(), current.name(), retired).unwrap();
         assert!(CapabilityContractRegistry::contract(&old).is_none());
         for profile in profiles {
             let descriptor = profile.descriptor();
+            let inventory = match contract.location() {
+                SectionLocation::Hir => descriptor.required_hir(),
+                SectionLocation::Mir => descriptor.required_mir(),
+                SectionLocation::Lir => descriptor.required_lir(),
+                SectionLocation::Manifest => panic!("expected a metadata capability"),
+            };
             for view in [ArtifactProfileView::Compile, ArtifactProfileView::Link] {
                 for purpose in [MemberPurposeSet::NONE, MemberPurposeSet::COMPILE_AND_LINK] {
-                    let mut sections = descriptor
-                        .required_hir()
+                    let mut sections = inventory
                         .iter()
                         .map(|capability| {
                             (
@@ -65,7 +86,7 @@ fn assert_retired_version(
                         .collect::<Vec<_>>();
                     sections.push((old.clone(), purpose));
                     assert!(
-                        matches!(super::super::validate_inventory(view, SectionLocation::Hir, descriptor.required_hir(), &sections, |s| &s.0, |s| s.1), Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. }) if *required == current && *actual == old)
+                        matches!(super::super::validate_inventory(view, contract.location(), inventory, &sections, |s| &s.0, |s| s.1), Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. }) if *required == current && *actual == old)
                     );
                 }
             }
