@@ -1041,6 +1041,8 @@ HIR 根据实际调用、构造、成员、类型操作和委托访问建立实�
 
 `lir/cross-cone-layout-abi/4` 的原 exact layout 与 descriptor 表接受上述 application 的实际 ODR 定义。registration fingerprint 根据原 definition plan 的 Strong/ODR owner 选择既有摘要节点，不能把 ODR registration 当成普通 Strong registration；同一 ODR 布局的多个物理 provider 可提供相同表示，引用保留各自真实定义位置。旧 `/3` 产物需重建，不新增第二套布局或 descriptor 格式。
 
+共有 LIR 语义闭包按 `(provider, target)` 保留实际记录；相同语义 target 只允许对应同一 ODR definition plan 的不同物理 provider，普通 Strong target 和同一 provider 内的重复记录仍拒绝。带 provider 的布局、descriptor、dispatch 与根引用必须解析到指定记录；只有未指定物理位置的语义引用按 Cone identity 的稳定顺序选择已有记录。闭包不提前丢弃物理候选，各产物内容已在各自读取边界核对，跨产物定义兼容性由原 ODR member 合并入口统一检查。
+
 MIR 对实际选中的外部调用登记完整物理签名的类型，包括 receiver、参数和结果；构造初始化器的 `Unit` 结果也必须进入原 exact type 表。类型直接由完整 HIR 的 exact identity 查询并沿既有类型 lowering 转换，不把未选中的 provider 声明变成机器根。LIR 据此分类调用 ABI，不从符号名猜测缺失类型。
 
 共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造模板迁移到 `/33`，字段实例位置迁移到 `/34`，委托模板后续迁移到 `/35`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。

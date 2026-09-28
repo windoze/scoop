@@ -11,30 +11,22 @@ pub(super) fn descriptor(
     value_layout(record.value_layout(), views, index, pending)?;
     instance_layout(record.instance_layout(), views, index, pending)?;
     if let Some(parent) = record.ancestry().parent() {
-        descriptor_ref(parent, views[owner].provider(), views, index, pending)?;
+        descriptor_ref(parent, views[owner].provider(), index, pending)?;
     }
     for interface in record.ancestry().interfaces() {
-        descriptor_ref(*interface, views[owner].provider(), views, index, pending)?;
+        descriptor_ref(*interface, views[owner].provider(), index, pending)?;
     }
     target(
         LayoutAbiSemanticTargetV1::Dispatch(record.dispatch().vtable()),
         Some(views[owner].provider()),
-        views,
         index,
         pending,
     )?;
     for table in record.dispatch().itables() {
-        descriptor_ref(
-            table.interface(),
-            views[owner].provider(),
-            views,
-            index,
-            pending,
-        )?;
+        descriptor_ref(table.interface(), views[owner].provider(), index, pending)?;
         target(
             LayoutAbiSemanticTargetV1::Dispatch(table.table()),
             Some(views[owner].provider()),
-            views,
             index,
             pending,
         )?;
@@ -52,7 +44,6 @@ pub(super) fn dispatch(
     target(
         LayoutAbiSemanticTargetV1::Descriptor(record.owner_exact()),
         Some(views[owner].provider()),
-        views,
         index,
         pending,
     )?;
@@ -60,7 +51,6 @@ pub(super) fn dispatch(
         target(
             LayoutAbiSemanticTargetV1::Descriptor(interface_exact),
             None,
-            views,
             index,
             pending,
         )?;
@@ -74,7 +64,6 @@ pub(super) fn dispatch(
         target(
             LayoutAbiSemanticTargetV1::Callable(entry.implementation().target()),
             Some(provider),
-            views,
             index,
             pending,
         )?;
@@ -87,7 +76,6 @@ pub(super) fn dispatch(
 
 pub(super) fn shape_support(
     record: &crate::ParamFreeShapeSupportExportV1,
-    views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     pending: &mut Vec<Pending>,
 ) -> Result<(), LayoutAbiSemanticClosureError> {
@@ -97,7 +85,6 @@ pub(super) fn shape_support(
         target(
             LayoutAbiSemanticTargetV1::Layout(layout.semantic_id()),
             Some(provider),
-            views,
             index,
             pending,
         )?;
@@ -106,7 +93,6 @@ pub(super) fn shape_support(
         target(
             LayoutAbiSemanticTargetV1::Descriptor(descriptor.semantic_id()),
             Some(provider),
-            views,
             index,
             pending,
         )?;
@@ -122,14 +108,12 @@ pub(super) fn shape_support(
         target(
             LayoutAbiSemanticTargetV1::Layout(support.layout().semantic_id()),
             Some(provider),
-            views,
             index,
             pending,
         )?;
         target(
             LayoutAbiSemanticTargetV1::Descriptor(support.descriptor().semantic_id()),
             Some(provider),
-            views,
             index,
             pending,
         )?;

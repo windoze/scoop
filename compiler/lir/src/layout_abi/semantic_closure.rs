@@ -31,7 +31,7 @@ pub(super) fn close<'a>(
     let index = LayoutAbiTargetIndex::build(&views)?;
     let mut pending = Vec::new();
     local.visit_targets(|target| push(&mut pending, Pending { owner: 0, target }))?;
-    enqueue_roots(consumer, &views, &index, roots, &mut pending)?;
+    enqueue_roots(consumer, &index, roots, &mut pending)?;
     collect(&views, &index, pending, Some(0))
 }
 
@@ -50,7 +50,7 @@ pub(super) fn close_external(
     views.extend_from_slice(dependencies);
     let index = LayoutAbiTargetIndex::build(&views)?;
     let mut pending = Vec::new();
-    enqueue_roots(consumer, &views, &index, roots, &mut pending)?;
+    enqueue_roots(consumer, &index, roots, &mut pending)?;
     collect(&views, &index, pending, None)
 }
 
@@ -63,7 +63,6 @@ fn validate_roots(roots: &[LayoutAbiDependencyV1]) -> Result<(), LayoutAbiSemant
 
 fn enqueue_roots(
     consumer: ConeIdentity,
-    views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     roots: &[LayoutAbiDependencyV1],
     pending: &mut Vec<Pending>,
@@ -74,8 +73,7 @@ fn enqueue_roots(
                 relation.target(),
             ));
         }
-        let owner = index.owner(relation.target())?;
-        require_provider(views, owner, relation.provider(), relation.target())?;
+        let owner = index.owner(relation.target(), Some(relation.provider()))?;
         push(
             pending,
             Pending {
@@ -124,22 +122,4 @@ fn push(pending: &mut Vec<Pending>, value: Pending) -> Result<(), LayoutAbiSeman
     scoop_wire::allocation::try_reserve(pending, 1, &WirePath::root())?;
     pending.push(value);
     Ok(())
-}
-
-fn require_provider(
-    views: &[&LayoutAbiExportConstituentsV1],
-    owner: usize,
-    expected: ConeIdentity,
-    target: LayoutAbiSemanticTargetV1,
-) -> Result<(), LayoutAbiSemanticClosureError> {
-    let actual = views[owner].provider();
-    if actual == expected {
-        Ok(())
-    } else {
-        Err(LayoutAbiSemanticClosureError::Provider {
-            target,
-            expected,
-            actual,
-        })
-    }
 }

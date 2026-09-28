@@ -184,6 +184,8 @@ value/ref、GC-free、enum variant facts、ZST 和 `Option` niche 在 concrete �
 
 物理 producer 和 semantic owner 分开。普通 Strong 引用携带真实定义方；ODR 引用携带 group/member。reader 可以记录某个物理候选所在 provider，但该候选位置不进入 ODR identity 或 canonical relocation。
 
+共有布局语义闭包保存 `(provider, target)`，允许同一 ODR definition plan 在不同 Cone 各有一份记录。指定 provider 的引用必须保留该定义位置，普通 Strong target 和同一 provider 内的重复仍拒绝；跨产物内容兼容性继续由共有 ODR member 合并入口检查，不在语义索引中先选 winner 或重算内容摘要。
+
 ### 5.2 每次物化的必要闭包
 
 “按需发射”不意味着可以产生残缺记录：

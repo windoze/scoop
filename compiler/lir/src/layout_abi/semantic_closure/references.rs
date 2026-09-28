@@ -23,7 +23,7 @@ pub(super) fn enqueue(
         | LayoutAbiSemanticRecordV1::Callable(_)
         | LayoutAbiSemanticRecordV1::DirectCallable(_) => Ok(()),
         LayoutAbiSemanticRecordV1::ShapeSupport(record) => {
-            records::shape_support(record, views, index, pending)
+            records::shape_support(record, index, pending)
         }
     }
 }

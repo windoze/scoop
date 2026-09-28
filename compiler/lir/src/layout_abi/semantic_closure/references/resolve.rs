@@ -33,7 +33,6 @@ pub(super) fn instance_layout(
 pub(super) fn descriptor_ref(
     reference: crate::StrongTypeDescriptorRefV2,
     current: ConeIdentity,
-    views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     pending: &mut Vec<Pending>,
 ) -> Result<(), LayoutAbiSemanticClosureError> {
@@ -46,7 +45,6 @@ pub(super) fn descriptor_ref(
     target(
         LayoutAbiSemanticTargetV1::Descriptor(exact),
         Some(provider),
-        views,
         index,
         pending,
     )
@@ -64,7 +62,6 @@ fn exact_record(
     let owner = target(
         semantic,
         Some(identity.physical_definition().provider()),
-        views,
         index,
         pending,
     )?;
@@ -81,14 +78,10 @@ fn exact_record(
 pub(super) fn target(
     target: LayoutAbiSemanticTargetV1,
     expected_provider: Option<ConeIdentity>,
-    views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     pending: &mut Vec<Pending>,
 ) -> Result<usize, LayoutAbiSemanticClosureError> {
-    let owner = index.owner(target)?;
-    if let Some(expected) = expected_provider {
-        require_provider(views, owner, expected, target)?;
-    }
+    let owner = index.owner(target, expected_provider)?;
     push(pending, Pending { owner, target })?;
     Ok(owner)
 }

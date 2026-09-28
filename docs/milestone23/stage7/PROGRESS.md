@@ -326,11 +326,20 @@
 
 本次按用户要求提交当前工作进度。实际泛型表示已进入共有类型与布局通道，产物语义闭包仍须继续补齐；消费方构造、继承与完整派发及其余阶段验收尚未完成，M23-7 仍未完成。
 
+## 2026-09-28：共有 ODR 布局引用恢复真实异常产物发布
+
+- LIR 语义闭包按实际 `(provider, target)` 保留记录，同一 ODR definition plan 可有多个物理提供方。带 provider 的根、布局、descriptor 和 dispatch 引用精确选择原记录；未指定物理位置的语义引用按 Cone identity 稳定选择。普通 Strong target、同一 provider 内的重复及错误 provider 仍拒绝。跨产物内容兼容性继续由原 ODR member 合并入口检查，没有新增 wire、摘要算法或重复内容校验。
+- 原 `runtime_exception_storage_is_materialized_before_mir_and_publication` 回归的六个源码用例全部完成 core 消费和正式产物发布。四份此前缺失的 MIR golden 已从真实输出生成并逐份核对：`Option<String>` 异常存储、失败分支的 class 分配、外部 initializer、throw、默认实参展开及有符号除法的溢出分支均保留；两个不执行隐式异常路径的已有快照保持。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过。全部 465 项 LIR 测试通过，关闭快照更新开关后的六用例发布回归通过；本项未重跑全部工作区测试，也不替代链接运行与移动 GC 验收。
+- 泛型 payload 消费仍在 standalone 的 MIR 依赖闭包失败。已通过原 exact identity 定位缺项为消费方 `consumer.nominals.Number`：该类型用于 `Parcel<Number>` 的实际 payload，却未进入共有 MIR 表示清单。临时定位输出已删除，下一步补齐这类实际存储依赖所需的私有支持声明，保持原可见性和 typed identity。
+
+本项完成重复 ODR 布局的物理引用处理及原异常存储的产物发布回归；M23-7 的其余主线继续实施。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化模板的实际消费，以及 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 补齐共有 LIR 语义闭包对重复 ODR 布局的处理，以及消费方泛型 payload 的 MIR 类型依赖，恢复原 core 异常和消费方的真实发布运行回归；继续完成消费方泛型名义类型的构造、继承、属性、dispatch、ZST/大值/引用 ABI 与递归扫描程序的实际对象 atom。
+3. 补齐消费方泛型 payload 的 MIR 类型依赖，恢复其真实发布、链接运行回归；继续完成消费方泛型名义类型的构造、继承、属性、dispatch、ZST/大值/引用 ABI 与递归扫描程序的实际对象 atom。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
