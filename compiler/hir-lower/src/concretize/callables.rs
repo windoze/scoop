@@ -432,6 +432,13 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::FieldRef {
         match source {
+            export::FieldRef::ImportedClass { owner, field } => {
+                let ty = self.lower_type(owner, substitution);
+                let concrete::TypeKind::Class(class_id) = self.types[ty].kind else {
+                    unreachable!("a dependency class field retains its class owner")
+                };
+                self.imported_class_field_ref(class_id, field)
+            }
             export::FieldRef::ImportedStruct { owner, field } => {
                 let ty = self.lower_type(owner, substitution);
                 let concrete::TypeKind::Struct(structure) = self.types[ty].kind else {

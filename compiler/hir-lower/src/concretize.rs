@@ -20,6 +20,7 @@ mod closures;
 mod constructor_slots;
 mod constructor_work;
 mod functions;
+mod imported_constructors;
 mod imported_functions;
 mod imported_nominals;
 mod initialization;
@@ -173,13 +174,23 @@ struct Concretizer<'a> {
     class_source: HashMap<concrete::ClassId, export::ClassId>,
     object_by_backing_class: HashMap<export::ClassId, export::ObjectId>,
     class_constructor_slots: Vec<Option<PendingClassConstructor>>,
-    class_constructor_keys: Vec<(export::ClassConstructorId, concrete::ClassId)>,
-    class_constructor_by_key:
-        HashMap<(export::ClassConstructorId, concrete::ClassId), concrete::ClassConstructorId>,
+    class_constructor_keys: Vec<(constructor_work::ClassConstructorSource, concrete::ClassId)>,
+    class_constructor_by_key: HashMap<
+        (constructor_work::ClassConstructorSource, concrete::ClassId),
+        concrete::ClassConstructorId,
+    >,
     struct_constructor_slots: Vec<Option<PendingStructConstructor>>,
-    struct_constructor_keys: Vec<(export::StructConstructorId, concrete::StructId)>,
-    struct_constructor_by_key:
-        HashMap<(export::StructConstructorId, concrete::StructId), concrete::StructConstructorId>,
+    struct_constructor_keys: Vec<(
+        constructor_work::StructConstructorSource,
+        concrete::StructId,
+    )>,
+    struct_constructor_by_key: HashMap<
+        (
+            constructor_work::StructConstructorSource,
+            concrete::StructId,
+        ),
+        concrete::StructConstructorId,
+    >,
     extern_functions: Arena<concrete::ExternFunction>,
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
     globals: Arena<concrete::Global>,

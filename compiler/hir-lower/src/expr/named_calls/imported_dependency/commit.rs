@@ -223,19 +223,33 @@ impl Lowerer {
                 }
                 ImportedCallableCandidate::Declaration(_) => None,
             };
-            let application =
-                self.imported_generic_applications
-                    .alloc(hir::ImportedGenericCallableApplication {
-                        template,
-                        arguments,
-                    });
+            let kind = match template {
+                super::generic::ImportedGenericTarget::Function(template) => {
+                    let application = self.imported_generic_applications.alloc(
+                        hir::ImportedGenericCallableApplication {
+                            template,
+                            arguments,
+                        },
+                    );
+                    hir::ExprKind::ImportedGenericCall {
+                        application,
+                        binding,
+                        args,
+                        receiver: source_receiver,
+                    }
+                }
+                super::generic::ImportedGenericTarget::Constructor(template) => {
+                    let application = self.imported_constructor_applications.alloc(
+                        hir::ImportedConstructorApplication {
+                            template,
+                            owner: result_type,
+                        },
+                    );
+                    hir::ExprKind::ImportedConstructorInit { application, args }
+                }
+            };
             return Some(hir::Expr {
-                kind: hir::ExprKind::ImportedGenericCall {
-                    application,
-                    binding,
-                    args,
-                    receiver: source_receiver,
-                },
+                kind,
                 ty: result_type,
                 span: call_span,
                 origin: self.expression_origin(call_span),

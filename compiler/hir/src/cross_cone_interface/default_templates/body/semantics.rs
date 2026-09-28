@@ -48,7 +48,7 @@ impl ExportDefaultBodyV1 {
         V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
         E: From<WireError>,
     {
-        walk::visit_definition_sources(self, visitor, path)
+        walk::visit_definition_sources(self, visitor, &mut |_, _| Ok(()), path)
     }
 }
 
@@ -68,6 +68,7 @@ impl crate::ExportGenericCallableBodyV1 {
         walk::visit_statement_sources(
             self.statements(),
             &mut |source, _, _| visitor(source),
+            &mut |_, _| Ok(()),
             &path.clone().field(4),
         )
     }
@@ -84,7 +85,96 @@ impl crate::ExportTemplateFragmentV1 {
                 visitor(origin)?;
             }
         }
-        walk::visit_fragment_sources(self, &mut |source, _, _| visitor(source), path)
+        walk::visit_fragment_sources(
+            self,
+            &mut |source, _, _| visitor(source),
+            &mut |_, _| Ok(()),
+            path,
+        )
+    }
+}
+
+impl ExportDefaultBodyV1 {
+    pub(crate) fn visit_evaluation_origins<V, E>(
+        &self,
+        visitor: &mut V,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(&scoop_identity::EvaluationOrigin) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        walk::visit_definition_sources(
+            self,
+            &mut |_, _, _| Ok(()),
+            &mut |source, _| visitor(source),
+            path,
+        )
+    }
+}
+
+impl crate::ExportGenericCallableBodyV1 {
+    pub(crate) fn visit_evaluation_origins<V, E>(
+        &self,
+        visitor: &mut V,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(&scoop_identity::EvaluationOrigin) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        walk::visit_statement_sources(
+            self.statements(),
+            &mut |_, _, _| Ok(()),
+            &mut |source, _| visitor(source),
+            path,
+        )
+    }
+}
+
+impl crate::ExportTemplateFragmentV1 {
+    pub(crate) fn visit_evaluation_origins<V, E>(
+        &self,
+        visitor: &mut V,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(&scoop_identity::EvaluationOrigin) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        walk::visit_fragment_sources(
+            self,
+            &mut |_, _, _| Ok(()),
+            &mut |source, _| visitor(source),
+            path,
+        )
+    }
+}
+
+impl crate::CrossConeHirInterfaceSectionV1 {
+    pub fn visit_template_evaluation_origins<V, E>(
+        &self,
+        visitor: &mut V,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(&scoop_identity::EvaluationOrigin) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        for template in self.default_templates().records() {
+            template
+                .body()
+                .visit_evaluation_origins(visitor, &path.clone().field(7))?;
+        }
+        for body in self.generic_callable_bodies().records() {
+            body.visit_evaluation_origins(visitor, &path.clone().field(11))?;
+        }
+        for initialization in self.generic_initializations().records() {
+            for fragment in initialization.fragments() {
+                fragment.visit_evaluation_origins(visitor, &path.clone().field(12))?;
+            }
+        }
+        Ok(())
     }
 }
 

@@ -349,20 +349,64 @@ fn explicit_optional_expression_sum_round_trips() {
 
 #[test]
 fn expression_decoder_rejects_unknown_tags_and_non_exact_sums() {
-    let error =
-        decode_canonical::<DecodedDefaultExpressionV1>(&[0xa3, 0x01, 0xa1, 0x00, 0x18, 0xff, 0])
-            .unwrap_err();
+    let fixture = Fixture::new();
+    let bytes = encode(&unit(&fixture).index_locals(&mut fixture.locals()).unwrap()).unwrap();
+    let mut unknown = bytes.clone();
+    unknown.splice(4..5, [0x18, 0xff]);
+    let error = decode_canonical::<DecodedDefaultExpressionV1>(&unknown).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 255 });
 
-    let error = decode_canonical::<DecodedDefaultExpressionV1>(&[
-        0xa3, 0x01, 0xa2, 0x00, 0x04, 0x01, 0x00, 0,
-    ])
-    .unwrap_err();
+    let mut extra = bytes;
+    extra[2] = 0xa2;
+    let error = decode_canonical::<DecodedDefaultExpressionV1>(&extra).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
             expected: 1,
             actual: 2,
+        }
+    );
+}
+
+#[test]
+fn expression_keeps_its_distinct_evaluation_location_and_requires_both_origins() {
+    use scoop_identity::{EvaluationOrigin, SourceContextKey, SourceSpan};
+    let fixture = Fixture::new();
+    let definition = fixture.origin();
+    let source = definition.origin().source().clone();
+    let evaluation = EvaluationOrigin::new(
+        source.clone(),
+        SourceSpan::new(11, 16).unwrap(),
+        &SourceContextKey::File { source },
+    )
+    .unwrap();
+    let expression = DefaultExpressionV1::try_new(
+        DefaultExpressionKindV1::UnitLiteral,
+        fixture.value_type(),
+        definition.clone(),
+        evaluation.clone(),
+    )
+    .unwrap();
+    let bytes = encode(&expression.index_locals(&mut fixture.locals()).unwrap()).unwrap();
+    let decoded: DecodedDefaultExpressionV1 = decode_canonical(&bytes).unwrap();
+    let resolved = decoded
+        .resolve(&mut fixture.resolver(), &mut fixture.locals())
+        .unwrap();
+    assert_eq!(resolved.definition_origin(), &definition);
+    assert_eq!(resolved.evaluation_origin(), &evaluation);
+    assert_ne!(
+        resolved.evaluation_origin().span(),
+        resolved.definition_origin().origin().span()
+    );
+    let mut missing = bytes[..bytes.len() - encode(&evaluation).unwrap().len() - 1].to_vec();
+    missing[0] = 0xa3;
+    assert_eq!(
+        decode_canonical::<DecodedDefaultExpressionV1>(&missing)
+            .unwrap_err()
+            .kind(),
+        &WireErrorKind::InvalidLength {
+            expected: 4,
+            actual: 3
         }
     );
 }
@@ -382,6 +426,7 @@ fn expression_builders_enforce_constructor_and_declaration_domains() {
             },
             fixture.value_type(),
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         ),
         Err(DefaultExpressionBuildError::StructInitRequiresStructConstructor)
     );
@@ -411,6 +456,7 @@ fn expression_builders_enforce_constructor_and_declaration_domains() {
             },
             fixture.value_type(),
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         ),
         Err(DefaultExpressionBuildError::UnsupportedLocalFunctionDeclaration(local_declaration))
     );
@@ -429,7 +475,13 @@ fn canonical_boolean_payload_is_not_cbor_boolean() {
 }
 
 fn expression(kind: DefaultExpressionKindV1, fixture: &Fixture) -> DefaultExpressionV1 {
-    DefaultExpressionV1::try_new(kind, fixture.value_type(), fixture.origin()).unwrap()
+    DefaultExpressionV1::try_new(
+        kind,
+        fixture.value_type(),
+        fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
+    )
+    .unwrap()
 }
 
 fn unit(fixture: &Fixture) -> DefaultExpressionV1 {
@@ -465,7 +517,7 @@ fn cast_wire_requires_a_checked_type_before_the_optional_flag() {
     // declares only the tag, operand and optional flag, so it is rejected
     // before any missing target could be inferred from the result type.
     let mut retired = bytes;
-    assert_eq!(&retired[..6], &[0xa3, 1, 0xa4, 0, 0x18, 37]);
+    assert_eq!(&retired[..6], &[0xa4, 1, 0xa4, 0, 0x18, 37]);
     retired[2] = 0xa3;
     let error = decode_canonical::<DecodedDefaultExpressionV1>(&retired).unwrap_err();
     assert_eq!(error.path(), &scoop_wire::WirePath::root().field(1));

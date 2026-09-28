@@ -185,6 +185,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::ImportedVariantConstruct { args: elements, .. }
         | hir::ExprKind::Call { args: elements, .. }
         | hir::ExprKind::ImportedDependencyCall { args: elements, .. }
+        | hir::ExprKind::ImportedConstructorInit { args: elements, .. }
         | hir::ExprKind::ImportedGenericCall { args: elements, .. } => {
             for element in elements {
                 patch_local_function_call_expr(element, target, target_captures);
@@ -323,6 +324,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
+        | hir::ExprKind::ConstructorReceiver
         | hir::ExprKind::ConstructorParam(_)
         | hir::ExprKind::InitializingClassFieldAccess { .. }
         | hir::ExprKind::InitializingStructFieldAccess { .. }

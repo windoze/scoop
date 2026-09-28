@@ -40,6 +40,23 @@ impl CanonicalHirFoundation {
                 ));
             }
         }
+        let mut evaluations = Vec::new();
+        interface
+            .visit_template_evaluation_origins(
+                &mut |origin| {
+                    scoop_wire::allocation::try_reserve(&mut evaluations, 1, &path)?;
+                    evaluations.push(origin.clone());
+                    Ok::<_, scoop_wire::WireError>(())
+                },
+                &path,
+            )
+            .map_err(resource)?;
+        locations.extend(evaluations.iter().map(|origin| {
+            (
+                origin.source(),
+                [origin.span().start_byte(), origin.span().end_byte()],
+            )
+        }));
         let definitions = interface.definition_sources().sources();
         self.set_sources(super::source_points::source_records_with_locations(
             &export.source_files,

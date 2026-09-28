@@ -93,6 +93,13 @@ impl ImportedCallableCandidate {
 }
 
 impl ImportedCallableSource for ImportedCallableCandidate {
+    fn source_location(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<hir::ImportedDependencyDefinitionSource<'_>> {
+        self.source().source_location(source, context)
+    }
     fn callable_body(&self) -> Option<&hir::ExportGenericCallableBodyV1> {
         self.source().callable_body()
     }

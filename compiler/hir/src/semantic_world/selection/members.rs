@@ -28,9 +28,21 @@ pub trait ImportedCallableSource {
         &self,
         source: &ExportDefinitionSourceV1,
     ) -> Option<ImportedDependencyDefinitionSource<'_>>;
+    fn source_location(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<ImportedDependencyDefinitionSource<'_>>;
 }
 
 impl ImportedCallableSource for ImportedDependencyCallableCandidate {
+    fn source_location(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<ImportedDependencyDefinitionSource<'_>> {
+        self.definition_sources.resolve_location(source, context)
+    }
     fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
         self.callable_body()
     }
@@ -75,6 +87,14 @@ pub struct ImportedCallableDeclaration {
 }
 
 impl ImportedCallableDeclaration {
+    pub fn source_context(
+        &self,
+        key: &scoop_identity::SourceContextKey,
+    ) -> Option<&scoop_identity::SourceContextKey> {
+        let id = scoop_identity::PersistentSourceContextId::from_key(key).ok()?;
+        self.definition_sources.contexts.get(&id)
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -85,6 +105,13 @@ impl ImportedCallableDeclaration {
 }
 
 impl ImportedCallableSource for ImportedCallableDeclaration {
+    fn source_location(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<ImportedDependencyDefinitionSource<'_>> {
+        self.definition_sources.resolve_location(source, context)
+    }
     fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
         self.callable_body.as_deref()
     }

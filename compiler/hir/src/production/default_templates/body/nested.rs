@@ -168,6 +168,9 @@ impl BodyProjection<'_, '_> {
             crate::ExprKind::Local(local) => {
                 crate::DefaultCaptureSourceV1::Local(self.local(*local)?)
             }
+            crate::ExprKind::ConstructorParam(parameter) => {
+                crate::DefaultCaptureSourceV1::Local(self.locals.constructor_parameter(*parameter)?)
+            }
             crate::ExprKind::Capture(binding) if *binding == capture.binding => {
                 self.locals.capture_source(*binding)?
             }

@@ -112,7 +112,13 @@ fn expression(
     result_type: SignatureTypeKey,
     origin: ExportDefinitionSourceV1,
 ) -> DefaultExpressionV1 {
-    DefaultExpressionV1::try_new(kind, result_type, origin).unwrap()
+    DefaultExpressionV1::try_new(
+        kind,
+        result_type,
+        origin.clone(),
+        scoop_identity::EvaluationOrigin::at_definition(origin.origin()),
+    )
+    .unwrap()
 }
 
 const fn binder(depth: u32, index: u32) -> SignatureTypeKey {

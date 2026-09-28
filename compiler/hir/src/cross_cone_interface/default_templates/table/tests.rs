@@ -128,6 +128,7 @@ pub(super) fn template(fixture: &Fixture, position: u32) -> ExportDefaultTemplat
             DefaultExpressionKindV1::UnitLiteral,
             result.clone(),
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         )
         .unwrap(),
     )

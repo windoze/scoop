@@ -115,7 +115,8 @@ impl ReferenceCollector<'_> {
 
     pub(super) fn field_use(&mut self, field: hir::FieldRef, origin: hir::DefinitionOrigin) {
         let owner = match field {
-            hir::FieldRef::ImportedStruct { owner, .. } => Some(owner),
+            hir::FieldRef::ImportedStruct { owner, .. }
+            | hir::FieldRef::ImportedClass { owner, .. } => Some(owner),
             hir::FieldRef::StructField(field) => {
                 Some(self.lowerer.struct_applications[field.application()].canonical_type)
             }

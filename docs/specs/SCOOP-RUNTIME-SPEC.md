@@ -425,6 +425,8 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 
 M23-7 的实际泛型存储将该 section 升至 `/9`，并沿 MIR `cross-cone-type-bridge/3`、LIR `cross-cone-layout-abi/5` 传递实际表示、完整派发及 Strong/ODR callable 定义。物理 shape 引用使用 `cross-cone-layout-link-closure/3`。异常字段复用这条布局与 GC 路径，外部 initializer 保留完整物理签名；registration 使用原 definition plan 所属的 Strong 或 ODR 摘要节点。格式与阶段职责见实现规范 2.13，本项不修改 runtime C ABI。
 
+共享可移植表达式在 `hir/cross-cone-interface/35` 保存原 `EvaluationOrigin`，使泛型构造委托等正文中已展开的默认值保留实际求值位置；普通默认参数使用仍按本次使用点展开。格式与读取规则见实现规范 2.13 和 M23-7 设计第 10 节。此调整要求旧产物与缓存重建，不改变 runtime C ABI、布局或 GC 契约。
+
 ### 5.1 Scoop exception record 与抛出
 
 - M25起异常runtime只建立在Itanium Level I unwind接口上，不使用C++ ABI。runtime私有的`ScoopExceptionRecord`包含恰好一个满足目标对齐要求的`_Unwind_Exception`、catch/rethrow/lifetime元数据，以及按对象TypeDescriptor大小和对齐保存的Scoop对象payload；各部分的具体offset不属于生成代码ABI，raw unwind pointer与payload之间只能经runtime入口转换。

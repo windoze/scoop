@@ -222,6 +222,7 @@ fn nested_statement_index_errors_keep_the_full_path() {
         }),
         fixture.value_type(),
         fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
     )
     .unwrap();
     let nested = statement(
@@ -411,6 +412,7 @@ fn unit(fixture: &Fixture) -> DefaultExpressionV1 {
         DefaultExpressionKindV1::UnitLiteral,
         fixture.value_type(),
         fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
     )
     .unwrap()
 }

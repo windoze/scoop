@@ -11,6 +11,7 @@ impl ReferenceCollector<'_> {
             | hir::ExprKind::IntegerLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
             | hir::ExprKind::UnitLiteral
+            | hir::ExprKind::ConstructorReceiver
             | hir::ExprKind::ConstructorParam(_)
             | hir::ExprKind::Local(_)
             | hir::ExprKind::Capture(_)
@@ -256,6 +257,18 @@ impl ReferenceCollector<'_> {
                 if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                     self.type_reference(*static_type, origin);
                 }
+            }
+            hir::ExprKind::ImportedConstructorInit { application, args } => {
+                let application = &self.lowerer.imported_constructor_applications[*application];
+                let template = &self.lowerer.imported_constructor_templates[application.template];
+                self.constructor_use(
+                    hir::ExportDefaultConstructorTarget::Imported {
+                        declaration: template.signature.declaration,
+                        owner_type: application.owner,
+                    },
+                    origin,
+                );
+                self.expressions(args);
             }
             hir::ExprKind::ImportedGenericCall {
                 application,

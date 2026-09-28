@@ -222,6 +222,7 @@ fn body(
         DefaultExpressionKindV1::Local(fixture.local()),
         fixture.value_type(),
         fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
     )
     .unwrap();
     ExportGenericCallableBodyV1::try_new(

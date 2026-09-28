@@ -41,6 +41,7 @@ pub(super) fn replace(
                 value.kind().clone(),
                 template.result().clone(),
                 origin.clone(),
+                scoop_identity::EvaluationOrigin::at_definition(origin.origin()),
             )
             .unwrap(),
         )

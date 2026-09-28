@@ -12,14 +12,60 @@ impl CallableIdentityBuilder<'_> {
                 CallableInstantiationOwner::NoOwner,
                 arguments,
             ),
+            export::ImportedCallableTemplateOrigin::Nominal {
+                declaration,
+                owner,
+                owner_parameter_count,
+            } => {
+                let key = (owner, arguments[..owner_parameter_count].to_vec());
+                let owner = if let Some(class) = self.concretizer.imported_classes.get(&key) {
+                    self.concretizer.class_type[class]
+                } else if let Some(structure) = self.concretizer.imported_structs.get(&key) {
+                    self.concretizer.struct_type[structure]
+                } else if let Some(enumeration) = self.concretizer.imported_enums.get(&key) {
+                    self.concretizer.enum_type[enumeration]
+                } else {
+                    let interface = self.concretizer.imported_interfaces[&key];
+                    self.concretizer.interface_type[&interface]
+                };
+                let template = match declaration {
+                    export::DefaultCallableDeclarationV1::Function(id) => {
+                        SourceTemplate::Function(id)
+                    }
+                    export::DefaultCallableDeclarationV1::GenericFunction(id) => {
+                        SourceTemplate::GenericFunction(id)
+                    }
+                    export::DefaultCallableDeclarationV1::PropertyAccessor(id) => {
+                        SourceTemplate::Accessor {
+                            id,
+                            extension: false,
+                        }
+                    }
+                    export::DefaultCallableDeclarationV1::Generated(_) => {
+                        unreachable!("nominal source bodies have source declarations")
+                    }
+                };
+                self.source_materialization(
+                    template,
+                    CallableInstantiationOwner::ExactNominalOwner(self.exact_types[owner].id()),
+                    &arguments[owner_parameter_count..],
+                )
+            }
             export::ImportedCallableTemplateOrigin::Local { parent, descriptor } => {
                 let inherited = descriptor.owner_type_parameter_count() as usize;
-                let parent_key = FunctionKey::Imported {
-                    source: parent,
-                    arguments: arguments[..inherited].to_vec(),
+                let parent = match parent {
+                    export::ImportedCallableTemplateParent::Function(parent) => {
+                        let parent_key = FunctionKey::Imported {
+                            source: parent,
+                            arguments: arguments[..inherited].to_vec(),
+                        };
+                        let parent_id = self.concretizer.function_by_key[&parent_key];
+                        self.resolve_function(parent_id.into_raw().into_u32() as usize)
+                    }
+                    export::ImportedCallableTemplateParent::Constructor(parent) => {
+                        self.imported_constructor_materialization(parent, &arguments[..inherited])
+                    }
                 };
-                let parent_id = self.concretizer.function_by_key[&parent_key];
-                let parent = self.resolve_function(parent_id.into_raw().into_u32() as usize);
                 let owner = match parent.context() {
                     CallableMaterializationContext::NoSubstitution => {
                         CallableInstantiationOwner::NoOwner

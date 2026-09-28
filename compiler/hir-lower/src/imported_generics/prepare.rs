@@ -5,20 +5,41 @@ impl Lowerer {
     pub(super) fn prepare_imported_generic(
         &mut self,
         declaration: hir::ImportedCallableDeclaration,
-        identity: scoop_identity::PersistentGenericFunctionId,
+        identity: hir::ImportedCallableTemplateOrigin,
     ) -> Result<PreparedImportedGeneric, String> {
         let body = declaration
             .callable_body()
             .ok_or("dependency generic callable has no body")?;
         let interface = declaration.interface();
-        if body.owner() != hir::DefaultCallableDeclarationV1::GenericFunction(identity)
+        if body.owner() != identity.body_owner()
             || body.effects() != interface.effects()
             || body.result() != interface.result()
         {
             return Err("dependency callable body does not match its declaration header".into());
         }
-        let declared_parameters = interface
-            .receiver()
+        let nominal = match &identity {
+            hir::ImportedCallableTemplateOrigin::Nominal { owner, .. } => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_declaration(*owner))
+                .cloned(),
+            _ => None,
+        };
+        let receiver_signature = if nominal.is_some() {
+            Some(
+                body.locals()
+                    .get(
+                        body.parameters()
+                            .first()
+                            .ok_or("nominal member is missing its receiver")?,
+                    )
+                    .expect("validated parameters name body locals")
+                    .value_type(),
+            )
+        } else {
+            interface.receiver()
+        };
+        let declared_parameters = receiver_signature
             .into_iter()
             .chain(
                 interface
@@ -45,7 +66,12 @@ impl Lowerer {
         let source = PreparedImportedCallableSource::Declaration(Box::new(declaration.clone()));
         let origin = self.import_generic_definition(&source, body.definition_origin())?;
         let span = origin.span;
-        let binders = declaration.interface().type_parameters().binders();
+        let binders = nominal
+            .as_ref()
+            .into_iter()
+            .flat_map(|nominal| nominal.interface.type_parameters().binders())
+            .chain(declaration.interface().type_parameters().binders())
+            .collect::<Vec<_>>();
         if binders.len() != body.type_parameters().arguments().len() {
             return Err(
                 "dependency callable signature and body have different binder arity".into(),
@@ -77,12 +103,8 @@ impl Lowerer {
             });
         }
         let (mut locals, selectors) = self.imported_body_locals(&source, &bindings)?;
-        let source_parameters = declaration
-            .source_interface()
-            .ok_or("dependency callable is missing its source parameters")?
-            .parameters()
-            .parameters();
-        let receiver_count = usize::from(interface.receiver().is_some());
+        let source_parameters = interface.parameters().parameters();
+        let receiver_count = usize::from(receiver_signature.is_some());
         let parameters = body
             .parameters()
             .iter()
@@ -106,16 +128,14 @@ impl Lowerer {
                 }
             })
             .collect::<Vec<_>>();
-        let receiver = declaration
-            .interface()
-            .receiver()
+        let receiver = receiver_signature
             .map(|ty| self.imported_generic_type(ty, &bindings))
             .transpose()?;
         let return_type = self.imported_generic_type(body.result(), &bindings)?;
         let (no_gc_type_params, gc_free_pointee_requirements) =
             self.imported_body_predicates(body, &bindings)?;
         let signature = hir::ImportedGenericCallableSignature {
-            declaration: hir::ImportedCallableTemplateOrigin::Generic(identity),
+            declaration: identity,
             name: declaration.name().to_owned(),
             type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
             no_gc_type_params,
@@ -136,7 +156,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn imported_generic_type(
+    pub(crate) fn imported_generic_type(
         &mut self,
         signature: &scoop_identity::SignatureTypeKey,
         bindings: &ImportedTypeBindings,
@@ -202,6 +222,14 @@ impl Lowerer {
         body: &hir::ExportGenericCallableBodyV1,
         bindings: &ImportedTypeBindings,
     ) -> Result<(Vec<hir::TypeParamId>, Vec<hir::RequiresGcFreePointee>), String> {
+        self.imported_template_predicates(body.predicates(), bindings)
+    }
+
+    pub(crate) fn imported_template_predicates(
+        &self,
+        predicates: &hir::GenericTemplatePredicatesV1,
+        bindings: &ImportedTypeBindings,
+    ) -> Result<(Vec<hir::TypeParamId>, Vec<hir::RequiresGcFreePointee>), String> {
         let predicate = |key: &scoop_identity::SignatureTypeKey| {
             let ty = bindings
                 .get(key)
@@ -211,15 +239,13 @@ impl Lowerer {
                 _ => Err("dependency predicate is not a parameter"),
             }
         };
-        let no_gc = body
-            .predicates()
+        let no_gc = predicates
             .no_gc()
             .arguments()
             .iter()
             .map(predicate)
             .collect::<Result<_, _>>()?;
-        let pointees = body
-            .predicates()
+        let pointees = predicates
             .gc_free_pointees()
             .arguments()
             .iter()
@@ -228,7 +254,7 @@ impl Lowerer {
         Ok((no_gc, pointees))
     }
 
-    fn imported_generic_nominal_bounds(
+    pub(crate) fn imported_generic_nominal_bounds(
         &mut self,
         bounds: &hir::NominalTypeParameterBoundsV1,
         bindings: &ImportedTypeBindings,

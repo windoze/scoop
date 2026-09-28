@@ -10,6 +10,16 @@ use crate::{
 };
 
 impl DefaultEntityProjector<'_> {
+    pub(in crate::production::default_templates) fn imported_constructor_application(
+        &self,
+        application: crate::ImportedConstructorApplicationId,
+        binders: &[HirSignatureBinder],
+    ) -> Result<DefaultConstructorRefV1, super::super::DefaultEntityProjectionError> {
+        let application = &self.export.imported_constructor_applications[application];
+        let template = &self.export.imported_constructor_templates[application.template];
+        self.imported_constructor(template.declaration, application.owner, binders)
+    }
+
     pub(in crate::production::default_templates) fn struct_constructor(
         &self,
         application: crate::StructConstructorApplicationId,
@@ -104,6 +114,10 @@ impl DefaultEntityProjector<'_> {
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultFieldRefV1, super::super::DefaultEntityProjectionError> {
         match field {
+            crate::FieldRef::ImportedClass { owner, field } => Ok(DefaultFieldRefV1::Class {
+                declaration: field,
+                owner_type: self.type_key(owner, binders)?,
+            }),
             crate::FieldRef::ImportedStruct { owner, field } => Ok(DefaultFieldRefV1::Struct {
                 declaration: field,
                 owner_type: self.type_key(owner, binders)?,

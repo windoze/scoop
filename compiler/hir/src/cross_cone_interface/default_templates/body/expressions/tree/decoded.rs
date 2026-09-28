@@ -33,6 +33,7 @@ pub struct DecodedDefaultExpressionV1 {
     kind: DecodedDefaultExpressionKindV1,
     result_type: DecodedSignatureTypeKey,
     definition_origin: DecodedExportDefinitionSourceV1,
+    evaluation_origin: scoop_identity::DecodedEvaluationOrigin,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -294,6 +295,7 @@ pub enum DefaultExpressionResolutionError<E, L> {
         error: DefaultCallableRefResolutionError<E>,
     },
     DefinitionOrigin(SourceOriginResolutionError<E>),
+    EvaluationOrigin(SourceOriginResolutionError<E>),
     Nested {
         variant_tag: u64,
         field: u32,

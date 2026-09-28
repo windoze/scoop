@@ -9,10 +9,13 @@ impl BodyProjection<'_, '_> {
         origin: crate::DefinitionOrigin,
     ) -> Result<DefaultExpressionV1, super::super::DefaultBodyProjectionError> {
         let receiver_type = self.locals.initializing_receiver()?;
+        let origin = self.origin(origin)?;
+        let evaluation = scoop_identity::EvaluationOrigin::at_definition(origin.origin());
         let receiver = DefaultExpressionV1::try_new(
             DefaultExpressionKindV1::Local(LocalValueSelector::This),
             receiver_type.clone(),
-            self.origin(origin)?,
+            origin.clone(),
+            evaluation.clone(),
         )
         .map_err(super::super::DefaultBodyProjectionError::Expression)?;
         if receiver_type == &owner {
@@ -21,7 +24,8 @@ impl BodyProjection<'_, '_> {
         DefaultExpressionV1::try_new(
             DefaultExpressionKindV1::ReferenceUpcast(Box::new(receiver)),
             owner,
-            self.origin(origin)?,
+            origin,
+            evaluation,
         )
         .map_err(super::super::DefaultBodyProjectionError::Expression)
     }

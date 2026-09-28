@@ -37,7 +37,11 @@ impl DecodedDefaultExpressionV1 {
             .definition_origin
             .resolve(resolver)
             .map_err(DefaultExpressionResolutionError::DefinitionOrigin)?;
-        DefaultExpressionV1::try_new(kind, result_type, definition_origin)
+        let evaluation_origin = self
+            .evaluation_origin
+            .resolve(resolver)
+            .map_err(DefaultExpressionResolutionError::EvaluationOrigin)?;
+        DefaultExpressionV1::try_new(kind, result_type, definition_origin, evaluation_origin)
             .map_err(DefaultExpressionResolutionError::Record)
     }
 }
@@ -686,6 +690,10 @@ impl<E: fmt::Display, L: fmt::Display> fmt::Display for DefaultExpressionResolut
                     "invalid default expression definition origin: {error}"
                 )
             }
+            Self::EvaluationOrigin(error) => write!(
+                formatter,
+                "invalid template expression evaluation origin: {error}"
+            ),
             Self::Nested {
                 variant_tag,
                 field,

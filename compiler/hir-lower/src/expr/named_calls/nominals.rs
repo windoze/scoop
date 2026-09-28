@@ -12,7 +12,10 @@ struct NominalPlan {
 
 enum PreparedNominalPlans {
     Local(Vec<NominalPlan>, Option<(hir::StructId, Option<TypeId>)>),
-    Imported(scoop_identity::PersistentTypeId),
+    Imported {
+        owner: hir::SourceNominalId,
+        expected: Option<TypeId>,
+    },
 }
 
 impl Lowerer {
@@ -39,8 +42,8 @@ impl Lowerer {
                         intrinsics.push(intrinsic);
                     }
                 }
-                Ok(PreparedNominalPlans::Imported(owner)) => {
-                    imported.push((preparation, owner));
+                Ok(PreparedNominalPlans::Imported { owner, expected }) => {
+                    imported.push((preparation, owner, expected));
                 }
                 Err(()) => {
                     failures.push(Box::new(preparation));
@@ -164,7 +167,7 @@ impl Lowerer {
                 Err(failure) => failures.push(failure),
             }
         }
-        for (state, owner) in imported {
+        for (state, owner, expected) in imported {
             state.collect_imported_constructor_probes(
                 owner,
                 call,

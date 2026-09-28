@@ -27,7 +27,9 @@ impl Lowerer {
                 })
                 .collect(),
             loop_targets: Vec::new(),
-            evaluation: ImportedTemplateEvaluation::Definition(id),
+            evaluation: ImportedTemplateEvaluation::Definition(
+                hir::ImportedCallableTemplateParent::Function(id),
+            ),
         };
         let statements = template
             .source
@@ -56,18 +58,30 @@ impl Lowerer {
         let local = self
             .request_imported_local_function(origin)
             .map_err(ImportedDefaultMaterializationError::Plan)?;
+        let owner_arguments = match callee.owner() {
+            scoop_identity::OptionalSignatureType::Present(owner) => {
+                let owner = self
+                    .imported_generic_type(owner, context.bindings)
+                    .map_err(ImportedDefaultMaterializationError::Plan)?;
+                self.types[owner]
+                    .imported_nominal_application()
+                    .map(|(_, arguments)| arguments.to_vec())
+                    .unwrap_or_default()
+            }
+            scoop_identity::OptionalSignatureType::Absent => Vec::new(),
+        };
         let template = if let Some(template) = local {
             Some(template)
-        } else if let hir::DefaultCallableDeclarationV1::GenericFunction(identity) =
-            callee.declaration()
+        } else if matches!(
+            callee.declaration(),
+            hir::DefaultCallableDeclarationV1::GenericFunction(_)
+        ) || !owner_arguments.is_empty()
         {
             let declaration = self
                 .dependencies
                 .as_ref()
                 .expect("dependency body retains its source catalog")
-                .callable_declaration(scoop_identity::CallableTemplateOrigin::GenericFunction(
-                    identity,
-                ))
+                .callable_declaration(origin)
                 .map_err(|error| {
                     ImportedDefaultMaterializationError::DependencySelection(error.to_string())
                 })?;
@@ -79,16 +93,19 @@ impl Lowerer {
             None
         };
         if let Some(template) = template {
-            let arguments = callee
-                .type_arguments()
-                .iter()
-                .map(|key| {
-                    self.imported_default_type_with_bindings(key, context.bindings)
-                        .map_err(|error| {
-                            ImportedDefaultMaterializationError::Plan(error.to_string())
-                        })
-                })
-                .collect::<Result<Vec<_>, _>>()?;
+            let mut arguments = owner_arguments;
+            arguments.extend(
+                callee
+                    .type_arguments()
+                    .iter()
+                    .map(|key| {
+                        self.imported_default_type_with_bindings(key, context.bindings)
+                            .map_err(|error| {
+                                ImportedDefaultMaterializationError::Plan(error.to_string())
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
             let arguments = hir::NonEmptyVec::from_vec(arguments).ok_or_else(|| {
                 ImportedDefaultMaterializationError::Plan(
                     "generic dependency call has no arguments".into(),

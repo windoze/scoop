@@ -14,6 +14,11 @@ impl Lowerer {
         use super::super::no_gc_generics::GenericCallable;
         match callable {
             GenericCallable::Function(id) => self.function_gc_free_pointee_requirements(id),
+            GenericCallable::ImportedConstructor(id) => {
+                &self.imported_constructor_templates[id]
+                    .signature
+                    .gc_free_pointee_requirements
+            }
             GenericCallable::Imported(id) => {
                 &self.imported_generic_templates[id].gc_free_pointee_requirements
             }

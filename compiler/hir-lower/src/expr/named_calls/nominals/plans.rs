@@ -33,8 +33,14 @@ impl Lowerer {
                     .resolve_type_alias_id_reference(id, &call.callee, !call.type_args.is_empty())
                     .ok_or(())?;
                 let Some(nominal) = self.nominal_target_for_type(ty) else {
-                    if let Some(owner) = self.imported_nominal_declaration(ty) {
-                        return Ok(PreparedNominalPlans::Imported(owner));
+                    if let Some(owner) = self.imported_nominal_owner(ty) {
+                        return Ok(PreparedNominalPlans::Imported {
+                            owner,
+                            expected: match owner {
+                                hir::SourceNominalId::Concrete(_) => expected,
+                                hir::SourceNominalId::GenericTemplate(_) => Some(ty),
+                            },
+                        });
                     }
                     self.error(
                         call.span,
@@ -46,6 +52,12 @@ impl Lowerer {
                     return Err(());
                 };
                 (nominal, Some(ty), true)
+            }
+            NamedCallTarget::ImportedDependency(hir::ImportedTarget::GenericType(owner)) => {
+                return Ok(PreparedNominalPlans::Imported {
+                    owner: hir::SourceNominalId::GenericTemplate(owner.persistent()),
+                    expected,
+                });
             }
             NamedCallTarget::ImportedDependency(
                 hir::ImportedTarget::Type(_) | hir::ImportedTarget::TypeAlias(_),
@@ -60,7 +72,7 @@ impl Lowerer {
                         !call.type_args.is_empty(),
                     )
                     .ok_or(())?;
-                let Some(owner) = self.imported_nominal_declaration(ty) else {
+                let Some(owner) = self.imported_nominal_owner(ty) else {
                     self.error(
                         call.span,
                         format!(
@@ -70,7 +82,13 @@ impl Lowerer {
                     );
                     return Err(());
                 };
-                return Ok(PreparedNominalPlans::Imported(owner));
+                return Ok(PreparedNominalPlans::Imported {
+                    owner,
+                    expected: match owner {
+                        hir::SourceNominalId::Concrete(_) => expected,
+                        hir::SourceNominalId::GenericTemplate(_) => Some(ty),
+                    },
+                });
             }
             NamedCallTarget::Value(ValueTarget::Variant(target)) => {
                 if self.resolved_variant_style(target) == VariantStyle::Unit {

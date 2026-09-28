@@ -1,0 +1,44 @@
+Module
+  class Payload(value: Int)
+    field0 property0: Int
+    property0 val value: Int getter0=storage <stored field0 init=parameter0>
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local3
+      Local $dependency.argument.0 : Payload
+    val local4
+      ImportedConstructorInit Captured : Captured<Payload>
+        Local $dependency.parameter.value : Payload
+    val local5
+      IntegerLiteral 1 : Int
+    val local6
+      Local $argument.0 : Int
+    val local7
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local8
+      IntegerLiteral 2 : Int
+    val local9
+      Local $argument.0 : Int
+    val local10
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    return
+      FieldAccess class field value : Int
+        ImportedGenericCall output<Payload> : Payload
+          Local box : Captured<Payload>
+  fun make<T>(value: T0): Box<T0>
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    return
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+  output library

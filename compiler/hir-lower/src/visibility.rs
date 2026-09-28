@@ -729,9 +729,9 @@ impl Lowerer {
                 let owner = self.struct_applications[field.application()].template;
                 self.structs[owner].access.lookup.0.clone()
             }
-            hir::FieldRef::ImportedStruct { .. } | hir::FieldRef::TupleIndex(_) => {
-                hir::AccessDomain::universal()
-            }
+            hir::FieldRef::ImportedStruct { .. }
+            | hir::FieldRef::ImportedClass { .. }
+            | hir::FieldRef::TupleIndex(_) => hir::AccessDomain::universal(),
         }
     }
 }

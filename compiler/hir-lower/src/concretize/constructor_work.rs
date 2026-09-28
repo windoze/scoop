@@ -8,6 +8,17 @@ pub(super) enum ConstructorWork {
     Struct(concrete::StructConstructorId),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum ClassConstructorSource {
+    Local(export::ClassConstructorId),
+    Imported(export::ImportedConstructorTemplateId),
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum StructConstructorSource {
+    Local(export::StructConstructorId),
+    Imported(export::ImportedConstructorTemplateId),
+}
+
 impl Concretizer<'_> {
     pub(super) fn request_class_constructor(
         &mut self,
@@ -18,6 +29,14 @@ impl Concretizer<'_> {
             self.source.class_constructors[source].owner,
             self.class_source[&owner]
         );
+        self.request_class_constructor_source(ClassConstructorSource::Local(source), owner)
+    }
+
+    pub(super) fn request_class_constructor_source(
+        &mut self,
+        source: ClassConstructorSource,
+        owner: concrete::ClassId,
+    ) -> concrete::ClassConstructorId {
         if let Some(&existing) = self.class_constructor_by_key.get(&(source, owner)) {
             return existing;
         }
@@ -41,6 +60,14 @@ impl Concretizer<'_> {
             self.source.struct_constructors[source].owner,
             self.struct_source[&owner]
         );
+        self.request_struct_constructor_source(StructConstructorSource::Local(source), owner)
+    }
+
+    pub(super) fn request_struct_constructor_source(
+        &mut self,
+        source: StructConstructorSource,
+        owner: concrete::StructId,
+    ) -> concrete::StructConstructorId {
         if let Some(&existing) = self.struct_constructor_by_key.get(&(source, owner)) {
             return existing;
         }
@@ -61,7 +88,14 @@ impl Concretizer<'_> {
                 let index = id.into_raw().into_u32() as usize;
                 let (source, owner) = self.class_constructor_keys[index];
                 let arguments = self.classes[owner].type_arguments.clone();
-                let constructor = self.lower_class_constructor(source, owner, &arguments);
+                let constructor = match source {
+                    ClassConstructorSource::Local(source) => {
+                        self.lower_class_constructor(source, owner, &arguments)
+                    }
+                    ClassConstructorSource::Imported(source) => {
+                        self.lower_imported_class_constructor(source, owner, &arguments)
+                    }
+                };
                 assert!(
                     self.class_constructor_slots[index]
                         .replace(constructor)
@@ -72,7 +106,14 @@ impl Concretizer<'_> {
                 let index = id.into_raw().into_u32() as usize;
                 let (source, owner) = self.struct_constructor_keys[index];
                 let arguments = self.structs[owner].type_arguments.clone();
-                let constructor = self.lower_struct_constructor(source, owner, &arguments);
+                let constructor = match source {
+                    StructConstructorSource::Local(source) => {
+                        self.lower_struct_constructor(source, owner, &arguments)
+                    }
+                    StructConstructorSource::Imported(source) => {
+                        self.lower_imported_struct_constructor(source, owner, &arguments)
+                    }
+                };
                 assert!(
                     self.struct_constructor_slots[index]
                         .replace(constructor)

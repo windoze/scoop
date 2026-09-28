@@ -27,9 +27,17 @@ impl ImportedDependencyDefinitionSources {
         source: &crate::ExportDefinitionSourceV1,
     ) -> Option<ImportedDependencyDefinitionSource<'_>> {
         let origin = source.origin();
+        self.resolve_location(origin.source(), origin.context())
+    }
+
+    pub(super) fn resolve_location(
+        &self,
+        source: &SourceIdentity,
+        context: PersistentSourceContextId,
+    ) -> Option<ImportedDependencyDefinitionSource<'_>> {
         Some(ImportedDependencyDefinitionSource {
-            record: self.records.get(origin.source())?,
-            context: self.contexts.get(&origin.context())?,
+            record: self.records.get(source)?,
+            context: self.contexts.get(&context)?,
         })
     }
 }

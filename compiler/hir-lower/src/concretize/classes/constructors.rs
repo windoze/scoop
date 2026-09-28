@@ -153,7 +153,7 @@ impl Concretizer<'_> {
         self.request_class_constructor(application.constructor, class)
     }
 
-    fn append_base_initialization(
+    pub(in crate::concretize) fn append_base_initialization(
         &mut self,
         body: &mut concrete::Body,
         base: &export::BaseInitialization,
@@ -167,6 +167,15 @@ impl Concretizer<'_> {
         let (target, target_ty) = match target {
             export::BaseInitializerTarget::Local(target) => {
                 let target = self.lower_class_constructor_application(*target, substitution);
+                let (_, class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
+                (
+                    concrete::ClassInitializerTarget::Local(target),
+                    self.class_type[&class],
+                )
+            }
+            export::BaseInitializerTarget::ImportedTemplate(application) => {
+                let target =
+                    self.lower_imported_class_constructor_application(*application, substitution);
                 let (_, class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
                 (
                     concrete::ClassInitializerTarget::Local(target),
@@ -305,7 +314,7 @@ impl Concretizer<'_> {
             .collect()
     }
 
-    fn constructor_receiver(
+    pub(in crate::concretize) fn constructor_receiver(
         &self,
         ty: concrete::TypeId,
         span: scoop_ast::Span,

@@ -73,7 +73,13 @@ fn capturing_body(fixture: &Fixture, kind: DefaultExpressionKindV1) -> ExportGen
         _ => fixture.value_type(),
     };
     body.result = value_type.clone();
-    let value = DefaultExpressionV1::try_new(kind, value_type, fixture.origin()).unwrap();
+    let value = DefaultExpressionV1::try_new(
+        kind,
+        value_type,
+        fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
+    )
+    .unwrap();
     body.statements = vec![
         DefaultStatementV1::try_new(
             DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::present(value)),

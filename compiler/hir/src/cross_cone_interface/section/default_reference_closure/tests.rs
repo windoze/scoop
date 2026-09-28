@@ -659,6 +659,7 @@ fn template(
             DefaultExpressionKindV1::UnitLiteral,
             result.clone(),
             origin.clone(),
+            scoop_identity::EvaluationOrigin::at_definition(origin.origin()),
         )
         .unwrap(),
     )

@@ -1,11 +1,13 @@
 use super::*;
 
-pub(super) struct DefinitionSourceVisitor<'a, V> {
+pub(super) struct DefinitionSourceVisitor<'a, V, W> {
     pub visitor: &'a mut V,
+    pub evaluations: &'a mut W,
 }
-impl<V, E> BodyWalkMode for DefinitionSourceVisitor<'_, V>
+impl<V, W, E> BodyWalkMode for DefinitionSourceVisitor<'_, V, W>
 where
     V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
+    W: FnMut(&scoop_identity::EvaluationOrigin, &WirePath) -> Result<(), E>,
     E: From<WireError>,
 {
     type Error = E;
@@ -48,5 +50,12 @@ where
         path: &WirePath,
     ) -> Result<(), Self::Error> {
         (self.visitor)(source, site, path)
+    }
+    fn visit_evaluation_origin(
+        &mut self,
+        source: &scoop_identity::EvaluationOrigin,
+        path: &WirePath,
+    ) -> Result<(), Self::Error> {
+        (self.evaluations)(source, path)
     }
 }

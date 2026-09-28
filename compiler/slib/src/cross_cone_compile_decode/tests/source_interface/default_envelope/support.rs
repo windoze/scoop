@@ -47,7 +47,10 @@ pub(super) fn add_owner_expression(
             fields: vec![],
         },
         template.result().clone(),
-        template.definition_origin().clone(),
+        template.definition_origin().clone().clone(),
+        scoop_identity::EvaluationOrigin::at_definition(
+            (template.definition_origin().clone()).origin(),
+        ),
     )
     .unwrap();
     let mut statements = template.body().statements().to_vec();

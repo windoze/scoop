@@ -22,6 +22,38 @@ impl BodyProjection<'_, '_> {
             .iter()
             .map(|ty| self.type_key(*ty))
             .collect::<Result<Vec<_>, _>>()?;
+        if let crate::ImportedCallableTemplateOrigin::Nominal {
+            declaration,
+            owner,
+            owner_parameter_count,
+        } = &template.declaration
+        {
+            let owner = match owner {
+                crate::SourceNominalId::Concrete(owner) => {
+                    scoop_identity::SignatureTypeKey::Nominal(*owner)
+                }
+                crate::SourceNominalId::GenericTemplate(owner) => {
+                    scoop_identity::SignatureTypeKey::NominalApplication {
+                        origin: *owner,
+                        arguments: scoop_identity::NonEmptyVec::new(
+                            arguments[..*owner_parameter_count].to_vec(),
+                        )
+                        .expect("generic nominal applications have owner arguments"),
+                    }
+                }
+            };
+            let callee = crate::DefaultCallableRefV1::try_new(
+                *declaration,
+                scoop_identity::OptionalSignatureType::Present(Box::new(owner)),
+                arguments[*owner_parameter_count..].to_vec(),
+            )
+            .map_err(crate::DefaultEntityProjectionError::Callable)?;
+            return Ok(DefaultExpressionKindV1::Call {
+                callee,
+                receiver: receiver.try_map(|ty| self.type_key(ty))?,
+                arguments: self.expressions(args)?,
+            });
+        }
         let callee = crate::DefaultCallableRefV1::try_new(
             template.declaration.body_owner(),
             scoop_identity::OptionalSignatureType::Absent,
@@ -35,6 +67,9 @@ impl BodyProjection<'_, '_> {
                     receiver: receiver.try_map(|ty| self.type_key(ty))?,
                     arguments: self.expressions(args)?,
                 })
+            }
+            crate::ImportedCallableTemplateOrigin::Nominal { .. } => {
+                unreachable!("nominal applications were projected above")
             }
             crate::ImportedCallableTemplateOrigin::Local { descriptor, .. } => {
                 let (captures, arguments) = args.split_at(descriptor.capture_count() as usize);

@@ -89,6 +89,15 @@ where
             )
     }
 
+    fn visit_evaluation_origin(
+        &mut self,
+        _source: &scoop_identity::EvaluationOrigin,
+        _path: &WirePath,
+    ) -> Result<(), Self::Error> {
+        // The source-location pass has already checked this field.
+        Ok(())
+    }
+
     fn visit_origin(
         &mut self,
         _source: &ExportDefinitionSourceV1,

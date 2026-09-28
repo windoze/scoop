@@ -8,6 +8,7 @@ mod write;
 pub(crate) struct ResolvedImportedMemberProperty {
     getter: hir::ImportedCallableDeclaration,
     accessors: hir::PropertyAccessorsV1,
+    storage: Option<hir::FieldRef>,
     pub(crate) value_type: hir::TypeId,
 }
 
@@ -48,22 +49,62 @@ impl Lowerer {
         else {
             unreachable!("a dependency property getter refers to an accessor")
         };
-        let accessors = self
+        let property = self
             .dependencies
             .as_ref()
             .and_then(|dependencies| dependencies.property_for_accessor(accessor))
             .expect("the member getter belongs to the selected property")
-            .accessors();
+            .clone();
+        let accessors = property.accessors();
+        let hir::PublicDeclarationOwnerV1::Nominal(owner) = getter.interface().owner() else {
+            unreachable!("member properties retain their nominal owner")
+        };
+        let owner = self
+            .imported_member_owner_type(receiver, owner)
+            .expect("the selected property occurs in the receiver hierarchy");
+        let arguments = self.types[owner]
+            .imported_nominal_application()
+            .map(|(_, arguments)| arguments)
+            .unwrap_or(&[]);
+        let bindings = arguments
+            .iter()
+            .enumerate()
+            .map(|(index, ty)| {
+                (
+                    scoop_identity::SignatureTypeKey::Binder {
+                        depth: 0,
+                        index: index as u32,
+                    },
+                    *ty,
+                )
+            })
+            .collect();
         let value_type = self
-            .imported_property_signature_type(
-                getter.interface().result(),
-                "dependency property",
-                name.span,
-            )
-            .ok_or(())?;
+            .imported_signature_type_with_bindings(getter.interface().result(), &bindings)
+            .map_err(|error| self.error(name.span, error.diagnostic("dependency property")))?;
+        let storage = match (&self.types[owner], property.declaration()) {
+            (
+                hir::Type::ImportedClass(class),
+                scoop_identity::PropertyOwner::Property(property),
+            ) if !class.arguments.is_empty() => class
+                .declaration
+                .field_sources
+                .iter()
+                .zip(&class.fields)
+                .find_map(|(source, field)| {
+                    (source.backing_property == Some(property)).then_some(
+                        hir::FieldRef::ImportedClass {
+                            owner,
+                            field: field.identity,
+                        },
+                    )
+                }),
+            _ => None,
+        };
         Ok(Some(ResolvedImportedMemberProperty {
             getter,
             accessors,
+            storage,
             value_type,
         }))
     }
@@ -118,6 +159,25 @@ impl Lowerer {
         span: ast::Span,
         kind: MemberCallKind,
     ) -> Option<hir::Expr> {
+        if let Some(field) = property.storage
+            && property.accessors.getter_source().implementation()
+                == hir::PropertyAccessorImplementationV1::Storage
+            && (property.getter.interface().modality() == hir::CallableModalityV1::Final
+                || kind == MemberCallKind::DirectSuper)
+        {
+            if property.getter.interface().effects().safety() == hir::CallableSafetyV1::Unsafe {
+                self.require_unsafe_operation(span, "reading an unsafe dependency property");
+            }
+            return Some(hir::Expr {
+                kind: hir::ExprKind::FieldAccess {
+                    receiver: Box::new(receiver),
+                    field,
+                },
+                ty: property.value_type,
+                span,
+                origin: self.expression_origin(span),
+            });
+        }
         self.emit_imported_member_accessor(
             property.getter.clone(),
             receiver,
@@ -153,14 +213,48 @@ impl Lowerer {
         if interface.effects().safety() == hir::CallableSafetyV1::Unsafe {
             self.require_unsafe_operation(span, unsafe_operation);
         }
-        let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) =
-            interface.owner()
-        else {
-            unreachable!("a resolved dependency property has a nominal owner")
+        let hir::PublicDeclarationOwnerV1::Nominal(owner) = interface.owner() else {
+            unreachable!("a resolved member property has a nominal owner")
         };
-        let owner = self
-            .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(owner))
-            .expect("a dependency property receiver type was resolved during lookup");
+        let owner_type = self
+            .imported_member_owner_type(receiver.ty, owner)
+            .expect("a resolved property belongs to the receiver hierarchy");
+        if matches!(owner, hir::SourceNominalId::GenericTemplate(_))
+            && candidate.callable_body().is_some()
+            && (interface.modality() == hir::CallableModalityV1::Final
+                || kind == MemberCallKind::DirectSuper)
+        {
+            let (_, arguments) = self.types[owner_type]
+                .imported_nominal_application()
+                .expect("generic members retain their applied owner");
+            let arguments = hir::NonEmptyVec::from_vec(arguments.to_vec())
+                .expect("generic nominal members have owner arguments");
+            let template = self
+                .request_imported_generic_template(candidate)
+                .map_err(|error| self.error(span, error))
+                .ok()?;
+            let application =
+                self.imported_generic_applications
+                    .alloc(hir::ImportedGenericCallableApplication {
+                        template,
+                        arguments,
+                    });
+            let static_type = receiver.ty;
+            let mut args = vec![self.adapt_to(receiver, owner_type)];
+            args.extend(values);
+            return Some(hir::Expr {
+                kind: hir::ExprKind::ImportedGenericCall {
+                    application,
+                    binding: None,
+                    args,
+                    receiver: hir::SourceCallReceiver::Receiver { static_type },
+                },
+                ty: result_type,
+                span,
+                origin: self.expression_origin(span),
+            });
+        }
+        let owner = owner_type;
         let static_type = receiver.ty;
         let mut args = Vec::with_capacity(values.len() + 1);
         args.push(self.adapt_to(receiver, owner));

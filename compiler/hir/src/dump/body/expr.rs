@@ -347,7 +347,9 @@ pub(super) fn dump_expr(
         }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
-                FieldRef::ImportedStruct { field, .. } => format!("dependency field {field}"),
+                FieldRef::ImportedStruct { field, .. } | FieldRef::ImportedClass { field, .. } => {
+                    format!("dependency field {field}")
+                }
                 FieldRef::StructField(field) => format!("field {}", field.local_index()),
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
                 FieldRef::ClassField { field, .. } => {
@@ -606,6 +608,20 @@ pub(super) fn dump_expr(
             dump_expr(module, locals, operand, indent + 1, out);
         }
 
+        ExprKind::ConstructorReceiver => {
+            out.push_str(&format!("{pad}ConstructorReceiver : {ty}\n"))
+        }
+        ExprKind::ImportedConstructorInit { application, args } => {
+            let application = &module.imported_constructor_applications[*application];
+            let template = &module.imported_constructor_templates[application.template];
+            out.push_str(&format!(
+                "{pad}ImportedConstructorInit {} : {ty}\n",
+                template.name
+            ));
+            for argument in args {
+                dump_expr(module, locals, argument, indent + 1, out);
+            }
+        }
         ExprKind::ImportedGenericCall {
             application, args, ..
         } => {

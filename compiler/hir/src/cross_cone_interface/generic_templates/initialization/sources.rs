@@ -14,39 +14,37 @@ impl ExportGenericNominalInitializationV1 {
                     visitor(origin)?;
                 }
             }
-            use ExportConstructorInitializationKindV1 as Kind;
-            match constructor.kind() {
-                Kind::StructPrimary => {}
-                Kind::StructSecondary { delegation, body }
-                | Kind::ClassSecondaryThis { delegation, body } => {
-                    delegation
-                        .arguments
-                        .visit_definition_sources(visitor, path)?;
-                    body.visit_definition_sources(visitor, path)?;
-                }
-                Kind::ClassPrimary { base, .. } => {
-                    if let Some(base) = base {
-                        base.arguments.visit_definition_sources(visitor, path)?;
-                    }
-                }
-                Kind::ClassSecondaryTerminal { base, body } => {
-                    if let Some(base) = base {
-                        base.arguments.visit_definition_sources(visitor, path)?;
-                    }
-                    body.visit_definition_sources(visitor, path)?;
-                }
-            }
         }
-        for step in self.common() {
-            match step {
-                ExportCommonInitializationStepV1::Field { value, .. } => {
-                    value.visit_definition_sources(visitor, path)?
-                }
-                ExportCommonInitializationStepV1::Body(body) => {
-                    body.visit_definition_sources(visitor, path)?
-                }
-            }
+        for fragment in self.fragments() {
+            fragment.visit_definition_sources(visitor, path)?;
         }
+
         Ok(())
+    }
+    pub(crate) fn fragments(&self) -> impl Iterator<Item = &crate::ExportTemplateFragmentV1> {
+        self.constructors()
+            .iter()
+            .flat_map(|constructor| {
+                use ExportConstructorInitializationKindV1 as Kind;
+                match constructor.kind() {
+                    Kind::StructPrimary => [None, None],
+                    Kind::StructSecondary { delegation, body }
+                    | Kind::ClassSecondaryThis { delegation, body } => {
+                        [Some(&delegation.arguments), Some(body)]
+                    }
+                    Kind::ClassPrimary { base, .. } => {
+                        [base.as_ref().map(|base| &base.arguments), None]
+                    }
+                    Kind::ClassSecondaryTerminal { base, body } => {
+                        [base.as_ref().map(|base| &base.arguments), Some(body)]
+                    }
+                }
+                .into_iter()
+                .flatten()
+            })
+            .chain(self.common().iter().map(|step| match step {
+                ExportCommonInitializationStepV1::Field { value, .. } => value,
+                ExportCommonInitializationStepV1::Body(body) => body,
+            }))
     }
 }

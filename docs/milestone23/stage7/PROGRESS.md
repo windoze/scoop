@@ -360,11 +360,26 @@
 
 本项完成 provider 已物化泛型 class 的共有 callable、dispatch 与产物运行闭环。消费方从模板构造、继承和再次实例化完整泛型 method，以及 ODR boxing/adjust 等组合继续沿剩余主线推进，M23-7 尚未完成。
 
+## 2026-09-28：消费方实例化泛型构造模板
+
+- 构造候选继续使用原普通或泛型名义 owner，宿主实参共用已有推断、具名参数、默认值和 bound 检查。普通构造保留调用上下文的期望类型，类型别名只为泛型宿主固定完整实参。导入构造模板、已解析 application 与具体构造分别使用独立 typed ID，原 constructor identity 和实际 owner application 保留到既有具体化队列；没有复制 provider 声明到消费方源码 arena。
+- 消费 struct primary/secondary、class primary、terminal secondary 与 `this` 委托的真实初始化片段。class 基类与 `this` 委托使用同一已分配接收者，字段初始化与 `init` 按源码顺序且仅在 terminal 构造执行；struct secondary 在完成值构造后执行正文，字段保持不可变。消费方本地类可以继承导入的泛型基类，嵌套宿主实参按实际 application 替换。
+- 导入 final 属性按原实现选择实际访问器正文或 storage，构造及属性中的字段引用保留原 typed field ID，并共用既有基类字段前缀计算。局部函数捕获构造参数和构造正文局部值复用原 capture selector，补齐源码 lowering 中对构造参数的捕获实参生成。实例产生正常 ODR 构造、访问器与布局，继续沿原 MIR、LIR、对象及运行时通道发布。
+- 共享可移植表达式增加必需的原 `EvaluationOrigin`，定义位置与实际求值位置分别往返保存。已在构造委托中展开的默认值可以定义于另一文件；消费正文时恢复原求值位置，消费默认参数模板时仍按本次使用点展开。source record、context 和稀疏位置点复用已有 foundation 与 reader 检查，相同位置复用验证结果；没有新增来源资格或重复语义检查。HIR interface 升至 `/35`，两种受影响 profile 的 descriptor、固定指纹和旧版本拒绝测试同步；三份 spec 与设计同步，后续 delegate 格式顺延至 `/36`，runtime C ABI 保持。
+- 新增 12 组独立与组合正例、36 份 HIR/MIR/LIR golden，覆盖主次构造、两种 class 委托、公共初始化顺序、泛型继承、跨文件默认值、参数推断、具名调用、固定实参类型别名、局部捕获、引用 payload、大值和 ZST。别名构造与直接构造复用同一实际实例。四个 negative fixture 检查 kind bound、实参数量、private 构造访问和不可变属性，并断言错误信息及源码位置；wire 与 reader 反例拒绝缺失求值位置和超出实际 source map 的位置。
+- 真实产物用例先发布 provider 并移走源码，再由 consumer 产生此前不存在的构造实例、发布并移走源码；下游仅依赖 `.slib`，在 consumer 未调用的泛型函数中再次实例化新类型。每组核对实际构造 ODR 角色、完整 MIR/LIR ABI、物理 provider 与 shape 合并目录，并完成链接、普通运行与移动 GC，保留实际收集断言。跨文件默认值另核对定义来自 `src/base.scoop`、求值来自 `src/main.scoop`。
+- 同步 41 份 core 产物快照及两份下游 shape 依赖快照，逐份确认只有整包 artifact fingerprint 变化，代码、runtime 指纹与其余内容全部保持；两种 profile 的 descriptor 也只改变 HIR interface 的 major 字节。原布局、ABI、类型与引用检查继续执行；普通构造沿用原有诊断快照验证上下文期望类型。
+- `cargo fmt --all` 和 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，无警告。非 driver 工作区首次有 5038 项通过、3 项旧格式断言失败；更新一个表达式 product 头和两个 profile 固定向量后，完整复验 888 项 HIR 与 585 项 slib 测试，全部通过。合计 5041 项独立非 driver 测试通过，无忽略，包含 1260 项 HIR lowering 和 2 项文档测试；定向重复验证不重复计数。
+- 完整 driver 库首次有 100 项通过、24 项失败：三项来自普通构造的上下文期望类型被覆盖，另 21 项使用旧的整包指纹。修正候选准备后，再次完整运行全部 1260 项 HIR lowering 测试并重建配套 `scoopc`，均通过；新增的别名组合也完成前端与真实产物运行验证。同步格式指纹后，关闭全部快照更新开关复验 25 项 driver 测试，全部通过，覆盖全部 24 项原失败和新增构造闭环，耗时 378.11 秒。其余 99 项库测试、7 项 CLI 测试及 1 项配套编译器测试已在本批完整运行中通过；分批合计 5173 项独立测试通过，无未解决失败或忽略，本记录不将分批验证写成一次完整工作区命令。
+- 确认所有构建、测试和配套编译器进程结束，且 `target` 中没有打开的文件。核对该目录为本工作区 Cargo 构建缓存后恢复缺失的标准缓存标记，执行 `cargo clean --target-dir target`，删除 2887 个构建文件，回收 6.0 GiB。
+
+本项完成消费方从真实产物实例化、执行与再发布泛型构造的闭环。完整成员与虚派发、delegate、其他生成实体及剩余组合继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 继续共用可移植节点，完成构造初始化模板的实际消费，以及 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
+1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 在已完成的泛型 class 共有 callable/dispatch 和构造初始化产物回归基础上，继续完成消费方泛型名义类型的构造、继承、属性与派发组合，扩展 ZST/大值/引用 ABI 组合及递归扫描程序的实际对象 atom。
+3. 在已完成的泛型 class 共有 callable/dispatch，以及消费方构造、继承与 final 属性闭环基础上，继续完成完整成员与虚派发组合，扩展 ZST/大值/引用 ABI 组合及递归扫描程序的实际对象 atom。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

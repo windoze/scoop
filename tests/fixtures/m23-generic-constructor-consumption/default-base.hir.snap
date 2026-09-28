@@ -1,0 +1,25 @@
+Module
+  fun result(): Int
+    val local0
+      ImportedConstructorInit DefaultDerived : DefaultDerived<Int>
+    val local1
+      ImportedGenericCall count<Int> : Int
+        ReferenceUpcast : DefaultBase<Int>
+          Local box : DefaultDerived<Int>
+    val local2
+      IntegerLiteral 2 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): Box<T0>
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    return
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+  output library

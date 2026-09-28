@@ -1,5 +1,8 @@
 //! Request-local HIR handles for executable ordinary-dependency callables.
 
+mod constructors;
+pub use constructors::*;
+
 /// A dependency body normalized into the consumer's type and value domains.
 /// Its declaration remains owned by the provider, outside `Module::functions`.
 #[derive(Debug, Clone)]
@@ -36,16 +39,41 @@ pub struct ImportedGenericCallableSignature {
 #[derive(Debug, Clone)]
 pub enum ImportedCallableTemplateOrigin {
     Generic(scoop_identity::PersistentGenericFunctionId),
+    Nominal {
+        declaration: crate::DefaultCallableDeclarationV1,
+        owner: crate::SourceNominalId,
+        owner_parameter_count: usize,
+    },
     Local {
-        parent: crate::ImportedGenericCallableTemplateId,
+        parent: ImportedCallableTemplateParent,
         descriptor: crate::DefaultLocalFunctionV1,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ImportedCallableTemplateParent {
+    Function(crate::ImportedGenericCallableTemplateId),
+    Constructor(crate::ImportedConstructorTemplateId),
 }
 
 impl ImportedCallableTemplateOrigin {
     pub fn declaration(&self) -> scoop_identity::CallableTemplateOrigin {
         match self {
             Self::Generic(id) => scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
+            Self::Nominal { declaration, .. } => match declaration {
+                crate::DefaultCallableDeclarationV1::Function(id) => {
+                    scoop_identity::CallableTemplateOrigin::Function(*id)
+                }
+                crate::DefaultCallableDeclarationV1::GenericFunction(id) => {
+                    scoop_identity::CallableTemplateOrigin::GenericFunction(*id)
+                }
+                crate::DefaultCallableDeclarationV1::PropertyAccessor(id) => {
+                    scoop_identity::CallableTemplateOrigin::Accessor(*id)
+                }
+                crate::DefaultCallableDeclarationV1::Generated(_) => {
+                    unreachable!("nominal source members have source identities")
+                }
+            },
             Self::Local { descriptor, .. } => descriptor.declaration(),
         }
     }
@@ -57,6 +85,9 @@ impl ImportedCallableTemplateOrigin {
             }
             scoop_identity::CallableTemplateOrigin::GenericFunction(id) => {
                 crate::DefaultCallableDeclarationV1::GenericFunction(id)
+            }
+            scoop_identity::CallableTemplateOrigin::Accessor(id) => {
+                crate::DefaultCallableDeclarationV1::PropertyAccessor(id)
             }
             _ => unreachable!("local descriptors only contain source function declarations"),
         }

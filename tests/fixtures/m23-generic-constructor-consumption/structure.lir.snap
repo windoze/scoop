@@ -1,0 +1,58 @@
+Module
+  fun @scoop$1$cb$e15e0e7533bf92faf1c516bd9ba43a981abfbdbee04ca96f2726d06555473e36() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.argument.1: i32
+    local %2 $dependency.parameter.first: i32
+    local %3 $dependency.parameter.second: i32
+    local %4 first: struct0
+    local %5 $dependency.argument.0: i32
+    local %6 $dependency.parameter.value: i32
+    local %7 second: struct0
+    local %8 $dependency.receiver: i32
+    local %9 $dependency.argument.0: i32
+    local %10 $dependency.parameter.other: i32
+    local %11 $sc.1: struct0
+    local %12 $sc.2: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000014) -> local0
+    store integer<Int>(0x00000016) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn1(local2, local3)
+    store local11 -> local4
+    t0 = extract local4, 1 : i32
+    store t0 -> local5
+    store local5 -> local6
+    call managed-indirect-target0 sp<managed-call:0> live=[] local12 = sig=indirect1 (sret struct0 size=8 align=4 scan=none, i32) local-fn2(local6)
+    store local12 -> local7
+    t1 = extract local4, 0 : i32
+    store t1 -> local8
+    t2 = extract local7, 0 : i32
+    store t2 -> local9
+    store local9 -> local10
+    t3 = integer_Add<Int> local8, local10 : i32
+    ret t3
+  fun @scoop$1$cb$f024660abcb351b0be6d04e1f30ac050a48adfc13c0e39080fb44f1fbce47053(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct0
+    ret t0
+  fun @scoop$1$cb$9760ad6369b1636d43f4063c0d6f5e0dbfd4e665823c1f4a853c39efbdf9fa85(i32) -> sret<struct0 size=8 align=4 scan=none>
+    local %0 $dependency.constructor.local.0: i32
+    local %1 $dependency.constructor.local.1: i32
+    local %2 $dependency.constructor.local.2: i32
+    local %3 $dependency.constructor.local.3: i32
+    local %4 $this: struct0
+    local %5 $sc.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param0 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn1(local2, local3)
+    store local5 -> local4
+    ret local4
+  td td0 a(n(c=dev.example%3Ageneric-constructor-provider%3A0.1.0;p=templates.constructors;o=-;k=S;x=Pair);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$71bb5d15b70297d4fc7e9dc17cbf8641b90d3f4b0e808e7e7aa598360d08ab9e type-id=68333226966816881 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Pair size=8 align=4 refs=[]
+  output library

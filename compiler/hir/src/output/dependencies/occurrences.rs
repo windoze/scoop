@@ -208,20 +208,19 @@ fn validate_origins(
         if side == DependencyCallOrigin::Evaluation
             && projected.origin().source().cone() != export.cone
         {
-            let template = export.imported_generic_templates.iter()
-                .map(|(_, template)| template)
-                .find(|template| matches!(
-                    (occurrence.position.root.template(), template.declaration.declaration()),
-                    (scoop_identity::CallableTemplateOwner::GenericFunction(expected),
-                     scoop_identity::CallableTemplateOrigin::GenericFunction(actual)) if expected == actual
-                ) || matches!(
-                    (occurrence.position.root.template(), template.declaration.declaration()),
-                    (scoop_identity::CallableTemplateOwner::Function(expected),
-                     scoop_identity::CallableTemplateOrigin::Function(actual)) if expected == actual
-                ));
-            if template.is_none_or(|template| {
-                export.source_files[template.origin.file as usize].identity
-                    != *projected.origin().source()
+            let origin = export.imported_generic_templates.iter().find_map(|(_, template)| {
+                let matches = match (occurrence.position.root.template(), template.declaration.declaration()) {
+                    (scoop_identity::CallableTemplateOwner::GenericFunction(expected), scoop_identity::CallableTemplateOrigin::GenericFunction(actual)) => expected == actual,
+                    (scoop_identity::CallableTemplateOwner::Function(expected), scoop_identity::CallableTemplateOrigin::Function(actual)) => expected == actual,
+                    (scoop_identity::CallableTemplateOwner::Accessor(expected), scoop_identity::CallableTemplateOrigin::Accessor(actual)) => expected == actual,
+                    _ => false,
+                };
+                matches.then_some(template.origin)
+            }).or_else(|| export.imported_constructor_templates.iter().find_map(|(_, template)| {
+                matches!(occurrence.position.root.template(), scoop_identity::CallableTemplateOwner::Constructor(declaration) if declaration == template.declaration).then_some(template.origin)
+            }));
+            if origin.is_none_or(|origin| {
+                export.source_files[origin.file as usize].identity != *projected.origin().source()
             }) {
                 return Err(DependencyCallOccurrenceError::ForeignEvaluation(
                     occurrence.position,

@@ -51,51 +51,66 @@ pub(super) fn validate_types<
     .run(body)
 }
 
-pub(super) fn visit_definition_sources<V, E>(
+pub(super) fn visit_definition_sources<V, W, E>(
     body: &ExportDefaultBodyV1,
     visitor: &mut V,
+    evaluations: &mut W,
 
     path: &WirePath,
 ) -> Result<(), E>
 where
     V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
+    W: FnMut(&scoop_identity::EvaluationOrigin, &WirePath) -> Result<(), E>,
     E: From<WireError>,
 {
     Validator {
-        mode: origin::DefinitionSourceVisitor { visitor },
+        mode: origin::DefinitionSourceVisitor {
+            visitor,
+            evaluations,
+        },
 
         path,
     }
     .run(body)
 }
 
-pub(super) fn visit_statement_sources<V, E>(
+pub(super) fn visit_statement_sources<V, W, E>(
     statements: &[DefaultStatementV1],
     visitor: &mut V,
+    evaluations: &mut W,
     path: &WirePath,
 ) -> Result<(), E>
 where
     V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
+    W: FnMut(&scoop_identity::EvaluationOrigin, &WirePath) -> Result<(), E>,
     E: From<WireError>,
 {
     Validator {
-        mode: origin::DefinitionSourceVisitor { visitor },
+        mode: origin::DefinitionSourceVisitor {
+            visitor,
+            evaluations,
+        },
         path,
     }
     .run_nodes(statements.iter().map(BodyNode::Statement))
 }
 
-pub(super) fn visit_fragment_sources<V, E>(
+pub(super) fn visit_fragment_sources<V, W, E>(
     fragment: &crate::ExportTemplateFragmentV1,
     visitor: &mut V,
+    evaluations: &mut W,
     path: &WirePath,
 ) -> Result<(), E>
 where
     V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
+    W: FnMut(&scoop_identity::EvaluationOrigin, &WirePath) -> Result<(), E>,
     E: From<WireError>,
 {
     Validator {
-        mode: origin::DefinitionSourceVisitor { visitor },
+        mode: origin::DefinitionSourceVisitor {
+            visitor,
+            evaluations,
+        },
         path,
     }
     .run_nodes(
@@ -135,6 +150,12 @@ pub(super) trait BodyWalkMode {
         index: u32,
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), Self::Error>;
+
+    fn visit_evaluation_origin(
+        &mut self,
+        source: &scoop_identity::EvaluationOrigin,
+        path: &WirePath,
     ) -> Result<(), Self::Error>;
 
     fn visit_origin(

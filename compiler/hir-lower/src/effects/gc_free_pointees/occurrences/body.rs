@@ -366,6 +366,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::IntegerLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
+        | ExprKind::ConstructorReceiver
         | ExprKind::ConstructorParam(_)
         | ExprKind::Local(_)
         | ExprKind::GlobalRead(_)
@@ -651,6 +652,16 @@ pub(in super::super) fn collect_expr_type_occurrences(
             push_types_at_expression(
                 expression,
                 |types| collect_callable_types(lowerer, *callee, types),
+                out,
+            );
+            for argument in args {
+                collect_expr_type_occurrences(lowerer, argument, out);
+            }
+        }
+        ExprKind::ImportedConstructorInit { application, args } => {
+            push_types_at_expression(
+                expression,
+                |types| types.push(lowerer.imported_constructor_applications[*application].owner),
                 out,
             );
             for argument in args {

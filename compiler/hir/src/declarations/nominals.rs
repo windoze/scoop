@@ -725,6 +725,7 @@ pub enum BaseInitialization {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BaseInitializerTarget {
     Local(ClassConstructorApplicationId),
+    ImportedTemplate(ImportedConstructorApplicationId),
     Imported {
         owner: TypeId,
         callable: ImportedDependencyCallableUseId,

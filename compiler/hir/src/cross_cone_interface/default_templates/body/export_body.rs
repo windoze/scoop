@@ -260,6 +260,7 @@ mod tests {
             }),
             fixture.value_type(),
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         )
         .unwrap();
         let body = ExportDefaultBodyV1::try_new(
@@ -309,6 +310,7 @@ mod tests {
             DefaultExpressionKindV1::UnitLiteral,
             fixture.value_type(),
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         )
         .unwrap()
     }

@@ -5,7 +5,7 @@ use super::*;
 impl Lowerer {
     pub(super) fn collect_imported_constructor_probes(
         mut self,
-        owner: scoop_identity::PersistentTypeId,
+        owner: hir::SourceNominalId,
         call: &ast::CallExpr,
         expected: Option<TypeId>,
         applicable: &mut Vec<NamedApplicable>,
@@ -16,7 +16,7 @@ impl Lowerer {
             .as_ref()
             .expect("dependency type lookup retains its declaration catalog");
         let declaration = dependencies
-            .nominal(owner)
+            .nominal_declaration(owner)
             .expect("a resolved dependency type retains its declaration");
         if declaration.interface.declaration_details().modality()
             == hir::NominalInheritanceModalityV1::Abstract
@@ -31,18 +31,17 @@ impl Lowerer {
             failures.push(Box::new(self));
             return;
         }
-        let candidates =
-            match dependencies.constructor_candidates(hir::SourceNominalId::Concrete(owner)) {
-                Ok(candidates) => candidates,
-                Err(error) => {
-                    self.error(
-                        call.span,
-                        format!("invalid dependency constructor declaration: {error}"),
-                    );
-                    failures.push(Box::new(self));
-                    return;
-                }
-            };
+        let candidates = match dependencies.constructor_candidates(owner) {
+            Ok(candidates) => candidates,
+            Err(error) => {
+                self.error(
+                    call.span,
+                    format!("invalid dependency constructor declaration: {error}"),
+                );
+                failures.push(Box::new(self));
+                return;
+            }
+        };
         if candidates.is_empty() {
             self.error(
                 call.span,
@@ -82,7 +81,7 @@ impl Lowerer {
         let mut applicable = Vec::new();
         let mut failures = Vec::new();
         self.clone().collect_imported_constructor_probes(
-            owner,
+            hir::SourceNominalId::Concrete(owner),
             &call,
             expected,
             &mut applicable,

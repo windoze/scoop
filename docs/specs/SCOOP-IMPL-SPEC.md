@@ -1025,6 +1025,8 @@ Export HIR 完成后、LocalConcrete HIR 生成前，先从公开声明、默认
 
 构造模板按原名义声明组织：每个泛型 class 保存一次公共初始化序列，各构造器保存自身参数、委托及次构造正文；struct 保留 primary 值构造与 secondary 委托的区别。委托实参、字段初始化和语句正文共用已有 typed expression/statement 与局部值表，分别保存实际结果列表，不用假的 Unit 表达式填充没有结果的语句正文。构造参数按源码参数位置关联原 `LocalValueSelector::Parameter`，初始化接收者使用原 `This` selector；正文中的已解析字段读取和写入保留原字段身份。公共初始化中的 stored/delegate 写入与 `init` 保持源码顺序；class 委托目标仍是对同一已分配对象的 initializer 调用，不能改成再次分配的构造表达式。共有名义与源码调用声明继续唯一保存 shape、参数协议和 bounds，执行模板不复制另一套声明表。
 
+消费方构造候选沿同一名义声明查询入口同时接受普通 owner 与 generic template；宿主实参参加现有推断、参数协议和 bound 检查。选中的泛型构造保留原 `PersistentConstructorId` 和实际名义 application，执行片段接入已有类型替换及具体化队列，输出原 struct constructor 或 class initializer，不转换成泛型函数声明或定义方的普通 external callable。class 的 `this` 委托复用同一接收者，只有 terminal 构造执行公共初始化；泛型基类构造也在已有对象上调用实际 initializer。未调用的构造模板不因出现在接口中而生成机器正文。构造生成的参数读取、字段写入和委托调用保留原定义位置，并复用提供方已有的构造执行上下文；导入目录须保留该上下文，包括没有显式正文的 primary 构造。
+
 HIR foundation 从已有 concrete exact type 表发布每个实际名义类型 application 的 specialization group，与 callable application group 一并去重；MIR/LIR 只引用该上游 group，不复制其身份记录。泛型名义类型的实际 layout、scan、TD 和 dispatch 保留上游 application 的 ODR group，各物理角色使用自己的 member 与 primary symbol。LIR 为这些实际定义保存由完整 metadata 计算的 canonical LIR/ABI 摘要，固定布局包含有序字段偏移，变长与 abstract/boxed 实例使用既有完整表示；reader 复用这些内容摘要。对象摘要继续覆盖真实 bytes、关联 atom 和归一化 typed relocation，类型注册在 TD/layout 上游摘要完成后计算自身 member。该流程复用共有生产、最终摘要目录和 image 路径，不以 identity-only 摘要替代布局内容，也不重复执行语言语义检查。实际 shape 内容由 production 必需 field 14 承载，`cone-production` 升至 `/2`；共用该结构的历史 `strong-production` 由 `/13` 升至 `/15`，其 shape 表为空，仍在原边界拒绝 ODR。
 
 HIR 根据实际调用、构造、成员、类型操作和委托访问建立实例化工作队列，在当前消费 Cone 完成全部类型替换、bound 与已有 GC-free/CLayout 条件检查。模板声明、已解析 application、本地 concrete 实体使用不同 typed ID；实例 key 使用 origin 与完整 exact arguments，不含消费 Cone 或首次调用位置。已选普通外来函数仍引用定义方实现；泛型正文引用的 private/internal 参数自由 helper 由其定义 Cone 提供普通可链接定义，消费方不复制正文，不重做名字查找。泛型递归继续按语言规范 3.2 检查 SCC 中参数替换环，正常递归复用实例；引用字段不递归展开值布局，不以数量、深度或时间预算判定合法性。
@@ -1049,7 +1051,9 @@ HIR 根据实际调用、构造、成员、类型操作和委托访问建立实�
 
 MIR 对实际选中的外部调用登记完整物理签名的类型，包括 receiver、参数和结果；构造初始化器的 `Unit` 结果也必须进入原 exact type 表。类型直接由完整 HIR 的 exact identity 查询并沿既有类型 lowering 转换，不把未选中的 provider 声明变成机器根。LIR 据此分类调用 ABI，不从符号名猜测缺失类型。
 
-共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造模板迁移到 `/33`，字段实例位置迁移到 `/34`，委托模板后续迁移到 `/35`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。
+共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造模板迁移到 `/33`，字段实例位置迁移到 `/34`，共享表达式的求值位置迁移到 `/35`，委托模板后续迁移到 `/36`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。
+
+`hir/cross-cone-interface/35` 的共享可移植表达式是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`。producer 保留同一次 HIR 中的实际定义与求值位置，包含已在泛型正文及构造委托中展开的默认值；消费泛型正文时恢复两者，消费默认参数模板时则按本次使用点替换求值位置。不得从定义位置、模板声明位置或消费方首次实例化位置猜测正文的求值位置。source record、context 与 span 复用既有源码位置通道和读取边界检查；不增加来源资格或重放语言语义。旧 `/34` 缺少求值位置，产物、required inventory、profile fingerprint 与缓存同步重建，runtime C ABI 保持。
 
 MIR 共有机器输入消费依赖输出中唯一的 canonical foundation；callable 物化根保留完整 Strong/ODR signature subject。参数自由 bridge、entry 与 compiler protocol 从同一 foundation 选择对应的 Strong 记录，不排斥其他 ODR 函数。core bootstrap bridge 的 Strong callable 表覆盖该 Strong 子集，原 bytes 合同不变；ODR 的 signature、application 和 member 仍由既有 canonical 表保存。历史 Strong 产物边界继续拒绝 ODR，不在内部的共有机器输入上施加这一旧 profile 限制。
 

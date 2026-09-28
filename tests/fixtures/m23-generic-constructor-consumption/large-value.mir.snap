@@ -1,0 +1,339 @@
+Module
+  struct Triple (first: Int, second: Int, third: Int)
+  enum CoroutineStep<Triple>
+    Completed(value: Triple)
+    Suspended()
+  enum CoroutineSlot<Triple>
+    Empty()
+    Value(value: Triple)
+  class Box<Triple> vtable=0 itables=0
+  class Box<Unit> vtable=0 itables=0
+  class box<Triple> vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=2da45ec357fb914f8d16a36a5ce6ef5680dd43714a76d4869caf97097df53cfd exact_id=844d8dd23de1d967927c0307d8d39d979e9a5530bdf4aef1d7a6f92f3838617c
+  generated_exact_type get1 location=enum0 nominal_id=34bf54593de4541a54a3b92b8e033d72d34ec473de8efbc645a101d21fb35c47 exact_id=93745e786486a9b1973f06e3bc910d08d5c8efcc3e12f6db45062effc89e33e2
+  generated_exact_type get2 location=class2 nominal_id=5f647164a12a0444edd034c1b93fd16bdce511dac6e536099182016144d90f51 exact_id=fcf89bd599c5718a0613cc7bad946ff8809c32c3175860ab679d4e8f3ca6e8e4
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=15 bits=0x0000000f
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $parameter.third: Int
+        Type Int
+        Local $argument.2
+      call $dependency.argument.0: Triple = @fn9 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.third
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Triple
+        Type Triple
+        Local $dependency.argument.0
+      val $dependency.parameter.extra: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Box<Triple>
+        ClassAlloc Box<Triple>
+      call @fn6 direct
+        Type Box<Triple>
+        Local $new.1
+        Type Triple
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.extra
+      val box: Box<Triple>
+        Type Box<Triple>
+        Local $new.1
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      assign $new.2
+        Type Box<Unit>
+        ClassAlloc Box<Unit>
+      call @fn7 direct
+        Type Box<Unit>
+        Local $new.2
+        Type Unit
+        Local $dependency.parameter.value
+      val empty: Box<Unit>
+        Type Box<Unit>
+        Local $new.2
+      call payload: Triple = @fn1 direct
+        Type Box<Triple>
+        Local box
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Triple
+          Local payload
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Triple
+          Local payload
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 2
+          Type Triple
+          Local payload
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Box<Triple>
+        Local box
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Box<Unit>
+        Local empty
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun echoed @fn1(this: Box<Triple>) -> Triple
+    bb0 entry
+      return
+        Type Triple
+        FieldAccess 1
+          Type Box<Triple>
+          Local this
+  fun count @fn2(this: Box<Triple>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Box<Triple>
+          Local this
+  fun count @fn3(this: Box<Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Box<Unit>
+          Local this
+  fun keep @fn4(value: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun keep @fn5(value: Triple) -> Triple
+    bb0 entry
+      return
+        Type Triple
+        Local value
+  fun init.Box.$c0 @fn6(this: Box<Triple>, value: Triple, extra: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Triple
+        Type Triple
+        Local value
+      val $dependency.constructor.local.1: Triple
+        Type Triple
+        Local $dependency.constructor.local.0
+      call @fn8 direct
+        Type Box<Triple>
+        Local this
+        Type Triple
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.0: Int
+        Type Int
+        FieldAccess 2
+          Type Box<Triple>
+          Local this
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local extra
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      field_set 2
+        Type Box<Triple>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.0
+          Type Int
+          Local $dependency.constructor.local.2
+      return
+  fun init.Box.$c1 @fn7(this: Box<Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Unit>
+        Local this
+        Type Unit
+        Local value
+      val $dependency.constructor.local.0: Unit
+        Type Unit
+        FieldAccess 0
+          Type Box<Unit>
+          Local this
+      val $dependency.constructor.local.1: Unit
+        Type Unit
+        Local $dependency.constructor.local.0
+      call @fn4 direct
+        Type Unit
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type Box<Unit>
+        Local this
+        Type Unit
+        UnitLiteral
+      field_set 2
+        Type Box<Unit>
+        Local this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: Int
+        Type Int
+        FieldAccess 2
+          Type Box<Unit>
+          Local this
+      val $dependency.constructor.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.4: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      field_set 2
+        Type Box<Unit>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.2
+          Type Int
+          Local $dependency.constructor.local.4
+      return
+  fun init.Box.$c1 @fn8(this: Box<Triple>, value: Triple) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Triple>
+        Local this
+        Type Triple
+        Local value
+      val $dependency.constructor.local.0: Triple
+        Type Triple
+        FieldAccess 0
+          Type Box<Triple>
+          Local this
+      val $dependency.constructor.local.1: Triple
+        Type Triple
+        Local $dependency.constructor.local.0
+      call $call.1: Triple = @fn5 direct
+        Type Triple
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type Box<Triple>
+        Local this
+        Type Triple
+        Local $call.1
+      field_set 2
+        Type Box<Triple>
+        Local this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: Int
+        Type Int
+        FieldAccess 2
+          Type Box<Triple>
+          Local this
+      val $dependency.constructor.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.4: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      field_set 2
+        Type Box<Triple>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.2
+          Type Int
+          Local $dependency.constructor.local.4
+      return
+  fun ctor.Triple.$c0 @fn9(first: Int, second: Int, third: Int) -> Triple <no-gc>
+    bb0 entry
+      return
+        Type Triple
+        StructInit Triple
+          Type Int
+          Local first
+          Type Int
+          Local second
+          Type Int
+          Local third
+  coroutine_step cs0 CoroutineStep<Triple> result=Triple
+  coroutine_slot cl0 CoroutineSlot<Triple> value=Triple
+  instance mi0 function=@fn1 <- echoed
+  instance mi1 function=@fn2 <- count
+  instance mi2 function=@fn3 <- count
+  instance mi3 function=@fn4 <- keep
+  instance mi4 function=@fn5 <- keep
+  output library

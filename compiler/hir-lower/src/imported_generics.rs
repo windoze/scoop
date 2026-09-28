@@ -25,7 +25,7 @@ pub(crate) struct ImportedGenericTemplates {
 
 #[derive(Clone)]
 struct ImportedLocalFunctionSource {
-    parent: hir::ImportedGenericCallableTemplateId,
+    parent: hir::ImportedCallableTemplateParent,
     descriptor: hir::DefaultLocalFunctionV1,
 }
 
@@ -45,6 +45,16 @@ pub(crate) enum PreparedImportedCallableSource {
 }
 
 impl PreparedImportedCallableSource {
+    pub(crate) fn source_location(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<hir::ImportedDependencyDefinitionSource<'_>> {
+        match self {
+            Self::Declaration(declaration) => declaration.source_location(source, context),
+            Self::Local(body) => body.source_location(source, context),
+        }
+    }
     pub(crate) fn body(&self) -> &hir::ExportGenericCallableBodyV1 {
         match self {
             Self::Declaration(declaration) => declaration
@@ -108,14 +118,32 @@ impl Lowerer {
         &mut self,
         declaration: hir::ImportedCallableDeclaration,
     ) -> Result<hir::ImportedGenericCallableTemplateId, String> {
-        let CallableTemplateOrigin::GenericFunction(origin) = declaration.interface().declaration()
-        else {
-            return Err("dependency callable does not name a generic function".into());
-        };
-        let key = CallableTemplateOrigin::GenericFunction(origin);
+        let key = declaration.interface().declaration();
         if let Some(id) = self.imported_generic_templates.by_declaration.get(&key) {
             return Ok(*id);
         }
+        let origin = if let hir::PublicDeclarationOwnerV1::Nominal(owner) =
+            declaration.interface().owner()
+        {
+            let nominal = self
+                .dependencies
+                .as_ref()
+                .expect("member bodies have a dependency catalog")
+                .nominal_declaration(owner)
+                .ok_or("member owner is missing")?;
+            let body = declaration
+                .callable_body()
+                .ok_or("dependency nominal member has no body")?;
+            hir::ImportedCallableTemplateOrigin::Nominal {
+                declaration: body.owner(),
+                owner,
+                owner_parameter_count: nominal.interface.type_parameters().binders().len(),
+            }
+        } else if let CallableTemplateOrigin::GenericFunction(origin) = key {
+            hir::ImportedCallableTemplateOrigin::Generic(origin)
+        } else {
+            return Err("dependency callable does not name a generic source body".into());
+        };
         let prepared = self.prepare_imported_generic(declaration, origin)?;
         Ok(self.insert_imported_template(key, prepared))
     }
@@ -138,7 +166,15 @@ impl Lowerer {
 
     pub(crate) fn complete_imported_generic_bodies(&mut self) {
         let mut index = 0;
-        while index < self.imported_generic_templates.templates.len() {
+        let mut constructor = 0;
+        while index < self.imported_generic_templates.templates.len()
+            || constructor < self.imported_constructor_templates.templates.len()
+        {
+            if index == self.imported_generic_templates.templates.len() {
+                self.complete_imported_constructor(constructor);
+                constructor += 1;
+                continue;
+            }
             let template = self.imported_generic_templates.templates[index].clone();
             let id = Idx::from_raw(RawIdx::from(index as u32));
             match self.materialize_imported_callable_body(id, &template) {

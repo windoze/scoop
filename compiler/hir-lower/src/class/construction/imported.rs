@@ -81,14 +81,22 @@ impl Lowerer {
                 this.commit_imported_dependency_callable(*probe, sink)
             },
         )?;
-        let hir::ExprKind::ImportedDependencyCall { callee, args, .. } = resolved.value.kind else {
-            unreachable!("a dependency constructor resolves to its actual initializer")
+        let (target, args) = match resolved.value.kind {
+            hir::ExprKind::ImportedDependencyCall { callee, args, .. } => (
+                hir::BaseInitializerTarget::Imported {
+                    owner,
+                    callable: callee,
+                },
+                args,
+            ),
+            hir::ExprKind::ImportedConstructorInit { application, args } => (
+                hir::BaseInitializerTarget::ImportedTemplate(application),
+                args,
+            ),
+            _ => unreachable!("a dependency constructor resolves to its actual initializer"),
         };
         Some(hir::BaseInitialization::Super {
-            target: hir::BaseInitializerTarget::Imported {
-                owner,
-                callable: callee,
-            },
+            target,
             arguments: hir::ConstructorArguments {
                 locals: resolved.locals,
                 statements: resolved.statements,

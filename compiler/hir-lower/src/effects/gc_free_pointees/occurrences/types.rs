@@ -428,6 +428,12 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
+        ExprKind::ImportedConstructorInit { application, args } => {
+            out.push(lowerer.imported_constructor_applications[*application].owner);
+            for argument in args {
+                collect_expr_types(lowerer, argument, out);
+            }
+        }
         ExprKind::ImportedGenericCall {
             application,
             args,
@@ -521,6 +527,7 @@ pub(in super::super) fn collect_expr_types(
         | ExprKind::IntegerLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
+        | ExprKind::ConstructorReceiver
         | ExprKind::ConstructorParam(_)
         | ExprKind::Local(_)
         | ExprKind::GlobalRead(_)
@@ -648,7 +655,8 @@ pub(in super::super) fn collect_field_ref_types(
     out: &mut Vec<hir::TypeId>,
 ) {
     match field {
-        hir::FieldRef::ImportedStruct { owner, .. } => out.push(owner),
+        hir::FieldRef::ImportedStruct { owner, .. }
+        | hir::FieldRef::ImportedClass { owner, .. } => out.push(owner),
         hir::FieldRef::StructField(field) => {
             out.push(lowerer.struct_applications[field.application()].canonical_type);
         }

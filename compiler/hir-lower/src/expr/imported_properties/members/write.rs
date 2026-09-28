@@ -70,6 +70,24 @@ impl Lowerer {
             return None;
         }
         let value = self.adapt_to(value, property.value_type);
+        if let Some(field) = property.storage
+            && property.accessors.setter_source().is_some_and(|source| {
+                source.implementation() == hir::PropertyAccessorImplementationV1::Storage
+            })
+            && (candidate.interface().modality() == hir::CallableModalityV1::Final
+                || kind == MemberCallKind::DirectSuper)
+        {
+            if candidate.interface().effects().safety() == hir::CallableSafetyV1::Unsafe {
+                self.require_unsafe_operation(span, "writing an unsafe dependency property");
+            }
+            return Some(hir::StatementKind::Assign {
+                target: hir::AssignTarget::Field {
+                    receiver: Box::new(receiver),
+                    field,
+                },
+                value,
+            });
+        }
         self.emit_imported_member_accessor(
             candidate,
             receiver,

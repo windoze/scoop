@@ -283,7 +283,13 @@ fn expression(
     result: SignatureTypeKey,
     origin: ExportDefinitionSourceV1,
 ) -> DefaultExpressionV1 {
-    DefaultExpressionV1::try_new(kind, result, origin).unwrap()
+    DefaultExpressionV1::try_new(
+        kind,
+        result,
+        origin.clone(),
+        scoop_identity::EvaluationOrigin::at_definition(origin.origin()),
+    )
+    .unwrap()
 }
 
 fn template(

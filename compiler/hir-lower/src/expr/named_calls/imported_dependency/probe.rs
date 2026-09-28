@@ -169,7 +169,30 @@ impl Lowerer {
             );
             return Err(Box::new(state));
         }
-        let expected_type_arguments = interface.type_parameters().binders().len();
+        let constructor_owner = match (interface.declaration(), interface.owner()) {
+            (
+                scoop_identity::CallableTemplateOrigin::Constructor(_),
+                hir::PublicDeclarationOwnerV1::Nominal(
+                    scoop_identity::NominalDeclarationOwner::GenericTemplate(owner),
+                ),
+            ) => Some(owner),
+            _ => None,
+        };
+        let expected_type_arguments = constructor_owner.map_or_else(
+            || interface.type_parameters().binders().len(),
+            |owner| {
+                state
+                    .dependencies
+                    .as_ref()
+                    .expect("constructor candidate has a catalog")
+                    .nominal_declaration(hir::SourceNominalId::GenericTemplate(owner))
+                    .expect("constructor owner is in the dependency catalog")
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .len()
+            },
+        );
         if !call.type_args.is_empty() && call.type_args.len() != expected_type_arguments {
             state.error(
                 name.span,
@@ -241,11 +264,13 @@ impl Lowerer {
             receiver_source,
             argument_map.has_vararg(),
         )?;
-        if candidate.callable_body().is_some()
-            && matches!(
-                candidate.interface().owner(),
-                hir::PublicDeclarationOwnerV1::TopLevel | hir::PublicDeclarationOwnerV1::Extension
-            )
+        if constructor_owner.is_some()
+            || (candidate.callable_body().is_some()
+                && matches!(
+                    candidate.interface().owner(),
+                    hir::PublicDeclarationOwnerV1::TopLevel
+                        | hir::PublicDeclarationOwnerV1::Extension
+                ))
         {
             return state.probe_imported_generic(
                 candidate,

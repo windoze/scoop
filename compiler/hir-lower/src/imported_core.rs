@@ -55,6 +55,16 @@ impl Lowerer {
         true
     }
 
+    pub(crate) fn imported_nominal_owner(&self, ty: hir::TypeId) -> Option<hir::SourceNominalId> {
+        self.types[ty]
+            .imported_nominal_application()
+            .map(|(declaration, _)| declaration.owner())
+            .or_else(|| {
+                self.imported_nominal_declaration(ty)
+                    .map(hir::SourceNominalId::Concrete)
+            })
+    }
+
     pub(crate) fn imported_nominal_declaration(&self, ty: hir::TypeId) -> Option<PersistentTypeId> {
         if let hir::Type::ImportedStruct(ty) = &self.types[ty] {
             return ty.declaration.identity.concrete_id();

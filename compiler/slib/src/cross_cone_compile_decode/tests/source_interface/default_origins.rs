@@ -8,6 +8,43 @@ mod support;
 use support::{add_sibling, replace_root};
 
 #[test]
+fn the_ordinary_reader_rejects_template_evaluation_outside_its_source_map() {
+    let fixture = fixture(Case::EvaluationOutsideSource);
+    let bytes = fixture.artifact();
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let front = decoded
+        .validate_foundation_structure(identities)
+        .unwrap()
+        .resolve_hir_interface()
+        .unwrap()
+        .validate_hir_production()
+        .unwrap()
+        .validate_internal_hir_closures()
+        .unwrap();
+    let Err(crate::CrossConeHirDefinitionSourceSurfaceError::EvaluationOrigin { origin, error }) =
+        front.validate_definition_sources(&[])
+    else {
+        panic!("an evaluation position outside the source map must be rejected");
+    };
+    assert_eq!(
+        origin.span(),
+        SourceSpan::new(1_000_000, 1_000_001).unwrap()
+    );
+    assert!(matches!(
+        error,
+        scoop_hir::DefinitionSourceLocationValidationError::MissingSourcePoint {
+            byte_offset: 1_000_000,
+            ..
+        }
+    ));
+}
+
+#[test]
 fn the_ordinary_reader_rejects_a_different_root_with_the_same_signature() {
     let mut fixture = fixture(Case::Defined);
     let (other, _) = add_sibling(&mut fixture, false);

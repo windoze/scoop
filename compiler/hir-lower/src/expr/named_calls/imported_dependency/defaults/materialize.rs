@@ -11,6 +11,7 @@ use crate::expr::MemberCallKind;
 use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
 mod callable;
+mod constructors;
 mod statements;
 
 struct ImportedDefaultContext<'a> {
@@ -29,6 +30,16 @@ enum ImportedTemplateSource<'a> {
 }
 
 impl ImportedTemplateSource<'_> {
+    fn source_location(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<hir::ImportedDependencyDefinitionSource<'_>> {
+        match self {
+            Self::Default(owner) => owner.source_location(source, context),
+            Self::Callable(owner) => owner.source_location(source, context),
+        }
+    }
     fn definition_source(
         &self,
         source: &hir::ExportDefinitionSourceV1,
@@ -41,7 +52,7 @@ impl ImportedTemplateSource<'_> {
 }
 
 enum ImportedTemplateEvaluation {
-    Definition(hir::ImportedGenericCallableTemplateId),
+    Definition(hir::ImportedCallableTemplateParent),
     DefaultUse(hir::EvaluationOrigin),
 }
 
@@ -129,7 +140,18 @@ impl Lowerer {
         let span = definition.span;
         let origin = match context.evaluation {
             ImportedTemplateEvaluation::Definition(_) => {
-                hir::ExpressionOrigin::Definition(definition)
+                let source = expression.evaluation_origin();
+                let location = context
+                    .owner
+                    .source_location(source.source(), source.context())
+                    .ok_or(ImportedDefinitionOriginError::MissingSource {
+                        context: source.context(),
+                    })?;
+                let evaluation = self.import_dependency_evaluation_origin(source, location)?;
+                hir::ExpressionOrigin::Instantiated(hir::ConcreteExpressionOrigin {
+                    definition,
+                    evaluation,
+                })
             }
             ImportedTemplateEvaluation::DefaultUse(evaluation) => {
                 hir::ExpressionOrigin::Instantiated(hir::ConcreteExpressionOrigin {
@@ -278,58 +300,43 @@ impl Lowerer {
                 )?
             }
             Kind::StructInit {
-                constructor: hir::DefaultConstructorRefV1::Struct { declaration, .. },
+                constructor: constructor @ hir::DefaultConstructorRefV1::Struct { declaration, .. },
                 arguments,
             }
             | Kind::ClassInit {
                 constructor:
-                    hir::DefaultConstructorRefV1::Class {
+                    constructor @ hir::DefaultConstructorRefV1::Class {
                         declaration: hir::DefaultClassConstructorIdV1::Source(declaration),
                         ..
                     },
                 arguments,
             } => {
                 let args = self.materialize_imported_default_expressions(arguments, context)?;
-                self.imported_default_call_kind(
-                    scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
-                    args,
-                    hir::SourceCallReceiver::NoReceiver,
-                    MemberCallKind::Ordinary,
-                    context,
-                )?
+                let owner =
+                    self.materialize_imported_default_type(constructor.owner_type(), context)?;
+                if matches!(
+                    self.imported_nominal_owner(owner),
+                    Some(hir::SourceNominalId::GenericTemplate(_))
+                ) {
+                    let application =
+                        self.imported_constructor_application(constructor, context.bindings)?;
+                    hir::ExprKind::ImportedConstructorInit { application, args }
+                } else {
+                    self.imported_default_call_kind(
+                        scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
+                        args,
+                        hir::SourceCallReceiver::NoReceiver,
+                        MemberCallKind::Ordinary,
+                        context,
+                    )?
+                }
             }
-            Kind::FieldAccess {
-                receiver,
-                field: hir::DefaultFieldRefV1::Tuple { declaration_index },
-            } => hir::ExprKind::FieldAccess {
+            Kind::FieldAccess { receiver, field } => hir::ExprKind::FieldAccess {
                 receiver: Box::new(
                     self.materialize_imported_default_expression(receiver, context)?,
                 ),
-                field: hir::FieldRef::TupleIndex(*declaration_index),
+                field: self.materialize_imported_field_ref(field, context.bindings)?,
             },
-            Kind::FieldAccess {
-                receiver,
-                field:
-                    hir::DefaultFieldRefV1::Struct {
-                        declaration,
-                        owner_type,
-                    },
-            } => {
-                let owner = self
-                    .imported_default_type_with_bindings(owner_type, context.bindings)
-                    .map_err(|error| {
-                        ImportedDefaultMaterializationError::Plan(error.to_string())
-                    })?;
-                hir::ExprKind::FieldAccess {
-                    receiver: Box::new(
-                        self.materialize_imported_default_expression(receiver, context)?,
-                    ),
-                    field: hir::FieldRef::ImportedStruct {
-                        owner,
-                        field: *declaration,
-                    },
-                }
-            }
             Kind::MethodCall {
                 receiver,
                 callee: hir::DefaultMethodCalleeV1::Callable(callee),
@@ -444,7 +451,6 @@ impl Lowerer {
             | Kind::FunctionAddress(_)
             | Kind::ForeignCallbackRegister { .. }
             | Kind::ForeignCallbackOperation { .. }
-            | Kind::FieldAccess { .. }
             | Kind::MethodCall { .. }
             | Kind::DirectSuperMethodCall { .. }
             | Kind::ArrayLiteral(_)

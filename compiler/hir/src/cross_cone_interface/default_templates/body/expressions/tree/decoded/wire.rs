@@ -20,23 +20,26 @@ use crate::{
 
 impl WireEncode for DecodedDefaultExpressionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.kind.encode(encoder)?;
         encoder.field(2)?;
         self.result_type.encode(encoder)?;
         encoder.field(3)?;
-        self.definition_origin.encode(encoder)
+        self.definition_origin.encode(encoder)?;
+        encoder.field(4)?;
+        self.evaluation_origin.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedDefaultExpressionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(4)?;
         Ok(Self {
             kind: decoder.field(1, DecodedDefaultExpressionKindV1::decode)?,
             result_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
             definition_origin: decoder.field(3, DecodedExportDefinitionSourceV1::decode)?,
+            evaluation_origin: decoder.field(4, scoop_identity::DecodedEvaluationOrigin::decode)?,
         })
     }
 }

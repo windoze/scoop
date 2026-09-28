@@ -109,7 +109,8 @@ fn push_pointee_call_sites(
     out.extend(calls.into_iter().filter_map(|call| {
         let callee = match call.callee {
             callee @ (super::super::no_gc_generics::GenericCallable::Function(_)
-            | super::super::no_gc_generics::GenericCallable::Imported(_)) => callee,
+            | super::super::no_gc_generics::GenericCallable::Imported(_)
+            | super::super::no_gc_generics::GenericCallable::ImportedConstructor(_)) => callee,
             super::super::no_gc_generics::GenericCallable::ClassConstructor(_)
             | super::super::no_gc_generics::GenericCallable::StructConstructor(_) => return None,
         };

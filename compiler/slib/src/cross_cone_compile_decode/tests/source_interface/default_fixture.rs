@@ -12,6 +12,7 @@ pub(super) enum Case {
     ReadBeforeDefinition,
     ImmutableAssignment,
     BreakOutsideLoop,
+    EvaluationOutsideSource,
 }
 
 pub(super) fn fixture(case: Case) -> CallableSourceSurface {
@@ -20,6 +21,19 @@ pub(super) fn fixture(case: Case) -> CallableSourceSurface {
     let source = interface.source_interfaces().get(fixture.owner).unwrap();
     let parameter = &source.parameters().parameters()[0];
     let origin = parameter.definition_origin().clone();
+    let evaluation = if matches!(case, Case::EvaluationOutsideSource) {
+        scoop_identity::EvaluationOrigin::new(
+            origin.origin().source().clone(),
+            scoop_identity::SourceSpan::new(1_000_000, 1_000_001).unwrap(),
+            fixture
+                .foundation
+                .source_context_key(origin.origin().context())
+                .unwrap(),
+        )
+        .unwrap()
+    } else {
+        scoop_identity::EvaluationOrigin::at_definition(origin.origin())
+    };
     let ty = parameter.value_type().clone();
     let path = StructuralDefinitionPath::from_first(
         StructuralPathSegment::new(StructuralDefinitionSiteRole::DefaultValue, 0),
@@ -41,12 +55,14 @@ pub(super) fn fixture(case: Case) -> CallableSourceSurface {
         },
         ty.clone(),
         origin.clone(),
+        evaluation.clone(),
     )
     .unwrap();
     let read = DefaultExpressionV1::try_new(
         DefaultExpressionKindV1::Local(selector.clone()),
         ty.clone(),
         origin.clone(),
+        evaluation,
     )
     .unwrap();
     let declaration = DefaultStatementV1::try_new(
@@ -58,7 +74,7 @@ pub(super) fn fixture(case: Case) -> CallableSourceSurface {
     )
     .unwrap();
     let statements = match case {
-        Case::Defined => vec![declaration],
+        Case::Defined | Case::EvaluationOutsideSource => vec![declaration],
         Case::ReadBeforeDefinition => vec![
             DefaultStatementV1::try_new(
                 DefaultStatementKindV1::Expr(Box::new(read.clone())),

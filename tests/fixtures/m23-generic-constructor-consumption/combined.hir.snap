@@ -1,0 +1,74 @@
+Module
+  class Payload(value: Int)
+    field0 property0: Int
+    property0 val value: Int getter0=storage <stored field0 init=parameter0>
+  fun result(): Int
+    val local0
+      IntegerLiteral 37 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local3
+      Local $dependency.argument.0 : Payload
+    val local4
+      ImportedConstructorInit Derived : Derived<Payload>
+        Local $dependency.parameter.value : Payload
+    val local5
+      ImportedGenericCall echoed<Payload> : Payload
+        ReferenceUpcast : Box<Payload>
+          Local box : Derived<Payload>
+    val local6
+      Local $dependency.argument.0 : Payload
+    val local7
+      ImportedConstructorInit Pair : Pair<Payload>
+        Local $dependency.parameter.value : Payload
+    val local8
+      Local box : Derived<Payload>
+    val local9
+      IntegerLiteral 8 : Int
+    val local10
+      Local $argument.0 : Int
+    ImportedGenericCall value<Payload> : Unit
+      ReferenceUpcast : Box<Payload>
+        Local $place.0 : Derived<Payload>
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local11
+      IntegerLiteral 1 : Int
+    val local12
+      Local $argument.0 : Int
+    val local13
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local14
+      IntegerLiteral 2 : Int
+    val local15
+      Local $argument.0 : Int
+    val local16
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local17
+      FieldAccess class field value : Int
+        FieldAccess dependency field 39e1f842b6ed15bb9a2d852fb555b1a1cae099fc845ca7ea1c2612d8f337fb06 : Payload
+          Local pair : Pair<Payload>
+    val local18
+      ImportedGenericCall count<Payload> : Int
+        ReferenceUpcast : Box<Payload>
+          Local box : Derived<Payload>
+    val local19
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): Box<T0>
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    return
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+  output library

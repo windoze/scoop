@@ -1,0 +1,278 @@
+Module
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class Alternate<Payload> vtable=0 itables=0
+  class Box<Payload> vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=29dd225799025206e7ffcd712881d84366b2e447c91bb8410a34b534881fae4a exact_id=98f1f82388a5a6e071bab48ba5d8185f76b84bb7aeb0890e9856812a5c8ae277
+  generated_exact_type get1 location=enum1 nominal_id=bd749bd9958b0a777ef823cd29129cd1a2de3d0138a8a64e1fd6026e653863b9 exact_id=f98caa33b78e52b58ee19371c7014c24c3ec16dd89055bf1fbbecec6224e699a
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=37 bits=0x00000025
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn4 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      assign $new.2
+        Type Alternate<Payload>
+        ClassAlloc Alternate<Payload>
+      call @fn5 direct
+        Type Alternate<Payload>
+        Local $new.2
+        Type Payload
+        Local $dependency.parameter.value
+      val box: Alternate<Payload>
+        Type Alternate<Payload>
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Payload
+        ClassAlloc Payload
+      call @fn4 direct
+        Type Payload
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val first: Payload
+        Type Payload
+        Local $new.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type Payload
+        ClassAlloc Payload
+      call @fn4 direct
+        Type Payload
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val second: Payload
+        Type Payload
+        Local $new.4
+      call $call.5: Payload = @fn1 direct
+        Type Alternate<Payload>
+        Local box
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local $call.5
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Alternate<Payload>
+        Local box
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun carried @fn1(this: Alternate<Payload>) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        FieldAccess 3
+          Type Alternate<Payload>
+          Local this
+  fun extra @fn2(this: Alternate<Payload>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 4
+          Type Alternate<Payload>
+          Local this
+  fun keep @fn3(value: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local value
+  fun init.Payload.$c0 @fn4(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Alternate.$c0 @fn5(this: Alternate<Payload>, value: Payload) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Payload
+        Type Payload
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.constructor.local.2: Payload
+        Type Payload
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call @fn6 direct
+        Type Alternate<Payload>
+        Local this
+        Type Payload
+        Local $dependency.constructor.local.2
+        Type Int
+        Local $dependency.constructor.local.3
+      return
+  fun init.Alternate.$c2 @fn6(this: Alternate<Payload>, value: Payload, adjustment: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Payload
+        Type Payload
+        Local value
+      val $dependency.constructor.local.1: Payload
+        Type Payload
+        Local $dependency.constructor.local.0
+      call @fn7 direct
+        Type Box<Payload>
+        Retype Box<Payload>
+          Type Alternate<Payload>
+          Local this
+        Type Payload
+        Local $dependency.constructor.local.1
+      field_set 3
+        Type Alternate<Payload>
+        Local this
+        Type Payload
+        FieldAccess 0
+          Type Box<Payload>
+          Retype Box<Payload>
+            Type Alternate<Payload>
+            Local this
+      field_set 4
+        Type Alternate<Payload>
+        Local this
+        Type Int
+        FieldAccess 2
+          Type Box<Payload>
+          Retype Box<Payload>
+            Type Alternate<Payload>
+            Local this
+      val $dependency.constructor.local.0: Int
+        Type Int
+        FieldAccess 4
+          Type Alternate<Payload>
+          Local this
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      field_set 4
+        Type Alternate<Payload>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.0
+          Type Int
+          Local $dependency.constructor.local.2
+      val $dependency.constructor.local.3: Int
+        Type Int
+        FieldAccess 4
+          Type Alternate<Payload>
+          Local this
+      val $dependency.constructor.local.4: Int
+        Type Int
+        Local adjustment
+      val $dependency.constructor.local.5: Int
+        Type Int
+        Local $dependency.constructor.local.4
+      field_set 4
+        Type Alternate<Payload>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.3
+          Type Int
+          Local $dependency.constructor.local.5
+      return
+  fun init.Box.$c1 @fn7(this: Box<Payload>, value: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Payload>
+        Local this
+        Type Payload
+        Local value
+      val $dependency.constructor.local.0: Payload
+        Type Payload
+        FieldAccess 0
+          Type Box<Payload>
+          Local this
+      val $dependency.constructor.local.1: Payload
+        Type Payload
+        Local $dependency.constructor.local.0
+      call $call.1: Payload = @fn3 direct
+        Type Payload
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type Box<Payload>
+        Local this
+        Type Payload
+        Local $call.1
+      field_set 2
+        Type Box<Payload>
+        Local this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: Int
+        Type Int
+        FieldAccess 2
+          Type Box<Payload>
+          Local this
+      val $dependency.constructor.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.4: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      field_set 2
+        Type Box<Payload>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.2
+          Type Int
+          Local $dependency.constructor.local.4
+      return
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  instance mi0 function=@fn1 <- carried
+  instance mi1 function=@fn2 <- extra
+  instance mi2 function=@fn3 <- keep
+  output library

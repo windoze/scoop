@@ -164,48 +164,87 @@ pub(crate) fn project_definition_source(
     export: &ExportHir,
     origin: crate::DefinitionOrigin,
 ) -> Result<ExportDefinitionSourceV1, HirDefinitionSourceProjectionError> {
-    let file_index = usize::try_from(origin.file)
-        .map_err(|_| HirDefinitionSourceProjectionError::UnknownFile(origin.file))?;
+    let (source, span, context) = project_source_location(
+        export,
+        origin.provider,
+        origin.file,
+        origin.span,
+        origin.context,
+    )?;
+    DefinitionOrigin::new(source.clone(), span, context)
+        .map(ExportDefinitionSourceV1::new)
+        .map_err(HirDefinitionSourceProjectionError::Origin)
+}
+
+pub(crate) fn project_evaluation_origin(
+    export: &ExportHir,
+    origin: crate::EvaluationOrigin,
+) -> Result<scoop_identity::EvaluationOrigin, HirDefinitionSourceProjectionError> {
+    let (source, span, context) = project_source_location(
+        export,
+        origin.provider,
+        origin.file,
+        origin.span,
+        origin.context,
+    )?;
+    scoop_identity::EvaluationOrigin::new(source.clone(), span, context)
+        .map_err(HirDefinitionSourceProjectionError::Origin)
+}
+
+fn project_source_location(
+    export: &ExportHir,
+    provider: IntrinsicProviderId,
+    file: u32,
+    source_span: crate::Span,
+    source_context: crate::SourceContextId,
+) -> Result<
+    (
+        &scoop_identity::SourceIdentity,
+        SourceSpan,
+        &scoop_identity::SourceContextKey,
+    ),
+    HirDefinitionSourceProjectionError,
+> {
+    let file_index =
+        usize::try_from(file).map_err(|_| HirDefinitionSourceProjectionError::UnknownFile(file))?;
     let source = export
         .source_files
         .get(file_index)
-        .ok_or(HirDefinitionSourceProjectionError::UnknownFile(origin.file))?;
-    if source.provider != origin.provider {
+        .ok_or(HirDefinitionSourceProjectionError::UnknownFile(file))?;
+    if source.provider != provider {
         return Err(HirDefinitionSourceProjectionError::ProviderMismatch {
-            file: origin.file,
+            file,
             expected: source.provider,
-            actual: origin.provider,
+            actual: provider,
         });
     }
-    let context_index = raw_index(origin.context);
-    let local_context = arena_get(&export.source_contexts, origin.context).ok_or(
+    let context_index = raw_index(source_context);
+    let local_context = arena_get(&export.source_contexts, source_context).ok_or(
         HirDefinitionSourceProjectionError::UnknownContext(context_index),
     )?;
     if local_context.source() != &source.identity {
         return Err(
             HirDefinitionSourceProjectionError::LocalContextSourceMismatch {
-                file: origin.file,
+                file,
                 context: context_index,
             },
         );
     }
     let context = export
         .source_context_identities
-        .get(origin.context)
+        .get(source_context)
         .ok_or(HirDefinitionSourceProjectionError::MissingPersistentContext(context_index))?;
     if context.key().source() != &source.identity {
         return Err(
             HirDefinitionSourceProjectionError::PersistentContextSourceMismatch {
-                file: origin.file,
+                file,
                 context: context_index,
             },
         );
     }
-    let span = SourceSpan::new(u64::from(origin.span.start), u64::from(origin.span.end))
+    let span = SourceSpan::new(u64::from(source_span.start), u64::from(source_span.end))
         .map_err(HirDefinitionSourceProjectionError::Span)?;
-    DefinitionOrigin::new(source.identity.clone(), span, context.key())
-        .map(ExportDefinitionSourceV1::new)
-        .map_err(HirDefinitionSourceProjectionError::Origin)
+    Ok((&source.identity, span, context.key()))
 }
 
 fn arena_get<T>(arena: &la_arena::Arena<T>, id: la_arena::Idx<T>) -> Option<&T> {

@@ -281,6 +281,19 @@ impl Lowerer {
                 });
                 continue;
             }
+            if let Some(&(parameter, _, _)) = self
+                .constructor_params_in_scope
+                .values()
+                .find(|&&(_, _, candidate)| candidate == binding)
+            {
+                args.push(hir::Expr {
+                    kind: ExprKind::ConstructorParam(parameter),
+                    ty,
+                    span,
+                    origin: self.expression_origin(span),
+                });
+                continue;
+            }
             args.push(self.lower_capture_binding(binding, &name, span)?);
         }
         Some(args)

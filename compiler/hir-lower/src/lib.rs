@@ -112,6 +112,7 @@ mod ffi;
 mod generic_entities;
 mod globals;
 mod imported_capabilities;
+mod imported_constructors;
 mod imported_core;
 mod imported_generics;
 mod imported_type_aliases;
@@ -559,6 +560,8 @@ pub(crate) struct Lowerer {
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
+    pub(crate) imported_constructor_templates: imported_constructors::ImportedConstructorTemplates,
+    pub(crate) imported_constructor_applications: Arena<hir::ImportedConstructorApplication>,
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
     pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
     /// Exact source-name routes selected while resolving public type-alias

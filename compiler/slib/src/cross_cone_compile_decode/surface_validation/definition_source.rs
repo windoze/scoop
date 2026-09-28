@@ -51,6 +51,13 @@ pub enum CrossConeHirDefinitionSourceSurfaceError {
         index: usize,
         provider: ConeIdentity,
     },
+    UnavailableEvaluationProvider {
+        provider: ConeIdentity,
+    },
+    EvaluationOrigin {
+        origin: Box<scoop_identity::EvaluationOrigin>,
+        error: CrossConeHirDefinitionSourceAuthorityError,
+    },
     DefinitionSources(
         ExportDefinitionSourceSetSemanticValidationError<
             CrossConeHirDefinitionSourceAuthorityError,
@@ -67,6 +74,14 @@ impl std::fmt::Display for CrossConeHirDefinitionSourceSurfaceError {
                 "definition source[{index}] provider {provider} is not reachable from this artifact"
             ),
             Self::DefinitionSources(error) => error.fmt(formatter),
+            Self::UnavailableEvaluationProvider { provider } => write!(
+                formatter,
+                "template evaluation provider {provider} is not reachable from this artifact"
+            ),
+            Self::EvaluationOrigin { origin, error } => write!(
+                formatter,
+                "invalid template evaluation at {origin:?}: {error}"
+            ),
         }
     }
 }
@@ -75,8 +90,15 @@ impl std::error::Error for CrossConeHirDefinitionSourceSurfaceError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Resource(error) => Some(error),
-            Self::UnavailableProvider { .. } => None,
+            Self::UnavailableProvider { .. } | Self::UnavailableEvaluationProvider { .. } => None,
+            Self::EvaluationOrigin { error, .. } => Some(error),
             Self::DefinitionSources(error) => Some(error),
         }
+    }
+}
+
+impl From<WireError> for CrossConeHirDefinitionSourceSurfaceError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
     }
 }

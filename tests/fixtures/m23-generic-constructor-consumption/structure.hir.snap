@@ -1,0 +1,43 @@
+Module
+  fun result(): Int
+    val local0
+      IntegerLiteral 20 : Int
+    val local1
+      IntegerLiteral 22 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      Local $dependency.argument.1 : Int
+    val local4
+      ImportedConstructorInit Pair : Pair<Int>
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+    val local5
+      FieldAccess dependency field 51816ffa6a0b532d17039fee40b3fb1aea36df781dd22db90573a7ae2d127e05 : Int
+        Local first : Pair<Int>
+    val local6
+      Local $dependency.argument.0 : Int
+    val local7
+      ImportedConstructorInit Pair : Pair<Int>
+        Local $dependency.parameter.value : Int
+    val local8
+      FieldAccess dependency field 39e1f842b6ed15bb9a2d852fb555b1a1cae099fc845ca7ea1c2612d8f337fb06 : Int
+        Local first : Pair<Int>
+    val local9
+      FieldAccess dependency field 39e1f842b6ed15bb9a2d852fb555b1a1cae099fc845ca7ea1c2612d8f337fb06 : Int
+        Local second : Pair<Int>
+    val local10
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): Box<T0>
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    return
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+  output library

@@ -67,6 +67,31 @@ impl Concretizer<'_> {
                         .collect(),
                 }
             }
+            export::ExprKind::ConstructorReceiver => concrete::ExprKind::ConstructorReceiver,
+            export::ExprKind::ImportedConstructorInit { application, args } => {
+                let owner = self.source.imported_constructor_applications[*application].owner;
+                let args = args
+                    .iter()
+                    .map(|argument| self.lower_expr(argument, substitution, locals))
+                    .collect();
+                match self.source.types[owner] {
+                    export::Type::ImportedStruct(_) => concrete::ExprKind::StructConstructorCall {
+                        constructor: self.lower_imported_struct_constructor_application(
+                            *application,
+                            substitution,
+                        ),
+                        args,
+                    },
+                    export::Type::ImportedClass(_) => concrete::ExprKind::ClassNew {
+                        constructor: self.lower_imported_class_constructor_application(
+                            *application,
+                            substitution,
+                        ),
+                        args,
+                    },
+                    _ => unreachable!("constructor applications retain their nominal role"),
+                }
+            }
             export::ExprKind::ConstructorParam(parameter) => concrete::ExprKind::ConstructorParam(
                 concrete::ConstructorParamId::from_raw(parameter.into_raw()),
             ),
@@ -470,6 +495,7 @@ impl Concretizer<'_> {
                 let local_body = matches!(
                     self.source.imported_generic_templates[source].declaration,
                     export::ImportedCallableTemplateOrigin::Local { .. }
+                        | export::ImportedCallableTemplateOrigin::Nominal { .. }
                 );
                 let arguments = application
                     .arguments

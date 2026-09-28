@@ -24,6 +24,10 @@ impl BodyProjection<'_, '_> {
             kind,
             self.type_key(expression.ty)?,
             self.origin(expression.origin.definition())?,
+            crate::production::definition_sources::project_evaluation_origin(
+                self.entities.export(),
+                expression.origin.concrete().evaluation,
+            )?,
         )
         .map_err(super::super::DefaultBodyProjectionError::Expression)
     }
@@ -75,6 +79,32 @@ impl BodyProjection<'_, '_> {
                     .class_constructor(*constructor, self.binders)?,
                 arguments: self.expressions(args)?,
             },
+            ExprKind::ConstructorReceiver => {
+                DefaultExpressionKindV1::Local(scoop_identity::LocalValueSelector::This)
+            }
+            ExprKind::ImportedConstructorInit { application, args } => {
+                let constructor = self
+                    .entities
+                    .imported_constructor_application(*application, self.binders)?;
+                let arguments = self.expressions(args)?;
+                match constructor {
+                    crate::DefaultConstructorRefV1::Struct { .. } => {
+                        DefaultExpressionKindV1::StructInit {
+                            constructor,
+                            arguments,
+                        }
+                    }
+                    crate::DefaultConstructorRefV1::Class { .. } => {
+                        DefaultExpressionKindV1::ClassInit {
+                            constructor,
+                            arguments,
+                        }
+                    }
+                    crate::DefaultConstructorRefV1::Variant { .. } => {
+                        unreachable!("class/struct construction cannot select a variant")
+                    }
+                }
+            }
             ExprKind::ConstructorParam(parameter) => {
                 DefaultExpressionKindV1::Local(self.locals.constructor_parameter(*parameter)?)
             }

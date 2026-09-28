@@ -245,6 +245,7 @@ fn closure_section(
             DefaultExpressionKindV1::UnitLiteral,
             fixture.value_type(),
             expression_origin.clone(),
+            scoop_identity::EvaluationOrigin::at_definition((expression_origin.clone()).origin()),
         )
         .unwrap(),
     )

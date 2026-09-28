@@ -1,0 +1,12 @@
+package consumer.constructors
+
+import templates.constructors.*
+
+public fun result(): Int {
+    val pair = Pair<Int>(20, 20)
+    val doubled = Pair<Int>(pair.first)
+    val box = Box<Int>(doubled.second)
+    return box.value + pair.second + box.count
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)

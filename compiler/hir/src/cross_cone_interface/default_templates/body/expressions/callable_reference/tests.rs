@@ -35,6 +35,7 @@ fn bound_target_index_error_keeps_target_tag() {
         }),
         fixture.value_type(),
         fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
     )
     .unwrap();
     let reference = DefaultCallableReferenceV1::try_new(

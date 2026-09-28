@@ -30,6 +30,7 @@ pub struct DefaultExpressionV1 {
     kind: DefaultExpressionKindV1,
     result_type: SignatureTypeKey,
     definition_origin: crate::ExportDefinitionSourceV1,
+    evaluation_origin: scoop_identity::EvaluationOrigin,
 }
 
 impl DefaultExpressionV1 {
@@ -37,12 +38,14 @@ impl DefaultExpressionV1 {
         kind: DefaultExpressionKindV1,
         result_type: SignatureTypeKey,
         definition_origin: crate::ExportDefinitionSourceV1,
+        evaluation_origin: scoop_identity::EvaluationOrigin,
     ) -> Result<Self, DefaultExpressionBuildError> {
         validate_kind(&kind)?;
         Ok(Self {
             kind,
             result_type,
             definition_origin,
+            evaluation_origin,
         })
     }
 
@@ -56,6 +59,10 @@ impl DefaultExpressionV1 {
 
     pub const fn definition_origin(&self) -> &crate::ExportDefinitionSourceV1 {
         &self.definition_origin
+    }
+
+    pub const fn evaluation_origin(&self) -> &scoop_identity::EvaluationOrigin {
+        &self.evaluation_origin
     }
 }
 

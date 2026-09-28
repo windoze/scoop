@@ -15,25 +15,52 @@ impl Lowerer {
         source: &hir::ExportDefinitionSourceV1,
         imported: hir::ImportedDependencyDefinitionSource<'_>,
     ) -> Result<hir::DefinitionOrigin, ImportedDefinitionOriginError> {
-        let origin = source.origin();
-        let span = origin.span();
-        let provider = self.imported_source_provider(origin.source().cone())?;
-        let file = self.imported_source_file(provider, imported.record())?;
-        self.intern_imported_source_context(SourceContextKey::File {
-            source: origin.source().clone(),
-        });
-        let context = self.intern_imported_source_context(imported.context().clone());
+        let (provider, file, span, context) =
+            self.import_dependency_source_location(source.origin().span(), imported)?;
         Ok(hir::DefinitionOrigin {
             provider,
             file,
-            span: Span {
-                start: u32::try_from(span.start_byte())
-                    .map_err(|_| ImportedDefinitionOriginError::SpanOverflow)?,
-                end: u32::try_from(span.end_byte())
-                    .map_err(|_| ImportedDefinitionOriginError::SpanOverflow)?,
-            },
+            span,
             context,
         })
+    }
+
+    pub(crate) fn import_dependency_evaluation_origin(
+        &mut self,
+        source: &scoop_identity::EvaluationOrigin,
+        imported: hir::ImportedDependencyDefinitionSource<'_>,
+    ) -> Result<hir::EvaluationOrigin, ImportedDefinitionOriginError> {
+        let (provider, file, span, context) =
+            self.import_dependency_source_location(source.span(), imported)?;
+        Ok(hir::EvaluationOrigin {
+            provider,
+            file,
+            span,
+            context,
+        })
+    }
+
+    fn import_dependency_source_location(
+        &mut self,
+        span: scoop_identity::SourceSpan,
+        imported: hir::ImportedDependencyDefinitionSource<'_>,
+    ) -> Result<
+        (hir::IntrinsicProviderId, u32, Span, hir::SourceContextId),
+        ImportedDefinitionOriginError,
+    > {
+        let provider = self.imported_source_provider(imported.record().identity().cone())?;
+        let file = self.imported_source_file(provider, imported.record())?;
+        self.intern_imported_source_context(SourceContextKey::File {
+            source: imported.record().identity().clone(),
+        });
+        let context = self.intern_imported_source_context(imported.context().clone());
+        let span = Span {
+            start: u32::try_from(span.start_byte())
+                .map_err(|_| ImportedDefinitionOriginError::SpanOverflow)?,
+            end: u32::try_from(span.end_byte())
+                .map_err(|_| ImportedDefinitionOriginError::SpanOverflow)?,
+        };
+        Ok((provider, file, span, context))
     }
 
     fn imported_source_provider(
@@ -90,7 +117,10 @@ impl Lowerer {
         Ok(index)
     }
 
-    fn intern_imported_source_context(&mut self, key: SourceContextKey) -> hir::SourceContextId {
+    pub(crate) fn intern_imported_source_context(
+        &mut self,
+        key: SourceContextKey,
+    ) -> hir::SourceContextId {
         let context = hir::SourceContext::new(
             key.source().clone(),
             hir::SourceContextSubject::Imported(key),

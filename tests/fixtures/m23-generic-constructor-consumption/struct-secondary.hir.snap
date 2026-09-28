@@ -1,0 +1,65 @@
+Module
+  class Payload(value: Int)
+    field0 property0: Int
+    property0 val value: Int getter0=storage <stored field0 init=parameter0>
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedDependencyCall #0 : Trace
+        Local $dependency.parameter.count : Int
+    val local3
+      IntegerLiteral 37 : Int
+    val local4
+      Local $argument.0 : Int
+    val local5
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local6
+      Local trace : Trace
+    val local7
+      Local $dependency.argument.0 : Payload
+    val local8
+      Local $dependency.argument.1 : Trace
+    val local9
+      ImportedConstructorInit Observed : Observed<Payload>
+        Local $dependency.parameter.value : Payload
+        Local $dependency.parameter.trace : Trace
+    val local10
+      IntegerLiteral 1 : Int
+    val local11
+      Local $argument.0 : Int
+    val local12
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local13
+      IntegerLiteral 2 : Int
+    val local14
+      Local $argument.0 : Int
+    val local15
+      ClassInit Payload : Payload
+        Local $parameter.value : Int
+    val local16
+      FieldAccess class field value : Int
+        FieldAccess dependency field faaab799e919ee1474ca471739279fec6300bd48eebc802a9c77210ce4a431a5 : Payload
+          Local value : Observed<Payload>
+    val local17
+      ImportedDependencyCall #1 : Int
+        Local trace : Trace
+    val local18
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): Box<T0>
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    return
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+  output library

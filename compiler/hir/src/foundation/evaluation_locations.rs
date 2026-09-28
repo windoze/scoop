@@ -24,6 +24,14 @@ impl OdrFreeHirFoundation {
 }
 
 impl CanonicalHirFoundation {
+    pub fn validate_evaluation_source_location(
+        &self,
+        provider: ConeIdentity,
+        origin: &EvaluationOrigin,
+    ) -> Result<(), DefinitionSourceLocationValidationError> {
+        self.validate_source_location(provider, origin.source(), origin.span(), origin.context())
+    }
+
     pub fn validate_executable_evaluation_origin(
         &self,
         provider: ConeIdentity,

@@ -4,6 +4,25 @@ use super::*;
 use hir::ImportedCallableSource;
 
 impl Lowerer {
+    pub(crate) fn imported_member_owner_type(
+        &mut self,
+        receiver: hir::TypeId,
+        owner: hir::SourceNominalId,
+    ) -> Option<hir::TypeId> {
+        let mut pending = vec![receiver];
+        let mut seen = std::collections::BTreeSet::new();
+        while let Some(ty) = pending.pop() {
+            if !seen.insert(ty) {
+                continue;
+            }
+            if self.imported_nominal_owner(ty) == Some(owner) {
+                return Some(ty);
+            }
+            pending.extend(self.direct_nominal_supertypes(ty));
+        }
+        None
+    }
+
     pub(crate) fn imported_member_candidates(
         &self,
         receiver: hir::TypeId,
@@ -145,7 +164,7 @@ impl Lowerer {
                 }
                 _ => {}
             }
-            let Some(owner) = self.imported_nominal_declaration(ty) else {
+            let Some(owner) = self.imported_nominal_owner(ty) else {
                 continue;
             };
             let non_interface = !matches!(self.types[ty], hir::Type::ImportedInterface(_));
@@ -158,9 +177,7 @@ impl Lowerer {
                         .copied(),
                 );
             }
-            for candidate in dependencies
-                .member_callable_candidates(hir::SourceNominalId::Concrete(owner), lookup)?
-            {
+            for candidate in dependencies.member_callable_candidates(owner, lookup)? {
                 let declaration = candidate.interface();
                 if !self.imported_callable_is_accessible(declaration, access_receiver) {
                     continue;

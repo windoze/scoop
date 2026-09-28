@@ -1,0 +1,7 @@
+import templates.constructors.Box
+
+public fun bad(): Int {
+    val value = Box<Int>(1)
+    value.echoed = 2
+    return 0
+}

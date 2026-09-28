@@ -185,6 +185,7 @@ impl Lowerer {
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
+            | ExprKind::ConstructorReceiver
             | ExprKind::ConstructorParam(_)
             | ExprKind::GlobalRead(_)
             | ExprKind::Capture(_)
@@ -363,6 +364,21 @@ impl Lowerer {
                 }
             }
 
+            ExprKind::ImportedConstructorInit { application, args } => {
+                let template = &self.imported_constructor_templates
+                    [self.imported_constructor_applications[*application].template]
+                    .signature;
+                if template.effects.gc_effect() != scoop_identity::GcEffect::NoGc {
+                    out.push((
+                        expr.span,
+                        "calling a managed dependency constructor is not allowed in `@NoGC` code"
+                            .to_string(),
+                    ));
+                }
+                for arg in args {
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
+                }
+            }
             ExprKind::ImportedGenericCall {
                 application, args, ..
             } => {

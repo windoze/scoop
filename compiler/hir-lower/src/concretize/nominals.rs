@@ -260,7 +260,7 @@ impl Concretizer<'_> {
         self.request_struct_constructor(application.constructor, structure)
     }
 
-    fn lower_constructor_argument_plan(
+    pub(super) fn lower_constructor_argument_plan(
         &mut self,
         source: &export::ConstructorArguments,
         substitution: &[concrete::TypeId],

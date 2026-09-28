@@ -13,6 +13,7 @@ impl<'a> HirInterfaceValidationInput<'a> {
         dependencies: &[DefinitionSourceProviderView<'_>],
     ) -> Result<(), CrossConeHirDefinitionSourceSurfaceError> {
         let sources = self.interface.definition_sources().sources();
+        let mut checked = std::collections::BTreeSet::new();
 
         for (index, source) in sources.iter().enumerate() {
             let provider = source.origin().source().cone();
@@ -41,7 +42,30 @@ impl<'a> HirInterfaceValidationInput<'a> {
                         },
                     )
                 })?;
+            checked.insert(scoop_identity::EvaluationOrigin::at_definition(
+                source.origin(),
+            ));
         }
+        self.interface.visit_template_evaluation_origins(
+            &mut |source| {
+                if !checked.insert(source.clone()) {
+                    return Ok(());
+                }
+                let provider = source.source().cone();
+                let foundation = if provider == self.current {
+                    self.foundation
+                } else {
+                    dependencies.iter().find(|dependency| dependency.identity == provider)
+                        .map(|dependency| dependency.foundation)
+                        .ok_or(CrossConeHirDefinitionSourceSurfaceError::UnavailableEvaluationProvider { provider })?
+                };
+                foundation.validate_evaluation_source_location(provider, source)
+                    .map_err(|error| CrossConeHirDefinitionSourceSurfaceError::EvaluationOrigin {
+                        origin: Box::new(source.clone()), error,
+                    })
+            },
+            &scoop_wire::WirePath::root(),
+        )?;
         Ok(())
     }
     pub(crate) fn sources(

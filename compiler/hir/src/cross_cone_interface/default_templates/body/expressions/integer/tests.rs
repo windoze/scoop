@@ -61,7 +61,7 @@ fn integer_operation_decoder_rejects_unknown_tags_and_non_exact_maps() {
 #[test]
 fn integer_conversion_decoder_rejects_legacy_callee_field() {
     let error = decode_canonical::<crate::DecodedDefaultExpressionV1>(&[
-        0xa3, 0x01, 0xa5, 0x00, 0x18, 50, 0, 0, 0, 0, 0, 0, 0, 0,
+        0xa4, 0x01, 0xa5, 0x00, 0x18, 50, 0, 0, 0, 0, 0, 0, 0, 0,
     ])
     .unwrap_err();
     assert_eq!(

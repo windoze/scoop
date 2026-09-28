@@ -50,6 +50,7 @@ fn assignment_target_reports_nested_expression_index_location() {
                 }),
                 fixture.value_type(),
                 fixture.origin(),
+                scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
             )
             .unwrap(),
         ),
@@ -86,6 +87,7 @@ fn unit(fixture: &Fixture) -> DefaultExpressionV1 {
         DefaultExpressionKindV1::UnitLiteral,
         fixture.value_type(),
         fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
     )
     .unwrap()
 }

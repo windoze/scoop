@@ -699,7 +699,13 @@ fn expression(
     kind: DefaultExpressionKindV1,
     value_type: SignatureTypeKey,
 ) -> DefaultExpressionV1 {
-    DefaultExpressionV1::try_new(kind, value_type, fixture.origin()).unwrap()
+    DefaultExpressionV1::try_new(
+        kind,
+        value_type,
+        fixture.origin(),
+        scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
+    )
+    .unwrap()
 }
 
 fn statement(fixture: &Fixture, kind: DefaultStatementKindV1) -> DefaultStatementV1 {

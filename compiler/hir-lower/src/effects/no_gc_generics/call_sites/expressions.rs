@@ -19,6 +19,7 @@ impl Lowerer {
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
+            | ExprKind::ConstructorReceiver
             | ExprKind::ConstructorParam(_)
             | ExprKind::InitializingClassFieldAccess { .. }
             | ExprKind::InitializingStructFieldAccess { .. }
@@ -227,6 +228,26 @@ impl Lowerer {
                 record(*callee);
                 for arg in args {
                     self.collect_generic_calls_in_expr(arg, out);
+                }
+            }
+            ExprKind::ImportedConstructorInit { application, args } => {
+                let application = &self.imported_constructor_applications[*application];
+                let template = &self.imported_constructor_templates[application.template].signature;
+                let (_, arguments) = self.types[application.owner]
+                    .imported_nominal_application()
+                    .expect("constructor applications retain their owner arguments");
+                out.push(GenericCall {
+                    callee: GenericCallable::ImportedConstructor(application.template),
+                    arguments: template
+                        .type_parameters
+                        .iter()
+                        .zip(arguments)
+                        .map(|(p, a)| (p.id, *a))
+                        .collect(),
+                    span: expr.span,
+                });
+                for argument in args {
+                    self.collect_generic_calls_in_expr(argument, out);
                 }
             }
             ExprKind::ImportedGenericCall {

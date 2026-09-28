@@ -8,13 +8,15 @@ use super::{
 
 impl WireEncode for IndexedDefaultExpressionV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.kind.encode(encoder)?;
         encoder.field(2)?;
         self.expression.result_type.encode(encoder)?;
         encoder.field(3)?;
-        self.expression.definition_origin.encode(encoder)
+        self.expression.definition_origin.encode(encoder)?;
+        encoder.field(4)?;
+        self.expression.evaluation_origin.encode(encoder)
     }
 }
 

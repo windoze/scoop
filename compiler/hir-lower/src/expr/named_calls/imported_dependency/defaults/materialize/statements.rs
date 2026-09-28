@@ -160,17 +160,22 @@ impl Lowerer {
     }
 
     fn materialize_imported_default_assign_target(
-        &self,
+        &mut self,
         target: &hir::DefaultAssignTargetV1,
-        context: &ImportedDefaultContext<'_>,
+        context: &mut ImportedDefaultContext<'_>,
     ) -> Result<hir::AssignTarget, ImportedDefaultMaterializationError> {
         match target {
             hir::DefaultAssignTargetV1::Local { local } => self
                 .materialized_imported_default_local(local, context)
                 .map(hir::AssignTarget::Local),
+            hir::DefaultAssignTargetV1::Field { receiver, field } => Ok(hir::AssignTarget::Field {
+                receiver: Box::new(
+                    self.materialize_imported_default_expression(receiver, context)?,
+                ),
+                field: self.materialize_imported_field_ref(field, context.bindings)?,
+            }),
             hir::DefaultAssignTargetV1::Global { .. }
-            | hir::DefaultAssignTargetV1::Index { .. }
-            | hir::DefaultAssignTargetV1::Field { .. } => {
+            | hir::DefaultAssignTargetV1::Index { .. } => {
                 Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default assignment".to_owned(),
                 ))
@@ -276,7 +281,7 @@ impl Lowerer {
         })
     }
 
-    fn materialize_imported_default_type(
+    pub(super) fn materialize_imported_default_type(
         &mut self,
         source: &scoop_identity::SignatureTypeKey,
         context: &ImportedDefaultContext<'_>,

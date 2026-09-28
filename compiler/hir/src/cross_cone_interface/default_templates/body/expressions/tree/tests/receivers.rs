@@ -60,7 +60,10 @@ fn default_call_receiver_cannot_exist_without_a_logical_argument() {
                 },
             },
             unit.result_type().clone(),
-            unit.definition_origin().clone(),
+            unit.definition_origin().clone().clone(),
+            scoop_identity::EvaluationOrigin::at_definition(
+                (unit.definition_origin().clone()).origin()
+            ),
         ),
         Err(DefaultExpressionBuildError::MissingReceiverArgument)
     );

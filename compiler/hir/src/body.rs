@@ -258,6 +258,7 @@ pub enum ExprKind {
     /// Read of a primary-constructor parameter inside a base-constructor
     /// delegation expression.
     ConstructorParam(ConstructorParamId),
+    ConstructorReceiver,
     /// Variant construction (`Some(x)`, `Color.Red`, `E.Named(f = 1)`);
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
@@ -425,6 +426,10 @@ pub enum ExprKind {
         receiver: crate::SourceCallReceiver<TypeId>,
     },
     /// A dependency template application materialized by the HIR fixed point.
+    ImportedConstructorInit {
+        application: ImportedConstructorApplicationId,
+        args: Vec<Expr>,
+    },
     ImportedGenericCall {
         application: ImportedGenericCallableApplicationId,
         binding: Option<std::sync::Arc<DirectImportedTargetBinding>>,
@@ -588,6 +593,10 @@ pub enum FieldRef {
     StructField(AppliedStructFieldRef),
     /// A field of a dependency struct, identified within its actual declaration.
     ImportedStruct {
+        owner: TypeId,
+        field: scoop_identity::PersistentFieldId,
+    },
+    ImportedClass {
         owner: TypeId,
         field: scoop_identity::PersistentFieldId,
     },

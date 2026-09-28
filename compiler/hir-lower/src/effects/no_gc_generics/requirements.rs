@@ -55,6 +55,11 @@ impl Lowerer {
         match callable {
             GenericCallable::Function(id) => self.function_no_gc_requirements(id),
             GenericCallable::Imported(id) => &self.imported_generic_templates[id].no_gc_type_params,
+            GenericCallable::ImportedConstructor(id) => {
+                &self.imported_constructor_templates[id]
+                    .signature
+                    .no_gc_type_params
+            }
             GenericCallable::ClassConstructor(id) => &self.class_constructors[id].no_gc_type_params,
             GenericCallable::StructConstructor(id) => {
                 &self.struct_constructors[id].no_gc_type_params
@@ -76,7 +81,7 @@ impl Lowerer {
         requirements.sort_by_key(|p| p.into_raw());
         match callable {
             GenericCallable::Function(id) => self.set_function_no_gc_requirements(id, requirements),
-            GenericCallable::Imported(_) => {
+            GenericCallable::Imported(_) | GenericCallable::ImportedConstructor(_) => {
                 unreachable!("dependency predicates were completed by their provider")
             }
             GenericCallable::ClassConstructor(id) => {

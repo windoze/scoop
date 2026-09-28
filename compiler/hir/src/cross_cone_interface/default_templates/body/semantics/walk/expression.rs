@@ -15,6 +15,8 @@ where
         expression: &'body DefaultExpressionV1,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
+        self.mode
+            .visit_evaluation_origin(expression.evaluation_origin(), self.path)?;
         self.process_expression_kind(expression.kind(), expression.definition_origin(), pending)?;
         self.push_type(
             pending,

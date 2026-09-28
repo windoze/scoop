@@ -1,0 +1,136 @@
+Module
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class Captured<Payload> vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=4d1560498c84b48fc2b00e5bde24268b9e3c51ef50038b4179165cd9161fd0dd exact_id=4182e3a97e0821d1c70355a732c48c4c54c8c52fa3f68c9f164619a389bc87df
+  generated_exact_type get1 location=enum0 nominal_id=3b05339e9aa555c63df8a259b7162decd88d970c1b5519636d586d148ff1a3d3 exact_id=89e7456e679d5a1714585caf61694a97fb66ce27dfc8a89f7e1e7b0700644601
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn4 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      assign $new.2
+        Type Captured<Payload>
+        ClassAlloc Captured<Payload>
+      call @fn5 direct
+        Type Captured<Payload>
+        Local $new.2
+        Type Payload
+        Local $dependency.parameter.value
+      val box: Captured<Payload>
+        Type Captured<Payload>
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Payload
+        ClassAlloc Payload
+      call @fn4 direct
+        Type Payload
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val first: Payload
+        Type Payload
+        Local $new.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type Payload
+        ClassAlloc Payload
+      call @fn4 direct
+        Type Payload
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val second: Payload
+        Type Payload
+        Local $new.4
+      call $call.5: Payload = @fn1 direct
+        Type Captured<Payload>
+        Local box
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local $call.5
+  fun output @fn1(this: Captured<Payload>) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        FieldAccess 0
+          Type Captured<Payload>
+          Local this
+  fun copy @fn2($capture.0: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local $capture.0
+  fun fromSaved @fn3($capture.0: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local $capture.0
+  fun init.Payload.$c0 @fn4(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Captured.$c0 @fn5(this: Captured<Payload>, value: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type Captured<Payload>
+        Local this
+        Type Payload
+        Local value
+      call $dependency.constructor.local.0: Payload = @fn2 direct
+        Type Payload
+        Local value
+      call $call.1: Payload = @fn3 direct
+        Type Payload
+        Local $dependency.constructor.local.0
+      field_set 0
+        Type Captured<Payload>
+        Local this
+        Type Payload
+        Local $call.1
+      return
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  instance mi0 function=@fn1 <- output
+  instance mi1 function=@fn2 <- copy
+  instance mi2 function=@fn3 <- fromSaved
+  output library

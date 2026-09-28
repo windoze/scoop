@@ -9,7 +9,14 @@ impl CallableIdentityBuilder<'_> {
         }
         let (source, class) = self.concretizer.class_constructor_keys[index];
         let arguments = self.concretizer.classes[class].type_arguments.clone();
-        let materialization = self.class_constructor_materialization(source, &arguments);
+        let materialization = match source {
+            constructor_work::ClassConstructorSource::Local(source) => {
+                self.class_constructor_materialization(source, &arguments)
+            }
+            constructor_work::ClassConstructorSource::Imported(source) => {
+                self.imported_constructor_materialization(source, &arguments)
+            }
+        };
         self.class_constructor_materializations[index] = Some(materialization);
         materialization
     }
@@ -20,9 +27,43 @@ impl CallableIdentityBuilder<'_> {
         }
         let (source, structure) = self.concretizer.struct_constructor_keys[index];
         let arguments = self.concretizer.structs[structure].type_arguments.clone();
-        let materialization = self.struct_constructor_materialization(source, &arguments);
+        let materialization = match source {
+            constructor_work::StructConstructorSource::Local(source) => {
+                self.struct_constructor_materialization(source, &arguments)
+            }
+            constructor_work::StructConstructorSource::Imported(source) => {
+                self.imported_constructor_materialization(source, &arguments)
+            }
+        };
         self.struct_constructor_materializations[index] = Some(materialization);
         materialization
+    }
+
+    pub(super) fn imported_constructor_materialization(
+        &mut self,
+        constructor: export::ImportedConstructorTemplateId,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
+        let template = &self.concretizer.source.imported_constructor_templates[constructor];
+        let ty = match &self.concretizer.source.types[template.owner] {
+            export::Type::ImportedStruct(owner) => {
+                let owner = self.concretizer.imported_structs
+                    [&(owner.declaration.owner(), arguments.to_vec())];
+                self.concretizer.struct_type[&owner]
+            }
+            export::Type::ImportedClass(owner) => {
+                let owner = self.concretizer.imported_classes
+                    [&(owner.declaration.owner(), arguments.to_vec())];
+                self.concretizer.class_type[&owner]
+            }
+            _ => unreachable!("imported constructors retain their nominal owner"),
+        };
+        let exact_owner = self.exact_types[ty].id();
+        let origin = template.declaration;
+        CallableMaterialization::new(
+            CallableTemplateOwner::Constructor(origin),
+            self.constructor_application_context(origin, exact_owner, arguments),
+        )
     }
 
     pub(super) fn class_constructor_materialization(

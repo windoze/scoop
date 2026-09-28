@@ -114,11 +114,17 @@ lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的
 
 构造初始化表按原名义声明保存公共序列与各构造器：class 的 common initialization 只保存一次，primary 保留 base delegation 和参数到字段的写入，secondary 区分 `this` 与 terminal `super` 委托，并保留其后执行的正文；struct 区分 primary 值构造与 secondary 委托。委托实参、字段初始化、`init` 和次构造正文共用含局部值表、typed statements 与实际结果列表的执行片段；纯语句片段的结果列表为空，不填充假的 Unit。构造参数用原源码位置对应的 `Parameter` selector，初始化接收者用 `This` selector，字段访问继续使用原 typed field identity。class 的委托复用同一个已分配接收者，common sequence 中的 stored/delegate 写入与 `init` 按源码顺序执行。shape、参数调用协议和 bounds 仍由既有共有声明表提供。
 
+消费方以原普通或泛型名义 owner 查找构造候选，宿主实参复用现有推断、参数协议和 bound 检查。选定的构造保持原 constructor identity 与实际 owner application，执行片段进入已有具体化队列，最终产生正常 struct constructor 或 class initializer。`this` 与泛型基类委托均保留同一已分配接收者，公共初始化只在 terminal 构造执行；未调用模板不成为机器根。构造生成的参数读取、字段写入与委托调用保留原定义位置，并复用提供方已有的 constructor execution context；声明所在文件上下文不代替执行上下文。
+
+类型别名固定泛型宿主实参时，构造推断使用别名的完整 application；普通构造继续使用调用上下文的期望类型，不以被调用类型自身覆盖该约束。
+
 ### 3.3 默认参数的边界
 
 public default 仍只能直接引用覆盖其完整调用域的实体；generic body 可以引用定义处合法的 narrower 实现。二者共享节点不共享访问规则。private generic helper 自己的默认值按该 helper 的实际调用域检查，不能把正文依赖资格传播给 public default。
 
 显式实参、默认参数、`vararg` 和前置参数引用继续按 8.5 求值。默认值中嵌套泛型调用的 binder 随外层模板替换；实际省略参数时才展开默认值。定义位置和求值位置分别保留，实例化失败报告消费方使用点，并附 provider 中的约束/声明位置。
+
+共享可移植表达式直接保存原 `EvaluationOrigin`，使已经在泛型函数或构造委托内展开的默认值保留该正文中的实际求值位置。消费泛型正文时恢复这条记录；消费默认参数模板时仍按本次省略参数的使用点替换求值位置。两者使用同一表达式转换，不从定义位置或模板声明位置猜测求值位置。
 
 generic body 自身的 `current_source_location` 使用该正文中的语义求值位置，不因某个 consumer 首先实例化而变成调用点。实例化诊断链只用于诊断，不进入 body、常量、symbol 或 ODR fingerprint。
 
@@ -389,7 +395,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
-| `org.scoop-lang.hir/cross-cone-interface` | `/35` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application |
+| `org.scoop-lang.hir/cross-cone-interface` | `/36` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置 |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/9` | exact application 的完整 facts、继承和 actual type uses；不增加来源资格 |
 | `org.scoop-lang.mir/cross-cone-type-bridge` | `/3` | 原类型表示表保存 application origin；callable 和 dispatch 使用 Strong/ODR 定义目标，callable origin tag 5 引用真实 application |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
@@ -404,9 +410,9 @@ HIR identity-foundation `/3`、MIR identity-foundation `/1`、现有 compiler pr
 
 HIR cross-cone-interface 的新增字段直接保存三张 canonical 表：field 11=按 typed callable owner 排序的 body records，field 12=按 nominal/constructor owner 排序的 common/delegation initialization records，field 13=按 extension property ID 排序的 delegate templates。每条记录引用共有声明、签名和定义位置，内含完整 body/sequence 与该记录实际需要的 predicates；无对应内容时表为空。禁止用空 body 表示 abstract、intrinsic 或缺失实现。
 
-生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 增加必需 field 13；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
+生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 为共享表达式增加必需的求值位置，`/36` 增加必需 field 13；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression 是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`；同一位置同时是定义和求值位置时也显式保存。expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
 
-构造初始化生产与读取启用 `/33`；字段实例位置升级至 `/34` 后，interface 仍是必需 field 1～12 的十二字段 product。field 12 中每个 nominal record 为 `{1=generic type owner, 2=common steps, 3=constructors}`；constructor 数组非空并按原 typed constructor reference 严格递增，nominal records 按 owner 严格递增。constructor 是六字段 product：declaration、inputs、effects、predicates、definition origin、kind。kind 1 为 struct primary；kind 2 为 struct secondary（delegation、body）；kind 3 为 class primary（base、primary stores）；kind 4 为 class secondary this（delegation、body）；kind 5 为 class terminal secondary（base、body）。base 用长度为 0 或 1 的数组区分根类和实际基类委托。delegation 保存目标和实参片段；primary store 保存原 field reference 和参数 selector。common field step 保存原 field reference 和单结果片段，common body step 保存无结果片段。所有片段统一使用 `{1=locals, 2=statements, 3=results}`，复用既有 typed 节点、局部值索引和引用解析；不重复声明表的 shape，也不为 abstract/intrinsic 构造产生执行记录。源码生产先排序，reader 保留 wire 顺序并在记录构造边界完成一次格式与引用形状检查。后续 `/34` 的 delegate table 不提前写入当前 payload。
+构造初始化生产与读取启用 `/33`；字段实例位置升级至 `/34` 后，interface 仍是必需 field 1～12 的十二字段 product。field 12 中每个 nominal record 为 `{1=generic type owner, 2=common steps, 3=constructors}`；constructor 数组非空并按原 typed constructor reference 严格递增，nominal records 按 owner 严格递增。constructor 是六字段 product：declaration、inputs、effects、predicates、definition origin、kind。kind 1 为 struct primary；kind 2 为 struct secondary（delegation、body）；kind 3 为 class primary（base、primary stores）；kind 4 为 class secondary this（delegation、body）；kind 5 为 class terminal secondary（base、body）。base 用长度为 0 或 1 的数组区分根类和实际基类委托。delegation 保存目标和实参片段；primary store 保存原 field reference 和参数 selector。common field step 保存原 field reference 和单结果片段，common body step 保存无结果片段。所有片段统一使用 `{1=locals, 2=statements, 3=results}`，复用既有 typed 节点、局部值索引和引用解析；不重复声明表的 shape，也不为 abstract/intrinsic 构造产生执行记录。源码生产先排序，reader 保留 wire 顺序并在记录构造边界完成一次格式与引用形状检查。后续 `/36` 的 delegate table 不提前写入当前 payload。
 
 共有 external reference 的实际 call-site product 使用必需 field 8 保存实例化分支：`{0=1}` 表示直接调用，`{0=2, 1=PersistentCallableApplicationId}` 表示 application。该 ID 引用已有 canonical application 表，不复制 binder、实参或另一份签名。读取时将 application 的原声明、宿主与 callable 实参连接到 provider 声明，并检查完全替换后的实际参数与结果类型；泛型声明不能使用直接分支，application 不能引用另一声明。实际泛型调用和参数自由调用使用同一 occurrence、绑定记录和 source-location 路径。实例化正文中的调用保留 provider 的求值位置，按实际 root 的模板定义检查；普通消费方调用及默认值展开继续使用自己的求值位置，不要求所有调用位置都属于消费 Cone。
 

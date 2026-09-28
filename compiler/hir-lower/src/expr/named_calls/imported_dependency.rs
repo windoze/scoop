@@ -27,7 +27,7 @@ pub(in crate::expr) use inputs::{
 enum ImportedCallImplementation {
     Native,
     Generic {
-        template: hir::ImportedGenericCallableTemplateId,
+        template: generic::ImportedGenericTarget,
         arguments: hir::NonEmptyVec<hir::TypeId>,
     },
 }
@@ -54,18 +54,11 @@ impl ImportedDependencyCallProbe {
         let (parameters, bindings) = match self.implementation {
             ImportedCallImplementation::Native => (Vec::new(), Default::default()),
             ImportedCallImplementation::Generic { template, .. } => {
-                let declaration = self.state.imported_generic_templates[template]
-                    .source
-                    .declaration()
-                    .clone();
-                let template = state
-                    .request_imported_generic_template(declaration)
+                let declaration = template.declaration(&self.state);
+                let template = generic::ImportedGenericTarget::request(state, declaration)
                     .expect("an applicable imported candidate has a resolved declaration");
-                let prepared = &state.imported_generic_templates[template];
-                (
-                    prepared.type_parameters.declarations().to_vec(),
-                    prepared.bindings.clone(),
-                )
+                let (signature, bindings) = template.signature(state);
+                (signature.type_parameters, bindings)
             }
         };
         let parameter_types = self
@@ -84,7 +77,10 @@ impl ImportedDependencyCallProbe {
     }
 
     pub(crate) fn parameterized(&self) -> bool {
-        !self.candidate.interface().type_parameters().is_empty()
+        matches!(
+            self.implementation,
+            ImportedCallImplementation::Generic { .. }
+        ) || !self.candidate.interface().type_parameters().is_empty()
     }
 
     pub(crate) fn defaults(&self) -> usize {
@@ -102,8 +98,8 @@ impl ImportedDependencyCallProbe {
     pub(crate) fn signature(&self, name: &str) -> String {
         let state = &self.state;
         if let ImportedCallImplementation::Generic { template, .. } = self.implementation {
-            let signature = &state.imported_generic_templates[template].signature;
-            let binders = signature.type_parameters.declarations();
+            let (signature, _) = template.signature(state);
+            let binders = signature.type_parameters.as_slice();
             let type_parameters = crate::call_resolution::diagnostics::render_type_parameters(
                 state, binders, binders,
             );
@@ -118,8 +114,8 @@ impl ImportedDependencyCallProbe {
                 .map(|parameter| {
                     format!(
                         "{}: {}",
-                        parameter.name,
-                        state.type_name_with_params(parameter.ty, binders)
+                        parameter.0,
+                        state.type_name_with_params(parameter.1, binders)
                     )
                 })
                 .collect::<Vec<_>>()

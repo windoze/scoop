@@ -2,11 +2,14 @@
 //! current declarations. Their successful result retains a provider template.
 
 use super::*;
+
+mod signature;
 use crate::call_resolution::arguments::SourceInputId;
 use crate::call_resolution::constraints::{
     Constraint, ConstraintOrigin, InferenceSession, TypeTerm,
 };
 use crate::expr::ResolvedCallTypeArgument;
+pub(super) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
 
 impl Lowerer {
     #[allow(clippy::too_many_arguments)]
@@ -25,25 +28,22 @@ impl Lowerer {
             .expect("ordinary calls have a dependency catalog")
             .callable_declaration(candidate.interface().declaration())
             .expect("candidate came from its declaration catalog");
-        let template = match self.request_imported_generic_template(declaration) {
+        let template = match ImportedGenericTarget::request(&mut self, declaration) {
             Ok(template) => template,
             Err(error) => {
                 self.error(call.span, error);
                 return Err(Box::new(self));
             }
         };
-        let prepared = self.imported_generic_templates[template].clone();
-        let signature = &prepared.signature;
+        let (signature, template_bindings) = template.signature(&self);
+        let signature = &signature;
         let explicit = match self.resolve_call_type_args(call.type_args) {
             Some(arguments) => arguments,
             None => return Err(Box::new(self)),
         };
         let mut session = InferenceSession::new();
-        let environment = session.add_environment(&[], signature.type_parameters.declarations());
-        self.add_declaration_bounds(
-            &mut session,
-            signature.type_parameters.declarations().iter(),
-        );
+        let environment = session.add_environment(&[], signature.type_parameters.as_slice());
+        self.add_declaration_bounds(&mut session, signature.type_parameters.as_slice().iter());
         for (index, argument) in explicit.iter().enumerate() {
             if let ResolvedCallTypeArgument::Explicit { ty, .. } = argument {
                 let variable = session.callable_variables(environment)[index];
@@ -72,7 +72,7 @@ impl Lowerer {
         }
         let mut source_patterns = Vec::new();
         for pattern in argument_map.source_parameters() {
-            match self.imported_signature_type_with_bindings(pattern, &prepared.bindings) {
+            match self.imported_signature_type_with_bindings(pattern, &template_bindings) {
                 Ok(ty) => source_patterns.push(ty),
                 Err(error) => {
                     self.error(
@@ -96,7 +96,7 @@ impl Lowerer {
             };
             let bindings = signature
                 .type_parameters
-                .declarations()
+                .as_slice()
                 .iter()
                 .zip(partial.callable)
                 .map(|(p, ty)| {
@@ -133,7 +133,7 @@ impl Lowerer {
         let arguments = solution.arguments_for(&session, environment).callable;
         let bindings = signature
             .type_parameters
-            .declarations()
+            .as_slice()
             .iter()
             .zip(&arguments)
             .map(|(p, a)| (p.id, *a))
@@ -142,7 +142,7 @@ impl Lowerer {
             .parameters
             .iter()
             .skip(usize::from(signature.receiver.is_some()))
-            .map(|parameter| self.instantiate_method_ty(parameter.ty, &bindings))
+            .map(|parameter| self.instantiate_method_ty(parameter.1, &bindings))
             .collect::<Vec<_>>();
         let result_type = self.instantiate_method_ty(signature.return_type, &bindings);
         for (value, pattern) in source_args.iter_mut().zip(&source_patterns) {
@@ -167,8 +167,7 @@ impl Lowerer {
             }
             receiver => receiver,
         };
-        let default_bindings = prepared
-            .bindings
+        let default_bindings = template_bindings
             .iter()
             .map(|(key, ty)| (key.clone(), self.instantiate_method_ty(*ty, &bindings)))
             .collect();
@@ -209,17 +208,17 @@ impl Lowerer {
         &mut self,
         name: &ast::Ident,
         call: ImportedProbeCall<'_>,
-        signature: &hir::ImportedGenericCallableSignature,
+        signature: &ImportedInferenceSignature,
         failure: &crate::call_resolution::constraints::ConstraintFailure,
     ) {
         use crate::call_resolution::constraints::ConstraintFailureKind as Kind;
         let parameter = |variable: crate::call_resolution::constraints::InferenceVariableId| {
-            &signature.type_parameters.declarations()[variable.group_index()].name
+            &signature.type_parameters.as_slice()[variable.group_index()].name
         };
         let type_term = |term: TypeTerm| match term {
             TypeTerm::Variable(variable) => parameter(variable).clone(),
             TypeTerm::Type(ty) | TypeTerm::Rigid(ty) => {
-                self.type_name_with_params(ty, signature.type_parameters.declarations())
+                self.type_name_with_params(ty, signature.type_parameters.as_slice())
             }
         };
         let message = match &failure.kind {

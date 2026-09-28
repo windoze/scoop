@@ -61,6 +61,10 @@ pub(super) struct DependencyCatalog {
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
+    pub(super) initializations: BTreeMap<
+        scoop_identity::PersistentGenericTypeId,
+        Arc<crate::ExportGenericNominalInitializationV1>,
+    >,
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
     pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
@@ -75,6 +79,7 @@ impl ImportedSemanticWorld<'_> {
             .map_err(ImportedDependencySelectionPlanBuildError::NominalClassifier)?;
         let mut callables = BTreeMap::new();
         let mut bodies = BTreeMap::new();
+        let mut initializations = BTreeMap::new();
         let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
@@ -103,7 +108,10 @@ impl ImportedSemanticWorld<'_> {
                     ));
                 }
             }
-            let definition_sources = Arc::new(imported_definition_sources(provider)?);
+            let definition_sources = Arc::new(imported_definition_sources(provider));
+            for initialization in provider.interface().generic_initializations().records() {
+                initializations.insert(initialization.owner(), Arc::new(initialization.clone()));
+            }
             for body in provider.interface().generic_callable_bodies().records() {
                 let declaration = match body.owner() {
                     crate::DefaultCallableDeclarationV1::Function(id) => {
@@ -260,6 +268,7 @@ impl ImportedSemanticWorld<'_> {
                 consumer: self.current,
                 callables,
                 bodies,
+                initializations,
                 properties,
                 constants,
                 type_aliases,
@@ -273,37 +282,18 @@ impl ImportedSemanticWorld<'_> {
 
 fn imported_definition_sources(
     provider: &ImportedProvider<'_>,
-) -> Result<ImportedDependencyDefinitionSources, ImportedDependencySelectionPlanBuildError> {
-    let mut records = BTreeMap::new();
-    let mut contexts = BTreeMap::new();
-    for source in provider.interface().definition_sources().sources() {
-        let origin = source.origin();
-        let record = provider
-            .foundation()
-            .source_record(origin.source())
-            .ok_or_else(
-                || ImportedDependencySelectionPlanBuildError::MissingDefinitionSource {
-                    provider: provider.identity(),
-                    source: origin.source().clone(),
-                },
-            )?;
-        records
-            .entry(origin.source().clone())
-            .or_insert_with(|| record.clone());
-        let context = provider
-            .foundation()
-            .source_context_key(origin.context())
-            .ok_or(
-                ImportedDependencySelectionPlanBuildError::MissingDefinitionContext {
-                    provider: provider.identity(),
-                    context: origin.context(),
-                },
-            )?;
-        contexts
-            .entry(origin.context())
-            .or_insert_with(|| context.clone());
-    }
-    Ok(ImportedDependencyDefinitionSources { records, contexts })
+) -> ImportedDependencyDefinitionSources {
+    let foundation = provider.foundation().canonical_for_semantic_authority();
+    let records = foundation
+        .source_records()
+        .iter()
+        .map(|record| (record.identity().clone(), record.clone()))
+        .collect();
+    let contexts = foundation
+        .source_context_records()
+        .map(|(id, key)| (id, key.clone()))
+        .collect();
+    ImportedDependencyDefinitionSources { records, contexts }
 }
 
 impl ImportedDependencySelectionPlan {

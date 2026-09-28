@@ -12,6 +12,13 @@ pub struct ImportedCallableBody {
 }
 
 impl ImportedCallableBody {
+    pub fn source_location(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<ImportedDependencyDefinitionSource<'_>> {
+        self.definition_sources.resolve_location(source, context)
+    }
     pub fn body(&self) -> &crate::ExportGenericCallableBodyV1 {
         &self.body
     }
@@ -30,6 +37,13 @@ impl ImportedCallableBody {
 }
 
 impl super::ImportedDependencySelectionPlan {
+    pub fn nominal_initialization(
+        &self,
+        owner: scoop_identity::PersistentGenericTypeId,
+    ) -> Option<Arc<crate::ExportGenericNominalInitializationV1>> {
+        self.catalog.initializations.get(&owner).cloned()
+    }
+
     pub fn callable_body(
         &self,
         owner: crate::DefaultCallableDeclarationV1,

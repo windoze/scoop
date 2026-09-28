@@ -46,7 +46,10 @@ pub(super) fn fixture(change: Change) -> CallableSourceSurface {
                     fields: vec![],
                 },
                 result.clone(),
-                template.definition_origin().clone(),
+                template.definition_origin().clone().clone(),
+                scoop_identity::EvaluationOrigin::at_definition(
+                    (template.definition_origin().clone()).origin(),
+                ),
             )
             .unwrap();
             body = ExportDefaultBodyV1::try_new(vec![], value).unwrap();

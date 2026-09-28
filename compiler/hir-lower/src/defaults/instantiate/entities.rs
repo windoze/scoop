@@ -290,9 +290,14 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::FieldRef {
         match source {
-            hir::FieldRef::ImportedStruct { owner, field } => {
-                hir::FieldRef::ImportedStruct { owner, field }
-            }
+            hir::FieldRef::ImportedStruct { owner, field } => hir::FieldRef::ImportedStruct {
+                owner: self.instantiate_method_ty(owner, &context.bindings),
+                field,
+            },
+            hir::FieldRef::ImportedClass { owner, field } => hir::FieldRef::ImportedClass {
+                owner: self.instantiate_method_ty(owner, &context.bindings),
+                field,
+            },
             hir::FieldRef::StructField(field) => {
                 let application =
                     self.instantiate_default_struct_application(field.application(), context);

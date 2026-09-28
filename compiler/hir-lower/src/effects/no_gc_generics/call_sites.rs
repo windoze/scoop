@@ -10,7 +10,7 @@ impl Lowerer {
         let mut out = Vec::new();
         for caller in self.effect_callable_ids() {
             let calls = match caller {
-                GenericCallable::Imported(_) => {
+                GenericCallable::Imported(_) | GenericCallable::ImportedConstructor(_) => {
                     unreachable!("only current declarations infer new requirements")
                 }
                 GenericCallable::Function(id) => {

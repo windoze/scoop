@@ -57,6 +57,7 @@ fn template_rejects_body_locals_absent_from_canonical_table() {
             DefaultExpressionKindV1::Local(fixture.local()),
             value_type.clone(),
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         )
         .unwrap(),
     )
@@ -151,6 +152,7 @@ fn template_with_parameter(fixture: &Fixture) -> ExportDefaultTemplateV1 {
             DefaultExpressionKindV1::Local(local.clone()),
             value_type.clone(),
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         )
         .unwrap(),
     )
@@ -202,6 +204,7 @@ fn unit_body(fixture: &Fixture, result: SignatureTypeKey) -> ExportDefaultBodyV1
             DefaultExpressionKindV1::UnitLiteral,
             result,
             fixture.origin(),
+            scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin()),
         )
         .unwrap(),
     )

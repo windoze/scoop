@@ -91,7 +91,10 @@ impl Concretizer<'_> {
                 let class = self.class_by_key[&(exception.class(), Vec::new())];
                 concrete::ZeroArgClassConstructor {
                     class,
-                    callable: self.class_constructor_by_key[&(exception.callable(), class)],
+                    callable: self.class_constructor_by_key[&(
+                        constructor_work::ClassConstructorSource::Local(exception.callable()),
+                        class,
+                    )],
                 }
             },
         };
