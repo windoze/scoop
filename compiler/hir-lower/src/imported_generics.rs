@@ -2,6 +2,7 @@
 //! provider declaration ids. Pending statements are lowering scratch state;
 //! the completed Export HIR owns ordinary, structurally complete bodies.
 
+mod abstract_members;
 mod local;
 mod methods;
 mod prepare;
@@ -139,13 +140,27 @@ impl Lowerer {
                 .nominal_declaration(owner)
                 .cloned()
                 .ok_or("member owner is missing")?;
-            let body = declaration
-                .callable_body()
-                .ok_or("dependency nominal member has no body")?;
+            let member = match key {
+                CallableTemplateOrigin::Function(id) => {
+                    hir::DefaultCallableDeclarationV1::Function(id)
+                }
+                CallableTemplateOrigin::GenericFunction(id) => {
+                    hir::DefaultCallableDeclarationV1::GenericFunction(id)
+                }
+                CallableTemplateOrigin::Accessor(id) => {
+                    hir::DefaultCallableDeclarationV1::PropertyAccessor(id)
+                }
+                CallableTemplateOrigin::Constructor(_)
+                | CallableTemplateOrigin::VariantConstructor(_) => {
+                    return Err(
+                        "dependency constructor has a distinct initialization template".into(),
+                    );
+                }
+            };
             let (modifier, dispatch) =
                 self.imported_template_method_dispatch(&declaration, &nominal)?;
             hir::ImportedCallableTemplateOrigin::Nominal {
-                declaration: body.owner(),
+                declaration: member,
                 owner,
                 owner_parameter_count: nominal.interface.type_parameters().binders().len(),
                 modifier,
@@ -164,7 +179,11 @@ impl Lowerer {
         self.imported_generic_templates
             .by_declaration
             .insert(key, id);
-        let prepared = self.prepare_imported_generic(declaration, origin)?;
+        let prepared = if declaration.interface().modality() == hir::CallableModalityV1::Abstract {
+            self.prepare_imported_abstract_member(declaration, origin)?
+        } else {
+            self.prepare_imported_generic(declaration, origin)?
+        };
         self.imported_generic_templates.templates[id.into_raw().into_u32() as usize] =
             Some(prepared);
         Ok(id)
@@ -208,6 +227,10 @@ impl Lowerer {
                 continue;
             };
             let id = Idx::from_raw(RawIdx::from(index as u32));
+            if template.statements.is_some() {
+                index += 1;
+                continue;
+            }
             match self.materialize_imported_callable_body(id, &template) {
                 Ok(body) => {
                     let target = self.imported_generic_templates.templates[index]

@@ -389,6 +389,18 @@
 
 本项完成消费方从产物实例化、执行与再次发布具体泛型成员正文，以及泛型 class 的虚调用和 `super` 闭环。完整泛型接口、抽象成员、消费方覆写与访问控制及其余主线继续推进，M23-7 尚未完成。
 
+## 2026-09-28：保存泛型接口与抽象成员消费进度
+
+- 泛型抽象成员从共有声明和原 definition origin 建立完整宿主参数、receiver、参数局部值及结果类型，进入既有抽象方法与 trap lowering；不为抽象声明制造共享执行正文。默认方法继续消费真实模板，接口继承与抽象 override 保留原实现选择。对应实现规范和设计说明同步。
+- 导入 struct/enum 与 class 共用接口实现解析，具体化传递完整 conformance。消费方本地类型实现导入泛型接口、继承导入泛型类时，按实际 owner application 替换成员与属性签名；泛型抽象 getter/setter 进入已有成员 application 路径。补齐 `ImportedGenericCall` 作为调用语句的处理，以支持返回 `Unit` 的真实接口调用。
+- MIR 对同时出现在调用根与接口表中的同一具体方法复用已登记的函数和实例，修正真实产物测试发现的重复登记。没有放宽实例唯一性断言，也没有把未调用的泛型接口默认方法一律物化。
+- 新增 8 组正例和 5 个反例，现有两个 HIR 测试合计覆盖 18 组正例与 9 个反例并全部通过。场景包括默认方法、抽象覆写、struct/enum 装箱、消费方实现、接口属性、ZST 和含引用的大值；反例断言缺失实现、错误覆写、不变性、抽象 `super` 调用及只读属性赋值的诊断位置和信息。目前生成 `interface-class` 与 `interface-abstract` 共 6 份 HIR/MIR/LIR golden，其余新增场景的产物快照尚未生成。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过；提交前再次格式化与 lint 通过，无警告，`git diff --check` 通过。本批尚未完整运行非 driver 工作区或全部 driver 测试，不沿用上一批测试总数作为本批结论。
+- 真实成员产物测试中的原 10 组用例及新增 `interface-class` 已完成发布、移走源码、下游再次实例化与发布、链接、普通运行和移动 GC。`interface-abstract` 的 consumer 三阶段发布成功，但 downstream 发布失败于 `Layout(MirExports(Dispatch(MissingCallable(Odr(...)))))`；后续 6 个新增正例尚未执行到。当前共有 MIR 派发表取得根声明的槽签名时仍依赖该声明的机器 callable binding；下游调用更具体的抽象 override 时，根默认方法没有被调用或物化，暴露此不必要依赖。后续须区分槽的签名契约与实际机器实现，保留必要类型、引用和 ABI 检查，继续完成真实产物链路。
+- 确认全部构建、测试和配套编译器进程结束，且 `target` 中没有打开的文件。核对该目录为本工作区 Cargo 构建缓存并恢复缺失的标准缓存标记后，执行 `cargo clean --target-dir target`，删除 2494 个构建文件，回收 3.9 GiB。
+
+本次按用户要求提交当前工作进度。完整泛型接口的产物消费仍有上述未解决失败，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。

@@ -19,6 +19,7 @@ impl Lowerer {
             arguments,
             fields: Vec::new(),
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
         };
         let ty = self.intern_type(hir::Type::ImportedStruct(Arc::new(structure.clone())));
         structure.fields = shape
@@ -37,6 +38,12 @@ impl Lowerer {
         // Publish the completed fields before resolving those method types.
         self.types[ty] = hir::Type::ImportedStruct(Arc::new(structure.clone()));
         structure.interfaces = self.imported_value_interfaces(&declaration, bindings)?;
+        self.types[ty] = hir::Type::ImportedStruct(Arc::new(structure.clone()));
+        structure.interface_implementations = self.resolve_imported_interface_implementations(
+            ty,
+            &declaration,
+            &structure.interfaces,
+        )?;
         self.types[ty] = hir::Type::ImportedStruct(Arc::new(structure));
         Ok(ty)
     }
@@ -55,6 +62,7 @@ impl Lowerer {
             arguments,
             variants: Vec::new(),
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
         };
         let ty = self.intern_type(hir::Type::ImportedEnum(Arc::new(enumeration.clone())));
         enumeration.variants = shape
@@ -87,6 +95,12 @@ impl Lowerer {
             .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
         self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration.clone()));
         enumeration.interfaces = self.imported_value_interfaces(&declaration, bindings)?;
+        self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration.clone()));
+        enumeration.interface_implementations = self.resolve_imported_interface_implementations(
+            ty,
+            &declaration,
+            &enumeration.interfaces,
+        )?;
         self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration));
         Ok(ty)
     }

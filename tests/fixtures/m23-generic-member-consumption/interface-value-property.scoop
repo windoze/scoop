@@ -1,0 +1,13 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val cell: ReadOnlyProperty<Int> = PropertyCell<Int>(42)
+    return cell.read
+}
+
+public fun <T> make(value: T): T {
+    val cell: ReadOnlyProperty<T> = PropertyCell<T>(value)
+    return cell.read
+}

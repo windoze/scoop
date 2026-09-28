@@ -83,6 +83,7 @@ pub struct ImportedCallableDeclaration {
     source: Option<CallableSourceInterfaceV1>,
     defaults: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     definition_sources: Arc<ImportedDependencyDefinitionSources>,
+    definition_origin: ExportDefinitionSourceV1,
     callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
 }
 
@@ -101,6 +102,10 @@ impl ImportedCallableDeclaration {
 
     pub const fn capability(&self) -> Option<&ParamFreeNominalCallableV1> {
         self.capability.as_ref()
+    }
+
+    pub const fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
+        &self.definition_origin
     }
 }
 
@@ -215,6 +220,7 @@ impl ImportedDependencySelectionPlan {
             source: entry.source.clone(),
             defaults: entry.default_templates.clone(),
             definition_sources: Arc::clone(&entry.definition_sources),
+            definition_origin: entry.definition_origin.clone(),
             callable_body: entry.callable_body.clone(),
         })
     }
@@ -303,6 +309,7 @@ impl ImportedDependencySelectionPlan {
                 source: entry.source.clone(),
                 defaults: entry.default_templates.clone(),
                 definition_sources: Arc::clone(&entry.definition_sources),
+                definition_origin: entry.definition_origin.clone(),
                 callable_body: entry.callable_body.clone(),
             });
         }

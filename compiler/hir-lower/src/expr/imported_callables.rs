@@ -36,13 +36,6 @@ impl Lowerer {
         ))
     }
 
-    pub(crate) fn select_imported_callable_declaration_use(
-        &mut self,
-        candidate: hir::ImportedCallableDeclaration,
-    ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
-        self.select_imported_callable_declaration_use_with_kind(candidate, MemberCallKind::Ordinary)
-    }
-
     pub(crate) fn select_imported_callable_declaration_use_with_kind(
         &mut self,
         candidate: hir::ImportedCallableDeclaration,

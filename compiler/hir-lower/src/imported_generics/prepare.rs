@@ -77,31 +77,11 @@ impl Lowerer {
                 "dependency callable signature and body have different binder arity".into(),
             );
         }
-        let mut bindings = ImportedTypeBindings::new();
-        let mut type_parameters = Vec::new();
-        let mut parameter_ids = Vec::new();
-        for (slot, signature) in body.type_parameters().arguments().iter().enumerate() {
-            let id = self.fresh_type_param(slot);
-            let ty = self.intern_type(hir::Type::Param(id));
-            bindings.insert(signature.clone(), ty);
-            parameter_ids.push(id);
-        }
-        for (binder, id) in binders.iter().zip(parameter_ids) {
-            let bounds = match binder.bounds() {
-                hir::TypeParameterBoundsV1::Unconstrained => hir::TypeParamBounds::Unconstrained,
-                hir::TypeParameterBoundsV1::Value => hir::TypeParamBounds::Value { span },
-                hir::TypeParameterBoundsV1::Ref => hir::TypeParamBounds::Ref { span },
-                hir::TypeParameterBoundsV1::Nominal(bounds) => {
-                    self.imported_generic_nominal_bounds(bounds, &bindings, span)?
-                }
-            };
-            type_parameters.push(hir::TypeParamDecl {
-                id,
-                name: binder.name().as_str().to_owned(),
-                bounds,
-                span,
-            });
-        }
+        let (type_parameters, bindings) = self.prepare_imported_type_parameters(
+            &binders,
+            body.type_parameters().arguments(),
+            span,
+        )?;
         let (mut locals, selectors) = self.imported_body_locals(&source, &bindings)?;
         let source_parameters = interface.parameters().parameters();
         let receiver_count = usize::from(receiver_signature.is_some());
@@ -154,6 +134,40 @@ impl Lowerer {
             locals,
             statements: None,
         })
+    }
+
+    pub(super) fn prepare_imported_type_parameters(
+        &mut self,
+        binders: &[&hir::TypeParameterBinderV1],
+        signatures: &[scoop_identity::SignatureTypeKey],
+        span: scoop_ast::Span,
+    ) -> Result<(Vec<hir::TypeParamDecl>, ImportedTypeBindings), String> {
+        let mut bindings = ImportedTypeBindings::new();
+        let mut parameter_ids = Vec::new();
+        for (slot, signature) in signatures.iter().enumerate() {
+            let id = self.fresh_type_param(slot);
+            let ty = self.intern_type(hir::Type::Param(id));
+            bindings.insert(signature.clone(), ty);
+            parameter_ids.push(id);
+        }
+        let mut parameters = Vec::new();
+        for (binder, id) in binders.iter().zip(parameter_ids) {
+            let bounds = match binder.bounds() {
+                hir::TypeParameterBoundsV1::Unconstrained => hir::TypeParamBounds::Unconstrained,
+                hir::TypeParameterBoundsV1::Value => hir::TypeParamBounds::Value { span },
+                hir::TypeParameterBoundsV1::Ref => hir::TypeParamBounds::Ref { span },
+                hir::TypeParameterBoundsV1::Nominal(bounds) => {
+                    self.imported_generic_nominal_bounds(bounds, &bindings, span)?
+                }
+            };
+            parameters.push(hir::TypeParamDecl {
+                id,
+                name: binder.name().as_str().to_owned(),
+                bounds,
+                span,
+            });
+        }
+        Ok((parameters, bindings))
     }
 
     pub(crate) fn imported_generic_type(

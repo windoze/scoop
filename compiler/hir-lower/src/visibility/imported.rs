@@ -65,15 +65,13 @@ impl Lowerer {
             .expect("dependency slot has a catalog")
             .callable_declaration(target)
             .expect("dependency slot root has its actual declaration");
-        let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) =
-            root.interface().owner()
-        else {
-            unreachable!("dependency slots have parameter-free nominal owners")
+        let hir::PublicDeclarationOwnerV1::Nominal(owner) = root.interface().owner() else {
+            unreachable!("dependency slots have nominal owners")
         };
         let owner = self
             .dependencies
             .as_ref()
-            .and_then(|dependencies| dependencies.nominal(owner))
+            .and_then(|dependencies| dependencies.nominal_declaration(owner))
             .expect("dependency slots retain their nominal declarations");
         let domain = self.imported_nominal_access_domain(owner).intersect(
             &self.imported_declaration_domain(
@@ -90,13 +88,11 @@ impl Lowerer {
         declaration: &hir::CallableDeclarationRecordV1,
         receiver: Option<hir::TypeId>,
     ) -> bool {
-        if let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) =
-            declaration.owner()
-        {
+        if let hir::PublicDeclarationOwnerV1::Nominal(owner) = declaration.owner() {
             let owner = self
                 .dependencies
                 .as_ref()
-                .and_then(|dependencies| dependencies.nominal(owner))
+                .and_then(|dependencies| dependencies.nominal_declaration(owner))
                 .expect("dependency members retain their nominal declarations");
             if !self.access_domain_allows(&self.imported_nominal_access_domain(owner)) {
                 return false;

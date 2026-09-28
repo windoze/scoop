@@ -265,6 +265,13 @@ impl Lowerer {
             argument_map.has_vararg(),
         )?;
         if constructor_owner.is_some()
+            || (interface.modality() == hir::CallableModalityV1::Abstract
+                && matches!(
+                    interface.owner(),
+                    hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(
+                        _
+                    ))
+                ))
             || (candidate.callable_body().is_some()
                 && matches!(
                     candidate.interface().owner(),

@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use scoop_identity::{
-    CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, PersistentTypeAliasId,
-    PropertyOwner,
+    CallableTemplateOrigin, ConeIdentity, DefinitionOriginSubject, PersistentPropertyId,
+    PersistentTypeAliasId, PropertyOwner,
 };
 
 use super::{
@@ -27,6 +27,7 @@ pub(super) struct CallableCatalogEntry {
     pub(super) initialization_unit: Option<scoop_identity::PersistentInitializationUnitId>,
     pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
+    pub(super) definition_origin: crate::ExportDefinitionSourceV1,
     pub(super) callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
 }
 
@@ -150,6 +151,28 @@ impl ImportedSemanticWorld<'_> {
                 .all_declarations()
             {
                 let declaration = callable.declaration();
+                let subject = match declaration {
+                    CallableTemplateOrigin::Function(id) => DefinitionOriginSubject::Function(id),
+                    CallableTemplateOrigin::GenericFunction(id) => {
+                        DefinitionOriginSubject::GenericFunction(id)
+                    }
+                    CallableTemplateOrigin::Accessor(id) => {
+                        DefinitionOriginSubject::PropertyAccessor(id)
+                    }
+                    CallableTemplateOrigin::Constructor(id) => {
+                        DefinitionOriginSubject::Constructor(id)
+                    }
+                    CallableTemplateOrigin::VariantConstructor(id) => {
+                        DefinitionOriginSubject::EnumVariant(id)
+                    }
+                };
+                let definition_origin = provider
+                    .foundation()
+                    .canonical_for_semantic_authority()
+                    .definition_origin(subject)
+                    .ok_or(
+                        ImportedDependencySelectionPlanBuildError::MissingDefinitionOrigin(subject),
+                    )?;
                 let initialization_unit = match declaration {
                     CallableTemplateOrigin::Accessor(accessor) => {
                         crate::initialization_dependencies::accessor_initialization_unit(
@@ -186,6 +209,9 @@ impl ImportedSemanticWorld<'_> {
                         .map(|template| (template.key(), template.clone()))
                         .collect(),
                     definition_sources: Arc::clone(&definition_sources),
+                    definition_origin: crate::ExportDefinitionSourceV1::new(
+                        definition_origin.origin().clone(),
+                    ),
                     callable_body: match declaration {
                         CallableTemplateOrigin::Function(id) => {
                             Some(crate::DefaultCallableDeclarationV1::Function(id))

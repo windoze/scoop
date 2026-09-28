@@ -1,0 +1,64 @@
+Module
+  class InterfaceChooser<Int> vtable=0 itables=2
+  class AbstractChooser<Int> vtable=0 itables=2
+  interface Chooser<Int>
+  interface RequiredChooser<Int>
+  fun result @fn0() -> Int
+    bb0 entry
+      assign $new.1
+        Type InterfaceChooser<Int>
+        ClassAlloc InterfaceChooser<Int>
+      call @fn4 direct
+        Type InterfaceChooser<Int>
+        Local $new.1
+      val chooser: Chooser<Int>
+        Type Chooser<Int>
+        Retype Chooser<Int>
+          Type InterfaceChooser<Int>
+          Local $new.1
+      val $dependency.receiver: Chooser<Int>
+        Type Chooser<Int>
+        Local chooser
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Int = @fn3 interface Chooser<Int>[0]
+        Type Chooser<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.2
+  fun choose @fn1(this: RequiredChooser<Int>, value: Int) -> Int
+    bb0 entry
+      trap @str0
+  fun choose @fn2(this: InterfaceChooser<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun choose @fn3(this: Chooser<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun init.InterfaceChooser.$c0 @fn4(this: InterfaceChooser<Int>) -> Unit
+    bb0 entry
+      call @fn5 direct
+        Type AbstractChooser<Int>
+        Retype AbstractChooser<Int>
+          Type InterfaceChooser<Int>
+          Local this
+      return
+  fun init.AbstractChooser.$c1 @fn5(this: AbstractChooser<Int>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn1 <- choose
+  instance mi1 function=@fn2 <- choose
+  instance mi2 function=@fn3 <- choose
+  str @str0 "call to abstract method `choose`"
+  output library

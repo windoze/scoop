@@ -10,7 +10,7 @@ fn fixture(name: &str) -> String {
 }
 
 #[test]
-fn imported_generic_members_keep_owner_and_method_arguments() {
+fn imported_generic_members_preserve_applications_and_dispatch() {
     for case in [
         "standalone",
         "method-arguments",
@@ -22,6 +22,14 @@ fn imported_generic_members_keep_owner_and_method_arguments() {
         "virtual",
         "abi",
         "overloads",
+        "interface-class",
+        "interface-abstract",
+        "interface-struct",
+        "interface-enum",
+        "interface-local",
+        "interface-abi",
+        "interface-properties",
+        "interface-value-property",
     ] {
         with_provider_consumer(
             &fixture("provider"),
@@ -66,8 +74,29 @@ fn imported_generic_members_keep_owner_and_method_arguments() {
 }
 
 #[test]
-fn imported_generic_members_enforce_both_parameter_groups() {
+fn imported_generic_members_enforce_source_rules() {
     for (case, expected, token) in [
+        (
+            "interface-missing",
+            "does not implement interface method",
+            "Missing",
+        ),
+        (
+            "interface-wrong-type",
+            "does not override any method",
+            "choose",
+        ),
+        (
+            "interface-readonly",
+            "cannot assign to immutable property",
+            "value",
+        ),
+        ("interface-invariant", "is invariant", "value"),
+        (
+            "interface-super-abstract",
+            "abstract dependency member cannot be called with `super`",
+            "get()",
+        ),
         ("ambiguous-overload", "ambiguous", "conflict("),
         ("bad-method-kind", "must satisfy `value`", "Reference>("),
         (

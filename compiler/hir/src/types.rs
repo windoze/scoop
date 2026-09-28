@@ -79,6 +79,7 @@ pub struct ImportedStructType {
     pub arguments: Vec<TypeId>,
     pub fields: Vec<ImportedNominalField>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -133,6 +134,7 @@ pub struct ImportedEnumType {
     pub arguments: Vec<TypeId>,
     pub variants: Vec<ImportedEnumValueVariant>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

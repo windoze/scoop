@@ -96,6 +96,13 @@ impl Lowerer {
             let hir::MethodDispatch::Interface { .. } = method.dispatch else {
                 continue;
             };
+            // Imported method applications can already be ordinary roots.
+            // Their interface-table use shares that same concrete function.
+            if !matches!(function.kind, hir::FunctionKind::User(_))
+                || self.function_map.contains_key(&hir_id)
+            {
+                continue;
+            }
             let id = self.declare_function(module, hir_id);
             user_functions.push((hir_id, id));
         }

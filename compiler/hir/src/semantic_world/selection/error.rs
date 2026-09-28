@@ -22,6 +22,7 @@ pub enum ImportedDependencySelectionPlanBuildError {
     DuplicateCallable(CallableTemplateOrigin),
     DuplicateCallableBody(crate::DefaultCallableDeclarationV1),
     MissingCallableSourceName(CallableTemplateOrigin),
+    MissingDefinitionOrigin(scoop_identity::DefinitionOriginSubject),
     DuplicateConstant(PersistentPropertyId),
     DuplicateProperty(PropertyOwner),
     MissingPropertySourceName(PropertyOwner),
@@ -78,6 +79,10 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency callable {declaration:?} has no canonical function source name"
             ),
+            Self::MissingDefinitionOrigin(subject) => write!(
+                formatter,
+                "dependency declaration {subject:?} has no definition origin"
+            ),
             Self::DuplicateConstant(property) => write!(
                 formatter,
                 "dependency semantic world contains duplicate constant {property:?}"
@@ -125,6 +130,7 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             | Self::DuplicateCallable(_)
             | Self::DuplicateCallableBody(_)
             | Self::MissingCallableSourceName(_)
+            | Self::MissingDefinitionOrigin(_)
             | Self::MissingPropertySourceName(_)
             | Self::DuplicateConstant(_)
             | Self::DuplicateProperty(_)

@@ -1,0 +1,5 @@
+import templates.members.ReadOnlyProperty
+
+fun bad(item: ReadOnlyProperty<Int>) {
+    item.value = 42
+}

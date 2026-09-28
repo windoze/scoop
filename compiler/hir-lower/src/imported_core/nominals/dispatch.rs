@@ -1,4 +1,4 @@
-//! Preserve a dependency class's resolved dispatch targets in typed HIR.
+//! Preserve dependency nominal dispatch targets in typed HIR.
 
 use super::*;
 use hir::ImportedCallableSource;
@@ -70,9 +70,27 @@ impl Lowerer {
                     .map(|implementation| implementation.interface),
             );
         }
-        for interface in &class.interfaces {
-            self.append_interface_closure(*interface, &mut interfaces);
+        interfaces.extend_from_slice(&class.interfaces);
+        class.interface_implementations =
+            self.resolve_imported_interface_implementations(ty, &class.declaration, &interfaces)?;
+        Ok(())
+    }
+
+    pub(super) fn resolve_imported_interface_implementations(
+        &mut self,
+        ty: hir::TypeId,
+        declaration: &hir::ImportedNominalDeclaration,
+        roots: &[hir::TypeId],
+    ) -> Result<Vec<hir::InterfaceImplementation>, ImportedSignatureTypeError> {
+        let selections = declaration
+            .interface
+            .declaration_details()
+            .dispatch_selections();
+        let mut interfaces = Vec::new();
+        for root in roots {
+            self.append_interface_closure(*root, &mut interfaces);
         }
+        let mut implementations = Vec::new();
         for interface_ty in interfaces {
             let hir::Type::ImportedInterface(interface) = self.types[interface_ty].clone() else {
                 return Err(ImportedSignatureTypeError::Structural);
@@ -115,14 +133,12 @@ impl Lowerer {
                     },
                 });
             }
-            class
-                .interface_implementations
-                .push(hir::InterfaceImplementation {
-                    interface: interface_ty,
-                    methods,
-                });
+            implementations.push(hir::InterfaceImplementation {
+                interface: interface_ty,
+                methods,
+            });
         }
-        Ok(())
+        Ok(implementations)
     }
 
     fn select_imported_dispatch_target(
@@ -136,6 +152,14 @@ impl Lowerer {
             .expect("dependency dispatch retains its declaration catalog")
             .callable_declaration(selection.callable_target())
             .map_err(|_| ImportedSignatureTypeError::Structural)?;
+        self.resolve_imported_dispatch_callable(candidate, receiver)
+    }
+
+    pub(crate) fn resolve_imported_dispatch_callable(
+        &mut self,
+        candidate: hir::ImportedCallableDeclaration,
+        receiver: hir::TypeId,
+    ) -> Result<hir::ImportedDispatchCallable, ImportedSignatureTypeError> {
         if let hir::PublicDeclarationOwnerV1::Nominal(
             owner @ hir::SourceNominalId::GenericTemplate(_),
         ) = candidate.interface().owner()

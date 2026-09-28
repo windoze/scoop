@@ -43,7 +43,16 @@ fn generic_member_templates_republish_and_execute_from_artifacts() {
         "virtual",
         "abi",
         "overloads",
+        "interface-class",
+        "interface-abstract",
+        "interface-struct",
+        "interface-enum",
+        "interface-local",
+        "interface-abi",
+        "interface-properties",
+        "interface-value-property",
     ] {
+        eprintln!("generic member case: {case}");
         let name = format!("generic-member-{case}");
         let coordinate = ConeCoordinate::new("dev.example", &name, "0.1.0").unwrap();
         let root = sysroot.path().join(&name);

@@ -169,23 +169,7 @@ impl Lowerer {
                             );
                             None
                         } else {
-                            self.select_imported_callable_declaration_use(method.declaration)
-                                .map(|callable| {
-                                    if abstract_method {
-                                        hir::InterfaceImplementationTarget::ImportedAbstract(
-                                            callable,
-                                        )
-                                    } else {
-                                        hir::InterfaceImplementationTarget::Imported(callable)
-                                    }
-                                })
-                                .map_err(|error| {
-                                    self.error(
-                                        span,
-                                        format!("invalid inherited interface target: {error}"),
-                                    )
-                                })
-                                .ok()
+                            self.imported_conformance_target(method.declaration, method.owner, span)
                         }
                     }
                     None => match self.select_interface_default(&all_interfaces, &member.signature)

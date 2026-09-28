@@ -228,17 +228,12 @@ impl Lowerer {
                         else {
                             unreachable!("interface properties are nominal declarations")
                         };
-                        let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(
-                            owner,
-                        )) = property.owner()
-                        else {
+                        let hir::PublicDeclarationOwnerV1::Nominal(owner) = property.owner() else {
                             unreachable!("interface properties have nominal owners")
                         };
                         let mutable = property.accessors().setter().is_some();
                         let owner = self
-                            .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
-                                owner,
-                            ))
+                            .imported_member_owner_type(interface_ty, owner)
                             .expect("the imported property owner is resolved with its interface");
                         let reference = hir::PropertyReference::Imported { owner, declaration };
                         if !result

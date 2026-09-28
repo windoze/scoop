@@ -159,14 +159,12 @@ impl Lowerer {
                 .methods
                 .iter()
                 .map(|method| {
-                    let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(
-                        owner,
-                    )) = method.declaration.owner()
+                    let hir::PublicDeclarationOwnerV1::Nominal(owner) = method.declaration.owner()
                     else {
                         unreachable!("interface members have nominal declaration owners")
                     };
                     let owner = self
-                        .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(owner))
+                        .imported_member_owner_type(ty, owner)
                         .expect("the imported member owner was resolved with its interface");
                     let effects = method.declaration.effects();
                     let mutable_property = match method.declaration.declaration() {
@@ -281,18 +279,41 @@ impl Lowerer {
                             .expect("resolved interface callable is available")
                     })
                     .expect("resolved interface slots have a callable declaration");
-                match self.select_imported_callable_declaration_use(declaration) {
-                    Ok(callable) => Some(if abstract_slot {
-                        hir::InterfaceImplementationTarget::ImportedAbstract(callable)
-                    } else {
-                        hir::InterfaceImplementationTarget::Imported(callable)
-                    }),
-                    Err(error) => {
-                        self.error(span, error.to_string());
-                        None
-                    }
-                }
+                self.imported_conformance_target(declaration, owner, span)
             }
         }
+    }
+
+    pub(super) fn imported_conformance_target(
+        &mut self,
+        declaration: hir::ImportedCallableDeclaration,
+        owner: TypeId,
+        span: ast::Span,
+    ) -> Option<hir::InterfaceImplementationTarget> {
+        let abstract_slot = declaration.interface().modality() == hir::CallableModalityV1::Abstract;
+        let callable = match self.resolve_imported_dispatch_callable(declaration, owner) {
+            Ok(callable) => callable,
+            Err(error) => {
+                self.error(
+                    span,
+                    format!("invalid inherited interface target: {error:?}"),
+                );
+                return None;
+            }
+        };
+        Some(match (abstract_slot, callable) {
+            (false, hir::ImportedDispatchCallable::External(callable)) => {
+                hir::InterfaceImplementationTarget::Imported(callable)
+            }
+            (true, hir::ImportedDispatchCallable::External(callable)) => {
+                hir::InterfaceImplementationTarget::ImportedAbstract(callable)
+            }
+            (false, hir::ImportedDispatchCallable::Template(application)) => {
+                hir::InterfaceImplementationTarget::ImportedTemplate(application)
+            }
+            (true, hir::ImportedDispatchCallable::Template(application)) => {
+                hir::InterfaceImplementationTarget::ImportedAbstractTemplate(application)
+            }
+        })
     }
 }

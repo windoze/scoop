@@ -1,0 +1,30 @@
+Module
+  fun result(): Int
+    val local0
+      ReferenceUpcast : Chooser<Int>
+        ImportedConstructorInit InterfaceChooser : InterfaceChooser<Int>
+    val local1
+      Local chooser : Chooser<Int>
+    val local2
+      IntegerLiteral 42 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    return
+      ImportedGenericCall choose<Int> : Int
+        Local $dependency.receiver : Chooser<Int>
+        Local $dependency.parameter.value : Int
+  fun make<T>(value: T0): T0
+    val local1
+      ReferenceUpcast : RequiredChooser<T0>
+        ImportedConstructorInit InterfaceChooser : InterfaceChooser<T0>
+    val local2
+      Local chooser : RequiredChooser<T0>
+    val local3
+      Local value : T0
+    val local4
+      Local $dependency.argument.0 : T0
+    return
+      ImportedGenericCall choose<T0> : T0
+        Local $dependency.receiver : RequiredChooser<T0>
+        Local $dependency.parameter.value : T0
+  output library

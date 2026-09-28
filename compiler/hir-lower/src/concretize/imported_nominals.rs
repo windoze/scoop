@@ -63,8 +63,6 @@ impl Concretizer<'_> {
                 c_abi,
                 fields: Vec::new(),
             },
-            // Dependency dispatch and callable definitions remain in the
-            // provider. This arena contains the consumer's value representation.
             direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -101,6 +99,8 @@ impl Concretizer<'_> {
             .collect();
         self.structs[id].interfaces =
             self.lower_imported_value_interfaces(&source.interfaces, substitution);
+        self.structs[id].interface_implementations =
+            self.lower_interface_implementations(&source.interface_implementations, substitution);
         ty
     }
 
@@ -133,7 +133,6 @@ impl Concretizer<'_> {
             type_arguments: arguments,
             gc_free: false,
             variants: Vec::new(),
-            // Callable and dispatch definitions remain in the provider.
             direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -178,6 +177,8 @@ impl Concretizer<'_> {
             .collect();
         self.enums[id].interfaces =
             self.lower_imported_value_interfaces(&source.interfaces, substitution);
+        self.enums[id].interface_implementations =
+            self.lower_interface_implementations(&source.interface_implementations, substitution);
         ty
     }
 

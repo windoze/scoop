@@ -47,16 +47,15 @@ impl Lowerer {
             .into_iter()
             .filter(|candidate| {
                 if class_super {
-                    let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(
-                        owner,
-                    )) = candidate.interface().owner()
+                    let hir::PublicDeclarationOwnerV1::Nominal(owner) =
+                        candidate.interface().owner()
                     else {
                         return false;
                     };
                     if !self
                         .dependencies
                         .as_ref()
-                        .and_then(|dependencies| dependencies.nominal(owner))
+                        .and_then(|dependencies| dependencies.nominal_declaration(owner))
                         .is_some_and(|declaration| {
                             matches!(
                                 declaration.interface.source_shape(),

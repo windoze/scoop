@@ -1,0 +1,93 @@
+Module
+  class InterfaceItem<Int> vtable=1 itables=2
+  class AbstractReader<Int> vtable=1 itables=2
+  interface Reader<Int>
+  interface Readable<Int>
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type InterfaceItem<Int>
+        ClassAlloc InterfaceItem<Int>
+      call @fn6 direct
+        Type InterfaceItem<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val reader: Reader<Int>
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type InterfaceItem<Int>
+          Local $new.1
+      val $dependency.receiver: Reader<Int>
+        Type Reader<Int>
+        Local reader
+      call $call.2: Int = @fn2 interface Reader<Int>[1]
+        Type Reader<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.2
+  fun get @fn1(this: AbstractReader<Int>) -> Int
+    bb0 entry
+      trap @str0
+  fun read @fn2(this: Reader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Reader<Int>
+        Type Reader<Int>
+        Local this
+      call $call.1: Int = @fn4 interface Readable<Int>[0]
+        Type Readable<Int>
+        Retype Readable<Int>
+          Type Reader<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun get @fn3(this: InterfaceItem<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type InterfaceItem<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun get @fn4(this: Readable<Int>) -> Int
+    bb0 entry
+      trap @str1
+  fun value @fn5(this: InterfaceItem<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type InterfaceItem<Int>
+          Local this
+  fun init.InterfaceItem.$c0 @fn6(this: InterfaceItem<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn7 direct
+        Type AbstractReader<Int>
+        Retype AbstractReader<Int>
+          Type InterfaceItem<Int>
+          Local this
+      field_set 0
+        Type InterfaceItem<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.AbstractReader.$c1 @fn7(this: AbstractReader<Int>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn1 <- get
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- get
+  instance mi3 function=@fn4 <- get
+  instance mi4 function=@fn5 <- value
+  str @str0 "call to abstract method `get`"
+  str @str1 "call to abstract method `get`"
+  output library

@@ -66,7 +66,8 @@ impl Lowerer {
                 {
                     continue;
                 }
-                let signature = self.imported_inheritance_signature(name, callable);
+                let signature =
+                    self.imported_inheritance_signature(name, callable, &class.arguments);
                 let Some(signature) = signature else {
                     self.error(span, format!("invalid inherited signature for `{name}`"));
                     continue;
@@ -91,7 +92,21 @@ impl Lowerer {
         &mut self,
         name: &str,
         callable: &hir::CallableDeclarationRecordV1,
+        arguments: &[TypeId],
     ) -> Option<InterfaceSignature> {
+        let bindings = arguments
+            .iter()
+            .enumerate()
+            .map(|(index, ty)| {
+                (
+                    scoop_identity::SignatureTypeKey::Binder {
+                        depth: 0,
+                        index: index as u32,
+                    },
+                    *ty,
+                )
+            })
+            .collect::<crate::imported_core::ImportedTypeBindings>();
         let effects = callable.effects();
         Some(InterfaceSignature {
             name: name.to_owned(),
@@ -99,9 +114,14 @@ impl Lowerer {
                 .parameters()
                 .parameters()
                 .iter()
-                .map(|parameter| self.imported_signature_type(parameter.value_type()).ok())
+                .map(|parameter| {
+                    self.imported_signature_type_with_bindings(parameter.value_type(), &bindings)
+                        .ok()
+                })
                 .collect::<Option<Vec<_>>>()?,
-            result: self.imported_signature_type(callable.result()).ok()?,
+            result: self
+                .imported_signature_type_with_bindings(callable.result(), &bindings)
+                .ok()?,
             is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
             safety: effects.safety(),
             gc_effect: effects.gc_effect(),

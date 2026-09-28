@@ -220,7 +220,8 @@ impl Lowerer {
             .imported_member_owner_type(receiver.ty, owner)
             .expect("a resolved property belongs to the receiver hierarchy");
         if matches!(owner, hir::SourceNominalId::GenericTemplate(_))
-            && candidate.callable_body().is_some()
+            && (candidate.callable_body().is_some()
+                || interface.modality() == hir::CallableModalityV1::Abstract)
         {
             let arguments = hir::ImportedCallableArguments::Method {
                 owner: owner_type,

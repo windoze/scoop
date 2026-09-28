@@ -168,6 +168,8 @@ generic host 的普通方法和 accessor 具有 exact owner；generic method 另
 
 泛型成员的普通调用和强制 `super` 调用保留不同的调用方式。泛型宿主上的普通虚方法、接口方法及访问器复用具体方法的 direct/virtual/interface dispatch；方法自身有类型参数时保持 final/direct。类的虚表、类和值类型的接口表可引用外来普通定义，或当前消费方从模板物化的具体方法；抽象槽沿现有参数完整的抽象方法与 trap 路径处理。共有模板的再次发布保留这项选择，不能把普通动态调用重新导出成强制直接调用。
 
+泛型抽象成员只有共有声明，没有共享执行正文。消费方从已验证声明取得实际 owner、宿主 binder、完整 receiver/参数/结果、effect 和原 definition origin，建立与本地抽象方法相同的参数局部值，进入既有 abstract trap lowering；不能为通过正文导入而制造空的共有 body record。默认实现继续消费真实模板正文，接口继承和抽象 override 保留实际所选声明。同一具体方法同时被调用根和接口表引用时，MIR 复用一个函数与实例记录。导入 struct/enum 在存储和父接口完成后，沿与 class 相同的 source dispatch selection 建立完整接口实现；实际装箱和 adjust thunk 使用该完整 conformance，不从方法名重建选择。
+
 共有 callable binding、dispatch 和 exact callable ABI 的目标统一为既有 Strong owner 或 typed ODR callable member，转换为同一 `CallableBodyKey`；不增加新的实体 ID 或泛型专用发布表。实际 application 的虚表与接口表保留原 slot identity、完成替换的 slot signature、真实目标及 receiver adjustment。LocalConcreteHir 保留替换后的直接接口与完整实现集合，接口自身保留直接父接口；MIR 类型记录表达直接继承，物理派发表保留完整实现。来源来自完成的 callable materialization，物理 ABI 与定义来自实际 MIR/LIR；reader 只检查这些既有记录间的必要关联。继承、接口默认实现和抽象 trap 继续使用原 lowering 角色，不能以空派发表代替非空 generic dispatch。
 
 value/ref、GC-free、enum variant facts、ZST 和 `Option` niche 在 concrete 输出中必须完备。别名先展开为原 exact target，不产生新实例；不同 nominal arguments 即使 ABI 相同也保留不同 exact identity、TD 和 ODR member。

@@ -1,0 +1,13 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val reader: Reader<Int> = InterfaceItem<Int>(42)
+    return reader.read()
+}
+
+public fun <T> make(value: T): T {
+    val reader: Reader<T> = InterfaceItem<T>(value)
+    return reader.get()
+}
