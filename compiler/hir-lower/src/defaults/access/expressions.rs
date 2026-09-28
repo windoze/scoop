@@ -282,7 +282,7 @@ impl ReferenceCollector<'_> {
                 );
                 let arguments = self.lowerer.imported_generic_applications[*application]
                     .arguments
-                    .to_vec();
+                    .substitution(&self.lowerer.types);
                 for ty in arguments {
                     self.type_reference(ty, origin);
                 }

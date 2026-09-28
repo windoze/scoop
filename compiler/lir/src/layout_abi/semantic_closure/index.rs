@@ -66,6 +66,7 @@ fn odr_definition(
 ) -> Option<scoop_identity::ObjectDefinitionPlanId> {
     let physical = match record? {
         LayoutAbiSemanticRecordV1::Layout(record) => record.identity().physical_definition(),
+        LayoutAbiSemanticRecordV1::Callable(record) => record.physical_definition(),
         LayoutAbiSemanticRecordV1::Descriptor(record) => record.physical_definition(),
         LayoutAbiSemanticRecordV1::Dispatch(record) => record.physical_definition(),
         _ => return None,

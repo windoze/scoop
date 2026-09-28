@@ -58,12 +58,13 @@ impl<'a> DeclarationForwardingView<'a> {
         }
     }
 
-    pub(crate) fn callable_parameters(
+    pub(crate) fn parameter_groups(
+        owner_parameters: &'a [hir::TypeParamDecl],
         callable_parameters: &'a [hir::TypeParamDecl],
         parameter_types: &'a [hir::TypeId],
     ) -> Self {
         Self {
-            owner_parameters: &[],
+            owner_parameters,
             callable_parameters,
             parameter_types,
         }

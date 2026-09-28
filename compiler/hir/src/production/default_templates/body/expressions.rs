@@ -337,10 +337,11 @@ impl BodyProjection<'_, '_> {
             } => self.imported_call(*callee, args, *receiver, result_type)?,
             ExprKind::ImportedGenericCall {
                 application,
+                kind,
                 args,
                 receiver,
                 ..
-            } => self.imported_generic_call(*application, args, *receiver)?,
+            } => self.imported_generic_call(*application, args, *receiver, *kind)?,
             ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

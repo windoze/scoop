@@ -145,11 +145,19 @@ impl Concretizer<'_> {
                     panic!("export HIR conformance omits a required interface method")
                 });
             return match &implementation.target {
+                export::InterfaceImplementationTarget::ImportedTemplate(application) => (
+                    concrete::Callable::Function(self.lower_imported_callable_application(
+                        &self.source.imported_generic_applications[*application],
+                        owner_arguments,
+                    )),
+                    None,
+                ),
                 export::InterfaceImplementationTarget::Method(application) => (
                     self.lower_method_application(*application, owner_arguments),
                     None,
                 ),
                 export::InterfaceImplementationTarget::Abstract(_)
+                | export::InterfaceImplementationTarget::ImportedAbstractTemplate(_)
                 | export::InterfaceImplementationTarget::Imported(_)
                 | export::InterfaceImplementationTarget::ImportedAbstract(_) => {
                     let function = self.source.interface_methods[member].function;

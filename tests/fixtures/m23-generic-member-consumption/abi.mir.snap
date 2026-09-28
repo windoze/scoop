@@ -1,0 +1,302 @@
+Module
+  struct Large (first: Reference, second: Reference, third: Reference)
+  struct Cell<Large> (value: Large)
+  enum CoroutineStep<Large>
+    Completed(value: Large)
+    Suspended()
+  enum CoroutineSlot<Large>
+    Empty()
+    Value(value: Large)
+  enum CoroutineStep<Reference>
+    Completed(value: Reference)
+    Suspended()
+  enum CoroutineSlot<Reference>
+    Empty()
+    Value(value: Reference)
+  class Reference vtable=0 itables=0
+  class Box<Unit> vtable=0 itables=0
+  class box<Large> vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=9345f0eb7111a0a0b60638b98005c594282c6c21267079fb66f7e9e3df128108 exact_id=01900dba322953123cd3877f45fb10f37af864cba31b6f73f951823039453345
+  generated_exact_type get1 location=class2 nominal_id=a4757d231de0534e77748c270fa6842867af439aa59cfa964dba3661cbb12c50 exact_id=10e4b55b7bee7e2b3a4788d97efd65a4cf147d9457543ffc826c554719a8da9a
+  generated_exact_type get2 location=enum1 nominal_id=d21a06f2f8c6a90100a23c4c78b700398fb4f26e05881c6e91f6eda10bcb633c exact_id=5dea5c6e397be4c12492cad4769af8b0f5da598529bd0c24fe21e4d28616db3c
+  generated_exact_type get3 location=enum2 nominal_id=bfd49806662dd312b97ca5dd9b517f6906620bef4ad2cdaf3415662ebff9cfca exact_id=b2d4172124f5421ad181b8211b2de2e484a31035d547f99ec3b163235c6f3a2e
+  generated_exact_type get4 location=enum3 nominal_id=e6f3dbde38714d6b1f3863f2921bcabff3278adb4966959c7a5745ec91f1092f exact_id=ef821b8fa3cfbb120749365cbd58e5c483056d64443b36fc3ab56a585887f117
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Reference
+        ClassAlloc Reference
+      call @fn5 direct
+        Type Reference
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.0: Reference
+        Type Reference
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Reference
+        ClassAlloc Reference
+      call @fn5 direct
+        Type Reference
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $argument.1: Reference
+        Type Reference
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Reference
+        ClassAlloc Reference
+      call @fn5 direct
+        Type Reference
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val $argument.2: Reference
+        Type Reference
+        Local $new.3
+      val $parameter.first: Reference
+        Type Reference
+        Local $argument.0
+      val $parameter.second: Reference
+        Type Reference
+        Local $argument.1
+      val $parameter.third: Reference
+        Type Reference
+        Local $argument.2
+      call $dependency.argument.0: Large = @fn7 direct
+        Type Reference
+        Local $parameter.first
+        Type Reference
+        Local $parameter.second
+        Type Reference
+        Local $parameter.third
+      val $dependency.parameter.value: Large
+        Type Large
+        Local $dependency.argument.0
+      call cell: Cell<Large> = @fn8 direct
+        Type Large
+        Local $dependency.parameter.value
+      val $dependency.receiver: Cell<Large>
+        Type Cell<Large>
+        Local cell
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Cell<Large>
+        Local $dependency.receiver
+        Type Unit
+        Local $dependency.parameter.value
+      val token: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local token
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      assign $new.4
+        Type Box<Unit>
+        ClassAlloc Box<Unit>
+      call @fn6 direct
+        Type Box<Unit>
+        Local $new.4
+        Type Unit
+        Local $dependency.parameter.value
+      val $dependency.receiver: Box<Unit>
+        Type Box<Unit>
+        Local $new.4
+      val $dependency.receiver: Cell<Large>
+        Type Cell<Large>
+        Local cell
+      val $dependency.receiver: Cell<Large>
+        Type Cell<Large>
+        Local cell
+      call $dependency.argument.0: Large = @fn2 direct
+        Type Cell<Large>
+        Local $dependency.receiver
+      val $dependency.parameter.value: Large
+        Type Large
+        Local $dependency.argument.0
+      call $dependency.argument.0: Large = @fn3 direct
+        Type Cell<Large>
+        Local $dependency.receiver
+        Type Large
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Large
+        Type Large
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Large
+        Type Large
+        Local $dependency.parameter.value
+      call value: Large = @fn4 direct
+        Type Box<Unit>
+        Local $dependency.receiver
+        Type Large
+        Local $dependency.parameter.value
+        Type Large
+        Local $dependency.parameter.fallback
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.5
+        Type Reference
+        ClassAlloc Reference
+      call @fn5 direct
+        Type Reference
+        Local $new.5
+        Type Int
+        Local $parameter.value
+      val first: Reference
+        Type Reference
+        Local $new.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type Reference
+        ClassAlloc Reference
+      call @fn5 direct
+        Type Reference
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      val second: Reference
+        Type Reference
+        Local $new.6
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 0
+            Type Large
+            Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 1
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 2
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun choose @fn1(this: Cell<Large>, value: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun read @fn2(this: Cell<Large>) -> Large
+    bb0 entry
+      return
+        Type Large
+        FieldAccess 0
+          Type Cell<Large>
+          Local this
+  fun choose @fn3(this: Cell<Large>, value: Large) -> Large
+    bb0 entry
+      return
+        Type Large
+        Local value
+  fun choose @fn4(this: Box<Unit>, value: Large, fallback: Large) -> Large
+    bb0 entry
+      return
+        Type Large
+        Local fallback
+  fun init.Reference.$c0 @fn5(this: Reference, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Reference
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Box.$c1 @fn6(this: Box<Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun ctor.Large.$c0 @fn7(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
+    bb0 entry
+      return
+        Type Large
+        StructInit Large
+          Type Reference
+          Local first
+          Type Reference
+          Local second
+          Type Reference
+          Local third
+  fun ctor.Cell.$c0 @fn8(value: Large) -> Cell<Large> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Large>
+        StructInit Cell<Large>
+          Type Large
+          Local value
+  coroutine_step cs0 CoroutineStep<Large> result=Large
+  coroutine_step cs1 CoroutineStep<Reference> result=Reference
+  coroutine_slot cl0 CoroutineSlot<Large> value=Large
+  coroutine_slot cl1 CoroutineSlot<Reference> value=Reference
+  instance mi0 function=@fn1 <- choose
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- choose
+  instance mi3 function=@fn4 <- choose
+  output library

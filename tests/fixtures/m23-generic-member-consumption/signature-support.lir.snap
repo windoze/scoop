@@ -1,0 +1,70 @@
+Module
+  enum CoroutineStep<SignatureValue> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<SignatureValue> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$a55e2a9f55bb605c17f96dc67daf009ec2591675e6c19ebcbf2d3e3cb8b26e71() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 $argument.0: i32
+    local %3 $parameter.value: i32
+    local %4 $dependency.receiver: ptr<managed>
+    local %5 $dependency.argument.0: ptr<managed>
+    local %6 $dependency.parameter.value: ptr<managed>
+    local %7 $dependency.parameter.fallback: ptr<managed>
+    local %8 $new.1: ptr<managed>
+    local %9 $new.2: ptr<managed>
+    local %10 $call.3: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000001) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
+    store t0 -> local8
+    call managed-void-target0 sp<managed-call:1> live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn4(local8, local1)
+    t1 = aggregate () : {}
+    store local8 -> local4
+    store integer<Int>(0x0000002a) -> local2
+    store local2 -> local3
+    call managed-direct-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    store t2 -> local9
+    call managed-void-target1 sp<managed-call:3> live=[local4:ptr<managed>@0, local9:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn2(local9, local3)
+    t3 = aggregate () : {}
+    store local9 -> local5
+    store local5 -> local6
+    store local6 -> local7
+    call managed-direct-target2 sp<managed-call:4> live=[local4:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn1(local4, local6, local7)
+    store t4 -> local10
+    t5 = heap_load local10 +16 : i32
+    ret t5
+  fun @scoop$1$cb$ac6a0f12fef622e4461c68d97bc3fe4bb6d0b167903ec071b7777c1903d84cd5(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param2:ptr<managed>@0]
+    ret param2
+  fun @scoop$1$cb$1b77624aa3fe496b17cf012b5bbd0220058db032a4cfcc059299d80d8c5e86be(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$e1dd0792eea7975c684bb3486f00fbac864c624f6565cce3a5dc4227bcda7782(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$2645d44e8e6b6c60e4880d05534d2fe9750e7930f0af34c726794f5fe98a5656(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  td td0 n(c=dev.example%3Ageneric-member-signature-support%3A0.1.0;p=consumer.members;o=-;k=C;x=SignatureValue) @scoop$1$td$628f313250ae5638279d2a8130080f862c422b47b3b8eb814cf21128e387230d type-id=2586469987034224383 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=dev.example%3Ageneric-member-signature-support%3A0.1.0;p=consumer.members;o=-;k=C;x=Unrelated) @scoop$1$td$c0f18975d326f3506146e810f5671213936fb303a4e53261fed1b63281abddd4 type-id=1854030295724306879 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$8bcd439f6f1acd61b1a534cc82ee15e7e6c27f6fcb3a4507b3d00fe95550aae0 type-id=15150344362566973760 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000007;i=f2ed23c5006561290b6bfe8892fde8045a2e6b868a26588ddf9a03fdc9f03fdd) @scoop$1$td$c40fe060c6f53d9fa433dae33dea95344ca8bc2fa34cf53e71b7f88fa7d6390a type-id=7430890772186250206 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 g(r=00000005;i=086101dfedb1e5e60185459cd372f718a73f58dab32a46c84151e4a37d8f7038) @scoop$1$td$fac42a76b96025a38f0d7e81539c4f2426c66170a83f634613e33ca9c943c678 type-id=4791343564738345781 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<SignatureValue> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<SignatureValue> size=8 align=8 enum-scan=refs[0]
+  layout SignatureValue value size=8 align=8 refs=[0]
+  layout SignatureValue size=24 align=8 refs=[]
+  layout Unrelated value size=8 align=8 refs=[0]
+  layout Unrelated size=24 align=8 refs=[]
+  layout Box value size=8 align=8 refs=[0]
+  layout Box size=24 align=8 refs=[]
+  output library

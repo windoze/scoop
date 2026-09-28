@@ -1,0 +1,49 @@
+package templates.members
+
+public open class Box<T> public constructor(public val value: T) {
+    public fun read(): T = this.value
+    public fun echo(value: T = this.value): T = value
+    public fun <U> choose(value: U, fallback: U = value): U = fallback
+    public fun <U : value> valueOnly(value: U): U = value
+    public fun <U> captured(value: U): U {
+        fun readValue(): U = value
+        return readValue()
+    }
+}
+
+public class Inherited<T> public constructor(value: T): Box<T>(value)
+
+public struct Cell<T>(val value: T) {
+    public fun read(): T = this.value
+    public fun <U> choose(value: U): U = value
+}
+
+public class Plain public constructor() {
+    public fun <U> choose(value: U): U = value
+}
+
+public enum Choice<T> {
+    Empty,
+    Item(T)
+
+    public fun <U> choose(value: U): U = value
+}
+
+public fun <T> emptyChoice(): Choice<T> = Choice.Empty
+public fun <T> through(value: Box<T>): T = value.read()
+
+public open class VirtualBox<T> public constructor(public val value: T) {
+    public open fun read(): T = this.value
+}
+
+public class VirtualChild<T> public constructor(value: T, public val other: T): VirtualBox<T>(value) {
+    public override fun read(): T = this.other
+    public fun inheritedRead(): T = super.read()
+}
+
+public class Overloads<T> public constructor() {
+    public fun <U> select(owner: T, value: U): Int = 1
+    public fun <A, B> select(owner: T, value: (A, B)): Int = 42
+    public fun <U> conflict(owner: T, left: U, right: Int): Int = 1
+    public fun <U> conflict(owner: T, left: Int, right: U): Int = 2
+}

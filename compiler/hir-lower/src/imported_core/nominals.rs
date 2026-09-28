@@ -116,7 +116,8 @@ impl Lowerer {
                 })
             })
             .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-        self.resolve_imported_class_dispatch(&mut class)?;
+        self.types[ty] = hir::Type::ImportedClass(Arc::new(class.clone()));
+        self.resolve_imported_class_dispatch(ty, &mut class)?;
         self.types[ty] = hir::Type::ImportedClass(Arc::new(class));
         Ok(ty)
     }

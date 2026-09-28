@@ -75,19 +75,16 @@ impl Lowerer {
                 }
             }
             hir::PublicDeclarationOwnerV1::Nominal(owner) => {
-                let hir::SourceNominalId::Concrete(owner) = owner else {
-                    self.imported_dependency_capability_error(
-                        candidate,
-                        has_vararg,
-                        "dependency member",
-                        span,
-                    );
-                    return Err(Box::new(self.clone()));
-                };
                 let receiver = match receiver_source {
                     ImportedDependencyCallReceiver::Explicit(receiver) => receiver,
                     ImportedDependencyCallReceiver::Implicit => {
-                        let Some(value) = self.imported_object_value(owner) else {
+                        let value = match owner {
+                            hir::SourceNominalId::Concrete(owner) => {
+                                self.imported_object_value(owner)
+                            }
+                            hir::SourceNominalId::GenericTemplate(_) => None,
+                        };
+                        let Some(value) = value else {
                             self.error(
                                 name.span,
                                 format!("dependency member `{}` requires a receiver", name.text),
@@ -100,8 +97,7 @@ impl Lowerer {
                         ImportedMemberReceiver::Value(receiver)
                     }
                 };
-                let signature = scoop_identity::SignatureTypeKey::Nominal(owner);
-                let Ok(expected) = self.imported_signature_type(&signature) else {
+                let Some(expected) = self.imported_member_owner_type(receiver.ty(), owner) else {
                     self.imported_dependency_capability_error(
                         candidate,
                         has_vararg,

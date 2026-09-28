@@ -375,11 +375,25 @@
 
 本项完成消费方从真实产物实例化、执行与再发布泛型构造的闭环。完整成员与虚派发、delegate、其他生成实体及剩余组合继续推进，M23-7 尚未完成。
 
+## 2026-09-28：消费方实例化泛型成员正文与虚调用
+
+- 导入成员沿接收者的实际继承闭包取得声明所属的完整 application，固定宿主参数组；显式类型参数、`_` 和实参推断只绑定方法参数组。最具体候选比较继续按声明分别处理两组参数，不使用当前调用的推断结果。成员 application 保留所属类型和方法自身实参，具体化键使用原 kind-specific `MethodOwner`，仅正文替换时临时组合宿主与方法实参；没有复制 provider 声明到本地源码 arena。
+- class、struct、enum 和参数自由宿主上的泛型成员复用已有模板正文与具体化队列。默认参数、继承成员和局部具名函数捕获保留原定义及词法父实例；泛型宿主的普通虚方法、覆写和强制 `super` 调用保留实际 dispatch。再次发布模板时区分普通方法调用和强制基类调用，下游可以继续对新类型实例化并执行动态派发。
+- 共有支持类型闭包补入实际导出泛型成员 ABI 的 receiver、参数和结果类型。私有类型即使只用作方法自身实参，也能获得下游所需的完整表示；不相关的私有声明仍不进入共有支持根。收集范围限于实际成员 ABI，普通泛型函数保持原输出，不新增发布表或 public binding。
+- 共有 LIR 语义闭包对 callable ABI 使用已有 ODR definition plan，允许同一实际定义在不同物理 provider 中保留记录，继续拒绝 Strong 重复和同一 provider 内重复；内容兼容性仍由原 ODR member 合并入口检查。真实运行测试的 descriptor 收集同步接受同一 ODR 符号与 definition plan，不再假定每个 exact type 只由一个 Cone 发射。
+- 新增 10 组独立与组合正例和 30 份 HIR/MIR/LIR golden，覆盖宿主与方法两组参数、默认值、继承、局部捕获、class/struct/enum 成员、参数自由宿主、虚调用、`super` 和重载选择。ABI 组合包含 ZST、含三个引用字段的 24 字节值、间接参数、sret 和对应 GC roots。四个 negative fixture 检查方法 kind bound、显式实参数量、宿主参数类型与重载歧义，同时断言错误信息和消费方源码位置。
+- 每组先发布 provider 并移走源码，再由 consumer 新建成员实例、发布并移走源码；下游仅依赖 `.slib`，通过 consumer 的泛型正文实例化新的私有类型。测试核对实际成员 ODR 定义、完整 MIR/LIR ABI 和物理 provider，并完成链接、普通运行与移动 GC，保留实际发生收集的断言。新增重载三份快照后，已有 27 份成员快照保持不变。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过，无警告。首次非 driver 全工作区有 5042 项通过、1 项快照失败；首次完整 driver 有 122 项库测试通过、3 项快照失败，另 7 项 CLI 和 1 项配套编译器测试通过。四项失败均来自支持类型收集超出了实际导出成员 ABI；收紧范围后恢复原快照，没有把多余支持类型写入普通泛型函数的既有预期。
+- 最终完整复验全部 1262 项 HIR lowering 测试并重建配套 `scoopc`，随后关闭快照更新开关，复验 11 项泛型产物测试，全部通过，耗时 61.51 秒，涵盖全部原失败、新成员、构造、初始化、dispatch、helper、ODR 与下游再发布。分批合计 5176 项独立测试通过，无未解决失败或忽略；定向重复验证不重复计数，本记录不将分批结果写成一次完整工作区命令。
+- 确认所有构建、测试及配套编译器进程结束，且 `target` 中没有打开的文件。核对该目录为本工作区 Cargo 构建缓存并恢复缺失的标准缓存标记后，执行 `cargo clean --target-dir target`，删除 2756 个构建文件，回收 5.5 GiB。
+
+本项完成消费方从产物实例化、执行与再次发布具体泛型成员正文，以及泛型 class 的虚调用和 `super` 闭环。完整泛型接口、抽象成员、消费方覆写与访问控制及其余主线继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
-2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 在已完成的泛型 class 共有 callable/dispatch，以及消费方构造、继承与 final 属性闭环基础上，继续完成完整成员与虚派发组合，扩展 ZST/大值/引用 ABI 组合及递归扫描程序的实际对象 atom。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
+3. 在已完成的泛型 class 共有 callable/dispatch，以及消费方构造、具体成员、虚调用和 `super` 闭环基础上，继续完成泛型接口默认与抽象成员、消费方覆写、protected 访问和 setter 等组合，补齐递归扫描程序的实际对象 atom。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

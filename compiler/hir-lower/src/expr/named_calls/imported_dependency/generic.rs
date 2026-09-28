@@ -42,8 +42,34 @@ impl Lowerer {
             None => return Err(Box::new(self)),
         };
         let mut session = InferenceSession::new();
-        let environment = session.add_environment(&[], signature.type_parameters.as_slice());
-        self.add_declaration_bounds(&mut session, signature.type_parameters.as_slice().iter());
+        let environment =
+            session.add_environment(&signature.owner_parameters, &signature.type_parameters);
+        self.add_declaration_bounds(
+            &mut session,
+            signature
+                .owner_parameters
+                .iter()
+                .chain(&signature.type_parameters),
+        );
+        if !signature.owner_parameters.is_empty() {
+            let ImportedCallReceiver::Member { value, .. } = &receiver else {
+                unreachable!("nominal member inference has its exact receiver");
+            };
+            let (_, owner_arguments) = self.types[value.ty()]
+                .imported_nominal_application()
+                .expect("nominal member inference retains its declared owner application");
+            for (variable, argument) in session
+                .owner_variables(environment)
+                .to_vec()
+                .iter()
+                .zip(owner_arguments)
+            {
+                session.push(
+                    Constraint::Equal((*variable).into(), TypeTerm::Rigid(*argument)),
+                    ConstraintOrigin::Receiver,
+                );
+            }
+        }
         for (index, argument) in explicit.iter().enumerate() {
             if let ResolvedCallTypeArgument::Explicit { ty, .. } = argument {
                 let variable = session.callable_variables(environment)[index];
@@ -95,10 +121,10 @@ impl Lowerer {
                 }
             };
             let bindings = signature
-                .type_parameters
-                .as_slice()
+                .owner_parameters
                 .iter()
-                .zip(partial.callable)
+                .chain(&signature.type_parameters)
+                .zip(partial.owner.into_iter().chain(partial.callable))
                 .map(|(p, ty)| {
                     (
                         p.id,
@@ -130,12 +156,12 @@ impl Lowerer {
                 return Err(Box::new(self));
             }
         };
-        let arguments = solution.arguments_for(&session, environment).callable;
+        let solution = solution.arguments_for(&session, environment);
         let bindings = signature
-            .type_parameters
-            .as_slice()
+            .owner_parameters
             .iter()
-            .zip(&arguments)
+            .chain(&signature.type_parameters)
+            .zip(solution.owner.iter().chain(&solution.callable))
             .map(|(p, a)| (p.id, *a))
             .collect::<Vec<_>>();
         let parameter_types = signature
@@ -182,11 +208,30 @@ impl Lowerer {
                 return Err(Box::new(self));
             }
         };
+        let arguments = match template {
+            ImportedGenericTarget::Function(id)
+                if matches!(
+                    self.imported_generic_templates[id].declaration,
+                    hir::ImportedCallableTemplateOrigin::Nominal { .. }
+                ) =>
+            {
+                hir::ImportedCallableArguments::Method {
+                    owner: self.instantiate_method_ty(
+                        signature.receiver.expect("a nominal method has an owner"),
+                        &bindings,
+                    ),
+                    method_arguments: solution.callable,
+                }
+            }
+            _ => hir::ImportedCallableArguments::Function(
+                hir::NonEmptyVec::from_vec(solution.callable)
+                    .expect("a generic function or constructor has binders"),
+            ),
+        };
         Ok(ImportedDependencyCallProbe {
             implementation: ImportedCallImplementation::Generic {
                 template,
-                arguments: hir::NonEmptyVec::from_vec(arguments)
-                    .expect("generic declaration has binders"),
+                arguments,
             },
             declaration_file: signature.origin.file as usize,
             declaration_span: signature.span,
@@ -212,13 +257,27 @@ impl Lowerer {
         failure: &crate::call_resolution::constraints::ConstraintFailure,
     ) {
         use crate::call_resolution::constraints::ConstraintFailureKind as Kind;
+        let all_parameters = signature
+            .owner_parameters
+            .iter()
+            .chain(&signature.type_parameters)
+            .cloned()
+            .collect::<Vec<_>>();
         let parameter = |variable: crate::call_resolution::constraints::InferenceVariableId| {
-            &signature.type_parameters.as_slice()[variable.group_index()].name
+            let parameters = match variable {
+                crate::call_resolution::constraints::InferenceVariableId::Owner(_) => {
+                    &signature.owner_parameters
+                }
+                crate::call_resolution::constraints::InferenceVariableId::Callable(_) => {
+                    &signature.type_parameters
+                }
+            };
+            &parameters[variable.group_index()].name
         };
         let type_term = |term: TypeTerm| match term {
             TypeTerm::Variable(variable) => parameter(variable).clone(),
             TypeTerm::Type(ty) | TypeTerm::Rigid(ty) => {
-                self.type_name_with_params(ty, signature.type_parameters.as_slice())
+                self.type_name_with_params(ty, &all_parameters)
             }
         };
         let message = match &failure.kind {

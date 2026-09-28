@@ -221,14 +221,11 @@ impl Lowerer {
             .expect("a resolved property belongs to the receiver hierarchy");
         if matches!(owner, hir::SourceNominalId::GenericTemplate(_))
             && candidate.callable_body().is_some()
-            && (interface.modality() == hir::CallableModalityV1::Final
-                || kind == MemberCallKind::DirectSuper)
         {
-            let (_, arguments) = self.types[owner_type]
-                .imported_nominal_application()
-                .expect("generic members retain their applied owner");
-            let arguments = hir::NonEmptyVec::from_vec(arguments.to_vec())
-                .expect("generic nominal members have owner arguments");
+            let arguments = hir::ImportedCallableArguments::Method {
+                owner: owner_type,
+                method_arguments: Vec::new(),
+            };
             let template = self
                 .request_imported_generic_template(candidate)
                 .map_err(|error| self.error(span, error))
@@ -245,6 +242,10 @@ impl Lowerer {
             return Some(hir::Expr {
                 kind: hir::ExprKind::ImportedGenericCall {
                     application,
+                    kind: match kind {
+                        MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
+                        MemberCallKind::DirectSuper => hir::ImportedGenericCallKind::DirectSuper,
+                    },
                     binding: None,
                     args,
                     receiver: hir::SourceCallReceiver::Receiver { static_type },

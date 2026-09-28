@@ -233,6 +233,12 @@ impl Lowerer {
                     );
                     hir::ExprKind::ImportedGenericCall {
                         application,
+                        kind: match kind {
+                            MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
+                            MemberCallKind::DirectSuper => {
+                                hir::ImportedGenericCallKind::DirectSuper
+                            }
+                        },
                         binding,
                         args,
                         receiver: source_receiver,

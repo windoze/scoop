@@ -4,6 +4,7 @@ mod constructors;
 mod helpers;
 mod initialization;
 mod machine;
+mod members;
 mod nominals;
 mod publication;
 mod siblings;

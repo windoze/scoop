@@ -103,7 +103,7 @@ pub struct ImportedClassType {
 pub struct ImportedVirtualMethod {
     pub slot: scoop_identity::PersistentDispatchSlotId,
     pub family: VirtualMethodId,
-    pub callable: ImportedDependencyCallableUseId,
+    pub callable: ImportedDispatchCallable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

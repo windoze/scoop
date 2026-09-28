@@ -7,6 +7,7 @@ pub(in crate::expr::named_calls::imported_dependency) enum ImportedGenericTarget
 }
 
 pub(in crate::expr::named_calls::imported_dependency) struct ImportedInferenceSignature {
+    pub owner_parameters: Vec<hir::TypeParamDecl>,
     pub type_parameters: Vec<hir::TypeParamDecl>,
     pub parameters: Vec<(String, hir::TypeId)>,
     pub receiver: Option<hir::TypeId>,
@@ -57,9 +58,21 @@ impl ImportedGenericTarget {
         match self {
             Self::Function(id) => {
                 let template = &state.imported_generic_templates[id];
+                let owner_count = match template.declaration {
+                    hir::ImportedCallableTemplateOrigin::Nominal {
+                        owner_parameter_count,
+                        ..
+                    } => owner_parameter_count,
+                    _ => 0,
+                };
+                let (owner, callable) = template
+                    .type_parameters
+                    .declarations()
+                    .split_at(owner_count);
                 (
                     ImportedInferenceSignature {
-                        type_parameters: template.type_parameters.declarations().to_vec(),
+                        owner_parameters: owner.to_vec(),
+                        type_parameters: callable.to_vec(),
                         parameters: template
                             .parameters
                             .iter()
@@ -78,6 +91,7 @@ impl ImportedGenericTarget {
                 let signature = &template.signature;
                 (
                     ImportedInferenceSignature {
+                        owner_parameters: Vec::new(),
                         type_parameters: signature.type_parameters.clone(),
                         parameters: signature
                             .parameters

@@ -91,6 +91,11 @@ enum FunctionKey {
         source: export::ImportedGenericCallableTemplateId,
         arguments: Vec<concrete::TypeId>,
     },
+    ImportedMethod {
+        source: export::ImportedGenericCallableTemplateId,
+        owner: concrete::MethodOwner,
+        method_arguments: Vec<concrete::TypeId>,
+    },
     Free {
         source: export::FunctionId,
         arguments: Vec<concrete::TypeId>,
@@ -123,7 +128,9 @@ impl FunctionKey {
             Self::Free { source, .. } | Self::Method { source, .. } => {
                 FunctionSource::Local(source)
             }
-            Self::Imported { source, .. } => FunctionSource::Imported(source),
+            Self::Imported { source, .. } | Self::ImportedMethod { source, .. } => {
+                FunctionSource::Imported(source)
+            }
         }
     }
 }

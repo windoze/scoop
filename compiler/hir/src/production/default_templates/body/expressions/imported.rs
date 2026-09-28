@@ -13,63 +13,47 @@ impl BodyProjection<'_, '_> {
         application: crate::ImportedGenericCallableApplicationId,
         args: &[Expr],
         receiver: SourceCallReceiver<TypeId>,
+        kind: crate::ImportedGenericCallKind,
     ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
+        let callee = self
+            .entities
+            .imported_generic_callable(application, self.binders)?;
         let export = self.entities.export();
         let application = &export.imported_generic_applications[application];
         let template = &export.imported_generic_templates[application.template];
-        let arguments = application
-            .arguments
-            .iter()
-            .map(|ty| self.type_key(*ty))
-            .collect::<Result<Vec<_>, _>>()?;
-        if let crate::ImportedCallableTemplateOrigin::Nominal {
-            declaration,
-            owner,
-            owner_parameter_count,
-        } = &template.declaration
-        {
-            let owner = match owner {
-                crate::SourceNominalId::Concrete(owner) => {
-                    scoop_identity::SignatureTypeKey::Nominal(*owner)
-                }
-                crate::SourceNominalId::GenericTemplate(owner) => {
-                    scoop_identity::SignatureTypeKey::NominalApplication {
-                        origin: *owner,
-                        arguments: scoop_identity::NonEmptyVec::new(
-                            arguments[..*owner_parameter_count].to_vec(),
-                        )
-                        .expect("generic nominal applications have owner arguments"),
+        if matches!(
+            application.arguments,
+            crate::ImportedCallableArguments::Method { .. }
+        ) {
+            let (receiver, arguments) = args
+                .split_first()
+                .ok_or(DefaultBodyProjectionError::MissingMethodReceiver)?;
+            let receiver = Box::new(self.expression(receiver)?);
+            let callee = DefaultMethodCalleeV1::Callable(callee);
+            let arguments = self.expressions(arguments)?;
+            return Ok(match kind {
+                crate::ImportedGenericCallKind::Ordinary => DefaultExpressionKindV1::MethodCall {
+                    receiver,
+                    callee,
+                    arguments,
+                },
+                crate::ImportedGenericCallKind::DirectSuper => {
+                    DefaultExpressionKindV1::DirectSuperMethodCall {
+                        receiver,
+                        callee,
+                        arguments,
                     }
                 }
-            };
-            let callee = crate::DefaultCallableRefV1::try_new(
-                *declaration,
-                scoop_identity::OptionalSignatureType::Present(Box::new(owner)),
-                arguments[*owner_parameter_count..].to_vec(),
-            )
-            .map_err(crate::DefaultEntityProjectionError::Callable)?;
-            return Ok(DefaultExpressionKindV1::Call {
-                callee,
-                receiver: receiver.try_map(|ty| self.type_key(ty))?,
-                arguments: self.expressions(args)?,
             });
         }
-        let callee = crate::DefaultCallableRefV1::try_new(
-            template.declaration.body_owner(),
-            scoop_identity::OptionalSignatureType::Absent,
-            arguments,
-        )
-        .map_err(crate::DefaultEntityProjectionError::Callable)?;
         match &template.declaration {
-            crate::ImportedCallableTemplateOrigin::Generic(_) => {
+            crate::ImportedCallableTemplateOrigin::Generic(_)
+            | crate::ImportedCallableTemplateOrigin::Nominal { .. } => {
                 Ok(DefaultExpressionKindV1::Call {
                     callee,
                     receiver: receiver.try_map(|ty| self.type_key(ty))?,
                     arguments: self.expressions(args)?,
                 })
-            }
-            crate::ImportedCallableTemplateOrigin::Nominal { .. } => {
-                unreachable!("nominal applications were projected above")
             }
             crate::ImportedCallableTemplateOrigin::Local { descriptor, .. } => {
                 let (captures, arguments) = args.split_at(descriptor.capture_count() as usize);

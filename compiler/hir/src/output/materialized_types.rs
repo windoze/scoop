@@ -32,8 +32,8 @@ impl LocalConcreteHirOutput {
         collector.finish()
     }
 
-    /// Shared generic representations need their actual storage declarations;
-    /// unrelated private physical declarations remain local to this Cone.
+    /// Shared generic representations and member ABIs need their actual
+    /// type declarations; unrelated private declarations remain local.
     pub(crate) fn materialized_application_type_closure(
         &self,
     ) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
@@ -50,6 +50,21 @@ impl LocalConcreteHirOutput {
                 .is_some()
             {
                 collector.add(ty)?;
+            }
+        }
+        for (_, function) in self.module().functions.iter() {
+            if matches!(
+                function.materialization.context(),
+                CallableMaterializationContext::Application(_)
+            ) && function.receiver.method().is_some()
+                && matches!(
+                    function.materialization.template(),
+                    CallableTemplateOwner::Function(_)
+                        | CallableTemplateOwner::GenericFunction(_)
+                        | CallableTemplateOwner::Accessor(_)
+                )
+            {
+                collector.signature(function)?;
             }
         }
         collector.finish()

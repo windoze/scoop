@@ -1,0 +1,52 @@
+Module
+  class SignatureValue(value: Int)
+    field0 property0: Int
+    property0 val value: Int getter0=storage <stored field0 init=parameter0>
+  class Unrelated(value: Int)
+    field1 property1: Int
+    property1 val value: Int getter1=storage <stored field1 init=parameter1>
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local4
+      ImportedConstructorInit Box : Box<Int>
+        Local $dependency.parameter.value : Int
+    val local2
+      IntegerLiteral 42 : Int
+    val local3
+      Local $argument.0 : Int
+    val local5
+      ClassInit SignatureValue : SignatureValue
+        Local $parameter.value : Int
+    val local6
+      Local $dependency.argument.0 : SignatureValue
+    val local7
+      Local $dependency.parameter.value : SignatureValue
+    return
+      FieldAccess class field value : Int
+        ImportedGenericCall choose<Int, SignatureValue> : SignatureValue
+          Local $dependency.receiver : Box<Int>
+          Local $dependency.parameter.value : SignatureValue
+          Local $dependency.parameter.fallback : SignatureValue
+  fun make<T>(value: T0): T0
+    val local1
+      IntegerLiteral 1 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      ImportedConstructorInit Box : Box<Int>
+        Local $dependency.parameter.value : Int
+    val local4
+      Local value : T0
+    val local5
+      Local $dependency.argument.0 : T0
+    val local6
+      Local $dependency.parameter.value : T0
+    return
+      ImportedGenericCall choose<Int, T0> : T0
+        Local $dependency.receiver : Box<Int>
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.fallback : T0
+  output library

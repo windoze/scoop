@@ -66,7 +66,10 @@ impl Collector<'_> {
         Ok(())
     }
 
-    fn signature(&mut self, function: &Function) -> Result<(), MaterializedTypeClosureError> {
+    pub(super) fn signature(
+        &mut self,
+        function: &Function,
+    ) -> Result<(), MaterializedTypeClosureError> {
         self.types(function.receiver.value_type())?;
         self.types(function.params.iter().map(|p| p.ty))?;
         self.add(function.return_ty)

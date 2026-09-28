@@ -63,6 +63,8 @@ impl Lowerer {
                 hir::InterfaceImplementationTarget::Method(application)
                 | hir::InterfaceImplementationTarget::Abstract(application) => application,
                 hir::InterfaceImplementationTarget::Imported(_)
+                | hir::InterfaceImplementationTarget::ImportedTemplate(_)
+                | hir::InterfaceImplementationTarget::ImportedAbstractTemplate(_)
                 | hir::InterfaceImplementationTarget::ImportedAbstract(_) => continue,
             };
             let application = self.method_applications[application].clone();

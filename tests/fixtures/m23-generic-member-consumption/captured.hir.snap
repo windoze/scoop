@@ -1,0 +1,34 @@
+Module
+  fun result(): Int
+    val local0
+      StringLiteral "owner" : String
+    val local1
+      Local $dependency.argument.0 : String
+    val local2
+      ImportedConstructorInit Box : Box<String>
+        Local $dependency.parameter.value : String
+    val local3
+      IntegerLiteral 42 : Int
+    val local4
+      Local $dependency.argument.0 : Int
+    return
+      ImportedGenericCall captured<String, Int> : Int
+        Local $dependency.receiver : Box<String>
+        Local $dependency.parameter.value : Int
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+    val local4
+      Local value : T0
+    val local5
+      Local $dependency.argument.0 : T0
+    return
+      ImportedGenericCall captured<T0, T0> : T0
+        Local $dependency.receiver : Box<T0>
+        Local $dependency.parameter.value : T0
+  output library

@@ -443,8 +443,7 @@ pub(in super::super) fn collect_expr_types(
             out.extend(
                 lowerer.imported_generic_applications[*application]
                     .arguments
-                    .iter()
-                    .copied(),
+                    .substitution(&lowerer.types),
             );
             if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                 out.push(*static_type);

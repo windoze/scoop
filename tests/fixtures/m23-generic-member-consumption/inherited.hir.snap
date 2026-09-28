@@ -1,0 +1,56 @@
+Module
+  fun result(): Int
+    val local0
+      IntegerLiteral 20 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedConstructorInit Inherited : Inherited<Int>
+        Local $dependency.parameter.value : Int
+    val local3
+      ReferenceUpcast : Box<Int>
+        Local box : Inherited<Int>
+    val local4
+      ImportedGenericCall value<Int> : Int
+        Local $dependency.receiver : Box<Int>
+    val local9
+      ImportedGenericCall echo<Int> : Int
+        Local $dependency.receiver : Box<Int>
+        Local $dependency.parameter.value : Int
+    val local5
+      ReferenceUpcast : Box<Int>
+        Local box : Inherited<Int>
+    val local6
+      IntegerLiteral 22 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    val local8
+      Local $dependency.parameter.value : Int
+    val local10
+      ImportedGenericCall choose<Int, Int> : Int
+        Local $dependency.receiver : Box<Int>
+        Local $dependency.parameter.value : Int
+        Local $dependency.parameter.fallback : Int
+    val local11
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ReferenceUpcast : Box<T0>
+        ImportedConstructorInit Inherited : Inherited<T0>
+          Local $dependency.parameter.value : T0
+    val local4
+      ImportedGenericCall value<T0> : T0
+        Local $dependency.receiver : Box<T0>
+    return
+      ImportedGenericCall echo<T0> : T0
+        Local $dependency.receiver : Box<T0>
+        Local $dependency.parameter.value : T0
+  output library

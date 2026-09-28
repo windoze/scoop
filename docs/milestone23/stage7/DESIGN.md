@@ -82,7 +82,7 @@ abstract slot、intrinsic 声明和 source extern 继续使用各自已有 imple
 
 模板可引用 direct 或 support provider 的声明。只保存原 typed target 和实际 provider；re-export 不复制正文、不改 origin。一次 reader 得到的不可变模板和声明供后续查询复用。模板内已经绑定的引用不制造消费方 public lookup observation，也不重新枚举 hidden 名称；只有消费方实际源码 lookup 才进入原候选记录。
 
-当前 Cone 在 Export HIR 完成后、LocalConcrete HIR 生成前，从公开声明、默认值与泛型正文收集共有声明和模板正文闭包，供具体化选择自动 shape roots。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 沿表示依赖，把当前 Cone 所需的源码名义声明补入同一支持集合，并闭合其字段、成员和模板引用；普通函数正文中用于泛型 payload 的私有类型也必须有完整表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，最终不可变结果由 HIR 类型语义、MIR/LIR 布局和正式共有 section 复用。支持声明保留原 typed identity 和可见性，不生成 public binding；所有本地私有物理声明、未调用模板、未求值默认值和整个类型 arena 仍不构成共有机器根。该结果是当前编译的数据投影，不新增产物字段或来源资格。
+当前 Cone 在 Export HIR 完成后、LocalConcrete HIR 生成前，从公开声明、默认值与泛型正文收集共有声明和模板正文闭包，供具体化选择自动 shape roots。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 及实际导出的泛型成员的 receiver、参数和结果类型沿表示依赖，把当前 Cone 所需的源码名义声明补入同一支持集合，并闭合其字段、成员和模板引用；普通函数正文中用于泛型 payload 或共有成员 ABI 的私有类型也必须有完整表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，最终不可变结果由 HIR 类型语义、MIR/LIR 布局和正式共有 section 复用。支持声明保留原 typed identity 和可见性，不生成 public binding；所有本地私有物理声明、未调用模板、未求值默认值和整个类型 arena 仍不构成共有机器根。该结果是当前编译的数据投影，不新增产物字段或来源资格。
 
 ### 3.2 默认值与泛型正文共用节点
 
@@ -164,6 +164,10 @@ generic nominal 的字段、variant payload、base/interface application、const
 
 generic host 的普通方法和 accessor 具有 exact owner；generic method 另有 own arguments，二者顺序和身份沿用语言 3.2。interface default、abstract override、`super<I>`、protected receiver、属性 setter 权限、constructor readiness 继续在前端按实际声明检查。
 
+导入成员的候选先沿接收者的实际继承闭包取得声明所属的完整 application，再把宿主实参固定到 solver 的 owner 参数组；显式类型参数、`_` 与实参推断只绑定 callable 参数组。声明之间的最具体候选比较同样保留两组参数，按原 forwarding 约束处理，不使用本次调用已经推断的实参。请求内的成员 application 保存所属类型和方法自身实参，宿主实参从所属类型读取，不能把两组实参合并保存后依赖位置重新猜测；只有执行正文替换时才临时按“宿主在前、方法在后”生成替换列表。实例仍通过已有 typed template/application handle 和 `CallableApplicationKey` 进入同一具体化队列。
+
+泛型成员的普通调用和强制 `super` 调用保留不同的调用方式。泛型宿主上的普通虚方法、接口方法及访问器复用具体方法的 direct/virtual/interface dispatch；方法自身有类型参数时保持 final/direct。类的虚表、类和值类型的接口表可引用外来普通定义，或当前消费方从模板物化的具体方法；抽象槽沿现有参数完整的抽象方法与 trap 路径处理。共有模板的再次发布保留这项选择，不能把普通动态调用重新导出成强制直接调用。
+
 共有 callable binding、dispatch 和 exact callable ABI 的目标统一为既有 Strong owner 或 typed ODR callable member，转换为同一 `CallableBodyKey`；不增加新的实体 ID 或泛型专用发布表。实际 application 的虚表与接口表保留原 slot identity、完成替换的 slot signature、真实目标及 receiver adjustment。LocalConcreteHir 保留替换后的直接接口与完整实现集合，接口自身保留直接父接口；MIR 类型记录表达直接继承，物理派发表保留完整实现。来源来自完成的 callable materialization，物理 ABI 与定义来自实际 MIR/LIR；reader 只检查这些既有记录间的必要关联。继承、接口默认实现和抽象 trap 继续使用原 lowering 角色，不能以空派发表代替非空 generic dispatch。
 
 value/ref、GC-free、enum variant facts、ZST 和 `Option` niche 在 concrete 输出中必须完备。别名先展开为原 exact target，不产生新实例；不同 nominal arguments 即使 ABI 相同也保留不同 exact identity、TD 和 ODR member。
@@ -192,7 +196,7 @@ value/ref、GC-free、enum variant facts、ZST 和 `Option` niche 在 concrete �
 
 物理 producer 和 semantic owner 分开。普通 Strong 引用携带真实定义方；ODR 引用携带 group/member。reader 可以记录某个物理候选所在 provider，但该候选位置不进入 ODR identity 或 canonical relocation。
 
-共有布局语义闭包保存 `(provider, target)`，允许同一 ODR definition plan 在不同 Cone 各有一份记录。指定 provider 的引用必须保留该定义位置，普通 Strong target 和同一 provider 内的重复仍拒绝；跨产物内容兼容性继续由共有 ODR member 合并入口检查，不在语义索引中先选 winner 或重算内容摘要。
+共有布局与 callable ABI 语义闭包保存 `(provider, target)`，允许同一 ODR definition plan 在不同 Cone 各有一份记录。指定 provider 的引用必须保留该定义位置，普通 Strong target 和同一 provider 内的重复仍拒绝；跨产物内容兼容性继续由共有 ODR member 合并入口检查，不在语义索引中先选 winner 或重算内容摘要。
 
 ### 5.2 每次物化的必要闭包
 
@@ -390,7 +394,7 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 
 HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方已有的 ODR callable-body 签名；普通直接调用继续关联真实外部 Strong 定义。完整逻辑参数、receiver、result 及当前 root 的存在性逐次核对，不向 provider 的 Strong 表索取消费方实例，也不新增实例或签名 wire 表。
 
-调用签名的外部类型用途按 exact type 的真实声明归属收集；消费方本地类型可作为泛型实参，普通函数体中的私有类型不因此进入共有声明表。复合签名中的外来类型、当前共有类型的表示闭包及实际字段和局部值中的外部类型依赖继续完整保留。
+调用签名的外部类型用途按 exact type 的真实声明归属收集；消费方本地类型可作为泛型实参；实际泛型表示或共有成员 ABI 所需的私有类型进入原共有支持声明表，其余普通函数体中的私有类型保持本地。复合签名中的外来类型、当前共有类型的表示闭包及实际字段和局部值中的外部类型依赖继续完整保留。
 
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |

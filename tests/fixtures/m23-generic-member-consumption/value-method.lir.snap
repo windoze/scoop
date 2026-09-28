@@ -1,0 +1,72 @@
+Module
+  enum Choice niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$c708289d72b5ef5d01207705d0f3b238c83692bd8d84e953a4704268c7f3d3ee() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 cell: struct0
+    local %3 choice: enum0
+    local %4 $dependency.receiver: struct0
+    local %5 $dependency.receiver: struct0
+    local %6 $dependency.argument.0: i32
+    local %7 $dependency.parameter.value: i32
+    local %8 $dependency.receiver: enum0
+    local %9 $dependency.argument.0: i32
+    local %10 $dependency.parameter.value: i32
+    local %11 $dependency.receiver: i32
+    local %12 $dependency.argument.0: i32
+    local %13 $dependency.parameter.other: i32
+    local %14 $sc.1: struct0
+    local %15 $sc.2: struct0
+    local %16 $sc.3: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000014) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local14 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn5(local1)
+    store local14 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> enum0 local-fn1()
+    store t0 -> local3
+    store local2 -> local4
+    store local4 -> local15
+    call managed-direct-target1 sp<managed-call:1> live=[local3:enum0@0] t1 = sig=direct1 (indirect<struct0 size=4 align=4 scan=none>) -> i32 local-fn2(indirect local15)
+    store t1 -> local11
+    store local3 -> local8
+    store local2 -> local5
+    store integer<Int>(0x00000016) -> local6
+    store local6 -> local7
+    store local5 -> local16
+    call managed-direct-target2 sp<managed-call:2> live=[local8:enum0@0] t2 = sig=direct2 (indirect<struct0 size=4 align=4 scan=none>, i32) -> i32 local-fn3(indirect local16, local7)
+    store t2 -> local9
+    store local9 -> local10
+    call managed-direct-target3 sp<managed-call:3> live=[local8:enum0@0] t3 = sig=direct3 (enum0, i32) -> i32 local-fn4(local8, local10)
+    store t3 -> local12
+    store local12 -> local13
+    t4 = integer_Add<Int> local11, local13 : i32
+    ret t4
+  fun @scoop$1$cb$c943fada324e3cec75cc3e040cde958c7f338da80b89f603eba7f93241884a0f() -> enum0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = enum_wrap e0 v0 () : enum0
+    ret t0
+  fun @scoop$1$cb$887fbef1463162ecbb59cb2c36fe4addb276efa276ddfa82c748dcab55ba59c3(indirect<struct0 size=4 align=4 scan=none>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i32
+    ret t0
+  fun @scoop$1$cb$eb95c014913bed337ee73f202d8057f2bacb8c091c16d77436fc9b2469ee3192(indirect<struct0 size=4 align=4 scan=none>, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$58e6ddb0c3e72ce4d41d4a43137d0c19425fdf6afb210ef3606aacfc42691737(enum0, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$49a1be502afaa5a1fe1ff0a64901fc087c292e21e73af73ac121e4b6fb1e37a1(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=S;x=Cell);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$48732377a24200fbf2a83465d2bd46aeec04a88dba3b2c82107d43ccb6bf7c9b type-id=12391208281169684443 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=E;x=Choice);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ec6055336d235a6c13600fdc3ee86db751a471168192a973e1942666940a33e4 type-id=17869242283677126830 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Cell size=4 align=4 refs=[]
+  layout Choice size=8 align=8 enum-scan=refs[0]
+  output library

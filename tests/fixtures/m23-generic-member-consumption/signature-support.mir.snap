@@ -1,0 +1,99 @@
+Module
+  enum CoroutineStep<SignatureValue>
+    Completed(value: SignatureValue)
+    Suspended()
+  enum CoroutineSlot<SignatureValue>
+    Empty()
+    Value(value: SignatureValue)
+  class SignatureValue vtable=0 itables=0
+  class Unrelated vtable=0 itables=0
+  class Box<Int> vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=f2ed23c5006561290b6bfe8892fde8045a2e6b868a26588ddf9a03fdc9f03fdd exact_id=c40fe060c6f53d9fa433dae33dea95344ca8bc2fa34cf53e71b7f88fa7d6390a
+  generated_exact_type get1 location=enum0 nominal_id=086101dfedb1e5e60185459cd372f718a73f58dab32a46c84151e4a37d8f7038 exact_id=fac42a76b96025a38f0d7e81539c4f2426c66170a83f634613e33ca9c943c678
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn4 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Box<Int>
+        Type Box<Int>
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type SignatureValue
+        ClassAlloc SignatureValue
+      call @fn2 direct
+        Type SignatureValue
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: SignatureValue
+        Type SignatureValue
+        Local $new.2
+      val $dependency.parameter.value: SignatureValue
+        Type SignatureValue
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: SignatureValue
+        Type SignatureValue
+        Local $dependency.parameter.value
+      call $call.3: SignatureValue = @fn1 direct
+        Type Box<Int>
+        Local $dependency.receiver
+        Type SignatureValue
+        Local $dependency.parameter.value
+        Type SignatureValue
+        Local $dependency.parameter.fallback
+      return
+        Type Int
+        FieldAccess 0
+          Type SignatureValue
+          Local $call.3
+  fun choose @fn1(this: Box<Int>, value: SignatureValue, fallback: SignatureValue) -> SignatureValue
+    bb0 entry
+      return
+        Type SignatureValue
+        Local fallback
+  fun init.SignatureValue.$c0 @fn2(this: SignatureValue, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type SignatureValue
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Unrelated.$c1 @fn3(this: Unrelated, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Unrelated
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Box.$c0 @fn4(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  coroutine_step cs0 CoroutineStep<SignatureValue> result=SignatureValue
+  coroutine_slot cl0 CoroutineSlot<SignatureValue> value=SignatureValue
+  instance mi0 function=@fn1 <- choose
+  output library

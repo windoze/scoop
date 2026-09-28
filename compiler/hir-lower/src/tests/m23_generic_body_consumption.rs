@@ -7,6 +7,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 
 mod constructors;
 mod machine;
+mod members;
 mod metadata;
 mod nominals;
 

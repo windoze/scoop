@@ -2,6 +2,8 @@
 
 mod constructors;
 pub use constructors::*;
+mod applications;
+pub use applications::*;
 
 /// A dependency body normalized into the consumer's type and value domains.
 /// Its declaration remains owned by the provider, outside `Module::functions`.
@@ -43,11 +45,33 @@ pub enum ImportedCallableTemplateOrigin {
         declaration: crate::DefaultCallableDeclarationV1,
         owner: crate::SourceNominalId,
         owner_parameter_count: usize,
+        modifier: crate::MethodModifier,
+        dispatch: ImportedMethodDispatch,
     },
     Local {
         parent: ImportedCallableTemplateParent,
         descriptor: crate::DefaultLocalFunctionV1,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ImportedMethodDispatch {
+    Direct,
+    Virtual(crate::VirtualMethodId),
+    FinalOverride(crate::VirtualMethodId),
+    Interface(scoop_identity::PersistentDispatchSlotId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportedDispatchCallable {
+    External(crate::ImportedDependencyCallableUseId),
+    Template(crate::ImportedGenericCallableApplicationId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportedGenericCallKind {
+    Ordinary,
+    DirectSuper,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -136,7 +160,7 @@ impl ImportedCallableTypeParameters {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedGenericCallableApplication {
     pub template: crate::ImportedGenericCallableTemplateId,
-    pub arguments: crate::NonEmptyVec<crate::TypeId>,
+    pub arguments: ImportedCallableArguments,
 }
 
 /// Export-HIR use of one callable committed through the ordinary-dependency

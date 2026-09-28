@@ -223,7 +223,11 @@ impl<'a> CallableIdentityBuilder<'a> {
                     .declaration
                     .clone();
                 let arguments = self.concretizer.function_key_arguments(&key);
-                let materialization = self.imported_materialization(declaration, &arguments);
+                let owner = match key {
+                    FunctionKey::ImportedMethod { owner, .. } => Some(owner),
+                    _ => None,
+                };
+                let materialization = self.imported_materialization(declaration, owner, &arguments);
                 self.visiting[index] = false;
                 self.materializations[index] = Some(materialization);
                 return materialization;
@@ -294,7 +298,9 @@ impl<'a> CallableIdentityBuilder<'a> {
             export::HirFunctionIdentity::DerivedEquality(applications) => {
                 let exact_owner = self.exact_method_owner(match key {
                     FunctionKey::Method { owner, .. } => owner,
-                    FunctionKey::Free { .. } | FunctionKey::Imported { .. } => {
+                    FunctionKey::Free { .. }
+                    | FunctionKey::Imported { .. }
+                    | FunctionKey::ImportedMethod { .. } => {
                         panic!("derived equality is always an exact-owner method")
                     }
                 });
@@ -341,6 +347,9 @@ impl<'a> CallableIdentityBuilder<'a> {
         template: SourceTemplate,
     ) -> CallableMaterialization {
         match key {
+            FunctionKey::ImportedMethod { .. } => {
+                unreachable!("imported methods use their provider identity")
+            }
             FunctionKey::Free { arguments, .. } | FunctionKey::Imported { arguments, .. } => self
                 .source_materialization(template, CallableInstantiationOwner::NoOwner, arguments),
             FunctionKey::Method {

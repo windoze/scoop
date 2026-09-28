@@ -1,6 +1,45 @@
 use super::*;
 
 impl Concretizer<'_> {
+    pub(super) fn lower_imported_callable_application(
+        &mut self,
+        application: &export::ImportedGenericCallableApplication,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::FunctionId {
+        let source = application.template;
+        let key = match &application.arguments {
+            export::ImportedCallableArguments::Function(arguments) => FunctionKey::Imported {
+                source,
+                arguments: arguments
+                    .iter()
+                    .map(|ty| self.lower_type(*ty, substitution))
+                    .collect(),
+            },
+            export::ImportedCallableArguments::Method {
+                owner,
+                method_arguments,
+            } => {
+                let ty = self.lower_type(*owner, substitution);
+                let owner = match self.types[ty].kind {
+                    concrete::TypeKind::Class(id) => concrete::MethodOwner::Class(id),
+                    concrete::TypeKind::Struct(id) => concrete::MethodOwner::Struct(id),
+                    concrete::TypeKind::Enum(id) => concrete::MethodOwner::Enum(id),
+                    concrete::TypeKind::Interface(id) => concrete::MethodOwner::Interface(id),
+                    _ => unreachable!("an imported method has a nominal owner"),
+                };
+                FunctionKey::ImportedMethod {
+                    source,
+                    owner,
+                    method_arguments: method_arguments
+                        .iter()
+                        .map(|ty| self.lower_type(*ty, substitution))
+                        .collect(),
+                }
+            }
+        };
+        self.request_function_key(key)
+    }
+
     pub(super) fn lower_imported_function(
         &mut self,
         source: export::ImportedGenericCallableTemplateId,
@@ -37,10 +76,36 @@ impl Concretizer<'_> {
                     export::ImportedCallableTemplateOrigin::Nominal { .. }
                 ) =>
             {
+                let owner = self.lower_type(ty, arguments);
+                let export::ImportedCallableTemplateOrigin::Nominal {
+                    modifier, dispatch, ..
+                } = template.declaration
+                else {
+                    unreachable!("a nominal receiver has a nominal declaration");
+                };
+                let dispatch = match dispatch {
+                    export::ImportedMethodDispatch::Direct => concrete::MethodDispatch::Direct,
+                    export::ImportedMethodDispatch::Virtual(family) => {
+                        concrete::MethodDispatch::Virtual(self.lower_virtual_method(family))
+                    }
+                    export::ImportedMethodDispatch::FinalOverride(family) => {
+                        concrete::MethodDispatch::FinalOverride(self.lower_virtual_method(family))
+                    }
+                    export::ImportedMethodDispatch::Interface(slot) => {
+                        let concrete::TypeKind::Interface(interface) = self.types[owner].kind
+                        else {
+                            unreachable!("interface method dispatch retains its exact owner");
+                        };
+                        concrete::MethodDispatch::Interface {
+                            interface,
+                            slot: self.interface_slot_by_source[&(interface, slot)],
+                        }
+                    }
+                };
                 concrete::FunctionReceiver::Method(concrete::Method {
-                    owner: self.lower_type(ty, arguments),
-                    modifier: concrete::MethodModifier::Final,
-                    dispatch: concrete::MethodDispatch::Direct,
+                    owner,
+                    modifier,
+                    dispatch,
                 })
             }
             Some(ty) => concrete::FunctionReceiver::Extension(self.lower_type(ty, arguments)),

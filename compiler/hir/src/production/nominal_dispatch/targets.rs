@@ -8,6 +8,24 @@ impl Projection<'_> {
         let target = self.export.imported_dependency_callables[id]
             .reference()
             .declaration();
+        self.imported_declaration_selection(target)
+    }
+
+    pub(super) fn imported_template_selection(
+        &self,
+        application: ImportedGenericCallableApplicationId,
+    ) -> Result<Selection, Error> {
+        let application = &self.export.imported_generic_applications[application];
+        let target = self.export.imported_generic_templates[application.template]
+            .declaration
+            .declaration();
+        self.imported_declaration_selection(target)
+    }
+
+    fn imported_declaration_selection(
+        &self,
+        target: scoop_identity::CallableTemplateOrigin,
+    ) -> Result<Selection, Error> {
         self.export
             .types
             .iter()

@@ -261,8 +261,7 @@ impl Lowerer {
                         .type_parameters
                         .ids()
                         .into_iter()
-                        .zip(application.arguments.iter())
-                        .map(|(p, a)| (p, *a))
+                        .zip(application.arguments.substitution(&self.types))
                         .collect(),
                     span: expr.span,
                 });

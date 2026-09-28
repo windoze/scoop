@@ -3,6 +3,7 @@
 //! the completed Export HIR owns ordinary, structurally complete bodies.
 
 mod local;
+mod methods;
 mod prepare;
 
 use std::collections::BTreeMap;
@@ -18,7 +19,7 @@ use crate::imported_core::ImportedTypeBindings;
 
 #[derive(Clone, Default)]
 pub(crate) struct ImportedGenericTemplates {
-    templates: Vec<PreparedImportedGeneric>,
+    templates: Vec<Option<PreparedImportedGeneric>>,
     by_declaration: BTreeMap<CallableTemplateOrigin, hir::ImportedGenericCallableTemplateId>,
     local_functions: BTreeMap<CallableTemplateOrigin, ImportedLocalFunctionSource>,
 }
@@ -92,7 +93,9 @@ impl Deref for PreparedImportedGeneric {
 impl Index<hir::ImportedGenericCallableTemplateId> for ImportedGenericTemplates {
     type Output = PreparedImportedGeneric;
     fn index(&self, id: hir::ImportedGenericCallableTemplateId) -> &Self::Output {
-        &self.templates[u32::from(id.into_raw()) as usize]
+        self.templates[u32::from(id.into_raw()) as usize]
+            .as_ref()
+            .expect("a referenced template has a complete signature")
     }
 }
 
@@ -100,14 +103,18 @@ impl ImportedGenericTemplates {
     pub(crate) fn into_completed(self) -> Arena<hir::ImportedGenericCallableTemplate> {
         self.templates
             .into_iter()
-            .map(|template| hir::ImportedGenericCallableTemplate {
-                signature: template.signature,
-                body: hir::Body {
-                    locals: template.locals,
-                    statements: template
-                        .statements
-                        .expect("successful lowering completed every queued dependency body"),
-                },
+            .map(|template| {
+                let template =
+                    template.expect("successful lowering completed every dependency signature");
+                hir::ImportedGenericCallableTemplate {
+                    signature: template.signature,
+                    body: hir::Body {
+                        locals: template.locals,
+                        statements: template
+                            .statements
+                            .expect("successful lowering completed every queued dependency body"),
+                    },
+                }
             })
             .collect()
     }
@@ -130,22 +137,37 @@ impl Lowerer {
                 .as_ref()
                 .expect("member bodies have a dependency catalog")
                 .nominal_declaration(owner)
+                .cloned()
                 .ok_or("member owner is missing")?;
             let body = declaration
                 .callable_body()
                 .ok_or("dependency nominal member has no body")?;
+            let (modifier, dispatch) =
+                self.imported_template_method_dispatch(&declaration, &nominal)?;
             hir::ImportedCallableTemplateOrigin::Nominal {
                 declaration: body.owner(),
                 owner,
                 owner_parameter_count: nominal.interface.type_parameters().binders().len(),
+                modifier,
+                dispatch,
             }
         } else if let CallableTemplateOrigin::GenericFunction(origin) = key {
             hir::ImportedCallableTemplateOrigin::Generic(origin)
         } else {
             return Err("dependency callable does not name a generic source body".into());
         };
+        let id = Idx::from_raw(RawIdx::from(
+            u32::try_from(self.imported_generic_templates.templates.len())
+                .expect("dependency template arena fits u32"),
+        ));
+        self.imported_generic_templates.templates.push(None);
+        self.imported_generic_templates
+            .by_declaration
+            .insert(key, id);
         let prepared = self.prepare_imported_generic(declaration, origin)?;
-        Ok(self.insert_imported_template(key, prepared))
+        self.imported_generic_templates.templates[id.into_raw().into_u32() as usize] =
+            Some(prepared);
+        Ok(id)
     }
 
     fn insert_imported_template(
@@ -157,7 +179,9 @@ impl Lowerer {
             u32::try_from(self.imported_generic_templates.templates.len())
                 .expect("dependency template arena fits u32"),
         ));
-        self.imported_generic_templates.templates.push(prepared);
+        self.imported_generic_templates
+            .templates
+            .push(Some(prepared));
         self.imported_generic_templates
             .by_declaration
             .insert(key, id);
@@ -175,11 +199,20 @@ impl Lowerer {
                 constructor += 1;
                 continue;
             }
-            let template = self.imported_generic_templates.templates[index].clone();
+            let Some(template) = self.imported_generic_templates.templates[index].clone() else {
+                assert!(
+                    !self.diagnostics.is_empty(),
+                    "a failed dependency signature must have a diagnostic"
+                );
+                index += 1;
+                continue;
+            };
             let id = Idx::from_raw(RawIdx::from(index as u32));
             match self.materialize_imported_callable_body(id, &template) {
                 Ok(body) => {
-                    let target = &mut self.imported_generic_templates.templates[index];
+                    let target = self.imported_generic_templates.templates[index]
+                        .as_mut()
+                        .expect("body completion follows signature completion");
                     target.locals = body.locals;
                     target.statements = Some(body.statements);
                 }

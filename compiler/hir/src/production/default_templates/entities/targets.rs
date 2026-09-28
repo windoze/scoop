@@ -20,22 +20,8 @@ impl DefaultEntityProjector<'_> {
                 )
             }
             ExportDefaultCallableTarget::ImportedGeneric(application) => {
-                let application = &export.imported_generic_applications[application];
-                let declaration = export.imported_generic_templates[application.template]
-                    .declaration
-                    .body_owner();
-                let arguments = application
-                    .arguments
-                    .iter()
-                    .map(|ty| self.type_key(*ty, binders))
-                    .collect::<Result<Vec<_>, _>>()?;
                 ExportDefaultCallableTargetV1::Callable(
-                    crate::DefaultCallableRefV1::try_new(
-                        declaration,
-                        scoop_identity::OptionalSignatureType::Absent,
-                        arguments,
-                    )
-                    .map_err(super::super::DefaultEntityProjectionError::Callable)?,
+                    self.imported_generic_callable(application, binders)?,
                 )
             }
             ExportDefaultCallableTarget::Bound(bound) => {
@@ -106,5 +92,38 @@ impl DefaultEntityProjector<'_> {
                 }
             }
         })
+    }
+
+    pub(in crate::production::default_templates) fn imported_generic_callable(
+        &self,
+        application: crate::ImportedGenericCallableApplicationId,
+        binders: &[HirSignatureBinder],
+    ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
+        let export = self.export();
+        let application = &export.imported_generic_applications[application];
+        let declaration = export.imported_generic_templates[application.template]
+            .declaration
+            .body_owner();
+        let (owner, arguments) = match &application.arguments {
+            crate::ImportedCallableArguments::Function(arguments) => (
+                scoop_identity::OptionalSignatureType::Absent,
+                arguments.to_vec(),
+            ),
+            crate::ImportedCallableArguments::Method {
+                owner,
+                method_arguments,
+            } => (
+                scoop_identity::OptionalSignatureType::Present(Box::new(
+                    self.type_key(*owner, binders)?,
+                )),
+                method_arguments.clone(),
+            ),
+        };
+        let arguments = arguments
+            .iter()
+            .map(|ty| self.type_key(*ty, binders))
+            .collect::<Result<Vec<_>, _>>()?;
+        crate::DefaultCallableRefV1::try_new(declaration, owner, arguments)
+            .map_err(super::super::DefaultEntityProjectionError::Callable)
     }
 }

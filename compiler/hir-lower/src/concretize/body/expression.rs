@@ -486,6 +486,7 @@ impl Concretizer<'_> {
 
             export::ExprKind::ImportedGenericCall {
                 application,
+                kind: call_kind,
                 args,
                 receiver,
                 binding,
@@ -497,18 +498,38 @@ impl Concretizer<'_> {
                     export::ImportedCallableTemplateOrigin::Local { .. }
                         | export::ImportedCallableTemplateOrigin::Nominal { .. }
                 );
-                let arguments = application
-                    .arguments
-                    .iter()
-                    .map(|ty| self.lower_type(*ty, substitution))
-                    .collect();
-                let callee = self.request_function_key(FunctionKey::Imported { source, arguments });
-                let args = args
+                let callee = self.lower_imported_callable_application(application, substitution);
+                let args: Vec<_> = args
                     .iter()
                     .map(|argument| self.lower_expr(argument, substitution, locals))
                     .collect();
                 let receiver = receiver.map(|ty| self.lower_type(ty, substitution));
-                if local_body {
+                if matches!(
+                    application.arguments,
+                    export::ImportedCallableArguments::Method { .. }
+                ) {
+                    let mut args = args.into_iter();
+                    let receiver =
+                        Box::new(args.next().expect("a member call has a receiver argument"));
+                    let args = args.collect();
+                    let callee = concrete::Callable::Function(callee);
+                    match call_kind {
+                        export::ImportedGenericCallKind::Ordinary => {
+                            concrete::ExprKind::MethodCall {
+                                receiver,
+                                callee,
+                                args,
+                            }
+                        }
+                        export::ImportedGenericCallKind::DirectSuper => {
+                            concrete::ExprKind::DirectSuperMethodCall {
+                                receiver,
+                                callee,
+                                args,
+                            }
+                        }
+                    }
+                } else if local_body {
                     concrete::ExprKind::Call {
                         callee: concrete::Callable::Function(callee),
                         receiver,

@@ -219,6 +219,16 @@ impl Concretizer<'_> {
             FunctionKey::Free { arguments, .. } | FunctionKey::Imported { arguments, .. } => {
                 arguments.clone()
             }
+            FunctionKey::ImportedMethod {
+                owner,
+                method_arguments,
+                ..
+            } => self
+                .concrete_method_owner_arguments(*owner)
+                .iter()
+                .chain(method_arguments)
+                .copied()
+                .collect(),
             FunctionKey::Method {
                 owner,
                 specialization,

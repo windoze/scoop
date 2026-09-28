@@ -187,6 +187,22 @@ impl Concretizer<'_> {
                         let source_slot = self.interface_reference_slot(method.member);
                         let slot = self.interface_slot_by_source[&(interface, source_slot)];
                         let target = match method.target {
+                            export::InterfaceImplementationTarget::ImportedTemplate(
+                                application,
+                            ) => concrete::InterfaceImplementationTarget::Method(
+                                self.lower_imported_callable_application(
+                                    &self.source.imported_generic_applications[application],
+                                    substitution,
+                                ),
+                            ),
+                            export::InterfaceImplementationTarget::ImportedAbstractTemplate(
+                                application,
+                            ) => concrete::InterfaceImplementationTarget::Abstract {
+                                declaration: self.lower_imported_callable_application(
+                                    &self.source.imported_generic_applications[application],
+                                    substitution,
+                                ),
+                            },
                             export::InterfaceImplementationTarget::Method(application) => {
                                 let concrete::Callable::Function(function) =
                                     self.lower_method_application(application, substitution);

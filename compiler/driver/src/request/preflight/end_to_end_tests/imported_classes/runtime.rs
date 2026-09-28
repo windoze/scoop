@@ -106,14 +106,16 @@ pub(in super::super) fn check(
             assert_eq!(object_uses[0].provider(), identities[1]);
         }
         for descriptor in sections.lir_exports().descriptors().records() {
-            assert!(
-                descriptors
-                    .insert(
-                        descriptor.exact(),
-                        descriptor.definition().symbol().symbol().to_string(),
-                    )
-                    .is_none()
+            let definition = descriptor.physical_definition();
+            let value = (
+                definition.symbol().symbol().to_string(),
+                definition.symbol().linkage(),
+                definition.definition(),
             );
+            if let Some(previous) = descriptors.insert(descriptor.exact(), value.clone()) {
+                assert_eq!(value.1, scoop_identity::LinkageClass::OdrWeak, "{case}");
+                assert_eq!(previous, value, "{case}: duplicate ODR descriptors agree");
+            }
         }
         immortals.extend_from_slice(
             sections
@@ -189,7 +191,7 @@ pub(in super::super) fn check(
     let mut immortal_entries = String::new();
     for (index, immortal) in immortals.iter().enumerate() {
         let object = immortal.object_symbol().symbol();
-        let descriptor = &descriptors[&immortal.type_registration()];
+        let descriptor = &descriptors[&immortal.type_registration()].0;
         immortal_declarations.push_str(&format!(
             "extern const unsigned char fixture_immortal_{index}[] __asm__(\"_{object}\");\n\
              extern const ScoopTypeDescriptor fixture_immortal_td_{index} __asm__(\"_{descriptor}\");\n"

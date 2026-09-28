@@ -67,7 +67,7 @@ impl Concretizer<'_> {
             direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
-            // Dependency method bodies remain in the provider.
+            // Dispatch is completed after the exact receiver has been registered.
             methods: Vec::new(),
             span: scoop_ast::Span::new(0, 0),
         });
@@ -107,9 +107,19 @@ impl Concretizer<'_> {
         self.classes[id].methods = source
             .virtual_methods
             .iter()
-            .map(|method| concrete::ClassMethod::Imported {
-                family: self.lower_virtual_method(method.family),
-                callable: self.imported_dependency_callable_map[&method.callable],
+            .map(|method| match method.callable {
+                export::ImportedDispatchCallable::External(callable) => {
+                    concrete::ClassMethod::Imported {
+                        family: self.lower_virtual_method(method.family),
+                        callable: self.imported_dependency_callable_map[&callable],
+                    }
+                }
+                export::ImportedDispatchCallable::Template(application) => {
+                    concrete::ClassMethod::Local(self.lower_imported_callable_application(
+                        &self.source.imported_generic_applications[application],
+                        substitution,
+                    ))
+                }
             })
             .collect();
         self.classes[id].interface_implementations =

@@ -680,8 +680,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
                     types.extend(
                         lowerer.imported_generic_applications[*application]
                             .arguments
-                            .iter()
-                            .copied(),
+                            .substitution(&lowerer.types),
                     );
                     if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                         types.push(*static_type);

@@ -432,6 +432,7 @@ pub enum ExprKind {
     },
     ImportedGenericCall {
         application: ImportedGenericCallableApplicationId,
+        kind: ImportedGenericCallKind,
         binding: Option<std::sync::Arc<DirectImportedTargetBinding>>,
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,

@@ -28,7 +28,7 @@ enum ImportedCallImplementation {
     Native,
     Generic {
         template: generic::ImportedGenericTarget,
-        arguments: hir::NonEmptyVec<hir::TypeId>,
+        arguments: hir::ImportedCallableArguments,
     },
 }
 
@@ -51,14 +51,18 @@ pub(crate) struct ImportedDependencyCallProbe {
 
 impl ImportedDependencyCallProbe {
     pub(crate) fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
-        let (parameters, bindings) = match self.implementation {
-            ImportedCallImplementation::Native => (Vec::new(), Default::default()),
+        let (owner_parameters, callable_parameters, bindings) = match self.implementation {
+            ImportedCallImplementation::Native => (Vec::new(), Vec::new(), Default::default()),
             ImportedCallImplementation::Generic { template, .. } => {
                 let declaration = template.declaration(&self.state);
                 let template = generic::ImportedGenericTarget::request(state, declaration)
                     .expect("an applicable imported candidate has a resolved declaration");
                 let (signature, bindings) = template.signature(state);
-                (signature.type_parameters, bindings)
+                (
+                    signature.owner_parameters,
+                    signature.type_parameters,
+                    bindings,
+                )
             }
         };
         let parameter_types = self
@@ -73,7 +77,12 @@ impl ImportedDependencyCallProbe {
                     .expect("an applicable imported candidate has resolved input types")
             })
             .collect::<Vec<_>>();
-        DeclarationForwardingView::callable_parameters(&parameters, &parameter_types).to_owned()
+        DeclarationForwardingView::parameter_groups(
+            &owner_parameters,
+            &callable_parameters,
+            &parameter_types,
+        )
+        .to_owned()
     }
 
     pub(crate) fn parameterized(&self) -> bool {
@@ -99,9 +108,17 @@ impl ImportedDependencyCallProbe {
         let state = &self.state;
         if let ImportedCallImplementation::Generic { template, .. } = self.implementation {
             let (signature, _) = template.signature(state);
-            let binders = signature.type_parameters.as_slice();
+            let all_parameters = signature
+                .owner_parameters
+                .iter()
+                .chain(&signature.type_parameters)
+                .cloned()
+                .collect::<Vec<_>>();
+            let binders = all_parameters.as_slice();
             let type_parameters = crate::call_resolution::diagnostics::render_type_parameters(
-                state, binders, binders,
+                state,
+                &signature.type_parameters,
+                binders,
             );
             let receiver = signature
                 .receiver

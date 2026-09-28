@@ -90,6 +90,8 @@ pub enum InterfaceImplementationTarget {
     Method(MethodApplicationId),
     Imported(ImportedDependencyCallableUseId),
     ImportedAbstract(ImportedDependencyCallableUseId),
+    ImportedTemplate(ImportedGenericCallableApplicationId),
+    ImportedAbstractTemplate(ImportedGenericCallableApplicationId),
     /// The actual abstract declaration retained for a derived implementation.
     Abstract(MethodApplicationId),
 }

@@ -270,6 +270,7 @@ impl Lowerer {
                     candidate.interface().owner(),
                     hir::PublicDeclarationOwnerV1::TopLevel
                         | hir::PublicDeclarationOwnerV1::Extension
+                        | hir::PublicDeclarationOwnerV1::Nominal(_)
                 ))
         {
             return state.probe_imported_generic(

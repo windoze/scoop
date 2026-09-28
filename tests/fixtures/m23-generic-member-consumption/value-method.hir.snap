@@ -1,0 +1,57 @@
+Module
+  fun result(): Int
+    val local0
+      IntegerLiteral 20 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedConstructorInit Cell : Cell<Int>
+        Local $dependency.parameter.value : Int
+    val local3
+      ImportedGenericCall emptyChoice<String> : Choice<String>
+    val local4
+      Local cell : Cell<Int>
+    val local11
+      ImportedGenericCall read<Int> : Int
+        Local $dependency.receiver : Cell<Int>
+    val local8
+      Local choice : Choice<String>
+    val local5
+      Local cell : Cell<Int>
+    val local6
+      IntegerLiteral 22 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    val local9
+      ImportedGenericCall choose<Int, Int> : Int
+        Local $dependency.receiver : Cell<Int>
+        Local $dependency.parameter.value : Int
+    val local10
+      Local $dependency.argument.0 : Int
+    val local12
+      ImportedGenericCall choose<String, Int> : Int
+        Local $dependency.receiver : Choice<String>
+        Local $dependency.parameter.value : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): T0
+    val local1
+      IntegerLiteral 1 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      ImportedConstructorInit Cell : Cell<Int>
+        Local $dependency.parameter.value : Int
+    val local4
+      Local value : T0
+    val local5
+      Local $dependency.argument.0 : T0
+    return
+      ImportedGenericCall choose<Int, T0> : T0
+        Local $dependency.receiver : Cell<Int>
+        Local $dependency.parameter.value : T0
+  output library
