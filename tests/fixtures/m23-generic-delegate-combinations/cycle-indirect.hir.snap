@@ -1,0 +1,120 @@
+Module
+  fun leftFailure<T>(): Int
+    try
+      ImportedGenericCall cycleLeft<T0> : Int
+        ImportedConstructorInit Token : Token<T0>
+      assign $result.0
+        IntegerLiteral 0 : Int
+    catch error: IllegalStateException
+      assign $result.0
+        IntegerLiteral 42 : Int
+    return
+      Local $result.0 : Int
+  fun rightFailure<T>(): Int
+    try
+      ImportedGenericCall cycleRight<T0> : Int
+        ImportedConstructorInit Token : Token<T0>
+      assign $result.1
+        IntegerLiteral 0 : Int
+    catch error: IllegalStateException
+      assign $result.1
+        IntegerLiteral 42 : Int
+    return
+      Local $result.1 : Int
+  fun exercise<T>(value: T0): Int
+    val local1
+      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+    ImportedDependencyCall #0 : Unit
+      Local $property_receiver.2 : Trace
+      IntegerLiteral 0 : Int
+    val local2
+      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+    ImportedDependencyCall #1 : Unit
+      Local $property_receiver.3 : Trace
+      IntegerLiteral 0 : Int
+    val local3
+      Call leftFailure<T0> : Int
+    val local4
+      IntegerLiteral 0 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    ImportedDependencyCall #2 : Payload
+      Local $dependency.parameter.value : Int
+    val local6
+      Call rightFailure<T0> : Int
+    val local7
+      Local first : Int
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local10
+        Local second : Int
+      val local11
+        IntegerLiteral 42 : Int
+      val local12
+        Local $dependency.argument.0 : Int
+      val local13
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local13
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.4 : Boolean
+      val local14
+        ImportedDependencyCall #3 : Int
+          ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      val local15
+        IntegerLiteral 1 : Int
+      val local16
+        Local $dependency.argument.0 : Int
+      val local17
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local17
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.5 : Boolean
+      val local18
+        ImportedDependencyCall #4 : Int
+          ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      val local19
+        IntegerLiteral 1 : Int
+      val local20
+        Local $dependency.argument.0 : Int
+      val local21
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local21
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.6 : Boolean
+      assign $result.7
+        IntegerLiteral 42 : Int
+    else
+      assign $result.7
+        IntegerLiteral 1 : Int
+    return
+      Local $result.7 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance leftFailure<T0>
+  instance rightFailure<T0>
+  instance exercise<Int>

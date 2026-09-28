@@ -2,14 +2,13 @@ hir Unit: Value { zst: ZeroSized } GcFree
 mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
-layouts=222 descriptors=111 dispatch=132 callables=39 shapes=32
+layouts=222 descriptors=111 dispatch=132 callables=38 shapes=32
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$body$1: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$body$2: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$1: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$2: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable Exception.$get$message: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedObjectReadable.number: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

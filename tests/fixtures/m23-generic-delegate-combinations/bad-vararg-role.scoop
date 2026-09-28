@@ -1,0 +1,5 @@
+import templates.delegateCombinations.Receiver
+
+class Wrong<T>() {
+    operator fun getValue(vararg thisRef: Receiver<T>): Int = 42
+}

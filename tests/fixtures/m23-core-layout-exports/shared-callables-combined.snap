@@ -3,15 +3,13 @@ mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
 local-only descriptor SharedCallableImpl
-layouts=224 descriptors=112 dispatch=134 callables=38 shapes=32
+layouts=224 descriptors=112 dispatch=134 callables=36 shapes=32
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable Exception.$get$message: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedCallableAgain.hiddenSlot: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedCallableAgain.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedCallableView.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
-callable SharedSourceOnlyHolder.$get$value: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedCallableToken.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SourceLocation.$c6: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)"] result=Indirect(40)

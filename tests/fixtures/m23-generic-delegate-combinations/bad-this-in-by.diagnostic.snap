@@ -1,0 +1,6 @@
+span=82..86
+expression=this
+`this` is only allowed inside member functions
+span=48..86
+expression=val <T> Receiver<T>.wrong: Int by this
+type `Unit` has no applicable property delegate operator `getValue`

@@ -1,0 +1,96 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedConstructorInit Receiver : Receiver<T0>
+        Local $dependency.parameter.value : T0
+    val local4
+      ImportedGenericCall references<T0> : Int
+        Local receiver : Receiver<T0>
+    ImportedGenericCall ordered<T0> : Unit
+      Local receiver : Receiver<T0>
+      ImportedGenericCall zero<T0> : Int
+        Local receiver : Receiver<T0>
+    val local5
+      IntegerLiteral 0 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    ImportedDependencyCall #0 : Payload
+      Local $dependency.parameter.value : Int
+    val local7
+      Local first : Int
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local13
+        BoolLiteral true : Boolean
+    else
+      val local10
+        ImportedGenericCall flat<T0> : Long
+          Local receiver : Receiver<T0>
+      val local11
+        IntegerLiteral 42 : Long
+      val local12
+        Local $dependency.argument.0 : Long
+      val local13
+        Unary Not : Boolean
+          IntegerOperation long.equals <no-gc> : Boolean
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local14
+      ImportedGenericCall ordered<T0> : Int
+        Local receiver : Receiver<T0>
+    val local15
+      IntegerLiteral 42 : Int
+    val local16
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local20
+        BoolLiteral true : Boolean
+    else
+      val local17
+        ImportedGenericCall references<T0> : Int
+          Local receiver : Receiver<T0>
+      val local18
+        IntegerLiteral 42 : Int
+      val local19
+        Local $dependency.argument.0 : Int
+      val local20
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    return
+      ImportedGenericCall zero<T0> : Int
+        Local receiver : Receiver<T0>
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

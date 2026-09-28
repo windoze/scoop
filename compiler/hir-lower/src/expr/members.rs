@@ -1,6 +1,7 @@
 use super::*;
 use crate::NominalTarget;
 
+mod delegate_roles;
 mod explicit_calls;
 mod extension_calls;
 mod extensions;

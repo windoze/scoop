@@ -248,68 +248,6 @@ impl Lowerer {
         .into_option()
     }
 
-    pub(crate) fn resolve_member_overload_lowered_outcome(
-        &mut self,
-        name: &str,
-        candidates: &[CallableCandidate],
-        call: LoweredOverloadCall,
-        sink: &mut Vec<hir::Statement>,
-    ) -> OverloadResolutionOutcome {
-        let LoweredOverloadCall {
-            explicit_type_args,
-            args,
-            span,
-            expected_result,
-        } = call;
-        self.resolve_overload_with_receiver(
-            name,
-            candidates,
-            OverloadResolution {
-                receiver: OverloadReceiver::Ordinary,
-                explicit_type_args: &explicit_type_args,
-                arguments: OverloadArguments::Lowered(args),
-                span,
-                expected_result,
-                argument_protocol: CallArgumentProtocol::Ordinary,
-            },
-            sink,
-        )
-    }
-
-    pub(crate) fn resolve_extension_overload_lowered_outcome(
-        &mut self,
-        name: &str,
-        candidates: &[FunctionId],
-        receiver: hir::Expr,
-        call: LoweredOverloadCall,
-        sink: &mut Vec<hir::Statement>,
-    ) -> OverloadResolutionOutcome {
-        let candidates = candidates
-            .iter()
-            .copied()
-            .map(|function| CallableCandidate::function(function, Vec::new()))
-            .collect::<Vec<_>>();
-        let LoweredOverloadCall {
-            explicit_type_args,
-            args,
-            span,
-            expected_result,
-        } = call;
-        self.resolve_overload_with_receiver(
-            name,
-            &candidates,
-            OverloadResolution {
-                receiver: OverloadReceiver::Extension(receiver),
-                explicit_type_args: &explicit_type_args,
-                arguments: OverloadArguments::Lowered(args),
-                span,
-                expected_result,
-                argument_protocol: CallArgumentProtocol::Ordinary,
-            },
-            sink,
-        )
-    }
-
     fn resolve_overload_with_receiver(
         &mut self,
         name: &str,

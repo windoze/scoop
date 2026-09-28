@@ -8,6 +8,29 @@ use scoop_hir as hir;
 use crate::{FnParam, FnParamCalling, Lowerer, TypeId};
 
 impl Lowerer {
+    pub(crate) fn resolve_callable_parameters(&mut self, decl: &ast::FunctionDecl) -> Vec<FnParam> {
+        let delegate =
+            decl.operator.is_some() && property_delegate_operator_kind(&decl.name.text).is_some();
+        decl.params
+            .iter()
+            .filter_map(|parameter| {
+                if delegate && !matches!(parameter.syntax, ast::ParameterSyntax::Required) {
+                    // Invalid role parameters must not request an implicit Array application.
+                    self.error(
+                        parameter.span,
+                        format!(
+                            "property delegate operator `{}` requires required, non-vararg parameters",
+                            decl.name.text,
+                        ),
+                    );
+                    None
+                } else {
+                    self.resolve_fn_param(parameter)
+                }
+            })
+            .collect()
+    }
+
     pub(crate) fn validate_callable_modifiers(
         &mut self,
         decl: &ast::FunctionDecl,
@@ -39,7 +62,6 @@ impl Lowerer {
                         decl,
                         kind,
                         is_ordinary,
-                        params,
                         return_ty,
                     );
                     property_delegate_operator = Some(kind);
@@ -89,16 +111,10 @@ impl Lowerer {
         name: &ast::Ident,
         modifier_span: ast::Span,
     ) -> Option<CallableOperatorKind> {
+        if let Some(kind) = property_delegate_operator_kind(&name.text) {
+            return Some(CallableOperatorKind::PropertyDelegate(kind));
+        }
         let kind = match name.text.as_str() {
-            "provideDelegate" => CallableOperatorKind::PropertyDelegate(
-                hir::PropertyDelegateOperatorKind::ProvideDelegate,
-            ),
-            "getValue" => {
-                CallableOperatorKind::PropertyDelegate(hir::PropertyDelegateOperatorKind::GetValue)
-            }
-            "setValue" => {
-                CallableOperatorKind::PropertyDelegate(hir::PropertyDelegateOperatorKind::SetValue)
-            }
             "unaryPlus" => CallableOperatorKind::Ordinary(hir::OperatorKind::UnaryPlus),
             "unaryMinus" => CallableOperatorKind::Ordinary(hir::OperatorKind::UnaryMinus),
             "not" => CallableOperatorKind::Ordinary(hir::OperatorKind::Not),
@@ -151,7 +167,6 @@ impl Lowerer {
         decl: &ast::FunctionDecl,
         kind: hir::PropertyDelegateOperatorKind,
         is_ordinary: bool,
-        params: &[FnParam],
         return_ty: TypeId,
     ) {
         let name = decl.name.text.as_str();
@@ -166,24 +181,14 @@ impl Lowerer {
                 format!("property delegate operator `{name}` must be an ordinary function"),
             );
         }
-        if params.len() != expected {
+        if decl.params.len() != expected {
             self.error(
                 decl.name.span,
                 format!(
                     "property delegate operator `{name}` must have exactly {expected} parameters, found {}",
-                    params.len()
+                    decl.params.len()
                 ),
             );
-        }
-        for (index, parameter) in params.iter().enumerate() {
-            if !matches!(parameter.calling, FnParamCalling::Required) {
-                self.error(
-                    decl.params[index].span,
-                    format!(
-                        "property delegate operator `{name}` requires required, non-vararg parameters"
-                    ),
-                );
-            }
         }
         if decl.is_suspend {
             self.error(
@@ -375,4 +380,13 @@ impl Lowerer {
 enum CallableOperatorKind {
     Ordinary(hir::OperatorKind),
     PropertyDelegate(hir::PropertyDelegateOperatorKind),
+}
+
+fn property_delegate_operator_kind(name: &str) -> Option<hir::PropertyDelegateOperatorKind> {
+    match name {
+        "provideDelegate" => Some(hir::PropertyDelegateOperatorKind::ProvideDelegate),
+        "getValue" => Some(hir::PropertyDelegateOperatorKind::GetValue),
+        "setValue" => Some(hir::PropertyDelegateOperatorKind::SetValue),
+        _ => None,
+    }
 }

@@ -1,0 +1,3 @@
+span=88..96
+expression=getValue
+property delegate operator `getValue` must not declare type parameters

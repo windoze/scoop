@@ -19,7 +19,7 @@ impl Lowerer {
         }
         if let Some(local) = self.scopes.lookup(&name.text) {
             let binding = self.locals[local].binding;
-            if let Some(plan) = self.local_delegate_plans.get(&binding).copied() {
+            if let Some(plan) = self.local_delegate_plans.get(&binding).cloned() {
                 let storage = hir::Expr {
                     kind: hir::ExprKind::Local(local),
                     ty: self.locals[local].ty,
@@ -51,7 +51,7 @@ impl Lowerer {
             });
         }
         if let Some(capture) = self.available_capture(&name.text) {
-            if let Some(plan) = self.local_delegate_plans.get(&capture.binding).copied() {
+            if let Some(plan) = self.local_delegate_plans.get(&capture.binding).cloned() {
                 let storage = self.lower_capture(name)?;
                 let read = self.local_delegate_read(storage.clone(), capture.binding, name.span)?;
                 let write = if plan.mutable {

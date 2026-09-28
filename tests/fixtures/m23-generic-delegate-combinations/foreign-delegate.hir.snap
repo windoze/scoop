@@ -1,0 +1,118 @@
+Module
+  property0 var <T> Receiver<T>.foreign: Int getter0=body($get$foreign) setter0=body($set$foreign) <generic-delegated template0 type=OrderedSlot<T0> init0>
+  fun exercise<T>(value: T0): Int
+    val local1
+      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+    ImportedDependencyCall #0 : Unit
+      Local $property_receiver.0 : Trace
+      IntegerLiteral 0 : Int
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedConstructorInit Receiver : Receiver<T0>
+        Local $dependency.parameter.value : T0
+    Call $set$foreign<T0> : Unit
+      Local $receiver : Receiver<T0>
+      IntegerLiteral 42 : Int
+    val local5
+      ImportedDependencyCall #1 : Int
+        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+    val local6
+      IntegerLiteral 45 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local8
+      IntegerLiteral 0 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    ImportedDependencyCall #2 : Payload
+      Local $dependency.parameter.value : Int
+    val local10
+      Local value : T0
+    val local11
+      Local $dependency.argument.0 : T0
+    val local12
+      ImportedConstructorInit Receiver : Receiver<T0>
+        Local $dependency.parameter.value : T0
+    val local13
+      Call $get$foreign<T0> : Int
+        Local $receiver : Receiver<T0>
+    val local14
+      ImportedDependencyCall #1 : Int
+        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+    val local15
+      IntegerLiteral 456 : Int
+    val local16
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local20
+        BoolLiteral true : Boolean
+    else
+      val local17
+        Local first : Int
+      val local18
+        IntegerLiteral 42 : Int
+      val local19
+        Local $dependency.argument.0 : Int
+      val local20
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local21
+      Local value : T0
+    val local22
+      Local $dependency.argument.0 : T0
+    val local23
+      ImportedConstructorInit Receiver : Receiver<T0>
+        Local $dependency.parameter.value : T0
+    return
+      Call $get$foreign<T0> : Int
+        Local $receiver : Receiver<T0>
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  fun $init$body$0<T>(): Unit
+    assign delegate foreign<T0>
+      ImportedGenericCall provideDelegate<T0> : OrderedSlot<T0>
+        ImportedConstructorInit Starter : Starter<T0>
+  fun $init$ensure$0<T>(): Unit
+  fun $get$foreign<T>(this: Receiver<T0>): Int
+    ensure delegate foreign<T0>
+    return
+      ImportedGenericCall getValue<T0> : Int
+        DelegateStorageRead foreign<T0> : OrderedSlot<T0>
+        Local this : Receiver<T0>
+  fun $set$foreign<T>(this: Receiver<T0>, value: Int): Unit
+    ensure delegate foreign<T0>
+    ImportedGenericCall setValue<T0> : Unit
+      DelegateStorageRead foreign<T0> : OrderedSlot<T0>
+      Local this : Receiver<T0>
+      Local value : Int
+    return
+  output library
+  instance $get$foreign<T0>
+  instance $set$foreign<T0>
+  instance exercise<Int>

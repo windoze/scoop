@@ -56,7 +56,7 @@ impl Lowerer {
                 return self.lower_initializing_field_assign(assign, name, out);
             }
             if let Some(capture) = self.available_capture(&name.text) {
-                if let Some(plan) = self.local_delegate_plans.get(&capture.binding).copied() {
+                if let Some(plan) = self.local_delegate_plans.get(&capture.binding).cloned() {
                     if !plan.mutable {
                         self.error(
                             name.span,
@@ -227,7 +227,7 @@ impl Lowerer {
             return None;
         };
         let binding = self.locals[local].binding;
-        if let Some(plan) = self.local_delegate_plans.get(&binding).copied() {
+        if let Some(plan) = self.local_delegate_plans.get(&binding).cloned() {
             if !plan.mutable {
                 self.error(
                     name.span,

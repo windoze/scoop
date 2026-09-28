@@ -2,10 +2,9 @@ hir Unit: Value { zst: ZeroSized } GcFree
 mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
-layouts=260 descriptors=130 dispatch=151 callables=47 shapes=36
+layouts=260 descriptors=130 dispatch=151 callables=46 shapes=36
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable Exception.$get$message: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedEqualityChoice.equals: OrdinaryManaged receiver=true args=["Indirect(8)", "Indirect(8)"] result=Direct(1)
 callable SharedEqualityLeaf.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)

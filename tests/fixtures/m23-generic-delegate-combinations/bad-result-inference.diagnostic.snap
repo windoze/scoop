@@ -1,0 +1,7 @@
+span=170..171
+expression=B
+type parameter `B` of extension property `missing` cannot be inferred solely from its receiver
+span=255..262
+expression=missing
+no applicable candidate for `missing` in extension candidate layer:
+  - fun Receiver<A>.missing<A, B>(): B — cannot infer a unique type argument for `B`

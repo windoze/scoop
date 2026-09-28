@@ -2,7 +2,7 @@ use super::*;
 use crate::emission::initialization_unit_globals_from_pairs;
 
 #[test]
-fn strong_codegen_rejects_odr_storage_instead_of_emitting_weak_definitions() {
+fn storage_codegen_uses_each_definition_owners_linkage() {
     let mut module = values_module();
     let cone_identity = static_storage_identity("coneStorage");
     let cone_symbol = cone_identity.symbol().to_string();
@@ -31,14 +31,16 @@ fn strong_codegen_rejects_odr_storage_instead_of_emitting_weak_definitions() {
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("the M23-3 backend accepts strong definitions only");
-    assert!(
-        error.0.contains("ODR") || error.0.contains("Odr"),
-        "{error}"
-    );
-    assert!(!error.0.contains(&cone_symbol), "{error}");
-    assert!(!error.0.contains(&odr_symbol), "{error}");
+    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();
+    for (symbol, linkage) in [
+        (cone_symbol, inkwell::module::Linkage::External),
+        (odr_symbol, inkwell::module::Linkage::WeakODR),
+    ] {
+        let storage = llvm.get_global(&symbol).unwrap();
+        assert_eq!(storage.get_linkage(), linkage);
+        assert!(storage.get_initializer().is_some());
+    }
+    llvm.verify().unwrap();
 }
 
 #[test]

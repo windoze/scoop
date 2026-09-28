@@ -326,7 +326,10 @@ fn rejects_incompatible_prerequisites_and_owned_redefinition() {
         &plan,
     )
     .unwrap_err();
-    assert!(error.0.contains("incompatible strong entry"), "{error}");
+    assert!(
+        error.0.contains("incompatible entry declaration"),
+        "{error}"
+    );
     assert_owned_definitions_absent(&llvm, expected);
 
     let llvm = context.create_module("initialization-owned-redefinition");

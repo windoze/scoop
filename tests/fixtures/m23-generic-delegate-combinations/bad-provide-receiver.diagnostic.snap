@@ -1,0 +1,3 @@
+span=84..99
+expression=provideDelegate
+property delegate operator `provideDelegate` must have exactly 0 parameters, found 1

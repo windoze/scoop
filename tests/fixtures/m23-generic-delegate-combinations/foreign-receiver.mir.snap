@@ -1,0 +1,307 @@
+Module
+  global0 locallyDefined$delegate: LocalSlot<Int> managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 extension-private:main.scoop:Receiver<T0>:locallyDefined generic-delegate lazy global0 initializer=@fn5 ensure=@fn6 failure=1 deps=[]
+  class Receiver<Int> vtable=0 itables=0
+  class Payload vtable=0 itables=0
+  class LocalSlot<Int> vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Receiver<Int>
+        ClassAlloc Receiver<Int>
+      call @fn8 direct
+        Type Receiver<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val first: Receiver<Int>
+        Type Receiver<Int>
+        Local $new.1
+      val $place.0: Receiver<Int>
+        Type Receiver<Int>
+        Local first
+      val $receiver: Receiver<Int>
+        Type Receiver<Int>
+        Local $place.0
+      call $old.1: Int = @fn2 direct
+        Type Receiver<Int>
+        Local $receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Receiver<Int>
+        Local $receiver
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call external0 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.value
+      Type Payload
+      Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.3
+        Type Receiver<Int>
+        ClassAlloc Receiver<Int>
+      call @fn8 direct
+        Type Receiver<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Receiver<Int>
+        Type Receiver<Int>
+        Local $new.3
+      call $call.4: Int = @fn2 direct
+        Type Receiver<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.4
+  fun $extension.$get$locallyDefined @fn2(this: Receiver<Int>) -> Int
+    bb0 entry
+      call @fn6 direct
+      call $call.1: Int = @fn4 direct
+        Type LocalSlot<Int>
+        GlobalRead locallyDefined$delegate
+        Type Receiver<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.$set$locallyDefined @fn3(this: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn6 direct
+      call @fn7 direct
+        Type LocalSlot<Int>
+        GlobalRead locallyDefined$delegate
+        Type Receiver<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun LocalSlot.getValue @fn4(this: LocalSlot<Int>, thisRef: Receiver<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = external1 direct
+        Type Payload
+        FieldAccess 0
+          Type LocalSlot<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun $init$body$0 @fn5() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external0 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $parameter.payload: Payload
+        Type Payload
+        Local $argument.0
+      assign $new.2
+        Type LocalSlot<Int>
+        ClassAlloc LocalSlot<Int>
+      call @fn9 direct
+        Type LocalSlot<Int>
+        Local $new.2
+        Type Payload
+        Local $parameter.payload
+      global_assign locallyDefined$delegate
+        Type LocalSlot<Int>
+        Local $new.2
+      return
+  fun $init$ensure$0 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:locallyDefined
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:locallyDefined
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:locallyDefined
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:locallyDefined
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:locallyDefined
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun LocalSlot.setValue @fn7(this: LocalSlot<Int>, thisRef: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      val $place.2: Payload
+        Type Payload
+        FieldAccess 0
+          Type LocalSlot<Int>
+          Local this
+      call external2 direct
+        Type Payload
+        Local $place.2
+        Type Int
+        Local value
+      return
+  fun init.Receiver.$c0 @fn8(this: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Receiver<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.LocalSlot.$c0 @fn9(this: LocalSlot<Int>, payload: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalSlot<Int>
+        Local this
+        Type Payload
+        Local payload
+      return
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- $extension.$get$locallyDefined
+  instance mi2 function=@fn3 <- $extension.$set$locallyDefined
+  instance mi3 function=@fn4 <- LocalSlot.getValue
+  instance mi4 function=@fn5 <- $init$body$0
+  instance mi5 function=@fn6 <- $init$ensure$0
+  instance mi6 function=@fn7 <- LocalSlot.setValue
+  output library

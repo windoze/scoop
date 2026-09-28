@@ -1,0 +1,119 @@
+package templates.delegateCombinations
+
+public object Trace {
+    public var order: Int = 0
+    public var direct: Int = 0
+    public var left: Int = 0
+    public var right: Int = 0
+}
+
+public class Receiver<T> public constructor(public val value: T)
+public class Payload public constructor(public var value: Int)
+
+public class OrderedSlot<T> public constructor(private val payload: Payload) {
+    public operator fun getValue(thisRef: Receiver<T>): Int {
+        Trace.order = Trace.order * 10 + 6
+        return this.payload.value
+    }
+    public operator fun setValue(thisRef: Receiver<T>, value: Int): Unit {
+        Trace.order = Trace.order * 10 + 5
+        this.payload.value = value
+    }
+}
+
+public class Starter<T> public constructor() {
+    public operator fun provideDelegate(): OrderedSlot<T> {
+        Trace.order = Trace.order * 10 + 4
+        return OrderedSlot<T>(Payload(10))
+    }
+}
+
+private fun <T> start(): Starter<T> {
+    Trace.order = Trace.order * 10 + 3
+    return Starter<T>()
+}
+
+public var <T> Receiver<T>.ordered: Int by start<T>()
+public var <T> Receiver<T>.compound: Int by start<T>()
+public var <T> Receiver<T>.writeOnly: Int by start<T>()
+
+public struct ZeroSlot<T>() {
+    public operator fun getValue(thisRef: Receiver<T>): Int = 42
+}
+
+public struct FlatSlot<T>(val first: Long, val second: Long, val third: Long) {
+    public operator fun getValue(thisRef: Receiver<T>): Long = this.first + this.second + this.third
+}
+
+public struct ReferenceSlot<T>(val first: Payload, val second: Payload, val third: Payload) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.first.value + this.second.value + this.third.value
+}
+
+private fun <T> references(): ReferenceSlot<T> {
+    return ReferenceSlot<T>(Payload(7), Payload(14), Payload(21))
+}
+
+public val <T> Receiver<T>.zero: Int by ZeroSlot<T>()
+public val <T> Receiver<T>.flat: Long by FlatSlot<T>(7, 14, 21)
+public val <T> Receiver<T>.references: Int by references<T>()
+
+public class Token<T> public constructor()
+public struct TokenSlot<T>() {
+    public operator fun getValue(thisRef: Token<T>): Int = 42
+}
+
+private fun <T> directStart(): TokenSlot<T> {
+    Trace.direct += 1
+    Token<T>().cycleDirect
+    return TokenSlot<T>()
+}
+private fun <T> leftStart(): TokenSlot<T> {
+    Trace.left += 1
+    Token<T>().cycleRight
+    return TokenSlot<T>()
+}
+private fun <T> rightStart(): TokenSlot<T> {
+    Trace.right += 1
+    Token<T>().cycleLeft
+    return TokenSlot<T>()
+}
+
+public val <T> Token<T>.cycleDirect: Int by directStart<T>()
+public val <T> Token<T>.cycleLeft: Int by leftStart<T>()
+public val <T> Token<T>.cycleRight: Int by rightStart<T>()
+
+public class LocalValueSlot<T> public constructor(public var stored: T) {
+    public operator fun getValue(thisRef: Unit): T = this.stored
+    public operator fun setValue(thisRef: Unit, value: T): Unit { this.stored = value }
+}
+
+public class FixedLocalSlot public constructor(public var stored: Int) {
+    public operator fun getValue(thisRef: Unit): Int = this.stored
+    public operator fun setValue(thisRef: Unit, value: Int): Unit { this.stored = value }
+}
+
+public open class SpecificBase<T> public constructor() {
+    public operator fun getValue(thisRef: Receiver<T>): Int = 21
+}
+public open class BroadBase public constructor() {
+    public operator fun getValue(thisRef: Any): Int = 1
+}
+public open class AmbiguousBase<T> public constructor() {
+    public operator fun getValue(thisRef: Receiver<T>): Int = 42
+    public operator fun setValue(thisRef: Receiver<T>, value: Any): Unit {}
+}
+
+public class ExtensionSeed public constructor()
+public class ExtensionSlot public constructor(public var stored: Int)
+public operator fun ExtensionSeed.provideDelegate(): ExtensionSlot {
+    Trace.order = Trace.order * 10 + 4
+    return ExtensionSlot(10)
+}
+public operator fun ExtensionSlot.getValue(thisRef: Any): Int {
+    Trace.order = Trace.order * 10 + 6
+    return this.stored
+}
+public operator fun ExtensionSlot.setValue(thisRef: Any, value: Int): Unit {
+    Trace.order = Trace.order * 10 + 5
+    this.stored = value
+}

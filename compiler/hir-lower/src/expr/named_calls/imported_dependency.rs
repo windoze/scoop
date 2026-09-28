@@ -51,6 +51,10 @@ pub(crate) struct ImportedDependencyCallProbe {
 }
 
 impl ImportedDependencyCallProbe {
+    pub(in crate::expr) fn safety(&self) -> hir::CallableSafetyV1 {
+        self.candidate.interface().effects().safety()
+    }
+
     pub(crate) fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
         let (owner_parameters, callable_parameters, bindings) = match self.implementation {
             ImportedCallImplementation::Native => (Vec::new(), Vec::new(), Default::default()),
@@ -89,7 +93,10 @@ impl ImportedDependencyCallProbe {
     pub(crate) fn parameterized(&self) -> bool {
         matches!(
             self.implementation,
-            ImportedCallImplementation::Generic { .. }
+            ImportedCallImplementation::Generic {
+                template: generic::ImportedGenericTarget::Constructor(_),
+                ..
+            }
         ) || !self.candidate.interface().type_parameters().is_empty()
     }
 

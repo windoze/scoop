@@ -178,8 +178,17 @@ impl Lowerer {
         &self,
         operator: hir::OperatorKind,
     ) -> Vec<LookupLayer<ExtensionCallTarget>> {
+        self.named_executable_extension_role_layers(|target| {
+            self.extension_target_has_operator(target, operator)
+        })
+    }
+
+    fn named_executable_extension_role_layers(
+        &self,
+        matches_role: impl Fn(&ExtensionCallTarget) -> bool,
+    ) -> Vec<LookupLayer<ExtensionCallTarget>> {
         let mut layers = self
-            .named_extension_operator_layers(operator)
+            .named_extension_role_layers()
             .into_iter()
             .map(|layer| LookupLayer {
                 kind: layer.kind,
@@ -187,6 +196,7 @@ impl Lowerer {
                     .candidates
                     .into_iter()
                     .map(ExtensionCallTarget::Current)
+                    .filter(&matches_role)
                     .collect(),
                 suppressed_callables: layer.suppressed_callables,
             })
@@ -246,7 +256,7 @@ impl Lowerer {
                             ExtensionCallTarget::Current(_) => {
                                 unreachable!("the appended targets are dependencies")
                             }
-                        }) && self.extension_target_has_operator(target, operator)
+                        }) && matches_role(target)
                     }),
             );
         }
@@ -256,19 +266,34 @@ impl Lowerer {
     pub(crate) fn named_extension_delegate_operator_layers(
         &self,
         role: hir::PropertyDelegateOperatorKind,
-    ) -> Vec<LookupLayer<hir::FunctionId>> {
-        self.named_extension_role_layers()
-            .into_iter()
-            .map(|mut layer| {
-                layer.candidates.retain(|function| {
-                    self.signatures[function]
-                        .modifiers
-                        .property_delegate_operator
-                        == Some(role)
-                });
-                layer
-            })
-            .collect()
+    ) -> Vec<LookupLayer<ExtensionCallTarget>> {
+        let wire_role = match role {
+            hir::PropertyDelegateOperatorKind::ProvideDelegate => {
+                hir::PropertyDelegateOperatorV1::ProvideDelegate
+            }
+            hir::PropertyDelegateOperatorKind::GetValue => {
+                hir::PropertyDelegateOperatorV1::GetValue
+            }
+            hir::PropertyDelegateOperatorKind::SetValue => {
+                hir::PropertyDelegateOperatorV1::SetValue
+            }
+        };
+        self.named_executable_extension_role_layers(|target| match target {
+            ExtensionCallTarget::Current(function) => {
+                self.signatures[function]
+                    .modifiers
+                    .property_delegate_operator
+                    == Some(role)
+            }
+            ExtensionCallTarget::Dependency(binding) => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.callable_candidate(binding).ok())
+                .is_some_and(|candidate| {
+                    candidate.interface().effects().operator_role()
+                        == hir::CallableOperatorRoleV1::PropertyDelegate(wire_role)
+                }),
+        })
     }
 
     pub(crate) fn named_extension_call_layers(

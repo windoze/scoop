@@ -63,12 +63,7 @@ impl Lowerer {
         let method_parameters = owner_parameters.split_off(owner_type_param_count);
         self.register_method_parameters(id, owner_parameters, method_parameters);
         self.type_params_in_scope = type_params.clone();
-        let mut params = Vec::with_capacity(decl.params.len());
-        for param in &decl.params {
-            if let Some(param) = self.resolve_fn_param(param) {
-                params.push(param);
-            }
-        }
+        let params = self.resolve_callable_parameters(decl);
         let return_ty = match &decl.return_ty {
             Some(ty_ref) => self.resolve_type_ref(ty_ref).unwrap_or(self.unit),
             None => self.unit,

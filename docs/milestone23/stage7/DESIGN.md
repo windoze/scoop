@@ -374,7 +374,13 @@ callable 与 safepoint registration 的 canonical LIR 直接投影已有实际 p
 
 `val/var <T> Receiver<T>.p: U by expression` 的全部 binder 必须只由 receiver 的 exact 静态类型和 bound 唯一确定。result expected type、setter RHS、runtime receiver class 和使用 Cone 不参与推导或 specialization key。
 
+消费方可以为依赖中声明的泛型名义类型定义自己的扩展属性。receiver 的 binder 遍历同样覆盖导入的 class、struct、enum、interface 及其嵌套实参，不要求把外来声明复制为本地类型。
+
 源级 `by` 没有某次访问的 receiver 值，不能使用该值的 `this`、字段或 identity。它可以使用已经声明的类型参数及定义处可见实体；先求值 `by`，再可选调用一次无 receiver-argument 的 `provideDelegate`，保存 effective delegate。get/set role 按已有协议接收实际 `thisRef`，保持 ordinary、non-suspend、non-generic、无 default/vararg。
+
+依赖声明的 delegate 方法和扩展通过普通候选、typed role、可见性、参数替换和 winner commit 解析。同一成员层中的本地与外来方法一起做最具体候选比较；扩展在各自作用域层内采用相同规则，import alias 保持原 typed role。生成访问器和 initializer 直接保存已有的 imported call；局部委托复用已选 callable、实际参数类型和 effect，在每个使用点生成调用。内部已经降低的 receiver/参数保持原求值顺序，不再为 required-only 协议生成默认参数或多余参数临时变量。
+
+重载平局中的非泛型优先只考察 callable 自己的 binder；泛型名义宿主中的普通方法不会因实现需要单态化而变成泛型方法。泛型构造器仍按所属名义声明的类型参数参与已有构造器比较。
 
 source HIR 增加独立 generic delegate template，不能把它先降成 `ManagedGlobal`。具体化后使用本地 typed `GenericDelegateStorageSpecializationId` 关联完整 unit 和 storage；持久身份直接复用已有 `InitializationUnitKey::GenericDelegatedExtensionApplication { property, receiver_arguments }` 及 storage role，不建立第二套 persistent specialization key。
 

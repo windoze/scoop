@@ -12,7 +12,7 @@ mod delegates;
 mod extensions;
 mod implicit_values;
 
-pub(crate) use delegates::DelegateRoleCall;
+pub(crate) use delegates::{DelegateRoleCall, ResolvedDelegateRoleCall};
 pub(crate) use extensions::{
     ExtensionPropertyCandidateOutcome, ExtensionPropertyResolution, ResolvedExtensionPropertyRead,
     ResolvedExtensionPropertyWrite,
@@ -36,7 +36,7 @@ pub(crate) enum PropertyAccessorKind {
     Setter,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct LocalDelegatePlan {
     pub(crate) property_ty: TypeId,
     pub(crate) mutable: bool,
@@ -44,17 +44,36 @@ pub(crate) struct LocalDelegatePlan {
     pub(crate) setter: Option<LocalDelegateAccessor>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct LocalDelegateAccessor {
     pub(crate) dispatch: LocalDelegateDispatch,
-    pub(crate) effect: hir::Callable,
+    pub(crate) effect: DelegateCallEffect,
+    pub(crate) receiver_ty: TypeId,
+    pub(crate) parameter_types: Vec<TypeId>,
     pub(crate) result_ty: TypeId,
 }
 
 #[derive(Clone, Copy)]
+pub(crate) enum DelegateCallEffect {
+    Current(hir::Callable),
+    Imported(hir::CallableSafetyV1),
+}
+
+#[derive(Clone)]
 pub(crate) enum LocalDelegateDispatch {
     Member(hir::MethodCallee),
     Extension(hir::Callable),
+    ImportedDependency {
+        callee: hir::ImportedDependencyCallableUseId,
+        binding: Option<std::sync::Arc<hir::DirectImportedTargetBinding>>,
+        receiver: hir::SourceCallReceiver<TypeId>,
+    },
+    ImportedGeneric {
+        application: hir::ImportedGenericCallableApplicationId,
+        kind: hir::ImportedGenericCallKind,
+        binding: Option<std::sync::Arc<hir::DirectImportedTargetBinding>>,
+        receiver: hir::SourceCallReceiver<TypeId>,
+    },
 }
 
 #[derive(Clone)]

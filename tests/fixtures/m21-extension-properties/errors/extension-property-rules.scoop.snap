@@ -1,13 +1,21 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-extension-properties/errors/extension-property-rules.scoop:10:1: error: extension property `initialized` must be computed or delegated
-m21-extension-properties/errors/extension-property-rules.scoop:21:29: error: generic extension properties cannot be delegated
-m21-extension-properties/errors/extension-property-rules.scoop:12:6: error: type parameter `T` of extension property `unbound` cannot be inferred solely from its receiver
-m21-extension-properties/errors/extension-property-rules.scoop:18:1: error: extension property `duplicate` is already declared for the same receiver type
-m21-extension-properties/errors/extension-property-rules.scoop:34:20: error: call to `label` is ambiguous in extension candidate layer:
-  - fun Left.label(): Int — tied after pairwise declaration forwarding
-  - fun Right.label(): Int — tied after pairwise declaration forwarding
-m21-extension-properties/errors/extension-property-rules.scoop:35:12: error: cannot assign to immutable property `value`
+span=119..147
+expression=val Int.initialized: Int = 1
+extension property `initialized` must be computed or delegated
+span=154..155
+expression=T
+type parameter `T` of extension property `unbound` cannot be inferred solely from its receiver
+span=227..263
+expression=val Int.duplicate: Int
+    get() = 2
+extension property `duplicate` is already declared for the same receiver type
+span=455..460
+expression=label
+call to `label` is ambiguous in extension property layer:
+  - fun Left.label(): Int — applicable; tied by MSC
+  - fun Right.label(): Int — applicable; tied by MSC
+span=473..478
+expression=value
+cannot assign to immutable property `value`
+span=265..297
+expression=val <T> Box<T>.delegated: T by 1
+type `Int` has no applicable property delegate operator `getValue`

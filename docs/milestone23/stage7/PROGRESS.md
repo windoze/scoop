@@ -487,13 +487,23 @@
 
 本项完成委托的 sibling 初始化与失败共享；求值顺序、更多有效 delegate 表示及损坏产物组合继续推进，M23-7 尚未完成。
 
+## 2026-09-29：外来委托角色与完整访问组合
+
+- 消费方声明的扩展属性可以从外来 class、struct、enum、interface 的完整 receiver 实参识别 binder。委托成员和扩展复用普通 callable probe、最具体候选比较与调用生成；本地方法与继承的依赖方法在同一层比较，扩展 import alias 保留原 typed role。泛型宿主中的普通方法不再因实现需要单态化而被误判为带自身类型参数的方法。
+- 源级访问器和 initializer 直接保存实际 imported call。局部委托保留已选 target、实际参数类型与 effect，在读取、赋值和局部函数捕获中复用；已降低的协议参数保持单次求值，不引入默认参数展开或多余临时变量。移除失去调用者的两条独立委托重载包装入口。
+- 新增 16 个真实产物正例及 48 份 HIR/MIR/LIR golden，包含 receiver/RHS/by/provide/get/set 顺序、只读和只写物化、ZST、24-byte 大值、含引用值、别名及转导出、直接与间接初始化 cycle、本地与外来 receiver、成员与扩展委托、局部捕获和混合重载。provider 与 consumer 发布后移走源码，第三个 Cone 用自身引用类型再次实例化；普通运行与移动 GC 压力模式均通过。
+- 18 个语言反例检查真实 span 与诊断，覆盖从结果或 RHS 推导 binder、runtime receiver、非法 `this`、角色的 suspend/generic/default/vararg、参数数量与返回类型、缺失 operator/setter、只读及类型不匹配、初始化挂起和混合重载歧义。非法 default/vararg 角色直接在声明参数处拒绝，避免请求无关的隐式数组。原 M21 委托反例重新接入真实编译，退役“泛型扩展属性不能委托”的旧诊断。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 与最新配套 `scoopc` 构建通过。关闭委托快照更新后运行完整 workspace，共执行 5180 项，5157 项通过；23 项旧断言或快照不匹配已修正，其中包括 Strong/ODR 存储链接、闭合泛型签名对应 getter 的普通 callable 归属及旧产物摘要。修正后 codegen 的 301 项全部通过，关闭全部相关快照更新后 core 导出组的 22 项全部通过，用时 290.72 秒；全仓中其余测试和全部委托用例均已通过。日志分别为 `/tmp/scoop-m23-7-delegate-workspace.log`、`/tmp/scoop-m23-7-delegate-codegen-verified.log` 和 `/tmp/scoop-m23-7-delegate-core-verified.log`。
+- core 快照差异已检查：补充表不再重复列出已进入普通 callable 表的闭合签名 getter，实际 getter 保留；代码及 runtime 摘要不变，产物摘要随元数据迁移更新。确认所有本仓库构建与测试进程结束、`target` 无打开文件，通过 Cargo metadata 核对目录并恢复缺失的标准缓存标记后执行 `cargo clean --target-dir target`，删除 2904 个文件，回收 6.6 GiB。
+
+本项完成委托访问、外来角色和上述语言组合。初始化正文中的更多生成实体及完整 unit 的损坏产物验证仍继续，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 在已完成的 delegate template 生产、读取和消费基础上，完成组合与损坏产物验证；其余物理角色继续复用实际成员摘要与共有合并入口。
+1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle 和表示组合基础上，完成 initializer 中的局部函数、closure、default 组合及完整 unit 的损坏产物验证；其余物理角色继续复用实际成员摘要与共有合并入口。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
-5. 泛型委托扩展属性在已通过跨 sibling 的 LazyAccess 初始化、失败共享和移动 GC 基础上，补齐求值顺序、cycle、有效 delegate 表示及语言反例。
-6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
+5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

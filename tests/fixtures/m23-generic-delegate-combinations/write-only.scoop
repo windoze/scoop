@@ -1,0 +1,11 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+public fun <T> exercise(value: T): Int {
+    Trace.order = 0
+    Receiver<T>(value).writeOnly = 42
+    return if (Trace.order == 345) { 42 } else { 1 }
+}
+
+public fun result(): Int = exercise<Int>(1)

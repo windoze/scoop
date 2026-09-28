@@ -3,12 +3,11 @@ mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
 local-only descriptor SharedProductionPrivate
-layouts=218 descriptors=109 dispatch=130 callables=38 shapes=31
+layouts=218 descriptors=109 dispatch=130 callables=37 shapes=31
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$body$1: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$1: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable Exception.$get$message: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedProductionReader.read: OrdinaryManaged receiver=true args=["Direct(8)"] result=Indirect(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

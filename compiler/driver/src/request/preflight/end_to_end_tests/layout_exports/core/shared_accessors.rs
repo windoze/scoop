@@ -6,6 +6,7 @@ pub(super) fn check(
     bridge: &mir::MirTypeBridgeExportConstituentsV1,
 ) {
     let cases: &[(&str, bool)] = match name {
+        "base" => &[("Exception.$get$message", true)],
         "shared-accessors-standalone" => &[
             ("AccessorCell.$get$stored", true),
             ("AccessorCell.$set$stored", true),

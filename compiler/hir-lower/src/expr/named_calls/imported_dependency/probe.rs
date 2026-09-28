@@ -31,7 +31,8 @@ impl Lowerer {
                 type_args: &call.type_args,
                 args: &call.args,
                 span: call.span,
-            },
+            }
+            .into(),
             expected,
             ImportedDependencyCallReceiver::Implicit,
             false,
@@ -50,10 +51,27 @@ impl Lowerer {
         self.probe_imported_dependency_callable_with_receiver(
             binding,
             name,
-            call,
+            call.into(),
             expected,
             ImportedDependencyCallReceiver::Explicit(ImportedMemberReceiver::Value(receiver)),
             operator_set,
+        )
+    }
+
+    pub(in crate::expr) fn probe_imported_delegate_extension_callable(
+        &self,
+        binding: &hir::DirectImportedTargetBinding,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        call: ImportedProbeCall<'_>,
+    ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        self.probe_imported_dependency_callable_with_receiver(
+            binding,
+            name,
+            call,
+            None,
+            ImportedDependencyCallReceiver::Explicit(ImportedMemberReceiver::Value(receiver)),
+            false,
         )
     }
 
@@ -61,7 +79,7 @@ impl Lowerer {
         &self,
         binding: &hir::DirectImportedTargetBinding,
         name: &ast::Ident,
-        call: CallSite<'_>,
+        call: ImportedProbeCall<'_>,
         expected: Option<hir::TypeId>,
         receiver_source: ImportedDependencyCallReceiver,
         operator_set: bool,
@@ -85,7 +103,7 @@ impl Lowerer {
         self.probe_imported_callable_candidate(
             ImportedCallableCandidate::Binding(Box::new(candidate)),
             name,
-            call.into(),
+            call,
             expected,
             receiver_source,
             operator_set,

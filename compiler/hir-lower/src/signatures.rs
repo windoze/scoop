@@ -450,14 +450,7 @@ impl Lowerer {
             self.extension_receivers.insert(id, receiver_ty);
         }
 
-        let mut params = Vec::with_capacity(decl.params.len());
-        for param in &decl.params {
-            // On failure the diagnostic is already recorded and the
-            // module is rejected; the parameter is simply dropped.
-            if let Some(param) = self.resolve_fn_param(param) {
-                params.push(param);
-            }
-        }
+        let params = self.resolve_callable_parameters(decl);
         let return_ty = match &decl.return_ty {
             Some(ty_ref) => self.resolve_type_ref(ty_ref).unwrap_or(self.unit),
             None => self.unit,

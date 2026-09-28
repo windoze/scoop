@@ -1,13 +1,12 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use crate::overload::{LoweredOverloadCall, OverloadResolutionOutcome};
 use crate::{
     ForbiddenSuspendContext, Lowerer, SuspensionContext, TypeId,
     properties::{PropertyAccessorKind, PropertyAccessorSource},
 };
 
-use super::{LocalDelegateAccessor, LocalDelegateDispatch, LocalDelegatePlan};
+use super::{DelegateCallEffect, LocalDelegateAccessor, LocalDelegateDispatch, LocalDelegatePlan};
 
 mod accessor;
 
@@ -19,7 +18,7 @@ pub(crate) enum DelegateRoleCall {
 
 pub(crate) struct ResolvedDelegateRoleCall {
     pub(crate) expression: hir::Expr,
-    pub(crate) effect: hir::Callable,
+    pub(crate) effect: DelegateCallEffect,
 }
 
 impl Lowerer {
@@ -140,7 +139,7 @@ impl Lowerer {
         binding: hir::BindingId,
         span: ast::Span,
     ) -> Option<hir::Expr> {
-        let plan = *self.local_delegate_plans.get(&binding)?;
+        let plan = self.local_delegate_plans.get(&binding)?.clone();
         let unit = self.unit_delegate_argument(span);
         let value = self.materialize_local_delegate_call(plan.getter, storage, vec![unit], span);
         Some(self.adapt_to(value, plan.property_ty))
@@ -153,7 +152,7 @@ impl Lowerer {
         value: hir::Expr,
         span: ast::Span,
     ) -> Option<hir::Expr> {
-        let plan = *self.local_delegate_plans.get(&binding)?;
+        let plan = self.local_delegate_plans.get(&binding)?.clone();
         let setter = plan.setter?;
         let unit = self.unit_delegate_argument(span);
         Some(self.materialize_local_delegate_call(setter, storage, vec![unit, value], span))
@@ -163,10 +162,23 @@ impl Lowerer {
         &mut self,
         accessor: LocalDelegateAccessor,
         receiver: hir::Expr,
-        mut args: Vec<hir::Expr>,
+        args: Vec<hir::Expr>,
         span: ast::Span,
     ) -> hir::Expr {
-        self.check_call_effects(accessor.effect, span);
+        match accessor.effect {
+            DelegateCallEffect::Current(callable) => self.check_call_effects(callable, span),
+            DelegateCallEffect::Imported(hir::CallableSafetyV1::Unsafe) => {
+                self.require_unsafe_operation(span, "calling an unsafe dependency function");
+            }
+            DelegateCallEffect::Imported(hir::CallableSafetyV1::Safe) => {}
+        }
+        let receiver = self.adapt_to(receiver, accessor.receiver_ty);
+        assert_eq!(args.len(), accessor.parameter_types.len());
+        let mut args = args
+            .into_iter()
+            .zip(accessor.parameter_types)
+            .map(|(value, ty)| self.adapt_to(value, ty))
+            .collect::<Vec<_>>();
         let kind = match accessor.dispatch {
             LocalDelegateDispatch::Member(callee) => hir::ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -180,6 +192,34 @@ impl Lowerer {
                 args.insert(0, receiver);
                 hir::ExprKind::Call {
                     callee,
+                    args,
+                    receiver: source_receiver,
+                }
+            }
+            LocalDelegateDispatch::ImportedDependency {
+                callee,
+                binding,
+                receiver: source_receiver,
+            } => {
+                args.insert(0, receiver);
+                hir::ExprKind::ImportedDependencyCall {
+                    callee,
+                    binding,
+                    args,
+                    receiver: source_receiver,
+                }
+            }
+            LocalDelegateDispatch::ImportedGeneric {
+                application,
+                kind,
+                binding,
+                receiver: source_receiver,
+            } => {
+                args.insert(0, receiver);
+                hir::ExprKind::ImportedGenericCall {
+                    application,
+                    kind,
+                    binding,
                     args,
                     receiver: source_receiver,
                 }
@@ -200,96 +240,23 @@ impl Lowerer {
         args: Vec<hir::Expr>,
         span: ast::Span,
     ) -> DelegateRoleCall {
-        let name = delegate_role_name(role);
-        let mut members = self.methods_by_name(receiver.ty, name);
-        members.retain(|candidate| {
-            self.signatures[&candidate.function]
-                .modifiers
-                .property_delegate_operator
-                == Some(role)
-        });
-        if !members.is_empty() {
-            let mut state = self.clone();
-            let mut sink = Vec::new();
-            match state.resolve_member_overload_lowered_outcome(
-                name,
-                &members,
-                lowered_call(args.clone(), span),
-                &mut sink,
-            ) {
-                OverloadResolutionOutcome::Resolved(resolved) => {
-                    debug_assert!(sink.is_empty());
-                    let callable = state.materialize_resolved_callee(&resolved);
-                    state.check_call_effects(callable, span);
-                    let callee = state.materialize_method_callee(
-                        resolved.source,
-                        callable,
-                        &resolved.type_args,
-                    );
-                    let expression = hir::Expr {
-                        kind: hir::ExprKind::MethodCall {
-                            receiver: Box::new(receiver.clone()),
-                            callee,
-                            args: resolved.args,
-                        },
-                        ty: resolved.return_ty,
-                        span,
-                        origin: state.expression_origin(span),
-                    };
-                    *self = state;
-                    return DelegateRoleCall::Resolved(ResolvedDelegateRoleCall {
-                        expression,
-                        effect: callable,
-                    });
-                }
-                OverloadResolutionOutcome::Failed => {
-                    self.commit_layer_diagnostics(state);
-                    return DelegateRoleCall::Failed;
-                }
-                OverloadResolutionOutcome::Blocked => return DelegateRoleCall::Failed,
-                OverloadResolutionOutcome::NoApplicable => {}
-            }
+        let name = ast::Ident {
+            text: delegate_role_name(role).to_owned(),
+            span,
+        };
+        match self.resolve_delegate_member_role(receiver.clone(), role, &name, &args) {
+            DelegateRoleCall::NoApplicable => {}
+            result => return result,
         }
-
         for layer in self.named_extension_delegate_operator_layers(role) {
-            if layer.candidates.is_empty() {
-                continue;
-            }
-            let mut state = self.clone();
-            let mut sink = Vec::new();
-            match state.resolve_extension_overload_lowered_outcome(
-                name,
+            match self.resolve_delegate_extension_role(
                 &layer.candidates,
                 receiver.clone(),
-                lowered_call(args.clone(), span),
-                &mut sink,
+                &name,
+                &args,
             ) {
-                OverloadResolutionOutcome::Resolved(resolved) => {
-                    debug_assert!(sink.is_empty());
-                    let callable = state.materialize_resolved_callee(&resolved);
-                    state.check_call_effects(callable, span);
-                    let expression = hir::Expr {
-                        kind: hir::ExprKind::Call {
-                            callee: callable,
-                            receiver: resolved.source_receiver,
-                            args: resolved.args,
-                        },
-                        ty: resolved.return_ty,
-                        span,
-                        origin: state.expression_origin(span),
-                    };
-                    *self = state;
-                    return DelegateRoleCall::Resolved(ResolvedDelegateRoleCall {
-                        expression,
-                        effect: callable,
-                    });
-                }
-                OverloadResolutionOutcome::Failed => {
-                    self.commit_layer_diagnostics(state);
-                    return DelegateRoleCall::Failed;
-                }
-                OverloadResolutionOutcome::Blocked => return DelegateRoleCall::Failed,
-                OverloadResolutionOutcome::NoApplicable => {}
+                DelegateRoleCall::NoApplicable => {}
+                result => return result,
             }
         }
         DelegateRoleCall::NoApplicable
@@ -364,24 +331,62 @@ impl Lowerer {
 
 fn local_delegate_accessor(resolved: ResolvedDelegateRoleCall) -> LocalDelegateAccessor {
     let result_ty = resolved.expression.ty;
-    let dispatch = match resolved.expression.kind {
-        hir::ExprKind::MethodCall { callee, .. } => LocalDelegateDispatch::Member(callee),
-        hir::ExprKind::Call { callee, .. } => LocalDelegateDispatch::Extension(callee),
+    let (dispatch, receiver_ty, args) = match resolved.expression.kind {
+        hir::ExprKind::MethodCall {
+            callee,
+            receiver,
+            args,
+        } => (LocalDelegateDispatch::Member(callee), receiver.ty, args),
+        hir::ExprKind::Call {
+            callee, mut args, ..
+        } => {
+            let receiver = args.remove(0);
+            (LocalDelegateDispatch::Extension(callee), receiver.ty, args)
+        }
+        hir::ExprKind::ImportedDependencyCall {
+            callee,
+            binding,
+            receiver,
+            mut args,
+        } => {
+            let value = args.remove(0);
+            (
+                LocalDelegateDispatch::ImportedDependency {
+                    callee,
+                    binding,
+                    receiver,
+                },
+                value.ty,
+                args,
+            )
+        }
+        hir::ExprKind::ImportedGenericCall {
+            application,
+            kind,
+            binding,
+            receiver,
+            mut args,
+        } => {
+            let value = args.remove(0);
+            (
+                LocalDelegateDispatch::ImportedGeneric {
+                    application,
+                    kind,
+                    binding,
+                    receiver,
+                },
+                value.ty,
+                args,
+            )
+        }
         _ => unreachable!("delegate role resolution produces a direct or member call"),
     };
     LocalDelegateAccessor {
         dispatch,
         effect: resolved.effect,
+        receiver_ty,
+        parameter_types: args.into_iter().map(|argument| argument.ty).collect(),
         result_ty,
-    }
-}
-
-fn lowered_call(args: Vec<hir::Expr>, span: ast::Span) -> LoweredOverloadCall {
-    LoweredOverloadCall {
-        explicit_type_args: Vec::new(),
-        args,
-        span,
-        expected_result: None,
     }
 }
 

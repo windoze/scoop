@@ -1,0 +1,5 @@
+span=201..258
+expression=var <T> Receiver<T>.ambiguousWrite: Int by Ambiguous<T>()
+call to `setValue` is ambiguous in member layer:
+  - fun Ambiguous<T>.setValue(thisRef: Any, value: Int): Unit — applicable; tied by MSC
+  - AmbiguousBase<T>.setValue(thisRef: Receiver<T>, value: Any): Unit — applicable; tied by MSC

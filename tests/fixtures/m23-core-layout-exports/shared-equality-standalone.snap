@@ -3,9 +3,8 @@ mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
 local-only descriptor SharedEqualityHidden
-layouts=202 descriptors=101 dispatch=121 callables=36 shapes=28
+layouts=202 descriptors=101 dispatch=121 callables=35 shapes=28
 callable $derived.equals.3: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
-callable Exception.$get$message: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedEqualityToken.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

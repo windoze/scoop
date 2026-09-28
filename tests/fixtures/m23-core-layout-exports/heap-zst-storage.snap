@@ -2,8 +2,7 @@ hir Unit: Value { zst: ZeroSized } GcFree
 mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
-layouts=198 descriptors=99 dispatch=119 callables=32 shapes=28
-callable Exception.$get$message: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
+layouts=198 descriptors=99 dispatch=119 callables=31 shapes=28
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.HeapBridgeEmpty.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)

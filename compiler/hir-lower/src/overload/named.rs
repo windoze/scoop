@@ -9,10 +9,21 @@ pub(crate) enum NamedCallReceiver {
     Extension(hir::Expr),
 }
 
+impl NamedCallReceiver {
+    fn into_overload_receiver(self) -> OverloadReceiver {
+        match self {
+            Self::None => OverloadReceiver::Ordinary,
+            Self::Member(receiver) => OverloadReceiver::Instance(receiver),
+            Self::Extension(receiver) => OverloadReceiver::Extension(receiver),
+        }
+    }
+}
+
 pub(crate) struct NamedCallableProbe {
     prepared: Candidate,
     transaction: probe::ApplicableCandidate,
     receiver: NamedCallReceiver,
+    materialize_arguments: bool,
 }
 
 impl NamedCallableProbe {
@@ -80,11 +91,58 @@ impl Lowerer {
         receiver: NamedCallReceiver,
         call: OverloadCall<'_>,
     ) -> Result<NamedCallableProbe, Box<Lowerer>> {
+        self.probe_named_callable_arguments(
+            name,
+            target,
+            OverloadResolution {
+                receiver: receiver.into_overload_receiver(),
+                explicit_type_args: call.explicit_type_args,
+                arguments: OverloadArguments::Source(call.arg_exprs),
+                span: call.span,
+                expected_result: call.expected_result,
+                argument_protocol: call.argument_protocol,
+            },
+        )
+    }
+
+    pub(crate) fn probe_lowered_named_callable(
+        &self,
+        name: &str,
+        target: CallableCandidate,
+        receiver: NamedCallReceiver,
+        call: LoweredOverloadCall,
+    ) -> Result<NamedCallableProbe, Box<Lowerer>> {
+        self.probe_named_callable_arguments(
+            name,
+            target,
+            OverloadResolution {
+                receiver: receiver.into_overload_receiver(),
+                explicit_type_args: &call.explicit_type_args,
+                arguments: OverloadArguments::Lowered(call.args),
+                span: call.span,
+                expected_result: call.expected_result,
+                argument_protocol: CallArgumentProtocol::Ordinary,
+            },
+        )
+    }
+
+    fn probe_named_callable_arguments(
+        &self,
+        name: &str,
+        target: CallableCandidate,
+        call: OverloadResolution<'_>,
+    ) -> Result<NamedCallableProbe, Box<Lowerer>> {
         assert!(
             !self.declaration_surface.rejects_function(target.function),
             "rejected declarations never enter named callable probing"
         );
-        let arguments = OverloadArguments::Source(call.arg_exprs);
+        let arguments = call.arguments;
+        let materialize_arguments = matches!(arguments, OverloadArguments::Source(_));
+        let receiver = match call.receiver {
+            OverloadReceiver::Ordinary => NamedCallReceiver::None,
+            OverloadReceiver::Instance(receiver) => NamedCallReceiver::Member(receiver),
+            OverloadReceiver::Extension(receiver) => NamedCallReceiver::Extension(receiver),
+        };
         let extension = matches!(receiver, NamedCallReceiver::Extension(_));
         let prepared = self.prepare_overload_candidate(
             &target,
@@ -111,6 +169,7 @@ impl Lowerer {
                     prepared,
                     transaction,
                     receiver,
+                    materialize_arguments,
                 });
             }
         }
@@ -122,11 +181,7 @@ impl Lowerer {
             name,
             &[target],
             OverloadResolution {
-                receiver: match receiver {
-                    NamedCallReceiver::None => OverloadReceiver::Ordinary,
-                    NamedCallReceiver::Member(receiver) => OverloadReceiver::Instance(receiver),
-                    NamedCallReceiver::Extension(receiver) => OverloadReceiver::Extension(receiver),
-                },
+                receiver: receiver.into_overload_receiver(),
                 explicit_type_args: call.explicit_type_args,
                 arguments,
                 span: call.span,
@@ -147,6 +202,7 @@ impl Lowerer {
             prepared,
             transaction,
             receiver,
+            materialize_arguments,
         } = probe;
         let (evaluation_receiver, extension) = match receiver {
             NamedCallReceiver::None => (None, false),
@@ -158,7 +214,7 @@ impl Lowerer {
             transaction,
             evaluation_receiver,
             extension,
-            true,
+            materialize_arguments,
             sink,
         )
     }

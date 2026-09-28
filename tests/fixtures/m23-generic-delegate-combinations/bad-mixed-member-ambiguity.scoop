@@ -1,0 +1,7 @@
+import templates.delegateCombinations.*
+
+class Ambiguous<T>() : AmbiguousBase<T>() {
+    operator fun setValue(thisRef: Any, value: Int): Unit {}
+}
+val <T> Receiver<T>.validRead: Int by Ambiguous<T>()
+var <T> Receiver<T>.ambiguousWrite: Int by Ambiguous<T>()

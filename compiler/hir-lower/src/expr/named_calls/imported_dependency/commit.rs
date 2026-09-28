@@ -7,6 +7,12 @@ use super::{ImportedCallReceiver, ImportedDependencyCallProbe, ImportedMemberRec
 use crate::Lowerer;
 use crate::expr::MemberCallKind;
 
+#[derive(Clone, Copy)]
+enum ArgumentEvaluation {
+    Source,
+    Lowered,
+}
+
 impl Lowerer {
     pub(crate) fn commit_imported_dependency_callable(
         &mut self,
@@ -21,6 +27,34 @@ impl Lowerer {
         probe: ImportedDependencyCallProbe,
         sink: &mut Vec<hir::Statement>,
         kind: MemberCallKind,
+    ) -> Option<hir::Expr> {
+        self.commit_imported_callable_arguments(probe, sink, kind, ArgumentEvaluation::Source)
+    }
+
+    pub(in crate::expr) fn commit_imported_delegate_callable(
+        &mut self,
+        probe: ImportedDependencyCallProbe,
+    ) -> Option<hir::Expr> {
+        let mut sink = Vec::new();
+        let expression = self.commit_imported_callable_arguments(
+            probe,
+            &mut sink,
+            MemberCallKind::Ordinary,
+            ArgumentEvaluation::Lowered,
+        );
+        assert!(
+            sink.is_empty(),
+            "delegate roles have already lowered, required arguments"
+        );
+        expression
+    }
+
+    fn commit_imported_callable_arguments(
+        &mut self,
+        probe: ImportedDependencyCallProbe,
+        sink: &mut Vec<hir::Statement>,
+        kind: MemberCallKind,
+        evaluation: ArgumentEvaluation,
     ) -> Option<hir::Expr> {
         let ImportedDependencyCallProbe {
             implementation,
@@ -70,11 +104,12 @@ impl Lowerer {
             }
         };
         let receiver = receiver.map(|receiver| {
-            self.materialize_temporary(
+            self.imported_call_argument(
                 "$dependency.receiver".to_string(),
                 receiver,
                 call_span,
                 sink,
+                evaluation,
             )
         });
         let source_args = source_args
@@ -82,11 +117,12 @@ impl Lowerer {
             .enumerate()
             .map(|(index, argument)| {
                 sink.append(&mut argument_sinks[index]);
-                self.materialize_temporary(
+                self.imported_call_argument(
                     format!("$dependency.argument.{index}"),
                     argument,
                     call_span,
                     sink,
+                    evaluation,
                 )
             })
             .collect::<Vec<_>>();
@@ -145,11 +181,12 @@ impl Lowerer {
                     return None;
                 }
             };
-            parameter_values.push(self.materialize_temporary(
+            parameter_values.push(self.imported_call_argument(
                 format!("$dependency.parameter.{name}"),
                 value,
                 call_span,
                 sink,
+                evaluation,
             ));
         }
 
@@ -290,5 +327,19 @@ impl Lowerer {
             span: call_span,
             origin: self.expression_origin(call_span),
         })
+    }
+
+    fn imported_call_argument(
+        &mut self,
+        name: String,
+        value: hir::Expr,
+        span: scoop_ast::Span,
+        sink: &mut Vec<hir::Statement>,
+        evaluation: ArgumentEvaluation,
+    ) -> hir::Expr {
+        match evaluation {
+            ArgumentEvaluation::Source => self.materialize_temporary(name, value, span, sink),
+            ArgumentEvaluation::Lowered => value,
+        }
     }
 }

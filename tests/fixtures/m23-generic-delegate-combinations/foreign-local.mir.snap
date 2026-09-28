@@ -1,0 +1,134 @@
+Module
+  class FixedLocalSlot vtable=0 itables=0
+  class LocalValueSlot<Int> vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.stored: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type FixedLocalSlot
+        ClassAlloc FixedLocalSlot
+      call external0 direct
+        Type FixedLocalSlot
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.stored
+      val $delegate.1: FixedLocalSlot
+        Type FixedLocalSlot
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.2: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      call external2 direct
+        Type FixedLocalSlot
+        Local $delegate.1
+        Type Unit
+        UnitLiteral
+        Type Int
+        Local $call.2
+      call $call.3: Int = external1 direct
+        Type FixedLocalSlot
+        Local $delegate.1
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.3
+  fun echo @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.stored: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type LocalValueSlot<Int>
+        ClassAlloc LocalValueSlot<Int>
+      call @fn7 direct
+        Type LocalValueSlot<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.stored
+      val $delegate.0: LocalValueSlot<Int>
+        Type LocalValueSlot<Int>
+        Local $new.1
+      call @fn2 direct
+        Type LocalValueSlot<Int>
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+        Type Int
+        Local value
+      call $call.2: Int = @fn3 direct
+        Type LocalValueSlot<Int>
+        Local $delegate.0
+      return
+        Type Int
+        Local $call.2
+  fun setValue @fn2(this: LocalValueSlot<Int>, thisRef: Unit, value: Int) -> Unit
+    bb0 entry
+      call @fn4 direct
+        Type LocalValueSlot<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun $local.0.read @fn3($capture.copy: LocalValueSlot<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type LocalValueSlot<Int>
+        Local $capture.copy
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.1
+  fun stored @fn4(this: LocalValueSlot<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalValueSlot<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun getValue @fn5(this: LocalValueSlot<Int>, thisRef: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type LocalValueSlot<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun stored @fn6(this: LocalValueSlot<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalValueSlot<Int>
+          Local this
+  fun init.LocalValueSlot.$c0 @fn7(this: LocalValueSlot<Int>, stored: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalValueSlot<Int>
+        Local this
+        Type Int
+        Local stored
+      return
+  instance mi0 function=@fn1 <- echo
+  instance mi1 function=@fn2 <- setValue
+  instance mi2 function=@fn3 <- $local.0.read
+  instance mi3 function=@fn4 <- stored
+  instance mi4 function=@fn5 <- getValue
+  instance mi5 function=@fn6 <- stored
+  output library

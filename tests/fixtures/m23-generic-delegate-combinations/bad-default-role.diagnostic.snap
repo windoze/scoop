@@ -1,0 +1,3 @@
+span=167..210
+expression=thisRef: Receiver<T> = defaultReceiver<T>()
+property delegate operator `getValue` requires required, non-vararg parameters
