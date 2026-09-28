@@ -98,6 +98,43 @@ impl<'a> DefaultEntityProjector<'a> {
         &self,
         root: LexicalDefinitionRoot,
     ) -> Result<LexicalCallableParent, DefaultEntityProjectionError> {
+        if let LexicalDefinitionRoot::Function(function) = root {
+            return match self.function_identity(function)? {
+                HirFunctionIdentity::Source(identity) => Ok(identity.lexical_parent()),
+                HirFunctionIdentity::PropertyAccessor(accessor) => {
+                    let id = match accessor {
+                        HirPropertyAccessorFunction::Getter(id) => self
+                            .export
+                            .property_accessor_identities
+                            .get_getter(*id)
+                            .map(|identity| identity.id()),
+                        HirPropertyAccessorFunction::Setter(id) => self
+                            .export
+                            .property_accessor_identities
+                            .get_setter(*id)
+                            .map(|identity| identity.id()),
+                    }
+                    .ok_or(DefaultEntityProjectionError::MissingIdentity {
+                        kind: "property accessor",
+                        index: super::raw_index(function),
+                    })?;
+                    Ok(LexicalCallableParent::accessor(id))
+                }
+                HirFunctionIdentity::LexicalGenerated(record)
+                | HirFunctionIdentity::Initialization { record, .. } => {
+                    LexicalCallableParent::from_generated_key(record.key()).map_err(|_| {
+                        DefaultEntityProjectionError::UnsupportedFunctionIdentity {
+                            function: super::raw_index(function),
+                        }
+                    })
+                }
+                HirFunctionIdentity::DerivedEquality(_) => {
+                    Err(DefaultEntityProjectionError::UnsupportedFunctionIdentity {
+                        function: super::raw_index(function),
+                    })
+                }
+            };
+        }
         Ok(match self.lexical_root(root)? {
             PersistentLexicalRootV1::Function(id) => LexicalCallableParent::function(id),
             PersistentLexicalRootV1::GenericFunction(id) => {

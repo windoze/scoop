@@ -42,25 +42,7 @@ impl Lowerer {
                 .iter()
                 .map(|argument| self.materialize_imported_default_type(argument, context))
                 .collect::<Result<Vec<_>, _>>()?,
-            None => {
-                let parameters = match parent {
-                    hir::ImportedCallableTemplateParent::Function(parent) => self
-                        .imported_generic_templates[parent]
-                        .type_parameters
-                        .ids(),
-                    hir::ImportedCallableTemplateParent::Constructor(parent) => self
-                        .imported_constructor_templates[parent]
-                        .signature
-                        .type_parameters
-                        .iter()
-                        .map(|parameter| parameter.id)
-                        .collect(),
-                };
-                parameters
-                    .into_iter()
-                    .map(|parameter| self.intern_type(hir::Type::Param(parameter)))
-                    .collect()
-            }
+            None => self.imported_lexical_owner_arguments(parent),
         };
         let arguments = hir::NonEmptyVec::from_vec(arguments).ok_or_else(|| {
             ImportedDefaultMaterializationError::Plan(
@@ -80,14 +62,98 @@ impl Lowerer {
             unreachable!("closure preparation retains its capture inputs")
         };
         let bindings = capture_bindings.clone();
+        let captures =
+            self.materialize_imported_captures(captures, &bindings, creation, context)?;
+        let hir::Type::Function(function_type) = self.types[ty] else {
+            return Err(ImportedDefaultMaterializationError::Plan(
+                "dependency closure has a non-function type".into(),
+            ));
+        };
+        Ok(hir::ExprKind::ImportedClosure(Box::new(
+            hir::ImportedClosure {
+                kind,
+                application,
+                definition_path: path.clone(),
+                function_type,
+                captures,
+            },
+        )))
+    }
+
+    pub(super) fn materialize_imported_function_type(
+        &mut self,
+        ty: &scoop_identity::SignatureTypeKey,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<hir::FunctionTypeId, ImportedDefaultMaterializationError> {
+        let ty = self.materialize_imported_default_type(ty, context)?;
+        match self.types[ty] {
+            hir::Type::Function(function) => Ok(function),
+            _ => Err(ImportedDefaultMaterializationError::Plan(
+                "dependency callable value has a non-function type".into(),
+            )),
+        }
+    }
+
+    pub(super) fn imported_closure_capture_binding(
+        &self,
+        source: &hir::DefaultCaptureSourceV1,
+        parent: hir::ImportedCallableTemplateParent,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<hir::BindingId, ImportedDefaultMaterializationError> {
+        match source {
+            hir::DefaultCaptureSourceV1::Local(selector) => {
+                let source = context.locals.get(selector).ok_or_else(|| {
+                    ImportedDefaultMaterializationError::UnknownLocal(selector.clone())
+                })?;
+                match source.kind {
+                    hir::ExprKind::Local(id) => Ok(self.locals[id].binding),
+                    hir::ExprKind::ConstructorParam(parameter) => {
+                        let hir::ImportedCallableTemplateParent::Constructor(parent) = parent
+                        else {
+                            unreachable!("constructor inputs retain their lexical constructor")
+                        };
+                        self.imported_constructor_templates[parent]
+                            .signature
+                            .parameters
+                            .iter()
+                            .find(|input| input.id == parameter)
+                            .map(|input| input.binding)
+                            .ok_or_else(|| {
+                                ImportedDefaultMaterializationError::UnknownLocal(selector.clone())
+                            })
+                    }
+                    _ => Err(ImportedDefaultMaterializationError::Plan(
+                        "dependency closure capture does not name a lexical binding".into(),
+                    )),
+                }
+            }
+            hir::DefaultCaptureSourceV1::EnclosingCapture(index) => context
+                .captures
+                .get(*index as usize)
+                .copied()
+                .ok_or_else(|| {
+                    ImportedDefaultMaterializationError::Plan(format!(
+                        "dependency body has no enclosing capture {index}"
+                    ))
+                }),
+        }
+    }
+
+    pub(super) fn materialize_imported_captures(
+        &mut self,
+        captures: &[hir::DefaultCaptureV1],
+        bindings: &[hir::BindingId],
+        creation: hir::ExpressionOrigin,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<Vec<hir::Capture>, ImportedDefaultMaterializationError> {
         if captures.len() != bindings.len() {
             return Err(ImportedDefaultMaterializationError::Plan(
-                "dependency closure capture descriptor does not match its body".into(),
+                "dependency capture descriptor does not match its inputs".into(),
             ));
         }
-        let captures = captures
+        captures
             .iter()
-            .zip(bindings)
+            .zip(bindings.iter().copied())
             .enumerate()
             .map(|(index, (capture, binding))| {
                 let ty = self.materialize_imported_default_type(capture.value_type(), context)?;
@@ -133,79 +199,29 @@ impl Lowerer {
                     source,
                 })
             })
-            .collect::<Result<_, ImportedDefaultMaterializationError>>()?;
-        let hir::Type::Function(function_type) = self.types[ty] else {
-            return Err(ImportedDefaultMaterializationError::Plan(
-                "dependency closure has a non-function type".into(),
-            ));
-        };
-        Ok(hir::ExprKind::ImportedClosure(Box::new(
-            hir::ImportedClosure {
-                kind,
-                application,
-                definition_path: path.clone(),
-                function_type,
-                captures,
-            },
-        )))
+            .collect::<Result<_, ImportedDefaultMaterializationError>>()
     }
 
-    pub(super) fn materialize_imported_function_type(
+    pub(super) fn imported_lexical_owner_arguments(
         &mut self,
-        ty: &scoop_identity::SignatureTypeKey,
-        context: &ImportedDefaultContext<'_>,
-    ) -> Result<hir::FunctionTypeId, ImportedDefaultMaterializationError> {
-        let ty = self.materialize_imported_default_type(ty, context)?;
-        match self.types[ty] {
-            hir::Type::Function(function) => Ok(function),
-            _ => Err(ImportedDefaultMaterializationError::Plan(
-                "dependency callable value has a non-function type".into(),
-            )),
-        }
-    }
-
-    fn imported_closure_capture_binding(
-        &self,
-        source: &hir::DefaultCaptureSourceV1,
         parent: hir::ImportedCallableTemplateParent,
-        context: &ImportedDefaultContext<'_>,
-    ) -> Result<hir::BindingId, ImportedDefaultMaterializationError> {
-        match source {
-            hir::DefaultCaptureSourceV1::Local(selector) => {
-                let source = context.locals.get(selector).ok_or_else(|| {
-                    ImportedDefaultMaterializationError::UnknownLocal(selector.clone())
-                })?;
-                match source.kind {
-                    hir::ExprKind::Local(id) => Ok(self.locals[id].binding),
-                    hir::ExprKind::ConstructorParam(parameter) => {
-                        let hir::ImportedCallableTemplateParent::Constructor(parent) = parent
-                        else {
-                            unreachable!("constructor inputs retain their lexical constructor")
-                        };
-                        self.imported_constructor_templates[parent]
-                            .signature
-                            .parameters
-                            .iter()
-                            .find(|input| input.id == parameter)
-                            .map(|input| input.binding)
-                            .ok_or_else(|| {
-                                ImportedDefaultMaterializationError::UnknownLocal(selector.clone())
-                            })
-                    }
-                    _ => Err(ImportedDefaultMaterializationError::Plan(
-                        "dependency closure capture does not name a lexical binding".into(),
-                    )),
-                }
-            }
-            hir::DefaultCaptureSourceV1::EnclosingCapture(index) => context
-                .captures
-                .get(*index as usize)
-                .copied()
-                .ok_or_else(|| {
-                    ImportedDefaultMaterializationError::Plan(format!(
-                        "dependency body has no enclosing capture {index}"
-                    ))
-                }),
-        }
+    ) -> Vec<hir::TypeId> {
+        let parameters = match parent {
+            hir::ImportedCallableTemplateParent::Function(parent) => self
+                .imported_generic_templates[parent]
+                .type_parameters
+                .ids(),
+            hir::ImportedCallableTemplateParent::Constructor(parent) => self
+                .imported_constructor_templates[parent]
+                .signature
+                .type_parameters
+                .iter()
+                .map(|parameter| parameter.id)
+                .collect(),
+        };
+        parameters
+            .into_iter()
+            .map(|parameter| self.intern_type(hir::Type::Param(parameter)))
+            .collect()
     }
 }

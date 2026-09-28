@@ -284,6 +284,19 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(&capture.source, out);
                 }
             }
+            ExprKind::ImportedCallableReference(reference) => {
+                if let hir::ImportedCallableTarget::Application(application) =
+                    reference.target.callee()
+                {
+                    out.push(self.imported_body_generic_call(application, expr.span));
+                }
+                if let Some(receiver) = reference.target.receiver() {
+                    self.collect_generic_calls_in_expr(receiver, out);
+                }
+                for capture in &reference.captures {
+                    self.collect_generic_calls_in_expr(&capture.source, out);
+                }
+            }
             ExprKind::ImportedDependencyCall { args, .. } => {
                 for arg in args {
                     self.collect_generic_calls_in_expr(arg, out);

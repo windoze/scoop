@@ -1,0 +1,17 @@
+package consumer.delegates
+
+import templates.delegateGenerated.*
+
+public fun <T> exercise(value: T): Int {
+    val before = Trace.initializations
+    val beforeReceivers = Trace.receivers
+    val receiver = Receiver<T>(value)
+    val answer = receiver.referenceComputed
+    val allocated = Payload(0)
+    if (answer != 42 || allocated.value != 0) { return 1 }
+    if (receiver.referenceComputed != 42 || Trace.initializations != before + 1) { return 2 }
+    if (Trace.receivers != beforeReceivers + 1) { return 3 }
+    return answer
+}
+
+public fun result(): Int = exercise<Int>(1)

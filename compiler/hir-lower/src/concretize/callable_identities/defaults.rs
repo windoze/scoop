@@ -25,7 +25,10 @@ impl CallableIdentityBuilder<'_> {
             );
         }
         for pending in &self.concretizer.callable_reference_slots {
-            let source = &self.concretizer.source.callable_references[pending.source];
+            let CallableReferenceSource::Local(source) = pending.source else {
+                continue;
+            };
+            let source = &self.concretizer.source.callable_references[source];
             self.collect_default_local_scopes(
                 source.definition_root,
                 &source.definition_path,

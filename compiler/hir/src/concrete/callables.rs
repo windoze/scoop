@@ -13,6 +13,24 @@ pub struct CallableReferenceIdentity {
 }
 
 impl CallableReferenceIdentity {
+    pub fn from_record(
+        callable: CallableReferenceRecord,
+        context: CallableMaterializationContext,
+    ) -> Option<Self> {
+        if !matches!(
+            callable.key(),
+            GeneratedCallableKey::CallableReferenceInvoke { .. }
+        ) {
+            return None;
+        }
+        let materialization =
+            CallableMaterialization::new(CallableTemplateOwner::Generated(callable.id()), context);
+        Some(Self {
+            callable,
+            materialization,
+        })
+    }
+
     pub fn new(
         parent: LexicalCallableParent,
         path: StructuralDefinitionPath,
@@ -85,19 +103,36 @@ pub struct CallableReference {
 
 #[derive(Debug, Clone)]
 pub enum CallableReferenceTarget {
-    Named(Callable),
+    Named(CallableReferenceCallee),
     Local {
         local_function: LocalFunctionId,
         callee: Callable,
     },
     BoundMember {
         receiver: Box<Expr>,
-        callee: Callable,
+        callee: CallableReferenceCallee,
     },
     BoundExtension {
         receiver: Box<Expr>,
-        callee: Callable,
+        callee: CallableReferenceCallee,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallableReferenceCallee {
+    Local(Callable),
+    Imported(ImportedDependencyCallableUseId),
+}
+
+impl CallableReferenceTarget {
+    pub fn callee(&self) -> CallableReferenceCallee {
+        match self {
+            Self::Named(callee)
+            | Self::BoundMember { callee, .. }
+            | Self::BoundExtension { callee, .. } => *callee,
+            Self::Local { callee, .. } => CallableReferenceCallee::Local(*callee),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

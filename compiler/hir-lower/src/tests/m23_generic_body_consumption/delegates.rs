@@ -10,6 +10,131 @@ fn fixture(name: &str) -> String {
 }
 
 #[test]
+fn imported_initializer_references_keep_provider_invokes_and_capture_values() {
+    use hir::concrete::{CallableReferenceCallee, CallableReferenceTarget};
+    use scoop_identity::{
+        CallableInstantiationOwner, CallableMaterializationContext, GeneratedCallableKey,
+    };
+
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/m23-generic-delegate-references");
+    let source = |name: &str| std::fs::read_to_string(root.join(format!("{name}.scoop"))).unwrap();
+    for case in [
+        "reference-named",
+        "reference-generic",
+        "reference-local",
+        "reference-local-generic",
+        "reference-member",
+        "reference-computed",
+        "reference-value-member",
+        "reference-generic-member",
+        "reference-virtual",
+        "reference-interface",
+        "reference-extension",
+        "reference-unbound",
+        "reference-values",
+        "reference-nested",
+        "reference-local-factory",
+    ] {
+        eprintln!("initializer reference case: {case}");
+        let result =
+            with_provider_consumer(&source("provider"), &source(case), |output, _, _, _, _| {
+                let module = output.output().local.module();
+                assert_eq!(module.initialization_units.len(), 1);
+                let unit = module
+                    .initialization_units
+                    .iter()
+                    .next()
+                    .unwrap()
+                    .1
+                    .identity
+                    .id();
+                assert_eq!(module.callable_references.len(), 2);
+                let executable = output
+                    .executable_dependency_callables()
+                    .unwrap()
+                    .into_iter()
+                    .map(|use_| use_.callee())
+                    .collect::<std::collections::BTreeSet<_>>();
+                for (id, reference) in module.callable_references.iter() {
+                    if let CallableReferenceCallee::Imported(callee) = reference.target.callee() {
+                        assert!(
+                            executable.contains(&callee),
+                            "an invoked dependency is a machine root"
+                        );
+                    }
+                    assert!(matches!(
+                        reference.identity.callable_record().key(),
+                        GeneratedCallableKey::CallableReferenceInvoke { .. }
+                    ));
+                    match reference.identity.materialization().context() {
+                        CallableMaterializationContext::InitializationApplication(actual) => {
+                            assert_eq!(actual, unit)
+                        }
+                        CallableMaterializationContext::Application(application) => {
+                            assert_eq!(
+                                module
+                                    .callable_applications
+                                    .get(application)
+                                    .unwrap()
+                                    .key()
+                                    .instantiation_owner(),
+                                CallableInstantiationOwner::EnclosingInitializationApplication(
+                                    unit
+                                )
+                            );
+                        }
+                        CallableMaterializationContext::NoSubstitution => panic!(
+                            "a generic initializer reference retains its enclosing application"
+                        ),
+                    }
+                    let receiver = module
+                        .local_value_identities
+                        .callable_reference_receiver(id);
+                    assert_eq!(
+                        receiver.is_some(),
+                        matches!(
+                            reference.target,
+                            CallableReferenceTarget::BoundMember { .. }
+                                | CallableReferenceTarget::BoundExtension { .. }
+                        )
+                    );
+                }
+                if case == "reference-local-factory" {
+                    let (id, reference) = module
+                        .callable_references
+                        .iter()
+                        .find(|(_, reference)| !reference.captures.is_empty())
+                        .unwrap();
+                    assert_eq!(reference.captures.len(), 1);
+                    let captured = module
+                        .local_value_identities
+                        .callable_reference_capture(id, 0)
+                        .id();
+                    let functions = module
+                        .functions
+                        .iter()
+                        .filter(|(_, function)| matches!(function.name.as_str(), "make" | "read"))
+                        .collect::<Vec<_>>();
+                    assert_eq!(functions.len(), 2);
+                    for (id, function) in functions {
+                        assert_eq!(function.capture_parameters.len(), 1);
+                        assert_eq!(
+                            module
+                                .local_value_identities
+                                .function_local(id, function.capture_parameters[0].local)
+                                .id(),
+                            captured
+                        );
+                    }
+                }
+                hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
+            });
+        result.unwrap_or_else(|error| panic!("{case}: {error:?}"));
+    }
+}
+
+#[test]
 fn imported_generic_delegates_share_storage_by_complete_receiver_arguments() {
     with_provider_consumer(
         &fixture("provider"),

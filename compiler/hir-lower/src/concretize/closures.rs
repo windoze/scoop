@@ -1,8 +1,19 @@
 use super::*;
 
+mod references;
+
+#[derive(Debug)]
+pub(super) enum CallableReferenceSource {
+    Local(export::CallableReferenceId),
+    Imported {
+        parent: export::ImportedCallableTemplateParent,
+        definition: concrete::CallableReferenceRecord,
+    },
+}
+
 #[derive(Debug)]
 pub(super) struct PendingCallableReference {
-    pub(super) source: export::CallableReferenceId,
+    pub(super) source: CallableReferenceSource,
     pub(super) owner_arguments: Vec<concrete::TypeId>,
     target: concrete::CallableReferenceTarget,
     function_type: concrete::FunctionTypeId,
@@ -173,7 +184,9 @@ impl Concretizer<'_> {
         let source = self.source.callable_references[source_id].clone();
         let target = match source.target {
             export::CallableReferenceTarget::Named(callee) => {
-                concrete::CallableReferenceTarget::Named(self.lower_callable(callee, substitution))
+                concrete::CallableReferenceTarget::Named(concrete::CallableReferenceCallee::Local(
+                    self.lower_callable(callee, substitution),
+                ))
             }
             export::CallableReferenceTarget::Local {
                 local_function,
@@ -205,18 +218,20 @@ impl Concretizer<'_> {
                 };
                 concrete::CallableReferenceTarget::BoundMember {
                     receiver: Box::new(receiver),
-                    callee,
+                    callee: concrete::CallableReferenceCallee::Local(callee),
                 }
             }
             export::CallableReferenceTarget::BoundExtension { receiver, callee } => {
                 concrete::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(self.lower_expr(&receiver, substitution, locals)),
-                    callee: self.lower_callable(callee, substitution),
+                    callee: concrete::CallableReferenceCallee::Local(
+                        self.lower_callable(callee, substitution),
+                    ),
                 }
             }
         };
         let value = PendingCallableReference {
-            source: source_id,
+            source: CallableReferenceSource::Local(source_id),
             owner_arguments: source
                 .owner_type_arguments
                 .iter()

@@ -1,0 +1,105 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      ImportedDependencyCall #0 : Int
+        ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedConstructorInit Receiver : Receiver<T0>
+        Local $dependency.parameter.value : T0
+    val local5
+      ImportedGenericCall referenceGenericMember<T0> : Int
+        Local receiver : Receiver<T0>
+    val local6
+      IntegerLiteral 0 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    val local8
+      ImportedDependencyCall #1 : Payload
+        Local $dependency.parameter.value : Int
+    val local9
+      Local answer : Int
+    val local10
+      IntegerLiteral 42 : Int
+    val local11
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local15
+        BoolLiteral true : Boolean
+    else
+      val local12
+        ImportedDependencyCall #2 : Int
+          Local allocated : Payload
+      val local13
+        IntegerLiteral 0 : Int
+      val local14
+        Local $dependency.argument.0 : Int
+      val local15
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local16
+      ImportedGenericCall referenceGenericMember<T0> : Int
+        Local receiver : Receiver<T0>
+    val local17
+      IntegerLiteral 42 : Int
+    val local18
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local26
+        BoolLiteral true : Boolean
+    else
+      val local22
+        ImportedDependencyCall #0 : Int
+          ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
+      val local19
+        Local before : Int
+      val local20
+        IntegerLiteral 1 : Int
+      val local21
+        Local $dependency.argument.0 : Int
+      val local23
+        Local $equality.lhs : Int
+      val local24
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local25
+        Local $dependency.argument.0 : Int
+      val local26
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    return
+      Local answer : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

@@ -14,6 +14,7 @@ mod callable;
 mod closures;
 mod constructors;
 mod delegates;
+mod references;
 mod statements;
 
 struct ImportedDefaultContext<'a> {
@@ -189,6 +190,9 @@ impl Lowerer {
             }
             kind @ (Kind::Lambda(_) | Kind::AnonymousFunction(_)) => {
                 self.materialize_imported_closure(kind, ty, origin, context)?
+            }
+            Kind::CallableReference(reference) => {
+                self.materialize_imported_callable_reference(reference, origin, context)?
             }
             Kind::CallableCall {
                 callee,
@@ -471,7 +475,6 @@ impl Lowerer {
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
-            | Kind::CallableReference(_)
             | Kind::FunctionCoercion { .. }
             | Kind::PtrCast(_)
             | Kind::PtrLoad { .. }
@@ -527,6 +530,21 @@ impl Lowerer {
         kind: MemberCallKind,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
+        let callee = self.imported_default_callable_target(callee, kind, context)?;
+        Ok(hir::ExprKind::ImportedDependencyCall {
+            callee,
+            binding: None,
+            args,
+            receiver,
+        })
+    }
+
+    fn imported_default_callable_target(
+        &mut self,
+        callee: scoop_identity::CallableTemplateOrigin,
+        kind: MemberCallKind,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<hir::ImportedDependencyCallableUseId, ImportedDefaultMaterializationError> {
         let candidate = match context.callables.get(&callee) {
             Some(candidate) => candidate.clone(),
             None => self
@@ -535,17 +553,10 @@ impl Lowerer {
                 .and_then(|dependencies| dependencies.callable_declaration(callee).ok())
                 .ok_or(ImportedDefaultMaterializationError::MissingCallable(callee))?,
         };
-        let callee = self
-            .select_imported_callable_declaration_use_with_kind(candidate, kind)
+        self.select_imported_callable_declaration_use_with_kind(candidate, kind)
             .map_err(|error| {
                 ImportedDefaultMaterializationError::DependencySelection(error.to_string())
-            })?;
-        Ok(hir::ExprKind::ImportedDependencyCall {
-            callee,
-            binding: None,
-            args,
-            receiver,
-        })
+            })
     }
 
     fn imported_default_definition_origin(

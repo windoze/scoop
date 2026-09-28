@@ -186,6 +186,19 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, &capture.source, indent + 1, out);
             }
         }
+        ExprKind::ImportedCallableReference(reference) => {
+            out.push_str(&format!(
+                "{pad}ImportedCallableReference {} captures={} : {ty}\n",
+                reference.definition.id(),
+                reference.captures.len()
+            ));
+            if let Some(receiver) = reference.target.receiver() {
+                dump_expr(module, locals, receiver, indent + 1, out);
+            }
+            for capture in &reference.captures {
+                dump_expr(module, locals, &capture.source, indent + 1, out);
+            }
+        }
         ExprKind::Lambda(id) => {
             let lambda = &module.lambdas[*id];
             out.push_str(&format!(

@@ -173,7 +173,8 @@ fn check_fixture_cases(fixture: &str, cases: &[&str]) {
                     | "initializer-anonymous"
                     | "initializer-values"
                     | "initializer-local-closure"
-            ) {
+            ) || case.starts_with("reference-")
+            {
                 let dependencies = unit.semantic().dependencies();
                 assert_eq!(dependencies.len(), 1, "Trace is one external unit");
                 assert!(matches!(dependencies[0].kind(),
@@ -248,6 +249,30 @@ fn generic_delegate_initializer_closures_republish_and_execute() {
             "initializer-anonymous",
             "initializer-values",
             "initializer-local-closure",
+        ],
+    );
+}
+
+#[test]
+fn generic_delegate_initializer_references_republish_and_execute() {
+    check_fixture_cases(
+        "m23-generic-delegate-references",
+        &[
+            "reference-named",
+            "reference-generic",
+            "reference-local",
+            "reference-local-generic",
+            "reference-member",
+            "reference-computed",
+            "reference-value-member",
+            "reference-generic-member",
+            "reference-virtual",
+            "reference-interface",
+            "reference-extension",
+            "reference-unbound",
+            "reference-values",
+            "reference-nested",
+            "reference-local-factory",
         ],
     );
 }

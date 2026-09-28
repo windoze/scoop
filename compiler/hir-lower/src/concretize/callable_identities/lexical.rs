@@ -103,7 +103,7 @@ impl CallableIdentityBuilder<'_> {
         }
     }
 
-    fn imported_parent_materialization(
+    pub(super) fn imported_parent_materialization(
         &mut self,
         parent: export::ImportedCallableTemplateParent,
         arguments: &[concrete::TypeId],

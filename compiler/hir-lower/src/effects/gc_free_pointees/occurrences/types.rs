@@ -525,6 +525,25 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, &capture.source, out);
             }
         }
+        ExprKind::ImportedCallableReference(reference) => {
+            collect_function_type_types(lowerer, reference.function_type, out);
+            out.extend(reference.owner_type_arguments.iter().copied());
+            if let hir::ImportedCallableTarget::Application(application) = reference.target.callee()
+            {
+                out.extend(
+                    lowerer.imported_generic_applications[application]
+                        .arguments
+                        .substitution(&lowerer.types),
+                );
+            }
+            if let Some(receiver) = reference.target.receiver() {
+                collect_expr_types(lowerer, receiver, out);
+            }
+            for capture in &reference.captures {
+                out.push(capture.ty);
+                collect_expr_types(lowerer, &capture.source, out);
+            }
+        }
         ExprKind::AnonymousFunction(function) => {
             let function = &lowerer.anonymous_functions[*function];
             collect_function_type_types(lowerer, function.function_type, out);

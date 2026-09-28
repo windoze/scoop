@@ -525,10 +525,21 @@
 
 本项完成 initializer 的 lambda、匿名函数及上述捕获组合。callable reference、默认值和其他主线继续推进，M23-7 尚未完成。
 
+## 2026-09-29：委托 initializer 的函数引用与动态派发
+
+- 导入的函数引用保留提供方 invoke key、词法父模板和有序宿主实参，实际目标区分泛型 callable application 与普通依赖 use。命名函数、局部函数、绑定成员及绑定/未绑定扩展复用既有 concrete 函数引用和 MIR invoke；普通依赖目标直接调用提供方代码。捕获输入与 lambda 共用定义处 binding、创建处求值和前置参数 ABI，没有复制外来源码函数或增加产物格式、runtime ABI。
+- Export HIR 的 invoke key 投影支持初始化函数、访问器和词法生成函数作为父节点，修复只接受源码函数的旧假设。实际引用目标随创建表达式进入已有可执行依赖集合，供 MIR 取得完整外来 callable；未实例化的模板引用不成为机器根。本地默认值身份扫描只读取真实本地引用，导入引用沿原词法模板取得 materialization。实现规范和设计同步。
+- 新增 15 组真实产物用例、17 份源码与 45 份 HIR/MIR/LIR golden，覆盖普通与泛型函数、局部与局部泛型函数捕获、对象与值类型接收者快照、接收者单次求值、泛型宿主成员、virtual/interface 动态派发、绑定与未绑定扩展、ZST 和 24 字节含引用值、lambda 内局部函数引用及局部函数返回引用。provider 与 consumer 发布后移走源码，下游仅凭产物用自身引用类型再次实例化、链接和运行；15 组在普通与移动 GC 模式下均返回 42，并核对初始化一次和实际外来初始化依赖。
+- 新增 HIR 断言检查原 invoke identity、初始化 application、接收者身份、外来机器调用根，以及跨局部函数前置参数的同一捕获值身份。MIR golden 保留 virtual/interface 调用；大值内联进入函数引用环境，三个引用位置进入递归扫描表，ZST 沿现有 ABI 省略。全部新 golden 已检查，既有快照无需更新。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 及最新配套 `scoopc` 构建通过，无警告。关闭快照更新后运行 `cargo test --workspace --no-fail-fast`，5186 项通过、0 失败、0 忽略；其中 driver library 的 140 项全部通过，用时 368.83 秒。完整日志为 `/tmp/scoop-m23-7-delegate-references-workspace.log`，15 组用例的首次实际产物验证日志为 `/tmp/scoop-m23-7-delegate-references-driver.log`。
+- 全仓通过后确认构建、测试进程结束及 `target` 无打开文件，通过 Cargo metadata 核对实际目录与缓存内容，恢复缺失的标准缓存标记后执行 `cargo clean --target-dir target`，删除 2508 个文件，回收 4.5 GiB。
+
+本项完成上述 initializer 函数引用与捕获、派发组合。类型参数 bound 成员及派生相等目标、导入默认值中的生成实体和消费方源码直接引用外来函数仍属后续主线，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与捕获组合基础上，继续覆盖 initializer 中的 callable reference；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及泛型正文和默认参数中的 lambda、匿名函数和 callable reference 捕获组合。
+1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch（含类型参数成员和派生相等函数引用），以及泛型正文和默认参数中的 lambda、匿名函数和 callable reference 捕获组合；接通消费方源码直接引用外来函数的候选选择。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

@@ -197,10 +197,23 @@ impl<'a> CallableIdentityBuilder<'a> {
 
     fn resolve_callable_reference(&mut self, index: usize) -> concrete::CallableReferenceIdentity {
         let pending = &self.concretizer.callable_reference_slots[index];
-        let source = &self.concretizer.source.callable_references[pending.source];
+        let arguments = pending.owner_arguments.clone();
+        let source = match &pending.source {
+            CallableReferenceSource::Local(source) => *source,
+            CallableReferenceSource::Imported { parent, definition } => {
+                let parent = *parent;
+                let definition = definition.clone();
+                let enclosing = self.imported_parent_materialization(parent, &arguments);
+                return concrete::CallableReferenceIdentity::from_record(
+                    definition,
+                    enclosing.context(),
+                )
+                .expect("an imported callable reference retains its provider invoke key");
+            }
+        };
+        let source = &self.concretizer.source.callable_references[source];
         let root = source.definition_root;
         let path = source.definition_path.clone();
-        let arguments = pending.owner_arguments.clone();
         let enclosing = self.enclosing_materialization(None, root, &path, &arguments);
         let parent = self.lexical_parent(enclosing);
         concrete::CallableReferenceIdentity::new(parent, path, enclosing.context())

@@ -1038,6 +1038,8 @@ Export HIR 完成后、LocalConcrete HIR 生成前，先从公开声明、默认
 
 导入的 lambda/anonymous function 保留原 generated body identity、定义路径和 enclosing materialization；捕获输入按原 ABI 顺序关联定义处的真实 binding，创建表达式保存本次实际捕获来源。捕获读取的定义位置保留原首次引用，求值位置使用闭包创建表达式，不能以函数或属性的声明位置替代创建时的上下文。嵌套闭包分别读取当前局部值与外层捕获槽，不能以使用点的局部 binding 替换被调正文的槽身份。局部函数的前置捕获参数继续关联原值身份；闭包或内层局部函数再次捕获该参数时，沿此关系取得同一身份，不另造局部值记录。闭包与捕获值可以分属当前及词法外层的 materialization；HIR 完成该引用解析后，MIR 复用原值身份构造环境字段，不再要求两者 context 相等。具体化请求原导入正文并产生既有 concrete lambda/anonymous 实体，随后共用普通闭包布局、invoke、调用和 GC lowering；不复制外来源码声明或增加一套外来闭包运行时。再次发布仍投影为已有共有闭包节点，类型实参保持定义处的有序 binder 替换。
 
+导入的 callable reference 保留定义方的完整 invoke key、词法父模板和有序宿主实参；已选目标区分实际模板 application 与普通依赖 callable use。命名函数、局部函数、绑定成员及绑定扩展复用现有 concrete 函数引用与 MIR invoke，普通依赖目标直接引用提供方代码，不在消费方伪造源码函数。实际引用目标随创建表达式进入既有可执行依赖集合，尚未实例化的模板引用不成为机器根。局部函数的捕获值按原前置参数 ABI 传入；绑定接收者在创建表达式处只求值一次，保留值拷贝或引用拷贝，以及原 virtual/interface 派发。环境字段、局部值身份和 GC 扫描沿既有闭包路径处理。
+
 导入的局部具名函数声明标记没有运行时语义，与本地声明一样在具体化时消除。直接调用保留 provider 的原 typed callee 和完整类型实参，按现有 ABI 依次传入捕获值与显式实参，复用导入 callable 队列；不生成假的 Unit 语句，也不复制 provider 源码函数为当前 Cone 的声明。
 
 仅继承外层类型参数的局部函数仍以 `PersistentFunctionId` 标识；有自身类型参数时才使用 `PersistentGenericFunctionId`。其 application 的 owner 是外层 callable application 或 initializer 的 initialization application，只有自身实参进入 callable 参数组。initializer 内的闭包和局部函数沿原 generated callable、unit 与 property/type 关系取得声明所属 Cone；不要求 initializer 具有可按名字导入的独立 binding。消费方局部值的源位置可关联依赖中原 generated declaration；reader 从同一已读取的依赖 foundation 查询该声明及源记录，不复制为当前 Cone 的 generated declaration。共有正文目录直接提供词法实现，不把局部声明加入源码名字查找接口。消费端对已经完成定义处检查的词法正文只保留有序替换 binder 和已有条件约束；供源码重载推断使用的声明参数与这组替换参数在 HIR 中明确区分，不补造无约束的声明签名。

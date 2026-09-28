@@ -59,6 +59,40 @@ impl Lowerer {
         kind: MemberCallKind,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
+        Ok(
+            match self.materialize_imported_callable_target(callee, kind, context)? {
+                hir::ImportedCallableTarget::Application(application) => {
+                    hir::ExprKind::ImportedGenericCall {
+                        application,
+                        kind: match kind {
+                            MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
+                            MemberCallKind::DirectSuper => {
+                                hir::ImportedGenericCallKind::DirectSuper
+                            }
+                        },
+                        binding: None,
+                        args,
+                        receiver,
+                    }
+                }
+                hir::ImportedCallableTarget::Dependency(callee) => {
+                    hir::ExprKind::ImportedDependencyCall {
+                        callee,
+                        binding: None,
+                        args,
+                        receiver,
+                    }
+                }
+            },
+        )
+    }
+
+    pub(super) fn materialize_imported_callable_target(
+        &mut self,
+        callee: &hir::DefaultCallableRefV1,
+        kind: MemberCallKind,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<hir::ImportedCallableTarget, ImportedDefaultMaterializationError> {
         let origin = super::super::plan::default_callable_origin(callee)
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
         let local = self
@@ -134,17 +168,9 @@ impl Lowerer {
                         template,
                         arguments,
                     });
-            return Ok(hir::ExprKind::ImportedGenericCall {
-                application,
-                kind: match kind {
-                    MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
-                    MemberCallKind::DirectSuper => hir::ImportedGenericCallKind::DirectSuper,
-                },
-                binding: None,
-                args,
-                receiver,
-            });
+            return Ok(hir::ImportedCallableTarget::Application(application));
         }
-        self.imported_default_call_kind(origin, args, receiver, kind, context)
+        self.imported_default_callable_target(origin, kind, context)
+            .map(hir::ImportedCallableTarget::Dependency)
     }
 }

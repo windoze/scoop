@@ -1,21 +1,92 @@
 use super::*;
 
 impl Lowerer {
+    fn instantiate_default_imported_application(
+        &mut self,
+        source: hir::ImportedGenericCallableApplicationId,
+        context: &InstantiationContext,
+    ) -> hir::ImportedGenericCallableApplicationId {
+        let application = self.imported_generic_applications[source].clone();
+        let arguments = application
+            .arguments
+            .map(|ty| self.instantiate_method_ty(ty, &context.bindings));
+        self.imported_generic_applications
+            .alloc(hir::ImportedGenericCallableApplication {
+                template: application.template,
+                arguments,
+            })
+    }
+
+    fn instantiate_default_imported_target(
+        &mut self,
+        target: hir::ImportedCallableTarget,
+        context: &InstantiationContext,
+    ) -> hir::ImportedCallableTarget {
+        match target {
+            hir::ImportedCallableTarget::Application(application) => {
+                hir::ImportedCallableTarget::Application(
+                    self.instantiate_default_imported_application(application, context),
+                )
+            }
+            target @ hir::ImportedCallableTarget::Dependency(_) => target,
+        }
+    }
+
+    pub(super) fn instantiate_default_imported_reference(
+        &mut self,
+        source: &hir::ImportedCallableReference,
+        context: &mut InstantiationContext,
+    ) -> hir::ImportedCallableReference {
+        let target = match &source.target {
+            hir::ImportedCallableReferenceTarget::Named(callee) => {
+                hir::ImportedCallableReferenceTarget::Named(
+                    self.instantiate_default_imported_target(*callee, context),
+                )
+            }
+            hir::ImportedCallableReferenceTarget::Local(application) => {
+                hir::ImportedCallableReferenceTarget::Local(
+                    self.instantiate_default_imported_application(*application, context),
+                )
+            }
+            hir::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
+                hir::ImportedCallableReferenceTarget::BoundMember {
+                    receiver: Box::new(self.instantiate_default_expr(receiver, context)),
+                    callee: self.instantiate_default_imported_target(*callee, context),
+                }
+            }
+            hir::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
+                hir::ImportedCallableReferenceTarget::BoundExtension {
+                    receiver: Box::new(self.instantiate_default_expr(receiver, context)),
+                    callee: self.instantiate_default_imported_target(*callee, context),
+                }
+            }
+        };
+        hir::ImportedCallableReference {
+            definition: source.definition.clone(),
+            parent: source.parent,
+            owner_type_arguments: source
+                .owner_type_arguments
+                .iter()
+                .map(|ty| self.instantiate_method_ty(*ty, &context.bindings))
+                .collect(),
+            target,
+            function_type: self.instantiate_default_function_type(source.function_type, context),
+            captures: source
+                .captures
+                .iter()
+                .map(|capture| self.instantiate_default_capture(capture, context))
+                .collect(),
+            origin: source.origin,
+        }
+    }
+
     pub(super) fn instantiate_default_imported_closure(
         &mut self,
         source: &hir::ImportedClosure,
         context: &mut InstantiationContext,
     ) -> hir::ImportedClosure {
-        let application = self.imported_generic_applications[source.application].clone();
-        let arguments = application
-            .arguments
-            .map(|ty| self.instantiate_method_ty(ty, &context.bindings));
         let application =
-            self.imported_generic_applications
-                .alloc(hir::ImportedGenericCallableApplication {
-                    template: application.template,
-                    arguments,
-                });
+            self.instantiate_default_imported_application(source.application, context);
         hir::ImportedClosure {
             kind: source.kind,
             application,

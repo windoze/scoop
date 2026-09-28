@@ -99,6 +99,34 @@ impl ReferenceCollector<'_> {
                     self.expression(&capture.source);
                 }
             }
+            hir::ExprKind::ImportedCallableReference(reference) => {
+                let target = match reference.target.callee() {
+                    hir::ImportedCallableTarget::Application(application) => {
+                        let arguments = self.lowerer.imported_generic_applications[application]
+                            .arguments
+                            .substitution(&self.lowerer.types);
+                        for ty in arguments {
+                            self.type_reference(ty, origin);
+                        }
+                        hir::ExportDefaultCallableTarget::ImportedGeneric(application)
+                    }
+                    hir::ImportedCallableTarget::Dependency(callee) => {
+                        hir::ExportDefaultCallableTarget::ImportedDependency(callee)
+                    }
+                };
+                self.record_callable(target, origin);
+                self.function_type_reference(reference.function_type, origin);
+                for ty in &reference.owner_type_arguments {
+                    self.type_reference(*ty, origin);
+                }
+                if let Some(receiver) = reference.target.receiver() {
+                    self.expression(receiver);
+                }
+                for capture in &reference.captures {
+                    self.type_reference(capture.ty, origin);
+                    self.expression(&capture.source);
+                }
+            }
             hir::ExprKind::AnonymousFunction(function) => {
                 self.anonymous_function_descriptor(*function, origin);
             }

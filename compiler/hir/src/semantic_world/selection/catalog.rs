@@ -62,6 +62,10 @@ pub(super) struct DependencyCatalog {
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
+    pub(super) reference_invokes: BTreeMap<
+        scoop_identity::PersistentGeneratedCallableId,
+        crate::concrete::CallableReferenceRecord,
+    >,
     pub(super) initializations: BTreeMap<
         scoop_identity::PersistentGenericTypeId,
         Arc<crate::ExportGenericNominalInitializationV1>,
@@ -84,6 +88,7 @@ impl ImportedSemanticWorld<'_> {
             .map_err(ImportedDependencySelectionPlanBuildError::NominalClassifier)?;
         let mut callables = BTreeMap::new();
         let mut bodies = BTreeMap::new();
+        let mut reference_invokes = BTreeMap::new();
         let mut initializations = BTreeMap::new();
         let mut delegates = BTreeMap::new();
         let mut properties = BTreeMap::new();
@@ -93,6 +98,20 @@ impl ImportedSemanticWorld<'_> {
         let mut nominal_visibilities = BTreeMap::new();
         let mut static_namespaces = BTreeMap::new();
         for provider in &self.providers {
+            for record in provider
+                .foundation()
+                .canonical_for_semantic_authority()
+                .type_source_generated_callable_records()
+            {
+                if matches!(
+                    record.key(),
+                    scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { .. }
+                ) {
+                    reference_invokes
+                        .entry(record.id())
+                        .or_insert_with(|| record.clone());
+                }
+            }
             for nominal in provider.interface().nominal_interfaces().all_records() {
                 nominal_visibilities.insert(
                     nominal.declaration(),
@@ -324,6 +343,7 @@ impl ImportedSemanticWorld<'_> {
                 consumer: self.current,
                 callables,
                 bodies,
+                reference_invokes,
                 initializations,
                 delegates,
                 properties,

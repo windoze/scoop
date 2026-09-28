@@ -19,8 +19,16 @@ impl Lowerer {
     pub(super) fn lower_reference_callee(
         &mut self,
         _module: &hir::Module,
-        callable: hir::Callable,
+        callable: hir::CallableReferenceCallee,
     ) -> mir::Callee {
+        let callable = match callable {
+            hir::CallableReferenceCallee::Local(callable) => callable,
+            hir::CallableReferenceCallee::Imported(callee) => {
+                return mir::Callee::External(
+                    self.imported_dependency_callable_map[&callee].callable,
+                );
+            }
+        };
         let hir::Callable::Function(function) = callable;
         self.instances.get(function).map_or_else(
             || mir::Callee::User(self.function_map[&function]),
@@ -32,8 +40,32 @@ impl Lowerer {
         &mut self,
         module: &hir::Module,
         _receiver_ty: hir::TypeId,
-        callable: hir::Callable,
+        callable: hir::CallableReferenceCallee,
     ) -> mir::CallKind {
+        let callable = match callable {
+            hir::CallableReferenceCallee::Local(callable) => callable,
+            hir::CallableReferenceCallee::Imported(callee) => {
+                return match module.imported_dependency_callables[callee].dispatch() {
+                    scoop_hir::ImportedDependencyDispatch::Direct => mir::CallKind::Direct,
+                    scoop_hir::ImportedDependencyDispatch::Virtual { slot } => {
+                        mir::CallKind::Virtual { slot }
+                    }
+                    scoop_hir::ImportedDependencyDispatch::Interface { interface, slot } => {
+                        let (id, _) = module
+                            .interfaces
+                            .iter()
+                            .find(|(_, declaration)| {
+                                declaration.origin.concrete_type_id() == Some(interface)
+                            })
+                            .expect("a bound dependency reference retains its interface receiver");
+                        mir::CallKind::Interface {
+                            interface: self.interfaces.mir_id(id),
+                            slot,
+                        }
+                    }
+                };
+            }
+        };
         let function = module.callable_function(callable);
         let declaration = &module.functions[function];
         let method = declaration

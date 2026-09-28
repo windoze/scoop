@@ -37,6 +37,13 @@ impl ImportedCallableBody {
 }
 
 impl super::ImportedDependencySelectionPlan {
+    pub fn callable_reference_definition(
+        &self,
+        invoke: scoop_identity::PersistentGeneratedCallableId,
+    ) -> Option<&crate::concrete::CallableReferenceRecord> {
+        self.catalog.reference_invokes.get(&invoke)
+    }
+
     pub fn generic_delegate(
         &self,
         property: scoop_identity::PersistentExtensionPropertyId,

@@ -8,15 +8,14 @@ impl Lowerer {
     ) {
         for (id, reference) in module.callable_references.iter() {
             let function_type = self.lower_function_type_id(module, reference.function_type);
-            let (callable, receiver) = match &reference.target {
-                hir::CallableReferenceTarget::Named(callable) => (*callable, None),
-                hir::CallableReferenceTarget::Local { callee, .. } => (*callee, None),
-                hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                    (*callee, Some(receiver.as_ref()))
+            let callable = reference.target.callee();
+            let receiver = match &reference.target {
+                hir::CallableReferenceTarget::BoundMember { receiver, .. }
+                | hir::CallableReferenceTarget::BoundExtension { receiver, .. } => {
+                    Some(receiver.as_ref())
                 }
-                hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                    (*callee, Some(receiver.as_ref()))
-                }
+                hir::CallableReferenceTarget::Named(_)
+                | hir::CallableReferenceTarget::Local { .. } => None,
             };
             let target = self.lower_reference_callee(module, callable);
             let call_kind = match &reference.target {

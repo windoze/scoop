@@ -160,6 +160,14 @@ fn patch_local_function_call_expr(
                 patch_local_function_call_expr(&mut capture.source, target, target_captures);
             }
         }
+        hir::ExprKind::ImportedCallableReference(reference) => {
+            if let Some(receiver) = reference.target.receiver_mut() {
+                patch_local_function_call_expr(receiver, target, target_captures);
+            }
+            for capture in &mut reference.captures {
+                patch_local_function_call_expr(&mut capture.source, target, target_captures);
+            }
+        }
         hir::ExprKind::LocalFunctionCall {
             local_function,
             captures,

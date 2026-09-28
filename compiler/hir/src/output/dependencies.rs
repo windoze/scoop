@@ -43,20 +43,27 @@ impl DependencyHirOutput {
                 .map_err(DependencyHirOutputError::CallOccurrence)?;
         local
             .visit_executable_expressions(|occurrence| {
-                if let concrete::ExprKind::ClassInitializerCall {
-                    initializer: concrete::ClassInitializerTarget::Imported(callable),
-                    ..
-                } = occurrence.expression.kind
-                {
-                    if callable.into_raw().into_u32() as usize
-                        >= local.imported_dependency_callables.len()
-                    {
-                        return Err(DependencyCallOccurrenceError::MissingUse(
-                            occurrence.position,
-                        ));
+                let callable = match &occurrence.expression.kind {
+                    concrete::ExprKind::ClassInitializerCall {
+                        initializer: concrete::ClassInitializerTarget::Imported(callable),
+                        ..
+                    } => *callable,
+                    concrete::ExprKind::CallableReference(id) => {
+                        match local.callable_references[*id].target.callee() {
+                            concrete::CallableReferenceCallee::Imported(callable) => callable,
+                            concrete::CallableReferenceCallee::Local(_) => return Ok(()),
+                        }
                     }
-                    executable_callables.push(callable);
+                    _ => return Ok(()),
+                };
+                if callable.into_raw().into_u32() as usize
+                    >= local.imported_dependency_callables.len()
+                {
+                    return Err(DependencyCallOccurrenceError::MissingUse(
+                        occurrence.position,
+                    ));
                 }
+                executable_callables.push(callable);
                 Ok(())
             })
             .map_err(|error| {

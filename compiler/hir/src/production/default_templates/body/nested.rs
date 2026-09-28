@@ -9,6 +9,75 @@ use crate::{
 use super::BodyProjection;
 
 impl BodyProjection<'_, '_> {
+    pub(super) fn imported_callable_reference(
+        &mut self,
+        reference: &crate::ImportedCallableReference,
+    ) -> Result<DefaultCallableReferenceV1, super::super::DefaultBodyProjectionError> {
+        let target = match &reference.target {
+            crate::ImportedCallableReferenceTarget::Named(callee) => {
+                DefaultCallableReferenceTargetV1::Named(self.imported_reference_callee(*callee)?)
+            }
+            crate::ImportedCallableReferenceTarget::Local(application) => {
+                let export = self.entities.export();
+                let template = &export.imported_generic_templates
+                    [export.imported_generic_applications[*application].template];
+                let crate::ImportedCallableTemplateOrigin::Local { descriptor, .. } =
+                    &template.declaration
+                else {
+                    unreachable!("a local reference retains its declaration");
+                };
+                DefaultCallableReferenceTargetV1::Local {
+                    declaration: descriptor.declaration(),
+                    callee: self
+                        .entities
+                        .imported_generic_callable(*application, self.binders)?,
+                }
+            }
+            crate::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
+                DefaultCallableReferenceTargetV1::BoundMember {
+                    receiver: Box::new(self.expression(receiver)?),
+                    callee: crate::DefaultMethodCalleeV1::Callable(
+                        self.imported_reference_callee(*callee)?,
+                    ),
+                }
+            }
+            crate::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
+                DefaultCallableReferenceTargetV1::BoundExtension {
+                    receiver: Box::new(self.expression(receiver)?),
+                    callee: self.imported_reference_callee(*callee)?,
+                }
+            }
+        };
+        let scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { path, .. } =
+            reference.definition.key()
+        else {
+            unreachable!("an imported reference retains its invoke definition");
+        };
+        DefaultCallableReferenceV1::try_new(
+            reference.definition.id(),
+            path.clone(),
+            target,
+            self.function_type(reference.function_type)?,
+            self.captures(&reference.captures)?,
+            owner_parameter_count(reference.owner_type_arguments.len())?,
+        )
+        .map_err(super::super::DefaultBodyProjectionError::CallableReference)
+    }
+
+    fn imported_reference_callee(
+        &self,
+        callee: crate::ImportedCallableTarget,
+    ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultBodyProjectionError> {
+        Ok(match callee {
+            crate::ImportedCallableTarget::Application(application) => self
+                .entities
+                .imported_generic_callable(application, self.binders)?,
+            crate::ImportedCallableTarget::Dependency(callee) => {
+                self.entities.imported_dependency_callable(callee)?
+            }
+        })
+    }
+
     pub(super) fn imported_closure(
         &mut self,
         closure: &crate::ImportedClosure,
