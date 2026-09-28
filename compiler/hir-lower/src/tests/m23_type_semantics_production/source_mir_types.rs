@@ -16,6 +16,7 @@ mod finite;
 mod identities;
 mod interior_mutability;
 mod objects;
+mod private_storage;
 mod shape_support;
 
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
@@ -45,11 +46,11 @@ fn with_production<R>(
             scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, records).unwrap();
         let mir_output = scoop_mir_lower::lower_current_cone(output, selected).unwrap();
         let module = mir_output.module();
-        let foundation = mir_output.strong_foundation().unwrap();
+        let foundation = mir_output.foundation();
         let production = scoop_mir_lower::lower_production_section(
             module.cone,
             &hir::CoreBootstrapInterfaceSectionV1::from_export(&output.output().export).unwrap(),
-            &foundation,
+            foundation,
         )
         .unwrap();
         let shapes = output

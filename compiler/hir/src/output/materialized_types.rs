@@ -29,14 +29,30 @@ impl LocalConcreteHirOutput {
                 }
                 ExecutableExpressionVisitError::Visitor(error) => error,
             })?;
-        while let Some(ty) = collector.pending.pop() {
-            collector.children(ty)?;
-        }
-        let mut result = Vec::new();
+        collector.finish()
+    }
 
-        scoop_wire::allocation::try_reserve(&mut result, collector.seen.len(), &WirePath::root())?;
-        result.extend(collector.seen);
-        Ok(result)
+    /// Shared generic representations need their actual storage declarations;
+    /// unrelated private physical declarations remain local to this Cone.
+    pub(crate) fn materialized_application_type_closure(
+        &self,
+    ) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
+        let mut collector = Collector {
+            module: self.module(),
+            seen: BTreeSet::new(),
+            pending: Vec::new(),
+        };
+        for ty in self.materialized_type_closure()? {
+            if self
+                .module()
+                .exact_type_identities
+                .nominal_specialization(ty)
+                .is_some()
+            {
+                collector.add(ty)?;
+            }
+        }
+        collector.finish()
     }
 }
 
@@ -47,6 +63,16 @@ struct Collector<'a> {
 }
 
 impl Collector<'_> {
+    fn finish(mut self) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
+        while let Some(ty) = self.pending.pop() {
+            self.children(ty)?;
+        }
+        let mut result = Vec::new();
+        scoop_wire::allocation::try_reserve(&mut result, self.seen.len(), &WirePath::root())?;
+        result.extend(self.seen);
+        Ok(result)
+    }
+
     fn add(&mut self, ty: TypeId) -> Result<(), MaterializedTypeClosureError> {
         let path = WirePath::root();
 

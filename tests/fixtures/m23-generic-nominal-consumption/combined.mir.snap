@@ -13,7 +13,35 @@ Module
   enum Parcel<Marker>
     Empty()
     Item(_0: Marker)
+  enum CoroutineStep<Marker>
+    Completed(value: Marker)
+    Suspended()
+  enum CoroutineSlot<Marker>
+    Empty()
+    Value(value: Marker)
+  enum CoroutineStep<Number>
+    Completed(value: Number)
+    Suspended()
+  enum CoroutineSlot<Number>
+    Empty()
+    Value(value: Number)
+  enum CoroutineStep<Wide>
+    Completed(value: Wide)
+    Suspended()
+  enum CoroutineSlot<Wide>
+    Empty()
+    Value(value: Wide)
   class Number vtable=0 itables=0
+  class box<Marker> vtable=0 itables=0
+  class box<Wide> vtable=0 itables=0
+  generated_exact_type get0 location=enum8 nominal_id=a16d0e1d6361889c5f9cc0e02087dae4b84f4a593ae4008eda322c3f19884655 exact_id=3088987cf57b9e460d0462d4e9227de35a353607e864e28fbe35b627b3744e09
+  generated_exact_type get1 location=enum6 nominal_id=8d9652cc29ec50ca4d27f03634346f0ed4bf348a804bb2888f8a52c4f631104f exact_id=39b927835c3c7793f4b6adb5fbf576f67ee5bee8e86ed0d009a95cad46e8f873
+  generated_exact_type get2 location=class1 nominal_id=da6c74336879813a9cac767e06e3d8ddbadb2b0e1835cba2845226475dc65bb0 exact_id=67da98d3924f766d8fd71573552618622aaf60edcd487d4dd5eab3ec62a714d7
+  generated_exact_type get3 location=enum5 nominal_id=da77a5df7b17becbccd0ee1599e19dcbadfbd5c758dd2b7d749da9d21fae756e exact_id=8f0c8dec2b07a1b3208c8f45ca42e6bad647d042df33a1175b61a1f2b94fca96
+  generated_exact_type get4 location=enum7 nominal_id=85aa427e37a75e764471b26bf98e1f5335a3e3e7ffc5071c194ca5e6d5d5046d exact_id=a63761b4eb6d7c7d3c7207de1b661ade5427894347debdd9068aca0f87f1b859
+  generated_exact_type get5 location=enum9 nominal_id=8e4b986c4810976c4f648495ea0e113b4fd7f9e147a0e6ad17c3a19d0dab1994 exact_id=be0ad523372630a13a5fe32c5ff260698db1ff164720c8009c3b9f1c856d9aa3
+  generated_exact_type get6 location=class2 nominal_id=ef1b0f2b2e9a2254439de95b0d82af281369560824c7a4ef1f1d9f5c575b752d exact_id=c901552cde7eaa033bf2c0f1aab91fe04187876df5858f9dd890100e65831432
+  generated_exact_type get7 location=enum4 nominal_id=c9d9b205140134eecfeb01347c765dc62c9be39b9bca25884644b479708950f5 exact_id=cdfeff279ecca40f9a40f98523cf4075637c147dfd251ceb275ffe9a8037d00c
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -551,6 +579,12 @@ Module
           Local marker
           Type Number
           Local right
+  coroutine_step cs0 CoroutineStep<Marker> result=Marker
+  coroutine_step cs1 CoroutineStep<Number> result=Number
+  coroutine_step cs2 CoroutineStep<Wide> result=Wide
+  coroutine_slot cl0 CoroutineSlot<Marker> value=Marker
+  coroutine_slot cl1 CoroutineSlot<Number> value=Number
+  coroutine_slot cl2 CoroutineSlot<Wide> value=Wide
   instance mi0 function=@fn1 <- nested
   instance mi1 function=@fn2 <- pack
   instance mi2 function=@fn3 <- unpack

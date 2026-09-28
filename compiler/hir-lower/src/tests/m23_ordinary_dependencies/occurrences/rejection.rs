@@ -5,23 +5,13 @@ fn change(
     modify: impl FnOnce(&mut hir::concrete::Module),
 ) -> Result<hir::DependencyHirOutput, hir::DependencyHirOutputError> {
     let witnesses = output.binding_witness_uses().to_vec();
-    let (output, selected) = output.into_parts();
+    let (mut output, selected) = output.into_parts();
     let shape_plan = output.local.materialization().clone();
     let kind = output.local.output_kind().clone();
     let mut module = output.local.into_module();
     modify(&mut module);
-    let local = hir::LocalConcreteHirOutput::try_new(module, kind, shape_plan).unwrap();
-    hir::DependencyHirOutput::try_new(
-        hir::Output::try_new(
-            output.export,
-            local,
-            output.native_boundary_types,
-            output.warnings,
-        )
-        .unwrap(),
-        selected,
-        witnesses,
-    )
+    output.local = hir::LocalConcreteHirOutput::try_new(module, kind, shape_plan).unwrap();
+    hir::DependencyHirOutput::try_new(output, selected, witnesses)
 }
 
 fn second_call(module: &mut hir::concrete::Module) -> &mut hir::concrete::Expr {

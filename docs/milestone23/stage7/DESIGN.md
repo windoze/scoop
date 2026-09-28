@@ -82,7 +82,7 @@ abstract slot、intrinsic 声明和 source extern 继续使用各自已有 imple
 
 模板可引用 direct 或 support provider 的声明。只保存原 typed target 和实际 provider；re-export 不复制正文、不改 origin。一次 reader 得到的不可变模板和声明供后续查询复用。模板内已经绑定的引用不制造消费方 public lookup observation，也不重新枚举 hidden 名称；只有消费方实际源码 lookup 才进入原候选记录。
 
-当前 Cone 在 Export HIR 完成后、LocalConcrete HIR 生成前收集一次共有声明与模板正文闭包，并随不可变的 Export HIR 输出保留该结果。公开声明、默认值与泛型正文实际引用的私有具体类型进入同一组 shape support roots；HIR 类型语义、MIR/LIR 布局和正式共有 section 复用这一结果，不重新从 public binding 子集收集根。未引用的私有声明不因此进入共有支持表。该结果是当前编译的数据投影，不新增产物字段或来源资格。
+当前 Cone 在 Export HIR 完成后、LocalConcrete HIR 生成前，从公开声明、默认值与泛型正文收集共有声明和模板正文闭包，供具体化选择自动 shape roots。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 沿表示依赖，把当前 Cone 所需的源码名义声明补入同一支持集合，并闭合其字段、成员和模板引用；普通函数正文中用于泛型 payload 的私有类型也必须有完整表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，最终不可变结果由 HIR 类型语义、MIR/LIR 布局和正式共有 section 复用。支持声明保留原 typed identity 和可见性，不生成 public binding；所有本地私有物理声明、未调用模板、未求值默认值和整个类型 arena 仍不构成共有机器根。该结果是当前编译的数据投影，不新增产物字段或来源资格。
 
 ### 3.2 默认值与泛型正文共用节点
 

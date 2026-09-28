@@ -1,0 +1,24 @@
+private class Number(val value: Int)
+private class Unused(val value: Int)
+private struct Marker()
+private struct Pair<T>(val first: T, val second: T)
+private enum Parcel<T> { Empty, Item(T) }
+private struct Dormant<T>(val value: T)
+private object Singleton {
+    val value: Int = 0
+}
+
+public fun <T> sourceOnly(value: T): T {
+    val never = Dormant(42)
+    return value
+}
+
+public fun result(): Int {
+    val parcel = Parcel.Item(Pair(Number(20), Number(22)))
+    val marker = Parcel.Item(Marker())
+    val singleton = Parcel.Item(Singleton)
+    return when (parcel) {
+        Empty -> 0
+        Item(pair) -> pair.first.value + pair.second.value
+    }
+}

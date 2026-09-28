@@ -401,12 +401,14 @@ fn finish_output(
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
             .map_err(native_boundary_diagnostic)?;
-    hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to seal HIR output: {error}"),
-        )]
-    })
+    hir::Output::try_new(export, local, native_boundary_types, warnings, selected).map_err(
+        |error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to seal HIR output: {error}"),
+            )]
+        },
+    )
 }
 
 fn native_boundary_diagnostic(

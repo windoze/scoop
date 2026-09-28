@@ -1,5 +1,7 @@
 Module
   enum Parcel niche(kind=managed,payload_variant=1)
+  enum CoroutineStep<Number> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Number> niche(kind=managed,payload_variant=1)
   fun @scoop$1$cb$7a9180c8ec64578bf879775812767ff2481ba92e1c805acfd55422be7eb41c11() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
@@ -140,7 +142,11 @@ Module
     ret
   td td0 n(c=dev.example%3Ageneric-nominal-standalone%3A0.1.0;p=consumer.nominals;o=-;k=C;x=Number) @scoop$1$td$3b7b92102948085db409050376293318fac889dba10074cc55b9c1de1596f401 type-id=17952546477318241231 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td1 a(n(c=dev.example%3Ageneric-nominal-provider%3A0.1.0;p=dependency.nominals;o=-;k=E;x=Parcel);[n(c=dev.example%3Ageneric-nominal-standalone%3A0.1.0;p=consumer.nominals;o=-;k=C;x=Number)]) @scoop$1$td$adc2bf6c4fdbfb955bd258d697d981bde768fec5224c44b6ee09b5b3bd631d02 type-id=14615848597958704075 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000007;i=1b486b03573b362b1bb0b876fcb1936ab6fd5dc9117566e5fae39b338960ddcd) @scoop$1$td$143bd5192bc9e913035bb5451a48d4d8087de3ebc84f21afee7ac1ab1b785471 type-id=323336228375770292 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000005;i=e95e11887bda08118484ece7a5ed303c0a4a55a427535d916b189b8ff7f81b89) @scoop$1$td$fc3dac40eb195cb068c49e0e19cb0a346abafce2f21770dc9ed9c24c8bd52ccf type-id=12271581475106930136 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Parcel size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<Number> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Number> size=8 align=8 enum-scan=refs[0]
   layout Number value size=8 align=8 refs=[0]
   layout Number size=24 align=8 refs=[]
   output library

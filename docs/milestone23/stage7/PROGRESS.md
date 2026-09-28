@@ -335,11 +335,23 @@
 
 本项完成重复 ODR 布局的物理引用处理及原异常存储的产物发布回归；M23-7 的其余主线继续实施。
 
+## 2026-09-28：消费方泛型 payload 的私有表示依赖
+
+- 完成 HIR 时，从实际已物化的 nominal application 沿既有类型子节点收集表示依赖，将当前 Cone 所需的源码名义声明补入同一共有支持集合。声明保留原 typed identity 与可见性，object 通过实际 backing class 关系找到原声明；外来声明仍由原 provider 提供，不复制到当前源码 arena。
+- 支持根增加时，同步扩展已有源码/模板投影和 `LocalShapeSupportPlan`，让普通私有类型的 MIR 表示、有限生成类型和 LIR 布局进入完整产物引用闭包。没有新增 wire、public binding 或平行声明表；所有本地私有物理声明不会因此自动导出，加入无关私有声明的既有字节稳定性检查继续通过。
+- 新增独立与组合源码 fixture，覆盖私有 class 引用、泛型 struct 和 enum 的嵌套存储、零大小值、私有 object，以及仅在未调用模板中出现的闭合泛型构造。检查原可见性、支持根、字段 exact identity、完整类型记录往返与未使用类型不发射。MIR 测试辅助入口改为借用正式路径的完整 canonical foundation，允许真实 ODR 构造器签名，保留历史 Strong 边界的拒绝规则。
+- 原 `generic_nominal_consumers_create_payload_instances_from_artifacts` 的 standalone 和 combined 全部通过：provider 发布后移走源码，consumer 从模板生成此前不存在的 payload 实例，再发布并移走源码；下游仅用 `.slib` 完成读取、编译、链接、普通运行和移动 GC，保留实际收集断言。四份 MIR/LIR golden 的变化已逐份核对，仅补充支持类型对应的既有 box/coroutine 表示及其 descriptor；原 payload 布局和执行正文保留。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过。非 driver 工作区的 5036 项测试全部通过，无忽略，包含 1257 项 HIR lowering 和 584 项 slib 测试；定向的 25 项类型表示测试包含在上述总数中。关闭快照更新后，泛型产物测试有 7 项通过，原异常存储六用例发布回归通过。
+- 扩大的泛型产物回归仍有 1 项失败：`generic_initializations_survive_publication_and_execute_with_moving_gc` 在 standalone 发布时遇到 `LayoutExports(MissingDispatch(...))`。实际泛型 class 已有类型与布局，但尚未进入共有 MIR dispatch 清单；下一步沿原物理派发表补齐此路径，不以空表绕过实际成员。
+- 确认编译、测试及配套编译器进程结束，且 `target` 没有打开的文件后，执行 `cargo clean --target-dir target`，删除 2672 个构建文件，回收 4.5 GiB。
+
+本项完成泛型 payload 私有存储依赖与原消费产物运行闭环；泛型 class dispatch、构造模板的实际导入及其余 M23-7 验收继续实施。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化模板的实际消费，以及 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定及局部函数直接调用基础上，补齐默认值与 vararg、宿主和方法两组 binder、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 补齐消费方泛型 payload 的 MIR 类型依赖，恢复其真实发布、链接运行回归；继续完成消费方泛型名义类型的构造、继承、属性、dispatch、ZST/大值/引用 ABI 与递归扫描程序的实际对象 atom。
+3. 补齐实际泛型 class 的共有 dispatch 清单，恢复构造初始化的产物回归；继续完成消费方泛型名义类型的构造、继承、属性与派发组合，扩展 ZST/大值/引用 ABI 组合及递归扫描程序的实际对象 atom。
 4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

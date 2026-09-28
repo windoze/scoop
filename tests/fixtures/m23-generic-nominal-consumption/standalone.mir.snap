@@ -2,7 +2,15 @@ Module
   enum Parcel<Number>
     Empty()
     Item(_0: Number)
+  enum CoroutineStep<Number>
+    Completed(value: Number)
+    Suspended()
+  enum CoroutineSlot<Number>
+    Empty()
+    Value(value: Number)
   class Number vtable=0 itables=0
+  generated_exact_type get0 location=enum2 nominal_id=1b486b03573b362b1bb0b876fcb1936ab6fd5dc9117566e5fae39b338960ddcd exact_id=143bd5192bc9e913035bb5451a48d4d8087de3ebc84f21afee7ac1ab1b785471
+  generated_exact_type get1 location=enum1 nominal_id=e95e11887bda08118484ece7a5ed303c0a4a55a427535d916b189b8ff7f81b89 exact_id=fc3dac40eb195cb068c49e0e19cb0a346abafce2f21770dc9ed9c24c8bd52ccf
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -210,6 +218,8 @@ Module
         Type Int
         Local value
       return
+  coroutine_step cs0 CoroutineStep<Number> result=Number
+  coroutine_slot cl0 CoroutineSlot<Number> value=Number
   instance mi0 function=@fn1 <- pack
   instance mi1 function=@fn2 <- relay
   instance mi2 function=@fn3 <- unpack

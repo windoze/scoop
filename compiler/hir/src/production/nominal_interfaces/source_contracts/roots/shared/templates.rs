@@ -12,6 +12,7 @@ impl SharedSourceRoots {
     pub(in crate::production) fn with_callable_bodies(
         export: &ExportHir,
         imported: Option<&SelectedImportedDependencySet>,
+        additional_nominals: &[SourceNominalId],
     ) -> Result<
         (
             Self,
@@ -21,6 +22,12 @@ impl SharedSourceRoots {
         GenericTemplateProductionError,
     > {
         let mut collection = SourceCollection::new(export).map_err(declarations)?;
+        for owner in additional_nominals {
+            collection
+                .nominals
+                .require(*owner, true)
+                .map_err(declarations)?;
+        }
         let mut producer = GenericBodyProducer::new(export, imported)?;
         let mut initialization_producer = GenericInitializationProducer::new(export, imported);
         let properties = export

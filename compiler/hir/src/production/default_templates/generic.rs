@@ -22,7 +22,7 @@ use crate::production::nominal_interfaces::SharedSourceRoots;
 
 impl CanonicalExportGenericCallableBodiesV1 {
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, GenericTemplateProductionError> {
-        SharedSourceRoots::with_callable_bodies(export, None).map(|(_, bodies, _)| bodies)
+        SharedSourceRoots::with_callable_bodies(export, None, &[]).map(|(_, bodies, _)| bodies)
     }
 
     pub fn from_dependency_hir(

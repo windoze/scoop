@@ -1015,7 +1015,7 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 
 本节与 [M23-7 设计](../milestone23/stage7/DESIGN.md) 规定 M23-6 之后的实现合同；阶段状态为实现中。语言行为沿用语言规范 3.2、8.5、9.1.1、9.2 与 12.5，runtime 沿用运行时规范 2.2、2.7、2.8。本节取代旧设计要求每个 producer 为同一 ODR group 发射完全相同成员集合的条款。
 
-Export HIR 完成后、LocalConcrete HIR 生成前，收集一次共有声明与模板正文的实际支持闭包，并随不可变 Export HIR 输出保留。公开声明、默认值与泛型正文需要的私有具体类型使用同一组 shape support roots；HIR 类型语义、MIR/LIR 布局及共有 section 复用该结果。不得在后续重新从 public binding 子集收集根而丢掉模板支持类型，也不为未引用的私有声明增加共有导出。该数据投影不新增产物字段或来源资格。
+Export HIR 完成后、LocalConcrete HIR 生成前，先从公开声明、默认值与泛型正文收集共有声明和模板正文的支持闭包，供具体化选择自动 shape roots。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 出发，沿其表示依赖收集属于当前 Cone 的源码名义声明，补入同一支持集合，并沿已有声明、字段、成员与模板引用闭合；普通函数正文中用于泛型 payload 的私有类型因而具有完整的共有表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，已完成的不可变结果供 HIR 类型语义、MIR/LIR 布局及共有 section 复用。新增支持保留原 typed identity 和声明可见性，不产生 public binding，也不把所有本地私有物理声明、未调用模板、未求值默认值或整个类型 arena 当成共有机器根。该数据投影不新增产物字段或来源资格。
 
 共有 HIR 源码接口增加真正用于下游具体化的 generic callable body、constructor/common initialization 和 generic delegated extension template。声明、binder、字段、默认值及定义位置继续使用既有共有表；正文保留已解析的 typed target、符号化类型实参、bound member、局部值与 capture、control flow 和条件约束，不保存 AST、未解析名称、上游 LocalConcrete 实例或另一套语义检查结果。默认值与泛型正文共用节点编解码和替换算法，但用不同的根类型保存各自的语言规则；public default 的访问域不会因共用节点而放宽。前端完成定义处语言检查，reader 检查格式、typed 引用、binder/owner 和实际依赖；二者不互相重做全部工作。lambda/anonymous function 正文通过定义序捕获类型表的位置读取闭包输入，嵌套捕获来源区分当前局部值与外层捕获位置；局部具名函数保持捕获值作为真实前置参数的 ABI。共有接口从 `/31` 起按阶段设计第 10 节逐项增加必需字段，不提前填入缺失实现的空正文或占位表。
 

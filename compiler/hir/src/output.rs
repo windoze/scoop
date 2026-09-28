@@ -233,10 +233,11 @@ impl Deref for LocalConcreteHirOutput {
 
 impl crate::Output {
     pub fn try_new(
-        export: ExportHirOutput,
-        local: LocalConcreteHirOutput,
+        mut export: ExportHirOutput,
+        mut local: LocalConcreteHirOutput,
         native_boundary_types: HirNativeBoundaryTypeDefinitions,
         warnings: Vec<scoop_ast::Diagnostic>,
+        dependencies: Option<&crate::SelectedImportedDependencySet>,
     ) -> Result<Self, HirOutputError> {
         if !matches!(
             (
@@ -267,6 +268,20 @@ impl crate::Output {
                 return Err(HirOutputError::EntryMismatch);
             }
             _ => return Err(HirOutputError::OutputKindMismatch),
+        }
+        let types = local
+            .materialized_application_type_closure()
+            .map_err(HirOutputError::MaterializedTypes)?;
+        if let Some(shared_source) = export
+            .shared_source
+            .with_materialized_types(export.module(), local.module(), &types, dependencies)
+            .map_err(|error| HirOutputError::Templates(Box::new(error)))?
+        {
+            export.shared_source = std::sync::Arc::new(shared_source);
+            let requirements = crate::PublicNominalShapeRequirementsV1::from_export_hir(&export)
+                .map_err(|error| HirOutputError::ShapeRequirements(Box::new(error)))?;
+            local.materialization = LocalShapeSupportPlan::try_new(local.module(), &requirements)
+                .map_err(HirOutputError::ShapeSupport)?;
         }
         Ok(Self {
             export,
@@ -401,11 +416,15 @@ impl fmt::Display for LocalConcreteHirOutputError {
 
 impl std::error::Error for LocalConcreteHirOutputError {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum HirOutputError {
     OutputKindMismatch,
     EntryMismatch,
     CoreProtocolBranchMismatch,
+    MaterializedTypes(crate::MaterializedTypeClosureError),
+    Templates(Box<crate::GenericTemplateProductionError>),
+    ShapeRequirements(Box<crate::PublicNominalShapeProjectionError>),
+    ShapeSupport(LocalShapeSupportPlanError),
 }
 
 impl fmt::Display for HirOutputError {
@@ -418,6 +437,10 @@ impl fmt::Display for HirOutputError {
             Self::CoreProtocolBranchMismatch => {
                 "Export HIR and LocalConcrete HIR compiler-protocol branches disagree"
             }
+            Self::MaterializedTypes(error) => return error.fmt(formatter),
+            Self::Templates(error) => return error.fmt(formatter),
+            Self::ShapeRequirements(error) => return error.fmt(formatter),
+            Self::ShapeSupport(error) => return error.fmt(formatter),
         })
     }
 }
