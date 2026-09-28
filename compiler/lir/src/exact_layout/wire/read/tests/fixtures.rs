@@ -32,9 +32,13 @@ pub(super) fn tuple() -> ExactLayoutExportV1 {
         ))
         .unwrap(),
     );
-    ExactValueLayoutV1::tuple(bound.identity, &[&values[0], &values[1]], &bound.foundation)
-        .unwrap()
-        .into()
+    ExactValueLayoutV1::tuple(
+        bound.identity,
+        &[values[0].value(), values[1].value()],
+        &bound.foundation,
+    )
+    .unwrap()
+    .into()
 }
 
 pub(super) fn enumeration(niche: bool) -> ExactLayoutExportV1 {

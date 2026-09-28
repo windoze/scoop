@@ -18,6 +18,7 @@ mod instance;
 mod physical;
 mod scope;
 mod source;
+mod structural;
 mod value;
 
 pub use error::ExactLayoutLoweringError;
@@ -111,23 +112,33 @@ impl Projection<'_> {
         }
 
         self.active.insert(id);
-        let shape = self.shape(exact)?;
-        let ty = self.physical_type(exact)?;
-        self.validate_source(shape, &ty)?;
         let identity = lir::ExactLayoutIdentityV1::from_foundation(
             self.output.module().meta.target_profile,
             self.identities.canonical_record(exact)?,
             role,
             self.output.foundation(),
         )?;
-        let record = match role {
-            RepresentationRole::ManagedValue | RepresentationRole::CValue => {
-                self.value(identity, shape)?.into()
-            }
-            RepresentationRole::ManagedObject => self.instance(identity, shape)?.into(),
-            _ => return Err(ExactLayoutLoweringError::Role(id)),
+        let record = if matches!(
+            identity.exact_key(),
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
+        ) {
+            let shape = self.shape(exact)?;
+            let ty = self.physical_type(exact)?;
+            self.validate_source(shape, &ty)?;
+            let record = match role {
+                RepresentationRole::ManagedValue | RepresentationRole::CValue => {
+                    self.value(identity, shape)?.into()
+                }
+                RepresentationRole::ManagedObject => self.instance(identity, shape)?.into(),
+                _ => return Err(ExactLayoutLoweringError::Role(id)),
+            };
+            self.validate_physical(&record, shape, &ty)?;
+            record
+        } else {
+            let value = self.structural_value(identity)?;
+            self.validate_structural_value(&value)?;
+            value.into()
         };
-        self.validate_physical(&record, shape, &ty)?;
 
         self.completed.insert(id, record.clone());
         self.active.remove(&id);

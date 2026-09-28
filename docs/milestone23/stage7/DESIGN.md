@@ -168,7 +168,7 @@ generic host 的普通方法和 accessor 具有 exact owner；generic method 另
 
 泛型成员的普通调用和强制 `super` 调用保留不同的调用方式。泛型宿主上的普通虚方法、接口方法及访问器复用具体方法的 direct/virtual/interface dispatch；方法自身有类型参数时保持 final/direct。类的虚表、类和值类型的接口表可引用外来普通定义，或当前消费方从模板物化的具体方法；抽象槽沿现有参数完整的抽象方法与 trap 路径处理。共有模板的再次发布保留这项选择，不能把普通动态调用重新导出成强制直接调用。
 
-泛型抽象成员只有共有声明，没有共享执行正文。消费方从已验证声明取得实际 owner、宿主 binder、完整 receiver/参数/结果、effect 和原 definition origin，建立与本地抽象方法相同的参数局部值，进入既有 abstract trap lowering；不能为通过正文导入而制造空的共有 body record。默认实现继续消费真实模板正文，接口继承和抽象 override 保留实际所选声明。同一具体方法同时被调用根和接口表引用时，MIR 复用一个函数与实例记录。导入 struct/enum 在存储和父接口完成后，沿与 class 相同的 source dispatch selection 建立完整接口实现；实际装箱和 adjust thunk 使用该完整 conformance，不从方法名重建选择。
+泛型抽象成员只有共有声明，没有共享执行正文。消费方从已验证声明取得实际 owner、宿主 binder、完整 receiver/参数/结果、effect 和原 definition origin，建立与本地抽象方法相同的参数局部值，进入既有 abstract trap lowering；不能为通过正文导入而制造空的共有 body record。抽象 setter 的隐式参数使用原 accessor 声明位置，普通参数继续保留自己的源码位置。默认实现继续消费真实模板正文，接口继承和抽象 override 保留实际所选声明。同一具体方法同时被调用根和接口表引用时，MIR 复用一个函数与实例记录。导入 struct/enum 在存储和父接口完成后，沿与 class 相同的 source dispatch selection 建立完整接口实现；实际装箱和 adjust thunk 使用该完整 conformance，不从方法名重建选择。
 
 接口声明的槽契约与实际机器表项分开表示：接口 record 保存必需的原 slot、槽位置和完成替换的完整签名，不能保存虚构的自身 itable。类和值类型的实际 itable 保留必需实现，并按接口槽契约校验身份、顺序与完整签名。槽契约只引用自身签名类型；只有实际目标产生 callable 依赖，根默认正文没有被调用或被更具体的抽象声明压制时不物化。普通接口与泛型 application 共用此结构；源码覆写选择仍来自 HIR，不在 MIR/meta 增加第二套选择算法。
 
@@ -200,7 +200,11 @@ value/ref、GC-free、enum variant facts、ZST 和 `Option` niche 在 concrete �
 
 物理 producer 和 semantic owner 分开。普通 Strong 引用携带真实定义方；ODR 引用携带 group/member。reader 可以记录某个物理候选所在 provider，但该候选位置不进入 ODR identity 或 canonical relocation。
 
-MIR 生成类型计划区分本 Cone 的普通定义与既有 ODR 生成类型，保留原 location、nominal、exact 和 group；LIR 不把后者降为 Cone-owned。实际 box、step/slot 进入原类型表示表，参数自由有限支持和按需 application/结构 helper 共用表示投影。装箱 adjust 及目标成员从真实 callable root 取得完整 Strong/ODR subject、签名和 GC effect，不从生成名称或第一次使用的 Cone 推断归属。
+MIR 生成类型计划区分本 Cone 的普通定义与既有 ODR 生成类型，保留原 location、nominal、exact 和 group；LIR 不把后者降为 Cone-owned。实际 box、step/slot 进入原类型表示表，参数自由有限支持和按需 application/结构 helper 共用表示投影。payload 语义引用沿 tuple 展开到实际 nominal/application 叶子，function 和 pointer 采用已有引用或指针表示，不要求结构 payload 独立发布名义类型记录。装箱 adjust 及目标成员从真实 callable root 取得完整 Strong/ODR subject、签名和 GC effect，不从生成名称或第一次使用的 Cone 推断归属。reader 复用 MIR 已完成的生成角色和字段检查，将按需 helper 纳入表示清单，并核对 payload GC 与直接接口关系，不要求未使用的支持族成员。
+
+box payload 或 inline array element 所需的结构 value layout 与 scan 由 LIR 实际发射，归已有 `StructuralType` group；已在 MIR 出现的 group 沿用原记录，首次需要的 group 由 LIR 生产。共有布局使用原 tuple/qualified-pointer 表示与 value constituent，不要求嵌套结构元素逐个物化。含引用 box 的 inline scan 必须连接真实 payload layout，不能只保存一个没有定义的 scan identity。
+
+装箱 adjust 的外来目标直接使用同次 selected callable 的完整物理签名，Direct/Interface 调用方式不承担声明签名查询。外来参数自由值的 box 与 adjust 由原 provider 提供，conformance 查询数据本身不增加消费方执行根；本地值和实际泛型 application 的装箱实现继续按需物化。
 
 共有布局与 callable ABI 语义闭包保存 `(provider, target)`，允许同一 ODR definition plan 在不同 Cone 各有一份记录。指定 provider 的引用必须保留该定义位置，普通 Strong target 和同一 provider 内的重复仍拒绝；跨产物内容兼容性继续由共有 ODR member 合并入口检查，不在语义索引中先选 winner 或重算内容摘要。
 

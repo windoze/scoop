@@ -108,12 +108,18 @@ fn primitive_interfaces_compile_and_run_through_actual_artifacts() {
             "primitive-default",
             "primitive-core",
             "primitive-cast-failure",
-        ],
-        &[
-            "primitive-wrong-interface",
-            "boolean-wrong-interface",
             "primitive-variance",
         ],
+        &["primitive-wrong-interface", "boolean-wrong-interface"],
+    );
+}
+
+#[test]
+fn structural_boxes_compile_and_run_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &["structural-box", "structural-box-combined"],
+        &[],
     );
 }
 
@@ -546,20 +552,6 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         let SingleConeProductionError::Production(error) = error else {
             panic!("{case}: expected HIR diagnostics, got {error:?}");
         };
-        if *case == "primitive-variance" {
-            assert!(matches!(
-                error.cause(),
-                CurrentConeProductionFailure::Mir(CurrentConeMirStageError::Sealing(
-                    scoop_mir::ConeMirInputError::OdrGeneratedNominalShape(_)
-                ))
-            ));
-            snapshot(
-                &fixtures.join(format!("{case}.diagnostic.snap")),
-                &format!("{}\n", error.cause()),
-            );
-            assert!(!destination.exists());
-            continue;
-        }
         let CurrentConeProductionFailure::Hir(current_hir::CurrentConeHirStageError::Lowering(
             diagnostics,
         )) = error.cause()

@@ -1,0 +1,155 @@
+Module
+  class LocalReader<Int> vtable=0 itables=2
+  class LocalItem<Int> vtable=1 itables=2
+  class AbstractReader<Int> vtable=1 itables=2
+  interface Reader<Int>
+  interface Readable<Int>
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type LocalReader<Int>
+        ClassAlloc LocalReader<Int>
+      call @fn9 direct
+        Type LocalReader<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $receiver: LocalReader<Int>
+        Type LocalReader<Int>
+        Local $new.1
+      call $dependency.receiver: Int = @fn5 direct
+        Type LocalReader<Int>
+        Local $receiver
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type LocalItem<Int>
+        ClassAlloc LocalItem<Int>
+      call @fn10 direct
+        Type LocalItem<Int>
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $receiver: LocalItem<Int>
+        Type LocalItem<Int>
+        Local $new.2
+      call $dependency.argument.0: Int = @fn3 direct
+        Type LocalItem<Int>
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun LocalReader.get @fn1(this: LocalReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type LocalReader<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun read @fn2(this: Reader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Reader<Int>
+        Type Reader<Int>
+        Local this
+      call $call.1: Int = @fn7 interface Readable<Int>[0]
+        Type Readable<Int>
+        Retype Readable<Int>
+          Type Reader<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun LocalItem.get @fn3(this: LocalItem<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type LocalItem<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun get @fn4(this: AbstractReader<Int>) -> Int
+    bb0 entry
+      trap @str0
+  fun LocalReader.readBase @fn5(this: LocalReader<Int>) -> Int
+    bb0 entry
+      val $dependency.receiver: Reader<Int>
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type LocalReader<Int>
+          Local this
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun LocalReader.$get$value @fn6(this: LocalReader<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalReader<Int>
+          Local this
+  fun get @fn7(this: Readable<Int>) -> Int
+    bb0 entry
+      trap @str1
+  fun LocalItem.$get$value @fn8(this: LocalItem<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalItem<Int>
+          Local this
+  fun init.LocalReader.$c0 @fn9(this: LocalReader<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalReader<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.LocalItem.$c1 @fn10(this: LocalItem<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn11 direct
+        Type AbstractReader<Int>
+        Retype AbstractReader<Int>
+          Type LocalItem<Int>
+          Local this
+      field_set 0
+        Type LocalItem<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.AbstractReader.$c0 @fn11(this: AbstractReader<Int>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn1 <- LocalReader.get
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- LocalItem.get
+  instance mi3 function=@fn4 <- get
+  instance mi4 function=@fn5 <- LocalReader.readBase
+  instance mi5 function=@fn6 <- LocalReader.$get$value
+  instance mi6 function=@fn7 <- get
+  instance mi7 function=@fn8 <- LocalItem.$get$value
+  str @str0 "call to abstract method `get`"
+  str @str1 "call to abstract method `get`"
+  output library

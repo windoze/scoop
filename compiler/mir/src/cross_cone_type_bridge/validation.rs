@@ -28,6 +28,9 @@ pub enum MirTypeBridgeError {
     MissingShapeSupportSource {
         exact: PersistentExactTypeId,
     },
+    MissingType {
+        exact: PersistentExactTypeId,
+    },
     GeneratedExecutionShapeGate {
         nominal: PersistentTypeId,
     },

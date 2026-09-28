@@ -5,12 +5,12 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : Counter
+      ImportedDependencyCall #1 : Counter
         Local $dependency.parameter.value : Long
     val local3
       Local $dependency.argument.0 : Counter
     val local4
-      ImportedDependencyCall #1 : EchoValue
+      ImportedDependencyCall #2 : EchoValue
         Local $dependency.parameter.reference : Counter
     val local5
       Box : ValueEcho
@@ -23,7 +23,7 @@ Module
       Local $dependency.argument.0 : EchoValue
     return
       FieldAccess dependency field 64c42b4bc6676202a6b317c4642f06c65a13053af5c3e20c5e8302d3e52b7f25 : Counter
-        ImportedDependencyCall #2 interface[0] : EchoValue
+        ImportedDependencyCall #3 interface[0] : EchoValue
           Local $dependency.receiver : ValueEcho
           Local $dependency.parameter.value : EchoValue
   output library

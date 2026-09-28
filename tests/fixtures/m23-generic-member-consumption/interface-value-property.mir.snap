@@ -1,0 +1,79 @@
+Module
+  struct PropertyCell<Int> (stored: Int)
+  class box<PropertyCell<Int>> vtable=0 itables=1
+  interface ReadOnlyProperty<Int>
+  generated_exact_type get0 location=class0 nominal_id=4d5111a3ea423497398da808f47303c77d44141b7060775e0515491509012e74 exact_id=502d9d3e6468948306c1fcc07dd91558f6cc6e1a44db08b6c1556cc276afb4fc
+  generated_callable gc0 function=@fn6 id=103c2df8d22cf98b9901fca18d1060db1ef218dafd4e6fe420f4bd0bd1be02fc
+  generated_callable gc1 function=@fn5 id=aa885ae425272e2de8107fed32c6e3df61a19bd34204cb22776740bc108acf37
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.stored: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: PropertyCell<Int> = @fn4 direct
+        Type Int
+        Local $dependency.parameter.stored
+      val cell: ReadOnlyProperty<Int>
+        Type ReadOnlyProperty<Int>
+        Box
+          Type PropertyCell<Int>
+          Local $call.1
+      call $call.2: Int = @fn2 interface ReadOnlyProperty<Int>[1]
+        Type ReadOnlyProperty<Int>
+        Local cell
+      return
+        Type Int
+        Local $call.2
+  fun value @fn1(this: PropertyCell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type PropertyCell<Int>
+          Local this
+  fun read @fn2(this: ReadOnlyProperty<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 interface ReadOnlyProperty<Int>[0]
+        Type ReadOnlyProperty<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun value @fn3(this: ReadOnlyProperty<Int>) -> Int
+    bb0 entry
+      trap @str0
+  fun ctor.PropertyCell.$c0 @fn4(stored: Int) -> PropertyCell<Int> <no-gc>
+    bb0 entry
+      return
+        Type PropertyCell<Int>
+        StructInit PropertyCell<Int>
+          Type Int
+          Local stored
+  fun thunk<PropertyCell<Int>> ReadOnlyProperty.value() @fn5(this: ReadOnlyProperty<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type PropertyCell<Int>
+        Unbox
+          Type ReadOnlyProperty<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<PropertyCell<Int>> ReadOnlyProperty.read() @fn6(this: ReadOnlyProperty<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type ReadOnlyProperty<Int>
+        Retype ReadOnlyProperty<Int>
+          Type ReadOnlyProperty<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- value
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- value
+  str @str0 "call to abstract method `value`"
+  output library

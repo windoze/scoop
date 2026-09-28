@@ -7,15 +7,15 @@ impl MirTypeBridgeSemanticReferencesV1 {
     ) -> Result<Self, MirTypeBridgeReferenceError> {
         let mut collector = Collector::new(graph);
         if let MirTypeRepresentationV1::InlineArray { element } = record.representation() {
-            collector.field(*element)?;
+            collector.exact(*element)?;
         }
 
         for field in record.representation().fields() {
-            collector.field(field.value)?;
+            collector.exact(field.value)?;
         }
         for variant in record.representation().variants() {
             for field in &variant.fields {
-                collector.field(field.value)?;
+                collector.exact(field.value)?;
             }
         }
         if let MirBaseClassV1::Base(base) = record.base_and_interfaces().base {

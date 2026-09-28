@@ -13,20 +13,21 @@ mod representation;
 mod resources;
 use resources::reserve;
 
-/// Combines actual source representations and the sealed finite shape plan.
+/// Combines actual source applications with their generated shape representations.
 pub fn lower_type_exports(
     local: &hir::LocalConcreteHir,
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::ConeMirInput,
     identities: &ValidatedIdentityGraph,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
-    let source = lower_source_type_exports(hir, input, identities)?;
-    let finite =
+    let mut source = lower_source_type_exports(hir, input, identities)?.into_records();
+    applications::append(local, hir, input, identities, &mut source)?;
+    let source = mir::CanonicalParamFreeMirTypeExportsV1::try_new(source)?;
+    let generated =
         mir::CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(input, &source, identities)?;
     let mut records = source.into_records();
-    reserve(&mut records, finite.records().len())?;
-    records.extend(finite.into_records());
-    applications::append(local, hir, input, identities, &mut records)?;
+    reserve(&mut records, generated.records().len())?;
+    records.extend(generated.into_records());
 
     Ok(mir::CanonicalParamFreeMirTypeExportsV1::try_new(records)?)
 }

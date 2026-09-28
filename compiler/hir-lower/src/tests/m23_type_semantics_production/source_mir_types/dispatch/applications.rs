@@ -62,6 +62,9 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
                         .map(|parent| local.exact_type_identities[*parent].id())
                         .collect::<Vec<_>>()
                 );
+                let schema = schemas.get(owner).unwrap();
+                assert!(schema.itables().is_empty());
+                assert_eq!(schema.interface_slots().unwrap().len(), 2);
             }
             let roots = input.materialization().callable_roots();
             let mut bindings = BTreeMap::new();
@@ -107,7 +110,8 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
                     }
                 }
             }
-            assert!(defaults > 0 && traps > 0);
+            assert!(defaults > 0);
+            assert_eq!(traps > 0, case == "dispatch-combined");
             let bindings =
                 CanonicalMirCallableBindingsV1::try_new(bindings.into_values().collect()).unwrap();
             let callable_authority = MirCallableBridgeAuthority {

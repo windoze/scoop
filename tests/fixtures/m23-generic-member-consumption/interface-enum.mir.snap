@@ -1,0 +1,74 @@
+Module
+  enum InterfaceTag<Int>
+    Empty()
+    Value(_0: Int)
+  class box<InterfaceTag<Int>> vtable=0 itables=1
+  interface Chooser<Int>
+  generated_exact_type get0 location=class0 nominal_id=bfbde54b7afa8e5a73c231f4e21e6017ba9702f2beaf42e9e2bb0be859a99b4a exact_id=3bd289bbfca0d045c82f76cc7dc981e3369baea95062afad7dcfabe03c0d2257
+  generated_callable gc0 function=@fn3 id=c2bd2ca0dafb0c5d04c45d084b5fbfe5e16336cc3b2d804b761006c92a2976a8
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: InterfaceTag<Int> = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val chooser: Chooser<Int>
+        Type Chooser<Int>
+        Box
+          Type InterfaceTag<Int>
+          Local $call.1
+      val $dependency.receiver: Chooser<Int>
+        Type Chooser<Int>
+        Local chooser
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Int = @fn1 interface Chooser<Int>[0]
+        Type Chooser<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.2
+  fun choose @fn1(this: Chooser<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun interfaceTag @fn2(value: Int) -> InterfaceTag<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      return
+        Type InterfaceTag<Int>
+        VariantConstruct InterfaceTag<Int> v1
+          Type Int
+          Local $dependency.local.2
+  fun thunk<InterfaceTag<Int>> Chooser.choose(Int) @fn3(this: Chooser<Int>, value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Chooser<Int>
+        Retype Chooser<Int>
+          Type Chooser<Int>
+          Local this
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- choose
+  instance mi1 function=@fn2 <- interfaceTag
+  output library

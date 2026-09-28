@@ -1,5 +1,7 @@
 use scoop_hir as hir;
+use scoop_identity::{ExactTypeKey, GeneratedNominalKey};
 use scoop_mir as mir;
+use scoop_mir::MirTypeBridgeTypeLookupV1;
 use scoop_wire::WirePath;
 
 use super::{Error, SharedMirTypeComponent as Component, validation::Comparison};
@@ -92,5 +94,52 @@ pub(super) fn validate(
             )?;
         }
     }
+    Ok(())
+}
+
+pub(super) fn generated(
+    comparison: &mut Comparison<'_, '_>,
+    record: &mir::ParamFreeMirTypeExportV1,
+    role: &GeneratedNominalKey,
+) -> Result<(), Error> {
+    let identities = comparison.source.metadata().identities;
+    match role {
+        GeneratedNominalKey::BoxedValue { payload } => {
+            let key = identities
+                .canonical_key::<_, ExactTypeKey>(*payload)
+                .map_err(hir::SharedTypeMetadataError::from)?;
+            let interfaces = match key.as_ref() {
+                ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
+                    &comparison
+                        .types
+                        .get(*payload)
+                        .ok_or(Error::MissingType(*payload))?
+                        .base_and_interfaces()
+                        .interfaces[..]
+                }
+                ExactTypeKey::Tuple(_)
+                | ExactTypeKey::Function { .. }
+                | ExactTypeKey::RawPointer(_)
+                | ExactTypeKey::NativeFunctionPointer { .. } => &[],
+            };
+            Error::require(
+                record.exact(),
+                Component::Interfaces,
+                record.base_and_interfaces().interfaces == interfaces,
+            )?;
+        }
+        GeneratedNominalKey::CoroutineStep { result: payload }
+        | GeneratedNominalKey::CoroutineSlot { value: payload } => {
+            let gc = comparison.types.exact_gc_kind(identities, *payload)?;
+            Error::require(record.exact(), Component::Facts, record.facts().gc() == gc)?;
+            Error::require(
+                record.exact(),
+                Component::Interfaces,
+                record.base_and_interfaces().interfaces.is_empty(),
+            )?;
+        }
+        _ => return Err(Error::UnexpectedType(record.exact())),
+    }
+    comparison.require_type(record.exact())?;
     Ok(())
 }

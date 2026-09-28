@@ -1,0 +1,31 @@
+Module
+  fun check(): Long
+    val local0
+      IntegerLiteral 42 : Long
+    val local1
+      Box : Any
+        TupleLiteral : (Long, String)
+          Local number : Long
+          StringLiteral "tuple" : String
+    val local2
+      Local $dependency.argument.0 : Any
+    val local3
+      ImportedDependencyCall #0 : Any
+        Local $dependency.parameter.value : Any
+    val local4
+      Unbox : (Long, String)
+        Cast (Long, String) optional=false : (Long, String)
+          Local boxed : Any
+    val local5
+      FieldAccess _1 : Long
+        Local $binding.subject.0 : (Long, String)
+    val local6
+      Local $binding.projection.1 : Long
+    val local7
+      FieldAccess _2 : String
+        Local $binding.subject.0 : (Long, String)
+    val local8
+      Local $binding.projection.2 : String
+    return
+      Local value : Long
+  output library

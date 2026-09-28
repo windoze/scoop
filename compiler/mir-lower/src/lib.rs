@@ -188,13 +188,19 @@ pub fn lower(
     ))
 }
 
+#[derive(Clone)]
+struct ImportedCallableTarget {
+    callable: mir::ExternalCallableUseId,
+    lowering_role: mir::MirCallableLoweringRoleV1,
+    signature: scoop_identity::ExactCallableSignature,
+}
+
+type ImportedCallableMap = HashMap<hir::ImportedDependencyCallableUseId, ImportedCallableTarget>;
+
 fn lower_with_dependencies(
     output: &scoop_hir::LocalConcreteHirOutput,
     external_callables: Arena<mir::ExternalCallableUse>,
-    imported_dependency_callable_map: HashMap<
-        hir::ImportedDependencyCallableUseId,
-        (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
-    >,
+    imported_dependency_callable_map: ImportedCallableMap,
     imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
     external_signature_types: &[hir::TypeId],
 ) -> mir::Module {
@@ -390,10 +396,7 @@ struct Lowerer {
     /// adjust thunk.
     boxing_adjusts: Vec<mir::BoxingAdjust>,
     external_callables: Arena<mir::ExternalCallableUse>,
-    imported_dependency_callable_map: HashMap<
-        hir::ImportedDependencyCallableUseId,
-        (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
-    >,
+    imported_dependency_callable_map: ImportedCallableMap,
 }
 
 #[derive(Clone, Copy)]

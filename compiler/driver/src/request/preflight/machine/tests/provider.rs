@@ -1,8 +1,10 @@
 use scoop_identity::{
     BindableEntity, BindingTarget, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord,
-    ConeCoordinate, DeclarationScope, DefinitionOwnerChain, Effect, ExportBindingKey, GcEffect,
-    PackagePath, PersistentExportBindingId, PersistentFunctionId, SignatureTypeKey,
-    SourceDeclarationKey, SourceDeclarationSite,
+    ConeCoordinate, DeclarationScope, DefinitionOrigin, DefinitionOriginRecord,
+    DefinitionOriginSubject, DefinitionOwnerChain, Effect, ExportBindingKey, GcEffect,
+    NormalizedSourcePath, PackagePath, PersistentExportBindingId, PersistentFunctionId,
+    SignatureTypeKey, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
+    SourceIdentity, SourceSpan,
 };
 pub(super) struct Provider {
     pub(super) coordinate: ConeCoordinate,
@@ -77,6 +79,30 @@ impl Provider {
             },
         );
         let mut foundation = scoop_hir::CanonicalHirFoundation::empty();
+        let identity = SourceIdentity::new(
+            origin,
+            NormalizedSourcePath::new("declaration.scoop").unwrap(),
+        )
+        .unwrap();
+        let context = SourceContextKey::File {
+            source: identity.clone(),
+        };
+        let end = name.len() as u64;
+        foundation
+            .set_sources(vec![
+                scoop_hir::SourceRecord::from_utf8(identity.clone(), name, [0, end]).unwrap(),
+            ])
+            .unwrap();
+        foundation
+            .set_source_contexts(vec![CborIdentityRecord::from_key(context.clone()).unwrap()])
+            .unwrap();
+        foundation
+            .set_definition_origins(vec![DefinitionOriginRecord::new(
+                DefinitionOriginSubject::Function(function.id()),
+                DefinitionOrigin::new(identity, SourceSpan::new(0, end).unwrap(), &context)
+                    .unwrap(),
+            )])
+            .unwrap();
         foundation.set_functions(vec![function]).unwrap();
         foundation.set_export_bindings(vec![binding]).unwrap();
         let interface = scoop_hir::CrossConeHirInterfaceSectionV1::new(

@@ -27,18 +27,19 @@ pub(super) fn for_owner<'a>(
 ) -> Result<Schema<'a>, Error> {
     let ty = bridge.types().get(exact).ok_or(Error::MissingType(exact))?;
     match ty.representation() {
-        mir::MirTypeRepresentationV1::BoxedValue { payload } => for_owner(bridge, payload.value),
         mir::MirTypeRepresentationV1::Struct { .. }
         | mir::MirTypeRepresentationV1::Enum { .. }
         | mir::MirTypeRepresentationV1::InlineArray { .. }
         | mir::MirTypeRepresentationV1::CoroutineStep { .. }
         | mir::MirTypeRepresentationV1::CoroutineSlot { .. }
+        | mir::MirTypeRepresentationV1::BoxedValue { .. }
         | mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
             if ty.base_and_interfaces().base == mir::MirBaseClassV1::None
                 && ty.base_and_interfaces().interfaces.is_empty() =>
         {
             Ok(Schema::Empty)
         }
+        mir::MirTypeRepresentationV1::BoxedValue { payload } => for_owner(bridge, payload.value),
         _ => bridge
             .dispatch()
             .get(exact)

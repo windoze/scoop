@@ -1,7 +1,8 @@
 use super::*;
 use scoop_identity::{
-    CallableMaterializationContext, CallableTemplateOwner, InitializationCallableRole,
-    InitializationUnitKey,
+    CallableApplicationKey, CallableMaterializationContext, CallableTemplateOrigin,
+    CallableTemplateOwner, InitializationCallableRole, InitializationUnitKey,
+    OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole,
 };
 
 impl MirCallableBridgeAuthority<'_> {
@@ -169,13 +170,32 @@ impl MirCallableBridgeAuthority<'_> {
         implementor: PersistentExactTypeId,
         target: CallableDefinitionOwner,
     ) -> Result<(), MirCallableBridgeError> {
-        if !matches!(
-            target,
+        let source_target = match target {
             CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(_))
-                | CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::PropertyAccessor(
-                    _
-                ))
-        ) {
+            | CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::PropertyAccessor(_)) => {
+                true
+            }
+            CallableDefinitionOwner::Odr(member)
+                if member.role() == OdrMemberRole::CallableBody =>
+            {
+                let key = self
+                    .identities
+                    .canonical_key::<_, OdrMemberKey>(member.member())?;
+                match key.discriminator() {
+                    OdrMemberDiscriminator::CallableApplication(application) => matches!(
+                        self.identities
+                            .canonical_key::<_, CallableApplicationKey>(*application)?
+                            .origin(),
+                        CallableTemplateOrigin::Function(_)
+                            | CallableTemplateOrigin::GenericFunction(_)
+                            | CallableTemplateOrigin::Accessor(_)
+                    ),
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+        if !source_target {
             return Err(MirCallableBridgeError::InvalidAdjustTarget);
         }
         let semantic = binding.semantic.exact();

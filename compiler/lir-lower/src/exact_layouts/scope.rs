@@ -17,9 +17,22 @@ impl Projection<'_> {
                 }
             }
         }
+        let inline_payloads: BTreeSet<_> = self
+            .types
+            .records()
+            .iter()
+            .filter_map(|record| match record.representation() {
+                mir::MirTypeRepresentationV1::BoxedValue { payload } => Some(payload.value),
+                mir::MirTypeRepresentationV1::InlineArray { element } => Some(*element),
+                _ => None,
+            })
+            .collect();
         for (_, layout) in self.output.module().meta.layouts.iter() {
             let record = layout.identity.layout_record();
-            if self.exported(record.key().exact_type()) {
+            if self.exported(record.key().exact_type())
+                || (record.key().representation() == RepresentationRole::ManagedValue
+                    && inline_payloads.contains(&record.key().exact_type()))
+            {
                 self.add_root(record)?;
             }
         }

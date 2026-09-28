@@ -292,7 +292,7 @@ param-free nominal的constructor在定义Cone完整预物化；generic nominal a
 
 M23的导入成员复用共有持久 callable identity 与已有 template/application handle，不复制到本地源码声明 arena。推断分别使用 owner 与 callable 参数组：owner 实参由接收者继承闭包中的实际声明 application 固定，显式列表仅约束 method 参数。最具体候选比较继续按声明保留两组参数，不使用当前调用的推断结果。导入成员 application 非可选保存完整 owner type 和 method 自身实参；正文替换才临时生成有序参数列表。具体化继续使用现有 kind-specific `MethodOwner`、`CallableApplicationKey` 与 method dispatch，泛型宿主上的虚方法和接口方法不因消费方实例化而变为 direct。共享模板再次导出保留普通调用和强制 `super` 的区别；派发表可引用原普通外来定义或当前生成的具体方法，抽象方法沿现有 trap 路径。
 
-泛型抽象成员从共有声明和已验证 foundation 的原 definition origin 取得完整签名，消费方按实际宿主 binder 建立 receiver 与参数局部值，复用本地抽象方法的具体化和 trap lowering；共有接口仍不为抽象声明生产执行正文。接口默认实现使用真实模板，继承与抽象 override 保留原 source dispatch selection；MIR 对调用根与接口表共同引用的同一具体方法只建立一个函数和实例记录。导入 struct/enum 在完成字段、variant 和父接口后，与 class 共用接口实现解析，并把完整 conformance 交给已有装箱、adjust thunk 与接口表 lowering；不得按名字补造实现或另建泛型派发表。
+泛型抽象成员从共有声明和已验证 foundation 的原 definition origin 取得完整签名，消费方按实际宿主 binder 建立 receiver 与参数局部值，复用本地抽象方法的具体化和 trap lowering；共有接口仍不为抽象声明生产执行正文。抽象 accessor 的隐式 setter 参数沿用已有 accessor 声明位置，不要求普通命名参数协议，也不将这个源码参数标为无来源的 synthetic local。接口默认实现使用真实模板，继承与抽象 override 保留原 source dispatch selection；MIR 对调用根与接口表共同引用的同一具体方法只建立一个函数和实例记录。导入 struct/enum 在完成字段、variant 和父接口后，与 class 共用接口实现解析，并把完整 conformance 交给已有装箱、adjust thunk 与接口表 lowering；不得按名字补造实现或另建泛型派发表。
 
 HIR concretizer必须在模板图上分别维护nominal/callable/predicate的typed instantiation state。generic callable递归SCC中，每个环组合后的owner+callable参数替换必须为identity；合法普通递归在exact concrete key处复用已经intern的`InProgress`实体，非identity环作为polymorphic recursion在HIR诊断，不得凭深度、实例数或超时截断。`is`/`as`/`as?`目标必须引用参数完整的exact nominal application及其TypeDescriptor，不能擦除type argument或制造template-only通配descriptor。
 
@@ -426,11 +426,11 @@ LocalConcrete HIR 与 MIR 的 singleton value 直接保存 Export HIR 已建立�
 
 装箱 thunk 的实际 MIR receiver/local 及正文操作保留对应的 interface type，与持久 lowered signature 的 exact receiver 一致；不能先擦成 Any，再在 ABI 导出时把两种 nominal 当作相等。共有 MIR 验证检查该 receiver 关系，LIR 继续将接口引用降低为同一 managed pointer。
 
-装箱分派的 MIR 关系必须同时保存实际 thunk、itable 位置与同次 lowering 已选定的目标 function；目标从 typed HIR conformance 直接传入，不能在导出时扫描函数名或猜测正文。callable binding 生产按本地导出 payload 选择已有 BoxingAdjust，复用 sealed strong 根、实际 thunk 签名/GC effect 和目标的共有 callable binding；semantic signature 属于目标，lowered signature 属于 interface thunk，包含采用 interface default 的同一 box 重解释。缺失目标 binding、类型或实际 strong 根时整体失败，private 非导出 payload 的 thunk 不混入表。生成身份与 slot 格式保持不变。
+装箱分派的 MIR 关系必须同时保存实际 thunk、itable 位置与同次 lowering 已选定的目标 function；目标从 typed HIR conformance 直接传入，不能在导出时扫描函数名或猜测正文。callable binding 生产按实际导出 payload 选择已有 BoxingAdjust，复用 sealed MIR 的完整 Strong/ODR 根、实际 thunk 签名/GC effect 和目标的共有 callable binding；semantic signature 属于目标，lowered signature 属于 interface thunk，包含采用 interface default 的同一 box 重解释。缺失目标 binding、类型或实际物化根时整体失败，private 非导出 payload 的 thunk 不混入表。生成身份与 slot 格式保持不变。
 
 derived equality 的 MIR binding 直接遍历同次 LocalConcrete 已请求的完整生成函数，以既有 `GeneratedCallableKey::DerivedEquality { exact_owner }` 连接本地导出类型和 sealed MIR 的实际 Strong body。source exact signature 复用共有 LocalConcrete 投影，receiver 与唯一参数均为 owner、结果为真实 Boolean；semantic GC effect 来自 LocalConcrete，lowered GC effect 来自实际 MIR，二者必须一致。仅为当前本地类型表内的已有生成 body 生产 binding，不按函数名查找、不把显式 equals 当作派生体，也不为未请求的条件派生候选或不在本地导出范围的 owner 虚构 body。生成身份、typed signature、实际 materialization 不一致或缺少必需类型时整体失败，generic/structural ODR 资格仍由完整 profile 的既有规则决定。
 
-MIR dispatch schema 生产接收同次 HIR 的完整 slot 序列及实现选择、sealed strong MIR 和共有 callable/type 查询。class/object 表从实际 vtable/itable 读取目标；value 表从已物化的 box itable 读取 adjust；interface provider 保留自身表的完整调用签名，并连接原声明实际 body/trap。顺序与槽数量必须逐项匹配 HIR，目标还必须匹配已解析的 Concrete/InterfaceDefault/Abstract 选择，不按函数名或签名搜索实现。object 覆盖基类 virtual 方法或 accessor 时，HIR 与普通 class 共用既有 virtual family 的更新规则，final override 仍替换原 vtable 槽，不能仅替换 itable。object 与 backing 分别导出 schema，共用同一实际表；有限 shape helper 不重复导出 source schema。依赖 schema 由共有借用索引查询，缺失源类型、物化、callable、槽或依赖时整体失败。
+MIR dispatch schema 生产接收同次 HIR 的完整 slot 序列及实现选择、sealed MIR 和共有 callable/type 查询。class/object 表从实际 vtable/itable 读取目标；value 表从已物化的 box itable 读取 adjust；interface provider 保存声明的完整槽契约，不制造自身 itable，也不要求未使用的根声明具有机器 body/trap。顺序与槽数量必须逐项匹配 HIR，实际表项的目标还必须匹配已解析的 Concrete/InterfaceDefault/Abstract 选择，不按函数名或签名搜索实现。object 覆盖基类 virtual 方法或 accessor 时，HIR 与普通 class 共用既有 virtual family 的更新规则，final override 仍替换原 vtable 槽，不能仅替换 itable。object 与 backing 分别导出 schema，共用同一实际表；有限 shape helper 不重复导出 source schema。依赖 schema 由共有借用索引查询，缺失必需的源类型、物化、callable、槽或依赖时整体失败。
 
 abstract trap 的 C 字符串沿既有 `CallableCStringIdentity` 作为当前 body 的 `AddressTakenConstant` associated atom 发射。共有 callable ObjectDefinition fingerprint 必须同时接收当前 definition 已验证的 runtime-scan 与 address-taken constant ranges，允许 body 只引用自己的这些 atom，并把 constant 的完整 bytes、typed role 及正规化重定位纳入同一 fingerprint；不能忽略常量、只散列 body，或接受其他 body 的本地符号。既有 runtime-scan atom 顺序保持，constant 按 atom id 排序追加；没有 constant 的既有 fingerprint bytes 不变。该修复适用于普通、跨 Cone 和 layout-strong 共有 object 路径，不新增身份或 wire tag。
 
@@ -442,7 +442,9 @@ layout profile 的 LIR 生产入口在封存输出前，从已验证 HIR/MIR ide
 
 跨 Cone 导出范围与本地物理定义范围分别闭合。五表的类型范围来自同次 MIR 的完整 source/support/helper 导出闭包，callable 范围来自对应 binding；无关私有声明的本地 layout、TD、dispatch 和 body 保留完整 Strong production、registration、object 及 fingerprint 验证，不因此扩充 HIR source roots。私有类型一旦成为公开字段、基类、签名或有限 helper 的传递依赖，必须沿同一闭包完整导出，不能按 visibility 过滤。有限 shape-support 计划的源码根及其 helper 必须具有 MIR type 与实际物理定义，缺失不能作为非导出类型跳过；ObjectBacking 仍仅提供对应 source object 的 shape。dispatch constituent 验证每条记录的本地 foundation 与 definition，完整 section 再要求导出 TD 的 vtable/itable 集合与 dispatch export 精确相等。Strong V2 与五表的 join 对每项 export 核对实际 registration，并允许完整本地生产表包含闭包外的私有定义。
 
-HIR 来源根发现必须遍历已要求 nominal 的全部真实存储字段，包括 struct 字段、enum payload、class 字段和 object backing 字段，保持字段类型的完整 nominal/application、tuple、function 与 pointer 组成关系。被这些字段引用的本地声明进入同一 source/support 闭包，外来声明继续由实际 provider 提供；字段可见性不影响表示依赖。既不扫描函数正文扩充根，也不展开无关私有 sibling。generic 声明及其字段引用只产生源码依赖，实际 generic/structural 物化继续受原 ODR gate 约束。
+HIR 来源根发现必须遍历已要求 nominal 的全部真实存储字段，包括 struct 字段、enum payload、class 字段和 object backing 字段，保持字段类型的完整 nominal/application、tuple、function 与 pointer 组成关系。被这些字段引用的本地声明进入同一 source/support 闭包，外来声明继续由实际 provider 提供；字段可见性不影响表示依赖。既不扫描函数正文扩充根，也不展开无关私有 sibling。generic 声明及其字段引用只产生源码依赖，实际 application 与结构 helper 按已要求的操作沿既有 ODR group/member 物化。MIR 语义引用沿 tuple 展开到实际 nominal/application 叶子；function、raw pointer 和 native function pointer 采用既有引用或指针表示，不要求独立名义类型记录。生成 box、step/slot 的 payload 遵守同一规则，helper 自身保留独立类型记录及物理定义。
+
+实际 box payload 与 inline array element 需要独立 value layout 时，LIR 从原 exact identity 和完整存储组成生成该布局及 scan。结构布局复用已有 `StructuralType` group；MIR 已引入该 group 时继承原记录，否则由 LIR 首次生产。布局导出与 reader 使用既有 tuple/qualified-pointer 表示，嵌套 tuple 元素沿已有 value constituent 组合，不要求递归发射每个结构子元素的独立布局，也不为结构类型补造 MIR nominal 声明。含引用 box 的 inline scan 必须解析到这份实际 payload 布局。
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：
 
@@ -1054,11 +1056,11 @@ HIR 根据实际调用、构造、成员、类型操作和委托访问建立实�
 
 接口声明与实际派发表分离后，`mir/cross-cone-type-bridge` 升至 `/4`。原 dispatch record 仍为 field 1=owner、field 2=槽种类、field 3=实际 itable 数组；槽种类保留 tag 1=无 class vtable、tag 2=class vtable，增加 tag 3=interface slots，其 field 1 为完整槽契约数组。接口槽契约为三字段 product：field 1=原 slot ID、field 2=位置、field 3=完整签名；实际表项沿用原四字段格式并具有必需的 field 4=实现。接口 record 的实际 itable 数组必须为空，class/value record 的表必须覆盖实际完整接口闭包。接口及继承槽比较使用这些已有签名，语义引用只收集签名类型和实际实现，不增加根声明机器正文依赖。旧 `/3` 产物与缓存重建；LIR 仍投影实际物理表，runtime C ABI 保持。
 
-实际生成的 box、coroutine step/slot 沿同一 MIR 生成类型计划和类型表示表发布。参数自由名义类型的有限 helper 继续归原 Cone；application 或结构类型按实际需求生成 helper，并保留既有 `GeneratedExactTypeOwner` 的 ODR group/member，LIR 直接继承该归属。装箱 adjust binding 和它调用的成员均使用已有完整 `CallableSignatureSubject` 与 Strong/ODR callable 定义；实际签名来自 MIR 记录，不把外来模板成员或消费方生成的 adjust 转成 Strong。生成 helper 不要求递归生产所有相关类型的支持族。
+实际生成的 box、coroutine step/slot 沿同一 MIR 生成类型计划和类型表示表发布。参数自由名义类型的有限 helper 继续归原 Cone；application 或结构类型按实际需求生成 helper，并保留既有 `GeneratedExactTypeOwner` 的 ODR group/member，LIR 直接继承该归属。装箱 adjust binding 和它调用的成员均使用已有完整 `CallableSignatureSubject` 与 Strong/ODR callable 定义；实际签名来自 MIR 记录，不把外来模板成员或消费方生成的 adjust 转成 Strong。reader 将已在 MIR foundation 中完成角色和字段检查的按需 helper 纳入同一表示清单，只补充 payload GC 与父接口的实际跨记录关系。生成 helper 不要求递归生产所有相关类型的支持族。
 
 共有 LIR 语义闭包按 `(provider, target)` 保留实际记录；相同语义 target 只允许对应同一 ODR definition plan 的不同物理 provider，普通 Strong target 和同一 provider 内的重复记录仍拒绝。带 provider 的布局、callable ABI、descriptor、dispatch 与根引用必须解析到指定记录；只有未指定物理位置的语义引用按 Cone identity 的稳定顺序选择已有记录。闭包不提前丢弃物理候选，各产物内容已在各自读取边界核对，跨产物定义兼容性由原 ODR member 合并入口统一检查。
 
-MIR 对实际选中的外部调用登记完整物理签名的类型，包括 receiver、参数和结果；构造初始化器的 `Unit` 结果也必须进入原 exact type 表。类型直接由完整 HIR 的 exact identity 查询并沿既有类型 lowering 转换，不把未选中的 provider 声明变成机器根。LIR 据此分类调用 ABI，不从符号名猜测缺失类型。
+MIR 对实际选中的外部调用登记完整物理签名的类型，包括 receiver、参数和结果；构造初始化器的 `Unit` 结果也必须进入原 exact type 表。类型直接由完整 HIR 的 exact identity 查询并沿既有类型 lowering 转换，不把未选中的 provider 声明变成机器根。装箱 adjust 的外来目标直接使用同次 selected callable 的完整物理签名，不从该 use 的 Direct/Interface 调用方式反推声明或默认方法的 receiver。外来参数自由值类型的已有 box 与 adjust 由原 provider 提供，其 conformance 查询数据本身不增加当前 Cone 的执行根；本地值与实际泛型 application 所需的装箱实现仍正常进入执行根。LIR 据此分类调用 ABI，不从符号名猜测缺失类型。
 
 共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造模板迁移到 `/33`，字段实例位置迁移到 `/34`，共享表达式的求值位置迁移到 `/35`，委托模板后续迁移到 `/36`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。
 

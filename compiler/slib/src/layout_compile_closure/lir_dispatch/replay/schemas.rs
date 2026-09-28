@@ -26,6 +26,12 @@ pub(super) fn for_owner<'a>(
 ) -> Result<Schema<'a>, Error> {
     use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Representation};
     match ty.representation() {
+        Representation::BoxedValue { .. }
+            if ty.base_and_interfaces().base == mir::MirBaseClassV1::None
+                && ty.base_and_interfaces().interfaces.is_empty() =>
+        {
+            Ok(Schema::Empty)
+        }
         Representation::Class { .. }
         | Representation::Object { .. }
         | Representation::Intrinsic(Intrinsic::String)

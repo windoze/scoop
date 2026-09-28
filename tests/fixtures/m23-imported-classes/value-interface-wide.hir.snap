@@ -14,7 +14,7 @@ Module
       Local $dependency.argument.2 : Long
     val local6
       Box : Readable
-        ImportedDependencyCall #0 : WideReader
+        ImportedDependencyCall #2 : WideReader
           Local $dependency.parameter.first : Long
           Local $dependency.parameter.second : Long
           Local $dependency.parameter.third : Long
@@ -25,7 +25,7 @@ Module
     val local8
       Local value : Readable
     val local9
-      ImportedDependencyCall #1 interface[0] : Long
+      ImportedDependencyCall #3 interface[0] : Long
         Local $dependency.receiver : Readable
     val local10
       FieldAccess dependency field d5280413a605391be5a32d536541de7ffd4c3c8b20974a8ed31d61bceef416f4 : Long
@@ -47,6 +47,6 @@ Module
     val local16
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      ImportedDependencyCall #4 : Counter
         Local $dependency.parameter.value : Long
   output library

@@ -1,0 +1,76 @@
+Module
+  global @scoop$1$io$b13a35e5405c62b7bf0e8231da365ead5f1fbc856c541a0fedf8a3cf7ce8a5df = "call to abstract method `value`"
+  global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `value`"
+  fun @scoop$1$cb$c20c1e9711cb38bbb03fa5a5ab50853b7e47e89b21f59540ab1df17a75621967() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.stored: i32
+    local %2 cell: ptr<managed>
+    local %3 $call.1: struct0
+    local %4 $call.2: i32
+    local %5 $sc.1: struct0
+    local %6 $box.2: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002a) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn4(local1)
+    store local5 -> local3
+    store local3 -> local6
+    t0 = box_value td1, local6 scan=none sp<managed-call:0> live=[]
+    store t0 -> local2
+    t1 = heap_load local2 +0 : ptr<metadata>
+    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, td0)
+    call managed-direct-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t2(local2)
+    store t3 -> local4
+    ret local4
+  fun @scoop$1$cb$f0bee77b780e66724109c8e0d979a3e668ed0fb8b6ede8545056ee6c9c4fa968(indirect<struct0 size=4 align=4 scan=none>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i32
+    ret t0
+  fun @scoop$1$cb$ade66ffcc489b76372d30a3d1f18f31833d1a03132223bf2828e4c914733a3a8(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td0)
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(param0)
+    store t2 -> local0
+    ret local0
+  fun @scoop$1$cb$c044e099e87591b97ff08d7e0613dbf6f8c7c709260fa3f8f6a22b504a70f792(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    unreachable
+  fun @scoop$1$cb$0e0fbafdcd7eef1738d8f30aea31a3e798bc519ea3a05100a19cb852cef55f58(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  fun @scoop$1$cb$b67c6d0022e102f7ee579010d47abf7b5a6c66b0071826b8cf954517833e45e9(ptr<managed>) -> i32
+    local %0 $call.1: i32
+    local %1 $box.1: struct0
+    local %2 $sc.2: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    unbox_value td1, param0 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<struct0 size=4 align=4 scan=none>) -> i32 local-fn1(indirect local2)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$84d52aad1769b0dea4e72038813b438282eb6004bc6a3b041547858a0e75b4ca(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn2(param0)
+    store t0 -> local0
+    ret local0
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=ReadOnlyProperty);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$85d3f51e9989ade8e4d028370f995a4e9669d2ac2860ba3c53c7d95b4004f592 type-id=2822139644376812075 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td1 g(r=00000006;i=4d5111a3ea423497398da808f47303c77d44141b7060775e0515491509012e74) @scoop$1$td$502d9d3e6468948306c1fcc07dd91558f6cc6e1a44db08b6c1556cc276afb4fc type-id=6526896747706216319 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn5, local-fn6]]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=S;x=PropertyCell);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$e217dd84ba7745e23d9f6e2465f64dc66dd870b640f92d5d1a9bb9b890d0f137 type-id=13917310327661509081 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout PropertyCell size=4 align=4 refs=[]
+  layout ReadOnlyProperty value size=8 align=8 refs=[0]
+  layout box<PropertyCell<Int>> value size=8 align=8 refs=[0]
+  layout box<PropertyCell<Int>> size=24 align=8 refs=[]
+  output library

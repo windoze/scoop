@@ -1,0 +1,99 @@
+Module
+  struct InterfaceCell<Int> (value: Int)
+  class box<InterfaceCell<Int>> vtable=0 itables=2
+  interface Reader<Int>
+  interface Readable<Int>
+  generated_exact_type get0 location=class0 nominal_id=a14e651dda784ab9dc47bfe2811cca6e2e474f5f62fa114446eb8f0324b32cf5 exact_id=f51b93b042db4f7ec78a2810c2daa7cf912d10087e8624b3785c130112bfe8b7
+  generated_callable gc0 function=@fn7 id=b7f6cc5b4795da42564e78d7544a19063904473d8f916ace282585589b51c7f2
+  generated_callable gc1 function=@fn6 id=bc6e19095252644824cc842f8dad6eee3cb70ca29c13bcdffbdd192ecdbee4b6
+  generated_callable gc2 function=@fn5 id=d23a067e3e6a1289f079be5371b155bb9576a03a35aacfbd9b7cae01c5117706
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: InterfaceCell<Int> = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val reader: Reader<Int>
+        Type Reader<Int>
+        Box
+          Type InterfaceCell<Int>
+          Local $call.1
+      val $dependency.receiver: Reader<Int>
+        Type Reader<Int>
+        Local reader
+      call $call.2: Int = @fn2 interface Reader<Int>[1]
+        Type Reader<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.2
+  fun get @fn1(this: InterfaceCell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type InterfaceCell<Int>
+          Local this
+  fun read @fn2(this: Reader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Reader<Int>
+        Type Reader<Int>
+        Local this
+      call $call.1: Int = @fn3 interface Readable<Int>[0]
+        Type Readable<Int>
+        Retype Readable<Int>
+          Type Reader<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun get @fn3(this: Readable<Int>) -> Int
+    bb0 entry
+      trap @str0
+  fun ctor.InterfaceCell.$c0 @fn4(value: Int) -> InterfaceCell<Int> <no-gc>
+    bb0 entry
+      return
+        Type InterfaceCell<Int>
+        StructInit InterfaceCell<Int>
+          Type Int
+          Local value
+  fun thunk<InterfaceCell<Int>> Reader.get() @fn5(this: Reader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type InterfaceCell<Int>
+        Unbox
+          Type Reader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<InterfaceCell<Int>> Reader.read() @fn6(this: Reader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type Reader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<InterfaceCell<Int>> Readable.get() @fn7(this: Readable<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type InterfaceCell<Int>
+        Unbox
+          Type Readable<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- get
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- get
+  str @str0 "call to abstract method `get`"
+  output library

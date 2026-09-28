@@ -5,30 +5,30 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : Counter
+      ImportedDependencyCall #2 : Counter
         Local $dependency.parameter.value : Long
     val local3
       Local $dependency.argument.0 : Counter
     val local4
       Box : Readable
-        ImportedDependencyCall #1 : ReferenceReader
+        ImportedDependencyCall #3 : ReferenceReader
           Local $dependency.parameter.reference : Counter
     val local5
       IntegerLiteral 0 : Long
     val local6
       Local $dependency.argument.0 : Long
     val local7
-      ImportedDependencyCall #0 : Counter
+      ImportedDependencyCall #2 : Counter
         Local $dependency.parameter.value : Long
     val local8
       Local value : Readable
     val local10
-      ImportedDependencyCall #2 interface[0] : Long
+      ImportedDependencyCall #4 interface[0] : Long
         Local $dependency.receiver : Readable
     val local9
       Local extra : Counter
     val local11
-      ImportedDependencyCall #3 : Long
+      ImportedDependencyCall #5 : Long
         Local $dependency.receiver : Counter
     val local12
       Local $dependency.argument.0 : Long
@@ -39,6 +39,6 @@ Module
     val local14
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #0 : Counter
+      ImportedDependencyCall #2 : Counter
         Local $dependency.parameter.value : Long
   output library

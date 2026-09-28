@@ -20,6 +20,7 @@ mod enumeration;
 mod fields;
 mod instance;
 mod resources;
+mod structural;
 mod value;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -135,13 +136,19 @@ impl<'a> Replay<'a> {
             return Ok(record.clone());
         }
 
-        let Some(source) = self.types.get(exact) else {
+        let exact_record = self.identities.canonical_record::<_, ExactTypeKey>(exact)?;
+        let nominal = matches!(
+            exact_record.key(),
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
+        );
+        let source = self.types.get(exact);
+        if nominal && source.is_none() {
             return self
                 .dependencies
                 .get(&id)
                 .map(|record| (*record).clone())
                 .ok_or(Error::MissingDependency(id));
-        };
+        }
 
         if self.active.contains(&id) {
             return Err(Error::Cycle(id));
@@ -150,16 +157,19 @@ impl<'a> Replay<'a> {
         self.active.insert(id);
         let identity = lir::ExactLayoutIdentityV1::from_foundation(
             self.target,
-            self.identities.canonical_record(exact)?,
+            exact_record,
             role,
             self.foundation,
         )?;
-        let record: lir::ExactLayoutExportV1 = match role {
-            RepresentationRole::ManagedValue | RepresentationRole::CValue => {
-                self.value(identity, source)?.into()
-            }
-            RepresentationRole::ManagedObject => self.instance(identity, source)?.into(),
-            _ => return Err(Error::Role(id)),
+        let record: lir::ExactLayoutExportV1 = match source {
+            Some(source) => match role {
+                RepresentationRole::ManagedValue | RepresentationRole::CValue => {
+                    self.value(identity, source)?.into()
+                }
+                RepresentationRole::ManagedObject => self.instance(identity, source)?.into(),
+                _ => return Err(Error::Role(id)),
+            },
+            None => self.structural_value(identity)?.into(),
         };
 
         self.completed.insert(id, record.clone());

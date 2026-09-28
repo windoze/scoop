@@ -17,12 +17,12 @@ Module
     val local3
       IntegerLiteral 1 : Long
     val local4
-      ImportedDependencyCall #0 interface[1] : Long
+      ImportedDependencyCall #2 interface[1] : Long
         Local $dependency.receiver : Readable
         Local $dependency.parameter.extra : Long
     val local5
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      ImportedDependencyCall #3 : Counter
         Local $dependency.parameter.value : Long
   output library

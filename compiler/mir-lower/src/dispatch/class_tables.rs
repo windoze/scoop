@@ -42,7 +42,7 @@ impl Lowerer {
                     hir::ClassMethod::Imported { family, callable } => (
                         family,
                         mir::TableSlot::External(
-                            self.imported_dependency_callable_map[&callable].0,
+                            self.imported_dependency_callable_map[&callable].callable,
                         ),
                     ),
                 };
@@ -73,7 +73,7 @@ impl Lowerer {
                             | hir::InterfaceImplementationTarget::ImportedAbstract {
                                 declaration: callable,
                             } => mir::TableSlot::External(
-                                self.imported_dependency_callable_map[&callable].0,
+                                self.imported_dependency_callable_map[&callable].callable,
                             ),
                         };
                         let slot = method.slot.into_raw() as usize;

@@ -1,7 +1,7 @@
 types=32 callables=26 dispatch=10 objects=1 shapes=9 initialization_uses=0 ordinary=1
 type Base: Reference/ContainsManagedReferences vslots=3 itables=1
 type Choice: NonZeroValue/GcFree vslots=0 itables=0
-type Contract: Reference/ContainsManagedReferences vslots=0 itables=1
+type Contract: Reference/ContainsManagedReferences vslots=0 itables=0
 type Derived: Reference/ContainsManagedReferences vslots=3 itables=1
 type Pair: ZeroSizedValue/GcFree vslots=0 itables=0
 type Pending: Reference/ContainsManagedReferences vslots=0 itables=1

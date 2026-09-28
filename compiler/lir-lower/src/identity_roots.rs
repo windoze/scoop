@@ -3,8 +3,8 @@
 use scoop_lir as lir;
 use scoop_mir as mir;
 
-/// Resolves source and generated nominal roots from the MIR materialization
-/// plan. Source applications inherit their original specialization group.
+/// Resolves actual source, generated and structural layout roots. Source
+/// applications and existing structural groups retain their MIR ownership.
 pub(crate) struct IdentityRoots<'input> {
     input: &'input mir::ConeMirInput,
 }
@@ -53,6 +53,25 @@ impl<'input> IdentityRoots<'input> {
                 .is_some()
         {
             return self.for_generated(location);
+        }
+        if let Some(source) = self.input.module().meta.source_exact_types.get(ty)
+            && source.owner() == mir::SourceExactTypeOwner::Structural
+        {
+            let root = lir::MaterializationRoot::lir_structural_odr(source.identity_record().id())
+                .expect("a validated structural exact type derives its layout group");
+            let group = root
+                .odr_group_id()
+                .expect("a structural root has an ODR group");
+            return if self
+                .input
+                .foundation()
+                .odr_group_ids()
+                .any(|id| id == group)
+            {
+                lir::MaterializationRoot::prior_stage_odr(group)
+            } else {
+                root
+            };
         }
         assert!(
             self.materializes_type(ty),

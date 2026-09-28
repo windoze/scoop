@@ -123,14 +123,12 @@ impl ExactValueLayoutV1 {
 
     pub fn tuple(
         identity: ExactLayoutIdentityV1,
-        elements: &[&ExactValueLayoutV1],
+        elements: &[&ValueLayoutConstituentV1],
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
-        let mut values = reserve(elements.len())?;
-        values.extend(elements.iter().map(|value| &value.value));
         let layout =
-            TupleStorageLayoutV1::replay(identity.target(), identity.exact_record(), &values)?;
+            TupleStorageLayoutV1::replay(identity.target(), identity.exact_record(), elements)?;
         finish_value(
             identity,
             layout.storage().clone(),

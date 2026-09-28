@@ -103,9 +103,9 @@ impl BodyLowerer<'_> {
                     hir::ClassInitializerTarget::Local(initializer) => {
                         mir::Callee::User(self.ctors[initializer])
                     }
-                    hir::ClassInitializerTarget::Imported(initializer) => {
-                        mir::Callee::External(self.imported_dependency_callable_map[initializer].0)
-                    }
+                    hir::ClassInitializerTarget::Imported(initializer) => mir::Callee::External(
+                        self.imported_dependency_callable_map[initializer].callable,
+                    ),
                 };
                 let mut lowered = Vec::with_capacity(args.len() + 1);
                 lowered.push(self.lower_expr(receiver));

@@ -20,6 +20,33 @@ pub trait MirTypeBridgeTypeLookupV1: sealed::Sealed {
     fn gc_kind(&self, exact: PersistentExactTypeId) -> Option<MirGcKindV1> {
         self.get(exact).map(|record| record.facts().gc())
     }
+    fn exact_gc_kind(
+        &self,
+        identities: &ValidatedIdentityGraph,
+        exact: PersistentExactTypeId,
+    ) -> Result<MirGcKindV1, MirTypeBridgeError> {
+        let key = identities.canonical_key::<_, ExactTypeKey>(exact)?;
+        match key.as_ref() {
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => self
+                .gc_kind(exact)
+                .ok_or(MirTypeBridgeError::MissingType { exact }),
+            ExactTypeKey::Tuple(elements) => {
+                let mut gc = MirGcKindV1::GcFree;
+                for element in elements.as_slice() {
+                    if self.exact_gc_kind(identities, *element)?
+                        == MirGcKindV1::ContainsManagedReferences
+                    {
+                        gc = MirGcKindV1::ContainsManagedReferences;
+                    }
+                }
+                Ok(gc)
+            }
+            ExactTypeKey::Function { .. } => Ok(MirGcKindV1::ContainsManagedReferences),
+            ExactTypeKey::RawPointer(_) | ExactTypeKey::NativeFunctionPointer { .. } => {
+                Ok(MirGcKindV1::GcFree)
+            }
+        }
+    }
 }
 pub trait MirTypeBridgeCallableLookupV1: sealed::Sealed {
     fn get(&self, target: CallableDefinitionOwner) -> Option<MirCallableRecordRefV1<'_>>;

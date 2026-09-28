@@ -110,15 +110,9 @@ fn lower_dependency_callables(
     output: &scoop_hir::DependencyHirOutput,
     imported: &mir::SelectedExternalMirSet,
     callables: &mut Arena<mir::ExternalCallableUse>,
-) -> Result<
-    HashMap<
-        hir::ImportedDependencyCallableUseId,
-        (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
-    >,
-    CurrentConeMirLoweringError,
-> {
+) -> Result<ImportedCallableMap, CurrentConeMirLoweringError> {
     let mut mapping = HashMap::new();
-    let mut definitions = HashMap::new();
+    let mut definitions = HashMap::<_, ImportedCallableTarget>::new();
 
     let executable = output
         .executable_dependency_callables()
@@ -129,7 +123,7 @@ fn lower_dependency_callables(
         let capability = selected.capability();
         let definition = (selected.provider(), capability.implementation());
         if let Some(target) = definitions.get(&definition) {
-            mapping.insert(source_id, *target);
+            mapping.insert(source_id, target.clone());
             continue;
         }
         let id = imported
@@ -144,14 +138,18 @@ fn lower_dependency_callables(
             false => mir::GcEffect::Managed,
             true => mir::GcEffect::NoGc,
         };
-        let lowering_role = target.lowering_role();
-        let target = callables.alloc(
+        let callable = callables.alloc(
             imported
                 .callable_use(id, effect)
                 .expect("a selected dependency MIR callable has a complete typed reference"),
         );
-        mapping.insert(source_id, (target, lowering_role));
-        definitions.insert(definition, (target, lowering_role));
+        let target = ImportedCallableTarget {
+            callable,
+            lowering_role: target.lowering_role(),
+            signature: target.signature().clone(),
+        };
+        mapping.insert(source_id, target.clone());
+        definitions.insert(definition, target);
     }
     Ok(mapping)
 }

@@ -79,6 +79,13 @@ impl DependencyHirOutput {
                 executable_callables.push(callable);
             }
         }
+        let local_value_dispatch = |origin: &crate::HirNominalIdentity| {
+            !matches!(
+                origin,
+                crate::HirNominalIdentity::Source(crate::HirSourceNominalIdentity::Concrete(record))
+                    if record.key().origin() != local.cone
+            )
+        };
         for implementation in local
             .classes
             .iter()
@@ -87,12 +94,14 @@ impl DependencyHirOutput {
                 local
                     .structs
                     .iter()
+                    .filter(|(_, value)| local_value_dispatch(&value.origin))
                     .flat_map(|(_, value)| &value.interface_implementations),
             )
             .chain(
                 local
                     .enums
                     .iter()
+                    .filter(|(_, value)| local_value_dispatch(&value.origin))
                     .flat_map(|(_, value)| &value.interface_implementations),
             )
         {

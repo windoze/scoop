@@ -20,13 +20,13 @@ Module
     val local2
       IntegerLiteral 1 : Long
     val local3
-      ImportedDependencyCall #2 interface[1] : Long
+      ImportedDependencyCall #4 interface[1] : Long
         Local $dependency.receiver : Readable
         Local $dependency.parameter.extra : Long
     val local4
       Local $dependency.argument.0 : Long
     val local5
-      ImportedDependencyCall #3 : Counter
+      ImportedDependencyCall #5 : Counter
         Local $dependency.parameter.value : Long
     val local6
       FieldAccess class field value : Counter
@@ -38,7 +38,7 @@ Module
       val local7
         Local allocated : Counter
       val local8
-        ImportedDependencyCall #4 : Long
+        ImportedDependencyCall #6 : Long
           Local $dependency.receiver : Counter
       val local9
         IntegerLiteral 42 : Long
@@ -61,7 +61,7 @@ Module
       val local13
         Local $dependency.argument.0 : Long
       assign $result.1
-        ImportedDependencyCall #3 : Counter
+        ImportedDependencyCall #5 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.1 : Counter

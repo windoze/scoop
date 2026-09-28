@@ -112,7 +112,8 @@ fn ordinary_struct_and_tuple_replay_typed_dependencies_and_field_order() {
         ))
         .unwrap(),
     );
-    let tuple = ExactValueLayoutV1::tuple(tuple.identity, &values, &tuple.foundation).unwrap();
+    let elements: Vec<_> = values.iter().map(|value| value.value()).collect();
+    let tuple = ExactValueLayoutV1::tuple(tuple.identity, &elements, &tuple.foundation).unwrap();
     assert_eq!(tuple.value().storage(), structure.value().storage());
     assert_eq!(encode(tuple.representation()).unwrap()[2], 4);
     assert_wire_roundtrip(structure);

@@ -67,24 +67,25 @@ impl Lowerer {
             .enumerate()
         {
             let ty = self.imported_generic_type(parameter.value_type(), &bindings)?;
-            let definition = declaration
-                .source_interface()
-                .and_then(|source| source.parameters().parameters().get(index))
-                .map(|parameter| {
-                    self.import_generic_definition(&source, parameter.definition_origin())
-                })
-                .transpose()?
-                .map_or(
-                    hir::LocalValueDefinitionSite::Synthetic,
-                    hir::LocalValueDefinitionSite::Source,
-                );
+            let definition = match declaration.source_interface() {
+                Some(interface) => {
+                    let parameter = interface
+                        .parameters()
+                        .parameters()
+                        .get(index)
+                        .ok_or("abstract member parameter is missing its source declaration")?;
+                    self.import_generic_definition(&source, parameter.definition_origin())?
+                }
+                // The implicit setter parameter belongs to its accessor declaration.
+                None => origin,
+            };
             let name = parameter.name().as_str().to_owned();
             let local = locals.alloc(hir::Local {
                 binding: self.fresh_binding(),
                 selector: LocalValueSelector::Parameter {
                     declaration_index: index as u32,
                 },
-                definition,
+                definition: hir::LocalValueDefinitionSite::Source(definition),
                 name: name.clone(),
                 ty,
                 mutable: false,

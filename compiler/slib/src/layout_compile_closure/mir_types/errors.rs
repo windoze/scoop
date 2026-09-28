@@ -27,6 +27,7 @@ pub enum SharedMirTypeValidationError {
     Shared(SharedTypeMetadataError),
     ShapeProjection(PublicNominalShapeProjectionError),
     Shape(MirShapeSupportError),
+    Type(scoop_mir::MirTypeBridgeError),
     ShapeProvider {
         expected: ConeIdentity,
         actual: ConeIdentity,
@@ -69,6 +70,7 @@ from_error!(WireError, Resource);
 from_error!(SharedTypeMetadataError, Shared);
 from_error!(PublicNominalShapeProjectionError, ShapeProjection);
 from_error!(MirShapeSupportError, Shape);
+from_error!(scoop_mir::MirTypeBridgeError, Type);
 
 impl std::fmt::Display for SharedMirTypeValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

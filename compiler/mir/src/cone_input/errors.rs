@@ -47,7 +47,6 @@ pub enum ConeMirInputError {
         error: HashError,
     },
     MissingCallableSubject(FunctionId),
-    OdrGeneratedNominalShape(GeneratedExactTypeLocation),
     ForeignGeneratedHelperCallable(GeneratedExactTypeLocation),
     MissingGeneratedSourceExact {
         location: GeneratedExactTypeLocation,
@@ -94,7 +93,6 @@ impl std::error::Error for ConeMirInputError {
             | Self::NonCanonicalShapeSupportSource { .. }
             | Self::InvalidShapeSupportSource { .. }
             | Self::MissingCallableSubject(_)
-            | Self::OdrGeneratedNominalShape(_)
             | Self::ForeignGeneratedHelperCallable(_)
             | Self::MissingGeneratedSourceExact { .. }
             | Self::InvalidGeneratedSourceOwner { .. }

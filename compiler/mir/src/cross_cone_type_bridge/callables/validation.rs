@@ -304,26 +304,15 @@ impl MirCallableBridgeAuthority<'_> {
         }
     }
     fn gc_kind(&self, exact: PersistentExactTypeId) -> Result<MirGcKindV1, MirCallableBridgeError> {
-        let key = self.identities.canonical_key::<_, ExactTypeKey>(exact)?;
-        match key.as_ref() {
-            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => self
-                .types
-                .gc_kind(exact)
-                .ok_or(MirCallableBridgeError::MissingType { exact }),
-            ExactTypeKey::Tuple(elements) => {
-                let mut gc = MirGcKindV1::GcFree;
-                for element in elements.as_slice() {
-                    if self.gc_kind(*element)? == MirGcKindV1::ContainsManagedReferences {
-                        gc = MirGcKindV1::ContainsManagedReferences;
-                    }
+        self.types
+            .exact_gc_kind(self.identities, exact)
+            .map_err(|error| match error {
+                MirTypeBridgeError::Reference(error) => MirCallableBridgeError::Reference(error),
+                MirTypeBridgeError::MissingType { exact } => {
+                    MirCallableBridgeError::MissingType { exact }
                 }
-                Ok(gc)
-            }
-            ExactTypeKey::Function { .. } => Ok(MirGcKindV1::ContainsManagedReferences),
-            ExactTypeKey::RawPointer(_) | ExactTypeKey::NativeFunctionPointer { .. } => {
-                Ok(MirGcKindV1::GcFree)
-            }
-        }
+                error => MirCallableBridgeError::Type(error),
+            })
     }
 
     fn type_export(

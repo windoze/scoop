@@ -18,7 +18,7 @@ impl MirTypeBridgeAuthority<'_> {
             return Err(MirTypeBridgeError::GeneratedRoleMismatch { nominal });
         }
         // Object backing identities originate in HIR and are retained by MIR.
-        // The three finite MIR shape helpers must also belong to this foundation.
+        // MIR-generated shape helpers must also belong to this foundation.
         if !matches!(role, GeneratedNominalKey::ObjectBackingClass { .. })
             && self.foundation.generated_type_key(nominal) != Some(role)
         {
@@ -45,10 +45,18 @@ impl MirTypeBridgeAuthority<'_> {
                 {
                     return Err(MirTypeBridgeError::GeneratedPayloadMismatch { nominal });
                 }
-                if !matches!(
-                    self.source_kind(*payload)?,
-                    SourceDeclarationKind::Struct | SourceDeclarationKind::Enum
-                ) {
+                let payload_key = self.identities.canonical_key::<_, ExactTypeKey>(*payload)?;
+                let value = match payload_key.as_ref() {
+                    ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => matches!(
+                        self.source_kind(*payload)?,
+                        SourceDeclarationKind::Struct | SourceDeclarationKind::Enum
+                    ),
+                    ExactTypeKey::Tuple(_)
+                    | ExactTypeKey::RawPointer(_)
+                    | ExactTypeKey::NativeFunctionPointer { .. } => true,
+                    ExactTypeKey::Function { .. } => false,
+                };
+                if !value {
                     return Err(MirTypeBridgeError::GeneratedPayloadMismatch { nominal });
                 }
             }
@@ -56,7 +64,6 @@ impl MirTypeBridgeAuthority<'_> {
                 GeneratedNominalKey::CoroutineStep { result },
                 MirTypeRepresentationV1::CoroutineStep { variants },
             ) => {
-                self.require_source_subject(*result)?;
                 self.generated_variants(
                     nominal,
                     role,
@@ -73,7 +80,6 @@ impl MirTypeBridgeAuthority<'_> {
                 GeneratedNominalKey::CoroutineSlot { value },
                 MirTypeRepresentationV1::CoroutineSlot { variants },
             ) => {
-                self.require_source_subject(*value)?;
                 self.generated_variants(
                     nominal,
                     role,
@@ -101,18 +107,6 @@ impl MirTypeBridgeAuthority<'_> {
                 });
             }
         }
-        Ok(())
-    }
-
-    fn require_source_subject(
-        &self,
-        exact: PersistentExactTypeId,
-    ) -> Result<(), MirTypeBridgeError> {
-        let key = self.identities.canonical_key::<_, ExactTypeKey>(exact)?;
-        let ExactTypeKey::Nominal(nominal) = key.as_ref() else {
-            return Err(MirTypeBridgeError::ExactOriginMismatch { exact });
-        };
-        self.source_nominal(*nominal)?;
         Ok(())
     }
 

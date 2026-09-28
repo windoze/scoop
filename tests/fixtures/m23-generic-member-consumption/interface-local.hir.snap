@@ -1,0 +1,49 @@
+Module
+  class LocalReader<T>(value: T0) : Reader<T0>
+    field0 property0: T0
+    property0 val value: T0 getter0=body(LocalReader.$get$value) <stored field0 init=parameter0>
+  class LocalItem<T>(value: T0)
+    field1 property1: T0
+    property1 val value: T0 getter1=body(LocalItem.$get$value) <stored field1 init=parameter1>
+  fun result(): Int
+    val local0
+      IntegerLiteral 20 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ClassInit LocalReader<Int> : LocalReader<Int>
+        Local $parameter.value : Int
+    val local6
+      MethodCall LocalReader.readBase : Int
+        Local $receiver : LocalReader<Int>
+    val local3
+      IntegerLiteral 22 : Int
+    val local4
+      Local $argument.0 : Int
+    val local5
+      ClassInit LocalItem<Int> : LocalItem<Int>
+        Local $parameter.value : Int
+    val local7
+      MethodCall LocalItem.get : Int
+        Local $receiver : LocalItem<Int>
+    val local8
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      ReferenceUpcast : Reader<T0>
+        ClassInit LocalItem<T0> : LocalItem<T0>
+          Local $parameter.value : T0
+    val local4
+      Local reader : Reader<T0>
+    return
+      ImportedGenericCall read<T0> : T0
+        Local $dependency.receiver : Reader<T0>
+  output library

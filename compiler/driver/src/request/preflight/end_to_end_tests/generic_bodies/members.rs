@@ -128,7 +128,7 @@ fn generic_member_templates_republish_and_execute_from_artifacts() {
             "the provider has not instantiated these generic types"
         );
         let (sections, _) = closure.artifact(coordinate.identity().unwrap()).unwrap();
-        let mut methods = 0;
+        let mut members = 0;
         for binding in sections
             .mir_type_bridge()
             .exports()
@@ -162,10 +162,73 @@ fn generic_member_templates_republish_and_execute_from_artifacts() {
             if matches!(
                 binding.lowering_role(),
                 scoop_mir::MirCallableLoweringRoleV1::Ordinary
+                    | scoop_mir::MirCallableLoweringRoleV1::Accessor
             ) {
-                methods += 1;
+                members += 1;
             }
         }
-        assert!(methods > 0, "{case} has actual method definitions");
+        assert!(members > 0, "{case} has actual member definitions");
+        let mut boxes = 0;
+        for ty in sections.mir_type_bridge().exports().types().records() {
+            let scoop_mir::MirTypeRepresentationV1::BoxedValue { payload } = ty.representation()
+            else {
+                continue;
+            };
+            if !matches!(
+                sections
+                    .identity_graph()
+                    .canonical_key::<_, scoop_identity::ExactTypeKey>(payload.value)
+                    .unwrap()
+                    .as_ref(),
+                scoop_identity::ExactTypeKey::NominalApplication { .. }
+            ) {
+                continue;
+            }
+            let descriptor = sections
+                .lir_exports()
+                .descriptors()
+                .get(ty.exact())
+                .unwrap();
+            assert_eq!(
+                descriptor.physical_definition().symbol().linkage(),
+                scoop_identity::LinkageClass::OdrWeak
+            );
+            boxes += 1;
+        }
+        let mut adjusts = 0;
+        for binding in sections.mir_type_bridge().exports().callables().entries() {
+            if let scoop_mir::MirCallableOriginV1::Generated {
+                role: scoop_identity::GeneratedCallableKey::BoxingAdjust { payload, .. },
+                ..
+            } = binding.origin()
+                && matches!(
+                    sections
+                        .identity_graph()
+                        .canonical_key::<_, scoop_identity::ExactTypeKey>(*payload)
+                        .unwrap()
+                        .as_ref(),
+                    scoop_identity::ExactTypeKey::NominalApplication { .. }
+                )
+            {
+                let scoop_identity::CallableDefinitionOwner::Odr(member) = binding.implementation()
+                else {
+                    panic!("{case}: a generic box adjust retains its ODR owner");
+                };
+                assert_eq!(
+                    member.role(),
+                    scoop_identity::OdrMemberRole::DispatchAdapter
+                );
+                adjusts += 1;
+            }
+        }
+        if matches!(
+            case,
+            "interface-struct" | "interface-enum" | "interface-abi" | "interface-value-property"
+        ) {
+            assert!(
+                boxes > 0 && adjusts > 0,
+                "{case} publishes its actual box and adjust definitions"
+            );
+        }
     }
 }

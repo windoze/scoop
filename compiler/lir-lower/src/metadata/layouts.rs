@@ -7,9 +7,8 @@ pub(crate) use objects::*;
 pub(crate) use shapes::*;
 pub(crate) use values::*;
 
-/// Persistent layouts selected by the sealed strong materialization plan.
-/// Generic and structural types still participate in physical shape
-/// calculation, but never acquire independent LIR layout identities.
+/// Persistent layouts selected by the sealed materialization plan and the
+/// actual inline payloads required by generated boxes and arrays.
 pub(crate) fn layouts(
     context: &LoweringContext,
     identity_roots: &IdentityRoots<'_>,
@@ -152,6 +151,52 @@ pub(crate) fn layouts(
             interior_mutable: false,
             kind: lir::LayoutKind::Plain {
                 scan: ref_scan(context, module, enums, root.ty(), 0)?,
+            },
+        });
+    }
+    let inline_payloads = module
+        .meta
+        .boxed_types
+        .iter()
+        .filter(|boxed| identity_roots.materializes_type(&mir::Type::Class(boxed.class())))
+        .map(|boxed| boxed.payload())
+        .chain(module.classes.iter().filter_map(|(id, class)| {
+            if !identity_roots.materializes_type(&mir::Type::Class(id)) {
+                return None;
+            }
+            match &class.representation {
+                mir::ClassRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::Array { element }
+                    | mir::IntrinsicTypeRepresentation::MutableArray { element },
+                ) => Some(element),
+                _ => None,
+            }
+        }));
+    for payload in inline_payloads {
+        let Some(source) = module.meta.source_exact_types.get(payload) else {
+            continue;
+        };
+        if source.owner() != mir::SourceExactTypeOwner::Structural
+            || layouts.iter().any(|(_, layout)| {
+                layout.identity.layout_record().key().exact_type() == source.identity_record().id()
+                    && layout.identity.layout_record().key().representation()
+                        == scoop_identity::RepresentationRole::ManagedValue
+            })
+        {
+            continue;
+        }
+        let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+        let (size, align) = size_align(context, module, &enum_shape, payload)?;
+        layouts.alloc(lir::Layout {
+            identity: managed_value_layout_identity(context, identity_roots, module, payload),
+            name: mir::type_name(module, payload),
+            size,
+            align,
+            fields: Vec::new(),
+            c_layout: None,
+            interior_mutable: false,
+            kind: lir::LayoutKind::Plain {
+                scan: ref_scan(context, module, enums, payload, 0)?,
             },
         });
     }

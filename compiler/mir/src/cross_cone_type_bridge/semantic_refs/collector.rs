@@ -22,7 +22,6 @@ pub enum MirTypeBridgeReferenceError {
     Hash(scoop_wire::HashError),
     ArithmeticOverflow,
     MissingType(PersistentExactTypeId),
-    StructuralExecutionGate(PersistentExactTypeId),
     GenericUnitGate(PersistentInitializationUnitId),
     Initialization(Box<MirObjectBridgeError>),
     GeneratedExecutionGate,
@@ -77,27 +76,14 @@ impl<'a> Collector<'a> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.exact_in(exact, false)
-    }
-    pub fn field(
-        &mut self,
-        exact: PersistentExactTypeId,
-    ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.exact_in(exact, true)
-    }
-    fn exact_in(
-        &mut self,
-        exact: PersistentExactTypeId,
-        transient: bool,
-    ) -> Result<(), MirTypeBridgeReferenceError> {
         let key = self.graph.canonical_key::<_, ExactTypeKey>(exact)?;
         match key.as_ref() {
             ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
                 self.push(MirTypeBridgeTargetV1::Type(exact))
             }
-            ExactTypeKey::Tuple(elements) if transient => {
+            ExactTypeKey::Tuple(elements) => {
                 for element in elements.as_slice() {
-                    self.exact_in(*element, true)?;
+                    self.exact(*element)?;
                 }
                 Ok(())
             }
@@ -105,12 +91,7 @@ impl<'a> Collector<'a> {
             // pointee/signature identities do not require a physical type export.
             ExactTypeKey::Function { .. }
             | ExactTypeKey::RawPointer(_)
-            | ExactTypeKey::NativeFunctionPointer { .. }
-                if transient =>
-            {
-                Ok(())
-            }
-            _ => Err(MirTypeBridgeReferenceError::StructuralExecutionGate(exact)),
+            | ExactTypeKey::NativeFunctionPointer { .. } => Ok(()),
         }
     }
     pub fn nominal(
@@ -133,7 +114,7 @@ impl<'a> Collector<'a> {
             .chain(signature.exact().parameters().iter().copied())
             .chain([signature.exact().result()])
         {
-            self.field(exact)?;
+            self.exact(exact)?;
         }
         Ok(())
     }

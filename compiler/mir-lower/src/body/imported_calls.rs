@@ -8,8 +8,9 @@ impl BodyLowerer<'_> {
         result_type: hir::TypeId,
     ) -> smir::Expr {
         let dispatch = self.module.imported_dependency_callables[callee].dispatch();
-        let (callee, role) = self.imported_dependency_callable_map[&callee];
-        let callee = mir::Callee::External(callee);
+        let target = &self.imported_dependency_callable_map[&callee];
+        let role = target.lowering_role;
+        let callee = mir::Callee::External(target.callable);
         let return_ty = self.lower_type(result_type);
         if let mir::MirCallableLoweringRoleV1::ClassInitializer { .. } = role {
             // The source expression returns the allocated class, while the

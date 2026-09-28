@@ -413,12 +413,27 @@
 
 本次按用户要求以 WIP 提交保存当前变更。接口抽象覆盖的产物闭环已恢复，ODR 装箱和其余主线继续实施，M23-7 尚未完成。
 
+## 2026-09-28：泛型接口与 ODR 装箱的真实产物闭环
+
+- MIR 先收齐实际名义 application，再投影生成 box 与 step/slot，修复生成表示先于 payload 的生产顺序。装箱 adjust 与目标成员使用完整 Strong/ODR callable subject，保留原角色、receiver、参数、结果和 GC effect 检查；泛型 box 的 descriptor 与 adjust 继续归原 ODR group/member。reader 将实际按需 helper 纳入类型表示清单，复用已完成的角色和字段检查，并核对所需的 GC 与接口关系，不要求发射未使用的支持族。
+- 泛型抽象 setter 的隐式参数使用原 accessor 定义位置，普通命名参数保留自身来源，修复再次发布时缺失局部值 definition origin 的错误。接口只有完整槽契约，具体类和值类型保留实际派发表；普通与泛型接口共用生产和读取路径，未使用或被抽象 override 压制的默认正文不再成为机器依赖。实现规范与设计说明同步。
+- 普通依赖值的 conformance 保留完整语义数据，但其已有 box 与 adjust 由 provider 提供，不再额外登记消费方没有调用的成员执行根。本地值和泛型 application 继续收集实际装箱实现。MIR 的导入 callable 映射保留所选定义的完整物理签名，装箱 thunk 直接由该签名取得 receiver、参数和结果，消除对旧 Interface 调用标记的依赖；调用方式与定义签名各自承担原职责，未放宽未引用 external callable 的拒绝检查。
+- 结构 payload 的 MIR 语义引用沿 tuple 收集实际 nominal/application 叶子，function 和 pointer 使用已有表示。实际 box payload 与 inline array element 所需的结构 ManagedValue layout 和 scan 由 LIR 发射，沿用已有 StructuralType group；嵌套 tuple 复用现有 value constituent，不递归制造多余独立布局。producer 和 reader 共用既有 tuple/qualified-pointer 布局算法，保留本地物理定义、大小、对齐和扫描程序检查，没有增加格式版本或 runtime C ABI。
+- 完成原有 18 组泛型成员和接口正例的真实产物链路，补齐剩余 6 组接口场景的 18 份 HIR/MIR/LIR golden。场景包含 class、struct、enum、接口默认方法、抽象覆写、消费方本地实现、属性、ZST 和含引用的大值；每组均发布 provider 后移走源码、由 consumer 实例化并再次发布、下游通过 `.slib` 对新类型实例化，最后链接、普通运行与移动 GC。产物断言同时核对实际 box descriptor 的 WeakODR linkage 和 adjust 的 DispatchAdapter member。
+- 将结构装箱及函数类型变体 adapter 的旧拒绝测试改为真实产物正例，保留源码、三阶段 dump、发布、下游消费、链接和运行断言。新增独立 tuple 装箱与嵌套 tuple、ZST、三个外来引用的组合 fixture；组合在装箱后继续分配并发生移动 GC，解包后通过公开成员验证引用仍有效。core 的 Any 参数用例也完成结构 box 的真实发布与运行；三部分共新增 12 份 HIR/MIR/LIR golden。
+- 同步 41 份既有产物快照，逐份核对只改变整包 artifact fingerprint，代码和 runtime 指纹及依赖关系保持。三份既有 dispatch/export 快照改为接口槽契约及空的接口自身 itable，实际 class 与 box 的物理表保持。普通依赖回归中的 18 份 HIR 快照逐份核对只有 callable use 编号变化，MIR/LIR 快照保持；没有删除真实语言规则、产物或运行断言。
+- 补齐既有 HIR selection、HIR lowering 和 driver provider 单测所需的 source record、context 与函数 definition origin。修正测试数据以满足原完整来源合同，生产入口仍拒绝缺失来源，没有增加重复语义验证。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 与配套 `scoopc` 构建通过，无警告。修复回归发现的执行根和装箱签名问题后，关闭全部快照更新开关，完整运行 `cargo test --workspace`，5180 项测试全部通过，无失败或忽略，包含 126 项 driver 库测试、7 项 CLI、1 项配套编译器及 2 项文档测试。driver 库用时 342.22 秒；上述产物用例均在本次完整命令中再次验证。
+- 确认全部构建、测试和配套编译器进程结束，且 `target` 中没有打开的文件。通过 Cargo metadata 核对构建目录及已有标准缓存标记后，执行 `cargo clean --target-dir target`，删除 2732 个构建文件，回收 5.1 GiB。
+
+本项完成泛型接口及上述 ODR 装箱、结构 payload 与 adapter 场景的产物运行闭环。其他生成执行实体、delegate 和剩余组合仍沿下面主线推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 在已完成的泛型 class 共有 callable/dispatch，以及消费方构造、具体成员、虚调用和 `super` 闭环基础上，继续完成泛型接口默认与抽象成员、消费方覆写、protected 访问和 setter 等组合，补齐递归扫描程序的实际对象 atom。
-4. 完成 adapter、box、coroutine 与有限 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
+3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、虚调用和 `super`、泛型接口及属性闭环基础上，补齐 protected 访问、消费方覆写与 setter 的其他组合，以及递归扫描程序的实际对象 atom。
+4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
 

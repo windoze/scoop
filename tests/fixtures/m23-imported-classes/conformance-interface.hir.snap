@@ -11,7 +11,7 @@ Module
       val local2
         IntegerLiteral 1 : Long
       return
-        ImportedDependencyCall #0 interface[1] : Long
+        ImportedDependencyCall #2 interface[1] : Long
           Local $dependency.receiver : Readable
           Local $dependency.parameter.extra : Long
   fun localReader(): LocalReader

@@ -190,29 +190,26 @@ impl Lowerer {
                 )
             }
             hir::InterfaceImplementationTarget::Imported(callable) => {
-                let scoop_hir::ImportedDependencyDispatch::Interface { interface, slot } =
-                    module.imported_dependency_callables[callable].dispatch()
-                else {
-                    unreachable!("a value conformance imports an interface default")
+                let target = &self.imported_dependency_callable_map[&callable];
+                let signature = &target.signature;
+                let receiver = signature
+                    .receiver()
+                    .into_option()
+                    .expect("a selected boxed dispatch target has a receiver");
+                let local_type = |exact| {
+                    module
+                        .exact_type_identities
+                        .type_for_identity(exact)
+                        .expect("selected callable signatures retain their exact HIR types")
                 };
-                let declaration = module
-                    .interfaces
-                    .iter()
-                    .find_map(|(_, declaration)| match &declaration.origin {
-                        scoop_hir::HirNominalIdentity::Source(
-                            scoop_hir::HirSourceNominalIdentity::Concrete(identity),
-                        ) if identity.id() == interface => Some(declaration),
-                        _ => None,
-                    })
-                    .expect("a selected interface default retains its declaring interface");
-                let method = &declaration.methods[slot as usize];
-                let params = std::iter::once(declaration.canonical_type)
-                    .chain(method.params.iter().map(|param| param.ty))
+                let params = std::iter::once(receiver)
+                    .chain(signature.parameters().iter().copied())
+                    .map(local_type)
                     .collect();
                 (
-                    mir::Callee::External(self.imported_dependency_callable_map[&callable].0),
+                    mir::Callee::External(target.callable),
                     params,
-                    method.return_ty,
+                    local_type(signature.result()),
                 )
             }
             hir::InterfaceImplementationTarget::Abstract { .. }

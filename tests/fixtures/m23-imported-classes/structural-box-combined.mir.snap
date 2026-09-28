@@ -1,0 +1,308 @@
+Module
+  struct Token ()
+  class Counter vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class box<(Token, (Counter, Counter, Counter))> vtable=0 itables=0
+  generated_exact_type get0 location=class4 nominal_id=11a977718ca5273e2ba6f70467dbdbf93f48aafe749767ae8566cd9a526c5fd3 exact_id=65f7c4c728ffb1ac7bcc192d3ac71b9b249df5a87d52c2c27b6eab4826677d6d
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val first: Counter
+        Type Counter
+        Local $new.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val second: Counter
+        Type Counter
+        Local $new.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=22 bits=0x0000000000000016
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      val third: Counter
+        Type Counter
+        Local $new.3
+      call $call.4: Token = external1 direct
+      val boxed: Any
+        Type Any
+        Box
+          Type (Token, (Counter, Counter, Counter))
+          TupleLiteral
+            Type Token
+            Local $call.4
+            Type (Counter, Counter, Counter)
+            TupleLiteral
+              Type Counter
+              Local first
+              Type Counter
+              Local second
+              Type Counter
+              Local third
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.5
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.5
+        Type Long
+        Local $dependency.parameter.value
+      val pressure: Counter
+        Type Counter
+        Local $new.5
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Token, (Counter, Counter, Counter))
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.6
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.6
+      throw
+        Type ClassCastException
+        Local $new.6
+    bb2 if.merge.2
+      val $ub.2: (Token, (Counter, Counter, Counter))
+        Type (Token, (Counter, Counter, Counter))
+        Unbox
+          Type Any
+          Local $cast.1
+      val $binding.subject.0: (Token, (Counter, Counter, Counter))
+        Type (Token, (Counter, Counter, Counter))
+        Local $ub.2
+      val $binding.projection.1: Token
+        Type Token
+        FieldAccess 0
+          Type (Token, (Counter, Counter, Counter))
+          Local $binding.subject.0
+      val marker: Token
+        Type Token
+        Local $binding.projection.1
+      val $binding.projection.2: (Counter, Counter, Counter)
+        Type (Counter, Counter, Counter)
+        FieldAccess 1
+          Type (Token, (Counter, Counter, Counter))
+          Local $binding.subject.0
+      val references: (Counter, Counter, Counter)
+        Type (Counter, Counter, Counter)
+        Local $binding.projection.2
+      val $binding.subject.3: (Counter, Counter, Counter)
+        Type (Counter, Counter, Counter)
+        Local references
+      val $binding.projection.4: Counter
+        Type Counter
+        FieldAccess 0
+          Type (Counter, Counter, Counter)
+          Local $binding.subject.3
+      val left: Counter
+        Type Counter
+        Local $binding.projection.4
+      val $binding.projection.5: Counter
+        Type Counter
+        FieldAccess 1
+          Type (Counter, Counter, Counter)
+          Local $binding.subject.3
+      val middle: Counter
+        Type Counter
+        Local $binding.projection.5
+      val $binding.projection.6: Counter
+        Type Counter
+        FieldAccess 2
+          Type (Counter, Counter, Counter)
+          Local $binding.subject.3
+      val right: Counter
+        Type Counter
+        Local $binding.projection.6
+      val $dependency.receiver: Counter
+        Type Counter
+        Local left
+      call $dependency.receiver: Long = external2 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.receiver: Counter
+        Type Counter
+        Local middle
+      call $dependency.argument.0: Long = external2 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: Counter
+        Type Counter
+        Local right
+      call $dependency.argument.0: Long = external2 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $div.3: Long
+        Type Long
+        Local $dependency.receiver
+      val $div.4: Long
+        Type Long
+        Local $dependency.parameter.other
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      assign $new.7
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external4 direct
+        Type ArithmeticException
+        Local $new.7
+      throw
+        Type ArithmeticException
+        Local $new.7
+    bb4 if.merge.4
+      branch bb5 bb6
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.3
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb5 logic.rhs.5
+      assign $logic.8
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.4
+          Type Long
+          IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      goto bb7
+    bb6 logic.short.6
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb7
+    bb7 logic.merge.7
+      branch bb8 bb9
+        Type Boolean
+        Local $logic.8
+    bb8 if.then.8
+      assign $div.result.5
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      goto bb10
+    bb9 if.else.9
+      assign $div.result.5
+        Type Long
+        SafeIntegerDivRem divide kind=Long
+          Type Long
+          Local $div.3
+          Type Long
+          Local $div.4
+      goto bb10
+    bb10 if.merge.10
+      val $dependency.receiver: Long
+        Type Long
+        Local $div.result.5
+      val $dependency.receiver: Counter
+        Type Counter
+        Local pressure
+      call $dependency.argument.0: Long = external2 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.9
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.9
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.9
+  output library

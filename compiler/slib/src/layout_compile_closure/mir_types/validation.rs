@@ -7,7 +7,7 @@ use scoop_wire::WirePath;
 
 use super::{Error, SharedMirTypeComponent as Component};
 
-/// Replays type and finite-shape constituents from checked shared declarations.
+/// Joins source declarations and actual generated shapes to the MIR type table.
 /// This does not validate callables, dispatch, selected uses or machine layouts.
 pub fn validate_shared_mir_type_exports(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
@@ -53,6 +53,19 @@ pub fn validate_shared_mir_type_exports(
         }
     }
     super::helpers::validate(&mut comparison, core, shapes)?;
+    comparison.expected.sort_unstable();
+    let source_count = comparison.expected.len();
+    for record in types.records() {
+        if comparison.expected[..source_count]
+            .binary_search(&record.exact())
+            .is_ok()
+        {
+            continue;
+        }
+        if let mir::MirTypeOriginV1::GeneratedNominal { role, .. } = record.origin() {
+            super::helpers::generated(&mut comparison, record, role)?;
+        }
+    }
     comparison.finish()
 }
 

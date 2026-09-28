@@ -1,0 +1,26 @@
+Module
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      Box : ReadOnlyProperty<Int>
+        ImportedConstructorInit PropertyCell : PropertyCell<Int>
+          Local $dependency.parameter.stored : Int
+    return
+      ImportedGenericCall read<Int> : Int
+        Local cell : ReadOnlyProperty<Int>
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      Box : ReadOnlyProperty<T0>
+        ImportedConstructorInit PropertyCell : PropertyCell<T0>
+          Local $dependency.parameter.stored : T0
+    return
+      ImportedGenericCall read<T0> : T0
+        Local cell : ReadOnlyProperty<T0>
+  output library

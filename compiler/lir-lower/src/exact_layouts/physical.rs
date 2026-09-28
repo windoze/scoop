@@ -12,14 +12,7 @@ impl Projection<'_> {
     ) -> Result<()> {
         let id = record.identity().layout();
 
-        let layouts = &self.output.module().meta.layouts;
-        let mut matching = layouts
-            .iter()
-            .filter(|(_, layout)| layout.identity.layout_record().id() == id);
-        let actual = matching.next().map(|(_, layout)| layout);
-        if matching.next().is_some() {
-            return Err(ExactLayoutLoweringError::PhysicalLayout(id));
-        }
+        let actual = physical_layout(id, self.output)?;
         if actual.is_some_and(|layout| layout.identity.scan_record().id() != record.scan()) {
             return Err(ExactLayoutLoweringError::PhysicalLayout(id));
         }
@@ -58,6 +51,24 @@ impl Projection<'_> {
             }
         }
         Ok(())
+    }
+
+    pub(super) fn validate_structural_value(
+        &mut self,
+        value: &lir::ExactValueLayoutV1,
+    ) -> Result<()> {
+        let id = value.identity().layout();
+        let actual = physical_layout(id, self.output)?
+            .ok_or(ExactLayoutLoweringError::PhysicalLayout(id))?;
+        if !matches!(actual.kind, lir::LayoutKind::Plain { .. })
+            || !actual.fields.is_empty()
+            || actual.c_layout.is_some()
+            || actual.interior_mutable
+            || actual.identity.scan_record().id() != value.scan()
+        {
+            return Err(ExactLayoutLoweringError::PhysicalLayout(id));
+        }
+        self.validate_value_storage(value, actual)
     }
 
     fn validate_value(
@@ -119,17 +130,12 @@ impl Projection<'_> {
             ) => true,
             _ => false,
         };
-        if !family
-            || actual.size != storage.byte_size()
-            || actual.align != storage.alignment().get()
-            || actual.c_layout != policy
-            || actual.interior_mutable != mutable
-        {
+        if !family || actual.c_layout != policy || actual.interior_mutable != mutable {
             return Err(ExactLayoutLoweringError::PhysicalLayout(
                 value.identity().layout(),
             ));
         }
-        self.validate_scan(value.identity(), scan, actual)?;
+        self.validate_value_storage(value, actual)?;
         match value.representation().kind() {
             Kind::Struct(layout) => {
                 self.validate_fields(value.identity().layout(), layout.fields(), &actual.fields)
@@ -139,6 +145,24 @@ impl Projection<'_> {
                 value.identity().layout(),
             )),
         }
+    }
+
+    fn validate_value_storage(
+        &mut self,
+        value: &lir::ExactValueLayoutV1,
+        actual: &lir::Layout,
+    ) -> Result<()> {
+        let storage = value.value().storage();
+        if actual.size != storage.byte_size() || actual.align != storage.alignment().get() {
+            return Err(ExactLayoutLoweringError::PhysicalLayout(
+                value.identity().layout(),
+            ));
+        }
+        let scan = match storage.kind() {
+            lir::ValueStorageKindV1::ZeroSized { .. } => &lir::RefScan::None,
+            lir::ValueStorageKindV1::Inline { scan, .. } => scan.as_ref_scan(),
+        };
+        self.validate_scan(value.identity(), scan, actual)
     }
 
     fn validate_instance_layout(
@@ -228,4 +252,21 @@ impl Projection<'_> {
         }
         Ok(())
     }
+}
+
+fn physical_layout(
+    id: PersistentLayoutId,
+    output: &lir::ConeLirOutput,
+) -> Result<Option<&lir::Layout>> {
+    let mut matching = output
+        .module()
+        .meta
+        .layouts
+        .iter()
+        .filter(|(_, layout)| layout.identity.layout_record().id() == id);
+    let actual = matching.next().map(|(_, layout)| layout);
+    if matching.next().is_some() {
+        return Err(ExactLayoutLoweringError::PhysicalLayout(id));
+    }
+    Ok(actual)
 }
