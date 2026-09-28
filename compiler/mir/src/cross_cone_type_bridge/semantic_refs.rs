@@ -2,8 +2,8 @@
 
 use super::*;
 use scoop_identity::{
-    DispatchSlotKey, GeneratedCallableKey, InitializationUnitKey, PersistentInitializationUnitId,
-    PersistentObjectValueId, StrongCallableDefinitionOwner,
+    DispatchSlotKey, GeneratedCallableKey, PersistentInitializationUnitId, PersistentObjectValueId,
+    StrongCallableDefinitionOwner,
 };
 
 mod collector;

@@ -1,0 +1,32 @@
+package templates.delegateGenerated
+
+public object Trace {
+    public var initializerLocal: Int = 0
+}
+
+public class Receiver<T> public constructor(public val value: T)
+public class Payload public constructor(public var value: Int)
+
+public struct ReferenceSlot<T>(val first: Payload, val second: Payload, val third: Payload) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.first.value + this.second.value + this.third.value
+}
+
+public val <T> Receiver<T>.initializerLocal: Int by if (true) {
+    Trace.initializerLocal += 1
+    val payload = Payload(42)
+    fun <U> keep(value: U, again: Boolean = false): U {
+        if (again) { return keep<U>(value) }
+        return value
+    }
+    fun read(extra: Int = 0): Int = keep<Payload>(payload, true).value + extra
+    ReferenceSlot<T>(Payload(read()), Payload(0), Payload(0))
+} else {
+    ReferenceSlot<T>(Payload(0), Payload(0), Payload(0))
+}
+
+public val <T> Receiver<T>.initializerBasic: Int by if (true) {
+    fun read(): Int = 42
+    ReferenceSlot<T>(Payload(read()), Payload(0), Payload(0))
+} else {
+    ReferenceSlot<T>(Payload(0), Payload(0), Payload(0))
+}

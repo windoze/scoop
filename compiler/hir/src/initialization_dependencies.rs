@@ -80,14 +80,17 @@ pub(crate) fn initializer_root(
         // Lexical bodies retain their own root, even inside an initializer.
         return Ok(None);
     };
-    if root.context() != CallableMaterializationContext::NoSubstitution {
-        return Err(Error::InitializationRootContext(root));
+    let unit = match root.context() {
+        CallableMaterializationContext::NoSubstitution => *unit,
+        CallableMaterializationContext::InitializationApplication(unit) => unit,
+        CallableMaterializationContext::Application(_) => {
+            return Err(Error::InitializationRootContext(root));
+        }
+    };
+    if !local_units.contains(&unit) {
+        return Err(Error::MissingLocalUnit(unit));
     }
-
-    if !local_units.contains(unit) {
-        return Err(Error::MissingLocalUnit(*unit));
-    }
-    Ok(Some(*unit))
+    Ok(Some(unit))
 }
 
 fn push(

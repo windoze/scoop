@@ -106,7 +106,7 @@ fn initialization_provider_is_derived_and_local_unit_belongs_to_consumer() {
 }
 
 #[test]
-fn parameter_free_extension_property_units_are_exact_and_generic_units_are_gated() {
+fn parameter_free_extension_property_units_are_exact_and_generic_units_are_local() {
     let fixture = Fixture::new();
     let cause = MirExternalInitializationCauseV1::PropertyAccessor(fixture.accessors[2].id());
     let record = fixture.use_for(4, cause).unwrap();
@@ -120,6 +120,19 @@ fn parameter_free_extension_property_units_are_exact_and_generic_units_are_gated
             5,
             MirExternalInitializationCauseV1::InitializationSupport(fixture.units[5].id())
         ),
-        Err(MirObjectBridgeError::GenericUnitGate { .. })
+        Err(MirObjectBridgeError::DependencyProvider { .. })
     ));
+    let generic = fixture.units[5].id();
+    let dependency = fixture.units[1].id();
+    let use_ = SelectedExternalInitializationUseV1::try_new(
+        ConeIdentity::SINGLE_FILE,
+        &fixture.graph,
+        generic,
+        ConeIdentity::CORE,
+        dependency,
+        MirExternalInitializationCauseV1::InitializationSupport(dependency),
+    )
+    .unwrap();
+    assert_eq!(use_.local_unit(), generic);
+    assert_eq!(use_.dependency_unit(), dependency);
 }

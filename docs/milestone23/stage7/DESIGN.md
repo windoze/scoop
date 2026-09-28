@@ -110,7 +110,7 @@ lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的
 
 导入模板中的局部具名函数声明与本地声明一样不产生运行时语句。实际直接调用复用原 typed callee 及完整类型实参，把已解析捕获表达式按原顺序放在显式参数之前，并进入已有导入 callable 的具体化队列；不为声明标记生成 Unit 占位表达式，也不把 provider 的源码函数复制为当前 Cone 的 `FunctionId`。
 
-无自身类型参数的局部声明保持 `PersistentFunctionId`，其继承实参通过 enclosing callable application 表达；局部 generic 声明另外保留自身实参组。词法正文从已有正文表读取，不成为可按名字导入的源码接口。该正文的 binder 已在定义处检查，消费端保存有序替换参数及已有条件约束；它们与需要参与源码推断的声明参数使用不同表示，不能伪造一组无约束声明参数来填充接口。
+无自身类型参数的局部声明保持 `PersistentFunctionId`，其继承实参通过 enclosing callable application 或 initialization application 表达；局部 generic 声明另外保留自身实参组。initializer 中的生成正文沿原 generated callable、unit 与 property/type 关系取得声明所属 Cone，不增加可按名字导入的 initializer binding。词法正文从已有正文表读取，不成为可按名字导入的源码接口。该正文的 binder 已在定义处检查，消费端保存有序替换参数及已有条件约束；它们与需要参与源码推断的声明参数使用不同表示，不能伪造一组无约束声明参数来填充接口。
 
 构造初始化表按原名义声明保存公共序列与各构造器：class 的 common initialization 只保存一次，primary 保留 base delegation 和参数到字段的写入，secondary 区分 `this` 与 terminal `super` 委托，并保留其后执行的正文；struct 区分 primary 值构造与 secondary 委托。委托实参、字段初始化、`init` 和次构造正文共用含局部值表、typed statements 与实际结果列表的执行片段；纯语句片段的结果列表为空，不填充假的 Unit。构造参数用原源码位置对应的 `Parameter` selector，初始化接收者用 `This` selector，字段访问继续使用原 typed field identity。class 的委托复用同一个已分配接收者，common sequence 中的 stored/delegate 写入与 `init` 按源码顺序执行。shape、参数调用协议和 bounds 仍由既有共有声明表提供。
 
@@ -409,6 +409,8 @@ HIR identity delta 保存实际 application unit 与 delegated-property group；
 - 本次 initializer/ensure 自身产生的 closure、常量、类型/scan 等必要支持；其他 nominal/callable root 以 typed edge 引用。
 
 getter/setter 继续使用各自 callable application，二者引用同一 delegated-property group。只读取 `var` 不要求预生成未使用的 setter；unit 的固定状态成员仍不能少。Lazy unit 不生成 startup gateway，C 中相关 id/digest/pointer 保持规范的全零分支。
+
+initializer 直接访问外来 object/property 时，以本次实际 application unit 保存初始化依赖。该 local unit 的声明可来自依赖 Cone；存在性由实际 MIR root 和已验证的 LIR 登记确认。它引用原参数自由 Strong 初始化服务，自身不进入外部服务目录，也不要求提供方预先物化该 application。
 
 production 的 canonical shape 表同时覆盖实际 ODR storage、initialization cell 和 descriptor。storage 的内容由已计算的存储语义投影取得，排除使用 Cone 的 layout-provider 路由信息；cell 保存真实零初始状态和物理 ABI，descriptor 保存 schedule、unit、typed 指针目标及稳定诊断字节。登记摘要复用已经验证的对象 leaves，不再次解析同一存储或初始化对象。layout/scan 自身沿 exact type 的归属发射，与持有这些值的委托 application 分开。
 

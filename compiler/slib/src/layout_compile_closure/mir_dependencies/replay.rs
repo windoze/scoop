@@ -7,6 +7,7 @@ pub fn replay_shared_mir_dependency_graph(
     source_dependencies: &[scoop_hir::SharedTypeMetadataV1<'_>],
     mir: &mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     units: &[mir::MirTypeBridgeInitializationUnitV1],
+    materialized_units: &[scoop_identity::PersistentInitializationUnitId],
     dependencies: &[mir::MirTypeBridgeDependencyViewV1<'_>],
 ) -> Result<(), Error> {
     if source.provider != mir.provider() {
@@ -16,7 +17,7 @@ pub fn replay_shared_mir_dependency_graph(
         });
     }
     let path = WirePath::root();
-    super::initialization::replay(source, source_dependencies, mir, units)?;
+    super::initialization::replay(source, source_dependencies, mir, materialized_units)?;
     let references = source.public.external_references();
     let types = references
         .materialized_type_dependencies(source.provider, source.identities)

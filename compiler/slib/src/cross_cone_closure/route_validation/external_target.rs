@@ -6,10 +6,11 @@ use std::sync::Arc;
 use scoop_hir::{ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1};
 use scoop_identity::{
     BindingTarget, BindingTargetError, CallableTemplateOrigin, CallableTemplateOwner, ConeIdentity,
-    DefinitionOwnerAtom, EnumVariantIdentityKey, GeneratedCallableKey, NominalDeclarationOwner,
-    PersistentConstructorId, PersistentEnumVariantId, PersistentExtensionPropertyId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentGenericTypeId, PersistentId, PersistentObjectValueId, PersistentPropertyAccessorId,
+    DefinitionOwnerAtom, EnumVariantIdentityKey, GeneratedCallableKey, InitializationUnitKey,
+    NominalDeclarationOwner, PersistentConstructorId, PersistentEnumVariantId,
+    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentId,
+    PersistentInitializationUnitId, PersistentObjectValueId, PersistentPropertyAccessorId,
     PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, PropertyAccessorKey,
     PropertyOwner, SourceDeclarationKey,
 };
@@ -218,6 +219,28 @@ impl CanonicalCrossConeRouteAuthority<'_> {
                 | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => parent.template(),
                 GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
                     return self.constructor_resolution(*constructor, target);
+                }
+                GeneratedCallableKey::Initialization { unit, .. } => {
+                    let key = self
+                        .identities
+                        .canonical_key::<PersistentInitializationUnitId, InitializationUnitKey>(
+                            *unit,
+                        )
+                        .map_err(CrossConeHirReferenceAuthorityError::Identity)?;
+                    return match key.as_ref() {
+                        InitializationUnitKey::TopLevelProperty(id) => {
+                            self.property_resolution(PropertyOwner::Property(*id))
+                        }
+                        InitializationUnitKey::ExtensionProperty(id)
+                        | InitializationUnitKey::GenericDelegatedExtensionApplication {
+                            property: id,
+                            ..
+                        } => self.property_resolution(PropertyOwner::ExtensionProperty(*id)),
+                        InitializationUnitKey::Object(id)
+                        | InitializationUnitKey::Companion(id) => {
+                            self.nominal_resolution(NominalDeclarationOwner::Concrete(*id))
+                        }
+                    };
                 }
                 _ => {
                     return Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot {

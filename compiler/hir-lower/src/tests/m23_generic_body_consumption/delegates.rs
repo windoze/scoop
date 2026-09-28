@@ -82,3 +82,60 @@ fn imported_generic_delegates_share_storage_by_complete_receiver_arguments() {
     )
     .unwrap_or_else(|errors| panic!("generic delegate consumption: {errors:?}"));
 }
+
+#[test]
+fn imported_initializer_locals_keep_the_initialization_application_owner() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/m23-generic-delegate-generated");
+    let source = |name: &str| std::fs::read_to_string(root.join(format!("{name}.scoop"))).unwrap();
+    for (case, expected) in [("initializer-basic", 1), ("initializer-local", 2)] {
+        with_provider_consumer(&source("provider"), &source(case), |output, _, _, _, _| {
+            let local = output.output().local.module();
+            assert_eq!(local.initialization_units.len(), 1);
+            let unit = local
+                .initialization_units
+                .iter()
+                .next()
+                .unwrap()
+                .1
+                .identity
+                .id();
+            let functions = local
+                .functions
+                .iter()
+                .filter(|(_, function)| matches!(function.name.as_str(), "read" | "keep"))
+                .map(|(_, function)| function)
+                .collect::<Vec<_>>();
+            assert_eq!(functions.len(), expected);
+            for function in functions {
+                let scoop_identity::CallableMaterializationContext::Application(id) =
+                    function.materialization.context()
+                else {
+                    panic!("an initializer local retains its callable application");
+                };
+                let key = local.callable_applications.get(id).unwrap().key();
+                assert_eq!(
+                    key.instantiation_owner(),
+                    scoop_identity::CallableInstantiationOwner::EnclosingInitializationApplication(
+                        unit
+                    )
+                );
+                assert_eq!(
+                    matches!(
+                        key.origin(),
+                        scoop_identity::CallableTemplateOrigin::GenericFunction(_)
+                    ),
+                    function.name == "keep"
+                );
+                assert_eq!(
+                    matches!(
+                        key.callable_arguments(),
+                        scoop_identity::CallableArguments::NoCallableArguments
+                    ),
+                    function.name == "read"
+                );
+            }
+        })
+        .unwrap_or_else(|error| panic!("{case}: {error:?}"));
+    }
+}

@@ -71,7 +71,7 @@ pub fn replay_source_initialization_units(
     for unit in required {
         // Provider resolution follows both the unit key and its source owner.
 
-        if super::super::super::objects::unit_provider(graph, unit)? != provider {
+        if super::super::super::objects::unit_provider(graph, unit)? != Some(provider) {
             return Err(Error::Unit {
                 unit,
                 problem: Problem::WrongProvider,

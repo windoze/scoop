@@ -19,6 +19,13 @@ pub(super) fn check(
         public: input.public,
     };
     let dependencies = [core];
+    let materialized_units = input
+        .mir
+        .materialization()
+        .initialization_roots()
+        .iter()
+        .map(|root| root.identity())
+        .collect::<Vec<_>>();
     let expected = section.selected().relations().collect::<Vec<_>>();
     let resolved = wire::resolve(input, section, &dependencies, &expected, input.identities);
     let replay = |candidate: &_| {
@@ -27,6 +34,7 @@ pub(super) fn check(
             &[],
             candidate,
             section.initialization_units(),
+            &materialized_units,
             &dependencies,
         )
     };
@@ -86,6 +94,7 @@ pub(super) fn check(
             &[],
             &resolved,
             section.initialization_units(),
+            &materialized_units,
             &dependencies
         ),
         Err(Error::InputProvider { .. })
@@ -96,6 +105,7 @@ pub(super) fn check(
             &[],
             &resolved,
             section.initialization_units(),
+            &materialized_units,
             &[]
         )
         .is_err()

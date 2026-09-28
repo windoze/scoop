@@ -49,7 +49,7 @@ fn derived_parameters_reject_fabricated_source_origins() {
         let local = local(CallableTemplateOwner::Generated(records[0].id()), selector);
         let subject = DefinitionOriginSubject::LocalValue(local.id());
         for fabricated in [false, true] {
-            let mut requirements = OriginRequirements::new(&records, 1, &path).unwrap();
+            let mut requirements = OriginRequirements::new(&records, &[], 1, &path).unwrap();
             requirements.local_value(&local, &path).unwrap();
             let origins = if fabricated {
                 vec![DefinitionOriginRecord::new(subject, origin.clone())]
@@ -79,7 +79,7 @@ fn only_the_derived_receiver_and_sole_parameter_are_synthetic() {
     );
     let path = WirePath::root().field(29);
 
-    let mut requirements = OriginRequirements::new(&records, 1, &path).unwrap();
+    let mut requirements = OriginRequirements::new(&records, &[], 1, &path).unwrap();
     assert!(matches!(
         requirements.local_value(&local,  &path),
         Err(HirFoundationValidationError::Origin(DefinitionOriginValidationError::MissingSourceAnchor { subject }))
@@ -110,7 +110,7 @@ fn ordinary_receiver_still_requires_a_source_origin() {
     );
     let path = WirePath::root().field(29);
 
-    let mut requirements = OriginRequirements::new(&[], 1, &path).unwrap();
+    let mut requirements = OriginRequirements::new(&[], &[], 1, &path).unwrap();
     requirements.local_value(&local, &path).unwrap();
     assert!(matches!(
         validate_records(ConeIdentity::CORE, &[], requirements, &[], &[]),

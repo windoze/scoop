@@ -1,5 +1,6 @@
 use super::*;
 use crate::cross_cone_type_bridge::objects::tests::support::Fixture;
+use scoop_identity::{ConeIdentity, InitializationUnitKey};
 
 #[test]
 fn object_edges_keep_source_backing_ensure_and_unit_separate() {
@@ -97,7 +98,7 @@ fn object_ensure_collects_logical_unit_type_and_unit_role() {
 }
 
 #[test]
-fn generic_initialization_unit_still_requires_the_next_stage() {
+fn generic_initialization_unit_only_selects_its_external_services() {
     let fixture = Fixture::new();
     let generic = fixture
         .units
@@ -110,8 +111,25 @@ fn generic_initialization_unit_still_requires_the_next_stage() {
         })
         .unwrap();
     assert!(
-        matches!(MirTypeBridgeSemanticReferencesV1::of_initialization_unit(
-        generic.id(), &fixture.graph,
-    ), Err(MirTypeBridgeReferenceError::GenericUnitGate(unit)) if unit == generic.id())
+        MirTypeBridgeSemanticReferencesV1::of_initialization_unit(generic.id(), &fixture.graph,)
+            .unwrap()
+            .targets()
+            .is_empty()
+    );
+    let dependency = fixture.units[1].id();
+    let use_ = SelectedExternalInitializationUseV1::try_new(
+        ConeIdentity::SINGLE_FILE,
+        &fixture.graph,
+        generic.id(),
+        ConeIdentity::CORE,
+        dependency,
+        MirExternalInitializationCauseV1::InitializationSupport(dependency),
+    )
+    .unwrap();
+    assert_eq!(
+        MirTypeBridgeSemanticReferencesV1::of_initialization_use(&use_, &fixture.graph)
+            .unwrap()
+            .targets(),
+        &[MirTypeBridgeTargetV1::InitializationUnit(dependency)]
     );
 }

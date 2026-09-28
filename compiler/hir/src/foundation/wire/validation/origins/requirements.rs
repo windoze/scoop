@@ -17,12 +17,14 @@ pub(super) struct OriginRequirements<'a> {
     pub(super) required: HashMap<DefinitionOriginSubject, OriginExpectation<'a>>,
     pub(super) optional: HashMap<DefinitionOriginSubject, OriginExpectation<'a>>,
     generated: HashMap<PersistentGeneratedCallableId, &'a GeneratedCallableKey>,
+    dependencies: &'a [&'a crate::CanonicalHirFoundation],
     visiting: HashSet<PersistentGeneratedCallableId>,
 }
 
 impl<'a> OriginRequirements<'a> {
     pub(super) fn new(
         generated_records: &'a [GeneratedCallableRecord],
+        dependencies: &'a [&'a crate::CanonicalHirFoundation],
         required_count: usize,
 
         path: &WirePath,
@@ -48,7 +50,18 @@ impl<'a> OriginRequirements<'a> {
             required,
             optional,
             generated,
+            dependencies,
             visiting,
+        })
+    }
+
+    fn generated_key(&self, id: PersistentGeneratedCallableId) -> Option<&GeneratedCallableKey> {
+        self.generated.get(&id).copied().or_else(|| {
+            self.dependencies.iter().find_map(|foundation| {
+                foundation
+                    .generated_callable_by_bytes(id.as_array())
+                    .map(|(_, key)| key)
+            })
         })
     }
 
@@ -100,7 +113,7 @@ impl<'a> OriginRequirements<'a> {
                 }
         ) && let CallableTemplateOwner::Generated(id) = record.key().owner().template()
             && matches!(
-                self.generated.get(&id),
+                self.generated_key(id),
                 Some(GeneratedCallableKey::DerivedEquality { .. })
             )
         {
@@ -174,7 +187,7 @@ impl<'a> OriginRequirements<'a> {
                         return Ok(None);
                     }
 
-                    let Some(key) = self.generated.get(&id) else {
+                    let Some(key) = self.generated_key(id) else {
                         return Ok(None);
                     };
                     match key {

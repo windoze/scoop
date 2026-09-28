@@ -23,12 +23,20 @@ pub(super) fn check(
         public: core_input.public,
     }];
     let views = [core];
+    let materialized_units = input
+        .mir
+        .materialization()
+        .initialization_roots()
+        .iter()
+        .map(|root| root.identity())
+        .collect::<Vec<_>>();
     let replay = |candidate: &_| {
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
             &dependencies,
             candidate,
             section.initialization_units(),
+            &materialized_units,
             &views,
         )
     };
@@ -84,6 +92,7 @@ pub(super) fn check(
             metadata,
             &dependencies,
             &valid,
+            &[],
             &[],
             &views,
         ),

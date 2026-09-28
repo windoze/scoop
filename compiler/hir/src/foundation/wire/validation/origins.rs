@@ -132,7 +132,8 @@ pub(super) fn validate(
         ],
         &path,
     )?;
-    let mut requirements = OriginRequirements::new(generated_callables, required_count, &path)?;
+    let mut requirements =
+        OriginRequirements::new(generated_callables, dependencies, required_count, &path)?;
 
     for record in types {
         if type_requires_definition_origin(record) {

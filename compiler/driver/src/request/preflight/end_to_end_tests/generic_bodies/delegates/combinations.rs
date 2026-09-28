@@ -25,10 +25,14 @@ fn generic_delegate_aliases_cycles_and_local_source_republish_and_execute() {
 }
 
 fn check_cases(cases: &[&str]) {
+    check_fixture_cases("m23-generic-delegate-combinations", cases);
+}
+
+fn check_fixture_cases(fixture: &str, cases: &[&str]) {
     let target = resolved_target().expect("generic delegate combinations require a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-generic-delegate-combinations");
+    let fixtures = crate::workspace_root().join("tests/fixtures").join(fixture);
     let source =
         |name: &str| std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
     let provider_coordinate =
@@ -161,6 +165,15 @@ fn check_cases(cases: &[&str]) {
         }
         assert!(!units.is_empty(), "{case} has concrete delegate units");
         for unit in units {
+            if case == "initializer-local" {
+                let dependencies = unit.semantic().dependencies();
+                assert_eq!(dependencies.len(), 1, "Trace is one external unit");
+                assert!(matches!(dependencies[0].kind(),
+                    scoop_lir::StrongInitializationDependencyKindV2::DependencyExternalUnit {
+                        provider,
+                        ..
+                    } if provider == provider_coordinate.identity().unwrap()));
+            }
             assert_eq!(
                 unit.semantic().schedule(),
                 scoop_lir::StrongInitializationSchedulePlanV1::LazyAccess
@@ -206,4 +219,12 @@ fn generic_delegates_use_dependency_members_and_local_accessors() {
 #[test]
 fn generic_delegate_mixed_roles_republish_and_execute() {
     check_cases(&["mixed-members", "foreign-extensions"]);
+}
+
+#[test]
+fn generic_delegate_initializer_local_functions_republish_and_execute() {
+    check_fixture_cases(
+        "m23-generic-delegate-generated",
+        &["initializer-basic", "initializer-local"],
+    );
 }

@@ -83,7 +83,7 @@ fn imported_generic_parameters_require_the_template_source_and_points() {
     let sources = [SourceRecord::from_utf8(source.clone(), text, [16, 21]).unwrap()];
     let validate = |origin: &DefinitionOrigin, dependencies: &[&CanonicalHirFoundation]| {
         let path = WirePath::root().field(29);
-        let mut requirements = OriginRequirements::new(&[], 1, &path).unwrap();
+        let mut requirements = OriginRequirements::new(&[], &[], 1, &path).unwrap();
         requirements.local_value(&local, &path).unwrap();
         validate_records(
             consumer,

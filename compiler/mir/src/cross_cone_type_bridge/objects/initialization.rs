@@ -28,10 +28,10 @@ impl SelectedExternalInitializationUseV1 {
         dependency_unit: PersistentInitializationUnitId,
         cause: MirExternalInitializationCauseV1,
     ) -> Result<Self, MirObjectBridgeError> {
-        if unit_provider(identities, local_unit)? != consumer {
+        if unit_provider(identities, local_unit)?.is_some_and(|owner| owner != consumer) {
             return Err(MirObjectBridgeError::LocalUnitOwner { unit: local_unit });
         }
-        if provider == consumer || unit_provider(identities, dependency_unit)? != provider {
+        if provider == consumer || unit_provider(identities, dependency_unit)? != Some(provider) {
             return Err(MirObjectBridgeError::DependencyProvider {
                 unit: dependency_unit,
             });
@@ -88,7 +88,7 @@ impl SelectedExternalInitializationUseV1 {
 pub(in crate::cross_cone_type_bridge) fn unit_provider(
     identities: &ValidatedIdentityGraph,
     unit: PersistentInitializationUnitId,
-) -> Result<ConeIdentity, MirObjectBridgeError> {
+) -> Result<Option<ConeIdentity>, MirObjectBridgeError> {
     let key = identities.canonical_key::<_, InitializationUnitKey>(unit)?;
     let source = match key.as_ref() {
         InitializationUnitKey::TopLevelProperty(id) => {
@@ -109,10 +109,12 @@ pub(in crate::cross_cone_type_bridge) fn unit_provider(
             source
         }
         InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => {
-            return Err(MirObjectBridgeError::GenericUnitGate { unit });
+            // Each consumer materializes this unit. Its complete local root
+            // is checked against the actual MIR or LIR registration inventory.
+            return Ok(None);
         }
     };
-    Ok(source.origin())
+    Ok(Some(source.origin()))
 }
 
 fn property_unit(

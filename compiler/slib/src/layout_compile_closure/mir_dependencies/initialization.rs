@@ -4,7 +4,7 @@ pub(super) fn replay(
     source: scoop_hir::SharedTypeMetadataV1<'_>,
     dependencies: &[scoop_hir::SharedTypeMetadataV1<'_>],
     mir: &mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
-    units: &[mir::MirTypeBridgeInitializationUnitV1],
+    units: &[scoop_identity::PersistentInitializationUnitId],
 ) -> Result<(), Error> {
     let uses = source
         .materialized_property_initialization_uses(dependencies)
@@ -14,7 +14,7 @@ pub(super) fn replay(
 
     scoop_wire::allocation::try_reserve(&mut expected, uses.len(), &path)?;
     for usage in uses {
-        if !units.iter().any(|unit| unit.unit() == usage.local_unit()) {
+        if !units.contains(&usage.local_unit()) {
             return Err(Error::MissingInitializationUnit(usage.local_unit()));
         }
         expected.push(
@@ -29,7 +29,6 @@ pub(super) fn replay(
             .map_err(|error| Error::InitializationUse(Box::new(error)))?,
         );
     }
-    let local_units = units.iter().map(|unit| unit.unit()).collect::<Vec<_>>();
     for usage in source
         .public
         .external_references()
@@ -37,7 +36,7 @@ pub(super) fn replay(
         .map_err(|error| Error::TypeOccurrences(Box::new(error)))?
     {
         let Some(local_unit) = usage
-            .initialization_root(source.identities, &local_units)
+            .initialization_root(source.identities, units)
             .map_err(|error| Error::InitializationOccurrences(Box::new(error)))?
         else {
             continue;

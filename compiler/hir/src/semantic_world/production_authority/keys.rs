@@ -2,11 +2,12 @@
 
 use scoop_identity::{
     EnumVariantFieldKey, EnumVariantIdentityKey, FieldIdentityKey, GeneratedCallableKey,
-    PersistentConstructorId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
-    PersistentExtensionPropertyId, PersistentFieldId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
-    PersistentTypeAliasId, PersistentTypeId, PropertyAccessorKey, SourceDeclarationKey,
+    InitializationUnitKey, PersistentConstructorId, PersistentEnumVariantFieldId,
+    PersistentEnumVariantId, PersistentExtensionPropertyId, PersistentFieldId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentInitializationUnitId, PersistentObjectValueId,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
+    PropertyAccessorKey, SourceDeclarationKey,
 };
 
 use super::CrossConeHirProductionAuthority;
@@ -177,6 +178,19 @@ impl CrossConeHirProductionAuthority<'_, '_> {
             foundation
                 .generated_callable_by_bytes(id.as_array())
                 .map(|(_, key)| key)
+        })
+    }
+
+    pub(super) fn initialization_unit_key(
+        &self,
+        id: PersistentInitializationUnitId,
+    ) -> Option<&InitializationUnitKey> {
+        self.foundations().find_map(|foundation| {
+            let records = foundation.type_source_initialization_records();
+            records
+                .binary_search_by_key(&id, |record| record.id())
+                .ok()
+                .map(|index| records[index].key())
         })
     }
 }

@@ -1038,7 +1038,7 @@ Export HIR 完成后、LocalConcrete HIR 生成前，先从公开声明、默认
 
 导入的局部具名函数声明标记没有运行时语义，与本地声明一样在具体化时消除。直接调用保留 provider 的原 typed callee 和完整类型实参，按现有 ABI 依次传入捕获值与显式实参，复用导入 callable 队列；不生成假的 Unit 语句，也不复制 provider 源码函数为当前 Cone 的声明。
 
-仅继承外层类型参数的局部函数仍以 `PersistentFunctionId` 标识；有自身类型参数时才使用 `PersistentGenericFunctionId`。其 application 的 owner 是外层 callable application，只有自身实参进入 callable 参数组。共有正文目录直接提供词法实现，不把局部声明加入源码名字查找接口。消费端对已经完成定义处检查的词法正文只保留有序替换 binder 和已有条件约束；供源码重载推断使用的声明参数与这组替换参数在 HIR 中明确区分，不补造无约束的声明签名。
+仅继承外层类型参数的局部函数仍以 `PersistentFunctionId` 标识；有自身类型参数时才使用 `PersistentGenericFunctionId`。其 application 的 owner 是外层 callable application 或 initializer 的 initialization application，只有自身实参进入 callable 参数组。initializer 内的闭包和局部函数沿原 generated callable、unit 与 property/type 关系取得声明所属 Cone；不要求 initializer 具有可按名字导入的独立 binding。消费方局部值的源位置可关联依赖中原 generated declaration；reader 从同一已读取的依赖 foundation 查询该声明及源记录，不复制为当前 Cone 的 generated declaration。共有正文目录直接提供词法实现，不把局部声明加入源码名字查找接口。消费端对已经完成定义处检查的词法正文只保留有序替换 binder 和已有条件约束；供源码重载推断使用的声明参数与这组替换参数在 HIR 中明确区分，不补造无约束的声明签名。
 
 构造模板按原名义声明组织：每个泛型 class 保存一次公共初始化序列，各构造器保存自身参数、委托及次构造正文；struct 保留 primary 值构造与 secondary 委托的区别。委托实参、字段初始化和语句正文共用已有 typed expression/statement 与局部值表，分别保存实际结果列表，不用假的 Unit 表达式填充没有结果的语句正文。构造参数按源码参数位置关联原 `LocalValueSelector::Parameter`，初始化接收者使用原 `This` selector；正文中的已解析字段读取和写入保留原字段身份。公共初始化中的 stored/delegate 写入与 `init` 保持源码顺序；class 委托目标仍是对同一已分配对象的 initializer 调用，不能改成再次分配的构造表达式。共有名义与源码调用声明继续唯一保存 shape、参数协议和 bounds，执行模板不复制另一套声明表。
 
@@ -1108,7 +1108,9 @@ generic delegated extension 的 binder 只从 receiver 静态类型求得。sour
 
 Export HIR 的 generic delegate template 与具体存储使用不同 typed id。模板中的 ensure、存储读写带有完整符号化 receiver 实参，LocalConcrete 按 property 与实际类型组复用 `GenericDelegateStorageSpecializationId`，该实体关联完整 storage 与 unit，随后读写进入普通 global 操作。声明级 initializer/ensure 只提供各自 generated template identity；实际函数根由 initialization application context 决定，模板不能作为参数自由 startup 根物化。
 
-HIR identity delta 同时导出具体 initialization application unit 和其 delegated-property group；其源码位置复用原 property 声明。MIR identity delta 保留该 context 下实际生成的 callable body 成员。正文的声明类型位置接受 initialization application，生成函数的位置与签名继续由共有 signature join 核对。
+HIR identity delta 同时导出具体 initialization application unit 和其 delegated-property group；其源码位置复用原 property 声明。MIR identity delta 保留该 context 下实际生成的 callable body 成员。正文的声明类型位置接受 initialization application，生成函数的位置与签名继续由共有 signature join 核对。initializer 对外来属性的直接访问关联其实际 initialization application unit；无替换的普通 initializer 使用声明级 unit。提取依赖时复用已验证的 callable context，不要求泛型 initializer 具有 `NoSubstitution` context。
+
+初始化依赖引用分别记录本次物化的 local unit 与外来参数自由初始化服务。泛型 local unit 的属性声明可属于依赖 Cone，当前 MIR 实际 root 和 reader 已验证的 LIR 登记决定它是否存在于本产物；不能从属性声明 Cone 反推本次物化方。它对外来 object/property 的访问沿原 Strong 服务建立依赖，泛型 unit 自身不加入外部服务目录。引用闭包只沿实际外部服务继续选择，local unit 的完整性复用原物化与登记检查，不新增平行服务记录。
 
 参数自由 callable 指自身没有待替换 binder，其签名可以包含已经闭合的名义 application，例如异常构造器的 `Option<String>` 参数。共有签名分类按实际声明目录递归取得 exact arguments；未知名义来源或未替换 binder 仍不能形成 exact signature。该 callable 保持原 Strong 定义，签名中泛型值的布局与 ABI 走既有 application 路径。
 

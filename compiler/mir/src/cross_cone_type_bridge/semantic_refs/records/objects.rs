@@ -20,9 +20,14 @@ impl MirTypeBridgeSemanticReferencesV1 {
         graph: &ValidatedIdentityGraph,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
         let mut collector = Collector::new(graph);
-        collector.push(MirTypeBridgeTargetV1::InitializationUnit(
-            record.local_unit(),
-        ))?;
+        if super::super::super::objects::unit_provider(graph, record.local_unit())
+            .map_err(|error| MirTypeBridgeReferenceError::Initialization(Box::new(error)))?
+            .is_some()
+        {
+            collector.push(MirTypeBridgeTargetV1::InitializationUnit(
+                record.local_unit(),
+            ))?;
+        }
         collector.push(MirTypeBridgeTargetV1::InitializationUnit(
             record.dependency_unit(),
         ))?;
@@ -61,13 +66,6 @@ impl Collector<'_> {
         &mut self,
         unit: PersistentInitializationUnitId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        let key = self.graph.canonical_key::<_, InitializationUnitKey>(unit)?;
-        if matches!(
-            key.as_ref(),
-            InitializationUnitKey::GenericDelegatedExtensionApplication { .. }
-        ) {
-            return Err(MirTypeBridgeReferenceError::GenericUnitGate(unit));
-        }
         super::super::super::objects::unit_provider(self.graph, unit)
             .map_err(|error| MirTypeBridgeReferenceError::Initialization(Box::new(error)))?;
         Ok(())

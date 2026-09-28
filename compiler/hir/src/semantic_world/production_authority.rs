@@ -4,9 +4,9 @@ use std::fmt;
 
 use scoop_identity::{
     BindingTarget, BindingTargetError, CallableTemplateOrigin, CallableTemplateOwner, ConeIdentity,
-    DefinitionOwnerAtom, GeneratedCallableKey, NominalDeclarationOwner, PersistentConstructorId,
-    PersistentEnumVariantId, PersistentGeneratedCallableId, PersistentPropertyAccessorId,
-    PropertyOwner, SourceDeclarationKey,
+    DefinitionOwnerAtom, GeneratedCallableKey, InitializationUnitKey, NominalDeclarationOwner,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentGeneratedCallableId,
+    PersistentPropertyAccessorId, PropertyOwner, SourceDeclarationKey,
 };
 
 use super::ImportedSemanticWorld;
@@ -226,6 +226,27 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
                 | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => parent.template(),
                 GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
                     return self.constructor_resolution(*constructor, target);
+                }
+                GeneratedCallableKey::Initialization { unit, .. } => {
+                    let key = self.initialization_unit_key(*unit).ok_or(
+                        CrossConeHirProductionAuthorityError::MissingCanonicalKey { target },
+                    )?;
+                    return match key {
+                        InitializationUnitKey::TopLevelProperty(id) => {
+                            self.property_resolution(PropertyOwner::Property(*id), target)
+                        }
+                        InitializationUnitKey::ExtensionProperty(id)
+                        | InitializationUnitKey::GenericDelegatedExtensionApplication {
+                            property: id,
+                            ..
+                        } => {
+                            self.property_resolution(PropertyOwner::ExtensionProperty(*id), target)
+                        }
+                        InitializationUnitKey::Object(id)
+                        | InitializationUnitKey::Companion(id) => {
+                            self.nominal_resolution(NominalDeclarationOwner::Concrete(*id), target)
+                        }
+                    };
                 }
                 _ => {
                     return Err(CrossConeHirProductionAuthorityError::NoPublicBindingRoot {

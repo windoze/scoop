@@ -15,9 +15,6 @@ pub enum MirObjectBridgeError {
     BackingIdentity,
     UnitIdentity,
     EnsureIdentity,
-    GenericUnitGate {
-        unit: PersistentInitializationUnitId,
-    },
     LocalUnitOwner {
         unit: PersistentInitializationUnitId,
     },

@@ -109,6 +109,13 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                     parts.identities,
                 )
                 .map_err(|source| SharedMirDependencyGraphError::CallSites(Box::new(source)))?;
+                let materialized_units = strong
+                    .registration_production()
+                    .initialization_units()
+                    .registrations()
+                    .iter()
+                    .map(|unit| unit.semantic().unit())
+                    .collect::<Vec<_>>();
                 replay_shared_mir_dependency_graph(
                     scoop_hir::SharedTypeMetadataV1 {
                         provider,
@@ -119,6 +126,7 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                     &source_dependencies,
                     &mir,
                     &units,
+                    &materialized_units,
                     &dependencies,
                 )?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;

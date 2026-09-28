@@ -506,9 +506,18 @@
 
 本项完成委托 unit 的上述损坏产物验证。初始化正文的生成实体和其他组合继续推进，M23-7 尚未完成。
 
+## 2026-09-29：委托 initializer 的局部函数与外来初始化依赖
+
+- initializer 中的局部函数保留原 source declaration，普通局部函数通过 `EnclosingInitializationApplication` 继承实际 receiver 参数组；局部泛型函数另保留自身实参。生成正文沿原 generated callable、unit 与 property/type 关系查询声明所属 Cone。源位置从已读取的依赖 foundation 取得，不复制外来声明或增加 initializer binding。
+- 泛型 initializer 直接访问外来 object/property 时，依赖关联本次物化的 application unit；该 local unit 与被引用的参数自由 Strong 初始化服务分别处理。生产端使用实际 MIR root，reader 复用已验证的 LIR unit 登记检查本地存在性，外部服务目录仍只收集真正的 Strong 服务。移除这条合法路径上的旧 generic unit gate，缺失本地 unit 与错误 dependency provider 的反例继续拒绝。
+- 新增独立与组合两组真实产物用例、四份源码与六份 HIR/MIR/LIR golden，覆盖 initializer 局部函数、引用捕获、局部泛型递归、默认参数和直接访问外来 object。provider 与 consumer 发布后移走源码，下游仅凭产物再次实例化新的引用类型、链接并执行；普通运行与移动 GC 均通过。组合验证初始化只执行一次、24 字节含引用 delegate 的间接参数/sret、实际 GC 扫描，以及实际 unit 指向 provider 的外部初始化依赖。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 及最新配套 `scoopc` 构建通过，无警告。HIR、MIR、slib 的 1799 项测试与 HIR lowering 的 1267 项测试全部通过。关闭全部快照更新后，12 项 driver 聚合回归全部通过，耗时 286.31 秒，覆盖全部委托正反例及受影响的 core 初始化、MIR/LIR 导出与 reader 路径；六份新 golden 已检查，既有快照无需更新。日志分别为 `/tmp/scoop-m23-7-delegate-initializer-libs.log`、`/tmp/scoop-m23-7-delegate-initializer-hir-lower.log` 与 `/tmp/scoop-m23-7-delegate-initializer-verified.log`。本批为定向验证，不替代阶段最终全仓验收。
+
+本项完成 initializer 局部函数、默认参数及外来初始化依赖的真实产物闭环；closure 与其他生成实体继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合与完整 unit 损坏产物验证基础上，完成 initializer 中的局部函数、closure、default 组合；其余物理角色继续复用实际成员摘要与共有合并入口。
+1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数与默认参数验证基础上，完成 initializer 中的 closure 及其捕获组合；其余物理角色继续复用实际成员摘要与共有合并入口。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。

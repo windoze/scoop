@@ -22,7 +22,6 @@ pub enum MirTypeBridgeReferenceError {
     Hash(scoop_wire::HashError),
     ArithmeticOverflow,
     MissingType(PersistentExactTypeId),
-    GenericUnitGate(PersistentInitializationUnitId),
     Initialization(Box<MirObjectBridgeError>),
     GeneratedExecutionGate,
     NonMemberCallableTarget(CallableDefinitionOwner),
