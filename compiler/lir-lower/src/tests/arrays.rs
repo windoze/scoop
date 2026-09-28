@@ -54,8 +54,13 @@ fn generic_array_preserves_application_shape_and_allocation() {
         descriptor.identity.symbol_request().linkage(),
         scoop_identity::LinkageClass::OdrWeak
     );
-    let shapes = lir::CanonicalShapeLirDefinitionsV1::from_module(module, output.foundation())
-        .expect("array metadata supplies its complete physical shape content");
+    let immortals = lir::StrongImmortalObjectSemanticPlanSetV1::from_module(module).unwrap();
+    let shapes = lir::CanonicalShapeLirDefinitionsV1::from_module(
+        module,
+        output.foundation(),
+        immortals.objects().iter().copied(),
+    )
+    .expect("array metadata supplies its complete physical shape content");
     assert_eq!(shapes.definitions().len(), 7);
     for (role, count) in [
         (scoop_identity::OdrMemberRole::Layout, 2),

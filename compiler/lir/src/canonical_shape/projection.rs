@@ -9,6 +9,7 @@ pub(super) enum ShapeContent<'a> {
     Scan(&'a RefScan),
     Descriptor(&'a TypeDescriptor),
     Dispatch(PersistentDispatchTableId, &'a [DispatchEntry]),
+    Immortal(StrongImmortalObjectSemanticPlanV1, &'a str),
 }
 
 pub(super) struct ShapeContents<'a> {
@@ -16,8 +17,15 @@ pub(super) struct ShapeContents<'a> {
 }
 
 impl<'a> ShapeContents<'a> {
-    pub(super) fn new(module: &'a Module) -> Self {
+    pub(super) fn new(
+        module: &'a Module,
+        immortals: impl IntoIterator<Item = StrongImmortalObjectSemanticPlanV1>,
+    ) -> Self {
         let mut values = BTreeMap::new();
+        let immortals = immortals
+            .into_iter()
+            .map(|plan| (plan.object(), plan))
+            .collect::<BTreeMap<_, _>>();
         for (_, layout) in module.meta.layouts.iter() {
             values.insert(
                 StrongDefinitionEntity::layout(layout.identity.layout_record().id()),
@@ -69,6 +77,13 @@ impl<'a> ShapeContents<'a> {
             }
         }
         for (_, global) in module.globals.iter() {
+            if let GlobalInit::StringConst { identity, value } = &global.init {
+                let object = identity.identity_record().id();
+                values.insert(
+                    StrongDefinitionEntity::immortal_object(object),
+                    ShapeContent::Immortal(immortals[&object], value),
+                );
+            }
             if let GlobalInit::Storage {
                 layout: StaticStorageLayout::Local(layout),
                 ..

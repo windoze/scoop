@@ -1,0 +1,59 @@
+Module
+  global @scoop$1$io$2bb019137cc9b088dbf039de0dd7604e3d4431d84116376839824e63bf8e26e2 = "generic constant"
+  global @scoop$1$io$bddf4724c2434327177f30ff2b7f41d609d830092d37461295803730fcad6594 = "generic constant"
+  global @scoop$1$io$7dfcde3bbb473ac4ffbb81008ce3efd832aa15552554ed9a535937c1b72baa97 = "generic constant"
+  global @scoop$1$io$7405515adc9742f4dff971f84a25fe95efa51841ebaf51ece9094af1a809e69c = "generic constant"
+  global @scoop$1$io$1cebc1d82dc25ccc4d04c5c86973eed69f31fd3f4b6f9281f2ed24d1a836ee04 = "generic constant"
+  fun @scoop$1$cb$70f392144b6ed181b1e71913a8ea991643297e59595185a7441e8f1989102cbd() -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn4()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$be865580898903053b996d05c6cdf089c19bc25208f447bb57a027835cb7acd1() -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn5()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$364787c85221a0edeafa0da3041de87df678c5d8eb5b1d1e7edf5006659fe421(i1) -> ptr<managed>
+    local %0 $dependency.argument.0: i1
+    local %1 $dependency.parameter.first: i1
+    local %2 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i1) -> ptr<managed> local-fn6(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$63bce68bcac3860c118ed4e631d2dd0c7488494e8d1812058207e36853ef5f12() -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn7()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$874775c12e177a44ad8d91b69c43023b8142d9124e59486ba2befba1ba63cf9a() -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret global0
+  fun @scoop$1$cb$d5fa59c85579b057437e30eb1b4ef7512991caf684dc5b149ec978dae291de49() -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret global1
+  fun @scoop$1$cb$314f5faf56302c076486597869b7d64cf825840f00c9a1512af5ce17ee4c8bb1(i1) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    cbr param0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret global2
+  block if.merge.2
+    ret global3
+  fun @scoop$1$cb$4752bdbe3badd90998e015f1fcfa415efbc3bb5f8e7e923ae6ee03c4e1c525d5() -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret global4
+  output library

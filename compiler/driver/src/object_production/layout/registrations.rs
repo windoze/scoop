@@ -90,8 +90,11 @@ pub(super) fn finalize(
         &candidates,
     )
     .map_err(BuiltinObjectProductionError::ImmortalObjectDefinitionFingerprints)?;
-    let immortals = compute_strong_immortal_object_fingerprints_v1(immortals)
-        .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
+    let immortals = compute_strong_immortal_object_fingerprints_v1(
+        immortals,
+        production.canonical_shape_definitions(),
+    )
+    .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
 
     let storages = verify_strong_static_storage_registrations_v1(
         patches.clone(),

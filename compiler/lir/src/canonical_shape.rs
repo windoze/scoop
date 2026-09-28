@@ -1,4 +1,4 @@
-//! Canonical content of the actual ODR layout, scan, descriptor and dispatch definitions.
+//! Canonical content of actual ODR data definitions.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -66,11 +66,13 @@ pub struct CanonicalShapeLirDefinitionsV1 {
 }
 
 impl CanonicalShapeLirDefinitionsV1 {
+    /// Reuses the String semantics already computed for this module.
     pub fn from_module(
         module: &Module,
         foundation: &ConeLirFoundation,
+        immortals: impl IntoIterator<Item = crate::StrongImmortalObjectSemanticPlanV1>,
     ) -> Result<Self, CanonicalShapeLirError> {
-        let shapes = projection::ShapeContents::new(module);
+        let shapes = projection::ShapeContents::new(module, immortals);
         let definitions = identities(foundation)?
             .into_values()
             .map(|identity| {
@@ -175,6 +177,7 @@ fn identities(
                 | OdrMemberRole::ScanProgram
                 | OdrMemberRole::TypeDescriptor
                 | OdrMemberRole::DispatchTable
+                | OdrMemberRole::ImmortalObject
         ) {
             continue;
         }

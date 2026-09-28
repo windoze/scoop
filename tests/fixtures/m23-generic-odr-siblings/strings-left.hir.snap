@@ -1,0 +1,19 @@
+Module
+  fun left(): String
+    return
+      ImportedGenericCall constant<Int> : String
+  fun leftOther(): String
+    return
+      ImportedGenericCall otherConstant<Int> : String
+  fun leftSelected(first: Boolean): String
+    val local1
+      Local first : Boolean
+    val local2
+      Local $dependency.argument.0 : Boolean
+    return
+      ImportedGenericCall selectedConstant<Int> : String
+        Local $dependency.parameter.first : Boolean
+  fun forwarded<T>(): String
+    return
+      ImportedGenericCall constant<T0> : String
+  output library

@@ -61,7 +61,7 @@ fn emits_closed_strong_descriptor_and_zero_patch_site() {
     assert_eq!(constant_u64(identity, 1), 0);
     assert_eq!(
         identity.get_field_at_index(2).unwrap().into_struct_value(),
-        super::digest_value(
+        super::super::registration_identity::digest_value(
             &context,
             RuntimeMetadataV1Types::new(&context).digest,
             expected.object().as_array(),

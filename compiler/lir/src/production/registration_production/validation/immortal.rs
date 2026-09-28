@@ -90,7 +90,7 @@ pub(super) fn validate_immortal_objects(
         };
         let symbol = PersistentSymbolRequest::new(
             PersistentSymbolKey::ImmortalObject(object),
-            LinkageClass::ConeStrong,
+            identity.owner().linkage(),
         )
         .map_err(|_| {
             semantic_error(

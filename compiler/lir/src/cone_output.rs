@@ -65,6 +65,16 @@ impl ConeLirOutput {
             &entry_source,
         )
         .map_err(ConeProductionWriterError::Registrations)?;
+        let canonical_shapes = crate::CanonicalShapeLirDefinitionsV1::from_module(
+            &self.module,
+            &self.foundation,
+            registrations
+                .immortal_objects()
+                .registrations()
+                .iter()
+                .map(|plan| plan.semantic()),
+        )
+        .map_err(ConeProductionWriterError::CanonicalShapes)?;
         ConeProductionSectionV1::new(
             coordinate,
             direct_dependencies,
@@ -75,8 +85,7 @@ impl ConeLirOutput {
             &self.shape_support.source_declarations(),
             crate::CanonicalCallableLirDefinitionsV1::from_module(&self.module, &self.foundation)
                 .map_err(ConeProductionWriterError::CanonicalCallables)?,
-            crate::CanonicalShapeLirDefinitionsV1::from_module(&self.module, &self.foundation)
-                .map_err(ConeProductionWriterError::CanonicalShapes)?,
+            canonical_shapes,
         )
         .map_err(ConeProductionWriterError::Section)
     }
@@ -97,6 +106,16 @@ impl ConeLirOutput {
             external_initialization_uses,
         )
         .map_err(ConeProductionWriterError::Registrations)?;
+        let canonical_shapes = crate::CanonicalShapeLirDefinitionsV1::from_module(
+            &self.module,
+            &self.foundation,
+            registrations
+                .immortal_objects()
+                .registrations()
+                .iter()
+                .map(|plan| plan.semantic()),
+        )
+        .map_err(ConeProductionWriterError::CanonicalShapes)?;
         ConeProductionSectionV2::new(
             coordinate,
             direct_dependencies,
@@ -107,8 +126,7 @@ impl ConeLirOutput {
             &self.shape_support.source_declarations(),
             crate::CanonicalCallableLirDefinitionsV1::from_module(&self.module, &self.foundation)
                 .map_err(ConeProductionWriterError::CanonicalCallables)?,
-            crate::CanonicalShapeLirDefinitionsV1::from_module(&self.module, &self.foundation)
-                .map_err(ConeProductionWriterError::CanonicalShapes)?,
+            canonical_shapes,
         )
         .map_err(ConeProductionWriterError::Section)
     }

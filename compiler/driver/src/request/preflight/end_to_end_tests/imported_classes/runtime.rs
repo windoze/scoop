@@ -84,7 +84,7 @@ pub(in super::super) fn check(
     let mut entry = None;
     let mut string = None;
     let mut descriptors = std::collections::BTreeMap::new();
-    let mut immortals = Vec::new();
+    let mut immortals = std::collections::BTreeMap::new();
     let mut globals = Vec::new();
     for (index, identity) in identities.iter().enumerate() {
         let (sections, link) = closure.artifact(*identity).unwrap();
@@ -117,13 +117,27 @@ pub(in super::super) fn check(
                 assert_eq!(previous, value, "{case}: duplicate ODR descriptors agree");
             }
         }
-        immortals.extend_from_slice(
-            sections
-                .lir_strong_production()
-                .registration_production()
-                .immortal_objects()
-                .registrations(),
-        );
+        for &plan in sections
+            .lir_strong_production()
+            .registration_production()
+            .immortal_objects()
+            .registrations()
+        {
+            if let Some(previous) = immortals.insert(plan.object(), plan) {
+                let scoop_lir::RegistrationDefinitionOwner::Odr { group, member } =
+                    plan.definition_owner()
+                else {
+                    panic!("{case}: duplicate Strong immortal objects");
+                };
+                assert_eq!(previous, plan, "{case}: duplicate ODR immortal plans agree");
+                let merged = closure.odr_definitions().get(group, member).unwrap();
+                assert!(
+                    merged
+                        .candidates()
+                        .any(|candidate| candidate.provider() == *identity)
+                );
+            }
+        }
         globals.extend(
             sections
                 .lir_strong_production()
@@ -189,7 +203,7 @@ pub(in super::super) fn check(
     let harness = directory.join("main.c");
     let mut immortal_declarations = String::new();
     let mut immortal_entries = String::new();
-    for (index, immortal) in immortals.iter().enumerate() {
+    for (index, immortal) in immortals.values().enumerate() {
         let object = immortal.object_symbol().symbol();
         let descriptor = &descriptors[&immortal.type_registration()].0;
         immortal_declarations.push_str(&format!(

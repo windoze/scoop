@@ -505,7 +505,8 @@ fn verified_immortal_object_fingerprints(
         objects,
     )
     .unwrap();
-    compute_strong_immortal_object_fingerprints_v1(object_definitions).unwrap()
+    compute_strong_immortal_object_fingerprints_v1(object_definitions, &fixture.canonical_shapes)
+        .unwrap()
 }
 
 fn verified_type_fingerprints(

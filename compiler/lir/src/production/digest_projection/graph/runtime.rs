@@ -63,7 +63,17 @@ impl DigestGraphWriter<'_> {
             )?;
             let registration_object = DigestNodeKey::object_definition(registration.primary);
             self.ensure(registration_object);
-            self.registration(registration.plan, [registration_object, object_node])?;
+            let record = self
+                .foundation
+                .definition_plan(registration.plan)
+                .expect("the selected registration retains its definition plan");
+            let node = self.foundation.registration_digest_key(record);
+            if node.kind() == DigestKind::OdrDefinition {
+                self.registration(registration.plan, [registration_object])?;
+                self.input(node, object_node);
+            } else {
+                self.registration(registration.plan, [registration_object, object_node])?;
+            }
         }
         Ok(())
     }

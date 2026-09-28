@@ -1,0 +1,71 @@
+Module
+  fun right @fn0() -> String
+    bb0 entry
+      call $call.1: String = @fn4 direct
+      return
+        Type String
+        Local $call.1
+  fun rightOther @fn1() -> String
+    bb0 entry
+      call $call.1: String = @fn5 direct
+      return
+        Type String
+        Local $call.1
+  fun rightSelected @fn2(first: Boolean) -> String
+    bb0 entry
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local first
+      val $dependency.parameter.first: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call $call.1: String = @fn6 direct
+        Type Boolean
+        Local $dependency.parameter.first
+      return
+        Type String
+        Local $call.1
+  fun distinct @fn3() -> String
+    bb0 entry
+      call $call.1: String = @fn7 direct
+      return
+        Type String
+        Local $call.1
+  fun constant @fn4() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun otherConstant @fn5() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun selectedConstant @fn6(first: Boolean) -> String
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local first
+    bb1 if.then.1
+      return
+        Type String
+        StringConst @str2
+    bb2 if.merge.2
+      return
+        Type String
+        StringConst @str3
+  fun constant @fn7() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str4
+  instance mi0 function=@fn4 <- constant
+  instance mi1 function=@fn5 <- otherConstant
+  instance mi2 function=@fn6 <- selectedConstant
+  instance mi3 function=@fn7 <- constant
+  str @str0 "generic constant"
+  str @str1 "generic constant"
+  str @str2 "generic constant"
+  str @str3 "generic constant"
+  str @str4 "generic constant"
+  output library

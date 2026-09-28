@@ -97,11 +97,12 @@ pub(super) fn verify_object_relocation(
                 plan.object(),
             ),
         )?;
-    let expected_owner = LinkDefinitionOwnerV1::from_strong_primary(
+    let expected_owner = LinkDefinitionOwnerV1::from_definition(
+        symbol.definition_owner(),
         StrongDefinitionEntity::immortal_object(plan.object()),
         StrongDefinitionRole::ImmortalObject,
     )
-    .expect("immortal object is a valid strong definition owner");
+    .expect("the verified immortal object has a complete definition owner");
     let (actual_member, actual_definition, actual_owner) = match binding.resolution() {
         StrongRelocationResolutionV1::ObjectLocalStrong {
             target_member,

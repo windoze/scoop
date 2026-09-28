@@ -1,0 +1,47 @@
+Module
+  global @scoop$1$io$2bb019137cc9b088dbf039de0dd7604e3d4431d84116376839824e63bf8e26e2 = "generic constant"
+  global @scoop$1$io$bddf4724c2434327177f30ff2b7f41d609d830092d37461295803730fcad6594 = "generic constant"
+  global @scoop$1$io$7dfcde3bbb473ac4ffbb81008ce3efd832aa15552554ed9a535937c1b72baa97 = "generic constant"
+  global @scoop$1$io$7405515adc9742f4dff971f84a25fe95efa51841ebaf51ece9094af1a809e69c = "generic constant"
+  fun @scoop$1$cb$3369cd8e5be96cc3cb5c625d769d32b74db3067c083c3a9d808a906bd43bc693() -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn3()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$5c57dbfcfc0edf18dad3371ee9ddb214bdb83f950adf36a66de6ddb21bc08115() -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn4()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$2a742b06c2c438faad73b0268775522f2f1c05d1bd9eba3d3090135b941b3517(i1) -> ptr<managed>
+    local %0 $dependency.argument.0: i1
+    local %1 $dependency.parameter.first: i1
+    local %2 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i1) -> ptr<managed> local-fn5(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$874775c12e177a44ad8d91b69c43023b8142d9124e59486ba2befba1ba63cf9a() -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret global0
+  fun @scoop$1$cb$d5fa59c85579b057437e30eb1b4ef7512991caf684dc5b149ec978dae291de49() -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret global1
+  fun @scoop$1$cb$314f5faf56302c076486597869b7d64cf825840f00c9a1512af5ce17ee4c8bb1(i1) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    cbr param0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret global2
+  block if.merge.2
+    ret global3
+  output library

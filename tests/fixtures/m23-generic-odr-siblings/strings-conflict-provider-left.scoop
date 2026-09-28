@@ -1,0 +1,3 @@
+package dependency.conflict
+
+public fun <T> text(): String = "left value"

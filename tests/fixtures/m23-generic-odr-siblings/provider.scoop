@@ -24,3 +24,25 @@ public fun <T> recover(error: Throwable, fallback: T): T {
 }
 
 public fun <T> defaulted(value: T, second: T = identity(value)): T = second
+
+public fun <T> constant(): String = "generic constant"
+
+public fun <T> otherConstant(): String = "generic constant"
+
+public fun <T> selectedConstant(first: Boolean): String {
+    if (first) { return "generic constant" }
+    return "generic constant"
+}
+
+public class Named<T> public constructor(public val value: T) {
+    public val label: String = "generic constant"
+    public fun text(): String = "generic constant"
+}
+
+public val <T> T.constantText: String
+    get() = "generic constant"
+
+public fun <T> nestedConstant(value: T): String {
+    fun read(): String = "generic constant"
+    return read()
+}

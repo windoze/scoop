@@ -148,6 +148,19 @@ impl CanonicalOdrMemberDirectoryV1 {
             .fingerprints()
             .iter()
             .filter_map(|value| odr_registration(value.registration()));
+        let immortals = patch_set
+            .immortal_objects()
+            .fingerprints()
+            .iter()
+            .flat_map(|value| {
+                let object = match value.definition() {
+                    super::ImmortalObjectDefinitionFingerprintV1::Strong(_) => None,
+                    super::ImmortalObjectDefinitionFingerprintV1::Odr(value) => Some(value),
+                };
+                [object, odr_registration(value.registration())]
+                    .into_iter()
+                    .flatten()
+            });
         let shapes = patch_set
             .types()
             .shapes()
@@ -158,6 +171,7 @@ impl CanonicalOdrMemberDirectoryV1 {
             callables
                 .chain(safepoints)
                 .chain(types)
+                .chain(immortals)
                 .chain(shapes)
                 .map(|value| {
                     (

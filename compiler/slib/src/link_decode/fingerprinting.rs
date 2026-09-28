@@ -302,9 +302,11 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
                 &scoop_candidates,
             )
             .map_err(StrongLinkRegistrationDependencyFingerprintError::ImmortalObjectDefinitions)?;
-        let immortal_objects =
-            crate::compute_strong_immortal_object_fingerprints_v1(immortal_object_definitions)
-                .map_err(StrongLinkRegistrationDependencyFingerprintError::ImmortalObjects)?;
+        let immortal_objects = crate::compute_strong_immortal_object_fingerprints_v1(
+            immortal_object_definitions,
+            production.lir().canonical_shape_definitions(),
+        )
+        .map_err(StrongLinkRegistrationDependencyFingerprintError::ImmortalObjects)?;
 
         let static_storage_definitions =
             crate::compute_strong_static_storage_definition_fingerprints_v1(

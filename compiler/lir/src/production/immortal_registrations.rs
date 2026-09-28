@@ -23,10 +23,12 @@ pub use semantics::*;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongImmortalObjectRegistrationPlanV1 {
     semantic: StrongImmortalObjectSemanticPlanV1,
+    definition_owner: crate::RegistrationDefinitionOwner,
     registration_symbol: PersistentSymbolRequest,
     registration_definition_plan: ObjectDefinitionPlanId,
     registration_primary_atom: ObjectDefinitionAtomId,
     object_definition_plan: ObjectDefinitionPlanId,
+    object_definition_owner: scoop_identity::ObjectDefinitionPlanOwner,
     object_primary_atom: ObjectDefinitionAtomId,
     type_registration_symbol: PersistentSymbolRequest,
     registration_object_node: DigestNodeId,
@@ -36,6 +38,10 @@ pub struct StrongImmortalObjectRegistrationPlanV1 {
 }
 
 impl StrongImmortalObjectRegistrationPlanV1 {
+    pub const fn definition_owner(self) -> crate::RegistrationDefinitionOwner {
+        self.definition_owner
+    }
+
     pub const fn semantic(self) -> StrongImmortalObjectSemanticPlanV1 {
         self.semantic
     }
@@ -74,6 +80,10 @@ impl StrongImmortalObjectRegistrationPlanV1 {
 
     pub const fn object_definition_plan(self) -> ObjectDefinitionPlanId {
         self.object_definition_plan
+    }
+
+    pub const fn object_definition_owner(self) -> scoop_identity::ObjectDefinitionPlanOwner {
+        self.object_definition_owner
     }
 
     pub const fn object_primary_atom(self) -> ObjectDefinitionAtomId {
@@ -209,6 +219,7 @@ fn build_registration(
 ) -> Result<StrongImmortalObjectRegistrationPlanV1, StrongImmortalObjectRegistrationPlanBuildError>
 {
     let object = semantic.object();
+    let definition_owner = identity.owner();
     if !foundation.contains_immortal_object(object) {
         return Err(StrongImmortalObjectRegistrationPlanBuildError::MissingObject(object));
     }
@@ -239,6 +250,7 @@ fn build_registration(
     let registration_symbol = require_symbol_key(
         foundation,
         PersistentSymbolKey::ImmortalRegistration(object),
+        definition_owner.linkage(),
     )?;
     let type_registration_symbol = PersistentSymbolRequest::new(
         PersistentSymbolKey::TypeRegistration(semantic.type_registration()),
@@ -249,6 +261,10 @@ fn build_registration(
     let registration_object = require_digest_node(
         digests,
         DigestNodeKey::object_definition(registration_primary_atom),
+    )?;
+    let object_node = require_digest_node(
+        digests,
+        DigestNodeKey::object_definition(object_primary_atom),
     )?;
     if !registration_object.direct_inputs().is_empty() {
         return Err(
@@ -270,10 +286,6 @@ fn build_registration(
             },
         );
     }
-    let object_node = require_digest_node(
-        digests,
-        DigestNodeKey::object_definition(object_primary_atom),
-    )?;
     if !object_node.direct_inputs().is_empty() {
         return Err(
             StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectInputs {
@@ -296,7 +308,7 @@ fn build_registration(
     }
     let registration = require_digest_node(
         digests,
-        DigestNodeKey::strong_registration(registration_definition.id()),
+        definition_owner.digest_key(registration_definition.id()),
     )?;
     if registration.id() != identity.fingerprint_node() {
         return Err(
@@ -311,6 +323,15 @@ fn build_registration(
         DigestInputRefV1::from_node(registration_object),
         DigestInputRefV1::from_node(object_node),
     ];
+    if matches!(
+        definition_owner,
+        crate::RegistrationDefinitionOwner::Odr { .. }
+    ) {
+        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
+            digests,
+            DigestNodeKey::lir_definition(registration_primary_atom),
+        )?));
+    }
     expected_inputs.sort_unstable();
     if registration.direct_inputs() != expected_inputs {
         return Err(
@@ -333,10 +354,12 @@ fn build_registration(
 
     Ok(StrongImmortalObjectRegistrationPlanV1 {
         semantic: *semantic,
+        definition_owner,
         registration_symbol,
         registration_definition_plan: registration_definition.id(),
         registration_primary_atom,
         object_definition_plan: object_definition.id(),
+        object_definition_owner: object_definition.key().owner(),
         object_primary_atom,
         type_registration_symbol,
         registration_object_node: registration_object.id(),
@@ -354,9 +377,7 @@ fn require_definition(
     let key = ObjectDefinitionPlanKey::strong(foundation.producer(), entity, role)
         .map_err(StrongImmortalObjectRegistrationPlanBuildError::DefinitionIdentity)?;
     foundation
-        .definition_plans()
-        .iter()
-        .find(|record| record.key() == &key)
+        .definition_for(entity, role)
         .ok_or(StrongImmortalObjectRegistrationPlanBuildError::MissingDefinition(Box::new(key)))
 }
 
@@ -386,8 +407,9 @@ fn require_primary_atom(
 fn require_symbol_key(
     foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
+    linkage: LinkageClass,
 ) -> Result<PersistentSymbolRequest, StrongImmortalObjectRegistrationPlanBuildError> {
-    let symbol = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
+    let symbol = PersistentSymbolRequest::new(key, linkage)
         .map_err(StrongImmortalObjectRegistrationPlanBuildError::Symbol)?;
     require_symbol(foundation, symbol)?;
     Ok(symbol)

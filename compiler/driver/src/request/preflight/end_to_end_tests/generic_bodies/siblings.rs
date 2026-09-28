@@ -7,6 +7,15 @@ mod conflicts;
 
 #[test]
 fn sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc() {
+    check_siblings(&["standalone", "combined"]);
+}
+
+#[test]
+fn generic_string_constants_merge_through_artifacts_and_preserve_identity() {
+    check_siblings(&["strings", "strings-combined"]);
+}
+
+fn check_siblings(cases: &[&str]) {
     let target = resolved_target().expect("sibling generic publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -37,7 +46,7 @@ fn sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc() {
     let runtime = runtime::build(&target, &sysroot.path().join("runtime"));
     let runtime_fixture = crate::workspace_root().join("tests/fixtures/m23-imported-classes");
 
-    for case in ["standalone", "combined"] {
+    for &case in cases {
         let mut siblings = Vec::new();
         let mut coordinates = Vec::new();
         for side in ["left", "right"] {
@@ -51,16 +60,48 @@ fn sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc() {
                 &source(&format!("{case}-{side}")),
             );
             write_dependency_manifest(&root, &name, &[&provider_coordinate]);
-            let artifact = build_manifest_request(
-                sysroot.path(),
-                &target,
-                &root,
-                &sysroot.path().join(format!("output/{name}.slib")),
-                vec![provider.artifact().path().to_path_buf()],
-                Vec::new(),
-            )
-            .build_and_publish()
-            .unwrap_or_else(|error| panic!("{case} {side}: {error:?}"));
+            let request = || {
+                build_manifest_request(
+                    sysroot.path(),
+                    &target,
+                    &root,
+                    &sysroot.path().join(format!("output/{name}.slib")),
+                    vec![provider.artifact().path().to_path_buf()],
+                    Vec::new(),
+                )
+            };
+            if case.starts_with("strings") {
+                for (kind, stage) in [(StageDumpKind::Hir, "hir"), (StageDumpKind::Mir, "mir")] {
+                    let mut request = request();
+                    request.emit = StageDumpPolicy::Stage(kind);
+                    let output = request
+                        .build_and_publish()
+                        .unwrap_or_else(|error| panic!("{case} {side} {stage}: {error:?}"));
+                    check_string_snapshot(
+                        &fixtures,
+                        case,
+                        side,
+                        stage,
+                        output.emitted_dump().unwrap().text(),
+                    );
+                }
+            }
+            let mut request = request();
+            if case.starts_with("strings") {
+                request.emit = StageDumpPolicy::Stage(StageDumpKind::Lir);
+            }
+            let artifact = request
+                .build_and_publish()
+                .unwrap_or_else(|error| panic!("{case} {side}: {error:?}"));
+            if case.starts_with("strings") {
+                check_string_snapshot(
+                    &fixtures,
+                    case,
+                    side,
+                    "lir",
+                    artifact.emitted_dump().unwrap().text(),
+                );
+            }
             std::fs::rename(root.join("src"), root.join("unused-source")).unwrap();
             coordinates.push(ConeCoordinate::new("dev.example", &name, "0.1.0").unwrap());
             siblings.push(artifact);
@@ -127,6 +168,7 @@ fn sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc() {
         let right = coordinates[1].identity().unwrap();
         let mut shared_bodies = 0;
         let mut shared_registrations = 0;
+        let mut shared_immortals = 0;
         for ((group, member), providers) in expected {
             let definition = merged.get(group, member).unwrap();
             let reverse = reversed.get(group, member).unwrap();
@@ -170,9 +212,29 @@ fn sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc() {
                 shared_registrations += usize::from(
                     definition.key().role() == scoop_identity::OdrMemberRole::RegistrationRecord,
                 );
+                shared_immortals += usize::from(
+                    definition.key().role() == scoop_identity::OdrMemberRole::ImmortalObject,
+                );
             }
         }
         assert!(shared_bodies >= 2, "{case}: {shared_bodies}");
         assert!(shared_registrations >= 2, "{case}: {shared_registrations}");
+        if case.starts_with("strings") {
+            assert!(shared_immortals >= 4, "{case}: {shared_immortals}");
+        }
     }
+}
+
+fn check_string_snapshot(
+    fixtures: &std::path::Path,
+    case: &str,
+    side: &str,
+    stage: &str,
+    actual: &str,
+) {
+    let path = fixtures.join(format!("{case}-{side}.{stage}.snap"));
+    if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
+        std::fs::write(&path, actual).unwrap();
+    }
+    assert_eq!(actual, std::fs::read_to_string(path).unwrap());
 }

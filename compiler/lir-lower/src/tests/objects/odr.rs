@@ -69,7 +69,13 @@ fn shapes(
     module: &lir::Module,
     foundation: &lir::ConeLirFoundation,
 ) -> lir::CanonicalShapeLirDefinitionsV1 {
-    lir::CanonicalShapeLirDefinitionsV1::from_module(module, foundation).unwrap()
+    let immortals = lir::StrongImmortalObjectSemanticPlanSetV1::from_module(module).unwrap();
+    lir::CanonicalShapeLirDefinitionsV1::from_module(
+        module,
+        foundation,
+        immortals.objects().iter().copied(),
+    )
+    .unwrap()
 }
 
 #[test]

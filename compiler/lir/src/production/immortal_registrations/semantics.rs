@@ -132,7 +132,10 @@ impl StrongImmortalObjectSemanticPlanSetV1 {
                 });
             }
             let symbol = identity.symbol_request();
-            if symbol.linkage() != LinkageClass::ConeStrong {
+            if !matches!(
+                symbol.linkage(),
+                LinkageClass::ConeStrong | LinkageClass::OdrWeak
+            ) {
                 return Err(StrongImmortalObjectSemanticPlanBuildError::Linkage {
                     object: identity.identity_record().id(),
                     actual: symbol.linkage(),

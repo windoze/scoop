@@ -2,7 +2,7 @@ use inkwell::AddressSpace;
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::AnyType;
-use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
+use inkwell::values::{GlobalValue, UnnamedAddress};
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionPlanId, PersistentImmortalObjectId, StrongImmortalObjectRegistrationPlanSetV1,
@@ -143,7 +143,12 @@ fn prepare_registration<'ctx>(
 ) -> Result<PreparedImmortalObjectRegistrationV1<'ctx>, CodegenError> {
     let object_request = plan.object_symbol();
     let object_symbol = object_request.symbol();
-    require_strong_linkage("immortal object", object_request)?;
+    let expected_linkage = plan.definition_owner().linkage();
+    if object_request.linkage() != expected_linkage {
+        return Err(CodegenError(
+            "immortal object and registration linkage disagree".to_string(),
+        ));
+    }
     if llvm.get_function(object_symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
             "immortal object `{object_symbol}` collides with an LLVM function"
@@ -154,13 +159,18 @@ fn prepare_registration<'ctx>(
             "immortal object `{object_symbol}` is not defined in the LLVM module"
         ))
     })?;
-    if object_value.get_linkage() != Linkage::External
+    let object_linkage = if expected_linkage == LinkageClass::OdrWeak {
+        Linkage::WeakODR
+    } else {
+        Linkage::External
+    };
+    if object_value.get_linkage() != object_linkage
         || object_value.get_unnamed_address() != UnnamedAddress::None
         || !object_value.is_constant()
         || object_value.get_initializer().is_none()
     {
         return Err(CodegenError(format!(
-            "immortal object `{object_symbol}` is not a constant address-significant strong definition"
+            "immortal object `{object_symbol}` is not a constant address-significant definition with its planned linkage"
         )));
     }
     if object_value
@@ -197,7 +207,11 @@ fn prepare_registration<'ctx>(
 
     let registration_request = plan.registration_symbol();
     let registration_symbol = registration_request.symbol();
-    require_strong_linkage("immortal-object registration", registration_request)?;
+    if registration_request.linkage() != expected_linkage {
+        return Err(CodegenError(
+            "immortal registration linkage disagrees with its definition".to_string(),
+        ));
+    }
     if llvm.get_function(registration_symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
             "immortal-object registration `{registration_symbol}` collides with an LLVM function"
@@ -273,21 +287,18 @@ fn emit_registration<'ctx>(
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();
-    let zero_digest = types.digest.const_zero();
     let prefix = types.descriptor_prefix.const_named_struct(&[
         i64.const_int(IMMORTAL_OBJECT_DESCRIPTOR_MAGIC, false)
             .into(),
         i32.const_int(METADATA_ABI_VERSION, false).into(),
         i32.const_int(IMMORTAL_OBJECT_DESCRIPTOR_SIZE, false).into(),
     ]);
-    let identity = types.registration_identity.const_named_struct(&[
-        i32.const_int(1, false).into(),
-        i32.const_zero().into(),
-        digest_value(context, types.digest, plan.object().as_array()).into(),
-        zero_digest.into(),
-        zero_digest.into(),
-        zero_digest.into(),
-    ]);
+    let identity = super::registration_identity::registration_identity_value(
+        context,
+        types,
+        plan.object().as_array(),
+        plan.definition_owner(),
+    );
     let object_start = prepared
         .object_value
         .as_pointer_value()
@@ -301,6 +312,13 @@ fn emit_registration<'ctx>(
         type_registration.as_pointer_value().into(),
     ]);
     descriptor.set_constant(true);
+    descriptor.set_linkage(
+        if plan.definition_owner().linkage() == LinkageClass::OdrWeak {
+            Linkage::WeakODR
+        } else {
+            Linkage::External
+        },
+    );
     descriptor.set_initializer(&value);
 
     EmittedStrongImmortalObjectRegistrationV1 {
@@ -316,19 +334,6 @@ fn emit_registration<'ctx>(
             byte_offset: REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
         },
     }
-}
-
-fn digest_value<'ctx>(
-    context: &'ctx Context,
-    digest_type: inkwell::types::StructType<'ctx>,
-    bytes: &[u8; 32],
-) -> StructValue<'ctx> {
-    let i8 = context.i8_type();
-    let values = bytes
-        .iter()
-        .map(|byte| i8.const_int(u64::from(*byte), false))
-        .collect::<Vec<_>>();
-    digest_type.const_named_struct(&[i8.const_array(&values).into()])
 }
 
 #[cfg(test)]

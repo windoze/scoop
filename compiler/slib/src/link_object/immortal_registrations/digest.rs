@@ -65,7 +65,10 @@ pub(super) fn validate_digest_graph(
         .nodes()
         .iter()
         .find(|node| {
-            node.key() == &DigestNodeKey::strong_registration(plan.registration_definition_plan())
+            node.key()
+                == &plan
+                    .definition_owner()
+                    .digest_key(plan.registration_definition_plan())
         })
         .ok_or(
             StrongImmortalObjectRegistrationValidationError::DigestPlanMismatch {
@@ -80,6 +83,23 @@ pub(super) fn validate_digest_graph(
         DigestInputRefV1::from_node(registration_object),
         DigestInputRefV1::from_node(immortal_object),
     ];
+    if matches!(
+        plan.definition_owner(),
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
+    ) {
+        let key = DigestNodeKey::lir_definition(plan.registration_primary_atom());
+        let lir = digest_plan
+            .nodes()
+            .iter()
+            .find(|node| *node.key() == key)
+            .ok_or(
+                StrongImmortalObjectRegistrationValidationError::DigestPlanMismatch {
+                    object: plan.object(),
+                    kind: Failure::RegistrationDirectInputs,
+                },
+            )?;
+        expected_inputs.push(DigestInputRefV1::from_node(lir));
+    }
     expected_inputs.sort_unstable();
     if registration.direct_inputs() != expected_inputs {
         return digest_error(plan.object(), Failure::RegistrationDirectInputs);

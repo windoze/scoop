@@ -58,14 +58,20 @@ impl StrongTypeReferenceDefinitionsV2 {
                 }
             }
         }
-        // Symbol identities are global. A second provider cannot supply a
-        // different physical definition for the same descriptor or body.
+        // Keep the actual provider of each physical ODR definition. The
+        // shared artifact merge compares member contents after this index
+        // has bound references to their recorded providers.
         for entries in [&mut descriptors, &mut callables] {
-            entries.sort_unstable_by_key(|definition| definition.symbol().key());
-            if let Some(pair) = entries
-                .windows(2)
-                .find(|pair| pair[0].symbol() == pair[1].symbol())
-            {
+            entries.sort_unstable_by_key(|definition| {
+                (definition.symbol().key(), definition.provider())
+            });
+            if let Some(pair) = entries.windows(2).find(|pair| {
+                pair[0].symbol().key() == pair[1].symbol().key()
+                    && (pair[0].provider() == pair[1].provider()
+                        || pair[0].symbol().linkage() != scoop_identity::LinkageClass::OdrWeak
+                        || pair[1].symbol().linkage() != scoop_identity::LinkageClass::OdrWeak
+                        || pair[0].definition() != pair[1].definition())
+            }) {
                 return Err(StrongTypeReferenceResolutionErrorV2::DuplicateDefinition(
                     pair[0].symbol().key(),
                 ));

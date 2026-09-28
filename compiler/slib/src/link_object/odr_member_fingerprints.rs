@@ -118,6 +118,7 @@ pub(super) fn callable_body(
                 lir: canonical.fingerprint(),
                 object_node: plan.body_definition_node(),
                 object,
+                additional_objects: &[],
                 stackmaps,
             },
         )
@@ -139,6 +140,7 @@ pub(super) fn callable_registration(
         plan.registration_object_node(),
         object,
         None,
+        &[],
     )
 }
 
@@ -159,6 +161,7 @@ pub(super) fn shape_definition(
             lir: canonical.fingerprint(),
             object_node,
             object,
+            additional_objects: &[],
             stackmaps: &[],
         },
     )
@@ -183,6 +186,7 @@ pub(super) fn type_registration<D: Copy, C>(
         plan.registration_object_node(),
         object,
         None,
+        &[],
     )
 }
 
@@ -202,6 +206,26 @@ pub(super) fn safepoint_registration(
         object_node,
         object,
         Some((plan.site(), stackmap)),
+        &[],
+    )
+}
+
+pub(super) fn immortal_registration(
+    group: OdrGroupId,
+    member: OdrMemberId,
+    plan: scoop_lir::StrongImmortalObjectRegistrationPlanV1,
+    object: ObjectDefinitionFingerprintV1,
+    immortal: ObjectDefinitionFingerprintV1,
+) -> Result<OdrMemberFingerprintV1, HashError> {
+    registration(
+        group,
+        member,
+        RegistrationProjection::Immortal(plan),
+        plan.registration_primary_atom(),
+        plan.registration_object_node(),
+        object,
+        None,
+        &[(plan.object_definition_node(), immortal)],
     )
 }
 
@@ -214,6 +238,7 @@ fn registration(
     object_node: DigestNodeId,
     object: ObjectDefinitionFingerprintV1,
     stackmap: Option<(PersistentSafepointSiteId, StackmapRecordFingerprintV1)>,
+    additional_objects: &[(DigestNodeId, ObjectDefinitionFingerprintV1)],
 ) -> Result<OdrMemberFingerprintV1, HashError> {
     let abi = domain_separated_cbor_hash(
         "scoop-odr-member-abi-v1",
@@ -234,6 +259,7 @@ fn registration(
             lir,
             object_node,
             object,
+            additional_objects,
             stackmaps: stackmap.as_slice(),
         },
     )

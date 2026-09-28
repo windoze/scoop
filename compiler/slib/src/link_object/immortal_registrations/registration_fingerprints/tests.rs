@@ -31,7 +31,11 @@ fn computes_the_canonical_immortal_object_strong_registration_fingerprint() {
     )
     .unwrap();
 
-    let fingerprints = compute_strong_immortal_object_fingerprints_v1(object_definitions).unwrap();
+    let fingerprints = compute_strong_immortal_object_fingerprints_v1(
+        object_definitions,
+        &fixture.canonical_shapes,
+    )
+    .unwrap();
 
     assert_eq!(fingerprints.fingerprints().len(), 1);
     let actual = fingerprints.fingerprints()[0];

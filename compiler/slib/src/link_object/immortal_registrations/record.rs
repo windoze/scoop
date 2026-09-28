@@ -3,11 +3,10 @@ use scoop_lir::StrongImmortalObjectRegistrationPlanV1;
 use super::StrongImmortalObjectRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d4d;
-const ABI_VERSION: u32 = 1;
-const STRONG_LINKAGE: u32 = 1;
+pub(in crate::link_object) const ABI_VERSION: u32 = 1;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const DIGEST_WIDTH: usize = 32;
-pub(super) const DESCRIPTOR_SIZE: usize = 184;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 184;
 
 pub(super) fn validate_record_bytes(
     object: &[u8],
@@ -49,7 +48,14 @@ pub(super) fn expected_record(
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    write_u32(&mut bytes, 16, STRONG_LINKAGE);
+    match plan.definition_owner() {
+        scoop_lir::RegistrationDefinitionOwner::Strong => write_u32(&mut bytes, 16, 1),
+        scoop_lir::RegistrationDefinitionOwner::Odr { group, member } => {
+            write_u32(&mut bytes, 16, 2);
+            bytes[56..88].copy_from_slice(group.as_array());
+            bytes[88..120].copy_from_slice(member.as_array());
+        }
+    }
     bytes[24..56].copy_from_slice(plan.object().as_array());
     write_u64(&mut bytes, 160, plan.object_size());
     write_u64(&mut bytes, 168, plan.required_alignment());

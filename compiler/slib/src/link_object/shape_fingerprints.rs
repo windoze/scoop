@@ -58,6 +58,7 @@ pub(super) fn compute(
     canonical
         .definitions()
         .iter()
+        .filter(|canonical| canonical.role() != scoop_identity::OdrMemberRole::ImmortalObject)
         .map(|canonical| {
             let (member, definition) = definitions.get(&canonical.definition()).copied().ok_or(
                 OdrShapeFingerprintError::MissingDefinition(canonical.definition()),

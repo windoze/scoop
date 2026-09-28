@@ -1,0 +1,43 @@
+Module
+  fun right(): String
+    val local0
+      IntegerLiteral 22 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    return
+      ImportedGenericCall label<Int> : String
+        ImportedConstructorInit Named : Named<Int>
+          Local $dependency.parameter.value : Int
+  fun rightMethod(): String
+    val local0
+      IntegerLiteral 22 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedConstructorInit Named : Named<Int>
+        Local $dependency.parameter.value : Int
+    return
+      ImportedGenericCall text<Int> : String
+        Local $dependency.receiver : Named<Int>
+  fun rightExtension(): String
+    return
+      ImportedGenericCall constantText<Int> : String
+        IntegerLiteral 22 : Int
+  fun rightNested(): String
+    val local0
+      IntegerLiteral 22 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    return
+      ImportedGenericCall nestedConstant<Int> : String
+        Local $dependency.parameter.value : Int
+  fun distinct(): String
+    val local0
+      IntegerLiteral 22 : Long
+    val local1
+      Local $dependency.argument.0 : Long
+    return
+      ImportedGenericCall label<Long> : String
+        ImportedConstructorInit Named : Named<Long>
+          Local $dependency.parameter.value : Long
+  output library

@@ -232,19 +232,19 @@ where
         .map(|entry| entry.registration_node())
         .chain(
             registrations
-                .immortal_objects()
-                .fingerprints()
-                .iter()
-                .map(|entry| entry.registration_node()),
-        )
-        .chain(
-            registrations
                 .initializations()
                 .fingerprints()
                 .iter()
                 .map(|entry| entry.registration_node()),
         )
         .map(|node| (DigestKind::StrongRegistration, node))
+        .chain(
+            registrations
+                .immortal_objects()
+                .fingerprints()
+                .iter()
+                .map(|entry| (entry.registration().kind(), entry.registration_node())),
+        )
         .chain(
             registrations
                 .types()
@@ -352,6 +352,7 @@ where
                 plan.object_size(),
                 plan.required_alignment(),
                 plan.type_registration(),
+                plan.definition_owner(),
                 fingerprint.registration().as_array(),
             )?;
         }

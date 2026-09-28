@@ -261,6 +261,8 @@ MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 cano
 
 抽象 callable 的 trap 从结构化终止语句到 MIR `Trap` 终结符直接携带诊断文本，LIR 只生成 body 所属的既有 C 字符串 atom。消息不进入托管 String 常量池，不产生 immortal object 或登记；移除以普通 runtime call 和托管 String 参数表示同一 trap 的旧路径。多个 Cone 物化同一泛型抽象成员时，其常量沿 body 的 ODR plan 合并，runtime 的对象范围检查保持不变。
 
+实际托管 String 常量复用 MIR 已保留的 `ImmortalObjectKey`，由原 callable materialization 取得既有 ODR group；常量对象与 immortal registration 分别使用 `ImmortalObject`、`RegistrationRecord` role，不建立另一套常量池或按文本合并身份。共有 physical content 表的 String 投影使用 tag 7，ABI 输入为对象 ID、String exact type、尺寸与对齐，LIR 输入再加入 UTF-8 内容；登记投影使用既有 runtime record kind 2，包含对象 ID、符号、尺寸、对齐及 String type-registration ID。登记的 ObjectDefinition 保留 group/member 和真实 typed relocation；其最终 ODR definition 使用既有 member 算法，以登记对象、对应 immortal object 的 ObjectDefinition 及登记 LIR 摘要为直接输入。对象读取结果及对象摘要在后续目录构造中复用，不能再次解析或重算。同 member 经共有合并后只登记一次，不同 application、定义位置或 callable 的同文字符串保持独立身份和地址。
+
 物理依赖选择直接使用 MIR 的实际类型、callable、dispatch 与初始化单元引用，保留各自 provider 和 typed target；初始化选择只传入所需的 unit 引用，不要求先构造整个参数自由类型导出 section。完整依赖记录仍来自同一批已读取产物，不能用手工补造 descriptor 或省略实际引用来降低测试要求。
 
 ## 7. 对象发射与可复现性

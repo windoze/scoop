@@ -84,6 +84,11 @@ impl Fixture {
         let canonical_shapes = scoop_lir::CanonicalShapeLirDefinitionsV1::from_module(
             &inputs.module,
             &inputs.foundation,
+            inputs
+                .immortal_registration_plan
+                .registrations()
+                .iter()
+                .map(|plan| plan.semantic()),
         )
         .unwrap();
         let semantic_plan = StrongSafepointSemanticPlanSetV1::from_module(&inputs.module).unwrap();

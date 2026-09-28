@@ -1332,8 +1332,11 @@ fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let immortal_objects =
-        crate::compute_strong_immortal_object_fingerprints_v1(immortal_definitions).unwrap();
+    let immortal_objects = crate::compute_strong_immortal_object_fingerprints_v1(
+        immortal_definitions,
+        production.canonical_shape_definitions(),
+    )
+    .unwrap();
     let static_storage_registrations = crate::verify_strong_static_storage_registrations_v1(
         patch_sites.clone(),
         registrations.static_storages().clone(),

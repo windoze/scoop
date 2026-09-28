@@ -107,6 +107,22 @@ impl WireEncode for ShapeProjection<'_> {
                 }
                 Ok(())
             }
+            ShapeContent::Immortal(plan, value) => {
+                tagged(e, 7, if self.abi { 5 } else { 6 })?;
+                e.field(1)?;
+                plan.object().encode(e)?;
+                e.field(2)?;
+                plan.type_registration().encode(e)?;
+                e.field(3)?;
+                e.unsigned(plan.object_size())?;
+                e.field(4)?;
+                e.unsigned(plan.required_alignment())?;
+                if !self.abi {
+                    e.field(5)?;
+                    e.bytes(value.as_bytes())?;
+                }
+                Ok(())
+            }
         }
     }
 }

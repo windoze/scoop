@@ -2,6 +2,15 @@ use super::*;
 
 #[test]
 fn actual_duplicate_generic_members_reject_different_bodies_with_equal_abis() {
+    check_conflicting_members("conflict");
+}
+
+#[test]
+fn actual_duplicate_generic_strings_reject_changed_content_with_equal_abis() {
+    check_conflicting_members("strings-conflict");
+}
+
+fn check_conflicting_members(case: &str) {
     let target = resolved_target().expect("ODR conflict validation requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -14,7 +23,7 @@ fn actual_duplicate_generic_members_reject_different_bodies_with_equal_abis() {
     for side in ["left", "right"] {
         let provider_root = sysroot.path().join(format!("provider-{side}"));
         let source =
-            std::fs::read_to_string(fixtures.join(format!("conflict-provider-{side}.scoop")))
+            std::fs::read_to_string(fixtures.join(format!("{case}-provider-{side}.scoop")))
                 .unwrap();
         write_manifest_cone(
             &provider_root,
@@ -36,7 +45,8 @@ fn actual_duplicate_generic_members_reject_different_bodies_with_equal_abis() {
         .unwrap();
         let name = format!("generic-odr-conflict-{side}");
         let root = sysroot.path().join(&name);
-        let source = std::fs::read_to_string(fixtures.join("conflict-consumer.scoop")).unwrap();
+        let source =
+            std::fs::read_to_string(fixtures.join(format!("{case}-consumer.scoop"))).unwrap();
         write_manifest_cone(&root, "dev.example", &name, "library", &source);
         write_dependency_manifest(&root, &name, &[&provider_coordinate]);
         let consumer = build_manifest_request(
@@ -80,6 +90,7 @@ fn actual_duplicate_generic_members_reject_different_bodies_with_equal_abis() {
         identities.push(identity);
     }
     let mut different = false;
+    let mut changed_roles = Vec::new();
     for first in closures[0].odr_definitions().members() {
         let second = closures[1]
             .odr_definitions()
@@ -89,11 +100,18 @@ fn actual_duplicate_generic_members_reject_different_bodies_with_equal_abis() {
         assert_eq!(first.key(), second.key());
         assert_eq!(first.abi(), second.abi());
         different |= first.definition() != second.definition();
+        if first.definition() != second.definition() {
+            changed_roles.push(first.key().role());
+        }
     }
     assert!(
         different,
         "the changed body must change actual definition content"
     );
+    if case == "strings-conflict" {
+        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::ImmortalObject));
+        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::RegistrationRecord));
+    }
     let first = closures[0].artifact(identities[0]).unwrap();
     let second = closures[1].artifact(identities[1]).unwrap();
     let error = scoop_slib::merge_cross_cone_odr_definitions([first, second]).unwrap_err();
@@ -109,12 +127,14 @@ fn actual_duplicate_generic_members_reject_different_bodies_with_equal_abis() {
             .is_some()
     );
     assert!(
-        matches!(
-            conflict.difference,
-            scoop_slib::OdrDefinitionDifference::Lir
-                | scoop_slib::OdrDefinitionDifference::Object
-                | scoop_slib::OdrDefinitionDifference::Stackmap
-        ),
+        (case == "strings-conflict"
+            && conflict.difference == scoop_slib::OdrDefinitionDifference::Definition)
+            || matches!(
+                conflict.difference,
+                scoop_slib::OdrDefinitionDifference::Lir
+                    | scoop_slib::OdrDefinitionDifference::Object
+                    | scoop_slib::OdrDefinitionDifference::Stackmap
+            ),
         "{conflict:?}"
     );
     assert!(matches!(

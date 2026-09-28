@@ -2,16 +2,56 @@
 
 use scoop_lir as lir;
 use scoop_mir as mir;
+use std::collections::HashMap;
 
 /// Resolves actual source, generated and structural layout roots. Source
 /// applications and existing structural groups retain their MIR ownership.
 pub(crate) struct IdentityRoots<'input> {
     input: &'input mir::ConeMirInput,
+    immortal_owners: HashMap<mir::ImmortalObjectOwner, lir::MaterializationRoot>,
 }
 
 impl<'input> IdentityRoots<'input> {
-    pub(crate) const fn new(input: &'input mir::ConeMirInput) -> Self {
-        Self { input }
+    pub(crate) fn new(input: &'input mir::ConeMirInput) -> Self {
+        let materializations = &input.module().meta.source_callable_materializations;
+        let root = |record: &mir::SourceCallableMaterialization| {
+            record
+                .odr_member_record()
+                .map_or_else(lir::MaterializationRoot::cone_owned, |member| {
+                    lir::MaterializationRoot::prior_stage_odr(member.key().group())
+                })
+        };
+        let mut immortal_owners = materializations
+            .iter()
+            .map(|record| {
+                (
+                    mir::ImmortalObjectOwner::Callable(record.materialization()),
+                    root(record),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        for (_, unit) in input.module().initialization_units.iter() {
+            let initializer = input
+                .materialization()
+                .callable_roots()
+                .iter()
+                .find(|root| root.function() == unit.initializer)
+                .expect("an initialization unit retains its callable materialization root");
+            let root = match initializer.subject() {
+                mir::CallableSignatureSubject::Strong(_) => lir::MaterializationRoot::cone_owned(),
+                mir::CallableSignatureSubject::Odr(member) => {
+                    lir::MaterializationRoot::prior_stage_odr(member.group())
+                }
+            };
+            immortal_owners.insert(
+                mir::ImmortalObjectOwner::InitializationUnit(unit.identity.id()),
+                root,
+            );
+        }
+        Self {
+            input,
+            immortal_owners,
+        }
     }
 
     pub(crate) fn materializes_type(&self, ty: &mir::Type) -> bool {
@@ -104,11 +144,17 @@ impl<'input> IdentityRoots<'input> {
         lir::MaterializationRoot::cone_owned()
     }
 
-    pub(crate) const fn for_immortal_object(
+    pub(crate) fn for_immortal_object(
         &self,
-        _key: &mir::ImmortalObjectKey,
+        key: &mir::ImmortalObjectKey,
     ) -> lir::MaterializationRoot {
-        lir::MaterializationRoot::cone_owned()
+        match key.owner() {
+            mir::ImmortalObjectOwner::Property(_) => lir::MaterializationRoot::cone_owned(),
+            owner @ (mir::ImmortalObjectOwner::Callable(_)
+            | mir::ImmortalObjectOwner::InitializationUnit(_)) => {
+                self.immortal_owners[&owner].clone()
+            }
+        }
     }
 }
 

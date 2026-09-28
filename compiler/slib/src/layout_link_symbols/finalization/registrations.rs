@@ -42,7 +42,7 @@ pub(super) fn replay(
         candidates,
     )
     .map_err(DependencyError::ImmortalObjectDefinitions)?;
-    let immortals = compute_strong_immortal_object_fingerprints_v1(immortals)
+    let immortals = compute_strong_immortal_object_fingerprints_v1(immortals, shapes)
         .map_err(DependencyError::ImmortalObjects)?;
 
     let storages = compute_strong_static_storage_registration_object_fingerprints_v1(

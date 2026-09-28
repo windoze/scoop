@@ -113,9 +113,11 @@ impl LinkSymbolVerifiedObjectProductionV1 {
                     &candidates,
                 )
                 .map_err(BuiltinObjectProductionError::ImmortalObjectDefinitionFingerprints)?;
-            let immortal_objects =
-                compute_strong_immortal_object_fingerprints_v1(immortal_object_definitions)
-                    .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
+            let immortal_objects = compute_strong_immortal_object_fingerprints_v1(
+                immortal_object_definitions,
+                production.production().canonical_shape_definitions(),
+            )
+            .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
 
             let static_storage_definitions =
                 compute_strong_static_storage_definition_fingerprints_v1(

@@ -107,6 +107,26 @@ fn content(
             });
         }
     }
+    for immortal in registrations.immortal_objects().fingerprints() {
+        if let crate::ImmortalObjectDefinitionFingerprintV1::Odr(value) = immortal.definition()
+            && value.member() == member
+        {
+            return Ok(Content {
+                lir: value.lir(),
+                object: immortal.object_definition(),
+                stackmaps: Vec::new(),
+            });
+        }
+        if let RegistrationFingerprintV1::Odr(value) = immortal.registration()
+            && value.member() == member
+        {
+            return Ok(Content {
+                lir: value.lir(),
+                object: immortal.registration_object(),
+                stackmaps: Vec::new(),
+            });
+        }
+    }
     Err(OdrDefinitionMergeError::MissingContent {
         provider: artifact.provider(),
         member,

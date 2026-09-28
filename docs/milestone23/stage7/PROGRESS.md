@@ -454,6 +454,18 @@
 
 本项完成泛型计算扩展属性的上述产物运行闭环。泛型委托扩展属性的 LazyAccess 与其余主线继续实施，M23-7 尚未完成。
 
+## 2026-09-28：泛型托管 String 常量的跨产物合并
+
+- 泛型 callable 中的托管 String 沿已有 `ImmortalObjectKey` 保留 materialization 与结构化定义位置，直接取得原 callable 的 ODR group。对象及 immortal registration 分别形成实际物理 member，发射为保留地址意义的 weak ODR 定义；普通 Strong 常量沿用原有登记和摘要合同。实现规范与阶段设计同步，未增加常量池、文本去重或 runtime ABI。
+- 共有 physical content 表补入 String 对象：ABI 覆盖对象、String exact type、尺寸和对齐，LIR 摘要再覆盖 UTF-8 内容。投影复用已计算的 String 语义；reader 复用实际对象读取与 ObjectDefinition，登记的最终 ODR definition 直接依赖登记对象、String 对象和登记 LIR 摘要。目录、补丁、image 摘要与冲突诊断沿既有成员入口接入，不重放对象解析或布局验证。
+- 物理 descriptor/callable 索引保留不同 provider 的同一 ODR 定义，引用继续绑定保存的 provider。同一 provider 重复、重复 Strong 或不同 definition identity 仍被拒绝，内容一致性交由原 ODR 合并检查。真实运行 harness 在该合并结果上按 member 登记一次，保留 runtime 对象范围检查。
+- 新增独立与组合两组真实产物用例、9 个源码 fixture 和 12 份 HIR/MIR/LIR golden。先发布 provider 与两个相互独立的 consumer，再移走各自源码，由下游只读产物再次实例化；覆盖函数、分支位置、泛型 class 字段初始化与方法、计算扩展属性、局部函数，以及 Int、Long 和下游新建引用类型。真实链接、普通运行与移动 GC 断言同 member 地址一致、不同 application/定义位置的同文字符串地址独立，并检查内容与 GC 后可用性。
+- 新增等长内容冲突用例：保持声明、实参、member identity 与 ABI 不变，仅改变字符串内容，对象及登记的 definition 均改变，共有 ODR 合并拒绝冲突。两项新增聚合测试在关闭快照更新开关后通过，耗时 17.03 秒；12 份新 golden 已逐份审阅。
+- 最终 `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 及真实配套 `scoopc` 构建均通过，无警告。关闭全部快照更新开关运行 `cargo test --workspace --no-fail-fast`，5171 项通过、0 失败、0 忽略；其中 driver 全部 130 项通过，耗时 353.29 秒，既有快照无需更新。完整日志为 `/tmp/scoop-m23-7-immortal-workspace.log`。
+- 确认本仓库构建、测试及配套编译器进程结束，且 `target` 中没有打开的文件；通过 Cargo metadata 核对实际目录及标准缓存标记后，执行 `cargo clean --target-dir target`，删除 1560 个构建文件，回收 3.0 GiB。
+
+本项完成上述泛型托管 String 的产物与运行闭环。泛型委托扩展属性的 LazyAccess 及其余主线仍须继续，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。

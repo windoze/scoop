@@ -7,12 +7,20 @@ use scoop_wire::{
 
 use super::VerifiedStrongImmortalObjectDefinitionFingerprintSetV1;
 use crate::link_object::callable_registrations::object_definition::CanonicalDigestInputV1;
-use crate::link_object::{ObjectDefinitionFingerprintV1, StrongRegistrationFingerprintV1};
+use crate::link_object::{
+    ObjectDefinitionFingerprintV1, OdrMemberFingerprintV1, RegistrationFingerprintV1,
+    StrongRegistrationFingerprintV1,
+};
 
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
 const IMMORTAL_OBJECT_REGISTRATION_RECORD_KIND: u32 = 2;
-const STRONG_LINKAGE: u32 = 1;
 const OWN_IMMORTAL_ATOM_ROLE: u32 = 2;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImmortalObjectDefinitionFingerprintV1 {
+    Strong(ObjectDefinitionFingerprintV1),
+    Odr(OdrMemberFingerprintV1),
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongImmortalObjectFingerprintV1 {
@@ -21,8 +29,9 @@ pub struct VerifiedStrongImmortalObjectFingerprintV1 {
     registration_object: ObjectDefinitionFingerprintV1,
     object_definition_node: DigestNodeId,
     object_definition: ObjectDefinitionFingerprintV1,
+    definition: ImmortalObjectDefinitionFingerprintV1,
     registration_node: DigestNodeId,
-    registration: StrongRegistrationFingerprintV1,
+    registration: RegistrationFingerprintV1,
 }
 
 impl VerifiedStrongImmortalObjectFingerprintV1 {
@@ -50,7 +59,11 @@ impl VerifiedStrongImmortalObjectFingerprintV1 {
         self.registration_node
     }
 
-    pub const fn registration(self) -> StrongRegistrationFingerprintV1 {
+    pub const fn definition(self) -> ImmortalObjectDefinitionFingerprintV1 {
+        self.definition
+    }
+
+    pub const fn registration(self) -> RegistrationFingerprintV1 {
         self.registration
     }
 }
@@ -81,6 +94,7 @@ impl VerifiedStrongImmortalObjectFingerprintSetV1 {
 
 pub fn compute_strong_immortal_object_fingerprints_v1(
     object_definitions: VerifiedStrongImmortalObjectDefinitionFingerprintSetV1,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
 ) -> Result<VerifiedStrongImmortalObjectFingerprintSetV1, StrongImmortalObjectFingerprintError> {
     let registration_objects = object_definitions.registration_objects();
     let registrations = registration_objects.registrations();
@@ -116,13 +130,60 @@ pub fn compute_strong_immortal_object_fingerprints_v1(
         {
             return Err(StrongImmortalObjectFingerprintError::ObjectDefinitionMismatch { object });
         }
-        let registration = strong_immortal_object_registration_fingerprint(
-            *plan,
-            registration_object.node(),
-            registration_object.fingerprint(),
-            object_definition.node(),
-            object_definition.fingerprint(),
-        )
+        let definition = match (plan.object_definition_owner(), plan.definition_owner()) {
+            (
+                scoop_identity::ObjectDefinitionPlanOwner::Strong { .. },
+                scoop_lir::RegistrationDefinitionOwner::Strong,
+            ) => ImmortalObjectDefinitionFingerprintV1::Strong(object_definition.fingerprint()),
+            (
+                scoop_identity::ObjectDefinitionPlanOwner::Odr { member },
+                scoop_lir::RegistrationDefinitionOwner::Odr { group, .. },
+            ) => {
+                let content = canonical
+                    .get(member)
+                    .filter(|content| {
+                        content.group() == group
+                            && content.role() == scoop_identity::OdrMemberRole::ImmortalObject
+                            && content.definition() == plan.object_definition_plan()
+                            && content.primary_atom() == plan.object_primary_atom()
+                            && content.entity()
+                                == scoop_identity::StrongDefinitionEntity::immortal_object(object)
+                    })
+                    .ok_or(StrongImmortalObjectFingerprintError::DefinitionMismatch { object })?;
+                ImmortalObjectDefinitionFingerprintV1::Odr(
+                    crate::link_object::odr_member_fingerprints::shape_definition(
+                        *content,
+                        object_definition.fingerprint(),
+                    )
+                    .map_err(|source| {
+                        StrongImmortalObjectFingerprintError::Hash { object, source }
+                    })?,
+                )
+            }
+            _ => return Err(StrongImmortalObjectFingerprintError::DefinitionMismatch { object }),
+        };
+        let registration = match plan.definition_owner() {
+            scoop_lir::RegistrationDefinitionOwner::Strong => {
+                strong_immortal_object_registration_fingerprint(
+                    *plan,
+                    registration_object.node(),
+                    registration_object.fingerprint(),
+                    object_definition.node(),
+                    object_definition.fingerprint(),
+                )
+                .map(RegistrationFingerprintV1::Strong)
+            }
+            scoop_lir::RegistrationDefinitionOwner::Odr { group, member } => {
+                crate::link_object::odr_member_fingerprints::immortal_registration(
+                    group,
+                    member,
+                    *plan,
+                    registration_object.fingerprint(),
+                    object_definition.fingerprint(),
+                )
+                .map(RegistrationFingerprintV1::Odr)
+            }
+        }
         .map_err(|source| StrongImmortalObjectFingerprintError::Hash { object, source })?;
         fingerprints.push(VerifiedStrongImmortalObjectFingerprintV1 {
             object,
@@ -130,6 +191,7 @@ pub fn compute_strong_immortal_object_fingerprints_v1(
             registration_object: registration_object.fingerprint(),
             object_definition_node: object_definition.node(),
             object_definition: object_definition.fingerprint(),
+            definition,
             registration_node: plan.registration_fingerprint_node(),
             registration,
         });
@@ -190,6 +252,7 @@ impl RuntimeEncode for StrongImmortalObjectRegistrationFingerprintInputV1 {
             self.object_size,
             self.required_alignment,
             self.type_registration,
+            scoop_lir::RegistrationDefinitionOwner::Strong,
             &[0; 32],
         )?;
         encoder.sequence_length(self.direct_inputs.len())?;
@@ -200,20 +263,23 @@ impl RuntimeEncode for StrongImmortalObjectRegistrationFingerprintInputV1 {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(in crate::link_object) fn runtime_encode_strong_immortal_object_record_v1(
     encoder: &mut RuntimeEncoder,
     object: PersistentImmortalObjectId,
     object_size: u64,
     required_alignment: u64,
     type_registration: scoop_identity::PersistentExactTypeId,
+    owner: scoop_lir::RegistrationDefinitionOwner,
     registration: &[u8; 32],
 ) -> Result<(), RuntimeEncodeError> {
     encoder.u32(IMMORTAL_OBJECT_REGISTRATION_RECORD_KIND)?;
-    encoder.u32(STRONG_LINKAGE)?;
-    encoder.fixed(object.as_array())?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(registration)?;
+    crate::link_object::registration_identity::runtime_encode_registration_identity(
+        encoder,
+        object.as_array(),
+        owner,
+        registration,
+    )?;
     encoder.u32(OWN_IMMORTAL_ATOM_ROLE)?;
     encoder.fixed(object.as_array())?;
     encoder.u64(object_size)?;
@@ -223,6 +289,9 @@ pub(in crate::link_object) fn runtime_encode_strong_immortal_object_record_v1(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongImmortalObjectFingerprintError {
+    DefinitionMismatch {
+        object: PersistentImmortalObjectId,
+    },
     ProofCoverageMismatch,
     RegistrationObjectMismatch {
         object: PersistentImmortalObjectId,

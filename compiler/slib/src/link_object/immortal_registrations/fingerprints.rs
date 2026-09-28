@@ -96,12 +96,13 @@ pub fn compute_strong_immortal_object_registration_object_fingerprints_v1(
             ),
         )?;
         let bytes = registration_record_bytes(object, verified.checked_offset(), plan.object())?;
-        let fingerprint = registration_object_fingerprint(bytes, *plan).map_err(|source| {
-            StrongImmortalObjectRegistrationObjectFingerprintError::Hash {
-                object: plan.object(),
-                source,
-            }
-        })?;
+        let fingerprint =
+            registration_object_fingerprint(bytes, *plan, verified.object_relocation()).map_err(
+                |source| StrongImmortalObjectRegistrationObjectFingerprintError::Hash {
+                    object: plan.object(),
+                    source,
+                },
+            )?;
         fingerprints.push(
             VerifiedStrongImmortalObjectRegistrationObjectFingerprintV1 {
                 object: plan.object(),
@@ -138,18 +139,26 @@ fn registration_record_bytes(
 fn registration_object_fingerprint(
     bytes: &[u8],
     plan: scoop_lir::StrongImmortalObjectRegistrationPlanV1,
+    relocation: &crate::link_object::StrongRelocationBindingV1,
 ) -> Result<ObjectDefinitionFingerprintV1, HashError> {
-    let object_owner = StrongDefinitionOwnerV1::new(
-        StrongDefinitionEntity::immortal_object(plan.object()),
-        StrongDefinitionRole::ImmortalObject,
-    )
-    .expect("immortal objects are valid strong definition owners");
-    let object_relocation = CanonicalObjectRelocationV1::unsigned64(
-        152,
-        FinalUndefinedSymbolRequirementV1::IntraConeStrong {
-            owner: object_owner,
-        },
-    );
+    use crate::link_object::{LinkDefinitionOwnerV1, StrongRelocationResolutionV1};
+    let owner = match relocation.resolution() {
+        StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. }
+        | StrongRelocationResolutionV1::CurrentConeUndefinedStrong { owner, .. } => owner,
+        StrongRelocationResolutionV1::ExternalCandidate { .. } => {
+            unreachable!("the verified immortal object is defined in this artifact")
+        }
+    };
+    let target = match owner {
+        LinkDefinitionOwnerV1::StrongDefinition(owner) => {
+            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner }
+        }
+        LinkDefinitionOwnerV1::OdrDefinition(member) => {
+            FinalUndefinedSymbolRequirementV1::OdrMember { member }
+        }
+        _ => unreachable!("an immortal object has a Strong or ODR data definition"),
+    };
+    let object_relocation = CanonicalObjectRelocationV1::unsigned64(152, target);
     let type_owner = type_registration_owner(plan.type_registration());
     let type_registration = match plan.semantic().type_registration_ref() {
         ImmortalObjectTypeRegistrationRefV1::Local(_) => CanonicalObjectRelocationV1::unsigned64(
