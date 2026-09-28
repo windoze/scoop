@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v35_requires_template_evaluation_locations() {
+fn source_interface_v36_requires_generic_delegate_templates() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        35,
+        36,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,

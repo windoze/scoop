@@ -42,9 +42,12 @@ pub(super) fn require_static_storage(
         );
     }
     let primary = require_primary_atom(foundation, definition.id())?;
-    let symbol = require_symbol(foundation, PersistentSymbolKey::RootRegistration(storage))?;
-    let fingerprint =
-        require_digest_node(digests, DigestNodeKey::strong_registration(definition.id()))?;
+    let symbol = require_symbol(
+        foundation,
+        PersistentSymbolKey::RootRegistration(storage),
+        identity.owner().linkage(),
+    )?;
+    let fingerprint = require_digest_node(digests, identity.owner().digest_key(definition.id()))?;
     if fingerprint.id() != identity.fingerprint_node() {
         return Err(
             StrongInitializationUnitRegistrationPlanBuildError::ReferencedRegistrationDigestMismatch {
@@ -56,7 +59,11 @@ pub(super) fn require_static_storage(
     }
     Ok(StrongInitializationStaticStorageRefPlanV1 {
         storage,
-        storage_symbol: require_symbol(foundation, PersistentSymbolKey::StaticStorage(storage))?,
+        storage_symbol: require_symbol(
+            foundation,
+            PersistentSymbolKey::StaticStorage(storage),
+            identity.owner().linkage(),
+        )?,
         registration_symbol: symbol,
         registration_definition_plan: definition.id(),
         registration_primary_atom: primary,
@@ -107,7 +114,7 @@ pub(super) fn require_callable(
     let registration_primary = require_primary_atom(foundation, registration_definition.id())?;
     let registration_fingerprint = require_digest_node(
         digests,
-        DigestNodeKey::strong_registration(registration_definition.id()),
+        identity.owner().digest_key(registration_definition.id()),
     )?;
     if registration_fingerprint.id() != identity.fingerprint_node() {
         return Err(
@@ -120,10 +127,15 @@ pub(super) fn require_callable(
     }
     Ok(StrongInitializationCallableRefPlanV1 {
         body,
-        entry_symbol: require_symbol(foundation, PersistentSymbolKey::CallableBody(body))?,
+        entry_symbol: require_symbol(
+            foundation,
+            PersistentSymbolKey::CallableBody(body),
+            identity.owner().linkage(),
+        )?,
         registration_symbol: require_symbol(
             foundation,
             PersistentSymbolKey::CallableRegistration(body),
+            identity.owner().linkage(),
         )?,
         body_definition_plan: body_definition.id(),
         body_primary_atom: body_primary,
@@ -139,13 +151,9 @@ pub(super) fn require_definition(
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<&crate::DefinitionPlanRecord, StrongInitializationUnitRegistrationPlanBuildError> {
-    let key = ObjectDefinitionPlanKey::strong(foundation.producer(), entity, role)
-        .map_err(StrongInitializationUnitRegistrationPlanBuildError::DefinitionIdentity)?;
-    foundation
-        .definition_plans()
-        .iter()
-        .find(|record| record.key() == &key)
-        .ok_or(StrongInitializationUnitRegistrationPlanBuildError::MissingDefinition(Box::new(key)))
+    foundation.definition_for(entity, role).ok_or(
+        StrongInitializationUnitRegistrationPlanBuildError::MissingDefinition { entity, role },
+    )
 }
 
 pub(super) fn require_primary_atom(
@@ -214,8 +222,9 @@ pub(super) fn require_associated_atoms<const N: usize>(
 pub(super) fn require_symbol(
     foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
+    linkage: LinkageClass,
 ) -> Result<PersistentSymbolRequest, StrongInitializationUnitRegistrationPlanBuildError> {
-    let symbol = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
+    let symbol = PersistentSymbolRequest::new(key, linkage)
         .map_err(StrongInitializationUnitRegistrationPlanBuildError::Symbol)?;
     foundation
         .contains_symbol_request(symbol)

@@ -4,13 +4,33 @@ mod constructors;
 pub use constructors::*;
 mod applications;
 pub use applications::*;
+mod delegates;
+pub use delegates::*;
 
 /// A dependency body normalized into the consumer's type and value domains.
 /// Its declaration remains owned by the provider, outside `Module::functions`.
 #[derive(Debug, Clone)]
 pub struct ImportedGenericCallableTemplate {
     pub signature: ImportedGenericCallableSignature,
-    pub body: crate::Body,
+    pub implementation: ImportedGenericCallableImplementation,
+}
+
+#[derive(Debug, Clone)]
+pub enum ImportedGenericCallableImplementation {
+    Body(crate::Body),
+    /// MIR generates this entry from the associated initialization unit.
+    InitializationEnsure,
+}
+
+impl ImportedGenericCallableTemplate {
+    pub fn source_body(&self) -> &crate::Body {
+        match &self.implementation {
+            ImportedGenericCallableImplementation::Body(body) => body,
+            ImportedGenericCallableImplementation::InitializationEnsure => {
+                panic!("an initialization coordinator has no source body")
+            }
+        }
+    }
 }
 
 impl std::ops::Deref for ImportedGenericCallableTemplate {
@@ -42,6 +62,10 @@ pub struct ImportedGenericCallableSignature {
 pub enum ImportedCallableTemplateOrigin {
     Generic(scoop_identity::PersistentGenericFunctionId),
     ExtensionAccessor(scoop_identity::PersistentPropertyAccessorId),
+    Initialization {
+        template: crate::ImportedGenericDelegateTemplateId,
+        owner: scoop_identity::PersistentGeneratedCallableId,
+    },
     Nominal {
         declaration: crate::DefaultCallableDeclarationV1,
         owner: crate::SourceNominalId,
@@ -86,6 +110,9 @@ impl ImportedCallableTemplateOrigin {
         match self {
             Self::Generic(id) => scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
             Self::ExtensionAccessor(id) => scoop_identity::CallableTemplateOrigin::Accessor(*id),
+            Self::Initialization { .. } => {
+                panic!("initialization helpers have generated identities")
+            }
             Self::Nominal { declaration, .. } => match declaration {
                 crate::DefaultCallableDeclarationV1::Function(id) => {
                     scoop_identity::CallableTemplateOrigin::Function(*id)
@@ -105,6 +132,9 @@ impl ImportedCallableTemplateOrigin {
     }
 
     pub fn body_owner(&self) -> crate::DefaultCallableDeclarationV1 {
+        if let Self::Initialization { owner, .. } = self {
+            return crate::DefaultCallableDeclarationV1::Generated(*owner);
+        }
         match self.declaration() {
             scoop_identity::CallableTemplateOrigin::Function(id) => {
                 crate::DefaultCallableDeclarationV1::Function(id)

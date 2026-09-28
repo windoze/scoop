@@ -77,6 +77,11 @@ impl Lowerer {
         self.imported_default_type_with_bindings(expression.result_type(), bindings)?;
         use hir::DefaultExpressionKindV1 as Kind;
         match expression.kind() {
+            Kind::GenericDelegateStorageRead(_) => {
+                Err(ImportedDefaultPlanError::InvalidControlFlow(
+                    "default properties require accessor calls, not direct delegate storage",
+                ))
+            }
             Kind::Capture(index) => Err(ImportedDefaultPlanError::UnboundCapture(*index)),
             Kind::ReferenceUpcast(operand) | Kind::Box(operand) | Kind::Unbox(operand) => self
                 .preflight_imported_default_expression(

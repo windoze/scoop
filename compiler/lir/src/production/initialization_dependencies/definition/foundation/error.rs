@@ -1,15 +1,16 @@
 use scoop_identity::{
-    DigestNodeId, DigestNodeKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PersistentInitializationUnitId, PersistentSymbolError,
-    PersistentSymbolRequest,
+    DigestNodeId, DigestNodeKey, ObjectDefinitionPlanId, PersistentInitializationUnitId,
+    PersistentSymbolError, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 #[derive(Debug)]
 pub enum InitializationDefinitionResolutionErrorV2 {
     Resource(scoop_wire::WireError),
     MissingRegistrationIdentity(PersistentInitializationUnitId),
-    DefinitionKey(ObjectDefinitionIdentityError),
-    MissingDefinition(ObjectDefinitionPlanKey),
+    MissingDefinition {
+        entity: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+    },
     Symbol(PersistentSymbolError),
     MissingSymbol(PersistentSymbolRequest),
     PrimaryAtoms(ObjectDefinitionPlanId),

@@ -70,6 +70,13 @@ impl HirInitializationUnitIdentities {
                             unit: raw_index(unit_id),
                         });
                     }
+                    if raw_index(template) as usize >= generic_delegates.len()
+                        || raw_index(property) as usize >= properties.len()
+                    {
+                        return Err(HirInitializationUnitIdentityError::StorageRelation {
+                            unit: raw_index(unit_id),
+                        });
+                    }
                     let delegate = &generic_delegates[template];
                     if delegate.property != property
                         || delegate.initialization != unit_id

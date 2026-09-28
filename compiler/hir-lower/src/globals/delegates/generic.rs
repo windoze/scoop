@@ -103,18 +103,23 @@ impl Lowerer {
     pub(crate) fn generic_delegate_reference(
         &mut self,
         template: hir::GenericDelegateTemplateId,
+        function: hir::FunctionId,
     ) -> hir::GenericDelegateReference {
         let property = self.generic_delegate_templates[template].property;
         let hir::PropertyOwner::Extension(extension) = self.properties[property].owner else {
             unreachable!("generic delegate templates belong to extension properties")
         };
-        let parameters = self.extension_properties[extension].type_params.clone();
+        let parameters = self.signatures[&function].type_params.clone();
+        assert_eq!(
+            parameters.len(),
+            self.extension_properties[extension].type_params.len()
+        );
         let arguments = parameters
             .iter()
             .map(|parameter| self.intern_type(hir::Type::Param(parameter.id)))
             .collect();
         hir::GenericDelegateReference {
-            template,
+            template: hir::GenericDelegateTemplateSource::Defined(template),
             arguments: hir::NonEmptyVec::from_vec(arguments)
                 .expect("a generic delegate has at least one receiver parameter"),
         }

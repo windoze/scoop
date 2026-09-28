@@ -8,6 +8,18 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
         match declaration {
+            export::ImportedCallableTemplateOrigin::Initialization { template, owner } => {
+                let unit = self.concretizer.initialization_map[&InitializationKey {
+                    source: initialization::InitializationSource::ImportedDelegate(template),
+                    arguments: arguments.to_vec(),
+                }];
+                CallableMaterialization::new(
+                    CallableTemplateOwner::Generated(owner),
+                    CallableMaterializationContext::InitializationApplication(
+                        self.concretizer.initialization_units[unit].identity.id(),
+                    ),
+                )
+            }
             export::ImportedCallableTemplateOrigin::Generic(id) => self.source_materialization(
                 SourceTemplate::GenericFunction(id),
                 CallableInstantiationOwner::NoOwner,

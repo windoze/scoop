@@ -355,9 +355,12 @@ fn computes_canonical_initialization_strong_fingerprints() {
     let eager_objects = eager.objects();
     let eager_callable_bodies = callable_body_fingerprints(&eager, &eager_objects);
     let eager_definitions = initialization_definition_fingerprints(&eager, &eager_objects);
-    let eager_fingerprints =
-        compute_strong_initialization_fingerprints_v1(eager_definitions, &eager_callable_bodies)
-            .unwrap();
+    let eager_fingerprints = compute_strong_initialization_fingerprints_v1(
+        eager_definitions,
+        &eager_callable_bodies,
+        &scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &eager.foundation).unwrap(),
+    )
+    .unwrap();
 
     let eager_actual = eager_fingerprints.fingerprints()[0];
     let eager_plan = &eager.plan.registrations()[0];
@@ -411,9 +414,12 @@ fn computes_canonical_initialization_strong_fingerprints() {
     let lazy_objects = lazy.objects();
     let lazy_callable_bodies = callable_body_fingerprints(&lazy, &lazy_objects);
     let lazy_definitions = initialization_definition_fingerprints(&lazy, &lazy_objects);
-    let lazy_fingerprints =
-        compute_strong_initialization_fingerprints_v1(lazy_definitions, &lazy_callable_bodies)
-            .unwrap();
+    let lazy_fingerprints = compute_strong_initialization_fingerprints_v1(
+        lazy_definitions,
+        &lazy_callable_bodies,
+        &scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &lazy.foundation).unwrap(),
+    )
+    .unwrap();
     let lazy_actual = lazy_fingerprints.fingerprints()[0];
     assert_eq!(lazy_actual.gateway_body(), None);
     assert_eq!(lazy_actual.gateway_definition_node(), None);

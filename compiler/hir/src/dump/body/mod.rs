@@ -4,14 +4,22 @@ mod expr;
 use expr::dump_expr;
 
 fn generic_delegate_name(module: &Module, reference: &GenericDelegateReference) -> String {
-    let property = module.generic_delegate_templates[reference.template].property;
+    let name = match reference.template {
+        GenericDelegateTemplateSource::Defined(template) => {
+            let property = module.generic_delegate_templates[template].property;
+            &module.properties[property].name
+        }
+        GenericDelegateTemplateSource::Imported(template) => {
+            &module.imported_generic_delegate_templates[template].diagnostic_path
+        }
+    };
     let arguments = reference
         .arguments
         .iter()
         .map(|ty| type_name(module, *ty))
         .collect::<Vec<_>>()
         .join(", ");
-    format!("{}<{arguments}>", module.properties[property].name)
+    format!("{name}<{arguments}>")
 }
 
 fn initializing_field_name(module: &Module, field: InitializingClassFieldRef) -> &str {

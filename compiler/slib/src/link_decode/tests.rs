@@ -1358,8 +1358,11 @@ fn finalized_link_object_fixture() -> (
     let static_storage_shapes =
         crate::compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
             .unwrap();
-    let static_storages =
-        crate::compute_strong_static_storage_fingerprints_v1(static_storage_shapes).unwrap();
+    let static_storages = crate::compute_strong_static_storage_fingerprints_v1(
+        static_storage_shapes,
+        production.canonical_shape_definitions(),
+    )
+    .unwrap();
     let initialization_registrations = crate::verify_strong_initialization_registrations_v1(
         patch_sites.clone(),
         registrations.initialization_units().clone(),
@@ -1381,6 +1384,7 @@ fn finalized_link_object_fixture() -> (
     let initializations = crate::compute_strong_initialization_fingerprints_v1(
         initialization_definitions,
         &callable_bodies,
+        production.canonical_shape_definitions(),
     )
     .unwrap();
     let image = crate::verify_cone_image_v1(

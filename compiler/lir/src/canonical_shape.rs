@@ -66,18 +66,19 @@ pub struct CanonicalShapeLirDefinitionsV1 {
 }
 
 impl CanonicalShapeLirDefinitionsV1 {
-    /// Reuses the String semantics already computed for this module.
-    pub fn from_module(
-        module: &Module,
+    /// Reuses the storage and String semantics already computed for this module.
+    pub fn from_module<'a>(
+        module: &'a Module,
         foundation: &ConeLirFoundation,
         immortals: impl IntoIterator<Item = crate::StrongImmortalObjectSemanticPlanV1>,
+        storages: impl IntoIterator<Item = &'a crate::StrongStaticStorageSemanticPlanV1>,
     ) -> Result<Self, CanonicalShapeLirError> {
-        let shapes = projection::ShapeContents::new(module, immortals);
+        let shapes = projection::ShapeContents::new(module, immortals, storages);
         let definitions = identities(foundation)?
             .into_values()
             .map(|identity| {
                 let shape = shapes
-                    .get(identity.entity)
+                    .get(identity.entity, identity.role)
                     .ok_or(CanonicalShapeLirError::MissingContent(identity.member))?;
                 let fingerprint = domain_separated_cbor_hash(
                     "scoop-lir-definition-v1",
@@ -178,6 +179,9 @@ fn identities(
                 | OdrMemberRole::TypeDescriptor
                 | OdrMemberRole::DispatchTable
                 | OdrMemberRole::ImmortalObject
+                | OdrMemberRole::StaticStorage
+                | OdrMemberRole::InitializationCell
+                | OdrMemberRole::InitializationDescriptor
         ) {
             continue;
         }

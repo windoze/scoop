@@ -42,7 +42,7 @@ pub(super) fn replay(
             lir::EntryProductionSourceV1::executable(bridge.source().clone())
         }
     };
-    Ok(strong.replay(
+    let strong = strong.replay(
         coordinate,
         direct,
         target,
@@ -51,5 +51,7 @@ pub(super) fn replay(
         &sources,
         &type_definitions,
         &initialization_definitions,
-    )?)
+    )?;
+    super::initialization::validate(&strong, parts.identities)?;
+    Ok(strong)
 }

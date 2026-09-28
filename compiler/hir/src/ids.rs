@@ -8,6 +8,7 @@ pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type ImportedDependencyCallableUseId = Idx<ImportedDependencyCallableUse>;
 pub type ImportedGenericCallableTemplateId = Idx<ImportedGenericCallableTemplate>;
+pub type ImportedGenericDelegateTemplateId = Idx<ImportedGenericDelegateTemplate>;
 pub type ImportedGenericCallableApplicationId = Idx<ImportedGenericCallableApplication>;
 pub type ImportedConstructorTemplateId = Idx<ImportedConstructorTemplate>;
 pub type ImportedConstructorApplicationId = Idx<ImportedConstructorApplication>;

@@ -85,7 +85,8 @@ pub(super) fn validate_digest_graph(
 
     let registration = require_node(
         digest_plan,
-        DigestNodeKey::strong_registration(plan.registration_definition_plan()),
+        plan.definition_owner()
+            .digest_key(plan.registration_definition_plan()),
         plan,
         Failure::MissingRegistrationNode,
     )?;
@@ -98,6 +99,17 @@ pub(super) fn validate_digest_graph(
         DigestInputRefV1::from_node(layout),
         DigestInputRefV1::from_node(scan),
     ];
+    if matches!(
+        plan.definition_owner(),
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
+    ) {
+        expected_inputs.push(DigestInputRefV1::from_node(require_node(
+            digest_plan,
+            DigestNodeKey::lir_definition(plan.registration_primary_atom()),
+            plan,
+            Failure::RegistrationDirectInputs,
+        )?));
+    }
     expected_inputs.sort_unstable();
     if registration.direct_inputs() != expected_inputs {
         return digest_error(plan, Failure::RegistrationDirectInputs);

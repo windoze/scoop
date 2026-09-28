@@ -73,6 +73,11 @@ impl ConeLirOutput {
                 .registrations()
                 .iter()
                 .map(|plan| plan.semantic()),
+            registrations
+                .static_storages()
+                .registrations()
+                .iter()
+                .map(|plan| plan.semantic()),
         )
         .map_err(ConeProductionWriterError::CanonicalShapes)?;
         ConeProductionSectionV1::new(
@@ -111,6 +116,11 @@ impl ConeLirOutput {
             &self.foundation,
             registrations
                 .immortal_objects()
+                .registrations()
+                .iter()
+                .map(|plan| plan.semantic()),
+            registrations
+                .static_storages()
                 .registrations()
                 .iter()
                 .map(|plan| plan.semantic()),

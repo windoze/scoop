@@ -154,7 +154,8 @@ pub(super) fn verify_relocations<D>(
         InitializationRelocationRoleV1::RegistrationCell,
     )?;
 
-    let storage_target = static_storage_target(patch_sites, plan.storage(), false);
+    let storage_target =
+        static_storage_target(patch_sites, plan.definition_owner(), plan.storage(), false);
     let coordinator_storage = verify_strong_relocation(
         patch_sites,
         descriptor_member,
@@ -169,7 +170,7 @@ pub(super) fn verify_relocations<D>(
         registration_member,
         plan.registration_primary_atom(),
         REGISTRATION_STORAGE_OFFSET,
-        static_storage_target(patch_sites, plan.storage(), true),
+        static_storage_target(patch_sites, plan.definition_owner(), plan.storage(), true),
         plan,
         InitializationRelocationRoleV1::RegistrationStorage,
     )?;
@@ -179,7 +180,12 @@ pub(super) fn verify_relocations<D>(
         descriptor_member,
         plan.descriptor_primary_atom(),
         COORDINATOR_FAILURE_OFFSET,
-        static_storage_target(patch_sites, plan.failure_root(), false),
+        static_storage_target(
+            patch_sites,
+            plan.definition_owner(),
+            plan.failure_root(),
+            false,
+        ),
         plan,
         InitializationRelocationRoleV1::CoordinatorFailureRoot,
     )?;
@@ -188,7 +194,12 @@ pub(super) fn verify_relocations<D>(
         registration_member,
         plan.registration_primary_atom(),
         REGISTRATION_FAILURE_OFFSET,
-        static_storage_target(patch_sites, plan.failure_root(), true),
+        static_storage_target(
+            patch_sites,
+            plan.definition_owner(),
+            plan.failure_root(),
+            true,
+        ),
         plan,
         InitializationRelocationRoleV1::RegistrationFailureRoot,
     )?;
@@ -503,6 +514,7 @@ struct ExpectedStrongTargetV1 {
 
 fn static_storage_target(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
+    owner: scoop_lir::RegistrationDefinitionOwner,
     reference: StrongInitializationStaticStorageRefPlanV1,
     registration: bool,
 ) -> ExpectedStrongTargetV1 {
@@ -515,11 +527,7 @@ fn static_storage_target(
             symbol: reference.registration_symbol(),
         }
     } else {
-        let definition = strong_definition(
-            patch_sites.producer(),
-            StrongDefinitionEntity::static_storage(reference.storage()),
-            StrongDefinitionRole::StaticStorage,
-        );
+        let definition = storage_definition(patch_sites.producer(), owner, reference.storage());
         ExpectedStrongTargetV1 {
             definition,
             atom: primary_atom(definition),
@@ -625,8 +633,12 @@ fn validate_strong_target<D>(
         .definitions()
         .strong_symbol_by_table_index(definition.primary_symbol_table_index())
         .ok_or_else(|| relocation_error_value(plan, role, Failure::TargetSymbol))?;
-    let expected_owner = LinkDefinitionOwnerV1::from_strong_primary(expected.entity, expected.role)
-        .expect("initialization relocation target is a valid strong owner");
+    let expected_owner = LinkDefinitionOwnerV1::from_definition(
+        symbol.definition_owner(),
+        expected.entity,
+        expected.role,
+    )
+    .expect("the verified initialization target has a complete definition owner");
     let (actual_member, actual_definition, actual_owner) = match binding.resolution() {
         StrongRelocationResolutionV1::ObjectLocalStrong {
             target_member,
@@ -664,16 +676,32 @@ fn validate_strong_target<D>(
     Ok(())
 }
 
-fn strong_definition(
+fn storage_definition(
     producer: scoop_identity::ConeIdentity,
-    entity: StrongDefinitionEntity,
-    role: StrongDefinitionRole,
+    owner: scoop_lir::RegistrationDefinitionOwner,
+    storage: scoop_identity::PersistentStaticStorageId,
 ) -> ObjectDefinitionPlanId {
-    ObjectDefinitionPlanId::from_key(
-        &ObjectDefinitionPlanKey::strong(producer, entity, role)
-            .expect("initialization relocation target has a valid entity/role pair"),
-    )
-    .expect("initialization relocation target definition is hashable")
+    let key = match owner {
+        scoop_lir::RegistrationDefinitionOwner::Strong => ObjectDefinitionPlanKey::strong(
+            producer,
+            StrongDefinitionEntity::static_storage(storage),
+            StrongDefinitionRole::StaticStorage,
+        )
+        .expect("static storage has a valid definition role"),
+        scoop_lir::RegistrationDefinitionOwner::Odr { group, .. } => {
+            let member = scoop_identity::OdrMemberKey::new(
+                group,
+                scoop_identity::OdrMemberRole::StaticStorage,
+                scoop_identity::OdrMemberDiscriminator::StaticStorage(storage),
+            )
+            .expect("a delegated storage has a valid member role");
+            ObjectDefinitionPlanKey::odr(
+                scoop_identity::OdrMemberId::from_key(&member)
+                    .expect("a delegated storage member is hashable"),
+            )
+        }
+    };
+    ObjectDefinitionPlanId::from_key(&key).expect("a static storage definition is hashable")
 }
 
 fn primary_atom(definition: ObjectDefinitionPlanId) -> ObjectDefinitionAtomId {

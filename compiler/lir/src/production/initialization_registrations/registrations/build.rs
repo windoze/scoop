@@ -53,13 +53,18 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
     let registration_symbol = require_symbol(
         foundation,
         PersistentSymbolKey::InitializationRegistration(unit),
+        identity.owner().linkage(),
     )?;
 
     let cell_definition =
         require_definition(foundation, entity, StrongDefinitionRole::InitializationCell)?;
     let cell_primary_atom = require_primary_atom(foundation, cell_definition.id())?;
     require_associated_atoms(foundation, unit, cell_definition.id(), [])?;
-    let cell_symbol = require_symbol(foundation, PersistentSymbolKey::InitializationCell(unit))?;
+    let cell_symbol = require_symbol(
+        foundation,
+        PersistentSymbolKey::InitializationCell(unit),
+        identity.owner().linkage(),
+    )?;
 
     let descriptor_definition = require_definition(
         foundation,
@@ -80,6 +85,7 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
     let descriptor_symbol = require_symbol(
         foundation,
         PersistentSymbolKey::InitializationDescriptor(unit),
+        identity.owner().linkage(),
     )?;
 
     let storage = require_static_storage(foundation, identities, semantic.storage(), digests)?;
@@ -102,7 +108,7 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
     )?;
     let registration_fingerprint = require_digest_node(
         digests,
-        DigestNodeKey::strong_registration(registration_definition.id()),
+        identity.owner().digest_key(registration_definition.id()),
     )?;
     if registration_fingerprint.id() != identity.fingerprint_node() {
         return Err(
@@ -145,6 +151,15 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
             StrongInitializationRegistrationSchedulePlanV1::LazyAccess
         }
     };
+    if matches!(
+        identity.owner(),
+        crate::RegistrationDefinitionOwner::Odr { .. }
+    ) {
+        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
+            digests,
+            DigestNodeKey::lir_definition(registration_primary_atom),
+        )?));
+    }
     expected_inputs.sort_unstable();
     if registration_fingerprint.direct_inputs() != expected_inputs {
         return Err(
@@ -166,6 +181,7 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
     )?;
 
     Ok(StrongInitializationUnitRegistrationPlan {
+        definition_owner: identity.owner(),
         semantic: semantic.clone(),
         registration_symbol,
         registration_definition_plan: registration_definition.id(),

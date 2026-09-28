@@ -1,6 +1,7 @@
 use super::*;
 
 mod constructors;
+mod delegates;
 mod helpers;
 mod initialization;
 mod machine;

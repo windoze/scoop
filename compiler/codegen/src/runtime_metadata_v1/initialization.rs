@@ -3,11 +3,10 @@ use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::{AnyType, StructType};
 use inkwell::values::{FunctionValue, GlobalValue, StructValue, UnnamedAddress};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentInitializationUnitId, PersistentSymbolRequest,
-    StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
-    StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlan,
-    StrongInitializationUnitRegistrationPlanSet,
+    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    PersistentInitializationUnitId, PersistentSymbolRequest, StrongInitializationCallableRefPlanV1,
+    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationStaticStorageRefPlanV1,
+    StrongInitializationUnitRegistrationPlan, StrongInitializationUnitRegistrationPlanSet,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -345,14 +344,12 @@ fn emit_registration<'ctx, D>(
         i32.const_int(INITIALIZATION_UNIT_DESCRIPTOR_SIZE, false)
             .into(),
     ]);
-    let identity = types.registration_identity.const_named_struct(&[
-        i32.const_int(1, false).into(),
-        i32.const_zero().into(),
-        digest_value(context, types.digest, semantic.unit().as_array()).into(),
-        zero_digest.into(),
-        zero_digest.into(),
-        zero_digest.into(),
-    ]);
+    let identity = super::registration_identity::registration_identity_value(
+        context,
+        types,
+        semantic.unit().as_array(),
+        plan.definition_owner(),
+    );
     let diagnostic_span = types.byte_span.const_named_struct(&[
         diagnostic.as_pointer_value().into(),
         i64.const_int(semantic.diagnostic_path().len() as u64, false)
@@ -458,7 +455,7 @@ fn require_storage_value<'ctx>(
     plan: StrongInitializationStaticStorageRefPlanV1,
 ) -> Result<GlobalValue<'ctx>, CodegenError> {
     let request = plan.storage_symbol();
-    require_strong_linkage("initialization storage", request)?;
+    let linkage = super::registration_identity::definition_linkage(request)?;
     let symbol = request.symbol();
     if llvm.get_function(symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
@@ -470,13 +467,13 @@ fn require_storage_value<'ctx>(
             "initialization storage `{symbol}` is not defined in the LLVM module"
         ))
     })?;
-    if global.get_linkage() != Linkage::External
+    if global.get_linkage() != linkage
         || global.get_unnamed_address() != UnnamedAddress::None
         || global.is_constant()
         || global.get_initializer().is_none()
     {
         return Err(CodegenError(format!(
-            "initialization storage `{symbol}` is not a writable address-significant strong definition"
+            "initialization storage `{symbol}` is not a writable address-significant definition with its planned linkage"
         )));
     }
     Ok(global)
@@ -494,7 +491,7 @@ fn require_callable_entry<'ctx>(
     role: CallableEntryRoleV1,
 ) -> Result<FunctionValue<'ctx>, CodegenError> {
     let request = plan.entry_symbol();
-    require_strong_linkage("initialization callable", request)?;
+    let linkage = super::registration_identity::definition_linkage(request)?;
     let symbol = request.symbol();
     if llvm.get_global(symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
@@ -510,12 +507,17 @@ fn require_callable_entry<'ctx>(
         CallableEntryRoleV1::ManagedUnit => context.void_type().fn_type(&[], false),
         CallableEntryRoleV1::StartupGateway => context.i32_type().fn_type(&[], false),
     };
-    if function.get_linkage() != Linkage::External
+    let expected_linkage = if function.get_first_basic_block().is_some() {
+        linkage
+    } else {
+        Linkage::External
+    };
+    if function.get_linkage() != expected_linkage
         || function.as_global_value().get_unnamed_address() != UnnamedAddress::None
         || function.get_type() != expected
     {
         return Err(CodegenError(format!(
-            "initialization callable `{symbol}` has an incompatible strong entry declaration"
+            "initialization callable `{symbol}` has an incompatible entry declaration with its planned linkage"
         )));
     }
     Ok(function)
@@ -528,7 +530,7 @@ fn prepare_global_declaration<'ctx>(
     kind: &str,
     require_undefined: bool,
 ) -> Result<Option<GlobalValue<'ctx>>, CodegenError> {
-    require_strong_linkage(kind, request)?;
+    let definition_linkage = super::registration_identity::definition_linkage(request)?;
     let symbol = request.symbol();
     if llvm.get_function(symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
@@ -538,8 +540,13 @@ fn prepare_global_declaration<'ctx>(
     let Some(global) = llvm.get_global(symbol.as_str()) else {
         return Ok(None);
     };
+    let expected_linkage = if global.get_initializer().is_some() {
+        definition_linkage
+    } else {
+        Linkage::External
+    };
     if global.get_value_type() != expected_type.as_any_type_enum()
-        || global.get_linkage() != Linkage::External
+        || global.get_linkage() != expected_linkage
         || global.get_unnamed_address() != UnnamedAddress::None
     {
         return Err(CodegenError(format!(
@@ -583,21 +590,11 @@ fn define_global<'ctx>(
     let global = declare_global(llvm, request, ty, prior);
     global.set_constant(constant);
     global.set_initializer(&initializer);
+    global.set_linkage(
+        super::registration_identity::definition_linkage(request)
+            .expect("prepare_global_declaration validates the definition linkage"),
+    );
     global
-}
-
-fn require_strong_linkage(
-    kind: &str,
-    request: PersistentSymbolRequest,
-) -> Result<(), CodegenError> {
-    if request.linkage() == LinkageClass::ConeStrong {
-        Ok(())
-    } else {
-        Err(CodegenError(format!(
-            "{kind} `{}` does not have strong Cone linkage",
-            request.symbol()
-        )))
-    }
 }
 
 fn digest_bytes<'ctx>(

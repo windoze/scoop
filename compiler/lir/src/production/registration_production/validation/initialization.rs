@@ -162,41 +162,31 @@ fn replay_units<D: crate::StrongInitializationDependencyReference>(
                 "failure_root_identity",
             ));
         }
-        let expected_initializer = generated_unit_body(
+        let initializer = resolve_unit_body(
+            decoded.initializer_id,
             unit,
             scoop_identity::InitializationCallableRole::Initializer,
-        )
-        .map_err(|_| {
-            semantic_error(
-                RegistrationProductionTableV1::InitializationUnit,
-                index,
-                "initializer",
-            )
-        })?;
-        let initializer = verify_expected(
-            decoded.initializer_id,
-            expected_initializer,
-            RegistrationProductionTableV1::InitializationUnit,
+            identity.owner(),
+            foundation,
             index,
             "initializer",
         )?;
-        let expected_ensure =
-            generated_unit_body(unit, scoop_identity::InitializationCallableRole::Ensure).map_err(
-                |_| {
-                    semantic_error(
-                        RegistrationProductionTableV1::InitializationUnit,
-                        index,
-                        "ensure",
-                    )
-                },
-            )?;
-        let ensure = verify_expected(
+        let ensure = resolve_unit_body(
             decoded.ensure_id,
-            expected_ensure,
-            RegistrationProductionTableV1::InitializationUnit,
+            unit,
+            scoop_identity::InitializationCallableRole::Ensure,
+            identity.owner(),
+            foundation,
             index,
             "ensure",
         )?;
+        if initializer == ensure {
+            return Err(semantic_error(
+                RegistrationProductionTableV1::InitializationUnit,
+                index,
+                "aliased_callable",
+            ));
+        }
         let schedule = match decoded.semantic_schedule {
             DecodedStrongInitializationSchedulePlanV1::EagerStartup(decoded_gateway) => {
                 let gateway = startup_gateway_body(unit).map_err(|_| {
@@ -245,6 +235,34 @@ fn replay_units<D: crate::StrongInitializationDependencyReference>(
         ));
     }
     Ok(crate::StrongInitializationUnitSemanticPlanSet::from_artifact(static_storages, units))
+}
+
+fn resolve_unit_body(
+    decoded: DecodedPersistentId<scoop_identity::PersistentCallableBodyId>,
+    unit: PersistentInitializationUnitId,
+    role: scoop_identity::InitializationCallableRole,
+    owner: crate::RegistrationDefinitionOwner,
+    foundation: &ConeLirFoundation,
+    index: usize,
+    field: &'static str,
+) -> Result<scoop_identity::PersistentCallableBodyId, StrongRegistrationProductionValidationError> {
+    let table = RegistrationProductionTableV1::InitializationUnit;
+    match owner {
+        crate::RegistrationDefinitionOwner::Strong => {
+            let expected = generated_unit_body(unit, role, None)
+                .map_err(|_| semantic_error(table, index, field))?;
+            verify_expected(decoded, expected, table, index, field)
+        }
+        crate::RegistrationDefinitionOwner::Odr { group, .. } => {
+            // The shared identity graph checks the declaration role and unit
+            // application; this projection joins the actual emitted member.
+            resolve_known(decoded, foundation.callable_bodies().iter().filter_map(|body| {
+                matches!(body.key().kind(), scoop_identity::CallableBodyKeyKind::Odr(member)
+                    if member.group() == group && member.role() == scoop_identity::OdrMemberRole::CallableBody)
+                    .then_some(body.id())
+            }), table, index, field)
+        }
+    }
 }
 
 fn validate_initialization_storage(

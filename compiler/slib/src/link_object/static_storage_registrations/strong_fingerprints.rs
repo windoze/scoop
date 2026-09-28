@@ -12,13 +12,12 @@ use scoop_wire::{
 use super::VerifiedStrongStaticStorageShapeFingerprintSetV1;
 use crate::link_object::callable_registrations::object_definition::CanonicalDigestInputV1;
 use crate::link_object::{
-    LayoutFingerprintV1, ObjectDefinitionFingerprintV1, ScanFingerprintV1,
-    StrongRegistrationFingerprintV1,
+    LayoutFingerprintV1, ObjectDefinitionFingerprintV1, OdrMemberFingerprintV1,
+    RegistrationFingerprintV1, ScanFingerprintV1, StrongRegistrationFingerprintV1,
 };
 
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
 const STATIC_STORAGE_RECORD_KIND: u32 = 1;
-const STRONG_LINKAGE: u32 = 1;
 const OWN_STORAGE_ATOM_ROLE: u32 = 1;
 const EMPTY_SCAN_CHOICE: u32 = 0;
 const SCAN_PROGRAM_CHOICE: u32 = 1;
@@ -35,7 +34,7 @@ pub struct VerifiedStrongStaticStorageFingerprintV1 {
     scan_node: DigestNodeId,
     scan: ScanFingerprintV1,
     registration_node: DigestNodeId,
-    registration: StrongRegistrationFingerprintV1,
+    registration: RegistrationFingerprintV1,
 }
 
 impl VerifiedStrongStaticStorageFingerprintV1 {
@@ -79,7 +78,7 @@ impl VerifiedStrongStaticStorageFingerprintV1 {
         self.registration_node
     }
 
-    pub const fn registration(self) -> StrongRegistrationFingerprintV1 {
+    pub const fn registration(self) -> RegistrationFingerprintV1 {
         self.registration
     }
 }
@@ -90,9 +89,13 @@ impl VerifiedStrongStaticStorageFingerprintV1 {
 pub struct VerifiedStrongStaticStorageFingerprintSetV1 {
     shapes: VerifiedStrongStaticStorageShapeFingerprintSetV1,
     fingerprints: Vec<VerifiedStrongStaticStorageFingerprintV1>,
+    odr_definitions: Vec<OdrMemberFingerprintV1>,
 }
 
 impl VerifiedStrongStaticStorageFingerprintSetV1 {
+    pub fn odr_definitions(&self) -> &[OdrMemberFingerprintV1] {
+        &self.odr_definitions
+    }
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.shapes.producer()
     }
@@ -108,6 +111,7 @@ impl VerifiedStrongStaticStorageFingerprintSetV1 {
 
 pub fn compute_strong_static_storage_fingerprints_v1(
     shapes: VerifiedStrongStaticStorageShapeFingerprintSetV1,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
 ) -> Result<VerifiedStrongStaticStorageFingerprintSetV1, StrongStaticStorageFingerprintError> {
     let storage_definitions = shapes.storage_definitions();
     let registration_objects = storage_definitions.registration_objects();
@@ -123,6 +127,7 @@ pub fn compute_strong_static_storage_fingerprints_v1(
     }
 
     let mut fingerprints = Vec::with_capacity(verified.len());
+    let mut odr_definitions = Vec::new();
     for ((((verified, plan), registration_object), storage_definition), shape) in verified
         .iter()
         .zip(planned)
@@ -155,17 +160,52 @@ pub fn compute_strong_static_storage_fingerprints_v1(
         {
             return Err(StrongStaticStorageFingerprintError::ScanMismatch { storage });
         }
-        let registration = strong_static_storage_fingerprint(
-            plan,
-            registration_object.node(),
-            registration_object.fingerprint(),
-            storage_definition.node(),
-            storage_definition.fingerprint(),
-            shape.layout_node(),
-            shape.layout_fingerprint(),
-            shape.scan_node(),
-            shape.scan_fingerprint(),
-        )
+        let registration = match plan.definition_owner() {
+            scoop_lir::RegistrationDefinitionOwner::Strong => strong_static_storage_fingerprint(
+                plan,
+                registration_object.node(),
+                registration_object.fingerprint(),
+                storage_definition.node(),
+                storage_definition.fingerprint(),
+                shape.layout_node(),
+                shape.layout_fingerprint(),
+                shape.scan_node(),
+                shape.scan_fingerprint(),
+            )
+            .map(RegistrationFingerprintV1::Strong),
+            scoop_lir::RegistrationDefinitionOwner::Odr { group, member } => {
+                let content = canonical
+                    .definitions()
+                    .iter()
+                    .find(|content| {
+                        content.definition() == plan.storage_definition_plan()
+                            && content.group() == group
+                            && content.role() == scoop_identity::OdrMemberRole::StaticStorage
+                    })
+                    .ok_or(
+                        StrongStaticStorageFingerprintError::StorageDefinitionMismatch { storage },
+                    )?;
+                odr_definitions.push(
+                    super::super::odr_member_fingerprints::shape_definition(
+                        *content,
+                        storage_definition.fingerprint(),
+                    )
+                    .map_err(|source| {
+                        StrongStaticStorageFingerprintError::Hash { storage, source }
+                    })?,
+                );
+                super::super::odr_member_fingerprints::static_storage_registration(
+                    group,
+                    member,
+                    plan,
+                    registration_object.fingerprint(),
+                    storage_definition.fingerprint(),
+                    shape.layout_fingerprint(),
+                    shape.scan_fingerprint(),
+                )
+                .map(RegistrationFingerprintV1::Odr)
+            }
+        }
         .map_err(|source| StrongStaticStorageFingerprintError::Hash { storage, source })?;
         fingerprints.push(VerifiedStrongStaticStorageFingerprintV1 {
             storage,
@@ -185,6 +225,7 @@ pub fn compute_strong_static_storage_fingerprints_v1(
     Ok(VerifiedStrongStaticStorageFingerprintSetV1 {
         shapes,
         fingerprints,
+        odr_definitions,
     })
 }
 
@@ -268,11 +309,12 @@ pub(in crate::link_object) fn runtime_encode_strong_static_storage_record_v1(
 ) -> Result<(), RuntimeEncodeError> {
     let semantic = plan.semantic();
     encoder.u32(STATIC_STORAGE_RECORD_KIND)?;
-    encoder.u32(STRONG_LINKAGE)?;
-    encoder.fixed(semantic.storage().as_array())?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(registration)?;
+    super::super::registration_identity::runtime_encode_registration_identity(
+        encoder,
+        semantic.storage().as_array(),
+        plan.definition_owner(),
+        registration,
+    )?;
     encoder.u32(semantic.scan_kind().tag())?;
     encoder.u32(OWN_STORAGE_ATOM_ROLE)?;
     encoder.u64(semantic.byte_size())?;

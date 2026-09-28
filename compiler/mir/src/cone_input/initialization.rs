@@ -35,9 +35,8 @@ pub enum StrongInitializationUnitError {
     DuplicateUnit {
         unit: PersistentInitializationUnitId,
     },
-    GenericUnit {
-        unit: PersistentInitializationUnitId,
-    },
+    Hash(scoop_wire::HashError),
+    Odr(scoop_identity::OdrMemberIdentityError),
     Identity {
         unit: PersistentInitializationUnitId,
         role: InitializationCallableRole,
@@ -63,13 +62,15 @@ pub enum StrongInitializationUnitError {
 }
 impl std::fmt::Display for StrongInitializationUnitError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid Strong MIR initialization unit: {self:?}")
+        write!(f, "invalid MIR initialization unit: {self:?}")
     }
 }
 impl std::error::Error for StrongInitializationUnitError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Identity { source, .. } => Some(source),
+            Self::Hash(source) => Some(source),
+            Self::Odr(source) => Some(source),
             _ => None,
         }
     }
@@ -90,16 +91,11 @@ pub(super) fn validate(
         if !seen.insert(identity) {
             return Err(StrongInitializationUnitError::DuplicateUnit { unit: identity });
         }
-        if matches!(
-            unit.identity.key(),
-            InitializationUnitKey::GenericDelegatedExtensionApplication { .. }
-        ) {
-            return Err(StrongInitializationUnitError::GenericUnit { unit: identity });
-        }
         let initializer = role(
             module,
             &roots,
             identity,
+            unit.identity.key(),
             unit.initializer,
             InitializationCallableRole::Initializer,
         )?;
@@ -107,6 +103,7 @@ pub(super) fn validate(
             module,
             &roots,
             identity,
+            unit.identity.key(),
             unit.ensure,
             InitializationCallableRole::Ensure,
         )?;
@@ -124,11 +121,21 @@ fn role(
     module: &Module,
     roots: &HashMap<FunctionId, CallableMaterializationRoot>,
     unit: PersistentInitializationUnitId,
+    key: &InitializationUnitKey,
     function: FunctionId,
     role: InitializationCallableRole,
 ) -> Result<CallableMaterializationRoot, StrongInitializationUnitError> {
+    let declaration = match key {
+        InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. } => {
+            PersistentInitializationUnitId::from_key(&InitializationUnitKey::ExtensionProperty(
+                *property,
+            ))
+            .map_err(StrongInitializationUnitError::Hash)?
+        }
+        _ => unit,
+    };
     let expected = PersistentGeneratedCallableId::from_key(&GeneratedCallableKey::Initialization {
-        unit,
+        unit: declaration,
         role,
     })
     .map_err(|source| StrongInitializationUnitError::Identity { unit, role, source })?;
@@ -139,7 +146,21 @@ fn role(
             role,
             function,
         })?;
-    if root.subject() != CallableSignatureSubject::Strong(CallableOwner::Generated(expected)) {
+    let expected_subject = if let Some(key) = key.specialization_key() {
+        let group = scoop_identity::OdrGroupId::from_key(&key)
+            .map_err(StrongInitializationUnitError::Hash)?;
+        let member = scoop_identity::OdrMemberKey::new(
+            group,
+            scoop_identity::OdrMemberRole::CallableBody,
+            scoop_identity::OdrMemberDiscriminator::GeneratedCallable(expected),
+        )
+        .and_then(|key| scoop_identity::CallableOdrMemberId::from_key(&key))
+        .map_err(StrongInitializationUnitError::Odr)?;
+        CallableSignatureSubject::Odr(member)
+    } else {
+        CallableSignatureSubject::Strong(CallableOwner::Generated(expected))
+    };
+    if root.subject() != expected_subject {
         return Err(StrongInitializationUnitError::WrongRole {
             unit,
             role,

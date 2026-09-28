@@ -12,6 +12,7 @@ use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
 mod callable;
 mod constructors;
+mod delegates;
 mod statements;
 
 struct ImportedDefaultContext<'a> {
@@ -166,6 +167,11 @@ impl Lowerer {
 
         use hir::DefaultExpressionKindV1 as Kind;
         let kind = match expression.kind() {
+            Kind::GenericDelegateStorageRead(reference) => {
+                hir::ExprKind::GenericDelegateStorageRead(
+                    self.materialize_imported_delegate_reference(reference, context)?,
+                )
+            }
             Kind::Capture(index) => {
                 return Err(ImportedDefaultMaterializationError::Plan(format!(
                     "dependency default root has no closure input {index}"

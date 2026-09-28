@@ -112,6 +112,27 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         Ok(())
     }
 
+    fn registration_from_leaves(
+        &mut self,
+        definition: ObjectDefinitionPlanId,
+        inputs: impl IntoIterator<Item = DigestNodeKey>,
+    ) -> Result<(), DigestProjectionError> {
+        let record = self
+            .foundation
+            .definition_plan(definition)
+            .ok_or(DigestProjectionError::MissingDefinitionPlan(definition))?;
+        let node = self.foundation.registration_digest_key(record);
+        if node.kind() == DigestKind::OdrDefinition {
+            self.registration(definition, [])?;
+            for input in inputs {
+                self.input(node, input);
+            }
+            Ok(())
+        } else {
+            self.registration(definition, inputs)
+        }
+    }
+
     fn definition(
         &self,
         entity: StrongDefinitionEntity,

@@ -172,7 +172,7 @@ pub(super) fn lower_graph(
                 local_function_map[&entry],
                 globals::static_storage_layout(
                     &context,
-                    lir::MaterializationRoot::cone_owned(),
+                    &identity_roots,
                     module,
                     &mir::Type::Any,
                     selected_layout,

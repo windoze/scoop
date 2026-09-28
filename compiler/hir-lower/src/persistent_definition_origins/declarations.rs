@@ -60,6 +60,14 @@ impl DefinitionOriginBuilder<'_> {
                 hir::HirFunctionIdentity::LexicalGenerated(record) => {
                     DefinitionOriginSubject::GeneratedCallable(record.id())
                 }
+                hir::HirFunctionIdentity::Initialization { unit, record, .. }
+                    if matches!(
+                        self.lowerer.initialization_units[*unit].kind,
+                        hir::InitializationUnitKind::GenericDelegatedExtension { .. }
+                    ) =>
+                {
+                    DefinitionOriginSubject::GeneratedCallable(record.id())
+                }
                 hir::HirFunctionIdentity::PropertyAccessor(_)
                 | hir::HirFunctionIdentity::Initialization { .. }
                 | hir::HirFunctionIdentity::DerivedEquality(_) => continue,

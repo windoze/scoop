@@ -1,9 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{
-    DefinitionAtomRole, DigestNodeId, PersistentInitializationUnitId, StrongDefinitionEntity,
-    StrongDefinitionRole,
-};
+use scoop_identity::{DefinitionAtomRole, DigestNodeId, PersistentInitializationUnitId};
 use scoop_lir::StrongInitializationUnitRegistrationPlan;
 use scoop_wire::{HashError, domain_separated_runtime_hash};
 
@@ -17,10 +14,7 @@ use crate::link_object::callable_registrations::object_definition::{
     CanonicalObjectRelocationV1, ObjectDefinitionFingerprintInputV1,
     ObjectDefinitionRelocationFailureV1,
 };
-use crate::link_object::{
-    FinalUndefinedSymbolRequirementV1, ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1,
-    StrongDefinitionOwnerV1,
-};
+use crate::link_object::{ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1};
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
 
@@ -125,7 +119,7 @@ fn compute_strong_initialization_registration_object_fingerprints<D>(
             ),
         )?;
         let mut bytes = registration_bytes(object, verified.checked_offset(), unit)?;
-        let relocations = canonical_relocations(plan);
+        let relocations = canonical_relocations(plan, verified);
         for relocation in &relocations {
             relocation.normalize_bytes(&mut bytes).map_err(|kind| {
                 StrongInitializationRegistrationObjectFingerprintError::Relocation { unit, kind }
@@ -178,7 +172,9 @@ fn registration_bytes(
 
 fn canonical_relocations<D>(
     plan: &StrongInitializationUnitRegistrationPlan<D>,
+    verified: &super::VerifiedStrongInitializationRegistrationV1,
 ) -> Vec<CanonicalObjectRelocationV1> {
+    use super::super::registration_identity::canonical_local_relocation;
     let mut relocations = vec![
         CanonicalObjectRelocationV1::owning_associated_atom_offset(
             160,
@@ -186,53 +182,16 @@ fn canonical_relocations<D>(
             DefinitionAtomRole::AddressTakenConstant,
             0,
         ),
-        strong_relocation(
-            176,
-            StrongDefinitionEntity::initialization_unit(plan.semantic().unit()),
-            StrongDefinitionRole::InitializationCell,
-        ),
-        strong_relocation(
-            184,
-            StrongDefinitionEntity::static_storage(plan.storage().storage()),
-            StrongDefinitionRole::RootRegistration,
-        ),
-        strong_relocation(
-            192,
-            StrongDefinitionEntity::static_storage(plan.failure_root().storage()),
-            StrongDefinitionRole::RootRegistration,
-        ),
-        strong_relocation(
-            264,
-            StrongDefinitionEntity::callable_body(plan.initializer().body()),
-            StrongDefinitionRole::CallableBody,
-        ),
-        strong_relocation(
-            272,
-            StrongDefinitionEntity::callable_body(plan.ensure().body()),
-            StrongDefinitionRole::CallableBody,
-        ),
+        canonical_local_relocation(verified.registration_cell_relocation()),
+        canonical_local_relocation(verified.registration_storage_relocation()),
+        canonical_local_relocation(verified.registration_failure_relocation()),
+        canonical_local_relocation(verified.registration_initializer_relocation()),
+        canonical_local_relocation(verified.registration_ensure_relocation()),
     ];
-    if let Some(gateway) = plan.schedule().gateway() {
-        relocations.push(strong_relocation(
-            344,
-            StrongDefinitionEntity::callable_body(gateway.body()),
-            StrongDefinitionRole::CallableBody,
-        ));
+    if let Some(gateway) = verified.registration_gateway_relocation() {
+        relocations.push(canonical_local_relocation(gateway));
     }
     relocations
-}
-
-fn strong_relocation(
-    offset: u64,
-    entity: StrongDefinitionEntity,
-    role: StrongDefinitionRole,
-) -> CanonicalObjectRelocationV1 {
-    let owner = StrongDefinitionOwnerV1::new(entity, role)
-        .expect("initialization registration relocation has a valid strong owner");
-    CanonicalObjectRelocationV1::unsigned64(
-        offset,
-        FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
-    )
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

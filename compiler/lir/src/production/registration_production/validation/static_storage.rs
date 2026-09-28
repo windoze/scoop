@@ -160,7 +160,7 @@ pub(super) fn validate_static_storages(
         )?;
         let symbol = PersistentSymbolRequest::new(
             PersistentSymbolKey::StaticStorage(storage),
-            LinkageClass::ConeStrong,
+            identity.owner().linkage(),
         )
         .map_err(|_| {
             semantic_error(

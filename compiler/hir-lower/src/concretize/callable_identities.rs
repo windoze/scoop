@@ -294,7 +294,7 @@ impl<'a> CallableIdentityBuilder<'a> {
                     CallableMaterializationContext::NoSubstitution
                 } else {
                     let unit = self.concretizer.initialization_map[&InitializationKey {
-                        source: unit,
+                        source: initialization::InitializationSource::Defined(unit),
                         arguments,
                     }];
                     CallableMaterializationContext::InitializationApplication(

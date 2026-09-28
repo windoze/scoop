@@ -58,7 +58,15 @@ pub(super) fn compute(
     canonical
         .definitions()
         .iter()
-        .filter(|canonical| canonical.role() != scoop_identity::OdrMemberRole::ImmortalObject)
+        .filter(|canonical| {
+            !matches!(
+                canonical.role(),
+                scoop_identity::OdrMemberRole::ImmortalObject
+                    | scoop_identity::OdrMemberRole::StaticStorage
+                    | scoop_identity::OdrMemberRole::InitializationCell
+                    | scoop_identity::OdrMemberRole::InitializationDescriptor
+            )
+        })
         .map(|canonical| {
             let (member, definition) = definitions.get(&canonical.definition()).copied().ok_or(
                 OdrShapeFingerprintError::MissingDefinition(canonical.definition()),

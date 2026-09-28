@@ -5,7 +5,7 @@ use inkwell::targets::TargetData;
 use inkwell::types::AnyType;
 use inkwell::values::{GlobalValue, UnnamedAddress};
 use scoop_lir::{
-    LinkageClass, StaticStorageRelocationTableArtifactV1, StrongStaticStorageInitialArtifactPlanV1,
+    StaticStorageRelocationTableArtifactV1, StrongStaticStorageInitialArtifactPlanV1,
     StrongStaticStorageRegistrationPlanV1,
 };
 
@@ -29,7 +29,8 @@ pub(super) fn prepare_registration<'ctx>(
     plan: &StrongStaticStorageRegistrationPlanV1,
 ) -> Result<PreparedStaticStorageRegistrationV1<'ctx>, CodegenError> {
     let semantic = plan.semantic();
-    require_strong_linkage("static storage", semantic.symbol())?;
+    let storage_linkage =
+        super::super::registration_identity::definition_linkage(semantic.symbol())?;
     let storage_symbol = semantic.symbol().symbol();
     if llvm.get_function(storage_symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
@@ -49,7 +50,7 @@ pub(super) fn prepare_registration<'ctx>(
     } else {
         explicit_alignment
     };
-    if storage_value.get_linkage() != Linkage::External
+    if storage_value.get_linkage() != storage_linkage
         || storage_value.get_unnamed_address() != UnnamedAddress::None
         || storage_value.is_constant()
         || storage_value.is_thread_local()
@@ -70,7 +71,7 @@ pub(super) fn prepare_registration<'ctx>(
         )));
     }
 
-    require_strong_linkage("static-storage registration", plan.registration_symbol())?;
+    super::super::registration_identity::definition_linkage(plan.registration_symbol())?;
     let registration_symbol = plan.registration_symbol().symbol();
     if llvm.get_function(registration_symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
@@ -149,7 +150,7 @@ fn validate_scan_declaration(
     llvm: &LlvmModule<'_>,
     plan: &StrongStaticStorageRegistrationPlanV1,
 ) -> Result<(), CodegenError> {
-    require_strong_linkage("static scan program", plan.scan_symbol())?;
+    super::super::registration_identity::definition_linkage(plan.scan_symbol())?;
     let symbol = plan.scan_symbol().symbol();
     if llvm.get_function(symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
@@ -175,7 +176,7 @@ fn validate_immortal_registration_declaration(
     types: &RuntimeMetadataV1Types<'_>,
     request: scoop_lir::PersistentSymbolRequest,
 ) -> Result<(), CodegenError> {
-    require_strong_linkage("immortal-object registration", request)?;
+    let registration_linkage = super::super::registration_identity::definition_linkage(request)?;
     let symbol = request.symbol();
     if llvm.get_function(symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
@@ -184,7 +185,12 @@ fn validate_immortal_registration_declaration(
     }
     if let Some(global) = llvm.get_global(symbol.as_str())
         && (global.get_value_type() != types.immortal_object_descriptor.as_any_type_enum()
-            || global.get_linkage() != Linkage::External
+            || global.get_linkage()
+                != if global.get_initializer().is_some() {
+                    registration_linkage
+                } else {
+                    Linkage::External
+                }
             || global.get_unnamed_address() != UnnamedAddress::None
             || (global.get_initializer().is_some() && !global.is_constant()))
     {
@@ -193,18 +199,4 @@ fn validate_immortal_registration_declaration(
         )));
     }
     Ok(())
-}
-
-fn require_strong_linkage(
-    kind: &str,
-    request: scoop_lir::PersistentSymbolRequest,
-) -> Result<(), CodegenError> {
-    if request.linkage() == LinkageClass::ConeStrong {
-        Ok(())
-    } else {
-        Err(CodegenError(format!(
-            "{kind} `{}` does not have strong Cone linkage",
-            request.symbol()
-        )))
-    }
 }

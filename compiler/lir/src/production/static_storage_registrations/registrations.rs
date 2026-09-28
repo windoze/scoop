@@ -6,8 +6,8 @@ use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
     DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionAtomKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 
 use super::{
@@ -24,6 +24,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongStaticStorageRegistrationPlanV1 {
     semantic: StrongStaticStorageSemanticPlanV1,
+    definition_owner: crate::RegistrationDefinitionOwner,
     registration_symbol: PersistentSymbolRequest,
     registration_definition_plan: ObjectDefinitionPlanId,
     registration_primary_atom: ObjectDefinitionAtomId,
@@ -48,6 +49,10 @@ pub struct StrongStaticStorageRegistrationPlanV1 {
 }
 
 impl StrongStaticStorageRegistrationPlanV1 {
+    pub const fn definition_owner(&self) -> crate::RegistrationDefinitionOwner {
+        self.definition_owner
+    }
+
     pub const fn semantic(&self) -> &StrongStaticStorageSemanticPlanV1 {
         &self.semantic
     }
@@ -256,9 +261,15 @@ fn build_registration(
         .immortal_relocations()
         .iter()
         .map(|relocation| {
+            let definition = require_definition(
+                foundation,
+                StrongDefinitionEntity::immortal_object(relocation.target()),
+                StrongDefinitionRole::ImmortalRegistration,
+            )?;
             require_symbol_key(
                 foundation,
                 PersistentSymbolKey::ImmortalRegistration(relocation.target()),
+                definition_linkage(definition),
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -278,8 +289,11 @@ fn build_registration(
         );
     }
     let registration_primary_atom = require_primary_atom(foundation, registration_definition.id())?;
-    let registration_symbol =
-        require_symbol_key(foundation, PersistentSymbolKey::RootRegistration(storage))?;
+    let registration_symbol = require_symbol_key(
+        foundation,
+        PersistentSymbolKey::RootRegistration(storage),
+        identity.owner().linkage(),
+    )?;
 
     let (
         layout_definition_plan,
@@ -308,8 +322,11 @@ fn build_registration(
                 StrongDefinitionRole::Layout,
             )?;
             let layout_primary_atom = require_primary_atom(foundation, layout_definition.id())?;
-            let layout_symbol =
-                require_symbol_key(foundation, PersistentSymbolKey::Layout(semantic.layout()))?;
+            let layout_symbol = require_symbol_key(
+                foundation,
+                PersistentSymbolKey::Layout(semantic.layout()),
+                definition_linkage(layout_definition),
+            )?;
 
             let scan_definition = require_definition(
                 foundation,
@@ -320,6 +337,7 @@ fn build_registration(
             let scan_symbol = require_symbol_key(
                 foundation,
                 PersistentSymbolKey::ScanProgram(semantic.scan()),
+                definition_linkage(scan_definition),
             )?;
 
             (
@@ -348,7 +366,7 @@ fn build_registration(
     let scan_fingerprint = require_digest_node(digests, DigestNodeKey::scan(semantic.scan()))?;
     let registration_fingerprint = require_digest_node(
         digests,
-        DigestNodeKey::strong_registration(registration_definition.id()),
+        identity.owner().digest_key(registration_definition.id()),
     )?;
     if registration_fingerprint.id() != identity.fingerprint_node() {
         return Err(
@@ -366,6 +384,15 @@ fn build_registration(
         DigestInputRefV1::from_node(layout_fingerprint),
         DigestInputRefV1::from_node(scan_fingerprint),
     ];
+    if matches!(
+        identity.owner(),
+        crate::RegistrationDefinitionOwner::Odr { .. }
+    ) {
+        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
+            digests,
+            DigestNodeKey::lir_definition(registration_primary_atom),
+        )?));
+    }
     expected_inputs.sort_unstable();
     if registration_fingerprint.direct_inputs() != expected_inputs {
         return Err(
@@ -407,6 +434,7 @@ fn build_registration(
 
     Ok(StrongStaticStorageRegistrationPlanV1 {
         semantic: semantic.clone(),
+        definition_owner: identity.owner(),
         registration_symbol,
         registration_definition_plan: registration_definition.id(),
         registration_primary_atom,
@@ -520,13 +548,9 @@ fn require_definition(
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<&crate::DefinitionPlanRecord, StrongStaticStorageRegistrationPlanBuildError> {
-    let key = ObjectDefinitionPlanKey::strong(foundation.producer(), entity, role)
-        .map_err(StrongStaticStorageRegistrationPlanBuildError::DefinitionIdentity)?;
     foundation
-        .definition_plans()
-        .iter()
-        .find(|record| record.key() == &key)
-        .ok_or(StrongStaticStorageRegistrationPlanBuildError::MissingDefinition(Box::new(key)))
+        .definition_for(entity, role)
+        .ok_or(StrongStaticStorageRegistrationPlanBuildError::MissingDefinition { entity, role })
 }
 
 fn require_primary_atom(
@@ -555,11 +579,19 @@ fn require_primary_atom(
 fn require_symbol_key(
     foundation: &ConeLirFoundation,
     key: PersistentSymbolKey,
+    linkage: LinkageClass,
 ) -> Result<PersistentSymbolRequest, StrongStaticStorageRegistrationPlanBuildError> {
-    let symbol = PersistentSymbolRequest::new(key, LinkageClass::ConeStrong)
+    let symbol = PersistentSymbolRequest::new(key, linkage)
         .map_err(StrongStaticStorageRegistrationPlanBuildError::Symbol)?;
     require_symbol(foundation, symbol)?;
     Ok(symbol)
+}
+
+fn definition_linkage(record: &crate::DefinitionPlanRecord) -> LinkageClass {
+    match record.key().owner() {
+        scoop_identity::ObjectDefinitionPlanOwner::Strong { .. } => LinkageClass::ConeStrong,
+        scoop_identity::ObjectDefinitionPlanOwner::Odr { .. } => LinkageClass::OdrWeak,
+    }
 }
 
 fn require_symbol(
@@ -691,7 +723,10 @@ pub enum StrongStaticStorageRegistrationPlanBuildError {
         storage: scoop_identity::PersistentStaticStorageId,
         scan: scoop_identity::PersistentScanId,
     },
-    MissingDefinition(Box<ObjectDefinitionPlanKey>),
+    MissingDefinition {
+        entity: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+    },
     MissingAtom(Box<ObjectDefinitionAtomKey>),
     InitialArtifactSet {
         storage: scoop_identity::PersistentStaticStorageId,

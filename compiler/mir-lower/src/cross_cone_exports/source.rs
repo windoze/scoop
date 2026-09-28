@@ -22,6 +22,15 @@ pub fn lower_type_bridge_initialization_units(
         &WirePath::root(),
     )?;
     for root in input.materialization().initialization_roots() {
+        if input.module().initialization_units[root.unit()]
+            .identity
+            .key()
+            .specialization_key()
+            .is_some()
+        {
+            // Application units are emitted locally, not exported as provider-owned services.
+            continue;
+        }
         let mir::CallableSignatureSubject::Strong(CallableOwner::Generated(initializer)) =
             root.initializer().subject()
         else {

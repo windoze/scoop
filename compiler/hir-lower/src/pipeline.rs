@@ -237,6 +237,7 @@ impl Lowerer {
             imported_constructor_templates: Default::default(),
             imported_constructor_applications: Arena::new(),
             imported_generic_templates: Default::default(),
+            imported_generic_delegate_templates: Arena::new(),
             imported_generic_applications: Arena::new(),
             type_alias_binding_witnesses: HashMap::new(),
             retained_binding_witness_uses: Vec::new(),

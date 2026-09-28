@@ -788,7 +788,7 @@ impl Lowerer {
                     storage: PendingDelegateStorage::Generic(template),
                     ..
                 } => hir::AssignTarget::GenericDelegateStorage(
-                    self.generic_delegate_reference(*template),
+                    self.generic_delegate_reference(*template, pending.function),
                 ),
             };
             let value = match &pending.kind {

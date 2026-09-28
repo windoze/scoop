@@ -6,6 +6,7 @@ use super::m23_ordinary_dependencies::support::{empty_alias_expansions, project_
 use crate::{CurrentConeSources, lower_current_cone};
 
 mod constructors;
+mod delegates;
 mod machine;
 mod members;
 mod metadata;

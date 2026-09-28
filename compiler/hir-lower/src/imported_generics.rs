@@ -3,6 +3,7 @@
 //! the completed Export HIR owns ordinary, structurally complete bodies.
 
 mod abstract_members;
+mod delegates;
 mod local;
 mod methods;
 mod prepare;
@@ -23,6 +24,10 @@ pub(crate) struct ImportedGenericTemplates {
     templates: Vec<Option<PreparedImportedGeneric>>,
     by_declaration: BTreeMap<CallableTemplateOrigin, hir::ImportedGenericCallableTemplateId>,
     local_functions: BTreeMap<CallableTemplateOrigin, ImportedLocalFunctionSource>,
+    delegates: BTreeMap<
+        scoop_identity::PersistentExtensionPropertyId,
+        hir::ImportedGenericDelegateTemplateId,
+    >,
 }
 
 #[derive(Clone)]
@@ -43,7 +48,8 @@ pub(crate) struct PreparedImportedGeneric {
 #[derive(Clone)]
 pub(crate) enum PreparedImportedCallableSource {
     Declaration(Box<hir::ImportedCallableDeclaration>),
-    Local(hir::ImportedCallableBody),
+    Body(hir::ImportedCallableBody),
+    InitializationEnsure,
 }
 
 impl PreparedImportedCallableSource {
@@ -54,7 +60,8 @@ impl PreparedImportedCallableSource {
     ) -> Option<hir::ImportedDependencyDefinitionSource<'_>> {
         match self {
             Self::Declaration(declaration) => declaration.source_location(source, context),
-            Self::Local(body) => body.source_location(source, context),
+            Self::Body(body) => body.source_location(source, context),
+            Self::InitializationEnsure => None,
         }
     }
     pub(crate) fn body(&self) -> &hir::ExportGenericCallableBodyV1 {
@@ -62,14 +69,19 @@ impl PreparedImportedCallableSource {
             Self::Declaration(declaration) => declaration
                 .callable_body()
                 .expect("prepared source declaration has an implementation"),
-            Self::Local(body) => body.body(),
+            Self::Body(body) => body.body(),
+            Self::InitializationEnsure => {
+                panic!("initialization ensure has no portable source body")
+            }
         }
     }
 
     pub(crate) fn declaration(&self) -> &hir::ImportedCallableDeclaration {
         match self {
             Self::Declaration(declaration) => declaration,
-            Self::Local(_) => panic!("lexical bodies are not source lookup candidates"),
+            Self::Body(_) | Self::InitializationEnsure => {
+                panic!("implementation bodies are not source lookup candidates")
+            }
         }
     }
 
@@ -79,7 +91,8 @@ impl PreparedImportedCallableSource {
     ) -> Option<hir::ImportedDependencyDefinitionSource<'_>> {
         match self {
             Self::Declaration(declaration) => declaration.definition_source(source),
-            Self::Local(body) => body.definition_source(source),
+            Self::Body(body) => body.definition_source(source),
+            Self::InitializationEnsure => None,
         }
     }
 }
@@ -109,11 +122,18 @@ impl ImportedGenericTemplates {
                     template.expect("successful lowering completed every dependency signature");
                 hir::ImportedGenericCallableTemplate {
                     signature: template.signature,
-                    body: hir::Body {
-                        locals: template.locals,
-                        statements: template
-                            .statements
-                            .expect("successful lowering completed every queued dependency body"),
+                    implementation: if matches!(
+                        template.source,
+                        PreparedImportedCallableSource::InitializationEnsure
+                    ) {
+                        hir::ImportedGenericCallableImplementation::InitializationEnsure
+                    } else {
+                        hir::ImportedGenericCallableImplementation::Body(hir::Body {
+                            locals: template.locals,
+                            statements: template.statements.expect(
+                                "successful lowering completed every queued dependency body",
+                            ),
+                        })
                     },
                 }
             })
@@ -203,6 +223,17 @@ impl Lowerer {
         key: CallableTemplateOrigin,
         prepared: PreparedImportedGeneric,
     ) -> hir::ImportedGenericCallableTemplateId {
+        let id = self.allocate_imported_template(prepared);
+        self.imported_generic_templates
+            .by_declaration
+            .insert(key, id);
+        id
+    }
+
+    fn allocate_imported_template(
+        &mut self,
+        prepared: PreparedImportedGeneric,
+    ) -> hir::ImportedGenericCallableTemplateId {
         let id = Idx::from_raw(RawIdx::from(
             u32::try_from(self.imported_generic_templates.templates.len())
                 .expect("dependency template arena fits u32"),
@@ -210,9 +241,6 @@ impl Lowerer {
         self.imported_generic_templates
             .templates
             .push(Some(prepared));
-        self.imported_generic_templates
-            .by_declaration
-            .insert(key, id);
         id
     }
 

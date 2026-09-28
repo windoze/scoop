@@ -89,6 +89,11 @@ impl Fixture {
                 .registrations()
                 .iter()
                 .map(|plan| plan.semantic()),
+            inputs
+                .static_storage_registration_plan
+                .registrations()
+                .iter()
+                .map(|plan| plan.semantic()),
         )
         .unwrap();
         let semantic_plan = StrongSafepointSemanticPlanSetV1::from_module(&inputs.module).unwrap();

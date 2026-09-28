@@ -240,7 +240,10 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     storage,
                 ));
             }
-            if identity.symbol_request().linkage() != LinkageClass::ConeStrong {
+            if !matches!(
+                identity.symbol_request().linkage(),
+                LinkageClass::ConeStrong | LinkageClass::OdrWeak
+            ) {
                 return Err(StrongStaticStorageSemanticPlanBuildError::Linkage {
                     storage,
                     actual: identity.symbol_request().linkage(),

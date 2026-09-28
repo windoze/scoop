@@ -202,6 +202,18 @@ fn odr_records(
     let mut groups = BTreeMap::new();
     let mut members = BTreeMap::new();
 
+    for source in module.meta.source_callable_materializations.iter() {
+        if matches!(
+            source.materialization().context(),
+            scoop_identity::CallableMaterializationContext::InitializationApplication(_)
+        ) {
+            insert_optional_identity(
+                &mut members,
+                source.odr_member_record(),
+                MirFoundationTable::OdrMember,
+            )?;
+        }
+    }
     for environment in &module.meta.closure_environments {
         insert_optional_identity(
             &mut members,

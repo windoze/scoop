@@ -466,13 +466,24 @@
 
 本项完成上述泛型托管 String 的产物与运行闭环。泛型委托扩展属性的 LazyAccess 及其余主线仍须继续，M23-7 尚未完成。
 
+## 2026-09-29：泛型委托扩展属性的产物消费闭环
+
+- source generic delegate 使用独立模板，完整 receiver 实参具体化为共享 storage、LazyAccess unit 和 failure root。导入模板保留原 property、effective type 与 initialization generated callable，和本地模板共用具体化队列；initializer 保留真实正文，ensure 使用已有初始化协议。声明级 unit 不进入参数自由 startup 服务。
+- 共有 HIR interface 的必需 field 13 保存委托模板，内部存储读写和 ensure 使用 typed property 与非空实参组。interface 升至 `/36`，profile inventory、固定向量与 fingerprint 同步；HIR 导出实际 application unit/group，MIR 导出初始化 callable 成员，reader 从原声明核对类型位置与初始化角色。
+- 静态存储、初始化 cell/descriptor、登记与 callable 使用实际 Strong/ODR definition plan、符号和 relocation。共有 canonical shape 与成员摘要覆盖这些定义；存储布局/scan 沿 exact type 归属，登记摘要复用已验证的对象 leaves，存储内容排除消费方 layout-provider 路由信息。
+- 新增三份真实源码 fixture 及 HIR/MIR/LIR golden：两个 receiver 对象共享同一完整参数组的可写 delegate，三个完整参数组分别物化独立 unit。provider 和 consumer 发布后移走源码，由第三个 Cone 仅消费 `.slib` 再次编译、链接，普通模式与移动 GC 压力模式均返回 42。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，无警告。七个相关库共 3785 项测试取得通过结果；首轮的六项旧 wire/profile 断言更新后，HIR 与 slib 共 1457 项重新通过。真实产物测试在关闭快照更新后通过，日志为 `/tmp/scoop-m23-7-delegate-verified.log`。本项尚未执行阶段最终全仓回归。
+- 确认构建与测试进程结束，通过 Cargo metadata 核对 `target` 路径及缓存内容，恢复缺失的标准缓存标记后执行 `cargo clean --target-dir target`，删除 2777 个文件，回收 5.8 GiB。
+
+本项完成基础委托模板的源码、产物读写和执行链路；跨 sibling 的初始化一次、失败状态共享、求值顺序及其他组合仍继续验证，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
+1. 在已完成的 delegate template 生产、读取和消费基础上，完成组合与损坏产物验证；其余物理角色继续复用实际成员摘要与共有合并入口。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
-5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
+5. 泛型委托扩展属性验证跨 sibling 的 LazyAccess 初始化、失败共享、求值顺序和移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

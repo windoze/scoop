@@ -51,7 +51,10 @@ pub(super) fn validate_digest_graph<D>(
         .nodes()
         .iter()
         .find(|node| {
-            node.key() == &DigestNodeKey::strong_registration(plan.registration_definition_plan())
+            node.key()
+                == &plan
+                    .definition_owner()
+                    .digest_key(plan.registration_definition_plan())
         })
         .ok_or_else(|| mismatch(plan, Failure::MissingRegistrationNode))?;
     if registration.id() != plan.registration_fingerprint_node() {
@@ -83,6 +86,19 @@ pub(super) fn validate_digest_graph<D>(
         }
         StrongInitializationRegistrationSchedulePlanV1::LazyAccess => None,
     };
+    if matches!(
+        plan.definition_owner(),
+        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
+    ) {
+        let lir = digest_plan
+            .nodes()
+            .iter()
+            .find(|node| {
+                node.key() == &DigestNodeKey::lir_definition(plan.registration_primary_atom())
+            })
+            .ok_or_else(|| mismatch(plan, Failure::RegistrationDirectInputs))?;
+        expected_inputs.push(DigestInputRefV1::from_node(lir));
+    }
     expected_inputs.sort_unstable();
     if registration.direct_inputs() != expected_inputs {
         return Err(mismatch(plan, Failure::RegistrationDirectInputs));

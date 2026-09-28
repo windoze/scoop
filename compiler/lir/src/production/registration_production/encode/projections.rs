@@ -9,6 +9,21 @@ impl crate::StrongStaticStorageSemanticPlanV1 {
     pub const fn semantic_projection(&self) -> StrongStaticStorageSemanticProjectionV1<'_> {
         StrongStaticStorageSemanticProjectionV1(self)
     }
+
+    pub const fn canonical_projection(&self) -> StaticStorageCanonicalProjectionV1<'_> {
+        StaticStorageCanonicalProjectionV1(self)
+    }
+}
+
+/// Physical content omits the consumer's routing choice for a value layout.
+#[derive(Clone, Copy, Debug)]
+pub struct StaticStorageCanonicalProjectionV1<'a>(&'a crate::StrongStaticStorageSemanticPlanV1);
+
+impl WireEncode for StaticStorageCanonicalProjectionV1<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(10)?;
+        encode_static_semantic_fields(encoder, self.0)
+    }
 }
 impl WireEncode for StrongStaticStorageSemanticProjectionV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {

@@ -1,9 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{
-    DefinitionAtomRole, DigestNodeId, PersistentInitializationUnitId, StrongDefinitionEntity,
-    StrongDefinitionRole,
-};
+use scoop_identity::{DefinitionAtomRole, DigestNodeId, PersistentInitializationUnitId};
 use scoop_lir::StrongInitializationUnitRegistrationPlan;
 use scoop_wire::{HashError, domain_separated_runtime_hash};
 
@@ -17,10 +14,7 @@ use crate::link_object::callable_registrations::object_definition::{
     ObjectDefinitionFingerprintInputV1, ObjectDefinitionLeafWithAssociatedAtomsInputV1,
     ObjectDefinitionRelocationFailureV1,
 };
-use crate::link_object::{
-    FinalUndefinedSymbolRequirementV1, ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1,
-    StrongDefinitionOwnerV1,
-};
+use crate::link_object::{ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1};
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
 
@@ -170,7 +164,7 @@ fn compute_strong_initialization_definition_fingerprints<D>(
             InitializationDefinitionArtifactV1::Descriptor,
         )?
         .to_vec();
-        let relocations = descriptor_relocations(plan);
+        let relocations = descriptor_relocations(plan, verified);
         for relocation in &relocations {
             relocation
                 .normalize_bytes(&mut descriptor_bytes)
@@ -243,7 +237,9 @@ fn exact_bytes(
 
 fn descriptor_relocations<D>(
     plan: &StrongInitializationUnitRegistrationPlan<D>,
+    verified: &super::VerifiedStrongInitializationRegistrationV1,
 ) -> [CanonicalObjectRelocationV1; 6] {
+    use super::super::registration_identity::canonical_local_relocation;
     [
         CanonicalObjectRelocationV1::owning_associated_atom_offset(
             40,
@@ -251,45 +247,12 @@ fn descriptor_relocations<D>(
             DefinitionAtomRole::AddressTakenConstant,
             0,
         ),
-        strong_relocation(
-            48,
-            StrongDefinitionEntity::initialization_unit(plan.semantic().unit()),
-            StrongDefinitionRole::InitializationCell,
-        ),
-        strong_relocation(
-            56,
-            StrongDefinitionEntity::static_storage(plan.storage().storage()),
-            StrongDefinitionRole::StaticStorage,
-        ),
-        strong_relocation(
-            64,
-            StrongDefinitionEntity::static_storage(plan.failure_root().storage()),
-            StrongDefinitionRole::StaticStorage,
-        ),
-        strong_relocation(
-            72,
-            StrongDefinitionEntity::callable_body(plan.initializer().body()),
-            StrongDefinitionRole::CallableBody,
-        ),
-        strong_relocation(
-            80,
-            StrongDefinitionEntity::callable_body(plan.ensure().body()),
-            StrongDefinitionRole::CallableBody,
-        ),
+        canonical_local_relocation(verified.coordinator_cell_relocation()),
+        canonical_local_relocation(verified.coordinator_storage_relocation()),
+        canonical_local_relocation(verified.coordinator_failure_relocation()),
+        canonical_local_relocation(verified.coordinator_initializer_relocation()),
+        canonical_local_relocation(verified.coordinator_ensure_relocation()),
     ]
-}
-
-fn strong_relocation(
-    offset: u64,
-    entity: StrongDefinitionEntity,
-    role: StrongDefinitionRole,
-) -> CanonicalObjectRelocationV1 {
-    let owner = StrongDefinitionOwnerV1::new(entity, role)
-        .expect("initialization descriptor relocation has a valid strong owner");
-    CanonicalObjectRelocationV1::unsigned64(
-        offset,
-        FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
-    )
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -25,10 +25,19 @@ impl ExportGenericDelegateTemplateV1 {
         initializer: ExportGenericCallableBodyV1,
         diagnostic_path: String,
     ) -> Result<Self, GenericDelegateTemplateBuildError> {
-        if !matches!(
-            initializer.owner(),
-            DefaultCallableDeclarationV1::Generated(_)
-        ) || initializer.type_parameters().arguments().is_empty()
+        let unit = scoop_identity::PersistentInitializationUnitId::from_key(
+            &scoop_identity::InitializationUnitKey::ExtensionProperty(property),
+        )
+        .map_err(|_| GenericDelegateTemplateBuildError::InitializerShape(property))?;
+        let owner = scoop_identity::PersistentGeneratedCallableId::from_key(
+            &scoop_identity::GeneratedCallableKey::Initialization {
+                unit,
+                role: scoop_identity::InitializationCallableRole::Initializer,
+            },
+        )
+        .map_err(|_| GenericDelegateTemplateBuildError::InitializerShape(property))?;
+        if initializer.owner() != DefaultCallableDeclarationV1::Generated(owner)
+            || initializer.type_parameters().arguments().is_empty()
             || !initializer.parameters().is_empty()
             || !initializer.capture_types().is_empty()
         {
@@ -105,7 +114,6 @@ pub enum GenericDelegateTemplateResolutionError<E> {
     Identity(E),
     Body(Box<crate::GenericCallableBodyResolutionError<E>>),
     Record(GenericDelegateTemplateBuildError),
-    Resource(WireError),
 }
 
 impl<E: std::fmt::Display> std::fmt::Display for GenericDelegateTemplateResolutionError<E> {
@@ -114,7 +122,6 @@ impl<E: std::fmt::Display> std::fmt::Display for GenericDelegateTemplateResoluti
             Self::Identity(error) => write!(f, "invalid generic delegate reference: {error}"),
             Self::Body(error) => write!(f, "invalid generic delegate initializer: {error}"),
             Self::Record(error) => error.fmt(f),
-            Self::Resource(error) => error.fmt(f),
         }
     }
 }

@@ -463,7 +463,12 @@ fn verified_initialization_fingerprints(
     let definitions =
         compute_strong_initialization_definition_fingerprints_v1(registration_objects, objects)
             .unwrap();
-    compute_strong_initialization_fingerprints_v1(definitions, callable_bodies).unwrap()
+    compute_strong_initialization_fingerprints_v1(
+        definitions,
+        callable_bodies,
+        &fixture.canonical_shapes,
+    )
+    .unwrap()
 }
 
 fn verified_static_storage_fingerprints(
@@ -483,7 +488,7 @@ fn verified_static_storage_fingerprints(
         compute_strong_static_storage_definition_fingerprints_v1(registration_objects, objects)
             .unwrap();
     let shapes = compute_strong_static_storage_shape_fingerprints_v1(storage_definitions).unwrap();
-    compute_strong_static_storage_fingerprints_v1(shapes).unwrap()
+    compute_strong_static_storage_fingerprints_v1(shapes, &fixture.canonical_shapes).unwrap()
 }
 
 fn verified_immortal_object_fingerprints(

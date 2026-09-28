@@ -303,11 +303,13 @@ OdrDefinitionFingerprint = DomainSeparatedCborHash(
     "scoop-odr-member-definition-v1",
     { 1: group, 2: member, 3: role,
       4: canonical_lir_leaves_by_atom,
-      5: object_definition_leaves_by_digest_node,
+      5: definition_input_leaves_by_digest_node,
       6: stackmap_leaves_by_site })
 ```
 
 三个 leaf 集合都是必需的 canonical array。实际物理 member 的 canonical LIR 与 object leaves 非空；没有 safepoint 时 stackmap array 可以为空。ABI payload 按 role 保存实际函数签名、布局、存储或 registration 合同。
+
+field 5 通常保存实际 ObjectDefinition leaves；static-storage registration 同时保存该登记所需的 layout 和 scan leaves。每项仍为 `{1=DigestNodeId, 2=digest}`，节点的种类及用途来自已有 digest graph，按节点 ID 排序。ODR 节点因此允许直接引用 Layout/Scan；对象节点继续表示其自身实际字节及 relocation。初始化登记汇总 registration、cell 和 descriptor 的对象 leaves。此扩展只服务已有静态存储登记的实际字段，不递归汇总普通 callee 或其他名义类型的定义。
 
 纯语义的 `GeneratedNominal` identity/member record 继续保存于对应 IR foundation，完整生成类型保存在 MIR/LIR metadata；它本身不进入 manifest 的物理定义目录，不生成 ABI 摘要、空 `od` marker、ObjectDefinitionPlan 或虚构 range。其实际 TD/layout/scan/callable 各自作为物理 member 检查。source/key 存在与实际机器定义分开，缺少真正需要的物理成员仍是错误。
 
@@ -380,9 +382,15 @@ source HIR 增加独立 generic delegate template，不能把它先降成 `Manag
 
 委托存储节点由访问器和初始化模板产生。普通源码及默认值对属性的访问继续使用既有 accessor 调用；独立 default template 不能直接读写委托存储或发起其内部 ensure。
 
+外来委托模板使用独立的 consumer-local typed ID，保留原 property identity、effective type、initializer 与 ensure 引用。initializer 沿既有正文导入和替换流程执行，ensure 以初始化协议实现的明确种类表示，不伪装成缺失的源码正文。二者和本地模板共用具体化队列；application unit 仍以原 property 与完整 exact arguments 唯一确定。
+
 receiver arguments 按 property binder 声明序排列；透明 alias、re-export、getter/setter 使用方式及不同 receiver 对象都不改变 key。不同 arguments 各有独立 delegate 与失败状态。
 
 initializer/ensure 的 `GeneratedCallableKey::Initialization` 仍只引用声明级 extension-property unit 与各自 role；application unit 只进入 `CallableMaterializationContext::InitializationApplication`。其中的 local generic function 使用既有 `EnclosingInitializationApplication`。不能把具体 receiver arguments 写回 source template identity，也不能让 getter、setter、initializer 和 ensure 共用 callable ID。
+
+MIR type bridge 的 source initialization 表继续表示可从 provider 直接引用的参数自由 Strong 单元；泛型 application 的实际 unit、两个 callable body 和存储由本次 MIR materialization 与 LIR registration 保留，不进入该 source 表。产物 reader 使用同一完整 identity graph 核对 application unit、declaration role 与实际 ODR 成员的关系，不把 application 伪装成 provider 的参数自由初始化服务。
+
+HIR identity delta 保存实际 application unit 与 delegated-property group；application 的源码位置沿原 property 声明查找，不另造实例声明。MIR 保存 initialization application 的实际 generated callable 成员。初始化正文中的类型位置允许该 application context，生成函数的参数与结果仍由既有 signature join 检查。
 
 ### 9.2 固定的 unit 闭包
 
@@ -395,6 +403,8 @@ initializer/ensure 的 `GeneratedCallableKey::Initialization` 仍只引用声明
 - 本次 initializer/ensure 自身产生的 closure、常量、类型/scan 等必要支持；其他 nominal/callable root 以 typed edge 引用。
 
 getter/setter 继续使用各自 callable application，二者引用同一 delegated-property group。只读取 `var` 不要求预生成未使用的 setter；unit 的固定状态成员仍不能少。Lazy unit 不生成 startup gateway，C 中相关 id/digest/pointer 保持规范的全零分支。
+
+production 的 canonical shape 表同时覆盖实际 ODR storage、initialization cell 和 descriptor。storage 的内容由已计算的存储语义投影取得，排除使用 Cone 的 layout-provider 路由信息；cell 保存真实零初始状态和物理 ABI，descriptor 保存 schedule、unit、typed 指针目标及稳定诊断字节。登记摘要复用已经验证的对象 leaves，不再次解析同一存储或初始化对象。layout/scan 自身沿 exact type 的归属发射，与持有这些值的委托 application 分开。
 
 ### 9.3 求值、失败与 GC
 
@@ -448,7 +458,7 @@ external references 中的实际类型位置增加 tag 10：`{0=10, 1=initializa
 
 生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 为共享表达式增加必需的求值位置，`/36` 增加必需 field 13；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression 是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`；同一位置同时是定义和求值位置时也显式保存。expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
 
-构造初始化生产与读取启用 `/33`；字段实例位置升级至 `/34` 后，interface 仍是必需 field 1～12 的十二字段 product。field 12 中每个 nominal record 为 `{1=generic type owner, 2=common steps, 3=constructors}`；constructor 数组非空并按原 typed constructor reference 严格递增，nominal records 按 owner 严格递增。constructor 是六字段 product：declaration、inputs、effects、predicates、definition origin、kind。kind 1 为 struct primary；kind 2 为 struct secondary（delegation、body）；kind 3 为 class primary（base、primary stores）；kind 4 为 class secondary this（delegation、body）；kind 5 为 class terminal secondary（base、body）。base 用长度为 0 或 1 的数组区分根类和实际基类委托。delegation 保存目标和实参片段；primary store 保存原 field reference 和参数 selector。common field step 保存原 field reference 和单结果片段，common body step 保存无结果片段。所有片段统一使用 `{1=locals, 2=statements, 3=results}`，复用既有 typed 节点、局部值索引和引用解析；不重复声明表的 shape，也不为 abstract/intrinsic 构造产生执行记录。源码生产先排序，reader 保留 wire 顺序并在记录构造边界完成一次格式与引用形状检查。后续 `/36` 的 delegate table 不提前写入当前 payload。
+构造初始化生产与读取从 `/33` 启用，字段实例位置从 `/34` 启用；委托模板生产与读取启用 `/36` 后，interface 是必需 field 1～13 的十三字段 product。field 12 中每个 nominal record 为 `{1=generic type owner, 2=common steps, 3=constructors}`；constructor 数组非空并按原 typed constructor reference 严格递增，nominal records 按 owner 严格递增。constructor 是六字段 product：declaration、inputs、effects、predicates、definition origin、kind。kind 1 为 struct primary；kind 2 为 struct secondary（delegation、body）；kind 3 为 class primary（base、primary stores）；kind 4 为 class secondary this（delegation、body）；kind 5 为 class terminal secondary（base、body）。base 用长度为 0 或 1 的数组区分根类和实际基类委托。delegation 保存目标和实参片段；primary store 保存原 field reference 和参数 selector。common field step 保存原 field reference 和单结果片段，common body step 保存无结果片段。所有片段统一使用 `{1=locals, 2=statements, 3=results}`，复用既有 typed 节点、局部值索引和引用解析；不重复声明表的 shape，也不为 abstract/intrinsic 构造产生执行记录。源码生产先排序，reader 保留 wire 顺序并在记录构造边界完成一次格式与引用形状检查。field 13 按上述四字段委托模板格式生产与读取。
 
 共有 external reference 的实际 call-site product 使用必需 field 8 保存实例化分支：`{0=1}` 表示直接调用，`{0=2, 1=PersistentCallableApplicationId}` 表示 application。该 ID 引用已有 canonical application 表，不复制 binder、实参或另一份签名。读取时将 application 的原声明、宿主与 callable 实参连接到 provider 声明，并检查完全替换后的实际参数与结果类型；泛型声明不能使用直接分支，application 不能引用另一声明。实际泛型调用和参数自由调用使用同一 occurrence、绑定记录和 source-location 路径。实例化正文中的调用保留 provider 的求值位置，按实际 root 的模板定义检查；普通消费方调用及默认值展开继续使用自己的求值位置，不要求所有调用位置都属于消费 Cone。
 

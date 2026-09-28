@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, DigestKind, DigestNodeKey};
+use scoop_identity::{ConeIdentity, DigestNodeKey};
 use scoop_lir::{RuntimeAbiFingerprint, TargetProfileFingerprint};
 use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
@@ -229,15 +229,14 @@ where
         .static_storages()
         .fingerprints()
         .iter()
-        .map(|entry| entry.registration_node())
+        .map(|entry| (entry.registration().kind(), entry.registration_node()))
         .chain(
             registrations
                 .initializations()
                 .fingerprints()
                 .iter()
-                .map(|entry| entry.registration_node()),
+                .map(|entry| (entry.registration().kind(), entry.registration_node())),
         )
-        .map(|node| (DigestKind::StrongRegistration, node))
         .chain(
             registrations
                 .immortal_objects()

@@ -49,7 +49,7 @@ impl Lowerer {
             .ok_or("dependency local function has no source name")?
             .as_str()
             .to_owned();
-        let source = PreparedImportedCallableSource::Local(body);
+        let source = PreparedImportedCallableSource::Body(body);
         let body = source.body();
         let definition = self.import_generic_definition(&source, body.definition_origin())?;
         let mut bindings = ImportedTypeBindings::new();

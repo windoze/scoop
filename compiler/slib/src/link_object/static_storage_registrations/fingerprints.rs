@@ -126,7 +126,7 @@ pub fn compute_strong_static_storage_registration_object_fingerprints_v1(
             verified.relocation_table_relocation().encoded_value(),
             storage,
         )?;
-        let relocations = canonical_relocations(plan);
+        let relocations = canonical_relocations(plan, verified);
         let fingerprint =
             domain_separated_runtime_hash(
                 OBJECT_DEFINITION_DOMAIN,
@@ -198,13 +198,9 @@ fn normalize_pointer(
 
 fn canonical_relocations(
     plan: &StrongStaticStorageRegistrationPlanV1,
+    verified: &super::VerifiedStrongStaticStorageRegistrationV1,
 ) -> [CanonicalObjectRelocationV1; 4] {
     let storage = plan.semantic().storage();
-    let storage_owner = StrongDefinitionOwnerV1::new(
-        StrongDefinitionEntity::static_storage(storage),
-        StrongDefinitionRole::StaticStorage,
-    )
-    .expect("static storages are valid strong definition owners");
     let scan_owner = StrongDefinitionOwnerV1::new(
         StrongDefinitionEntity::scan(plan.semantic().scan()),
         StrongDefinitionRole::ScanProgram,
@@ -230,16 +226,19 @@ fn canonical_relocations(
         } => CanonicalStaticStorageTargetV1::EmptyRelocationTableSentinel,
     };
     [
-        CanonicalObjectRelocationV1::unsigned64(
-            STORAGE_POINTER_OFFSET as u64,
-            FinalUndefinedSymbolRequirementV1::IntraConeStrong {
-                owner: storage_owner,
-            },
+        super::super::registration_identity::canonical_local_relocation(
+            verified.storage_relocation(),
         ),
-        CanonicalObjectRelocationV1::unsigned64(
-            SCAN_POINTER_OFFSET as u64,
-            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner: scan_owner },
-        ),
+        if plan.semantic().value_layout().local().is_some() {
+            super::super::registration_identity::canonical_local_relocation(
+                verified.scan_relocation(),
+            )
+        } else {
+            CanonicalObjectRelocationV1::unsigned64(
+                SCAN_POINTER_OFFSET as u64,
+                FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner: scan_owner },
+            )
+        },
         CanonicalObjectRelocationV1::static_storage_target(
             TEMPLATE_POINTER_OFFSET as u64,
             template,

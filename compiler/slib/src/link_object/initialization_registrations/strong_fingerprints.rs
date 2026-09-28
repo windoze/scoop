@@ -11,13 +11,12 @@ use scoop_wire::{
 use super::definition_fingerprints::VerifiedStrongInitializationDefinitionFingerprintSetV1;
 use crate::link_object::callable_registrations::object_definition::CanonicalDigestInputV1;
 use crate::link_object::{
-    ObjectDefinitionFingerprintV1, StrongRegistrationFingerprintV1,
-    VerifiedStrongCallableBodyObjectFingerprintSetV1,
+    ObjectDefinitionFingerprintV1, OdrMemberFingerprintV1, RegistrationFingerprintV1,
+    StrongRegistrationFingerprintV1, VerifiedStrongCallableBodyObjectFingerprintSetV1,
 };
 
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
 const INITIALIZATION_RECORD_KIND: u32 = 3;
-const STRONG_LINKAGE: u32 = 1;
 const OWN_INITIALIZATION_CELL_ROLE: u32 = 3;
 const CALLABLE_ENTRY_ROLE: u32 = 4;
 const UNIT_GATEWAY_ROLE: u32 = 5;
@@ -37,7 +36,7 @@ pub struct VerifiedStrongInitializationFingerprintV1 {
     gateway_definition_node: Option<DigestNodeId>,
     gateway_definition: Option<ObjectDefinitionFingerprintV1>,
     registration_node: DigestNodeId,
-    registration: StrongRegistrationFingerprintV1,
+    registration: RegistrationFingerprintV1,
 }
 
 impl VerifiedStrongInitializationFingerprintV1 {
@@ -85,7 +84,7 @@ impl VerifiedStrongInitializationFingerprintV1 {
         self.registration_node
     }
 
-    pub const fn registration(self) -> StrongRegistrationFingerprintV1 {
+    pub const fn registration(self) -> RegistrationFingerprintV1 {
         self.registration
     }
 }
@@ -98,12 +97,16 @@ pub struct VerifiedStrongInitializationFingerprintSetV1<
 > {
     definitions: VerifiedStrongInitializationDefinitionFingerprintSetV1<D>,
     fingerprints: Vec<VerifiedStrongInitializationFingerprintV1>,
+    odr_definitions: Vec<OdrMemberFingerprintV1>,
 }
 
 pub type VerifiedStrongInitializationFingerprintSetV2 =
     VerifiedStrongInitializationFingerprintSetV1<scoop_lir::StrongInitializationDependencyRefV2>;
 
 impl<D> VerifiedStrongInitializationFingerprintSetV1<D> {
+    pub fn odr_definitions(&self) -> &[OdrMemberFingerprintV1] {
+        &self.odr_definitions
+    }
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.definitions.producer()
     }
@@ -120,20 +123,23 @@ impl<D> VerifiedStrongInitializationFingerprintSetV1<D> {
 pub fn compute_strong_initialization_fingerprints_v1(
     definitions: VerifiedStrongInitializationDefinitionFingerprintSetV1,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
 ) -> Result<VerifiedStrongInitializationFingerprintSetV1, StrongInitializationFingerprintError> {
-    compute_strong_initialization_fingerprints(definitions, callable_bodies)
+    compute_strong_initialization_fingerprints(definitions, callable_bodies, canonical)
 }
 
 pub fn compute_strong_initialization_fingerprints_v2(
     definitions: super::VerifiedStrongInitializationDefinitionFingerprintSetV2,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
 ) -> Result<VerifiedStrongInitializationFingerprintSetV2, StrongInitializationFingerprintError> {
-    compute_strong_initialization_fingerprints(definitions, callable_bodies)
+    compute_strong_initialization_fingerprints(definitions, callable_bodies, canonical)
 }
 
 fn compute_strong_initialization_fingerprints<D>(
     definitions: VerifiedStrongInitializationDefinitionFingerprintSetV1<D>,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
+    canonical: &scoop_lir::CanonicalShapeLirDefinitionsV1,
 ) -> Result<VerifiedStrongInitializationFingerprintSetV1<D>, StrongInitializationFingerprintError> {
     let registration_objects = definitions.registration_objects();
     let registrations = registration_objects.registrations();
@@ -153,6 +159,7 @@ fn compute_strong_initialization_fingerprints<D>(
     }
 
     let mut fingerprints = Vec::with_capacity(verified.len());
+    let mut odr_definitions = Vec::new();
     for (((verified, plan), registration_object), definition) in verified
         .iter()
         .zip(planned)
@@ -173,16 +180,64 @@ fn compute_strong_initialization_fingerprints<D>(
             return Err(StrongInitializationFingerprintError::DefinitionMismatch { unit });
         }
         let gateway = gateway_definition(plan, callable_bodies)?;
-        let registration = strong_initialization_fingerprint(
-            plan,
-            registration_object.node(),
-            registration_object.fingerprint(),
-            definition.cell_node(),
-            definition.cell(),
-            definition.descriptor_node(),
-            definition.descriptor(),
-            gateway,
-        )
+        let registration = match plan.definition_owner() {
+            scoop_lir::RegistrationDefinitionOwner::Strong => strong_initialization_fingerprint(
+                plan,
+                registration_object.node(),
+                registration_object.fingerprint(),
+                definition.cell_node(),
+                definition.cell(),
+                definition.descriptor_node(),
+                definition.descriptor(),
+                gateway,
+            )
+            .map(RegistrationFingerprintV1::Strong),
+            scoop_lir::RegistrationDefinitionOwner::Odr { group, member } => {
+                if gateway.is_some() {
+                    return Err(StrongInitializationFingerprintError::DefinitionMismatch { unit });
+                }
+                for (role, plan_id, fingerprint) in [
+                    (
+                        scoop_identity::OdrMemberRole::InitializationCell,
+                        plan.cell_definition_plan(),
+                        definition.cell(),
+                    ),
+                    (
+                        scoop_identity::OdrMemberRole::InitializationDescriptor,
+                        plan.descriptor_definition_plan(),
+                        definition.descriptor(),
+                    ),
+                ] {
+                    let content = canonical
+                        .definitions()
+                        .iter()
+                        .find(|content| {
+                            content.definition() == plan_id
+                                && content.group() == group
+                                && content.role() == role
+                        })
+                        .ok_or(StrongInitializationFingerprintError::DefinitionMismatch { unit })?;
+                    odr_definitions.push(
+                        super::super::odr_member_fingerprints::shape_definition(
+                            *content,
+                            fingerprint,
+                        )
+                        .map_err(|source| {
+                            StrongInitializationFingerprintError::Hash { unit, source }
+                        })?,
+                    );
+                }
+                super::super::odr_member_fingerprints::initialization_registration(
+                    group,
+                    member,
+                    plan,
+                    registration_object.fingerprint(),
+                    definition.cell(),
+                    definition.descriptor(),
+                )
+                .map(RegistrationFingerprintV1::Odr)
+            }
+        }
         .map_err(|source| StrongInitializationFingerprintError::Hash { unit, source })?;
         fingerprints.push(VerifiedStrongInitializationFingerprintV1 {
             unit,
@@ -203,6 +258,7 @@ fn compute_strong_initialization_fingerprints<D>(
     Ok(VerifiedStrongInitializationFingerprintSetV1 {
         definitions,
         fingerprints,
+        odr_definitions,
     })
 }
 
@@ -322,11 +378,12 @@ pub(in crate::link_object) fn runtime_encode_strong_initialization_record_v1<D>(
 ) -> Result<(), RuntimeEncodeError> {
     let semantic = plan.semantic();
     encoder.u32(INITIALIZATION_RECORD_KIND)?;
-    encoder.u32(STRONG_LINKAGE)?;
-    encoder.fixed(semantic.unit().as_array())?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(&[0; 32])?;
-    encoder.fixed(registration)?;
+    super::super::registration_identity::runtime_encode_registration_identity(
+        encoder,
+        semantic.unit().as_array(),
+        plan.definition_owner(),
+        registration,
+    )?;
     encoder.u32(semantic.schedule().tag())?;
     encoder.byte_span(semantic.diagnostic_path().as_bytes())?;
     encoder.u32(OWN_INITIALIZATION_CELL_ROLE)?;

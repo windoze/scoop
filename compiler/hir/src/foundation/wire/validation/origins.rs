@@ -191,7 +191,11 @@ pub(super) fn validate(
             )?;
         }
     }
-    for record in initialization_units {
+    // Applications retain the source origin through their property declaration.
+    for record in initialization_units
+        .iter()
+        .filter(|record| record.key().specialization_key().is_none())
+    {
         let subject = DefinitionOriginSubject::InitializationUnit(record.id());
         requirements.require(
             subject,

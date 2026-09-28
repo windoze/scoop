@@ -18,7 +18,8 @@ fn computes_the_canonical_static_storage_strong_registration_fingerprint() {
     )];
     let shapes = shape_fingerprints(&fixture, &objects);
 
-    let fingerprints = compute_strong_static_storage_fingerprints_v1(shapes).unwrap();
+    let fingerprints =
+        compute_strong_static_storage_fingerprints_v1(shapes, &fixture.canonical_shapes).unwrap();
 
     assert_eq!(fingerprints.fingerprints().len(), 1);
     let actual = fingerprints.fingerprints()[0];
@@ -128,15 +129,18 @@ fn initial_state_protocol_changes_the_strong_record() {
     assert_ne!(zeroed, encoded_empty);
 }
 
-fn fingerprint(corruption: Corruption) -> StrongRegistrationFingerprintV1 {
+fn fingerprint(corruption: Corruption) -> RegistrationFingerprintV1 {
     let fixture = Fixture::new(corruption);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,
     )];
-    compute_strong_static_storage_fingerprints_v1(shape_fingerprints(&fixture, &objects))
-        .unwrap()
-        .fingerprints()[0]
+    compute_strong_static_storage_fingerprints_v1(
+        shape_fingerprints(&fixture, &objects),
+        &fixture.canonical_shapes,
+    )
+    .unwrap()
+    .fingerprints()[0]
         .registration()
 }
 

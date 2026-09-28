@@ -35,8 +35,7 @@ impl CanonicalHirFoundation {
         foundation.set_callable_applications(local.callable_applications.records().to_vec())?;
         foundation
             .set_dispatch_slots(export.dispatch_slot_identities.records().cloned().collect())?;
-        foundation
-            .set_initialization_units(export.initialization_unit_identities.records().to_vec())?;
+        project_initialization_units(export, local, &mut foundation)?;
         foundation
             .set_source_contexts(export.source_context_identities.iter().cloned().collect())?;
         foundation.set_local_bindings(
@@ -324,6 +323,28 @@ fn project_exact_types(
     foundation.set_exact_types(records.into_values().collect())
 }
 
+fn project_initialization_units(
+    export: &ExportHir,
+    local: &LocalConcreteHir,
+    foundation: &mut CanonicalHirFoundation,
+) -> Result<(), HirFoundationBuildError> {
+    let mut records = BTreeMap::new();
+    for record in export
+        .initialization_unit_identities
+        .records()
+        .iter()
+        .chain(
+            local
+                .initialization_units
+                .iter()
+                .map(|(_, unit)| &unit.identity),
+        )
+    {
+        insert_identity(&mut records, record, HirFoundationTable::InitializationUnit)?;
+    }
+    foundation.set_initialization_units(records.into_values().collect())
+}
+
 fn odr_group_records(
     local: &LocalConcreteHir,
 ) -> Result<Vec<OdrGroupRecord>, HirFoundationBuildError> {
@@ -335,6 +356,17 @@ fn odr_group_records(
         .chain(local.exact_type_identities.nominal_specialization_records())
     {
         insert_identity(&mut records, record, HirFoundationTable::OdrGroup)?;
+    }
+    for (_, unit) in local.initialization_units.iter() {
+        if let Some(key) = unit.identity.key().specialization_key() {
+            let record = CborIdentityRecord::from_key(key).map_err(|error| {
+                HirFoundationBuildError::IdentityDerivation {
+                    table: HirFoundationTable::OdrGroup,
+                    reason: error.to_string(),
+                }
+            })?;
+            insert_identity(&mut records, &record, HirFoundationTable::OdrGroup)?;
+        }
     }
     Ok(records.into_values().collect())
 }

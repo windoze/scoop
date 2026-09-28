@@ -55,10 +55,12 @@ fn generic_array_preserves_application_shape_and_allocation() {
         scoop_identity::LinkageClass::OdrWeak
     );
     let immortals = lir::StrongImmortalObjectSemanticPlanSetV1::from_module(module).unwrap();
+    let storages = lir::StrongStaticStorageSemanticPlanSetV1::from_module(module).unwrap();
     let shapes = lir::CanonicalShapeLirDefinitionsV1::from_module(
         module,
         output.foundation(),
         immortals.objects().iter().copied(),
+        storages.storages(),
     )
     .expect("array metadata supplies its complete physical shape content");
     assert_eq!(shapes.definitions().len(), 7);

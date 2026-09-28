@@ -401,8 +401,12 @@ fn validate_strong_target(
         .definitions()
         .strong_symbol_by_table_index(definition.primary_symbol_table_index())
         .ok_or_else(|| relocation_error_value(plan, relocation_role, Failure::TargetSymbol))?;
-    let expected_owner = LinkDefinitionOwnerV1::from_strong_primary(expected_entity, expected_role)
-        .expect("static-storage relocation target is a valid strong owner");
+    let expected_owner = LinkDefinitionOwnerV1::from_definition(
+        symbol.definition_owner(),
+        expected_entity,
+        expected_role,
+    )
+    .expect("the verified static-storage target has a complete definition owner");
     let (actual_member, actual_definition, actual_owner) = match binding.resolution() {
         StrongRelocationResolutionV1::ObjectLocalStrong {
             target_member,

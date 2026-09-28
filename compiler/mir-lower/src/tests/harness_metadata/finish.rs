@@ -257,6 +257,7 @@ impl Harness {
                 &Arena::new(),
                 &self.properties,
                 &Arena::new(),
+                &Arena::new(),
                 &nominal_identities,
                 &property_identities,
             )
@@ -561,6 +562,7 @@ impl Harness {
             local_functions: Arena::new(),
             imported_dependency_callables: Arena::new(),
             imported_generic_templates: Arena::new(),
+            imported_generic_delegate_templates: Arena::new(),
             imported_constructor_templates: Arena::new(),
             imported_constructor_applications: Arena::new(),
             imported_generic_applications: Arena::new(),
@@ -588,6 +590,7 @@ impl Harness {
             property_getters: self.property_getters,
             property_setters: self.property_setters,
             delegate_storages: Arena::new(),
+            generic_delegate_templates: Arena::new(),
             type_aliases: Arena::new(),
             generic_functions: self.generic_functions,
             method_applications: self.method_applications,

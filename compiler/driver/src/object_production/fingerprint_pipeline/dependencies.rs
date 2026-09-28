@@ -128,9 +128,11 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             let static_storage_shapes =
                 compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
                     .map_err(BuiltinObjectProductionError::StaticStorageShapeFingerprints)?;
-            let static_storages =
-                compute_strong_static_storage_fingerprints_v1(static_storage_shapes)
-                    .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
+            let static_storages = compute_strong_static_storage_fingerprints_v1(
+                static_storage_shapes,
+                production.production().canonical_shape_definitions(),
+            )
+            .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
 
             let initialization_definitions =
                 compute_strong_initialization_definition_fingerprints_v1(
@@ -141,6 +143,7 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             let initializations = compute_strong_initialization_fingerprints_v1(
                 initialization_definitions,
                 callables.body_objects(),
+                production.production().canonical_shape_definitions(),
             )
             .map_err(BuiltinObjectProductionError::InitializationFingerprints)?;
 

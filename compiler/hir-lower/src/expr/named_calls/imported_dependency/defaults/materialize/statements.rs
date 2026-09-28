@@ -14,6 +14,9 @@ impl Lowerer {
     ) -> Result<Option<hir::Statement>, ImportedDefaultMaterializationError> {
         use hir::DefaultStatementKindV1 as Kind;
         let kind = match source.kind() {
+            Kind::GenericDelegateEnsure(reference) => hir::StatementKind::GenericDelegateEnsure(
+                self.materialize_imported_delegate_reference(reference, context)?,
+            ),
             // Local declarations have no runtime effect. Actual calls request
             // their provider-owned bodies and pass captures explicitly.
             Kind::LocalFunction(descriptor) => {
@@ -165,6 +168,11 @@ impl Lowerer {
         context: &mut ImportedDefaultContext<'_>,
     ) -> Result<hir::AssignTarget, ImportedDefaultMaterializationError> {
         match target {
+            hir::DefaultAssignTargetV1::GenericDelegateStorage(reference) => {
+                Ok(hir::AssignTarget::GenericDelegateStorage(
+                    self.materialize_imported_delegate_reference(reference, context)?,
+                ))
+            }
             hir::DefaultAssignTargetV1::Local { local } => self
                 .materialized_imported_default_local(local, context)
                 .map(hir::AssignTarget::Local),

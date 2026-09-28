@@ -3,8 +3,8 @@
 use super::*;
 use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 use scoop_identity::{
-    DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, LinkageClass, ObjectDefinitionAtomKey,
+    ObjectDefinitionPlanOwner, PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 mod error;
@@ -36,7 +36,7 @@ impl StrongInitializationUnitDefinitionRefV2 {
                 actual: identity.definition_plan(),
             });
         }
-        let expected = DigestNodeKey::strong_registration(registration.plan());
+        let expected = identity.owner().digest_key(registration.plan());
 
         let fingerprint = digests
             .nodes()
@@ -89,20 +89,20 @@ fn artifact(
     role: ArtifactRole,
     foundation: &ConeLirFoundation,
 ) -> Result<StrongInitializationArtifactRefV2, Error> {
-    let key = ObjectDefinitionPlanKey::strong(
-        foundation.producer(),
-        StrongDefinitionEntity::initialization_unit(unit),
-        role.definition(),
-    )
-    .map_err(Error::DefinitionKey)?;
-
-    let definition = foundation
-        .definition_plans()
-        .iter()
-        .find(|record| record.key() == &key)
-        .ok_or(Error::MissingDefinition(key))?;
-    let symbol = PersistentSymbolRequest::new(role.symbol(unit), LinkageClass::ConeStrong)
-        .map_err(Error::Symbol)?;
+    let entity = StrongDefinitionEntity::initialization_unit(unit);
+    let definition_role = role.definition();
+    let definition =
+        foundation
+            .definition_for(entity, definition_role)
+            .ok_or(Error::MissingDefinition {
+                entity,
+                role: definition_role,
+            })?;
+    let linkage = match definition.key().owner() {
+        ObjectDefinitionPlanOwner::Strong { .. } => LinkageClass::ConeStrong,
+        ObjectDefinitionPlanOwner::Odr { .. } => LinkageClass::OdrWeak,
+    };
+    let symbol = PersistentSymbolRequest::new(role.symbol(unit), linkage).map_err(Error::Symbol)?;
 
     if !foundation.contains_symbol_request(symbol) {
         return Err(Error::MissingSymbol(symbol));

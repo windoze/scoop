@@ -109,8 +109,11 @@ pub(super) fn finalize(
         .map_err(BuiltinObjectProductionError::StaticStorageDefinitionFingerprints)?;
     let storages = compute_strong_static_storage_shape_fingerprints_v1(storages)
         .map_err(BuiltinObjectProductionError::StaticStorageShapeFingerprints)?;
-    let storages = compute_strong_static_storage_fingerprints_v1(storages)
-        .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
+    let storages = compute_strong_static_storage_fingerprints_v1(
+        storages,
+        production.canonical_shape_definitions(),
+    )
+    .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
 
     let initializations = slib::verify_strong_initialization_registrations_v2(
         patches.clone(),
@@ -131,6 +134,7 @@ pub(super) fn finalize(
     let initializations = slib::compute_strong_initialization_fingerprints_v2(
         initializations,
         callables.body_objects(),
+        production.canonical_shape_definitions(),
     )
     .map_err(BuiltinObjectProductionError::InitializationFingerprints)?;
 

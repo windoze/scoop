@@ -90,7 +90,7 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                         Site::CallableSignature { .. } => 0,
                         Site::LocalValue { .. } => 1,
                         Site::BackingStorage { .. } => 2,
-                        Site::DelegateStorage { .. } => 3,
+                        Site::DelegateStorage { .. } | Site::GenericDelegateStorage { .. } => 3,
                         Site::FieldStorage { .. } => 4,
                         Site::EnumVariantFieldStorage { .. } => 5,
                         Site::ConstructorInitializerResult { .. } => 6,

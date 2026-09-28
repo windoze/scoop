@@ -131,6 +131,7 @@ impl StrongInitializationRegistrationSchedulePlanV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongInitializationUnitRegistrationPlan<D> {
     pub(super) semantic: StrongInitializationUnitSemanticPlan<D>,
+    pub(super) definition_owner: crate::RegistrationDefinitionOwner,
     pub(super) registration_symbol: PersistentSymbolRequest,
     pub(super) registration_definition_plan: ObjectDefinitionPlanId,
     pub(super) registration_primary_atom: ObjectDefinitionAtomId,
@@ -154,6 +155,10 @@ pub struct StrongInitializationUnitRegistrationPlan<D> {
 }
 
 impl<D> StrongInitializationUnitRegistrationPlan<D> {
+    pub const fn definition_owner(&self) -> crate::RegistrationDefinitionOwner {
+        self.definition_owner
+    }
+
     pub const fn semantic(&self) -> &StrongInitializationUnitSemanticPlan<D> {
         &self.semantic
     }

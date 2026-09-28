@@ -10,6 +10,9 @@ pub(super) enum ShapeContent<'a> {
     Descriptor(&'a TypeDescriptor),
     Dispatch(PersistentDispatchTableId, &'a [DispatchEntry]),
     Immortal(StrongImmortalObjectSemanticPlanV1, &'a str),
+    Storage(&'a StrongStaticStorageSemanticPlanV1),
+    InitializationCell(scoop_identity::PersistentInitializationUnitId),
+    InitializationDescriptor(&'a InitializationUnit),
 }
 
 pub(super) struct ShapeContents<'a> {
@@ -20,6 +23,7 @@ impl<'a> ShapeContents<'a> {
     pub(super) fn new(
         module: &'a Module,
         immortals: impl IntoIterator<Item = StrongImmortalObjectSemanticPlanV1>,
+        storages: impl IntoIterator<Item = &'a StrongStaticStorageSemanticPlanV1>,
     ) -> Self {
         let mut values = BTreeMap::new();
         let immortals = immortals
@@ -95,10 +99,33 @@ impl<'a> ShapeContents<'a> {
                 );
             }
         }
+        for storage in storages {
+            values.insert(
+                StrongDefinitionEntity::static_storage(storage.storage()),
+                ShapeContent::Storage(storage),
+            );
+        }
+        for (_, unit) in module.initialization_units.iter() {
+            values.insert(
+                StrongDefinitionEntity::initialization_unit(unit.identity.id()),
+                ShapeContent::InitializationDescriptor(unit),
+            );
+        }
         Self { values }
     }
 
-    pub(super) fn get(&self, entity: StrongDefinitionEntity) -> Option<ShapeContent<'a>> {
-        self.values.get(&entity).copied()
+    pub(super) fn get(
+        &self,
+        entity: StrongDefinitionEntity,
+        role: scoop_identity::OdrMemberRole,
+    ) -> Option<ShapeContent<'a>> {
+        match self.values.get(&entity).copied() {
+            Some(ShapeContent::InitializationDescriptor(unit))
+                if role == scoop_identity::OdrMemberRole::InitializationCell =>
+            {
+                Some(ShapeContent::InitializationCell(unit.identity.id()))
+            }
+            content => content,
+        }
     }
 }

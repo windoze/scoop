@@ -317,9 +317,11 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         let static_storage_shapes =
             crate::compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
                 .map_err(StrongLinkRegistrationDependencyFingerprintError::StaticStorageShapes)?;
-        let static_storages =
-            crate::compute_strong_static_storage_fingerprints_v1(static_storage_shapes)
-                .map_err(StrongLinkRegistrationDependencyFingerprintError::StaticStorages)?;
+        let static_storages = crate::compute_strong_static_storage_fingerprints_v1(
+            static_storage_shapes,
+            production.lir().canonical_shape_definitions(),
+        )
+        .map_err(StrongLinkRegistrationDependencyFingerprintError::StaticStorages)?;
 
         let initialization_definitions =
             crate::compute_strong_initialization_definition_fingerprints_v1(
@@ -330,6 +332,7 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         let initializations = crate::compute_strong_initialization_fingerprints_v1(
             initialization_definitions,
             callables.body_objects(),
+            production.lir().canonical_shape_definitions(),
         )
         .map_err(StrongLinkRegistrationDependencyFingerprintError::Initializations)?;
 

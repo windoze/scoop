@@ -179,7 +179,7 @@ fn duplicate_unit_identity_is_rejected_before_building_a_second_root() {
 }
 
 #[test]
-fn generic_unit_cannot_claim_strong_eligibility_with_ordinary_role_functions() {
+fn generic_unit_rejects_ordinary_role_functions() {
     use scoop_identity::{
         CborIdentityRecord, NonEmptyVec, PersistentExtensionPropertyId, SignatureTypeKey,
     };
@@ -214,7 +214,7 @@ fn generic_unit_cannot_claim_strong_eligibility_with_ordinary_role_functions() {
     assert!(matches!(
         seal(module),
         Err(ConeMirInputError::Initialization(
-            StrongInitializationUnitError::GenericUnit { .. }
+            StrongInitializationUnitError::WrongRole { .. }
         ))
     ));
 }

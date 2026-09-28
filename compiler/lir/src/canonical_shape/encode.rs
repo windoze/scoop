@@ -123,6 +123,71 @@ impl WireEncode for ShapeProjection<'_> {
                 }
                 Ok(())
             }
+            ShapeContent::Storage(plan) => {
+                if self.abi {
+                    tagged(e, 8, 6)?;
+                    e.field(1)?;
+                    plan.storage().encode(e)?;
+                    e.field(2)?;
+                    plan.layout().encode(e)?;
+                    e.field(3)?;
+                    e.unsigned(plan.byte_size())?;
+                    e.field(4)?;
+                    e.unsigned(plan.allocation_extent())?;
+                    e.field(5)?;
+                    e.unsigned(plan.required_alignment())
+                } else {
+                    tagged(e, 8, 2)?;
+                    e.field(1)?;
+                    plan.canonical_projection().encode(e)
+                }
+            }
+            ShapeContent::InitializationCell(unit) => {
+                tagged(e, 9, if self.abi { 4 } else { 5 })?;
+                e.field(1)?;
+                unit.encode(e)?;
+                e.field(2)?;
+                e.unsigned(16)?;
+                e.field(3)?;
+                e.unsigned(8)?;
+                if !self.abi {
+                    e.field(4)?;
+                    e.bytes(&[0; 16])?;
+                }
+                Ok(())
+            }
+            ShapeContent::InitializationDescriptor(unit) => {
+                tagged(e, 10, if self.abi { 4 } else { 10 })?;
+                e.field(1)?;
+                unit.identity.id().encode(e)?;
+                e.field(2)?;
+                e.unsigned(88)?;
+                e.field(3)?;
+                e.unsigned(8)?;
+                if !self.abi {
+                    e.field(4)?;
+                    e.unsigned(match unit.schedule {
+                        InitializationSchedule::EagerStartup => 0,
+                        InitializationSchedule::LazyAccess => 1,
+                    })?;
+                    for (field, global) in [(5, unit.kind.storage()), (6, unit.failure_root)] {
+                        let GlobalInit::Storage { identity, .. } =
+                            &self.module.globals[global].init
+                        else {
+                            unreachable!("a complete initialization unit has local static storage")
+                        };
+                        e.field(field)?;
+                        identity.identity_record().id().encode(e)?;
+                    }
+                    e.field(7)?;
+                    self.callable(CallableRef::Local(unit.initializer.declaration()), e)?;
+                    e.field(8)?;
+                    e.text(&unit.display_name)?;
+                    e.field(9)?;
+                    self.callable(CallableRef::Local(unit.ensure.declaration()), e)?;
+                }
+                Ok(())
+            }
         }
     }
 }

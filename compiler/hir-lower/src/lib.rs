@@ -556,6 +556,7 @@ pub(crate) struct Lowerer {
     pub(crate) imported_constructor_templates: imported_constructors::ImportedConstructorTemplates,
     pub(crate) imported_constructor_applications: Arena<hir::ImportedConstructorApplication>,
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
+    pub(crate) imported_generic_delegate_templates: Arena<hir::ImportedGenericDelegateTemplate>,
     pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
     /// Exact source-name routes selected while resolving public type-alias
     /// targets. Entries remain attached to their source alias until public

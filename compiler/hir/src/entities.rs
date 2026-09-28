@@ -98,6 +98,7 @@ pub struct Module {
     /// selection brand; each expression also retains its own winning binding.
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub imported_generic_templates: Arena<ImportedGenericCallableTemplate>,
+    pub imported_generic_delegate_templates: Arena<ImportedGenericDelegateTemplate>,
     pub imported_generic_applications: Arena<ImportedGenericCallableApplication>,
     pub imported_constructor_templates: Arena<ImportedConstructorTemplate>,
     pub imported_constructor_applications: Arena<ImportedConstructorApplication>,

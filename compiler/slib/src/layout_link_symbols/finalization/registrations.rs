@@ -54,7 +54,7 @@ pub(super) fn replay(
         .map_err(DependencyError::StaticStorageDefinitions)?;
     let storages = compute_strong_static_storage_shape_fingerprints_v1(storages)
         .map_err(DependencyError::StaticStorageShapes)?;
-    let storages = compute_strong_static_storage_fingerprints_v1(storages)
+    let storages = compute_strong_static_storage_fingerprints_v1(storages, shapes)
         .map_err(DependencyError::StaticStorages)?;
 
     let initializations = compute_strong_initialization_registration_object_fingerprints_v2(
@@ -65,9 +65,12 @@ pub(super) fn replay(
     let initializations =
         compute_strong_initialization_definition_fingerprints_v2(initializations, candidates)
             .map_err(DependencyError::InitializationDefinitions)?;
-    let initializations =
-        compute_strong_initialization_fingerprints_v2(initializations, callables.body_objects())
-            .map_err(DependencyError::Initializations)?;
+    let initializations = compute_strong_initialization_fingerprints_v2(
+        initializations,
+        callables.body_objects(),
+        shapes,
+    )
+    .map_err(DependencyError::Initializations)?;
     Ok(patch_strong_registration_fingerprints_v2(
         safepoints,
         callables,

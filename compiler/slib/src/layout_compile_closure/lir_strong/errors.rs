@@ -11,6 +11,10 @@ pub enum SharedLirStrongProductionError {
     ExternalAbi(PersistentSymbolKey),
     CallableBody(PersistentCallableBodyId),
     InitializationDefinition(PersistentInitializationUnitId),
+    InitializationRelation {
+        unit: PersistentInitializationUnitId,
+        field: &'static str,
+    },
     ShapeSources(scoop_hir::PublicNominalShapeProjectionError),
     SourceIdentity(scoop_identity::IdentityReferenceError),
     ShapeDefinition(lir::StrongShapeDefinitionError),

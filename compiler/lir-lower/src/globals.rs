@@ -61,7 +61,7 @@ pub(super) fn lower_globals(
                         )?,
                         layout: static_storage_layout(
                             context,
-                            identity_roots.for_static_storage(global.storage_owner),
+                            identity_roots,
                             module,
                             &global.ty,
                             selected_layout,
@@ -94,7 +94,7 @@ pub(super) fn lower_globals(
                         )?,
                         layout: static_storage_layout(
                             context,
-                            identity_roots.for_static_storage(global.storage_owner),
+                            identity_roots,
                             module,
                             &global.ty,
                             selected_layout,
@@ -215,7 +215,7 @@ fn static_storage_identity(
 
 pub(super) fn static_storage_layout(
     context: &LoweringContext,
-    root: lir::MaterializationRoot,
+    identity_roots: &IdentityRoots<'_>,
     module: &mir::Module,
     ty: &mir::Type,
     selected: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
@@ -259,6 +259,7 @@ pub(super) fn static_storage_layout(
         .ok_or(LirLoweringError::MissingDependencyValueLayout { provider, layout })?;
         return Ok(lir::StaticStorageLayout::External(value));
     }
+    let root = identity_roots.for_type(ty);
     let identity = match role {
         RepresentationRole::CValue => lir::LayoutIdentity::c_value(exact, target, root),
         RepresentationRole::NativeFunctionPointer => {

@@ -166,6 +166,30 @@ impl CanonicalOdrMemberDirectoryV1 {
             .shapes()
             .iter()
             .map(|value| value.member());
+        let storages = patch_set
+            .static_storages()
+            .fingerprints()
+            .iter()
+            .filter_map(|value| odr_registration(value.registration()))
+            .chain(
+                patch_set
+                    .static_storages()
+                    .odr_definitions()
+                    .iter()
+                    .copied(),
+            );
+        let initializations = patch_set
+            .initializations()
+            .fingerprints()
+            .iter()
+            .filter_map(|value| odr_registration(value.registration()))
+            .chain(
+                patch_set
+                    .initializations()
+                    .odr_definitions()
+                    .iter()
+                    .copied(),
+            );
         Self::from_members(
             physical,
             callables
@@ -173,6 +197,8 @@ impl CanonicalOdrMemberDirectoryV1 {
                 .chain(types)
                 .chain(immortals)
                 .chain(shapes)
+                .chain(storages)
+                .chain(initializations)
                 .map(|value| {
                     (
                         value.group(),

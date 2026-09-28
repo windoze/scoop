@@ -72,7 +72,9 @@ impl CanonicalStrongRegistrationFingerprintSetV1 {
                     .static_storages()
                     .fingerprints()
                     .iter()
-                    .map(|fingerprint| entry(fingerprint.storage(), fingerprint.registration()))
+                    .filter_map(|fingerprint| {
+                        strong_entry(fingerprint.storage(), fingerprint.registration())
+                    })
                     .collect(),
             )?,
             immortal_objects: canonicalize_table(
@@ -92,7 +94,9 @@ impl CanonicalStrongRegistrationFingerprintSetV1 {
                     .initializations()
                     .fingerprints()
                     .iter()
-                    .map(|fingerprint| entry(fingerprint.unit(), fingerprint.registration()))
+                    .filter_map(|fingerprint| {
+                        strong_entry(fingerprint.unit(), fingerprint.registration())
+                    })
                     .collect(),
             )?,
             type_registrations: canonicalize_table(

@@ -67,9 +67,6 @@ impl StrongInitializationUnitSemanticPlanSetV1 {
             if !unit_ids.insert(id) {
                 return Err(StrongInitializationUnitSemanticPlanBuildError::DuplicateUnit(id));
             }
-            if unit.identity.key().specialization_key().is_some() {
-                return Err(StrongInitializationUnitSemanticPlanBuildError::OdrUnit(id));
-            }
             arena_units.push((arena_id, id));
         }
 
@@ -202,8 +199,31 @@ fn build_unit(
     validate_failure_root_key(id, &globals[failure_global])?;
     validate_failure_shape(target, id, failure)?;
 
-    let initializer = generated_unit_body(id, InitializationCallableRole::Initializer)?;
-    let ensure = generated_unit_body(id, InitializationCallableRole::Ensure)?;
+    let (declaration_unit, group) = match unit.identity.key() {
+        InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. } => (
+            PersistentInitializationUnitId::from_key(&InitializationUnitKey::ExtensionProperty(
+                *property,
+            ))
+            .map_err(StrongInitializationUnitSemanticPlanBuildError::Hash)?,
+            Some(
+                scoop_identity::OdrGroupId::from_key(
+                    &unit
+                        .identity
+                        .key()
+                        .specialization_key()
+                        .expect("a delegated unit has a specialization key"),
+                )
+                .map_err(StrongInitializationUnitSemanticPlanBuildError::Hash)?,
+            ),
+        ),
+        _ => (id, None),
+    };
+    let initializer = generated_unit_body(
+        declaration_unit,
+        InitializationCallableRole::Initializer,
+        group,
+    )?;
+    let ensure = generated_unit_body(declaration_unit, InitializationCallableRole::Ensure, group)?;
     if unit.initializer == unit.ensure || initializer == ensure {
         return Err(StrongInitializationUnitSemanticPlanBuildError::AliasedCallable(id));
     }
@@ -254,6 +274,7 @@ fn build_unit(
 pub(crate) fn generated_unit_body(
     unit: PersistentInitializationUnitId,
     role: InitializationCallableRole,
+    group: Option<scoop_identity::OdrGroupId>,
 ) -> Result<PersistentCallableBodyId, StrongInitializationUnitSemanticPlanBuildError> {
     let generated =
         PersistentGeneratedCallableId::from_key(&GeneratedCallableKey::Initialization {
@@ -261,10 +282,20 @@ pub(crate) fn generated_unit_body(
             role,
         })
         .map_err(StrongInitializationUnitSemanticPlanBuildError::GeneratedCallableIdentity)?;
-    PersistentCallableBodyId::from_key(&CallableBodyKey::strong(
-        StrongCallableDefinitionOwner::GeneratedCallable(generated),
-    ))
-    .map_err(StrongInitializationUnitSemanticPlanBuildError::Hash)
+    let key = if let Some(group) = group {
+        let member = scoop_identity::OdrMemberKey::new(
+            group,
+            scoop_identity::OdrMemberRole::CallableBody,
+            scoop_identity::OdrMemberDiscriminator::GeneratedCallable(generated),
+        )
+        .and_then(|key| scoop_identity::CallableOdrMemberId::from_key(&key))
+        .map_err(StrongInitializationUnitSemanticPlanBuildError::OdrMember)?;
+        CallableBodyKey::odr(member)
+    } else {
+        CallableBodyKey::strong(StrongCallableDefinitionOwner::GeneratedCallable(generated))
+    };
+    PersistentCallableBodyId::from_key(&key)
+        .map_err(StrongInitializationUnitSemanticPlanBuildError::Hash)
 }
 
 pub(crate) fn startup_gateway_body(
@@ -288,7 +319,7 @@ pub enum StrongInitializationUnitSemanticPlanBuildError {
         actual: scoop_identity::ConeIdentity,
     },
     DuplicateUnit(PersistentInitializationUnitId),
-    OdrUnit(PersistentInitializationUnitId),
+    OdrMember(scoop_identity::OdrMemberIdentityError),
     EmptyDiagnosticPath(PersistentInitializationUnitId),
     KindSchedule {
         unit: PersistentInitializationUnitId,

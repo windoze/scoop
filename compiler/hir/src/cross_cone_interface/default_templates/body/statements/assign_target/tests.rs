@@ -69,8 +69,8 @@ fn assignment_target_reports_nested_expression_index_location() {
 
 #[test]
 fn assignment_target_decoder_rejects_unknown_tags_and_non_exact_maps() {
-    let error = decode_canonical::<DecodedDefaultAssignTargetV1>(&[0xa1, 0x00, 0x05]).unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
+    let error = decode_canonical::<DecodedDefaultAssignTargetV1>(&[0xa1, 0x00, 0x06]).unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 6 });
 
     let error = decode_canonical::<DecodedDefaultAssignTargetV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(

@@ -112,8 +112,14 @@ pub struct GenericDelegateTemplate {
 /// Complete symbolic arguments at one use of a delegate template.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenericDelegateReference {
-    pub template: GenericDelegateTemplateId,
+    pub template: GenericDelegateTemplateSource,
     pub arguments: NonEmptyVec<TypeId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GenericDelegateTemplateSource {
+    Defined(GenericDelegateTemplateId),
+    Imported(ImportedGenericDelegateTemplateId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

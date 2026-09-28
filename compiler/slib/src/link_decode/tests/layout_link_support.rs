@@ -76,6 +76,7 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::VerifiedCodeL
     let initializations = crate::compute_strong_initialization_fingerprints_v2(
         initializations,
         registrations.callables().body_objects(),
+        production.canonical_shape_definitions(),
     )
     .unwrap();
     let patched = crate::patch_strong_registration_fingerprints_v2(

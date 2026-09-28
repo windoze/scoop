@@ -5,7 +5,7 @@ use std::fmt;
 use std::num::NonZeroU64;
 
 use scoop_identity::{
-    DecodedPersistentId, DefinitionAtomRole, LinkageClass, PersistentId, PersistentStaticStorageId,
+    DecodedPersistentId, DefinitionAtomRole, PersistentId, PersistentStaticStorageId,
     PersistentSymbolKey, PersistentSymbolRequest, RepresentationRole, ScanRole, StaticStorageKey,
 };
 use scoop_wire::{WireEncode, encode};

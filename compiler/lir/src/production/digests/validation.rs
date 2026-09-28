@@ -275,7 +275,7 @@ fn allows_input(node: DigestKind, input: DigestKind) -> bool {
         ),
         K::OdrDefinition => matches!(
             input,
-            K::LirDefinition | K::ObjectDefinition | K::StackmapRecord
+            K::LirDefinition | K::ObjectDefinition | K::StackmapRecord | K::Layout | K::Scan
         ),
         K::StrongRegistration => matches!(
             input,

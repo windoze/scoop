@@ -4,6 +4,19 @@ use scoop_lir::RegistrationDefinitionOwner;
 
 use super::RuntimeMetadataV1Types;
 
+pub(super) fn definition_linkage(
+    request: scoop_lir::PersistentSymbolRequest,
+) -> Result<inkwell::module::Linkage, crate::CodegenError> {
+    match request.linkage() {
+        scoop_lir::LinkageClass::ConeStrong => Ok(inkwell::module::Linkage::External),
+        scoop_lir::LinkageClass::OdrWeak => Ok(inkwell::module::Linkage::WeakODR),
+        _ => Err(crate::CodegenError(format!(
+            "`{}` is not a local Strong or ODR definition",
+            request.symbol()
+        ))),
+    }
+}
+
 pub(super) fn registration_identity_value<'ctx>(
     context: &'ctx Context,
     types: &RuntimeMetadataV1Types<'ctx>,

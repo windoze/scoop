@@ -4,7 +4,7 @@ use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::targets::TargetData;
 use inkwell::types::ArrayType;
-use inkwell::values::{GlobalValue, StructValue};
+use inkwell::values::GlobalValue;
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
     PersistentScanId, PersistentStaticStorageId, RefScan, StrongStaticStorageRegistrationPlanSetV1,
@@ -235,14 +235,12 @@ fn emit_registration<'ctx>(
         i32.const_int(METADATA_ABI_VERSION, false).into(),
         i32.const_int(STATIC_STORAGE_DESCRIPTOR_SIZE, false).into(),
     ]);
-    let identity = types.registration_identity.const_named_struct(&[
-        i32.const_int(1, false).into(),
-        i32.const_zero().into(),
-        digest_value(context, types.digest, semantic.storage().as_array()).into(),
-        zero_digest.into(),
-        zero_digest.into(),
-        zero_digest.into(),
-    ]);
+    let identity = super::registration_identity::registration_identity_value(
+        context,
+        types,
+        semantic.storage().as_array(),
+        plan.definition_owner(),
+    );
     let template_span = types.byte_span.const_named_struct(&[
         initial_state.template().as_pointer_value().into(),
         i64.const_int(
@@ -278,6 +276,9 @@ fn emit_registration<'ctx>(
         .into(),
     ]);
     descriptor.set_constant(true);
+    descriptor.set_linkage(super::registration_identity::definition_linkage(
+        plan.registration_symbol(),
+    )?);
     descriptor.set_initializer(&value);
 
     let patch = |intent, byte_offset| StaticStorageRegistrationPatchSiteV1 {
@@ -319,6 +320,9 @@ fn emit_scan_program<'ctx>(
     global.set_alignment(8);
     if plan.semantic().value_layout().local().is_some() {
         global.set_initializer(&value);
+        global.set_linkage(super::registration_identity::definition_linkage(
+            plan.scan_symbol(),
+        )?);
     }
     Ok(global)
 }
@@ -361,18 +365,6 @@ fn scan_words<'ctx>(
             unreachable!("scan_type rejects non-canonical scans")
         }
     })
-}
-
-fn digest_value<'ctx>(
-    context: &'ctx Context,
-    digest_type: inkwell::types::StructType<'ctx>,
-    bytes: &[u8; 32],
-) -> StructValue<'ctx> {
-    let values = bytes
-        .iter()
-        .map(|byte| context.i8_type().const_int(u64::from(*byte), false))
-        .collect::<Vec<_>>();
-    digest_type.const_named_struct(&[context.i8_type().const_array(&values).into()])
 }
 
 #[cfg(test)]

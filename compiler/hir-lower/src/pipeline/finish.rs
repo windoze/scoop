@@ -353,6 +353,7 @@ impl Lowerer {
             imported_constructor_templates: self.imported_constructor_templates.into_completed(),
             imported_constructor_applications: self.imported_constructor_applications,
             imported_generic_templates: self.imported_generic_templates.into_completed(),
+            imported_generic_delegate_templates: self.imported_generic_delegate_templates,
             imported_generic_applications: self.imported_generic_applications,
             bound_callable_refs: self.bound_callable_refs,
             function_coercions: self.function_coercions,

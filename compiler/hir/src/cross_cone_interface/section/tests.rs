@@ -134,7 +134,7 @@ fn empty_section_has_fixed_wire_and_resolves() {
 
     assert_eq!(
         hex(&bytes),
-        "ac018002a20180028003a20180028004a201800280058006800780088009800a800b800c80"
+        "ad018002a20180028003a20180028004a201800280058006800780088009800a800b800c800d80"
     );
 
     let decoded: DecodedCrossConeHirInterfaceSectionV1 = decode_canonical(&bytes).unwrap();
@@ -153,6 +153,7 @@ fn empty_section_has_fixed_wire_and_resolves() {
     assert!(resolved.constants().is_empty());
     assert!(resolved.definition_sources().is_empty());
     assert!(resolved.external_references().is_empty());
+    assert!(resolved.generic_delegates().records().is_empty());
 }
 
 #[test]

@@ -4,7 +4,17 @@ use scoop_wire::{Encoder, WireEncode};
 type Result = std::result::Result<(), scoop_wire::cbor::EncodeError>;
 
 #[derive(Clone, Copy)]
-pub(super) enum RegistrationProjection {
+pub(super) enum RegistrationProjection<'a> {
+    StaticStorage(&'a scoop_lir::StrongStaticStorageRegistrationPlanV1),
+    Initialization {
+        unit: scoop_identity::PersistentInitializationUnitId,
+        diagnostic_path: &'a str,
+        storage: scoop_identity::PersistentStaticStorageId,
+        failure_root: scoop_identity::PersistentStaticStorageId,
+        initializer: scoop_identity::PersistentCallableBodyId,
+        ensure: scoop_identity::PersistentCallableBodyId,
+        schedule: scoop_lir::StrongInitializationSchedulePlanV1,
+    },
     Immortal(scoop_lir::StrongImmortalObjectRegistrationPlanV1),
     Callable(scoop_lir::StrongCallableRegistrationPlanV1),
     Safepoint(scoop_lir::StrongSafepointRegistrationPlanV1),
@@ -16,9 +26,43 @@ pub(super) enum RegistrationProjection {
     },
 }
 
-impl WireEncode for RegistrationProjection {
+impl WireEncode for RegistrationProjection<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result {
         match self {
+            Self::StaticStorage(plan) => {
+                encoder.map(2)?;
+                encoder.field(0)?;
+                encoder.unsigned(1)?;
+                encoder.field(1)?;
+                plan.semantic().canonical_projection().encode(encoder)
+            }
+            Self::Initialization {
+                unit,
+                diagnostic_path,
+                storage,
+                failure_root,
+                initializer,
+                ensure,
+                schedule,
+            } => {
+                encoder.map(8)?;
+                encoder.field(0)?;
+                encoder.unsigned(3)?;
+                encoder.field(1)?;
+                unit.encode(encoder)?;
+                encoder.field(2)?;
+                encoder.text(diagnostic_path)?;
+                encoder.field(3)?;
+                encoder.unsigned(u64::from(schedule.tag()))?;
+                encoder.field(4)?;
+                storage.encode(encoder)?;
+                encoder.field(5)?;
+                failure_root.encode(encoder)?;
+                encoder.field(6)?;
+                initializer.encode(encoder)?;
+                encoder.field(7)?;
+                ensure.encode(encoder)
+            }
             Self::Immortal(plan) => {
                 encoder.map(6)?;
                 encoder.field(0)?;
@@ -80,13 +124,13 @@ impl WireEncode for RegistrationProjection {
     }
 }
 
-pub(super) struct AbiInput {
+pub(super) struct AbiInput<'a> {
     pub(super) group: OdrGroupId,
     pub(super) member: OdrMemberId,
-    pub(super) projection: RegistrationProjection,
+    pub(super) projection: RegistrationProjection<'a>,
 }
 
-impl WireEncode for AbiInput {
+impl WireEncode for AbiInput<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result {
         encoder.map(4)?;
         member_fields(
@@ -97,6 +141,14 @@ impl WireEncode for AbiInput {
         )?;
         encoder.field(4)?;
         let (kind, version, size) = match self.projection {
+            RegistrationProjection::StaticStorage(_) => {
+                use crate::link_object::static_storage_registrations::record;
+                (1, record::ABI_VERSION, record::DESCRIPTOR_SIZE)
+            }
+            RegistrationProjection::Initialization { .. } => {
+                use crate::link_object::initialization_registrations::record;
+                (3, record::ABI_VERSION, record::DESCRIPTOR_SIZE)
+            }
             RegistrationProjection::Immortal(_) => {
                 use crate::link_object::immortal_registrations::record;
                 (2, record::ABI_VERSION, record::DESCRIPTOR_SIZE)
@@ -132,7 +184,7 @@ pub(super) struct DefinitionInput<'a> {
     pub(super) lir: Digest256,
     pub(super) object_node: DigestNodeId,
     pub(super) object: ObjectDefinitionFingerprintV1,
-    pub(super) additional_objects: &'a [(DigestNodeId, ObjectDefinitionFingerprintV1)],
+    pub(super) additional_inputs: &'a [CanonicalDigestInputV1],
     pub(super) stackmaps: &'a [(PersistentSafepointSiteId, StackmapRecordFingerprintV1)],
 }
 
@@ -148,16 +200,16 @@ impl WireEncode for DefinitionInput<'_> {
         encoder.field(2)?;
         self.lir.encode(encoder)?;
         encoder.field(5)?;
-        let mut objects = Vec::from(self.additional_objects);
-        objects.push((self.object_node, self.object));
-        objects.sort_unstable_by_key(|(node, _)| *node);
-        encoder.array(objects.len() as u64)?;
-        for (node, object) in objects {
+        let mut inputs = Vec::from(self.additional_inputs);
+        inputs.push(object_input(self.object_node, self.object));
+        inputs.sort_unstable_by_key(|input| input.node);
+        encoder.array(inputs.len() as u64)?;
+        for input in inputs {
             encoder.map(2)?;
             encoder.field(1)?;
-            node.encode(encoder)?;
+            input.node.encode(encoder)?;
             encoder.field(2)?;
-            object.encode(encoder)?;
+            encoder.bytes(&input.digest)?;
         }
         encoder.field(6)?;
         encoder.array(self.stackmaps.len() as u64)?;

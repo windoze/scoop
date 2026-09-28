@@ -60,6 +60,10 @@ pub(super) fn validate_unit_kind_and_schedule(
             InitializationUnitKey::Object(_) | InitializationUnitKey::Companion(_),
             InitializationUnitKind::LazySingleton { .. },
             InitializationSchedule::LazyAccess,
+        ) | (
+            InitializationUnitKey::GenericDelegatedExtensionApplication { .. },
+            InitializationUnitKind::GenericDelegatedExtension { .. },
+            InitializationSchedule::LazyAccess,
         )
     );
     valid
@@ -104,7 +108,13 @@ pub(super) fn validate_value_storage_key(
                     )) if actual == *owner
                 )
         }
-        InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => false,
+        InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => {
+            key.owner() == DefinitionOwner::InitializationUnit(unit)
+                && matches!(
+                    key.role(),
+                    StorageRole::PropertyDelegate | StorageRole::StaticPlaceToken
+                )
+        }
     };
     valid
         .then_some(())

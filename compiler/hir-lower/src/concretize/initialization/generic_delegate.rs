@@ -8,11 +8,31 @@ impl Concretizer<'_> {
         reference: &export::GenericDelegateReference,
         substitution: &[concrete::TypeId],
     ) -> concrete::GenericDelegateStorageSpecializationId {
-        let template = &self.source.generic_delegate_templates[reference.template];
-        let declaration = &self.source.properties[template.property];
-        let property = self.source.property_identities[template.property]
-            .extension_id()
-            .expect("a generic delegate is an extension property");
+        let (property, source, effective_type, name, span) = match reference.template {
+            export::GenericDelegateTemplateSource::Defined(template) => {
+                let template = &self.source.generic_delegate_templates[template];
+                let declaration = &self.source.properties[template.property];
+                (
+                    self.source.property_identities[template.property]
+                        .extension_id()
+                        .expect("a generic delegate is an extension property"),
+                    InitializationSource::Defined(template.initialization),
+                    template.ty,
+                    declaration.name.clone(),
+                    declaration.span,
+                )
+            }
+            export::GenericDelegateTemplateSource::Imported(template) => {
+                let declaration = &self.source.imported_generic_delegate_templates[template];
+                (
+                    declaration.property,
+                    InitializationSource::ImportedDelegate(template),
+                    declaration.effective_type,
+                    declaration.diagnostic_path.clone(),
+                    self.source.imported_generic_templates[declaration.initializer].span,
+                )
+            }
+        };
         let arguments = reference
             .arguments
             .iter()
@@ -23,17 +43,17 @@ impl Concretizer<'_> {
             return *id;
         }
         let initialization = self.request_initialization(InitializationKey {
-            source: template.initialization,
+            source,
             arguments: key.1.clone(),
         });
-        let ty = self.lower_type(template.ty, &key.1);
+        let ty = self.lower_type(effective_type, &key.1);
         let id = concrete::GenericDelegateStorageSpecializationId::from_raw(
             u32::try_from(self.generic_delegate_specializations.len())
                 .expect("delegate specializations fit their typed id domain")
                 .into(),
         );
         let storage = self.globals.alloc(concrete::Global {
-            name: format!("{}$delegate", declaration.name),
+            name: format!("{name}$delegate"),
             storage_owner: concrete::PropertyStorageOwner::GenericDelegate(id),
             ty,
             mutable: false,
@@ -42,7 +62,7 @@ impl Concretizer<'_> {
                     unit: initialization,
                 },
             },
-            span: declaration.span,
+            span,
         });
         assert_eq!(
             self.generic_delegate_specializations.alloc(

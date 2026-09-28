@@ -14,6 +14,7 @@ use crate::dependency_reachability::transitive_positions;
 
 mod dependencies;
 mod errors;
+mod initialization;
 mod replay;
 pub use errors::{CrossConeLayoutLirStrongProductionError, SharedLirStrongProductionError};
 

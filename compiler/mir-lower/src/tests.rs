@@ -179,6 +179,7 @@ fn rebuild_initialization_unit_identities(
         &module.singleton_published_roots,
         &module.properties,
         &module.delegate_storages,
+        &module.generic_delegate_templates,
         &module.nominal_identities,
         &module.property_identities,
     )

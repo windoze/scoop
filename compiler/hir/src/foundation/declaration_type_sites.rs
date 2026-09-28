@@ -67,6 +67,29 @@ impl<'a> Input<'a> {
         root: CallableMaterialization,
         position: Option<HirCallableTypePositionV1>,
     ) -> Result<(), Error> {
+        if let CallableTemplateOwner::Generated(id) = root.template()
+            && root.context() != CallableMaterializationContext::NoSubstitution
+        {
+            match root.context() {
+                CallableMaterializationContext::Application(application) => {
+                    self.key(&self.foundation.callable_applications, application)?;
+                }
+                CallableMaterializationContext::InitializationApplication(unit) => {
+                    self.generic_delegate(unit)?;
+                }
+                CallableMaterializationContext::NoSubstitution => {
+                    unreachable!("an applied generated callable has a substitution context")
+                }
+            }
+            let (foundation, key) =
+                self.source_record(id, |foundation| &foundation.generated_callables)?;
+            signature::generated(key, root, position)?;
+            let subject = DefinitionOriginSubject::GeneratedCallable(id);
+            if foundation.definition_origin(subject).is_some() {
+                Self::source_origin(foundation, subject)?;
+            }
+            return Ok(());
+        }
         let applied_source = match root.template() {
             CallableTemplateOwner::GenericFunction(id) => {
                 Some(CallableTemplateOrigin::GenericFunction(id))

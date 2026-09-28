@@ -264,9 +264,9 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
     .unwrap();
 
     let mut unknown = bytes.clone();
-    unknown[4] = 15;
+    unknown[4] = 16;
     let error = decode_canonical::<DecodedDefaultStatementV1>(&unknown).unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 15 });
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 16 });
 
     let mut non_exact = bytes;
     non_exact[2] = 0xa2;

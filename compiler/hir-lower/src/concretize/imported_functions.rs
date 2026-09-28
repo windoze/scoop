@@ -46,7 +46,20 @@ impl Concretizer<'_> {
         arguments: &[concrete::TypeId],
     ) -> PendingFunction {
         let template = self.source.imported_generic_templates[source].clone();
-        let (body, locals) = self.lower_body(&template.body, arguments);
+        let (body, locals) = match &template.implementation {
+            export::ImportedGenericCallableImplementation::Body(body) => {
+                self.lower_body(body, arguments)
+            }
+            // The complete unit supplies the coordinator body in MIR lowering,
+            // exactly as for a locally declared initialization ensure entry.
+            export::ImportedGenericCallableImplementation::InitializationEnsure => (
+                concrete::Body {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                },
+                Vec::new(),
+            ),
+        };
         let parameters: Vec<concrete::Param> = template
             .parameters
             .iter()
@@ -58,6 +71,7 @@ impl Concretizer<'_> {
             .collect();
         let capture_parameters = match &template.declaration {
             export::ImportedCallableTemplateOrigin::Generic(_)
+            | export::ImportedCallableTemplateOrigin::Initialization { .. }
             | export::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
             | export::ImportedCallableTemplateOrigin::Nominal { .. } => Vec::new(),
             export::ImportedCallableTemplateOrigin::Local { parent, descriptor } => descriptor
@@ -141,13 +155,14 @@ impl Concretizer<'_> {
         let capture_index = match source {
             export::DefaultCaptureSourceV1::Local(selector) => {
                 let (id, local) = template
-                    .body
+                    .source_body()
                     .locals
                     .iter()
                     .find(|(_, local)| &local.selector == selector)
                     .expect("provider captures retain their actual outer value selector");
                 let index = match &template.declaration {
                     export::ImportedCallableTemplateOrigin::Generic(_)
+                    | export::ImportedCallableTemplateOrigin::Initialization { .. }
                     | export::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
                     | export::ImportedCallableTemplateOrigin::Nominal { .. } => None,
                     export::ImportedCallableTemplateOrigin::Local { descriptor, .. } => template

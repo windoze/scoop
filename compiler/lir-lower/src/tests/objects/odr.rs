@@ -70,10 +70,12 @@ fn shapes(
     foundation: &lir::ConeLirFoundation,
 ) -> lir::CanonicalShapeLirDefinitionsV1 {
     let immortals = lir::StrongImmortalObjectSemanticPlanSetV1::from_module(module).unwrap();
+    let storages = lir::StrongStaticStorageSemanticPlanSetV1::from_module(module).unwrap();
     lir::CanonicalShapeLirDefinitionsV1::from_module(
         module,
         foundation,
         immortals.objects().iter().copied(),
+        storages.storages(),
     )
     .unwrap()
 }

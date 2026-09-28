@@ -14,6 +14,7 @@ use super::{
 };
 
 mod encode;
+use super::callable_registrations::object_definition::CanonicalDigestInputV1;
 use encode::{AbiInput, DefinitionInput, RegistrationProjection};
 
 /// The definition slot has one of two distinct digest owners and algorithms.
@@ -118,7 +119,7 @@ pub(super) fn callable_body(
                 lir: canonical.fingerprint(),
                 object_node: plan.body_definition_node(),
                 object,
-                additional_objects: &[],
+                additional_inputs: &[],
                 stackmaps,
             },
         )
@@ -161,7 +162,7 @@ pub(super) fn shape_definition(
             lir: canonical.fingerprint(),
             object_node,
             object,
-            additional_objects: &[],
+            additional_inputs: &[],
             stackmaps: &[],
         },
     )
@@ -225,20 +226,96 @@ pub(super) fn immortal_registration(
         plan.registration_object_node(),
         object,
         None,
-        &[(plan.object_definition_node(), immortal)],
+        &[object_input(plan.object_definition_node(), immortal)],
     )
+}
+
+pub(super) fn static_storage_registration(
+    group: OdrGroupId,
+    member: OdrMemberId,
+    plan: &scoop_lir::StrongStaticStorageRegistrationPlanV1,
+    object: ObjectDefinitionFingerprintV1,
+    storage: ObjectDefinitionFingerprintV1,
+    layout: super::LayoutFingerprintV1,
+    scan: super::ScanFingerprintV1,
+) -> Result<OdrMemberFingerprintV1, HashError> {
+    registration(
+        group,
+        member,
+        RegistrationProjection::StaticStorage(plan),
+        plan.registration_primary_atom(),
+        plan.registration_object_node(),
+        object,
+        None,
+        &[
+            object_input(plan.storage_definition_node(), storage),
+            CanonicalDigestInputV1 {
+                kind: DigestKind::Layout,
+                node: plan.layout_fingerprint_node(),
+                digest: *layout.as_array(),
+            },
+            CanonicalDigestInputV1 {
+                kind: DigestKind::Scan,
+                node: plan.scan_fingerprint_node(),
+                digest: *scan.as_array(),
+            },
+        ],
+    )
+}
+
+pub(super) fn initialization_registration<D>(
+    group: OdrGroupId,
+    member: OdrMemberId,
+    plan: &scoop_lir::StrongInitializationUnitRegistrationPlan<D>,
+    object: ObjectDefinitionFingerprintV1,
+    cell: ObjectDefinitionFingerprintV1,
+    descriptor: ObjectDefinitionFingerprintV1,
+) -> Result<OdrMemberFingerprintV1, HashError> {
+    let semantic = plan.semantic();
+    registration(
+        group,
+        member,
+        RegistrationProjection::Initialization {
+            unit: semantic.unit(),
+            diagnostic_path: semantic.diagnostic_path(),
+            storage: semantic.storage(),
+            failure_root: semantic.failure_root(),
+            initializer: semantic.initializer(),
+            ensure: semantic.ensure(),
+            schedule: semantic.schedule(),
+        },
+        plan.registration_primary_atom(),
+        plan.registration_object_node(),
+        object,
+        None,
+        &[
+            object_input(plan.cell_definition_node(), cell),
+            object_input(plan.descriptor_definition_node(), descriptor),
+        ],
+    )
+}
+
+fn object_input(
+    node: DigestNodeId,
+    value: ObjectDefinitionFingerprintV1,
+) -> CanonicalDigestInputV1 {
+    CanonicalDigestInputV1 {
+        kind: DigestKind::ObjectDefinition,
+        node,
+        digest: *value.as_array(),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn registration(
     group: OdrGroupId,
     member: OdrMemberId,
-    projection: RegistrationProjection,
+    projection: RegistrationProjection<'_>,
     atom: ObjectDefinitionAtomId,
     object_node: DigestNodeId,
     object: ObjectDefinitionFingerprintV1,
     stackmap: Option<(PersistentSafepointSiteId, StackmapRecordFingerprintV1)>,
-    additional_objects: &[(DigestNodeId, ObjectDefinitionFingerprintV1)],
+    additional_inputs: &[CanonicalDigestInputV1],
 ) -> Result<OdrMemberFingerprintV1, HashError> {
     let abi = domain_separated_cbor_hash(
         "scoop-odr-member-abi-v1",
@@ -259,7 +336,7 @@ fn registration(
             lir,
             object_node,
             object,
-            additional_objects,
+            additional_inputs,
             stackmaps: stackmap.as_slice(),
         },
     )

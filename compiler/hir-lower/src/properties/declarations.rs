@@ -1064,7 +1064,9 @@ impl Lowerer {
         };
         let kind = match self.initialization_units[unit].kind {
             hir::InitializationUnitKind::GenericDelegatedExtension { template, .. } => {
-                hir::StatementKind::GenericDelegateEnsure(self.generic_delegate_reference(template))
+                hir::StatementKind::GenericDelegateEnsure(
+                    self.generic_delegate_reference(template, source.function),
+                )
             }
             hir::InitializationUnitKind::EagerTopLevel { .. }
             | hir::InitializationUnitKind::LazySingleton { .. } => {

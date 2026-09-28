@@ -5,14 +5,13 @@ use scoop_lir::{
 use super::{InitializationArtifactRoleV1, StrongInitializationRegistrationValidationError};
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
-const ABI_VERSION: u32 = 1;
-const STRONG_LINKAGE: u32 = 1;
+pub(in crate::link_object) const ABI_VERSION: u32 = 1;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: usize = 312;
 const DIGEST_WIDTH: usize = 32;
 pub(super) const CELL_SIZE: usize = 16;
 pub(super) const COORDINATOR_SIZE: usize = 88;
-pub(super) const DESCRIPTOR_SIZE: usize = 352;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 352;
 
 pub(super) fn validate_cell_bytes<D>(
     object: &[u8],
@@ -112,8 +111,12 @@ pub(super) fn expected_record<D>(
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    write_u32(&mut bytes, 16, STRONG_LINKAGE);
-    bytes[24..56].copy_from_slice(semantic.unit().as_array());
+    bytes[16..152].copy_from_slice(
+        &super::super::registration_identity::provisional_registration_identity(
+            semantic.unit().as_array(),
+            plan.definition_owner(),
+        ),
+    );
     write_u32(&mut bytes, 152, semantic.schedule().tag());
     write_u64(
         &mut bytes,

@@ -209,10 +209,11 @@ fn validate_origins(
             && projected.origin().source().cone() != export.cone
         {
             let origin = export.imported_generic_templates.iter().find_map(|(_, template)| {
-                let matches = match (occurrence.position.root.template(), template.declaration.declaration()) {
-                    (scoop_identity::CallableTemplateOwner::GenericFunction(expected), scoop_identity::CallableTemplateOrigin::GenericFunction(actual)) => expected == actual,
-                    (scoop_identity::CallableTemplateOwner::Function(expected), scoop_identity::CallableTemplateOrigin::Function(actual)) => expected == actual,
-                    (scoop_identity::CallableTemplateOwner::Accessor(expected), scoop_identity::CallableTemplateOrigin::Accessor(actual)) => expected == actual,
+                let matches = match (occurrence.position.root.template(), template.declaration.body_owner()) {
+                    (scoop_identity::CallableTemplateOwner::GenericFunction(expected), crate::DefaultCallableDeclarationV1::GenericFunction(actual)) => expected == actual,
+                    (scoop_identity::CallableTemplateOwner::Function(expected), crate::DefaultCallableDeclarationV1::Function(actual)) => expected == actual,
+                    (scoop_identity::CallableTemplateOwner::Accessor(expected), crate::DefaultCallableDeclarationV1::PropertyAccessor(actual)) => expected == actual,
+                    (scoop_identity::CallableTemplateOwner::Generated(expected), crate::DefaultCallableDeclarationV1::Generated(actual)) => expected == actual,
                     _ => false,
                 };
                 matches.then_some(template.origin)

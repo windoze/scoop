@@ -51,14 +51,19 @@ impl Lowerer {
             }
         };
         let storage_read = match property.representation {
-            hir::PropertyRepresentation::GenericDelegated { template } => hir::Expr {
-                kind: hir::ExprKind::GenericDelegateStorageRead(
-                    self.generic_delegate_reference(template),
-                ),
-                ty: self.generic_delegate_templates[template].ty,
-                span: property.span,
-                origin: self.expression_origin(property.span),
-            },
+            hir::PropertyRepresentation::GenericDelegated { template } => {
+                let reference = self.generic_delegate_reference(template, source.function);
+                let ty = self.instantiate_ty(
+                    self.generic_delegate_templates[template].ty,
+                    &reference.arguments.to_vec(),
+                );
+                hir::Expr {
+                    kind: hir::ExprKind::GenericDelegateStorageRead(reference),
+                    ty,
+                    span: property.span,
+                    origin: self.expression_origin(property.span),
+                }
+            }
             hir::PropertyRepresentation::Delegated { storage } => {
                 let delegate = self.delegate_storages[storage].clone();
                 match delegate.location {

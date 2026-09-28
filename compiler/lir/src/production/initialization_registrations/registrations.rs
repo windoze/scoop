@@ -6,9 +6,9 @@ use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey,
     DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId,
-    PersistentInitializationUnitId, PersistentStaticStorageId, PersistentSymbolError,
-    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentInitializationUnitId,
+    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::{
@@ -122,7 +122,10 @@ pub enum StrongInitializationUnitRegistrationPlanBuildError {
     MissingStaticStorageRegistration(PersistentStaticStorageId),
     MissingCallableBody(PersistentCallableBodyId),
     MissingCallableRegistration(PersistentCallableBodyId),
-    MissingDefinition(Box<ObjectDefinitionPlanKey>),
+    MissingDefinition {
+        entity: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+    },
     RegistrationDefinitionMismatch {
         unit: PersistentInitializationUnitId,
         expected: ObjectDefinitionPlanId,

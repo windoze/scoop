@@ -46,6 +46,9 @@ impl Lowerer {
     ) -> Result<(), ImportedDefaultPlanError> {
         use hir::DefaultStatementKindV1 as Kind;
         match statement.kind() {
+            Kind::GenericDelegateEnsure(_) => Err(ImportedDefaultPlanError::InvalidControlFlow(
+                "default properties require accessor calls, not an internal delegate ensure",
+            )),
             Kind::Expr(value) => self.preflight_imported_default_expression(
                 owner, template, value, locals, bindings, callables,
             ),
@@ -57,6 +60,11 @@ impl Lowerer {
             }
             Kind::Assign { target, value } => {
                 match target.as_ref() {
+                    hir::DefaultAssignTargetV1::GenericDelegateStorage(_) => {
+                        return Err(ImportedDefaultPlanError::InvalidControlFlow(
+                            "default properties require accessor calls, not direct delegate storage",
+                        ));
+                    }
                     hir::DefaultAssignTargetV1::Local { local } if locals.contains(local) => {}
                     hir::DefaultAssignTargetV1::Local { local } => {
                         return Err(ImportedDefaultPlanError::UnknownLocal(local.clone()));
