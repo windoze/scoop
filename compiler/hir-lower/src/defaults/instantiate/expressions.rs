@@ -102,6 +102,9 @@ impl Lowerer {
                 hir::ExprKind::ImportedSingletonValue(*value)
             }
             hir::ExprKind::Capture(binding) => hir::ExprKind::Capture(*binding),
+            hir::ExprKind::ImportedClosure(closure) => hir::ExprKind::ImportedClosure(Box::new(
+                self.instantiate_default_imported_closure(closure, context),
+            )),
             hir::ExprKind::Lambda(lambda) => {
                 hir::ExprKind::Lambda(self.instantiate_default_lambda(*lambda, context))
             }

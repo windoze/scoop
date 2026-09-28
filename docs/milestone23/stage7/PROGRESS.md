@@ -515,10 +515,20 @@
 
 本项完成 initializer 局部函数、默认参数及外来初始化依赖的真实产物闭环；closure 与其他生成实体继续推进，M23-7 尚未完成。
 
+## 2026-09-29：委托 initializer 的闭包与捕获组合
+
+- 导入 lambda 与匿名函数保留原 generated body、定义路径和有序 binder 替换，正文捕获槽关联定义处 binding，创建表达式保存本次实际捕获来源。函数值调用复用完整函数类型和位置参数；具体化生成既有 concrete 闭包实体，MIR/LIR 沿普通环境、invoke 和 GC 路径处理。未增加产物格式、runtime ABI 或外来源码副本。
+- 捕获源保留首次引用的定义位置，并使用闭包创建处的真实求值上下文，修复再次发布时 initializer 执行来源与声明文件上下文混用的问题。局部函数前置捕获参数在已有局部值索引中关联原值，闭包及内层局部函数继续复用同一身份，解析不依赖函数遍历顺序。MIR 去除要求环境和捕获值 context 完全相等的旧限制，继续检查实际字段、invoke、ODR group 与 canonical identity；词法引用由 HIR 完成解析。实现规范和设计同步。
+- 新增六组真实产物用例、八份源码与十八份 HIR/MIR/LIR golden，覆盖无捕获 lambda、引用捕获、匿名函数、嵌套闭包、局部泛型递归与默认参数、ZST 和 24 字节含三个引用的值，以及局部函数返回闭包后再调用内层捕获函数。provider 与 consumer 发布后移走源码，下游仅凭产物以自身引用类型再次实例化、链接和执行；六组在普通模式与移动 GC 下均返回 42，并核对初始化一次及实际外来初始化依赖。大值内联进入闭包环境，三个引用位置保留在 GC 扫描表中。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 及最新配套 `scoopc` 构建均通过，无警告。关闭快照更新后运行 `cargo test --workspace --no-fail-fast`，5184 项通过、0 失败、0 忽略，其中 driver 全部 139 项通过，耗时 362.72 秒。新增捕获身份断言、MIR 外层值身份保留用例及六组真实产物用例均通过；十八份新 golden 中的捕获顺序、invoke、环境布局与 GC roots 已检查，既有快照无需更新。完整日志为 `/tmp/scoop-m23-7-delegate-closures-workspace.log`。
+- 上一批局部函数功能提交后，确认本仓库构建、测试进程已结束、`target` 无打开文件，并通过 Cargo metadata 核对实际目录和缓存标记，执行 `cargo clean --target-dir target`，删除 1607 个构建文件，回收 3.1 GiB。本批使用重新构建的配套编译器完成验证；全仓通过后再次确认无占用，核对实际目录及内容并恢复缺失的标准缓存标记，再用 Cargo 删除 2508 个构建文件，回收 4.5 GiB。
+
+本项完成 initializer 的 lambda、匿名函数及上述捕获组合。callable reference、默认值和其他主线继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数与默认参数验证基础上，完成 initializer 中的 closure 及其捕获组合；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
+1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与捕获组合基础上，继续覆盖 initializer 中的 callable reference；其余物理角色继续复用实际成员摘要与共有合并入口。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及泛型正文和默认参数中的 lambda、匿名函数和 callable reference 捕获组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

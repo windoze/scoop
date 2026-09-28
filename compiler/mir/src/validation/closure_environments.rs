@@ -85,12 +85,6 @@ pub(super) fn validate_closure_environment_metadata(
             );
         }
         for field in identity.fields() {
-            if field.value_record().key().owner().context() != identity.callable().context() {
-                return invalid(
-                    location,
-                    "a captured value has a different materialization context",
-                );
-            }
             let expected = match field.source() {
                 ClosureFieldSource::Capture { .. } => FieldIdentityKey::closure_capture(
                     identity.generated_type_record().key(),

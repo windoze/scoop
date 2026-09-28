@@ -1,6 +1,25 @@
 use super::*;
 
 impl Lowerer {
+    fn imported_body_generic_call(
+        &self,
+        application: hir::ImportedGenericCallableApplicationId,
+        span: scoop_ast::Span,
+    ) -> GenericCall {
+        let application = &self.imported_generic_applications[application];
+        let template = &self.imported_generic_templates[application.template];
+        GenericCall {
+            callee: GenericCallable::Imported(application.template),
+            arguments: template
+                .type_parameters
+                .ids()
+                .into_iter()
+                .zip(application.arguments.substitution(&self.types))
+                .collect(),
+            span,
+        }
+    }
+
     pub(in crate::effects) fn collect_generic_calls_in_expr(
         &self,
         expr: &hir::Expr,
@@ -254,20 +273,15 @@ impl Lowerer {
             ExprKind::ImportedGenericCall {
                 application, args, ..
             } => {
-                let application = &self.imported_generic_applications[*application];
-                let template = &self.imported_generic_templates[application.template];
-                out.push(GenericCall {
-                    callee: GenericCallable::Imported(application.template),
-                    arguments: template
-                        .type_parameters
-                        .ids()
-                        .into_iter()
-                        .zip(application.arguments.substitution(&self.types))
-                        .collect(),
-                    span: expr.span,
-                });
+                out.push(self.imported_body_generic_call(*application, expr.span));
                 for argument in args {
                     self.collect_generic_calls_in_expr(argument, out);
+                }
+            }
+            ExprKind::ImportedClosure(closure) => {
+                out.push(self.imported_body_generic_call(closure.application, expr.span));
+                for capture in &closure.captures {
+                    self.collect_generic_calls_in_expr(&capture.source, out);
                 }
             }
             ExprKind::ImportedDependencyCall { args, .. } => {

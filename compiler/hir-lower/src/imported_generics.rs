@@ -3,6 +3,7 @@
 //! the completed Export HIR owns ordinary, structurally complete bodies.
 
 mod abstract_members;
+mod closures;
 mod delegates;
 mod local;
 mod methods;
@@ -24,6 +25,10 @@ pub(crate) struct ImportedGenericTemplates {
     templates: Vec<Option<PreparedImportedGeneric>>,
     by_declaration: BTreeMap<CallableTemplateOrigin, hir::ImportedGenericCallableTemplateId>,
     local_functions: BTreeMap<CallableTemplateOrigin, ImportedLocalFunctionSource>,
+    closures: BTreeMap<
+        scoop_identity::PersistentGeneratedCallableId,
+        hir::ImportedGenericCallableTemplateId,
+    >,
     delegates: BTreeMap<
         scoop_identity::PersistentExtensionPropertyId,
         hir::ImportedGenericDelegateTemplateId,

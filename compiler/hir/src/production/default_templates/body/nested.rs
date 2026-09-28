@@ -9,6 +9,50 @@ use crate::{
 use super::BodyProjection;
 
 impl BodyProjection<'_, '_> {
+    pub(super) fn imported_closure(
+        &mut self,
+        closure: &crate::ImportedClosure,
+    ) -> Result<crate::DefaultExpressionKindV1, super::super::DefaultBodyProjectionError> {
+        let export = self.entities.export();
+        let application = &export.imported_generic_applications[closure.application];
+        let template = &export.imported_generic_templates[application.template];
+        let crate::ImportedCallableTemplateOrigin::Closure { body, .. } = template.declaration
+        else {
+            unreachable!("an imported closure references its generated body")
+        };
+        let arguments = application.arguments.substitution(&export.types);
+        let count = owner_parameter_count(arguments.len())?;
+        let arguments = arguments
+            .into_iter()
+            .map(|ty| self.type_key(ty))
+            .collect::<Result<_, _>>()?;
+        let arguments = DefaultCallableBodyTypeArgumentsV1::try_explicit(arguments)
+            .map_err(super::super::DefaultBodyProjectionError::BodyTypeArguments)?;
+        let function_type = self.function_type(closure.function_type)?;
+        let captures = self.captures(&closure.captures)?;
+        match closure.kind {
+            crate::ImportedClosureKind::Lambda => DefaultLambdaV1::try_new(
+                body,
+                closure.definition_path.clone(),
+                function_type,
+                arguments,
+                captures,
+                count,
+            )
+            .map(crate::DefaultExpressionKindV1::Lambda),
+            crate::ImportedClosureKind::AnonymousFunction => DefaultAnonymousFunctionV1::try_new(
+                body,
+                closure.definition_path.clone(),
+                function_type,
+                arguments,
+                captures,
+                count,
+            )
+            .map(crate::DefaultExpressionKindV1::AnonymousFunction),
+        }
+        .map_err(super::super::DefaultBodyProjectionError::LexicalCallable)
+    }
+
     pub(super) fn lambda(
         &mut self,
         id: crate::LambdaId,

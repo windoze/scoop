@@ -138,6 +138,7 @@ impl Lowerer {
             callables: &BTreeMap::new(),
             bindings: &template.bindings,
             locals: BTreeMap::new(),
+            captures: &[],
             loop_targets: Vec::new(),
             evaluation: ImportedTemplateEvaluation::Definition(
                 hir::ImportedCallableTemplateParent::Constructor(id),

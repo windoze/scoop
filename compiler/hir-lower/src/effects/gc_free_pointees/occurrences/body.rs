@@ -470,6 +470,23 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }
+        ExprKind::ImportedClosure(closure) => {
+            push_types_at_expression(
+                expression,
+                |types| {
+                    types.extend(
+                        lowerer.imported_generic_applications[closure.application]
+                            .arguments
+                            .substitution(&lowerer.types),
+                    );
+                    types.extend(closure.captures.iter().map(|capture| capture.ty));
+                },
+                out,
+            );
+            for capture in &closure.captures {
+                collect_expr_type_occurrences(lowerer, &capture.source, out);
+            }
+        }
         ExprKind::AnonymousFunction(function) => {
             for capture in &lowerer.anonymous_functions[*function].captures {
                 collect_expr_type_occurrences(lowerer, &capture.source, out);

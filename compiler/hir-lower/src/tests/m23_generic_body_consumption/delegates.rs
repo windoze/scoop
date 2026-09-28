@@ -139,3 +139,95 @@ fn imported_initializer_locals_keep_the_initialization_application_owner() {
         .unwrap_or_else(|error| panic!("{case}: {error:?}"));
     }
 }
+
+#[test]
+fn imported_initializer_closures_keep_the_initialization_materialization() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/m23-generic-delegate-closures");
+    let source = |name: &str| std::fs::read_to_string(root.join(format!("{name}.scoop"))).unwrap();
+    for (case, expected, anonymous_count) in [
+        ("initializer-closure", 2, 0),
+        ("initializer-combined", 3, 0),
+        ("initializer-plain", 1, 0),
+        ("initializer-anonymous", 1, 1),
+        ("initializer-values", 2, 0),
+        ("initializer-local-closure", 2, 0),
+    ] {
+        with_provider_consumer(&source("provider"), &source(case), |output, _, foundation, _, _| {
+            let local = output.output().local.module();
+            assert_eq!(local.initialization_units.len(), 1);
+            let unit = local
+                .initialization_units
+                .iter()
+                .next()
+                .unwrap()
+                .1
+                .identity
+                .id();
+            assert_eq!(local.lambdas.len(), expected);
+            assert_eq!(local.anonymous_functions.len(), anonymous_count);
+            if case == "initializer-local-closure" {
+                let captures = local.lambdas.iter()
+                    .filter(|(_, closure)| !closure.captures.is_empty())
+                    .collect::<Vec<_>>();
+                assert_eq!(captures.len(), 1);
+                let (closure, declaration) = captures[0];
+                assert_eq!(declaration.captures.len(), 1);
+                let captured = local.local_value_identities.lambda_capture(closure, 0);
+                let functions = local.functions.iter()
+                    .filter(|(_, function)| matches!(function.name.as_str(), "build" | "read"))
+                    .collect::<Vec<_>>();
+                assert_eq!(functions.len(), 2);
+                for (id, function) in functions {
+                    assert_eq!(function.capture_parameters.len(), 1);
+                    assert_eq!(local.local_value_identities.function_local(
+                        id, function.capture_parameters[0].local,
+                    ).id(), captured.id());
+                }
+            }
+            let functions = local.lambdas.iter().map(|(_, closure)| closure.function)
+                .chain(local.anonymous_functions.iter().map(|(_, closure)| closure.function));
+            for function in functions {
+                let function = &local.functions[function];
+                assert!(matches!(
+                    function.materialization.template(),
+                    scoop_identity::CallableTemplateOwner::Generated(_)
+                ));
+                match function.materialization.context() {
+                    scoop_identity::CallableMaterializationContext::InitializationApplication(actual) => assert_eq!(actual, unit),
+                    scoop_identity::CallableMaterializationContext::Application(id) => {
+                        assert_eq!(local.callable_applications.get(id).unwrap().key().instantiation_owner(),
+                            scoop_identity::CallableInstantiationOwner::EnclosingInitializationApplication(unit));
+                    }
+                    scoop_identity::CallableMaterializationContext::NoSubstitution => panic!("initializer closures retain their enclosing application"),
+                }
+            }
+            let export = output.output().export.module();
+            local.visit_executable_expressions(|occurrence| {
+                let position = occurrence.position;
+                if position.root.context()
+                    != scoop_identity::CallableMaterializationContext::InitializationApplication(unit)
+                {
+                    return Ok::<_, ()>(());
+                }
+                let evaluation = occurrence.expression.origin.evaluation;
+                let source = &export.source_files[evaluation.file as usize];
+                let context = export.source_context_identities.get(evaluation.context).unwrap();
+                let span = scoop_identity::SourceSpan::new(
+                    evaluation.span.start.into(), evaluation.span.end.into(),
+                ).unwrap();
+                let origin = scoop_identity::EvaluationOrigin::new(
+                    source.identity.clone(), span, context.key(),
+                ).unwrap();
+                foundation.validate_executable_evaluation_origin(
+                    source.identity.cone(), position.root, &origin,
+                ).unwrap_or_else(|error| panic!(
+                    "{case} {position:?} {:?} {:?}: {error:?}",
+                    occurrence.expression.kind, context.key(),
+                ));
+                Ok(())
+            }).unwrap();
+        })
+        .unwrap_or_else(|error| panic!("{case}: {error:?}"));
+    }
+}

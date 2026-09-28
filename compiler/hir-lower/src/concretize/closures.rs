@@ -32,6 +32,45 @@ pub(super) fn finish_callable_references(
 }
 
 impl Concretizer<'_> {
+    pub(super) fn lower_imported_closure(
+        &mut self,
+        source: &export::ImportedClosure,
+        span: scoop_ast::Span,
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::ExprKind {
+        let application = self.source.imported_generic_applications[source.application].clone();
+        let function = self.lower_imported_callable_application(&application, substitution);
+        let function_type = self.lower_function_type(source.function_type, substitution);
+        let captures = source
+            .captures
+            .iter()
+            .map(|capture| self.lower_capture(capture, substitution, locals))
+            .collect();
+        match source.kind {
+            export::ImportedClosureKind::Lambda => {
+                concrete::ExprKind::Lambda(self.lambdas.alloc(concrete::Lambda {
+                    definition_path: source.definition_path.clone(),
+                    function,
+                    function_type,
+                    captures,
+                    span,
+                }))
+            }
+            export::ImportedClosureKind::AnonymousFunction => {
+                concrete::ExprKind::AnonymousFunction(self.anonymous_functions.alloc(
+                    concrete::AnonymousFunction {
+                        definition_path: source.definition_path.clone(),
+                        function,
+                        function_type,
+                        captures,
+                        span,
+                    },
+                ))
+            }
+        }
+    }
+
     pub(super) fn ensure_lambda(
         &mut self,
         source_id: export::LambdaId,

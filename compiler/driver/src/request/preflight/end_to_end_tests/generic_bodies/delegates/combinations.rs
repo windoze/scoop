@@ -165,7 +165,15 @@ fn check_fixture_cases(fixture: &str, cases: &[&str]) {
         }
         assert!(!units.is_empty(), "{case} has concrete delegate units");
         for unit in units {
-            if case == "initializer-local" {
+            if matches!(
+                case,
+                "initializer-local"
+                    | "initializer-closure"
+                    | "initializer-combined"
+                    | "initializer-anonymous"
+                    | "initializer-values"
+                    | "initializer-local-closure"
+            ) {
                 let dependencies = unit.semantic().dependencies();
                 assert_eq!(dependencies.len(), 1, "Trace is one external unit");
                 assert!(matches!(dependencies[0].kind(),
@@ -226,5 +234,20 @@ fn generic_delegate_initializer_local_functions_republish_and_execute() {
     check_fixture_cases(
         "m23-generic-delegate-generated",
         &["initializer-basic", "initializer-local"],
+    );
+}
+
+#[test]
+fn generic_delegate_initializer_closures_republish_and_execute() {
+    check_fixture_cases(
+        "m23-generic-delegate-closures",
+        &[
+            "initializer-closure",
+            "initializer-combined",
+            "initializer-plain",
+            "initializer-anonymous",
+            "initializer-values",
+            "initializer-local-closure",
+        ],
     );
 }

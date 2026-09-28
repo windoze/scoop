@@ -513,6 +513,18 @@ pub(in super::super) fn collect_expr_types(
                 out.extend(arguments.iter().copied());
             }
         }
+        ExprKind::ImportedClosure(closure) => {
+            collect_function_type_types(lowerer, closure.function_type, out);
+            out.extend(
+                lowerer.imported_generic_applications[closure.application]
+                    .arguments
+                    .substitution(&lowerer.types),
+            );
+            for capture in &closure.captures {
+                out.push(capture.ty);
+                collect_expr_types(lowerer, &capture.source, out);
+            }
+        }
         ExprKind::AnonymousFunction(function) => {
             let function = &lowerer.anonymous_functions[*function];
             collect_function_type_types(lowerer, function.function_type, out);

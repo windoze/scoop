@@ -294,6 +294,7 @@ pub enum ExprKind {
     Capture(BindingId),
     Lambda(LambdaId),
     AnonymousFunction(AnonymousFunctionId),
+    ImportedClosure(Box<crate::ImportedClosure>),
     CallableReference(CallableReferenceId),
     /// A variance-preserving function-value adaptation. `Expr::ty` is the
     /// target type; the typed entity also records both concrete HIR

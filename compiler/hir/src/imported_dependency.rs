@@ -6,6 +6,8 @@ mod applications;
 pub use applications::*;
 mod delegates;
 pub use delegates::*;
+mod closures;
+pub use closures::*;
 
 /// A dependency body normalized into the consumer's type and value domains.
 /// Its declaration remains owned by the provider, outside `Module::functions`.
@@ -77,6 +79,11 @@ pub enum ImportedCallableTemplateOrigin {
         parent: ImportedCallableTemplateParent,
         descriptor: crate::DefaultLocalFunctionV1,
     },
+    Closure {
+        parent: ImportedCallableTemplateParent,
+        body: scoop_identity::PersistentGeneratedCallableId,
+        capture_bindings: Vec<crate::BindingId>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -110,8 +117,8 @@ impl ImportedCallableTemplateOrigin {
         match self {
             Self::Generic(id) => scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
             Self::ExtensionAccessor(id) => scoop_identity::CallableTemplateOrigin::Accessor(*id),
-            Self::Initialization { .. } => {
-                panic!("initialization helpers have generated identities")
+            Self::Initialization { .. } | Self::Closure { .. } => {
+                panic!("initialization helpers and closures have generated identities")
             }
             Self::Nominal { declaration, .. } => match declaration {
                 crate::DefaultCallableDeclarationV1::Function(id) => {
@@ -132,7 +139,7 @@ impl ImportedCallableTemplateOrigin {
     }
 
     pub fn body_owner(&self) -> crate::DefaultCallableDeclarationV1 {
-        if let Self::Initialization { owner, .. } = self {
+        if let Self::Initialization { owner, .. } | Self::Closure { body: owner, .. } = self {
             return crate::DefaultCallableDeclarationV1::Generated(*owner);
         }
         match self.declaration() {

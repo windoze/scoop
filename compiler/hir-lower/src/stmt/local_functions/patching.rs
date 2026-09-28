@@ -155,6 +155,11 @@ fn patch_local_function_call_expr(
     let span = expr.span;
     let origin = expr.origin;
     match &mut expr.kind {
+        hir::ExprKind::ImportedClosure(closure) => {
+            for capture in &mut closure.captures {
+                patch_local_function_call_expr(&mut capture.source, target, target_captures);
+            }
+        }
         hir::ExprKind::LocalFunctionCall {
             local_function,
             captures,

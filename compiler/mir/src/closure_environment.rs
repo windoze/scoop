@@ -137,13 +137,6 @@ impl ClosureEnvironmentIdentity {
             return Err(ClosureEnvironmentIdentityError::NonContiguousCaptures);
         }
 
-        if inputs
-            .iter()
-            .any(|(_, value)| value.key().owner().context() != callable.context())
-        {
-            return Err(ClosureEnvironmentIdentityError::MaterializationContextMismatch);
-        }
-
         let generated_type =
             CborIdentityRecord::from_key(GeneratedNominalKey::ClosureEnvironment {
                 callable,
@@ -268,7 +261,6 @@ pub enum ClosureEnvironmentIdentityError {
     DuplicateValue,
     NonContiguousCaptures,
     ReceiverRoleMismatch,
-    MaterializationContextMismatch,
     GeneratedType(GeneratedNominalIdentityError),
     Field(FieldIdentityError),
     OdrMember(OdrMemberIdentityError),
@@ -293,9 +285,6 @@ impl fmt::Display for ClosureEnvironmentIdentityError {
             ),
             Self::ReceiverRoleMismatch => formatter
                 .write_str("only a callable-reference closure may have a bound receiver field"),
-            Self::MaterializationContextMismatch => formatter.write_str(
-                "closure field value and environment must share a materialization context",
-            ),
             Self::GeneratedType(error) => error.fmt(formatter),
             Self::Field(error) => error.fmt(formatter),
             Self::OdrMember(error) => error.fmt(formatter),
@@ -470,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    fn closure_fields_reject_a_different_materialization_context() {
+    fn closure_fields_retain_values_from_an_outer_materialization() {
         let owner = source_function("applicationOwner");
         let application_key =
             CallableApplicationKey::for_function(owner, CallableInstantiationOwner::NoOwner);
@@ -479,21 +468,24 @@ mod tests {
             application: application_key,
         })
         .unwrap();
+        let captured = value(CallableMaterializationContext::NoSubstitution, 0);
         let identity = ClosureEnvironmentIdentity::for_lambda(
             lambda_materialization(CallableMaterializationContext::Application(application)),
             vec![(
                 ClosureFieldSource::Capture {
                     declaration_index: 0,
                 },
-                value(CallableMaterializationContext::NoSubstitution, 0),
+                captured.clone(),
             )],
             Some(group),
-        );
+        )
+        .unwrap();
 
-        assert!(matches!(
-            identity,
-            Err(ClosureEnvironmentIdentityError::MaterializationContextMismatch)
-        ));
+        assert_eq!(identity.fields()[0].value_record(), &captured);
+        assert_ne!(
+            captured.key().owner().context(),
+            identity.callable().context()
+        );
     }
 
     #[test]

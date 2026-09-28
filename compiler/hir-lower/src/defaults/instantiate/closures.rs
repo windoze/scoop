@@ -1,6 +1,34 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn instantiate_default_imported_closure(
+        &mut self,
+        source: &hir::ImportedClosure,
+        context: &mut InstantiationContext,
+    ) -> hir::ImportedClosure {
+        let application = self.imported_generic_applications[source.application].clone();
+        let arguments = application
+            .arguments
+            .map(|ty| self.instantiate_method_ty(ty, &context.bindings));
+        let application =
+            self.imported_generic_applications
+                .alloc(hir::ImportedGenericCallableApplication {
+                    template: application.template,
+                    arguments,
+                });
+        hir::ImportedClosure {
+            kind: source.kind,
+            application,
+            definition_path: source.definition_path.clone(),
+            function_type: self.instantiate_default_function_type(source.function_type, context),
+            captures: source
+                .captures
+                .iter()
+                .map(|capture| self.instantiate_default_capture(capture, context))
+                .collect(),
+        }
+    }
+
     pub(super) fn instantiate_default_local_function(
         &mut self,
         source: hir::LocalFunctionId,

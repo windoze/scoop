@@ -260,12 +260,17 @@ struct CaptureAlias {
     binding: BindingId,
 }
 
+enum LocalValueBinding {
+    Definition(PersistentLocalValueId),
+    Capture(BindingId),
+}
+
 struct LocalValueIdentityBuilder<'a> {
     inputs: LocalValueIdentityInputs<'a>,
     records: BTreeMap<PersistentLocalValueId, (LocalValueIdentityRecord, LocalValueLocation)>,
     definition_origins: BTreeMap<PersistentLocalValueId, DefinitionOriginRecord>,
     locations_by_key: BTreeMap<LocalValueKey, LocalValueLocation>,
-    values_by_binding: HashMap<BindingKey, Vec<PersistentLocalValueId>>,
+    values_by_binding: HashMap<BindingKey, Vec<LocalValueBinding>>,
     capture_aliases: HashMap<(FunctionId, LocalId), CaptureAlias>,
 }
 
@@ -644,25 +649,30 @@ impl<'a> LocalValueIdentityBuilder<'a> {
         self.values_by_binding
             .entry(BindingKey { context, binding })
             .or_default()
-            .push(identity);
+            .push(LocalValueBinding::Definition(identity));
     }
 
     fn find_captured_value(
         &self,
         mut context: CallableMaterializationContext,
-        binding: BindingId,
+        mut binding: BindingId,
     ) -> Option<PersistentLocalValueId> {
         let mut visited = HashSet::new();
         loop {
-            if let Some(identities) = self.values_by_binding.get(&BindingKey { context, binding }) {
+            let key = BindingKey { context, binding };
+            if !visited.insert(key) {
+                return None;
+            }
+            if let Some(identities) = self.values_by_binding.get(&key) {
                 match identities.as_slice() {
-                    [identity] => return Some(*identity),
+                    [LocalValueBinding::Definition(identity)] => return Some(*identity),
+                    [LocalValueBinding::Capture(source)] => {
+                        binding = *source;
+                        continue;
+                    }
                     [] => unreachable!("a binding index entry is non-empty"),
                     _ => return None,
                 }
-            }
-            if !visited.insert(context) {
-                return None;
             }
             let CallableMaterializationContext::Application(application) = context else {
                 return None;

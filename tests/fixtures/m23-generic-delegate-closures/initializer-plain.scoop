@@ -1,0 +1,13 @@
+package consumer.delegates
+
+import templates.delegateGenerated.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver = Receiver<T>(value)
+    val answer = receiver.initializerPlain
+    val allocated = Payload(0)
+    if (answer != 42 || allocated.value != 0) { return 1 }
+    return Receiver<T>(value).initializerPlain
+}
+
+public fun result(): Int = exercise<Int>(1)

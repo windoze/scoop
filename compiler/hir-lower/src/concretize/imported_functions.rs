@@ -71,6 +71,7 @@ impl Concretizer<'_> {
             .collect();
         let capture_parameters = match &template.declaration {
             export::ImportedCallableTemplateOrigin::Generic(_)
+            | export::ImportedCallableTemplateOrigin::Closure { .. }
             | export::ImportedCallableTemplateOrigin::Initialization { .. }
             | export::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
             | export::ImportedCallableTemplateOrigin::Nominal { .. } => Vec::new(),
@@ -162,6 +163,7 @@ impl Concretizer<'_> {
                     .expect("provider captures retain their actual outer value selector");
                 let index = match &template.declaration {
                     export::ImportedCallableTemplateOrigin::Generic(_)
+                    | export::ImportedCallableTemplateOrigin::Closure { .. }
                     | export::ImportedCallableTemplateOrigin::Initialization { .. }
                     | export::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
                     | export::ImportedCallableTemplateOrigin::Nominal { .. } => None,
@@ -177,12 +179,14 @@ impl Concretizer<'_> {
             }
             export::DefaultCaptureSourceV1::EnclosingCapture(index) => *index as usize,
         };
-        let export::ImportedCallableTemplateOrigin::Local { parent, descriptor } =
-            &template.declaration
-        else {
-            panic!("an enclosing capture belongs to a lexical implementation")
-        };
-        self.imported_capture_binding(*parent, descriptor.captures()[capture_index].source())
+        match &template.declaration {
+            export::ImportedCallableTemplateOrigin::Local { parent, descriptor } => self
+                .imported_capture_binding(*parent, descriptor.captures()[capture_index].source()),
+            export::ImportedCallableTemplateOrigin::Closure {
+                capture_bindings, ..
+            } => concrete::BindingId::from_raw(capture_bindings[capture_index].into_raw()),
+            _ => panic!("an enclosing capture belongs to a lexical implementation"),
+        }
     }
     fn imported_constructor_capture_binding(
         &self,

@@ -48,6 +48,7 @@ impl BodyProjection<'_, '_> {
         }
         match &template.declaration {
             crate::ImportedCallableTemplateOrigin::Generic(_)
+            | crate::ImportedCallableTemplateOrigin::Closure { .. }
             | crate::ImportedCallableTemplateOrigin::Initialization { .. }
             | crate::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
             | crate::ImportedCallableTemplateOrigin::Nominal { .. } => {

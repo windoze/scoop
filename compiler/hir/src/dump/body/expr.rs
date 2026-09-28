@@ -165,6 +165,27 @@ pub(super) fn dump_expr(
                 binding.into_raw()
             ));
         }
+        ExprKind::ImportedClosure(closure) => {
+            let application = &module.imported_generic_applications[closure.application];
+            let arguments = application
+                .arguments
+                .substitution(&module.types)
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let kind = match closure.kind {
+                crate::ImportedClosureKind::Lambda => "ImportedLambda",
+                crate::ImportedClosureKind::AnonymousFunction => "ImportedAnonymousFunction",
+            };
+            out.push_str(&format!(
+                "{pad}{kind}<{arguments}> captures={} : {ty}\n",
+                closure.captures.len()
+            ));
+            for capture in &closure.captures {
+                dump_expr(module, locals, &capture.source, indent + 1, out);
+            }
+        }
         ExprKind::Lambda(id) => {
             let lambda = &module.lambdas[*id];
             out.push_str(&format!(

@@ -70,18 +70,7 @@ impl CallableIdentityBuilder<'_> {
             }
             export::ImportedCallableTemplateOrigin::Local { parent, descriptor } => {
                 let inherited = descriptor.owner_type_parameter_count() as usize;
-                let parent = match parent {
-                    export::ImportedCallableTemplateParent::Function(parent) => {
-                        let index = self.concretizer.function_keys.iter().position(|key| {
-                            matches!(key.source(), FunctionSource::Imported(source) if source == parent)
-                                && self.concretizer.function_key_arguments(key) == arguments[..inherited]
-                        }).expect("a lexical application retains its instantiated parent");
-                        self.resolve_function(index)
-                    }
-                    export::ImportedCallableTemplateParent::Constructor(parent) => {
-                        self.imported_constructor_materialization(parent, &arguments[..inherited])
-                    }
-                };
+                let parent = self.imported_parent_materialization(parent, &arguments[..inherited]);
                 let owner = match parent.context() {
                     CallableMaterializationContext::NoSubstitution => {
                         CallableInstantiationOwner::NoOwner
@@ -103,6 +92,37 @@ impl CallableIdentityBuilder<'_> {
                     _ => unreachable!("local descriptors contain source function declarations"),
                 };
                 self.source_materialization(template, owner, &arguments[inherited..])
+            }
+            export::ImportedCallableTemplateOrigin::Closure { parent, body, .. } => {
+                let parent = self.imported_parent_materialization(parent, arguments);
+                CallableMaterialization::new(
+                    CallableTemplateOwner::Generated(body),
+                    parent.context(),
+                )
+            }
+        }
+    }
+
+    fn imported_parent_materialization(
+        &mut self,
+        parent: export::ImportedCallableTemplateParent,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
+        match parent {
+            export::ImportedCallableTemplateParent::Function(parent) => {
+                let index = self
+                    .concretizer
+                    .function_keys
+                    .iter()
+                    .position(|key| {
+                        matches!(key.source(), FunctionSource::Imported(source) if source == parent)
+                            && self.concretizer.function_key_arguments(key) == arguments
+                    })
+                    .expect("a lexical application retains its instantiated parent");
+                self.resolve_function(index)
+            }
+            export::ImportedCallableTemplateParent::Constructor(parent) => {
+                self.imported_constructor_materialization(parent, arguments)
             }
         }
     }

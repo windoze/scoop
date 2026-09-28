@@ -11,6 +11,7 @@ use crate::expr::MemberCallKind;
 use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
 mod callable;
+mod closures;
 mod constructors;
 mod delegates;
 mod statements;
@@ -21,6 +22,7 @@ struct ImportedDefaultContext<'a> {
         &'a BTreeMap<scoop_identity::CallableTemplateOrigin, hir::ImportedCallableDeclaration>,
     bindings: &'a crate::imported_core::ImportedTypeBindings,
     locals: BTreeMap<LocalValueSelector, hir::Expr>,
+    captures: &'a [hir::BindingId],
     loop_targets: Vec<hir::LoopId>,
     evaluation: ImportedTemplateEvaluation,
 }
@@ -119,6 +121,7 @@ impl Lowerer {
             callables: &prepared.callables,
             bindings: &prepared.bindings,
             locals,
+            captures: &[],
             loop_targets: Vec::new(),
             evaluation: ImportedTemplateEvaluation::DefaultUse(
                 self.definition_origin(call_span).into(),
@@ -173,9 +176,34 @@ impl Lowerer {
                 )
             }
             Kind::Capture(index) => {
-                return Err(ImportedDefaultMaterializationError::Plan(format!(
-                    "dependency default root has no closure input {index}"
-                )));
+                let binding = context
+                    .captures
+                    .get(*index as usize)
+                    .copied()
+                    .ok_or_else(|| {
+                        ImportedDefaultMaterializationError::Plan(format!(
+                            "dependency body has no closure input {index}"
+                        ))
+                    })?;
+                hir::ExprKind::Capture(binding)
+            }
+            kind @ (Kind::Lambda(_) | Kind::AnonymousFunction(_)) => {
+                self.materialize_imported_closure(kind, ty, origin, context)?
+            }
+            Kind::CallableCall {
+                callee,
+                function_type,
+                arguments,
+            } => {
+                let function_type =
+                    self.materialize_imported_function_type(function_type, context)?;
+                hir::ExprKind::CallableCall {
+                    callee: Box::new(
+                        self.materialize_imported_default_expression(callee, context)?,
+                    ),
+                    function_type,
+                    args: self.materialize_imported_default_expressions(arguments, context)?,
+                }
             }
             Kind::PtrFromNonZeroULong(operand) => hir::ExprKind::PtrFromNonZeroULong(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
@@ -443,8 +471,6 @@ impl Lowerer {
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
-            | Kind::Lambda(_)
-            | Kind::AnonymousFunction(_)
             | Kind::CallableReference(_)
             | Kind::FunctionCoercion { .. }
             | Kind::PtrCast(_)
@@ -465,7 +491,6 @@ impl Lowerer {
             | Kind::ArraySet { .. }
             | Kind::ArrayLen(_)
             | Kind::ArrayClone(_)
-            | Kind::CallableCall { .. }
             | Kind::SomeWrap(_)
             | Kind::NoneLiteral
             | Kind::IsSome(_)

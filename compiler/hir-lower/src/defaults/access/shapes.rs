@@ -237,7 +237,7 @@ impl ReferenceCollector<'_> {
         }
     }
 
-    fn function_type_reference(
+    pub(super) fn function_type_reference(
         &mut self,
         function_type: hir::FunctionTypeId,
         origin: hir::DefinitionOrigin,

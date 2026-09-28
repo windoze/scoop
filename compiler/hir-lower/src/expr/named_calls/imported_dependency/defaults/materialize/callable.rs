@@ -26,6 +26,12 @@ impl Lowerer {
                     )
                 })
                 .collect(),
+            captures: match &template.declaration {
+                hir::ImportedCallableTemplateOrigin::Closure {
+                    capture_bindings, ..
+                } => capture_bindings,
+                _ => &[],
+            },
             loop_targets: Vec::new(),
             evaluation: ImportedTemplateEvaluation::Definition(
                 hir::ImportedCallableTemplateParent::Function(id),

@@ -50,6 +50,16 @@ impl Lowerer {
             .as_str()
             .to_owned();
         let source = PreparedImportedCallableSource::Body(body);
+        let prepared = self.prepare_imported_lexical_callable(origin, name, source)?;
+        Ok(Some(self.insert_imported_template(declaration, prepared)))
+    }
+
+    pub(super) fn prepare_imported_lexical_callable(
+        &mut self,
+        origin: hir::ImportedCallableTemplateOrigin,
+        name: String,
+        source: PreparedImportedCallableSource,
+    ) -> Result<PreparedImportedGeneric, String> {
         let body = source.body();
         let definition = self.import_generic_definition(&source, body.definition_origin())?;
         let mut bindings = ImportedTypeBindings::new();
@@ -61,17 +71,22 @@ impl Lowerer {
             parameters.push(id);
         }
         let (mut locals, selectors) = self.imported_body_locals(&source, &bindings)?;
-        let hir::ImportedCallableTemplateOrigin::Local { descriptor, .. } = &origin else {
-            unreachable!("the local descriptor was retained above")
+        let capture_count = match &origin {
+            hir::ImportedCallableTemplateOrigin::Local { descriptor, .. } => {
+                let count = descriptor.capture_count() as usize;
+                if count > body.parameters().len()
+                    || descriptor.owner_type_parameter_count() as usize > parameters.len()
+                {
+                    return Err(
+                        "dependency local function descriptor does not match its body parameters"
+                            .into(),
+                    );
+                }
+                count
+            }
+            hir::ImportedCallableTemplateOrigin::Closure { .. } => 0,
+            _ => unreachable!("lexical preparation receives a local function or closure"),
         };
-        let capture_count = descriptor.capture_count() as usize;
-        if capture_count > body.parameters().len()
-            || descriptor.owner_type_parameter_count() as usize > parameters.len()
-        {
-            return Err(
-                "dependency local function descriptor does not match its body parameters".into(),
-            );
-        }
         let value_parameters = body
             .parameters()
             .iter()
@@ -107,13 +122,12 @@ impl Lowerer {
             origin: definition,
             span: definition.span,
         };
-        let prepared = PreparedImportedGeneric {
+        Ok(PreparedImportedGeneric {
             signature,
             source,
             bindings,
             locals,
             statements: None,
-        };
-        Ok(Some(self.insert_imported_template(declaration, prepared)))
+        })
     }
 }

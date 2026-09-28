@@ -38,6 +38,18 @@ impl LocalValueIdentityBuilder<'_> {
                         local: raw_arena_index(capture.local),
                     });
                 }
+                let binding = body.locals[capture.local].binding;
+                if binding != capture.binding {
+                    // Imported capture parameters have their own bindings but
+                    // remain aliases when nested callables capture them again.
+                    self.values_by_binding
+                        .entry(BindingKey {
+                            context: function.materialization.context(),
+                            binding,
+                        })
+                        .or_default()
+                        .push(LocalValueBinding::Capture(capture.binding));
+                }
             }
         }
         Ok(())
