@@ -21,6 +21,7 @@ mod signatures;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalExactLeafClassifierV1 {
     leaves: Vec<(PersistentTypeId, PersistentExactTypeId)>,
+    generic_sources: Vec<scoop_identity::PersistentGenericTypeId>,
 }
 
 impl NominalExactLeafClassifierV1 {

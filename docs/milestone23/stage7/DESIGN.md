@@ -412,6 +412,8 @@ production 的 canonical shape 表同时覆盖实际 ODR storage、initializatio
 
 ensure 复用 M21 的 RunInitializer/Ready/Failed/Cycle 路径。winner 在线程的 managed roots 中完成 `by` 与 `provideDelegate`，成功后写入已登记 storage 并发布 Initialized；失败写入相同 specialization 的 failure root 并发布 Failed，后续访问重新抛出同一失败且不重试。并发等待、同线程重入、跨线程 cycle 与异常传播使用现有 coordinator。
 
+同一失败指 failure root 中缓存的 managed 对象；普通 throw/catch 仍按 runtime 规范 5.2～5.4 复制异常 payload 并物化每次 catch 的绑定。不同访问的 catch 对象不要求 `===`。运行验收通过初始化次数、异常中引用字段的共享身份与内容，以及实际 failure storage 的合并确认失败共享，不能以改变异常复制语义满足测试。
+
 delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中间值遵守 moving-GC 规则；不 pin、不放入 GC-free cell，也不在 ensure 前缓存待移动的 delegate 地址。非泛型 extension delegate 保持原来的 eager 语义。
 
 ## 10. wire、profile 与缓存迁移
@@ -425,6 +427,8 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 共有 HIR/MIR 的查询、native ABI、源码位置、类型表示及产物装配直接借用原 canonical foundation；reader 保存并共享本次已经验证的数据，不要求泛型产物经过 `OdrFree` 包装。历史 Strong 输入的限制仅在其自身格式边界检查。普通参数自由导出仍是完整 foundation 的对应子集；同一产物包含泛型 application 不改变其源声明、Strong ABI、字段布局或实际 provider。
 
 实例化局部值的 definition origin 继续指向原模板源码。foundation reader 按 typed owner 从本地产物或实际可达依赖的已验证 canonical foundation 查找声明锚点；不得把外来声明复制为本地记录，也不重复验证未变化的 provider。锚点缺失、来源不符及源码位置范围检查沿用共有规则，不新增 wire 字段。
+
+参数自由 callable 的签名可以使用已确定全部实参的名义 application；例如 `IllegalStateException` 构造器的 `Option<String>` 参数不要求调用者再做类型推断。共有 exact 签名分类递归处理这些实参并查询实际声明目录，保留 callable 的 Strong 归属；未知来源和未替换 binder 仍不能形成完整签名。
 
 泛型函数、构造器和属性访问器的声明类型位置使用实际 application；核对其原声明与 root 一致，再按原签名检查 receiver、参数下标和 result 位置。泛型字段保留原名义 owner，class 初始化结果继续核对原构造声明、class/object owner 与定义位置；这两种位置均接受 generic 名义声明。局部值保留当前 materialization 与原模板源码位置，完全替换后的类型关系由已有 application、签名及 MIR/LIR 对接检查。
 

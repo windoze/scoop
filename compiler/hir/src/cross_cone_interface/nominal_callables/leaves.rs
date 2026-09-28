@@ -10,18 +10,29 @@ impl NominalExactLeafClassifierV1 {
     ) -> Result<Self, Error> {
         let path = &WirePath::root();
         let mut leaves = Vec::new();
+        let mut generic_sources = Vec::new();
         for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
             append(&mut leaves, builtin.identity_record().id(), path)?;
         }
         for nominal in nominals {
-            if let SourceNominalId::Concrete(source) = nominal.declaration() {
-                append(&mut leaves, source, path)?;
+            match nominal.declaration() {
+                SourceNominalId::Concrete(source) => append(&mut leaves, source, path)?,
+                SourceNominalId::GenericTemplate(source) => {
+                    scoop_wire::allocation::try_reserve(&mut generic_sources, 1, path)
+                        .map_err(Error::Resource)?;
+                    generic_sources.push(source);
+                }
             }
         }
 
         leaves.sort_unstable_by_key(|(source, _)| *source);
         leaves.dedup_by_key(|(source, _)| *source);
-        Ok(Self { leaves })
+        generic_sources.sort_unstable();
+        generic_sources.dedup();
+        Ok(Self {
+            leaves,
+            generic_sources,
+        })
     }
 }
 

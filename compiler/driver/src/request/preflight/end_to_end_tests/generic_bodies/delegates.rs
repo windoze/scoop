@@ -1,6 +1,8 @@
 use super::super::imported_classes::runtime;
 use super::*;
 
+mod siblings;
+
 #[test]
 fn generic_delegated_properties_republish_and_execute_from_artifacts() {
     let target = resolved_target().expect("generic delegate publication requires a target");

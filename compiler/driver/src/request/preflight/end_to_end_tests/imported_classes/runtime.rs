@@ -85,7 +85,7 @@ pub(in super::super) fn check(
     let mut string = None;
     let mut descriptors = std::collections::BTreeMap::new();
     let mut immortals = std::collections::BTreeMap::new();
-    let mut globals = Vec::new();
+    let mut globals = std::collections::BTreeMap::new();
     for (index, identity) in identities.iter().enumerate() {
         let (sections, link) = closure.artifact(*identity).unwrap();
         if index == 2 && case == "initialization-imported-object" {
@@ -138,23 +138,31 @@ pub(in super::super) fn check(
                 );
             }
         }
-        globals.extend(
-            sections
-                .lir_strong_production()
-                .registration_production()
-                .static_storages()
-                .registrations()
-                .iter()
-                .filter(|plan| {
-                    plan.semantic().scan_kind() == scoop_lir::StaticStorageScanKindV1::Recursive
-                })
-                .map(|plan| {
-                    (
-                        plan.semantic().symbol().symbol(),
-                        plan.scan_symbol().symbol(),
-                    )
-                }),
-        );
+        for plan in sections
+            .lir_strong_production()
+            .registration_production()
+            .static_storages()
+            .registrations()
+            .iter()
+            .filter(|plan| {
+                plan.semantic().scan_kind() == scoop_lir::StaticStorageScanKindV1::Recursive
+            })
+        {
+            let value = (
+                plan.semantic().symbol().symbol(),
+                plan.scan_symbol().symbol(),
+            );
+            if let Some(previous) = globals.insert(plan.semantic().storage(), value.clone()) {
+                assert!(
+                    matches!(
+                        plan.definition_owner(),
+                        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
+                    ),
+                    "{case}: duplicate Strong static storages"
+                );
+                assert_eq!(previous, value, "{case}: duplicate ODR storage plans agree");
+            }
+        }
         for ty in sections.mir_type_bridge().exports().types().records() {
             if matches!(
                 ty.representation(),
@@ -224,7 +232,7 @@ pub(in super::super) fn check(
     ));
     let mut global_declarations = String::new();
     let mut global_entries = String::new();
-    for (index, (storage, scan)) in globals.iter().enumerate() {
+    for (index, (storage, scan)) in globals.values().enumerate() {
         global_declarations.push_str(&format!(
             "extern unsigned char fixture_global_{index}[] __asm__(\"_{storage}\");\n\
              extern const uint64_t fixture_global_scan_{index}[] __asm__(\"_{scan}\");\n"

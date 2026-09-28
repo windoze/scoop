@@ -1,0 +1,25 @@
+package siblings.delegates.right
+
+import templates.delegateSiblings.*
+
+public fun read(): Int = Receiver<Int, Boolean>(2, false).shared
+public fun otherFirst(): Int = Receiver<Boolean, Boolean>(true, false).shared
+public fun otherSecond(): Int = Receiver<Int, Int>(1, 2).shared
+
+public fun failure(): Failure {
+    try {
+        Receiver<Int, Boolean>(2, false).broken
+    } catch (error: Failure) {
+        return error
+    }
+    throw IllegalStateException()
+}
+
+public fun otherFailure(): Failure {
+    try {
+        Receiver<Boolean, Boolean>(true, false).broken
+    } catch (error: Failure) {
+        return error
+    }
+    throw IllegalStateException()
+}

@@ -80,7 +80,13 @@ pub(super) fn definitions(
             registrations.registrations().len(),
             &path,
         )?;
-        for record in registrations.registrations() {
+        // Receiver applications have their own local materializations; only
+        // source-owned units participate in external initialization services.
+        for record in registrations
+            .registrations()
+            .iter()
+            .filter(|record| record.definition_owner() == lir::RegistrationDefinitionOwner::Strong)
+        {
             let unit = record.semantic().unit();
             units.push(
                 lir::StrongInitializationUnitDefinitionRefV2::from_registrations(

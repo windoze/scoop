@@ -1,0 +1,48 @@
+Module
+  fun write(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      BoolLiteral true : Boolean
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      Local $dependency.argument.1 : Boolean
+    val local4
+      ImportedConstructorInit Receiver : Receiver<Int, Boolean>
+        Local $dependency.parameter.left : Int
+        Local $dependency.parameter.right : Boolean
+    ImportedGenericCall shared<Int, Boolean> : Unit
+      Local receiver : Receiver<Int, Boolean>
+      IntegerLiteral 42 : Int
+    return
+      ImportedGenericCall shared<Int, Boolean> : Int
+        Local receiver : Receiver<Int, Boolean>
+  fun failure(): Failure
+    try
+      val local0
+        IntegerLiteral 1 : Int
+      val local1
+        BoolLiteral true : Boolean
+      val local2
+        Local $dependency.argument.0 : Int
+      val local3
+        Local $dependency.argument.1 : Boolean
+      ImportedGenericCall broken<Int, Boolean> : Int
+        ImportedConstructorInit Receiver : Receiver<Int, Boolean>
+          Local $dependency.parameter.left : Int
+          Local $dependency.parameter.right : Boolean
+    catch error: Failure
+      return
+        Local error : Failure
+    val local5
+      StringLiteral "illegal state" : String
+    val local6
+      Local $dependency.default.local.0 : String
+    val local7
+      ImportedVariantConstruct Option.Some : Option<String>
+        Local $dependency.default.local.1 : String
+    throw
+      ImportedDependencyCall #0 : IllegalStateException
+        Local $dependency.parameter.message : Option<String>
+  output library

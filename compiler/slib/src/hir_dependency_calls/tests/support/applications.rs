@@ -149,3 +149,127 @@ fn application_calls_and_roots_use_the_local_odr_body_signature() {
         Err(CrossConeMirClosureRelationError::CallRoot { .. })
     ));
 }
+
+#[test]
+fn initialization_call_roots_require_their_own_generated_body_and_application() {
+    use crate::hir_dependency_calls::applications::validate_root;
+    use scoop_identity::{
+        GeneratedCallableKey, InitializationCallableRole, InitializationUnitKey,
+        PersistentExtensionPropertyId, PersistentGeneratedCallableId,
+        PersistentInitializationUnitId,
+    };
+    let fixture = Fixture::new();
+    let property = PersistentExtensionPropertyId::from_source_declaration(
+        &SourceDeclarationKey::extension_property(
+            SourceDeclarationSite::new(
+                fixture.provider,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("shared").unwrap(),
+            1,
+            SignatureTypeKey::Binder { depth: 0, index: 0 },
+        ),
+    )
+    .unwrap();
+    let declaration = PersistentInitializationUnitId::from_key(
+        &InitializationUnitKey::ExtensionProperty(property),
+    )
+    .unwrap();
+    let mut pending = PendingIdentityValidation::new();
+    let mut units = Vec::new();
+    let mut groups = Vec::new();
+    for argument in [
+        fixture.unit,
+        PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Any.identity_record().id(),
+        ))
+        .unwrap(),
+    ] {
+        let unit = CborIdentityRecord::<PersistentInitializationUnitId, _>::from_key(
+            InitializationUnitKey::GenericDelegatedExtensionApplication {
+                property,
+                receiver_arguments: NonEmptyVec::from_first(argument, []),
+            },
+        )
+        .unwrap();
+        let group =
+            CborIdentityRecord::<OdrGroupId, _>::from_key(unit.key().specialization_key().unwrap())
+                .unwrap();
+        pending
+            .register_external_canonical_authority(unit.clone())
+            .unwrap();
+        pending
+            .register_external_canonical_authority(group.clone())
+            .unwrap();
+        units.push(unit);
+        groups.push(group);
+    }
+    let mut roots = Vec::new();
+    let mut signatures = Vec::new();
+    for role in [
+        InitializationCallableRole::Initializer,
+        InitializationCallableRole::Ensure,
+    ] {
+        let generated = CborIdentityRecord::<PersistentGeneratedCallableId, _>::from_key(
+            GeneratedCallableKey::Initialization {
+                unit: declaration,
+                role,
+            },
+        )
+        .unwrap();
+        let member = CborIdentityRecord::<OdrMemberId, _>::from_key(
+            OdrMemberKey::new(
+                groups[0].id(),
+                OdrMemberRole::CallableBody,
+                OdrMemberDiscriminator::GeneratedCallable(generated.id()),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        pending
+            .register_external_canonical_authority(generated.clone())
+            .unwrap();
+        pending
+            .register_external_canonical_authority(member.clone())
+            .unwrap();
+        roots.push(scoop_hir::concrete::ExecutableExpressionPosition {
+            root: CallableMaterialization::new(
+                CallableTemplateOwner::Generated(generated.id()),
+                CallableMaterializationContext::InitializationApplication(units[0].id()),
+            ),
+            expression_index: 0,
+        });
+        signatures.push(CallableSignatureRecord::new(
+            CallableSignatureSubject::odr(CallableOdrMemberId::from_key(member.key()).unwrap()),
+            ExactCallableSignature::new(Effect::Ordinary, None, vec![], fixture.unit),
+        ));
+    }
+    let identities = pending.finish().unwrap();
+    let mut foundation = CanonicalMirFoundation::empty();
+    foundation
+        .set_callable_signatures(vec![signatures[1].clone()])
+        .unwrap();
+    let index =
+        crate::hir_dependency_calls::applications::signatures(&foundation, &identities).unwrap();
+    validate_root(roots[1], &fixture.strong, &index, &identities).unwrap();
+    assert!(matches!(
+        validate_root(roots[0], &fixture.strong, &index, &identities),
+        Err(CrossConeMirClosureRelationError::CallRoot { .. })
+    ));
+    foundation.set_callable_signatures(signatures).unwrap();
+    let index =
+        crate::hir_dependency_calls::applications::signatures(&foundation, &identities).unwrap();
+    validate_root(roots[0], &fixture.strong, &index, &identities).unwrap();
+    let mut other = roots[0];
+    other.root = CallableMaterialization::new(
+        other.root.template(),
+        CallableMaterializationContext::InitializationApplication(units[1].id()),
+    );
+    assert!(matches!(
+        validate_root(other, &fixture.strong, &index, &identities),
+        Err(CrossConeMirClosureRelationError::CallRoot { .. })
+    ));
+}

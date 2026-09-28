@@ -477,13 +477,23 @@
 
 本项完成基础委托模板的源码、产物读写和执行链路；跨 sibling 的初始化一次、失败状态共享、求值顺序及其他组合仍继续验证，M23-7 尚未完成。
 
+## 2026-09-29：跨 sibling 委托初始化与失败共享
+
+- 外部初始化服务目录只收集参数自由的 Strong unit；泛型 receiver application 在使用方物化，重复定义沿共有 ODR 合并入口处理。实际 HIR 调用根同时接受 initialization application 和该 application 内的 generated callable，并要求 MIR 中存在同组、同角色实体的实际 callable body。新增负例确认只有 ensure 不能满足 initializer，另一组 receiver arguments 也不能借用该 body。
+- 参数自由 callable 的签名允许声明作用域内的闭合 nominal application，例如 core 的 `IllegalStateException` 构造参数 `Option<String>`。未知 nominal origin 与未替换 binder 仍被拒绝；已有名义类型声明、exact type 和 ABI 规则保持，未增加类型识别旁路。
+- 新增 provider、两个独立 sibling 和 consumer 的四份源码及六份 HIR/MIR/LIR golden。发布后移走各 provider 源码，真实产物编译、合并、链接和执行验证同一参数组的 `by`、`provideDelegate` 只运行一次，多个 receiver 共享可写状态，两组不同完整实参分别初始化，失败不重试且跨 sibling 共享。运行 harness 按已合并 storage identity 登记一次 GC root，避免重复扫描同一槽位。
+- 失败断言遵守现有 throw-by-value 语义：不同 catch 各自物化异常副本，通过 payload 中托管引用的身份、修改后的内容与失败计数验证共享；同时核对实际 cell、storage、failure root 及 registration 的 ODR 合并。普通模式与移动 GC 压力模式均返回 42，实际收集后 delegate 和 failure payload 仍可使用。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 与同版配套 `scoopc` 构建通过。HIR 与 slib 共 1458 项库测试通过；关闭快照更新后的真实 sibling 聚合测试通过，用时 12.78 秒，日志为 `/tmp/scoop-m23-7-delegate-siblings-verified.log`。本批尚未执行最终全仓回归。
+
+本项完成委托的 sibling 初始化与失败共享；求值顺序、更多有效 delegate 表示及损坏产物组合继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取和消费基础上，完成组合与损坏产物验证；其余物理角色继续复用实际成员摘要与共有合并入口。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
-5. 泛型委托扩展属性验证跨 sibling 的 LazyAccess 初始化、失败共享、求值顺序和移动 GC。
+5. 泛型委托扩展属性在已通过跨 sibling 的 LazyAccess 初始化、失败共享和移动 GC 基础上，补齐求值顺序、cycle、有效 delegate 表示及语言反例。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

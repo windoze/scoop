@@ -33,7 +33,7 @@ pub(crate) fn validate_executable_hir_calls(
     identities: &ValidatedIdentityGraph,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     use CrossConeMirClosureRelationError as Error;
-    let applications = applications::signatures(foundation, identities)?;
+    let signatures = applications::signatures(foundation, identities)?;
     for record in bridge.selected() {
         let Some(reference) = interface
             .external_references()
@@ -99,14 +99,15 @@ pub(crate) fn validate_executable_hir_calls(
         };
         for site in sites {
             let position = site.position();
-            applications::validate_root(position, strong, &applications)?;
+            applications::validate_root(position, strong, &signatures, identities)?;
             let signature = match site.instantiation() {
                 HirDependencyCallInstantiationV1::Direct => {
                     direct_signature.ok_or(Error::UnmaterializedHirSelection {
                         target: reference.target(),
                     })?
                 }
-                HirDependencyCallInstantiationV1::Application(application) => applications
+                HirDependencyCallInstantiationV1::Application(application) => signatures
+                    .applications
                     .get(&application)
                     .filter(|entry| {
                         reference.target() == ExternalHirTargetV1::Callable(entry.origin)

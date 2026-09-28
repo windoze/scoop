@@ -101,14 +101,50 @@ fn shared_nominal_surface_supplies_exact_leaves_without_a_core_sidecar() {
             .result(),
         expected
     );
+    let application = SignatureTypeKey::NominalApplication {
+        origin: generic,
+        arguments: scoop_identity::NonEmptyVec::from_first(SignatureTypeKey::Nominal(concrete), []),
+    };
+    let exact_application =
+        scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::NominalApplication {
+            origin: generic,
+            arguments: scoop_identity::NonEmptyVec::from_first(expected, []),
+        })
+        .unwrap();
+    assert_eq!(
+        classifier.classify(&application).unwrap(),
+        Some(exact_application)
+    );
+    let callable = callable(
+        application.clone(),
+        Effect::Ordinary,
+        CallableImplementationV1::Scoop,
+        GcEffect::Managed,
+    );
+    assert_eq!(
+        classifier
+            .classify_callable(&callable)
+            .unwrap()
+            .unwrap()
+            .signature()
+            .result(),
+        exact_application
+    );
+    assert_eq!(
+        NominalExactLeafClassifierV1::try_from_nominal_interfaces(&[])
+            .unwrap()
+            .classify(&application)
+            .unwrap(),
+        None
+    );
     assert_eq!(
         classifier
             .classify(&SignatureTypeKey::NominalApplication {
                 origin: generic,
-                arguments: scoop_identity::NonEmptyVec::new(vec![SignatureTypeKey::Nominal(
-                    concrete
-                )])
-                .unwrap(),
+                arguments: scoop_identity::NonEmptyVec::from_first(
+                    SignatureTypeKey::Binder { depth: 0, index: 0 },
+                    []
+                ),
             })
             .unwrap(),
         None

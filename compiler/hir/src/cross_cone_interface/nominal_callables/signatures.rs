@@ -17,7 +17,20 @@ impl NominalExactLeafClassifierV1 {
                     .ok()
                     .map(|index| self.leaves[index].1));
             }
-            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
+            SignatureTypeKey::NominalApplication { origin, arguments } => {
+                if self.generic_sources.binary_search(origin).is_err() {
+                    return Ok(None);
+                }
+                let Some(arguments) = self.classify_elements(arguments.as_slice())? else {
+                    return Ok(None);
+                };
+                ExactTypeKey::NominalApplication {
+                    origin: *origin,
+                    arguments: NonEmptyVec::new(arguments)
+                        .expect("a nominal signature application has nonempty arguments"),
+                }
+            }
+            SignatureTypeKey::Binder { .. } => {
                 return Ok(None);
             }
             SignatureTypeKey::Tuple(elements) => {
