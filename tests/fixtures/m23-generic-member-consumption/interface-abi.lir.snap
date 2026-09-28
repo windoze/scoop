@@ -1,6 +1,4 @@
 Module
-  global @scoop$1$io$2b03c07b1a0afa1e6ab85e8a854eef902696f699a2c5fddd7447cf5e86dba946 = "call to abstract method `get`"
-  global @scoop$1$io$d9bc53950a79d9bed2b6b69206aac6c82e52cffd7f8930871b99f6740f88bb61 = "call to abstract method `get`"
   global @scoop$1$bs$62d840be79bcee3c84e3936fbd42030b076350f42fde69501d8700c6bb275f7b = c"call to abstract method `get`"
   global @scoop$1$bs$15717f0393c5c57bf46dc6aed1ffb8d070bb3330e67ec2399b4396ca0b6844f4 = c"call to abstract method `get`"
   enum CoroutineStep<Large> tagged size=32 align=8 variants=(struct0)@8+24:refs ()@8+0
@@ -171,14 +169,14 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   fun @scoop$1$cb$9fe998cbbba44b72185e34a2bb2960f9e81eed233b87a61b0f9d7094581c583f(ptr<managed>) -> sret<struct0 size=24 align=8 scan=refs[0, 8, 16]>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
   fun @scoop$1$cb$2d3e16d54feb223c501ecd9eb60794270978b9367b140b96c48ae57887687384(ptr<managed>, i32) -> void
   block entry

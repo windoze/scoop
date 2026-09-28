@@ -1,0 +1,56 @@
+Module
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedConstructorInit Box : Box<Int>
+        Local $dependency.parameter.value : Int
+    val local3
+      ImportedGenericCall extensionKind<Box<Int>> : Int
+        Local box : Box<Int>
+    val local4
+      IntegerLiteral 1 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 0 : Int
+    val local6
+      ImportedGenericCall extensionSelect<Int> : Int
+        Local box : Box<Int>
+    val local7
+      IntegerLiteral 42 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 0 : Int
+    return
+      ImportedDependencyCall #0 : Int
+        ImportedGenericCall value<Int> : Int
+          Local box : Box<Int>
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+    val local4
+      ImportedGenericCall extensionSelect<T0> : Int
+        Local box : Box<T0>
+    return
+      ImportedGenericCall extensionValue<T0> : T0
+        Local box : Box<T0>
+  output library

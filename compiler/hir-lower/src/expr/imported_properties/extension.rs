@@ -2,11 +2,29 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 use super::*;
-use crate::call_resolution::specificity::DeclarationForwardingView;
+use crate::call_resolution::specificity::{DeclarationForwardingView, OwnedDeclarationForwarding};
+use hir::ImportedCallableSource;
+
+mod generic;
+
+#[derive(Clone)]
+pub(crate) struct ImportedExtensionPropertyTarget {
+    pub(crate) binding: hir::DirectImportedTargetBinding,
+    accessors: ImportedExtensionPropertyAccessors,
+}
+
+#[derive(Clone)]
+enum ImportedExtensionPropertyAccessors {
+    ParameterFree,
+    Generic {
+        getter: hir::ImportedGenericCallableTemplateId,
+        arguments: hir::NonEmptyVec<hir::TypeId>,
+    },
+}
 
 pub(crate) struct ImportedDependencyExtensionPropertyProbe {
     state: Box<Lowerer>,
-    binding: hir::DirectImportedTargetBinding,
+    target: ImportedExtensionPropertyTarget,
     receiver: hir::Expr,
     static_receiver_type: hir::TypeId,
     receiver_type: hir::TypeId,
@@ -17,7 +35,7 @@ pub(crate) struct ImportedDependencyExtensionPropertyProbe {
 }
 
 pub(crate) struct ImportedDependencyExtensionPropertySelection {
-    pub(crate) binding: hir::DirectImportedTargetBinding,
+    pub(crate) target: ImportedExtensionPropertyTarget,
     pub(crate) receiver: hir::Expr,
     pub(crate) static_receiver_type: hir::TypeId,
     pub(crate) value_type: hir::TypeId,
@@ -25,18 +43,39 @@ pub(crate) struct ImportedDependencyExtensionPropertySelection {
 }
 
 impl ImportedDependencyExtensionPropertyProbe {
-    pub(crate) fn forwarding(&self) -> DeclarationForwardingView<'_> {
+    pub(crate) fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
+        if let ImportedExtensionPropertyAccessors::Generic { getter, .. } = self.target.accessors {
+            let declaration = self.state.imported_generic_templates[getter]
+                .source
+                .declaration()
+                .clone();
+            let getter = state
+                .request_imported_generic_template(declaration)
+                .expect("an applicable extension getter has a complete signature");
+            let signature = &state.imported_generic_templates[getter].signature;
+            return DeclarationForwardingView::parameter_groups(
+                &[],
+                signature.type_parameters.declarations(),
+                std::slice::from_ref(signature.receiver.as_ref().expect("extension receiver")),
+            )
+            .to_owned();
+        }
         DeclarationForwardingView::nominal_parameters(
             &[],
             std::slice::from_ref(&self.receiver_type),
         )
+        .to_owned()
     }
 
     pub(crate) const fn parameterized(&self) -> bool {
-        false
+        matches!(
+            self.target.accessors,
+            ImportedExtensionPropertyAccessors::Generic { .. }
+        )
     }
 
-    pub(crate) fn signature(&self, state: &Lowerer, name: &str) -> String {
+    pub(crate) fn signature(&self, name: &str) -> String {
+        let state = &self.state;
         format!(
             "{}.{}: {}",
             state.type_name(self.receiver_type),
@@ -74,11 +113,7 @@ impl Lowerer {
             return Err(Box::new(state));
         }
         if !property.interface().type_parameters().is_empty() {
-            state.error(
-                name.span,
-                ImportedCapabilityRequirement::Generic.diagnostic("dependency extension property"),
-            );
-            return Err(Box::new(state));
+            return state.probe_generic_extension_property(binding, &property, receiver, name);
         }
         let Some(receiver_signature) = property.interface().receiver() else {
             state.error(
@@ -130,7 +165,10 @@ impl Lowerer {
             declaration_file: state.current_file,
             declaration_span: name.span,
             state: Box::new(state),
-            binding: binding.clone(),
+            target: ImportedExtensionPropertyTarget {
+                binding: binding.clone(),
+                accessors: ImportedExtensionPropertyAccessors::ParameterFree,
+            },
             receiver,
             receiver_type,
             static_receiver_type,
@@ -145,7 +183,7 @@ impl Lowerer {
     ) -> ImportedDependencyExtensionPropertySelection {
         let ImportedDependencyExtensionPropertyProbe {
             state,
-            binding,
+            target,
             receiver,
             value_type,
             static_receiver_type,
@@ -154,7 +192,7 @@ impl Lowerer {
         } = probe;
         *self = *state;
         ImportedDependencyExtensionPropertySelection {
-            binding,
+            target,
             receiver,
             value_type,
             static_receiver_type,

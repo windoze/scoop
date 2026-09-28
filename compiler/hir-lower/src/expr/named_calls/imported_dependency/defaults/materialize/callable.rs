@@ -72,11 +72,16 @@ impl Lowerer {
         } else if matches!(
             callee.declaration(),
             hir::DefaultCallableDeclarationV1::GenericFunction(_)
-        ) || owner.is_some_and(|owner| {
-            self.types[owner]
-                .imported_nominal_application()
-                .is_some_and(|(_, arguments)| !arguments.is_empty())
-        }) {
+        ) || matches!(
+            callee.declaration(),
+            hir::DefaultCallableDeclarationV1::PropertyAccessor(_)
+        ) && !callee.type_arguments().is_empty()
+            || owner.is_some_and(|owner| {
+                self.types[owner]
+                    .imported_nominal_application()
+                    .is_some_and(|(_, arguments)| !arguments.is_empty())
+            })
+        {
             let declaration = self
                 .dependencies
                 .as_ref()

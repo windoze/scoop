@@ -1,5 +1,4 @@
 Module
-  global @scoop$1$io$7016ea74aae4c78e415b57efaab0eecf20e7f6068b8e5ba7401e4d84e871d28c = "call to abstract method `choose`"
   global @scoop$1$bs$07e55da25eff17bcdf6f3a15c4da3e3018c2c5849f6e4df2588ec7dcd2220fbe = c"call to abstract method `choose`"
   fun @scoop$1$cb$51d3a6900412ebd738b2938e87161124344f12e76d54b73aa1e311d4b8ae0713() -> i32
     local %0 chooser: ptr<managed>
@@ -28,7 +27,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   fun @scoop$1$cb$59ad8bebd328d3372e4bbde915d40aac4a0070039a4791f4707485c8df51bdce(ptr<managed>, i32) -> i32
   block entry

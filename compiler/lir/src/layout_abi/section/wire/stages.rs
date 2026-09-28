@@ -59,6 +59,10 @@ impl<D, T>
 }
 
 impl CallablesResolvedCrossConeLayoutAbiSectionV1 {
+    pub const fn dispatch_wire(&self) -> &crate::DecodedCanonicalExactDispatchExportsV1 {
+        &self.dispatch
+    }
+
     pub fn validate_dispatch(
         self,
         expected: &crate::CanonicalExactDispatchExportsV1,

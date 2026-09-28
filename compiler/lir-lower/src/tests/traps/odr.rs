@@ -40,7 +40,7 @@ fn odr_trap_support_keeps_its_body_owner_across_producers() {
             .identity()
             .unwrap();
         let mut builder = Builder::new();
-        let message = builder.string("abstract callable cannot execute");
+        let message = String::from("abstract callable cannot execute");
         let mut body = mir::Body::unreachable(Arena::new());
         body.blocks[body.entry].terminator = mir::Terminator::Trap { message };
         let function = builder.user_fn_body("abstract", Vec::new(), mir::Type::Unit, body);
@@ -88,6 +88,12 @@ fn odr_trap_support_keeps_its_body_owner_across_producers() {
         .unwrap();
         let output = try_lower(module).unwrap();
         let module = output.module();
+        assert!(
+            module
+                .globals
+                .iter()
+                .all(|(_, global)| { !matches!(global.init, lir::GlobalInit::StringConst { .. }) })
+        );
         let owner = &module.functions[0].callable_body;
         assert_eq!(owner.symbol_request().linkage(), LinkageClass::OdrWeak);
         let plan = ObjectDefinitionPlanId::from_key(&owner.definition_plan_key(producer)).unwrap();

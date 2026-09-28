@@ -24,7 +24,7 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.forwarding().to_owned(),
             Self::ImportedDependency(probe) => probe.forwarding(state),
-            Self::ImportedDependencyProperty(probe) => probe.forwarding().to_owned(),
+            Self::ImportedDependencyProperty(probe) => probe.forwarding(state),
             Self::Nominal(probe) => probe.forwarding().to_owned(),
             Self::IntrinsicStruct(probe) => {
                 super::specificity::DeclarationForwardingView::nominal_parameters(
@@ -75,7 +75,7 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.signature(state, name),
             Self::ImportedDependency(probe) => probe.signature(name),
-            Self::ImportedDependencyProperty(probe) => probe.signature(state, name),
+            Self::ImportedDependencyProperty(probe) => probe.signature(name),
             Self::Nominal(probe) => probe.signature(state),
             Self::IntrinsicStruct(probe) => {
                 format!("{}<T>(raw: ULong)", state.structs[probe.structure].name)

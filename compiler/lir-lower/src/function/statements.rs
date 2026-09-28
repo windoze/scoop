@@ -27,9 +27,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 mir::CallEffect::Value { destination, call } => {
                     let ty = self.mir_locals[*destination].ty.clone();
-                    let value = self
-                        .lower_call(call, &ty)?
-                        .expect("a value-producing MIR call cannot diverge");
+                    let value = self.lower_call(call, &ty)?;
                     self.push(lir::Instruction::Store {
                         local: self.local_slot(*destination),
                         value,
@@ -290,8 +288,7 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
             mir::Terminator::Trap { message } => {
-                let message = self.module.strings[*message].value.clone();
-                let trap = self.trap_block(&message)?;
+                let trap = self.trap_block(message)?;
                 self.seal(lir::Terminator::Br(trap));
             }
             mir::Terminator::Unreachable => self.seal(lir::Terminator::Unreachable),

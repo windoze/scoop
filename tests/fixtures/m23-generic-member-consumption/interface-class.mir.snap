@@ -35,7 +35,7 @@ Module
         Local $call.2
   fun get @fn1(this: AbstractReader<Int>) -> Int
     bb0 entry
-      trap @str0
+      trap "call to abstract method `get`"
   fun read @fn2(this: Reader<Int>) -> Int
     bb0 entry
       val $dependency.local.1: Reader<Int>
@@ -59,7 +59,7 @@ Module
         Local $call.1
   fun get @fn4(this: Readable<Int>) -> Int
     bb0 entry
-      trap @str1
+      trap "call to abstract method `get`"
   fun value @fn5(this: InterfaceItem<Int>) -> Int
     bb0 entry
       return
@@ -88,6 +88,4 @@ Module
   instance mi2 function=@fn3 <- get
   instance mi3 function=@fn4 <- get
   instance mi4 function=@fn5 <- value
-  str @str0 "call to abstract method `get`"
-  str @str1 "call to abstract method `get`"
   output library

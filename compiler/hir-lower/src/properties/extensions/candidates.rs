@@ -148,7 +148,7 @@ impl Lowerer {
                 let selected = self.commit_imported_dependency_extension_property(*probe);
                 let write = ResolvedExtensionPropertyWrite {
                     target: ResolvedExtensionPropertyTarget::Dependency {
-                        binding: selected.binding,
+                        target: selected.target,
                         name: name.clone(),
                     },
                     receiver: selected.receiver,
@@ -168,24 +168,23 @@ impl Lowerer {
                 let read = match current_read {
                     Some(read) => self.finish_current_extension_property_read(&write, read, name),
                     None => {
-                        let ResolvedExtensionPropertyTarget::Dependency { binding, .. } =
+                        let ResolvedExtensionPropertyTarget::Dependency { target, .. } =
                             &write.target
                         else {
                             unreachable!("a dependency property has no prepared local read")
                         };
-                        let Some(read) = self.lower_imported_dependency_property_read(
-                            binding,
-                            Some(crate::properties::PropertyCallReceiver {
+                        let Some(read) = self.lower_selected_imported_extension_property_read(
+                            target,
+                            crate::properties::PropertyCallReceiver {
                                 value: write.receiver.clone(),
                                 static_type: write.static_receiver_type,
-                            }),
+                            },
                             name.span,
                         ) else {
                             return ExtensionPropertySelectionOutcome::Failed;
                         };
-                        debug_assert_eq!(read.expression.ty, write.value_type);
-                        debug_assert_eq!(read.has_setter, write.has_setter);
-                        read.expression
+                        debug_assert_eq!(read.ty, write.value_type);
+                        read
                     }
                 };
                 ExtensionPropertySelectionOutcome::Resolved(Box::new(

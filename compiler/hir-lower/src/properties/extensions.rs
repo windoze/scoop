@@ -34,8 +34,8 @@ impl ResolvedExtensionPropertyWrite {
             ResolvedExtensionPropertyTarget::Current { property, .. } => {
                 ExtensionPropertyIdentity::Current(*property)
             }
-            ResolvedExtensionPropertyTarget::Dependency { binding, .. } => {
-                ExtensionPropertyIdentity::Dependency(binding.target())
+            ResolvedExtensionPropertyTarget::Dependency { target, .. } => {
+                ExtensionPropertyIdentity::Dependency(target.binding.target())
             }
         }
     }
@@ -56,7 +56,7 @@ enum ResolvedExtensionPropertyTarget {
         type_args: Vec<TypeId>,
     },
     Dependency {
-        binding: hir::DirectImportedTargetBinding,
+        target: crate::expr::ImportedExtensionPropertyTarget,
         name: ast::Ident,
     },
 }

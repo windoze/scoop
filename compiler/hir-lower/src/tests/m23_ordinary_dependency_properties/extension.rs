@@ -1,5 +1,4 @@
 use super::*;
-use crate::tests::type_param;
 
 #[test]
 fn getter_setter_and_update_support_explicit_and_implicit_receivers() {
@@ -158,33 +157,6 @@ fn read_only_extension_property_rejects_explicit_assignment() {
 }
 
 #[test]
-fn generic_extension_property_reports_the_generic_capability_gate() {
-    let fixture = DependencyPropertyFixture::new(vec![generic_extension_property("identity")]);
-    let mut consumer = file(vec![fun_expr(
-        "read",
-        Vec::new(),
-        Vec::new(),
-        Some(ty_named("Int")),
-        field(int_lit(1), "identity"),
-    )]);
-    consumer
-        .imports
-        .push(exact_import(&["dependency", "api", "identity"]));
-
-    fixture.inspect(consumer, |output| {
-        let diagnostics = match output {
-            Ok(_) => panic!("a generic dependency extension property needs M23-7"),
-            Err(diagnostics) => diagnostics,
-        };
-        assert!(diagnostics.iter().any(|diagnostic| {
-            diagnostic
-                .message
-                .contains("SCOOP_HIR_CROSS_CONE_GENERIC_REQUIRED")
-        }));
-    });
-}
-
-#[test]
 fn inapplicable_exact_dependency_extension_falls_through_to_current_package() {
     let fixture = DependencyPropertyFixture::with_core_types(
         vec![computed_extension_property_on(
@@ -257,16 +229,6 @@ fn computed_extension_property_on(
         unreachable!("computed_property builds a global property")
     };
     property.receiver_ty = Some(ty_named(receiver));
-    Decl::Global(property)
-}
-
-fn generic_extension_property(name: &str) -> Decl {
-    let Decl::Global(mut property) = computed_property(name, ty_named("T"), this_expr(), None)
-    else {
-        unreachable!("computed_property builds a global property")
-    };
-    property.receiver_ty = Some(ty_named("T"));
-    property.type_params = vec![type_param("T")];
     Decl::Global(property)
 }
 

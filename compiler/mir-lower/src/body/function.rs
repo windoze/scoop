@@ -124,23 +124,10 @@ impl BodyLowerer<'_> {
             // every override replaces its vtable slot and the class
             // cannot be instantiated, so the slot is never reached;
             // the emitted function traps like a pure-virtual stub.
-            let message =
-                self.trap_message(format!("call to abstract method `{}`", fn_name(function)));
             vec![smir::Statement {
-                kind: smir::StatementKind::Expr(smir::Expr::new(
-                    mir::Type::Unit,
-                    smir::ExprKind::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
-                        },
-                        args: vec![smir::Expr::new(
-                            mir::Type::String,
-                            smir::ExprKind::StringConst(message),
-                        )],
-                        return_ty: mir::Type::Unit,
-                    }),
-                )),
+                kind: smir::StatementKind::Trap {
+                    message: format!("call to abstract method `{}`", fn_name(function)),
+                },
                 span: function.span,
             }]
         } else {

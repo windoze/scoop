@@ -28,13 +28,13 @@ impl Lowerer {
                 value,
                 span,
             ),
-            ResolvedExtensionPropertyTarget::Dependency { binding, name } => self
-                .lower_imported_dependency_property_write(
-                    &binding,
-                    Some(crate::properties::PropertyCallReceiver {
+            ResolvedExtensionPropertyTarget::Dependency { target, name } => self
+                .lower_selected_imported_extension_property_write(
+                    &target,
+                    crate::properties::PropertyCallReceiver {
                         value: receiver,
                         static_type: static_receiver_type,
-                    }),
+                    },
                     value,
                     &name,
                     span,

@@ -44,6 +44,5 @@ pub(super) fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFu
         mir::RuntimeFn::InitializationCycleMessage => {
             lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::InitializationCycleMessage)
         }
-        mir::RuntimeFn::Trap => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Trap),
     }
 }

@@ -105,6 +105,21 @@ impl DecodedExactDispatchSemanticProjectionV1 {
 }
 
 impl DecodedCanonicalExactDispatchExportsV1 {
+    pub fn callable_reference(
+        &self,
+        table: PersistentDispatchTableId,
+        position: u32,
+    ) -> Option<DecodedStrongTypeDispatchCallableRefV2> {
+        self.records
+            .iter()
+            .find(|record| record.semantic.table.as_array() == table.as_array())?
+            .semantic
+            .entries
+            .iter()
+            .find(|entry| entry.position == position)
+            .map(|entry| entry.abi)
+    }
+
     pub fn validate_against(
         self,
         expected: &CanonicalExactDispatchExportsV1,

@@ -25,6 +25,31 @@ fn generic_member_templates_republish_and_execute_from_artifacts() {
             "interface-value-property",
         ],
         &[],
+        "downstream",
+    );
+}
+
+#[test]
+fn generic_extension_properties_republish_and_execute_from_artifacts() {
+    check_member_cases(
+        &[
+            "extension-read",
+            "extension-write",
+            "extension-write-only",
+            "extension-abi",
+            "extension-inherited",
+            "extension-captured",
+            "extension-overloads",
+            "extension-order",
+        ],
+        &[
+            "extension-readonly",
+            "extension-private-setter",
+            "extension-rhs-type",
+            "extension-result-type",
+            "extension-kind-bound",
+        ],
+        "extension-downstream",
     );
 }
 
@@ -53,10 +78,11 @@ fn protected_generic_members_republish_and_execute_from_artifacts() {
             "access-public-override",
             "access-narrow-setter",
         ],
+        "downstream",
     );
 }
 
-fn check_member_cases(cases: &[&str], rejected: &[&str]) {
+fn check_member_cases(cases: &[&str], rejected: &[&str], downstream_source: &str) {
     let target = resolved_target().expect("generic member publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -128,7 +154,7 @@ fn check_member_cases(cases: &[&str], rejected: &[&str]) {
             "dev.example",
             &downstream_name,
             "library",
-            &source("downstream"),
+            &source(downstream_source),
         );
         write_dependency_manifest(&downstream_root, &downstream_name, &[&coordinate]);
         let downstream = build_manifest_request(

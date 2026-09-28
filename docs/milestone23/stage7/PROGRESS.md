@@ -441,11 +441,24 @@
 
 本项完成上述泛型访问及覆写组合的真实产物闭环；M23-7 的其余主线仍须继续，未宣布阶段完成。
 
+## 2026-09-28：泛型计算扩展属性的产物消费与再次发布
+
+- 导入 getter/setter 保留实际 `PersistentPropertyAccessorId`，从所属 property 取得 binder，沿既有 generic template/application 队列具体化。扩展 accessor 使用 `NoOwner` 与 property 实参建立原有 application key；共有正文再次发布时保存原 accessor 与实参，下游消费继续请求同一模板，不复制成普通函数声明或制造命名参数协议。产物格式与 runtime C ABI 保持。
+- getter 候选仅从接收者推断实参，最具体候选比较使用未实例化的声明 receiver；结果期望与赋值右侧不反向决定 property 实参。setter 复用 getter 探测得到的参数组，沿现有 place 类型检查、适配与求值顺序处理赋值、复合赋值及前后自增；纯写入只物化 setter 正文。只读、独立 setter 可见性、结果/右侧类型与 kind bound 继续使用正常诊断。
+- 修复同一 application 在 consumer 与 downstream 重复物化时的 Strong 专用查询假设。LIR 派发表按实际 Local/External 引用选择 provider 的完整 callable ABI，reader 借用保存的引用定位 provider，再以 MIR 的真实实现目标核对；已有 slot、body、签名和 ODR 内容合并检查保留。当前 MIR 表示与 LIR layout 已定义的 descriptor 直接使用 Local 引用，不再因依赖中还有相同 ODR descriptor 而误报重复。
+- 真实重复应用运行暴露了 abstract trap 的多余托管字符串：MIR 现以显式 `Trap { message: String }` 终结符保存原生诊断，结构化 lowering 使用对应终止语句，LIR 复用 body 所属的既有 C 字符串 atom。消息不再进入托管 String 池或生成 immortal 登记；删除旧 `RuntimeFn::Trap` 普通调用路径及其可缺失的 LIR 调用结果。普通 trap、共享 trap block 和跨 producer 的 ODR 常量回归通过，runtime 的对象范围检查保持。
+- 新增 8 组正例、5 组反例和 29 份 golden。正例覆盖读写、纯写、接收者继承/typealias、重载选择、局部捕获与私有 helper、Unit/ZST、含三个引用的大值、求值顺序及自增。每组发布 provider 后移走源码，consumer 实例化并再次发布，下游仅使用产物为重复的 Int 和新的引用类型实例化，再完成真实链接、普通运行与移动 GC；provider 未预先实例化泛型的断言保留。反例逐一锁定唯一错误、消费方源码位置和诊断，并确认不产生目标产物。
+- 同步 28 份既有 MIR/LIR golden，逐份核对只有 trap 消息文本、无用托管常量删除及常量编号调整。另有 61 份产物快照变化：41 份 core 产物摘要、2 份仅依赖整包摘要、4 份代码摘要，以及 14 份登记、摘要图和符号数量；数量差异分别对应实际删除的 2 或 3 个 trap 托管对象及其登记/边界符号。已有布局、ABI、引用关系和损坏产物的拒绝断言保留。
+- 最终 `cargo fmt --all` 与 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，无警告。同版实现的首次 `cargo test --workspace --no-fail-fast` 共 5169 项，5145 项通过、24 项仅因旧快照失配；完成上述快照更新与差异核对后，关闭全部更新开关，复验覆盖全部失配的 25 项聚合回归，25 项全部通过，耗时 288.17 秒。两轮之间仅修改快照和进度文档，本批 5169 项均已取得通过结果，无忽略。全仓与最终复验日志分别为 `/tmp/scoop-m23-7-extension-workspace.log`、`/tmp/scoop-m23-7-extension-affected-verified.log`。
+- 确认构建、测试及配套编译器进程结束，且 `target` 没有打开的文件；通过 Cargo metadata 核对目录后恢复缺失的标准缓存标记，执行 `cargo clean --target-dir target`，删除 2600 个构建文件，回收 4.6 GiB。
+
+本项完成泛型计算扩展属性的上述产物运行闭环。泛型委托扩展属性的 LazyAccess 与其余主线继续实施，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
-3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object 闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
+3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 泛型委托扩展属性接入完整 LazyAccess application、现有初始化协调、失败共享与移动 GC。
 6. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

@@ -21,7 +21,7 @@ Module
   generated_exact_type get3 location=enum1 nominal_id=cc8165785d5e61912b0a786696b68af0c53f9f18811e11d66d376c8c47a496f7 exact_id=e7688cd22d20b69ac74007bdf2ac7eb3d383d7ad0dfa35c3a363fd31141e2e0d
   fun LocalBase.read @fn0(this: LocalBase) -> Long
     bb0 entry
-      trap @str0
+      trap "call to abstract method `LocalBase.read`"
   fun LocalReader.read @fn1(this: LocalReader) -> Long
     bb0 entry
       return
@@ -91,5 +91,4 @@ Module
   coroutine_step cs1 CoroutineStep<LocalBase> result=LocalBase
   coroutine_slot cl0 CoroutineSlot<LocalReader> value=LocalReader
   coroutine_slot cl1 CoroutineSlot<LocalBase> value=LocalBase
-  str @str0 "call to abstract method `LocalBase.read`"
   output library

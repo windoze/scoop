@@ -1,0 +1,3 @@
+span=84..111
+expression=Box<Int>(42).extensionValue
+body of `result` must be of type String, found Int

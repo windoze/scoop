@@ -1,0 +1,337 @@
+Module
+  fun receiver(cell: ExtensionTrace<Int>): ExtensionTrace<Int>
+    val local1
+      Local cell : ExtensionTrace<Int>
+    val local2
+      ImportedGenericCall order<Int> : Int
+        Local cell : ExtensionTrace<Int>
+    val local3
+      IntegerLiteral 10 : Int
+    val local4
+      Local $dependency.argument.0 : Int
+    val local5
+      IntegerOperation int.mul <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local6
+      IntegerLiteral 1 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    ImportedGenericCall order<Int> : Unit
+      Local $place.0 : ExtensionTrace<Int>
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    return
+      Local cell : ExtensionTrace<Int>
+  fun rhs(cell: ExtensionTrace<Int>): Int
+    val local1
+      Local cell : ExtensionTrace<Int>
+    val local2
+      ImportedGenericCall order<Int> : Int
+        Local cell : ExtensionTrace<Int>
+    val local3
+      IntegerLiteral 10 : Int
+    val local4
+      Local $dependency.argument.0 : Int
+    val local5
+      IntegerOperation int.mul <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local6
+      IntegerLiteral 3 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    ImportedGenericCall order<Int> : Unit
+      Local $place.1 : ExtensionTrace<Int>
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    return
+      IntegerLiteral 20 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      IntegerLiteral 0 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      Local $dependency.argument.1 : Int
+    val local4
+      ImportedConstructorInit ExtensionTrace : ExtensionTrace<Int>
+        Local $dependency.parameter.value : Int
+        Local $dependency.parameter.order : Int
+    val local5
+      Local cell : ExtensionTrace<Int>
+    val local6
+      Local $argument.0 : ExtensionTrace<Int>
+    val local7
+      Local cell : ExtensionTrace<Int>
+    val local8
+      Local $argument.0 : ExtensionTrace<Int>
+    ImportedGenericCall extensionTracked<Int> : Unit
+      Call receiver : ExtensionTrace<Int>
+        Local $parameter.cell : ExtensionTrace<Int>
+      Call rhs : Int
+        Local $parameter.cell : ExtensionTrace<Int>
+    val local9
+      ImportedGenericCall order<Int> : Int
+        Local cell : ExtensionTrace<Int>
+    val local10
+      IntegerLiteral 134 : Int
+    val local11
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local15
+        BoolLiteral true : Boolean
+    else
+      val local12
+        ImportedGenericCall value<Int> : Int
+          Local cell : ExtensionTrace<Int>
+      val local13
+        IntegerLiteral 20 : Int
+      val local14
+        Local $dependency.argument.0 : Int
+      val local15
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local16
+      Local cell : ExtensionTrace<Int>
+    ImportedGenericCall order<Int> : Unit
+      Local $place.3 : ExtensionTrace<Int>
+      IntegerLiteral 0 : Int
+    val local17
+      Local cell : ExtensionTrace<Int>
+    val local18
+      Local $argument.0 : ExtensionTrace<Int>
+    val local19
+      Call receiver : ExtensionTrace<Int>
+        Local $parameter.cell : ExtensionTrace<Int>
+    val local20
+      ImportedGenericCall extensionTracked<Int> : Int
+        Local $place.4 : ExtensionTrace<Int>
+    val local23
+      Local $old.5 : Int
+    val local21
+      Local cell : ExtensionTrace<Int>
+    val local22
+      Local $argument.0 : ExtensionTrace<Int>
+    val local24
+      Call rhs : Int
+        Local $parameter.cell : ExtensionTrace<Int>
+    val local25
+      Local $dependency.argument.0 : Int
+    ImportedGenericCall extensionTracked<Int> : Unit
+      Local $place.4 : ExtensionTrace<Int>
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local26
+      ImportedGenericCall order<Int> : Int
+        Local cell : ExtensionTrace<Int>
+    val local27
+      IntegerLiteral 1234 : Int
+    val local28
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local32
+        BoolLiteral true : Boolean
+    else
+      val local29
+        ImportedGenericCall value<Int> : Int
+          Local cell : ExtensionTrace<Int>
+      val local30
+        IntegerLiteral 40 : Int
+      val local31
+        Local $dependency.argument.0 : Int
+      val local32
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.6 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local33
+      Local cell : ExtensionTrace<Int>
+    ImportedGenericCall order<Int> : Unit
+      Local $place.7 : ExtensionTrace<Int>
+      IntegerLiteral 0 : Int
+    val local34
+      Local cell : ExtensionTrace<Int>
+    val local35
+      Local $argument.0 : ExtensionTrace<Int>
+    val local36
+      Call receiver : ExtensionTrace<Int>
+        Local $parameter.cell : ExtensionTrace<Int>
+    val local37
+      ImportedGenericCall extensionTracked<Int> : Int
+        Local $place.8 : ExtensionTrace<Int>
+    val local38
+      Local $old.9 : Int
+    val local39
+      IntegerOperation int.inc <no-gc> : Int
+        Local $dependency.receiver : Int
+    ImportedGenericCall extensionTracked<Int> : Unit
+      Local $place.8 : ExtensionTrace<Int>
+      Local $new.10 : Int
+    val local40
+      Local $old.9 : Int
+    val local41
+      ImportedGenericCall order<Int> : Int
+        Local cell : ExtensionTrace<Int>
+    val local42
+      IntegerLiteral 124 : Int
+    val local43
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local47
+        BoolLiteral true : Boolean
+    else
+      val local44
+        Local previous : Int
+      val local45
+        IntegerLiteral 40 : Int
+      val local46
+        Local $dependency.argument.0 : Int
+      val local47
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.11 : Boolean
+      val local51
+        BoolLiteral true : Boolean
+    else
+      val local48
+        ImportedGenericCall value<Int> : Int
+          Local cell : ExtensionTrace<Int>
+      val local49
+        IntegerLiteral 41 : Int
+      val local50
+        Local $dependency.argument.0 : Int
+      val local51
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.12 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local52
+      Local cell : ExtensionTrace<Int>
+    ImportedGenericCall order<Int> : Unit
+      Local $place.13 : ExtensionTrace<Int>
+      IntegerLiteral 0 : Int
+    val local53
+      Local cell : ExtensionTrace<Int>
+    val local54
+      Local $argument.0 : ExtensionTrace<Int>
+    val local55
+      Call receiver : ExtensionTrace<Int>
+        Local $parameter.cell : ExtensionTrace<Int>
+    val local56
+      ImportedGenericCall extensionTracked<Int> : Int
+        Local $place.14 : ExtensionTrace<Int>
+    val local57
+      Local $old.15 : Int
+    val local58
+      IntegerOperation int.inc <no-gc> : Int
+        Local $dependency.receiver : Int
+    ImportedGenericCall extensionTracked<Int> : Unit
+      Local $place.14 : ExtensionTrace<Int>
+      Local $new.16 : Int
+    val local59
+      Local $new.16 : Int
+    val local60
+      ImportedGenericCall order<Int> : Int
+        Local cell : ExtensionTrace<Int>
+    val local61
+      IntegerLiteral 124 : Int
+    val local62
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local66
+        BoolLiteral true : Boolean
+    else
+      val local63
+        Local current : Int
+      val local64
+        IntegerLiteral 42 : Int
+      val local65
+        Local $dependency.argument.0 : Int
+      val local66
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.17 : Boolean
+      val local70
+        BoolLiteral true : Boolean
+    else
+      val local67
+        ImportedGenericCall value<Int> : Int
+          Local cell : ExtensionTrace<Int>
+      val local68
+        IntegerLiteral 42 : Int
+      val local69
+        Local $dependency.argument.0 : Int
+      val local70
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.18 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    return
+      ImportedGenericCall value<Int> : Int
+        Local cell : ExtensionTrace<Int>
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      Local $dependency.argument.1 : Int
+    val local5
+      ImportedConstructorInit ExtensionTrace : ExtensionTrace<T0>
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.order : Int
+    ImportedGenericCall extensionTracked<T0> : Unit
+      Local cell : ExtensionTrace<T0>
+      Local value : T0
+    return
+      ImportedGenericCall extensionTracked<T0> : T0
+        Local cell : ExtensionTrace<T0>
+  output library

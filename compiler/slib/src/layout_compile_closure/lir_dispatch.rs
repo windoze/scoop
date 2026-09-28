@@ -81,6 +81,7 @@ impl<'input> LirCallableAbisValidatedCrossConeLayoutClosure<'input> {
                     mir.types(),
                     mir.dispatch(),
                     SharedLirDispatchAbiInputsV1 {
+                        local_dispatch: layout.dispatch_wire(),
                         local_layouts: layout.layouts(),
                         local_callables: layout.callables(),
                         local_direct_callables: &ordinary,

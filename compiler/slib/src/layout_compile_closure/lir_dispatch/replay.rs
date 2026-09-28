@@ -9,9 +9,10 @@ mod entries;
 mod lookup;
 mod schemas;
 
-/// Borrowed checked layout/ABI constituents; this carries no selected-use authority.
+/// Borrows checked layouts and ABIs together with the stored dispatch references.
 #[derive(Clone, Copy)]
 pub struct SharedLirDispatchAbiInputsV1<'a> {
+    pub local_dispatch: &'a lir::DecodedCanonicalExactDispatchExportsV1,
     pub local_layouts: &'a lir::CanonicalExactLayoutExportsV1,
     pub local_callables: &'a lir::CanonicalExactCallableAbiExportsV1,
     pub local_direct_callables: &'a lir::CrossConeLirBridgeSectionV1,
@@ -72,7 +73,7 @@ fn replay(
     foundation: &lir::ConeLirFoundation,
 ) -> Result<lir::ExactDispatchExportV1, Error> {
     let identity = CborIdentityRecord::from_key(key)?;
-    let entries = entries::project(slots, abis)?;
+    let entries = entries::project(identity.id(), slots, abis)?;
     lir::ExactDispatchExportV1::replay_from_schema(target, &identity, &entries, foundation).map_err(
         |source| Error::Replay {
             table: identity.id(),

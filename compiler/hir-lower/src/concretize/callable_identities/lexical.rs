@@ -13,6 +13,15 @@ impl CallableIdentityBuilder<'_> {
                 CallableInstantiationOwner::NoOwner,
                 arguments,
             ),
+            export::ImportedCallableTemplateOrigin::ExtensionAccessor(id) => self
+                .source_materialization(
+                    SourceTemplate::Accessor {
+                        id,
+                        extension: true,
+                    },
+                    CallableInstantiationOwner::NoOwner,
+                    arguments,
+                ),
             export::ImportedCallableTemplateOrigin::Nominal {
                 declaration,
                 owner_parameter_count,

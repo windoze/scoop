@@ -38,7 +38,6 @@ impl<'a> References<'a> {
         &self,
         exact: PersistentExactTypeId,
     ) -> Result<lir::StrongTypeDescriptorRefV2, Error> {
-        let mut found = None;
         if self.types.get(exact).is_some_and(|ty| {
             !matches!(
                 ty.representation(),
@@ -49,8 +48,9 @@ impl<'a> References<'a> {
                 .layouts
                 .find_exact_role(exact, RepresentationRole::ManagedObject)
                 .ok_or(Error::MissingDescriptor(exact))?;
-            found = Some(lir::StrongTypeDescriptorRefV2::Local(exact));
+            return Ok(lir::StrongTypeDescriptorRefV2::Local(exact));
         }
+        let mut found = None;
         for table in self.inputs.dependencies {
             if table.get(exact).is_some() {
                 let reference = lir::StrongTypeDescriptorRefV2::DependencyExternal {

@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) fn project<'a>(
+    table: scoop_identity::PersistentDispatchTableId,
     slots: &[mir::MirDispatchEntryV1],
     abis: &lookup::Abis<'a>,
 ) -> Result<Vec<lir::ExactDispatchEntryInputV1<'a>>, Error> {
@@ -10,7 +11,7 @@ pub(super) fn project<'a>(
     scoop_wire::allocation::try_reserve(&mut entries, slots.len(), &path)?;
     for slot in slots {
         let implementation = implementation(slot.implementation());
-        let abi = abis.callable(implementation.target())?;
+        let abi = abis.callable(implementation.target(), table, slot.position().get())?;
         let signature = slot.signature();
         let receiver = match implementation.receiver_adaptation() {
             lir::ExactDispatchReceiverAdaptationV1::Identity => None,

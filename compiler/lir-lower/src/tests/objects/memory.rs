@@ -311,24 +311,23 @@ fn retype_rejects_machine_scalar_to_source_integer() {
 
 #[test]
 fn a_trap_only_body_seals_the_function() {
-    // mir-lower's abstract-method stub is a single trap call: the
+    // mir-lower's abstract-method stub is a single trap terminator: the
     // block is sealed by the trap branch, so the "non-Unit
     // functions must end with `return`" check must not fire (it
     // applies to hir-lower-produced bodies that fall off the end,
     // not to noreturn bodies like this one).
     let mut b = Builder::new();
-    let message = b.string("call to abstract method `Base.id`");
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Any));
-    let _stub = b.user_fn_full(
+    let mut body = mir::Body::unreachable(locals);
+    body.blocks[body.entry].terminator = mir::Terminator::Trap {
+        message: String::from("call to abstract method `Base.id`"),
+    };
+    let _stub = b.user_fn_body(
         "Base.id",
         vec![param("this", mir::Type::Any, this)],
         INT,
-        locals,
-        vec![call_stmt(runtime_call(
-            mir::RuntimeFn::Trap,
-            vec![string_expr(message)],
-        ))],
+        body,
     );
     let main = b.main(Arena::new(), vec![]);
     let module = lower(b.finish(main));

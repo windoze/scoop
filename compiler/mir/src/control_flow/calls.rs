@@ -239,9 +239,6 @@ pub enum RuntimeFn {
     InitializationFail,
     InitializationFailure,
     InitializationCycleMessage,
-    /// Noreturn runtime trap, called with a message string constant
-    /// (M4: `!!` on `None`; M8: real exceptions).
-    Trap,
 }
 
 impl RuntimeFn {
@@ -263,7 +260,6 @@ impl RuntimeFn {
             RuntimeFn::InitializationFail => "scoop_rt_init_fail",
             RuntimeFn::InitializationFailure => "scoop_rt_init_failure",
             RuntimeFn::InitializationCycleMessage => "scoop_rt_init_cycle_message",
-            RuntimeFn::Trap => "scoop_rt_trap",
         }
     }
 }

@@ -1,5 +1,4 @@
 Module
-  global @scoop$1$io$d13b4e24915d151819c10fbf9b7fb3ef911664ddba7e95cf1fc81d257a357c33 = "call to abstract method `LocalBase.value`"
   global @scoop$1$bs$642beaea0678466cf8f7bf4b85f5cd2522992b1f96fd7eb9030ac7c847c3c61e = c"call to abstract method `LocalBase.value`"
   enum CoroutineStep<LocalBase> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<LocalBase> niche(kind=managed,payload_variant=1)
@@ -10,7 +9,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   fun @scoop$1$cb$f1f19fd90225012c6006ba171cf2f166a11edf493831bd49668c999e8ec07b1b(ptr<managed>, elided-zst<struct0 size=0 align=1>, ptr<managed>) -> sret<struct1 size=24 align=8 scan=none>
     local %0 $dependency.receiver: ptr<managed>

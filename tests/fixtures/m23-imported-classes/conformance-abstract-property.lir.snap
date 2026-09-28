@@ -1,6 +1,4 @@
 Module
-  global @scoop$1$io$ac1a287317373c93da229af2da309c4d6d75b1e502bf442555e576515b307c2c = "call to abstract method `LocalBase.$get$value`"
-  global @scoop$1$io$90a4011a2caed8408e16917a4420cbf589d3cf23af55c8d1c4e882010c9f29bd = "call to abstract method `LocalBase.$set$value`"
   global @scoop$1$bs$e98e3215a6241c14ef677c975442774f2ea499dcb741393d073f8b82de52ca98 = c"call to abstract method `LocalBase.$get$value`"
   global @scoop$1$bs$ca43a92c19213dbf93ce428cd2acc015d4c01c48959aeaf7c55071c4151ef0ba = c"call to abstract method `LocalBase.$set$value`"
   enum CoroutineStep<LocalBase> niche(kind=managed,payload_variant=0)
@@ -12,14 +10,14 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   fun @scoop$1$cb$ddc8ca3952999f1e70685db3a891e23f61efc85086cbe4cc77bc3fe0d3c70a77(ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
   fun @scoop$1$cb$3afb77f02ba6881fe2fa4aacba357b1883ebd50a56eaf4b6df81a3556d98bee7(ptr<managed>) -> i64
   block entry

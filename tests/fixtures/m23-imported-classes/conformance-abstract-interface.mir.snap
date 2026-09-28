@@ -70,7 +70,7 @@ Module
         Local $new.1
   fun LocalChoice.choose @fn3(this: LocalChoice) -> Long
     bb0 entry
-      trap @str0
+      trap "call to abstract method `LocalChoice.choose`"
   fun init.LocalBase.$c0 @fn4(this: LocalBase) -> Unit
     bb0 entry
       return
@@ -88,5 +88,4 @@ Module
   coroutine_slot cl0 CoroutineSlot<LocalBase> value=LocalBase
   coroutine_slot cl1 CoroutineSlot<LocalReader> value=LocalReader
   coroutine_slot cl2 CoroutineSlot<LocalChoice> value=LocalChoice
-  str @str0 "call to abstract method `LocalChoice.choose`"
   output library

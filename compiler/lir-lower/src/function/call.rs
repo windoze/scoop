@@ -12,7 +12,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         call: &mir::Call,
         result_ty: &mir::Type,
-    ) -> StorageResult<Option<lir::Value>> {
+    ) -> StorageResult<lir::Value> {
         let value = match call.target.callee {
             mir::Callee::Extern(id) => {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
@@ -198,21 +198,6 @@ impl<'a> FunctionLowerer<'a> {
             mir::Callee::CoroutineSuspend { .. } => {
                 unreachable!("coroutine state-machine lowering removes suspend markers")
             }
-            mir::Callee::Runtime(mir::RuntimeFn::Trap) => {
-                // The trap call (from `!!`) only appears as a
-                // statement: the current block branches to the
-                // function's shared trap block and is sealed, so
-                // anything after it is unreachable. The message string
-                // constant becomes a `CString` global.
-                let message = match &call.args[0].kind {
-                    mir::ExprKind::StringConst(id) => self.module.strings[*id].value.clone(),
-                    _ => unreachable!("the trap message is a string constant"),
-                };
-                let trap = self.trap_block(&message)?;
-                self.seal(lir::Terminator::Br(trap));
-                self.current_sealed = true;
-                return Ok(None);
-            }
             mir::Callee::Runtime(function) => {
                 let expected_arg_count = match function {
                     mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringCompare => 2,
@@ -237,8 +222,6 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::IsInstance | mir::RuntimeFn::ITableLookup => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
-                    // Handled by the arm above.
-                    mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
                 };
                 assert_eq!(call.args.len(), expected_arg_count, "runtime call arity");
                 let args: Vec<lir::Value> = call
@@ -301,7 +284,6 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::IsInstance | mir::RuntimeFn::ITableLookup => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
-                    mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
                 };
                 let function = lower_runtime_function(function);
                 self.emit_plain_call(
@@ -312,7 +294,7 @@ impl<'a> FunctionLowerer<'a> {
                 )?
             }
         };
-        Ok(Some(value))
+        Ok(value)
     }
 
     fn lower_external_call(

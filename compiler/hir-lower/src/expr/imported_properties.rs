@@ -16,7 +16,9 @@ mod members;
 mod read;
 mod write;
 
-pub(crate) use extension::ImportedDependencyExtensionPropertyProbe;
+pub(crate) use extension::{
+    ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,
+};
 pub(crate) use members::ResolvedImportedMemberProperty;
 
 pub(crate) struct ImportedDependencyPropertyRead {

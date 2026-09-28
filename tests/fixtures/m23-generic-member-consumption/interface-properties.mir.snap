@@ -112,7 +112,7 @@ Module
       return
   fun value @fn4(this: MutableProperty<Int>, value: Int) -> Unit
     bb0 entry
-      trap @str0
+      trap "call to abstract method `value`"
   fun LocalProperty.$get$value @fn5(this: LocalProperty<Int>) -> Int
     bb0 entry
       return
@@ -130,7 +130,7 @@ Module
       return
   fun value @fn7(this: ReadOnlyProperty<Int>) -> Int
     bb0 entry
-      trap @str1
+      trap "call to abstract method `value`"
   fun init.PropertyItem.$c0 @fn8(this: PropertyItem<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -154,6 +154,4 @@ Module
   instance mi4 function=@fn5 <- LocalProperty.$get$value
   instance mi5 function=@fn6 <- LocalProperty.$set$value
   instance mi6 function=@fn7 <- value
-  str @str0 "call to abstract method `value`"
-  str @str1 "call to abstract method `value`"
   output library

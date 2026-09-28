@@ -141,9 +141,10 @@ fn abstract_methods_lower_to_trap_stubs() {
             .any(|&id| module.functions[id].name == "Base.id")
     );
     assert!(matches!(
-        stub.body.blocks[stub.body.entry].terminator,
-        mir::Terminator::Trap { .. }
+        &stub.body.blocks[stub.body.entry].terminator,
+        mir::Terminator::Trap { message } if message == "call to abstract method `Base.id`"
     ));
+    assert!(module.strings.is_empty());
 }
 
 #[test]

@@ -168,6 +168,8 @@ generic host 的普通方法和 accessor 具有 exact owner；generic method 另
 
 泛型成员的普通调用和强制 `super` 调用保留不同的调用方式。泛型宿主上的普通虚方法、接口方法及访问器复用具体方法的 direct/virtual/interface dispatch；方法自身有类型参数时保持 final/direct。类的虚表、类和值类型的接口表可引用外来普通定义，或当前消费方从模板物化的具体方法；抽象槽沿现有参数完整的抽象方法与 trap 路径处理。共有模板的再次发布保留这项选择，不能把普通动态调用重新导出成强制直接调用。
 
+泛型扩展属性的 getter 与 setter 保留原 `PersistentPropertyAccessorId`，按 property binder 的声明顺序建立各自的 callable application。消费方使用 getter 的完整签名和现有约束求解器，仅从 receiver 静态类型选择逻辑属性并确定类型实参；该选择供读取、赋值、复合赋值和自增共用，setter 右值与 expected result 不参与重新推断。只写属性时不因借用 getter 签名而物化 getter 正文；实际使用的访问器进入原泛型正文队列，定义处绑定、独立可见性、effect 和 receiver 求值顺序保持。再次发布保存实际访问器声明及类型实参，不把扩展访问器改造成普通泛型函数或名义类型方法；此项复用已有 HIR interface 格式。
+
 protected 访问区域使用普通或泛型声明的原 typed nominal owner；词法类和声明类的继承关系不依赖 machine exact type。显式 receiver 的静态类仍须是提供访问上下文的类或其子类，构造器、方法、属性 setter 与 protected override 共用原可见性和槽覆盖规则。泛型 application 的实参替换及不变性继续由类型检查负责，访问检查不制造擦除后的类型或额外访问证明。产物以原声明 visibility 和 owner 表达访问规则，`InheritanceSlotContractV1` 不再重复保存 domain field 5；reader 保留身份、签名和实现引用检查，不重放已完成的访问域语义。
 
 泛型抽象成员只有共有声明，没有共享执行正文。消费方从已验证声明取得实际 owner、宿主 binder、完整 receiver/参数/结果、effect 和原 definition origin，建立与本地抽象方法相同的参数局部值，进入既有 abstract trap lowering；不能为通过正文导入而制造空的共有 body record。抽象 setter 的隐式参数使用原 accessor 声明位置，普通参数继续保留自己的源码位置。默认实现继续消费真实模板正文，接口继承和抽象 override 保留实际所选声明。同一具体方法同时被调用根和接口表引用时，MIR 复用一个函数与实例记录。导入 struct/enum 在存储和父接口完成后，沿与 class 相同的 source dispatch selection 建立完整接口实现；实际装箱和 adjust thunk 使用该完整 conformance，不从方法名重建选择。
@@ -209,6 +211,10 @@ box payload 或 inline array element 所需的结构 value layout 与 scan 由 L
 装箱 adjust 的外来目标直接使用同次 selected callable 的完整物理签名，Direct/Interface 调用方式不承担声明签名查询。外来参数自由值的 box 与 adjust 由原 provider 提供，conformance 查询数据本身不增加消费方执行根；本地值和实际泛型 application 的装箱实现继续按需物化。
 
 共有布局与 callable ABI 语义闭包保存 `(provider, target)`，允许同一 ODR definition plan 在不同 Cone 各有一份记录。指定 provider 的引用必须保留该定义位置，普通 Strong target 和同一 provider 内的重复仍拒绝；跨产物内容兼容性继续由共有 ODR member 合并入口检查，不在语义索引中先选 winner 或重算内容摘要。
+
+生成 dispatch 导出时，从同次 LIR 槽的 Local/External 引用取得实际物理 provider，再以 `(provider, callable target)` 查询已有 ABI。读取时从产物已保存的 dispatch ABI 引用取得相同位置，并以 MIR 槽的实际 target 查询完整 ABI；查询后仍核对保存的正文引用与签名。本地槽使用当前 Cone 的记录，外部槽保留已经选定的依赖记录；其他 Cone 中存在同一 ODR member 的记录不构成调用歧义。既有槽签名、ABI 和物理引用检查保持，跨产物完整定义比较继续只由原 ODR member 合并入口承担。
+
+descriptor 的父类型或接口已在当前 MIR 表示清单与 LIR instance layout 中定义时，直接使用当前 Cone 的 Local TD 引用。依赖中同时存在该 ODR descriptor 不改变这个已经确定的物理引用；未在当前产物定义的类型继续解析实际依赖记录。
 
 ### 5.2 每次物化的必要闭包
 
@@ -252,6 +258,8 @@ MIR 的共有机器输入直接消费 `DependencyMirOutput` 所持的唯一 cano
 泛型正文与默认值复用同一控制流节点展开。`try`、顺序 `catch`、`finally` 和 `throw` 直接保留原定义处的完整 typed 结构、catch local selector 与求值位置，继续使用现有异常、清理和 GC lowering；消费方不重做名字查找，不另建泛型异常实现。
 
 共有 LIR 输出保存实际 producer 与唯一 canonical foundation，物化定义图直接区分 Strong plan 和既有 ODR member plan。源 callable 的 group/member 由 MIR 的实际物化记录传入；LIR 不重复发布 HIR/MIR 已有的 member，而为其 callable/safepoint registration 建立属于同一 group 的新 member。每个物理定义保留自己的 kind-specific primary symbol，不能为取得 plan 而把 ODR body 改成 consumer Strong。callable 的 trap 字符串、运行时 scan 与 EH/stackmap 关联 atom 从该 body 的真实 plan 和稳定局部路径产生；定义边界 symbol 沿用所属 plan 的 linkage。历史 Strong section 的限制在读取或生产该 section 时检查，共有 LIR lowering 不借用 OdrFree 输出。 普通 callable bridge 只核对其实际导出项的 body、符号、Strong definition plan 与 primary atom；完整物理定义和关联 atom 的验证保留在共有产物边界，不为读取参数自由子集重建整张 Strong symbol 表。 从已完成读取验证的 foundation 构造共有输出时，直接保留已验证的 producer 和 canonical 数据，不再次遍历归属。
+
+抽象 callable 的 trap 从结构化终止语句到 MIR `Trap` 终结符直接携带诊断文本，LIR 只生成 body 所属的既有 C 字符串 atom。消息不进入托管 String 常量池，不产生 immortal object 或登记；移除以普通 runtime call 和托管 String 参数表示同一 trap 的旧路径。多个 Cone 物化同一泛型抽象成员时，其常量沿 body 的 ODR plan 合并，runtime 的对象范围检查保持不变。
 
 物理依赖选择直接使用 MIR 的实际类型、callable、dispatch 与初始化单元引用，保留各自 provider 和 typed target；初始化选择只传入所需的 unit 引用，不要求先构造整个参数自由类型导出 section。完整依赖记录仍来自同一批已读取产物，不能用手工补造 descriptor 或省略实际引用来降低测试要求。
 

@@ -1,5 +1,4 @@
 Module
-  global @scoop$1$io$b13a35e5405c62b7bf0e8231da365ead5f1fbc856c541a0fedf8a3cf7ce8a5df = "call to abstract method `value`"
   global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `value`"
   fun @scoop$1$cb$c20c1e9711cb38bbb03fa5a5ab50853b7e47e89b21f59540ab1df17a75621967() -> i32
     local %0 $dependency.argument.0: i32
@@ -42,7 +41,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   fun @scoop$1$cb$0e0fbafdcd7eef1738d8f30aea31a3e798bc519ea3a05100a19cb852cef55f58(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
   block entry

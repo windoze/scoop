@@ -41,6 +41,7 @@ pub struct ImportedGenericCallableSignature {
 #[derive(Debug, Clone)]
 pub enum ImportedCallableTemplateOrigin {
     Generic(scoop_identity::PersistentGenericFunctionId),
+    ExtensionAccessor(scoop_identity::PersistentPropertyAccessorId),
     Nominal {
         declaration: crate::DefaultCallableDeclarationV1,
         owner: crate::SourceNominalId,
@@ -84,6 +85,7 @@ impl ImportedCallableTemplateOrigin {
     pub fn declaration(&self) -> scoop_identity::CallableTemplateOrigin {
         match self {
             Self::Generic(id) => scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
+            Self::ExtensionAccessor(id) => scoop_identity::CallableTemplateOrigin::Accessor(*id),
             Self::Nominal { declaration, .. } => match declaration {
                 crate::DefaultCallableDeclarationV1::Function(id) => {
                     scoop_identity::CallableTemplateOrigin::Function(*id)

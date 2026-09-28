@@ -21,10 +21,10 @@ Module
   generated_exact_type get3 location=enum2 nominal_id=5fbbbfbd5a60b0602dd6ab85f7206739f405900f242bec64680ff09afaa387f1 exact_id=f23bb4fe10f8197a5689df10349a06c31daed5a97ab80018df8233d296aa4194
   fun LocalBase.$get$value @fn0(this: LocalBase) -> Long
     bb0 entry
-      trap @str0
+      trap "call to abstract method `LocalBase.$get$value`"
   fun LocalBase.$set$value @fn1(this: LocalBase, value: Long) -> Unit
     bb0 entry
-      trap @str1
+      trap "call to abstract method `LocalBase.$set$value`"
   fun LocalReader.$get$value @fn2(this: LocalReader) -> Long
     bb0 entry
       return
@@ -98,6 +98,4 @@ Module
   coroutine_step cs1 CoroutineStep<LocalReader> result=LocalReader
   coroutine_slot cl0 CoroutineSlot<LocalBase> value=LocalBase
   coroutine_slot cl1 CoroutineSlot<LocalReader> value=LocalReader
-  str @str0 "call to abstract method `LocalBase.$get$value`"
-  str @str1 "call to abstract method `LocalBase.$set$value`"
   output library

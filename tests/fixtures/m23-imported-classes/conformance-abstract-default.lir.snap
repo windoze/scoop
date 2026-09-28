@@ -1,5 +1,4 @@
 Module
-  global @scoop$1$io$680d2aaf588acad7708fbd030427c67c1c164219bee0c5db1b013bf12c833ee5 = "call to abstract method `LocalBase.choose`"
   global @scoop$1$bs$35bb52701c6f3bbda8641c7fdadc65b952040488eb3ac8cb700f0222f40978c3 = c"call to abstract method `LocalBase.choose`"
   enum CoroutineStep<LocalReader> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<LocalReader> niche(kind=managed,payload_variant=1)
@@ -10,7 +9,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   fun @scoop$1$cb$1fbafa9a8ca6ffe6ca789bea0fc9ad485ae1a6c7afaf35b813a00be93cac53dd(ptr<managed>) -> i64
   block entry

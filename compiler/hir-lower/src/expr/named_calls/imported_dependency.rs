@@ -15,6 +15,7 @@ mod generic;
 mod inputs;
 mod pattern;
 mod probe;
+mod properties;
 
 pub(in crate::expr) use arguments::ImportedArgumentMap;
 use candidate::ImportedCallableCandidate;

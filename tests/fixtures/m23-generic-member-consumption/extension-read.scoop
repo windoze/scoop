@@ -1,0 +1,6 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int = Box<Int>(42).extensionValue
+public fun <T> make(value: T): T = Box<T>(value).extensionValue

@@ -49,10 +49,27 @@ impl<'a> Abis<'a> {
     pub(super) fn callable(
         &self,
         target: CallableDefinitionOwner,
+        table: scoop_identity::PersistentDispatchTableId,
+        position: u32,
     ) -> Result<lir::DispatchCallableAbiV1<'a>, Error> {
+        let reference = self
+            .0
+            .local_dispatch
+            .callable_reference(table, position)
+            .ok_or(Error::MissingCallable(target))?;
+        let selected_provider = |candidate: ConeIdentity| match reference {
+            lir::DecodedStrongTypeDispatchCallableRefV2::Local(_) => {
+                candidate == self.0.local_callables.provider()
+            }
+            lir::DecodedStrongTypeDispatchCallableRefV2::DependencyExternal {
+                provider, ..
+            } => candidate.as_array() == provider.as_array(),
+            lir::DecodedStrongTypeDispatchCallableRefV2::Runtime(_) => false,
+        };
         let mut found = None;
         for table in std::iter::once(self.0.local_callables)
             .chain(self.0.dependency_callables.iter().copied())
+            .filter(|table| selected_provider(table.provider()))
         {
             if let Some(value) = table.get(target) {
                 let receiver = match value
@@ -77,6 +94,7 @@ impl<'a> Abis<'a> {
         }
         for table in std::iter::once(self.0.local_direct_callables)
             .chain(self.0.dependency_direct_callables.iter().copied())
+            .filter(|table| selected_provider(table.artifact()))
         {
             if let Some(record) = target
                 .strong_owner()

@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{dump_call, dump_expr, string_ref, type_name};
+use super::{dump_call, dump_expr, type_name};
 
 pub(super) fn dump_statements(
     module: &Module,
@@ -135,7 +135,7 @@ pub(super) fn dump_terminator(
         }
         Terminator::Resume => out.push_str(&format!("{pad}resume\n")),
         Terminator::Trap { message } => {
-            out.push_str(&format!("{pad}trap {}\n", string_ref(*message)));
+            out.push_str(&format!("{pad}trap {message:?}\n"));
         }
         Terminator::Unreachable => out.push_str(&format!("{pad}unreachable\n")),
     }

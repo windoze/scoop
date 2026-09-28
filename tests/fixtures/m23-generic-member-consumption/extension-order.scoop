@@ -1,0 +1,35 @@
+package consumer.members
+
+import templates.members.*
+
+private fun receiver(cell: ExtensionTrace<Int>): ExtensionTrace<Int> {
+    cell.order = cell.order * 10 + 1
+    return cell
+}
+
+private fun rhs(cell: ExtensionTrace<Int>): Int {
+    cell.order = cell.order * 10 + 3
+    return 20
+}
+
+public fun result(): Int {
+    val cell = ExtensionTrace<Int>(0, 0)
+    receiver(cell).extensionTracked = rhs(cell)
+    if (cell.order != 134 || cell.value != 20) { return 1 }
+    cell.order = 0
+    receiver(cell).extensionTracked += rhs(cell)
+    if (cell.order != 1234 || cell.value != 40) { return 2 }
+    cell.order = 0
+    val previous = receiver(cell).extensionTracked++
+    if (cell.order != 124 || previous != 40 || cell.value != 41) { return 3 }
+    cell.order = 0
+    val current = ++receiver(cell).extensionTracked
+    if (cell.order != 124 || current != 42 || cell.value != 42) { return 4 }
+    return cell.value
+}
+
+public fun <T> make(value: T): T {
+    val cell = ExtensionTrace<T>(value, 0)
+    cell.extensionTracked = value
+    return cell.extensionTracked
+}

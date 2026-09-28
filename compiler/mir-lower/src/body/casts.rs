@@ -231,9 +231,4 @@ impl BodyLowerer<'_> {
         });
         smir::Expr::local(result, option_ty)
     }
-
-    /// A trap message string constant owned by the body that emits it.
-    pub(super) fn trap_message(&mut self, message: String) -> mir::StringConstId {
-        self.intern_current_string(message)
-    }
 }

@@ -23,7 +23,7 @@ Module
   generated_exact_type get3 location=enum1 nominal_id=81befca258985a4926557a17ce5e5bad9ba8047da8730588fd36c92c3e6e3bf4 exact_id=c62e6e90534d50e5ed8e5a79be9b908645ba73313811623e8d670fc630633075
   fun LocalBase.value @fn0(this: LocalBase, marker: Token, input: Counter) -> WideValue
     bb0 entry
-      trap @str0
+      trap "call to abstract method `LocalBase.value`"
   fun LocalReader.value @fn1(this: LocalReader, marker: Token, input: Counter) -> WideValue
     bb0 entry
       val $dependency.receiver: Counter
@@ -159,5 +159,4 @@ Module
   coroutine_step cs1 CoroutineStep<LocalReader> result=LocalReader
   coroutine_slot cl0 CoroutineSlot<LocalBase> value=LocalBase
   coroutine_slot cl1 CoroutineSlot<LocalReader> value=LocalReader
-  str @str0 "call to abstract method `LocalBase.value`"
   output library

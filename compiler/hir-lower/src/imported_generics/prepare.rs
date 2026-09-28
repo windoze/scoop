@@ -25,6 +25,14 @@ impl Lowerer {
                 .cloned(),
             _ => None,
         };
+        let extension = match &identity {
+            hir::ImportedCallableTemplateOrigin::ExtensionAccessor(accessor) => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.property_for_accessor(*accessor))
+                .cloned(),
+            _ => None,
+        };
         let receiver_signature = if nominal.is_some() {
             Some(
                 body.locals()
@@ -70,6 +78,12 @@ impl Lowerer {
             .as_ref()
             .into_iter()
             .flat_map(|nominal| nominal.interface.type_parameters().binders())
+            .chain(
+                extension
+                    .as_ref()
+                    .into_iter()
+                    .flat_map(|property| property.type_parameters().binders()),
+            )
             .chain(declaration.interface().type_parameters().binders())
             .collect::<Vec<_>>();
         if binders.len() != body.type_parameters().arguments().len() {

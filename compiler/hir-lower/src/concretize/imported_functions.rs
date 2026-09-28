@@ -58,6 +58,7 @@ impl Concretizer<'_> {
             .collect();
         let capture_parameters = match &template.declaration {
             export::ImportedCallableTemplateOrigin::Generic(_)
+            | export::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
             | export::ImportedCallableTemplateOrigin::Nominal { .. } => Vec::new(),
             export::ImportedCallableTemplateOrigin::Local { parent, descriptor } => descriptor
                 .captures()
@@ -147,6 +148,7 @@ impl Concretizer<'_> {
                     .expect("provider captures retain their actual outer value selector");
                 let index = match &template.declaration {
                     export::ImportedCallableTemplateOrigin::Generic(_)
+                    | export::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
                     | export::ImportedCallableTemplateOrigin::Nominal { .. } => None,
                     export::ImportedCallableTemplateOrigin::Local { descriptor, .. } => template
                         .parameters[..descriptor.capture_count() as usize]

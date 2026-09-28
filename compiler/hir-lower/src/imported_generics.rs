@@ -168,6 +168,15 @@ impl Lowerer {
             }
         } else if let CallableTemplateOrigin::GenericFunction(origin) = key {
             hir::ImportedCallableTemplateOrigin::Generic(origin)
+        } else if let CallableTemplateOrigin::Accessor(origin) = key
+            && declaration.interface().owner() == hir::PublicDeclarationOwnerV1::Extension
+            && self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.property_for_accessor(origin))
+                .is_some_and(|property| !property.type_parameters().is_empty())
+        {
+            hir::ImportedCallableTemplateOrigin::ExtensionAccessor(origin)
         } else {
             return Err("dependency callable does not name a generic source body".into());
         };

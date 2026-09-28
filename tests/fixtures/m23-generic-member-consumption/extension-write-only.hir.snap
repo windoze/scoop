@@ -1,0 +1,30 @@
+Module
+  fun result(): Int
+    val local0
+      IntegerLiteral 20 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedConstructorInit PropertyItem : PropertyItem<Int>
+        Local $dependency.parameter.value : Int
+    ImportedGenericCall extensionState<Int> : Unit
+      Local holder : PropertyItem<Int>
+      IntegerLiteral 42 : Int
+    return
+      ImportedGenericCall value<Int> : Int
+        Local holder : PropertyItem<Int>
+  fun make<T>(value: T0): T0
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedConstructorInit PropertyItem : PropertyItem<T0>
+        Local $dependency.parameter.value : T0
+    ImportedGenericCall extensionState<T0> : Unit
+      Local holder : PropertyItem<T0>
+      Local value : T0
+    return
+      ImportedGenericCall value<T0> : T0
+        Local holder : PropertyItem<T0>
+  output library

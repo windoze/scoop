@@ -1,0 +1,74 @@
+Module
+  global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `value`"
+  fun @scoop$1$cb$dba2caa3c855067c454526c9f05f5ab206fdaabdbc2e492f1cc42026f6a431df() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 holder: ptr<managed>
+    local %3 $new.1: ptr<managed>
+    local %4 $call.2: i32
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000014) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
+    store t0 -> local3
+    call managed-void-target0 sp<managed-call:1> live=[local3:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn7(local3, local1)
+    t1 = aggregate () : {}
+    store local3 -> local2
+    call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn4(local2, integer<Int>(0x0000002a))
+    t2 = aggregate () : {}
+    call managed-direct-target1 sp<managed-call:3> live=[local2:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> i32 local-fn5(local2)
+    store t3 -> local4
+    ret local4
+  fun @scoop$1$cb$ade66ffcc489b76372d30a3d1f18f31833d1a03132223bf2828e4c914733a3a8(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td1)
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(param0)
+    store t2 -> local0
+    ret local0
+  fun @scoop$1$cb$b60fa19215c6cf33cc8dbe1468216afd7222185ecf9626e1e22ba369eaf9b2e5(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
+    ret t0
+  fun @scoop$1$cb$7aa9511d927ff42aad8bf1f4ebce7de0803ecd5bfba214c3b27541d7b5994919(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$49af0028204c3f13c945007011ba2483bc599cf7078e0b943ea5cf05c9d6ac63(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn3(param0, param1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$f1254870ba2dee8d9d255ad33e86b67f6dea3497f4dcce7f858bc25faa01c760(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn2(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$c044e099e87591b97ff08d7e0613dbf6f8c7c709260fa3f8f6a22b504a70f792(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
+    unreachable
+  fun @scoop$1$cb$58eee9c54b11ca76aba9f68a4aa02dcd7e857c370dc2803e32951de7063f622b(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=MutableProperty);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$f29c64f2cb71a087d547f16e8f6b25ff26bc11609ac9d8c07a3320a88b3f9043 type-id=13019572123872457994 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=ReadOnlyProperty);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$85d3f51e9989ade8e4d028370f995a4e9669d2ac2860ba3c53c7d95b4004f592 type-id=2822139644376812075 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=PropertyItem);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$a5e2c2ebcd862e9e098576246f1b1af656e9f04534c3a24bee0d17aa17243bb4 type-id=15540980815018629011 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td1:[local-fn2, local-fn1], td0:[local-fn1, local-fn2, local-fn3]]
+  layout MutableProperty value size=8 align=8 refs=[0]
+  layout ReadOnlyProperty value size=8 align=8 refs=[0]
+  layout PropertyItem value size=8 align=8 refs=[0]
+  layout PropertyItem size=24 align=8 refs=[]
+  output library

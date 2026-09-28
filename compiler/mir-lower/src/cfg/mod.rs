@@ -297,22 +297,6 @@ mod expression;
 mod patterns;
 mod transfers;
 
-fn trap_message(expr: &smir::Expr) -> Option<mir::StringConstId> {
-    let smir::ExprKind::Call(call) = &expr.kind else {
-        return None;
-    };
-    if call.target.callee != mir::Callee::Runtime(mir::RuntimeFn::Trap) {
-        return None;
-    }
-    let [argument] = call.args.as_slice() else {
-        panic!("the trap intrinsic always carries one string constant")
-    };
-    let smir::ExprKind::StringConst(message) = argument.kind else {
-        panic!("the trap intrinsic always carries one string constant")
-    };
-    Some(message)
-}
-
 fn synthetic_span() -> Span {
     Span { start: 0, end: 0 }
 }

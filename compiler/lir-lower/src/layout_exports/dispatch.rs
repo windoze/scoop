@@ -27,7 +27,14 @@ pub(super) fn lower(
         }
         let schema = schemas::for_owner(input.bridge, owner)?;
         let slots = schema.vtable();
-        let entries = entries::project(slots, layouts, callables, input.ordinary, dependencies)?;
+        let entries = entries::project(
+            slots,
+            descriptor.vtable.slots(),
+            input,
+            layouts,
+            callables,
+            dependencies,
+        )?;
         records.push(replay(input, (&descriptor.vtable).into(), &entries)?);
         for table in &descriptor.itables {
             let key = table.identity_record().key();
@@ -37,8 +44,14 @@ pub(super) fn lower(
             let slots = schema
                 .interface(interface)
                 .ok_or(Error::MissingInterface(table.identity_record().id()))?;
-            let entries =
-                entries::project(slots, layouts, callables, input.ordinary, dependencies)?;
+            let entries = entries::project(
+                slots,
+                table.slots(),
+                input,
+                layouts,
+                callables,
+                dependencies,
+            )?;
             records.push(replay(input, table.into(), &entries)?);
         }
     }

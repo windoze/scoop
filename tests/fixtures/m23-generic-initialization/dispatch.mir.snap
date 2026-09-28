@@ -93,7 +93,7 @@ Module
         Local value
   fun Source.get @fn6(this: Source<Int>) -> Int
     bb0 entry
-      trap @str0
+      trap "call to abstract method `Source.get`"
   fun init.Derived.$c1 @fn7(this: Derived<Int>, item: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -124,5 +124,4 @@ Module
   instance mi3 function=@fn4 <- Base.$get$item
   instance mi4 function=@fn5 <- Source.echo
   instance mi5 function=@fn6 <- Source.get
-  str @str0 "call to abstract method `Source.get`"
   output library

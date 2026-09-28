@@ -1,6 +1,7 @@
 use super::*;
 
 mod access;
+mod extensions;
 
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(

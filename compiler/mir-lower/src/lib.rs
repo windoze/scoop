@@ -44,8 +44,8 @@
 //! a plain call to the generated constructor function (M6). LocalConcrete
 //! HIR supplies the complete typed exception/constructor identities; MIR
 //! performs no class-arena name lookup or missing-core fallback.
-//! `RuntimeFn::Trap` keeps exactly one generation path: the
-//! abstract-method stub (a cannot-happen pure-virtual trap).
+//! `Terminator::Trap` keeps exactly one generation path: the
+//! abstract-method stub, whose native diagnostic is not a managed String.
 //!
 //! M7/M14: print/println and primitive formatting/equality are ordinary core
 //! functions. Their representation-level helpers are ordinary Scoop-ABI

@@ -1,4 +1,4 @@
-dependency: objects=80 generated=0 patches=761 stackmaps=153 safepoints=153 callables=79 types=89 immortals=7 storages=6 initializations=2
+dependency: objects=80 generated=0 patches=759 stackmaps=153 safepoints=153 callables=79 types=89 immortals=5 storages=6 initializations=2
 current: objects=33 generated=2 patches=351 stackmaps=115 safepoints=115 callables=32 types=0 immortals=0 storages=14 initializations=7
 reject Envelope
 reject CBridgeEnvelope

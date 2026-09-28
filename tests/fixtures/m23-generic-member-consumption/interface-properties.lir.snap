@@ -1,6 +1,4 @@
 Module
-  global @scoop$1$io$ae61c24f13679d1e87cd10b4bc4cda0b22513f4ab05f0dd91d535c509ca12cc0 = "call to abstract method `value`"
-  global @scoop$1$io$b13a35e5405c62b7bf0e8231da365ead5f1fbc856c541a0fedf8a3cf7ce8a5df = "call to abstract method `value`"
   global @scoop$1$bs$05051659206843e58c7696cb36a5d9d6bfe973ac79701a4fd11265c911bfc147 = c"call to abstract method `value`"
   global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `value`"
   fun @scoop$1$cb$7619b7ff8f39d990737356c72cfc5b32b7227fe73f981230ebb8c88cfc166a98() -> i32
@@ -85,7 +83,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   fun @scoop$1$cb$8a92c48d087c5723074e3f1e61fc37d870728b6e95e9fd777cd6b5327315f10c(ptr<managed>) -> i32
   block entry
@@ -102,7 +100,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
   fun @scoop$1$cb$58eee9c54b11ca76aba9f68a4aa02dcd7e857c370dc2803e32951de7063f622b(ptr<managed>, i32) -> void
   block entry

@@ -76,6 +76,9 @@ pub(crate) enum StatementKind {
     /// runtime predecessor. Keeping it explicit prevents Unit fallthrough
     /// completion from turning an impossible edge into a normal return.
     Unreachable,
+    Trap {
+        message: String,
+    },
     Expr(Expr),
     Return {
         value: Option<Expr>,

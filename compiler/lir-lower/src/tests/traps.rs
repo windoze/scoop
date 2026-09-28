@@ -3,14 +3,12 @@ use super::*;
 mod odr;
 
 #[test]
-fn trap_calls_branch_to_a_shared_trap_block() {
-    // fun f(o: Option<Int>): Int { return o!! + o!! } — in the
-    // mir-lower shape: each `o!!` is `if (tag == Some) { val $uw =
-    // field0 } else { trap(msg) }`.
+fn trap_terminators_branch_to_a_shared_trap_block() {
+    // Two failure edges in one CFG reuse the same native trap block.
     let mut b = Builder::new();
     let option_i = b.option_enum("Option<Int>", INT);
     let option_ty = mir::Type::Enum(option_i, vec![INT]);
-    let message = b.string("unwrap on None (function f)");
+    let message = String::from("invalid variant in function f");
     let mut locals = Arena::new();
     let o = locals.alloc(local("o", option_ty.clone()));
     let uw1 = locals.alloc(local("$uw.1", INT));
@@ -69,7 +67,9 @@ fn trap_calls_branch_to_a_shared_trap_block() {
         &mut blocks,
         else1,
         Vec::new(),
-        mir::Terminator::Trap { message },
+        mir::Terminator::Trap {
+            message: message.clone(),
+        },
         None,
     );
     set_cfg_block(
@@ -155,12 +155,11 @@ fn trap_calls_branch_to_a_shared_trap_block() {
         .expect("the trap support atom has physical boundaries");
     assert_eq!(boundary.start().symbol().as_str(), trap_global.0.symbol());
 
-    // Both `!!` share the one trap block of the function.
+    // Both terminators share one trap block and one native diagnostic.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "unwrap on None (function f)"
   global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
-  global @scoop$1$bs$00437761c5a0d7252a5394267da8aa30509fe249acd6e8aff2304d37b1b16433 = c"unwrap on None (function f)"
+  global @scoop$1$bs$00437761c5a0d7252a5394267da8aa30509fe249acd6e8aff2304d37b1b16433 = c"invalid variant in function f"
   enum Option<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(indirect<enum0 size=16 align=8 scan=none>) -> i32
     local %0 $uw.1: i32
@@ -190,7 +189,7 @@ Module
     t6 = integer_Add<Int> local0, local1 : i32
     ret t6
   block unwrap.trap.1
-    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
   fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
   block entry
@@ -206,7 +205,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    global_store global1, t2
+    global_store global0, t2
     end_catch
     ret integer<UInt>(0x00000001)
   td td1 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

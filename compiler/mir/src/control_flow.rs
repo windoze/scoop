@@ -286,8 +286,9 @@ pub enum Terminator {
     /// Continue native unwinding with the exception record captured by the
     /// nearest landing/cleanup pad.
     Resume,
+    /// A native fatal diagnostic, not a managed String value.
     Trap {
-        message: StringConstId,
+        message: String,
     },
     Unreachable,
 }

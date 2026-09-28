@@ -64,6 +64,7 @@ pub(super) fn validate_dependencies(
 
 pub(super) fn callable<'a>(
     target: CallableDefinitionOwner,
+    provider: ConeIdentity,
     local: &'a lir::CanonicalExactCallableAbiExportsV1,
     dependencies: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
     direct: &'a lir::CrossConeLirBridgeSectionV1,
@@ -71,7 +72,10 @@ pub(super) fn callable<'a>(
     layouts: &'a Layouts<'_>,
 ) -> Result<lir::DispatchCallableAbiV1<'a>, Error> {
     let mut found = None;
-    for table in std::iter::once(local).chain(dependencies.iter().copied()) {
+    for table in std::iter::once(local)
+        .chain(dependencies.iter().copied())
+        .filter(|table| table.provider() == provider)
+    {
         if let Some(record) = table.get(target) {
             if found.is_some() {
                 return Err(Error::AmbiguousCallable(target));
@@ -88,7 +92,10 @@ pub(super) fn callable<'a>(
             found = Some(lir::DispatchCallableAbiV1::Exact { record, receiver });
         }
     }
-    for table in std::iter::once(direct).chain(direct_dependencies.iter().copied()) {
+    for table in std::iter::once(direct)
+        .chain(direct_dependencies.iter().copied())
+        .filter(|table| table.artifact() == provider)
+    {
         if let Some(record) = target
             .strong_owner()
             .and_then(|target| table.export_for_target(target))

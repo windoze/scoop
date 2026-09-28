@@ -9,7 +9,9 @@ pub(super) fn check(
     dependencies: LayoutAbiExportDependenciesV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
+    let wire: lir::DecodedCanonicalExactDispatchExportsV1 = decoded(expected.dispatch());
     let inputs = SharedLirDispatchAbiInputsV1 {
+        local_dispatch: &wire,
         local_layouts: expected.layouts(),
         local_callables: expected.callables(),
         local_direct_callables: input.ordinary,
@@ -19,8 +21,6 @@ pub(super) fn check(
     };
     let dispatch = replay(input, inputs).unwrap();
     assert_eq!(&dispatch, expected.dispatch());
-    let wire: lir::DecodedCanonicalExactDispatchExportsV1 = decoded(expected.dispatch());
-    assert_eq!(wire.validate_against(&dispatch).unwrap(), dispatch);
     for ty in input.bridge.types().records() {
         let tables: Vec<_> = dispatch
             .records()
@@ -93,13 +93,16 @@ pub(super) fn check(
             Err(Error::DependencyProvider(_))
         ));
     }
+    assert_eq!(wire.validate_against(&dispatch).unwrap(), dispatch);
 }
 
 pub(super) fn probe(
     input: LayoutAbiExportInputV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
+    let wire: lir::DecodedCanonicalExactDispatchExportsV1 = decoded(expected.dispatch());
     let inputs = SharedLirDispatchAbiInputsV1 {
+        local_dispatch: &wire,
         local_layouts: expected.layouts(),
         local_callables: expected.callables(),
         local_direct_callables: input.ordinary,

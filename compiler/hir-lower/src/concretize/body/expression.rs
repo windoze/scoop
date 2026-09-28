@@ -497,6 +497,7 @@ impl Concretizer<'_> {
                     self.source.imported_generic_templates[source].declaration,
                     export::ImportedCallableTemplateOrigin::Local { .. }
                         | export::ImportedCallableTemplateOrigin::Nominal { .. }
+                        | export::ImportedCallableTemplateOrigin::ExtensionAccessor(_)
                 );
                 let callee = self.lower_imported_callable_application(application, substitution);
                 let args: Vec<_> = args

@@ -124,3 +124,49 @@ public open class ProtectedMiddle<T> protected constructor(value: T): ProtectedB
 public class ProtectedChild<T> public constructor(value: T): ProtectedMiddle<T>(value) {
     public fun read(): T = this.secret()
 }
+
+private fun <T> extensionIdentity(value: T): T = value
+
+public val <T> Box<T>.extensionValue: T
+    get() = extensionIdentity<T>(this.value)
+
+public var <T> PropertyItem<T>.extensionState: T
+    get() = this.value
+    set(next) { this.value = next }
+
+public val <T> Box<T>.extensionCaptured: T
+    get() {
+        fun read(): T = this.value
+        return extensionIdentity<T>(read())
+    }
+
+public val <T : value> Box<T>.extensionValueOnly: T
+    get() = this.value
+
+public var <T> PropertyItem<T>.extensionRestricted: T
+    get() = this.value
+    private set(next) { this.value = next }
+
+public val <T> T.extensionKind: Int
+    get() = 1
+
+public val Int.extensionKind: Int
+    get() = 42
+
+public val <T> T.extensionSelect: Int
+    get() = 1
+
+public val <T> Box<T>.extensionSelect: Int
+    get() = 42
+
+public class ExtensionTrace<T> public constructor(public var value: T, public var order: Int)
+
+public var <T> ExtensionTrace<T>.extensionTracked: T
+    get() {
+        this.order = this.order * 10 + 2
+        return this.value
+    }
+    set(next) {
+        this.order = this.order * 10 + 4
+        this.value = next
+    }

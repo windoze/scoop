@@ -72,7 +72,8 @@ mod imported_properties;
 mod imported_singletons;
 mod named_calls;
 pub(crate) use imported_properties::{
-    ImportedDependencyExtensionPropertyProbe, ResolvedImportedMemberProperty,
+    ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,
+    ResolvedImportedMemberProperty,
 };
 pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 

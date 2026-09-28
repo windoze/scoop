@@ -1,0 +1,12 @@
+import consumer.members.result
+import consumer.members.make
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    val repeated = make<Int>(result())
+    val value = make<Later>(Later(repeated))
+    val first = Later(1)
+    val second = Later(2)
+    return value.value
+}
