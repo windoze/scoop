@@ -70,6 +70,10 @@ pub enum HirDependencyTypeSiteV1 {
         unit: PersistentInitializationUnitId,
         exact: PersistentExactTypeId,
     },
+    GenericDelegateStorage {
+        unit: PersistentInitializationUnitId,
+        exact: PersistentExactTypeId,
+    },
 }
 
 impl HirDependencyTypeSiteV1 {
@@ -91,6 +95,7 @@ impl HirDependencyTypeSiteV1 {
             | Self::LocalValue { exact, .. }
             | Self::BackingStorage { exact, .. }
             | Self::DelegateStorage { exact, .. }
+            | Self::GenericDelegateStorage { exact, .. }
             | Self::FieldStorage { exact, .. }
             | Self::EnumVariantFieldStorage { exact, .. }
             | Self::ConstructorInitializerResult { exact, .. }
@@ -105,6 +110,7 @@ impl HirDependencyTypeSiteV1 {
             | Self::LocalValue { .. }
             | Self::BackingStorage { .. }
             | Self::DelegateStorage { .. }
+            | Self::GenericDelegateStorage { .. }
             | Self::FieldStorage { .. }
             | Self::EnumVariantFieldStorage { .. }
             | Self::ConstructorInitializerResult { .. }
@@ -138,6 +144,9 @@ impl HirDependencyTypeSiteV1 {
             }
             Self::InitializationCycleMessage { unit, .. } => {
                 HirDependencyTypePositionV1::InitializationCycleMessage(*unit)
+            }
+            Self::GenericDelegateStorage { unit, .. } => {
+                HirDependencyTypePositionV1::GenericDelegateStorage(*unit)
             }
         }
     }

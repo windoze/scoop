@@ -93,6 +93,7 @@ pub(super) fn set_shape(fixture: &mut ProviderFixture, shape: NominalSourceShape
         CanonicalExternalHirReferencesV1::default(),
         Default::default(),
         Default::default(),
+        Default::default(),
     );
 }
 pub(super) fn structure(

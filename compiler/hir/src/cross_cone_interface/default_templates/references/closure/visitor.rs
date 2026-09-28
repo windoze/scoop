@@ -20,13 +20,14 @@ pub use super::compare::{
 mod initialization;
 mod state;
 
-/// A borrowed body reference. This view does not grant lookup or publication access.
+/// A reference borrowed from a typed body.
 #[derive(Clone, Copy, Debug)]
 pub enum DefaultBodyReferenceTargetV1<'a> {
     Callable(DefaultCallableReferenceTargetViewV1<'a>),
     Constructor(DefaultConstructorReferenceTargetViewV1<'a>),
     Type(&'a SignatureTypeKey),
     Global(PersistentPropertyId),
+    GenericDelegate(&'a crate::DefaultGenericDelegateReferenceV1),
     Singleton(PersistentObjectValueId),
     Field(DefaultFieldReferenceTargetViewV1<'a>),
 }
@@ -73,7 +74,7 @@ pub struct DefaultBodyReferenceOccurrenceV1<'a> {
     pub attachment: DefaultBodyReferenceAttachmentV1<'a>,
 }
 
-/// Receives the complete six-domain closure without copying signature trees.
+/// Receives the complete reference closure without copying signature trees.
 /// Visitors independently check target, origin, access, and use coverage.
 pub trait DefaultBodyReferenceVisitorV1<'body> {
     type Error: From<WireError>;

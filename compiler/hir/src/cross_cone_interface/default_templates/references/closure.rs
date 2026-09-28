@@ -159,6 +159,10 @@ pub enum ExportDefaultReferenceOccurrenceSiteV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExportDefaultReferenceClosureValidationError {
+    DirectGenericDelegate {
+        property: scoop_identity::PersistentExtensionPropertyId,
+        site: ExportDefaultReferenceOccurrenceSiteV1,
+    },
     Missing {
         kind: ExportDefaultReferenceKindV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
@@ -175,6 +179,10 @@ pub enum ExportDefaultReferenceClosureValidationError {
 impl fmt::Display for ExportDefaultReferenceClosureValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DirectGenericDelegate { property, site } => write!(
+                formatter,
+                "default body {site:?} directly references delegate storage {property:?}; property access requires an accessor call"
+            ),
             Self::Missing {
                 kind,
                 site,

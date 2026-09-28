@@ -57,6 +57,12 @@ impl Concretizer<'_> {
                     self.request_initialization_unit(*unit),
                 )
             }
+            export::StatementKind::GenericDelegateEnsure(reference) => {
+                let specialization = self.request_generic_delegate(reference, substitution);
+                concrete::StatementKind::InitializationEnsure(
+                    self.generic_delegate_specializations[specialization].initialization,
+                )
+            }
             // This marker has no runtime semantics. Concrete local-function
             // entities are requested by direct calls/references instead.
             export::StatementKind::LocalFunction(_) => return,
@@ -353,6 +359,12 @@ impl Concretizer<'_> {
             }
             export::AssignTarget::Global(global) => {
                 concrete::AssignTarget::Global(self.global_map[global])
+            }
+            export::AssignTarget::GenericDelegateStorage(reference) => {
+                let specialization = self.request_generic_delegate(reference, substitution);
+                concrete::AssignTarget::Global(
+                    self.generic_delegate_specializations[specialization].storage,
+                )
             }
             export::AssignTarget::SingletonPublishedRoot(root) => {
                 concrete::AssignTarget::SingletonPublishedRoot(self.lower_singleton_root(*root))

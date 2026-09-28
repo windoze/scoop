@@ -209,5 +209,6 @@ pub(super) fn with_tables(
         references,
         public.generic_callable_bodies().clone(),
         public.generic_initializations().clone(),
+        public.generic_delegates().clone(),
     )
 }

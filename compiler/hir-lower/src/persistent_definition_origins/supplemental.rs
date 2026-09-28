@@ -10,7 +10,8 @@ impl DefinitionOriginBuilder<'_> {
         for (id, declaration) in self.lowerer.initialization_units.iter() {
             let subject = DefinitionOriginSubject::InitializationUnit(identities[id].id());
             let file = match declaration.kind {
-                hir::InitializationUnitKind::EagerTopLevel { property, .. } => {
+                hir::InitializationUnitKind::EagerTopLevel { property, .. }
+                | hir::InitializationUnitKind::GenericDelegatedExtension { property, .. } => {
                     self.lowerer.property_source_file(property)
                 }
                 hir::InitializationUnitKind::LazySingleton { value, .. } => {

@@ -76,6 +76,10 @@ pub enum DecodedHirDependencyTypeSiteV1 {
         unit: DecodedPersistentId<PersistentInitializationUnitId>,
         exact: DecodedPersistentId<PersistentExactTypeId>,
     },
+    GenericDelegateStorage {
+        unit: DecodedPersistentId<PersistentInitializationUnitId>,
+        exact: DecodedPersistentId<PersistentExactTypeId>,
+    },
 }
 
 impl DecodedHirDependencyTypeSiteV1 {
@@ -148,6 +152,12 @@ impl DecodedHirDependencyTypeSiteV1 {
             }
             Self::InitializationCycleMessage { unit, exact } => {
                 HirDependencyTypeSiteV1::InitializationCycleMessage {
+                    unit: resolver.resolve(unit).map_err(Error::Identity)?,
+                    exact: resolver.resolve(exact).map_err(Error::Identity)?,
+                }
+            }
+            Self::GenericDelegateStorage { unit, exact } => {
+                HirDependencyTypeSiteV1::GenericDelegateStorage {
                     unit: resolver.resolve(unit).map_err(Error::Identity)?,
                     exact: resolver.resolve(exact).map_err(Error::Identity)?,
                 }
@@ -227,6 +237,13 @@ impl WireDecode for DecodedHirDependencyTypeSiteV1 {
             9 => {
                 super::wire::require_fields(decoder, fields, 3)?;
                 Ok(Self::InitializationCycleMessage {
+                    unit: decoder.field(1, DecodedPersistentId::decode)?,
+                    exact: decoder.field(2, DecodedPersistentId::decode)?,
+                })
+            }
+            10 => {
+                super::wire::require_fields(decoder, fields, 3)?;
+                Ok(Self::GenericDelegateStorage {
                     unit: decoder.field(1, DecodedPersistentId::decode)?,
                     exact: decoder.field(2, DecodedPersistentId::decode)?,
                 })

@@ -101,6 +101,7 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
             references,
             Default::default(),
             Default::default(),
+            Default::default(),
         )
     };
     section(references.clone())

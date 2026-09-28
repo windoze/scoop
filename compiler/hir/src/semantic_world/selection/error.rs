@@ -21,6 +21,7 @@ pub enum ImportedDependencySelectionPlanBuildError {
     Initialization(crate::HirInitializationUseError),
     DuplicateCallable(CallableTemplateOrigin),
     DuplicateCallableBody(crate::DefaultCallableDeclarationV1),
+    DuplicateGenericDelegate(scoop_identity::PersistentExtensionPropertyId),
     MissingCallableSourceName(CallableTemplateOrigin),
     MissingDefinitionOrigin(scoop_identity::DefinitionOriginSubject),
     DuplicateConstant(PersistentPropertyId),
@@ -70,6 +71,10 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
             Self::DuplicateCallable(declaration) => write!(
                 formatter,
                 "dependency semantic world contains duplicate callable {declaration:?}"
+            ),
+            Self::DuplicateGenericDelegate(property) => write!(
+                formatter,
+                "duplicate generic delegate template for {property:?}"
             ),
             Self::DuplicateCallableBody(owner) => write!(
                 formatter,
@@ -129,6 +134,7 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             | Self::DuplicateNominal(_)
             | Self::DuplicateCallable(_)
             | Self::DuplicateCallableBody(_)
+            | Self::DuplicateGenericDelegate(_)
             | Self::MissingCallableSourceName(_)
             | Self::MissingDefinitionOrigin(_)
             | Self::MissingPropertySourceName(_)

@@ -78,6 +78,12 @@ impl Lowerer {
                         storage: self.global_map[&storage],
                     }
                 }
+                hir::InitializationUnitKind::GenericDelegatedExtension { specialization } => {
+                    mir::InitializationUnitKind::GenericDelegatedExtension {
+                        storage: self.global_map
+                            [&module.generic_delegate_specializations[specialization].storage],
+                    }
+                }
                 hir::InitializationUnitKind::LazySingleton {
                     value,
                     published_root,
@@ -227,6 +233,14 @@ impl Lowerer {
             let property_owner = match global.storage_owner {
                 hir::PropertyStorageOwner::Backing(owner)
                 | hir::PropertyStorageOwner::Delegate(owner) => owner,
+                hir::PropertyStorageOwner::GenericDelegate(specialization) => {
+                    let unit = &module.initialization_units
+                        [module.generic_delegate_specializations[specialization].initialization];
+                    let scoop_identity::InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. } = unit.identity.key() else {
+                        unreachable!("generic delegate storage belongs to an application unit")
+                    };
+                    scoop_identity::PropertyOwner::ExtensionProperty(*property)
+                }
             };
             let storage = match &global.storage {
                 hir::GlobalStorage::Managed { state } => mir::GlobalStorage::Managed {
@@ -271,6 +285,15 @@ impl Lowerer {
                 }
                 hir::PropertyStorageOwner::Delegate(owner) => {
                     mir::StaticStorageOwner::PropertyDelegate(owner)
+                }
+                hir::PropertyStorageOwner::GenericDelegate(specialization) => {
+                    mir::StaticStorageOwner::GenericDelegate(
+                        module.initialization_units[module.generic_delegate_specializations
+                            [specialization]
+                            .initialization]
+                            .identity
+                            .id(),
+                    )
                 }
             };
             let id = self.globals.alloc(mir::Global {

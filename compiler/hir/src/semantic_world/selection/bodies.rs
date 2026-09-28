@@ -37,6 +37,13 @@ impl ImportedCallableBody {
 }
 
 impl super::ImportedDependencySelectionPlan {
+    pub fn generic_delegate(
+        &self,
+        property: scoop_identity::PersistentExtensionPropertyId,
+    ) -> Option<Arc<crate::ExportGenericDelegateTemplateV1>> {
+        self.catalog.delegates.get(&property).cloned()
+    }
+
     pub fn nominal_initialization(
         &self,
         owner: scoop_identity::PersistentGenericTypeId,

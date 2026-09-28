@@ -24,6 +24,7 @@ impl CanonicalExportDefinitionSourcesV1 {
         constants: &CanonicalExportConstValuesV1,
         generic_callable_bodies: &CanonicalExportGenericCallableBodiesV1,
         generic_initializations: &crate::CanonicalExportGenericInitializationsV1,
+        generic_delegates: &crate::CanonicalExportGenericDelegatesV1,
     ) -> Result<Self, ExportDefinitionSourceProductionError> {
         let mut sources = BTreeSet::new();
 
@@ -83,6 +84,21 @@ impl CanonicalExportDefinitionSourcesV1 {
                         Ok(())
                     },
                     &WirePath::root().field(12).index(index as u64),
+                )
+                .map_err(
+                    |source| ExportDefinitionSourceProductionError::GenericBody { index, source },
+                )?;
+        }
+
+        for (index, delegate) in generic_delegates.records().iter().enumerate() {
+            delegate
+                .initializer()
+                .visit_definition_sources(
+                    &mut |source| {
+                        sources.insert(source.clone());
+                        Ok(())
+                    },
+                    &WirePath::root().field(13).index(index as u64),
                 )
                 .map_err(
                     |source| ExportDefinitionSourceProductionError::GenericBody { index, source },

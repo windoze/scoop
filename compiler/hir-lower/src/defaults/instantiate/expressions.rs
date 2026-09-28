@@ -92,6 +92,11 @@ impl Lowerer {
             }
             hir::ExprKind::Local(_) => unreachable!("local reads return before kind cloning"),
             hir::ExprKind::GlobalRead(global) => hir::ExprKind::GlobalRead(*global),
+            hir::ExprKind::GenericDelegateStorageRead(reference) => {
+                hir::ExprKind::GenericDelegateStorageRead(
+                    self.instantiate_delegate_reference(reference, context),
+                )
+            }
             hir::ExprKind::SingletonValue(value) => hir::ExprKind::SingletonValue(*value),
             hir::ExprKind::ImportedSingletonValue(value) => {
                 hir::ExprKind::ImportedSingletonValue(*value)

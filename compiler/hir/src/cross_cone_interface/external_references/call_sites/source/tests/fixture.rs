@@ -139,6 +139,7 @@ impl Fixture {
                 Default::default(),
                 Default::default(),
                 Default::default(),
+                Default::default(),
             ),
             target: ExternalHirTargetV1::Callable(target),
             receiver: source_receiver,

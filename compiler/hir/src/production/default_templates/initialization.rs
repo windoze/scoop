@@ -96,7 +96,7 @@ impl<'a> GenericInitializationProducer<'a> {
 impl CanonicalExportGenericInitializationsV1 {
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, Error> {
         SharedSourceRoots::with_callable_bodies(export, None, &[])
-            .map(|(_, _, initializations)| initializations)
+            .map(|(_, _, initializations, _)| initializations)
     }
 
     pub fn from_dependency_hir(output: &crate::DependencyHirOutput) -> Result<Self, Error> {

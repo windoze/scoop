@@ -100,5 +100,6 @@ pub(in super::super) fn replace_contents(
         interface.external_references().clone(),
         interface.generic_callable_bodies().clone(),
         interface.generic_initializations().clone(),
+        interface.generic_delegates().clone(),
     );
 }

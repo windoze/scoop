@@ -116,6 +116,7 @@ pub(super) fn fixture(change: Change) -> CallableSourceSurface {
         interface.external_references().clone(),
         interface.generic_callable_bodies().clone(),
         interface.generic_initializations().clone(),
+        interface.generic_delegates().clone(),
     );
     fixture
 }

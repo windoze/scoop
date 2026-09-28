@@ -72,13 +72,16 @@ pub type InitializationUnitIdentityRecord = scoop_identity::CborIdentityRecord<
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {
     EagerTopLevel { storage: GlobalId },
+    GenericDelegatedExtension { storage: GlobalId },
     LazySingleton { published_root: GlobalId },
 }
 
 impl InitializationUnitKind {
     pub const fn storage(self) -> GlobalId {
         match self {
-            Self::EagerTopLevel { storage } => storage,
+            Self::EagerTopLevel { storage } | Self::GenericDelegatedExtension { storage } => {
+                storage
+            }
             Self::LazySingleton { published_root } => published_root,
         }
     }

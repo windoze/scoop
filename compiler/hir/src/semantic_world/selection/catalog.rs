@@ -66,6 +66,10 @@ pub(super) struct DependencyCatalog {
         scoop_identity::PersistentGenericTypeId,
         Arc<crate::ExportGenericNominalInitializationV1>,
     >,
+    pub(super) delegates: BTreeMap<
+        scoop_identity::PersistentExtensionPropertyId,
+        Arc<crate::ExportGenericDelegateTemplateV1>,
+    >,
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
     pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
@@ -81,6 +85,7 @@ impl ImportedSemanticWorld<'_> {
         let mut callables = BTreeMap::new();
         let mut bodies = BTreeMap::new();
         let mut initializations = BTreeMap::new();
+        let mut delegates = BTreeMap::new();
         let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
@@ -113,7 +118,32 @@ impl ImportedSemanticWorld<'_> {
             for initialization in provider.interface().generic_initializations().records() {
                 initializations.insert(initialization.owner(), Arc::new(initialization.clone()));
             }
-            for body in provider.interface().generic_callable_bodies().records() {
+            for delegate in provider.interface().generic_delegates().records() {
+                if delegates
+                    .insert(delegate.property(), Arc::new(delegate.clone()))
+                    .is_some()
+                {
+                    return Err(
+                        ImportedDependencySelectionPlanBuildError::DuplicateGenericDelegate(
+                            delegate.property(),
+                        ),
+                    );
+                }
+            }
+            for body in provider
+                .interface()
+                .generic_callable_bodies()
+                .records()
+                .iter()
+                .chain(
+                    provider
+                        .interface()
+                        .generic_delegates()
+                        .records()
+                        .iter()
+                        .map(crate::ExportGenericDelegateTemplateV1::initializer),
+                )
+            {
                 let declaration = match body.owner() {
                     crate::DefaultCallableDeclarationV1::Function(id) => {
                         Some(CallableTemplateOrigin::Function(id))
@@ -295,6 +325,7 @@ impl ImportedSemanticWorld<'_> {
                 callables,
                 bodies,
                 initializations,
+                delegates,
                 properties,
                 constants,
                 type_aliases,

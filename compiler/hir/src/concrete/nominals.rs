@@ -562,6 +562,13 @@ pub struct Global {
 pub enum PropertyStorageOwner {
     Backing(scoop_identity::PropertyOwner),
     Delegate(scoop_identity::PropertyOwner),
+    GenericDelegate(GenericDelegateStorageSpecializationId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GenericDelegateStorageSpecialization {
+    pub storage: GlobalId,
+    pub initialization: InitializationUnitId,
 }
 
 #[derive(Debug, Clone)]

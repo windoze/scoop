@@ -356,6 +356,7 @@ impl Fixture {
             references,
             Default::default(),
             Default::default(),
+            Default::default(),
         );
 
         let mut origins = BTreeMap::new();

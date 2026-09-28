@@ -121,6 +121,7 @@ fn intrinsic_artifact(count: usize) -> Vec<u8> {
         interface.external_references().clone(),
         interface.generic_callable_bodies().clone(),
         interface.generic_initializations().clone(),
+        interface.generic_delegates().clone(),
     );
     cross_cone_artifact_for_with_hir_foundation(
         cone(),

@@ -18,6 +18,7 @@ impl SharedSourceRoots {
             Self,
             CanonicalExportGenericCallableBodiesV1,
             crate::CanonicalExportGenericInitializationsV1,
+            crate::CanonicalExportGenericDelegatesV1,
         ),
         GenericTemplateProductionError,
     > {
@@ -33,19 +34,35 @@ impl SharedSourceRoots {
         let properties = export
             .properties
             .iter()
-            .filter_map(|(id, _)| {
-                export.property_identities[id]
-                    .ordinary_id()
-                    .map(|key| (key, id))
-            })
+            .map(|(id, _)| (export.property_identities[id].property_owner(), id))
             .collect::<BTreeMap<_, _>>();
         let mut bodies = Vec::new();
         let mut initializations = Vec::new();
+        let mut delegates = Vec::new();
+        let mut delegate_templates = std::collections::BTreeSet::new();
         loop {
             collection.expand().map_err(declarations)?;
             let roots = collection.snapshot().map_err(declarations)?;
             producer.include_roots(&roots);
             initialization_producer.include_roots(&roots);
+            for (id, template) in export.generic_delegate_templates.iter() {
+                if roots
+                    .top_level_properties
+                    .contains(&export.property_identities[template.property].property_owner())
+                    && delegate_templates.insert(id)
+                {
+                    let delegate = producer.delegate_template(id)?;
+                    delegate.visit_direct_references(
+                        &mut TemplateReferences {
+                            collection: &mut collection,
+                            producer: &mut producer,
+                            properties: &properties,
+                        },
+                        &WirePath::root(),
+                    )?;
+                    delegates.push(delegate);
+                }
+            }
             while let Some(initialization) = initialization_producer.next_initialization()? {
                 initialization.visit_direct_references(
                     &mut TemplateReferences {
@@ -74,7 +91,9 @@ impl SharedSourceRoots {
                 let initializations =
                     crate::CanonicalExportGenericInitializationsV1::try_new(initializations)
                         .map_err(GenericTemplateProductionError::Initialization)?;
-                return Ok((roots, bodies, initializations));
+                let delegates = crate::CanonicalExportGenericDelegatesV1::try_new(delegates)
+                    .map_err(GenericTemplateProductionError::Delegate)?;
+                return Ok((roots, bodies, initializations, delegates));
             }
         }
     }
@@ -83,10 +102,27 @@ impl SharedSourceRoots {
 struct TemplateReferences<'a, 'hir> {
     collection: &'a mut SourceCollection<'hir>,
     producer: &'a mut GenericBodyProducer<'hir>,
-    properties: &'a BTreeMap<scoop_identity::PersistentPropertyId, PropertyId>,
+    properties: &'a BTreeMap<scoop_identity::PropertyOwner, PropertyId>,
 }
 
 impl TemplateReferences<'_, '_> {
+    fn property(
+        &mut self,
+        owner: scoop_identity::PropertyOwner,
+    ) -> Result<(), GenericTemplateProductionError> {
+        if let Some(&property) = self.properties.get(&owner) {
+            self.collection
+                .sources
+                .property(
+                    self.collection.export,
+                    property,
+                    &mut self.collection.nominals,
+                )
+                .map_err(declarations)?;
+        }
+        Ok(())
+    }
+
     fn callable(
         &mut self,
         owner: DefaultCallableDeclarationV1,
@@ -197,16 +233,12 @@ impl<'body> DefaultBodyReferenceVisitorV1<'body> for TemplateReferences<'_, '_> 
                 self.signature(signature, path)?;
             }
             DefaultBodyReferenceTargetV1::Global(owner) => {
-                if let Some(&property) = self.properties.get(&owner) {
-                    self.collection
-                        .sources
-                        .property(
-                            self.collection.export,
-                            property,
-                            &mut self.collection.nominals,
-                        )
-                        .map_err(declarations)?;
-                }
+                self.property(scoop_identity::PropertyOwner::Property(owner))?;
+            }
+            DefaultBodyReferenceTargetV1::GenericDelegate(reference) => {
+                self.property(scoop_identity::PropertyOwner::ExtensionProperty(
+                    reference.property(),
+                ))?;
             }
             // Their complete owner types are visited by the common body walk.
             DefaultBodyReferenceTargetV1::Singleton(_) | DefaultBodyReferenceTargetV1::Field(_) => {

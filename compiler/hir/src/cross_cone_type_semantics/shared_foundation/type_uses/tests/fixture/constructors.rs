@@ -181,6 +181,7 @@ impl Loaded {
             self.public.external_references().clone(),
             self.public.generic_callable_bodies().clone(),
             self.public.generic_initializations().clone(),
+            self.public.generic_delegates().clone(),
         );
     }
 }

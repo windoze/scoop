@@ -137,11 +137,21 @@ impl<'input> IdentityRoots<'input> {
         }
     }
 
-    pub(crate) const fn for_static_storage(
+    pub(crate) fn for_static_storage(
         &self,
-        _owner: mir::StaticStorageOwner,
+        owner: mir::StaticStorageOwner,
     ) -> lir::MaterializationRoot {
-        lir::MaterializationRoot::cone_owned()
+        match owner {
+            mir::StaticStorageOwner::GenericDelegate(unit)
+            | mir::StaticStorageOwner::InitializationFailureRoot(unit) => {
+                self.immortal_owners[&mir::ImmortalObjectOwner::InitializationUnit(unit)].clone()
+            }
+            mir::StaticStorageOwner::PropertyBacking(_)
+            | mir::StaticStorageOwner::PropertyDelegate(_)
+            | mir::StaticStorageOwner::SingletonPublishedRoot(_) => {
+                lir::MaterializationRoot::cone_owned()
+            }
+        }
     }
 
     pub(crate) fn for_immortal_object(

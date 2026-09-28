@@ -7,6 +7,11 @@ impl Lowerer {
         context: &mut InstantiationContext,
     ) -> hir::Statement {
         let kind = match &source.kind {
+            hir::StatementKind::GenericDelegateEnsure(reference) => {
+                hir::StatementKind::GenericDelegateEnsure(
+                    self.instantiate_delegate_reference(reference, context),
+                )
+            }
             hir::StatementKind::InitializationEnsure(unit) => {
                 hir::StatementKind::InitializationEnsure(*unit)
             }

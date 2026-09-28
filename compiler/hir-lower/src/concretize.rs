@@ -40,7 +40,7 @@ use constructor_slots::{
     finish_struct_constructor_slots,
 };
 use functions::PendingFunction;
-use initialization::InitializationRequest;
+use initialization::{InitializationKey, InitializationRequest};
 
 pub(crate) fn lower(module: &export::Module) -> concrete::Module {
     Concretizer::new(module)
@@ -202,10 +202,18 @@ struct Concretizer<'a> {
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
     globals: Arena<concrete::Global>,
     global_map: HashMap<export::GlobalId, concrete::GlobalId>,
+    generic_delegate_specializations: Arena<concrete::GenericDelegateStorageSpecialization>,
+    generic_delegate_by_key: HashMap<
+        (
+            scoop_identity::PersistentExtensionPropertyId,
+            Vec<concrete::TypeId>,
+        ),
+        concrete::GenericDelegateStorageSpecializationId,
+    >,
     initialization_units: Arena<concrete::InitializationUnit>,
-    initialization_map: HashMap<export::InitializationUnitId, concrete::InitializationUnitId>,
+    initialization_map: HashMap<InitializationKey, concrete::InitializationUnitId>,
     initialization_requests: Vec<InitializationRequest>,
-    pending_initializations: VecDeque<export::InitializationUnitId>,
+    pending_initializations: VecDeque<InitializationKey>,
     initialization_function_units: HashMap<export::FunctionId, export::InitializationUnitId>,
     initialization_failure_roots: Arena<concrete::InitializationFailureRoot>,
     objects: Arena<concrete::ObjectDecl>,
@@ -369,6 +377,8 @@ impl<'a> Concretizer<'a> {
             extern_map: HashMap::new(),
             globals: Arena::new(),
             global_map: HashMap::new(),
+            generic_delegate_specializations: Arena::new(),
+            generic_delegate_by_key: HashMap::new(),
             initialization_units: Arena::new(),
             initialization_map: HashMap::new(),
             initialization_requests: Vec::new(),
@@ -524,8 +534,7 @@ impl<'a> Concretizer<'a> {
                 concrete::ConcreteCoreProtocols::Imported(protocols.clone())
             }
         };
-        self.finish_initialization_units();
-        if !self.initialization_units.is_empty()
+        if !self.initialization_requests.is_empty()
             || self.source.cone
                 == scoop_identity::CoreBuiltinNominal::Any
                     .declaration_key()
@@ -554,6 +563,7 @@ impl<'a> Concretizer<'a> {
                 core_types,
             })
             .expect("validated concretization produces a total exact-type identity relation");
+        self.finish_initialization_units(&exact_type_identities);
         let dispatch_slot_identities = self.build_dispatch_slot_identities();
         let identities = self.build_callable_identities(&exact_type_identities);
         let callable_references = finish_callable_references(
@@ -608,6 +618,7 @@ impl<'a> Concretizer<'a> {
             functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            generic_delegate_specializations: self.generic_delegate_specializations,
             initialization_units: self.initialization_units,
             initialization_failure_roots: self.initialization_failure_roots,
             objects: self.objects,

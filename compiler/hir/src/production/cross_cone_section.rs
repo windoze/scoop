@@ -79,6 +79,7 @@ impl CrossConeHirInterfaceSectionV1 {
         let roots = &shared.roots;
         let generic_callable_bodies = &shared.bodies;
         let generic_initializations = &shared.initializations;
+        let generic_delegates = &shared.delegates;
         let nominal_interfaces =
             CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(export, roots)
                 .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
@@ -119,6 +120,7 @@ impl CrossConeHirInterfaceSectionV1 {
             &constants,
             generic_callable_bodies,
             generic_initializations,
+            generic_delegates,
         )
         .map_err(CrossConeHirInterfaceProductionError::DefinitionSources)?;
         let external_references =
@@ -134,6 +136,7 @@ impl CrossConeHirInterfaceSectionV1 {
                     &constants,
                     generic_callable_bodies,
                     generic_initializations,
+                    generic_delegates,
                 ),
                 witness_uses,
                 dependency_output,
@@ -154,6 +157,7 @@ impl CrossConeHirInterfaceSectionV1 {
             external_references,
             generic_callable_bodies.clone(),
             generic_initializations.clone(),
+            generic_delegates.clone(),
         ))
     }
 }

@@ -6,6 +6,7 @@ impl ReferenceCollector<'_> {
     pub(super) fn statement(&mut self, statement: &hir::Statement) {
         let origin = self.at(statement.span);
         match &statement.kind {
+            hir::StatementKind::GenericDelegateEnsure(_) => self.direct_delegate_storage(origin),
             hir::StatementKind::InitializationEnsure(_)
             | hir::StatementKind::Break { .. }
             | hir::StatementKind::Continue { .. } => {}
@@ -63,6 +64,7 @@ impl ReferenceCollector<'_> {
 
     fn assign_target(&mut self, target: &hir::AssignTarget, origin: hir::DefinitionOrigin) {
         match target {
+            hir::AssignTarget::GenericDelegateStorage(_) => self.direct_delegate_storage(origin),
             hir::AssignTarget::Local(_) => {}
             hir::AssignTarget::Global(global) => self.global(*global, origin),
             hir::AssignTarget::SingletonPublishedRoot(_) => {}

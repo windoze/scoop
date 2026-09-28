@@ -35,6 +35,9 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match kind {
+            DefaultStatementKindV1::GenericDelegateEnsure(reference) => {
+                self.push_generic_delegate(pending, reference, definition_origin)
+            }
             DefaultStatementKindV1::Expr(expression)
             | DefaultStatementKindV1::Throw(expression) => {
                 self.push_child(pending, BodyNode::Expression(expression))
@@ -210,6 +213,9 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match target {
+            DefaultAssignTargetV1::GenericDelegateStorage(reference) => {
+                self.push_generic_delegate(pending, reference, definition_origin)
+            }
             DefaultAssignTargetV1::Local { .. } | DefaultAssignTargetV1::Global { .. } => Ok(()),
             DefaultAssignTargetV1::Index { array, index } => {
                 self.push_child(pending, BodyNode::Expression(index))?;

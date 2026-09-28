@@ -32,5 +32,6 @@ pub(super) fn call(
         hir::CanonicalExternalHirReferencesV1::try_new(references).unwrap(),
         public.generic_callable_bodies().clone(),
         public.generic_initializations().clone(),
+        public.generic_delegates().clone(),
     )
 }

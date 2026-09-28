@@ -46,6 +46,11 @@ pub(super) enum WorkItem<'a> {
         origin: &'a ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
     },
+    GenericDelegate {
+        target: &'a crate::DefaultGenericDelegateReferenceV1,
+        origin: &'a ExportDefinitionSourceV1,
+        site: ExportDefaultReferenceOccurrenceSiteV1,
+    },
     Singleton {
         target: PersistentObjectValueId,
         origin: &'a ExportDefinitionSourceV1,

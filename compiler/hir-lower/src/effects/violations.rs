@@ -9,7 +9,8 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
-                hir::StatementKind::InitializationEnsure(_) => out.push((
+                hir::StatementKind::InitializationEnsure(_)
+                | hir::StatementKind::GenericDelegateEnsure(_) => out.push((
                     statement.span,
                     "an initialization gate is not allowed in `@NoGC` code".to_string(),
                 )),
@@ -31,6 +32,7 @@ impl Lowerer {
                     match target {
                         hir::AssignTarget::Local(_)
                         | hir::AssignTarget::Global(_)
+                        | hir::AssignTarget::GenericDelegateStorage(_)
                         | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                         hir::AssignTarget::Index { array, index } => {
                             out.push((
@@ -188,6 +190,7 @@ impl Lowerer {
             | ExprKind::ConstructorReceiver
             | ExprKind::ConstructorParam(_)
             | ExprKind::GlobalRead(_)
+            | ExprKind::GenericDelegateStorageRead(_)
             | ExprKind::Capture(_)
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::NoneLiteral => {}

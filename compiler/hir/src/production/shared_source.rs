@@ -14,6 +14,7 @@ pub(crate) struct ExportSharedSource {
     pub(in crate::production) roots: SharedSourceRoots,
     pub(in crate::production) bodies: CanonicalExportGenericCallableBodiesV1,
     pub(in crate::production) initializations: crate::CanonicalExportGenericInitializationsV1,
+    pub(in crate::production) delegates: crate::CanonicalExportGenericDelegatesV1,
 }
 
 impl ExportSharedSource {
@@ -21,12 +22,13 @@ impl ExportSharedSource {
         export: &ExportHir,
         imported: Option<&SelectedImportedDependencySet>,
     ) -> Result<Self, GenericTemplateProductionError> {
-        let (roots, bodies, initializations) =
+        let (roots, bodies, initializations, delegates) =
             SharedSourceRoots::with_callable_bodies(export, imported, &[])?;
         Ok(Self {
             roots,
             bodies,
             initializations,
+            delegates,
         })
     }
 
@@ -72,12 +74,13 @@ impl ExportSharedSource {
             return Ok(None);
         }
         let additional = additional.into_iter().collect::<Vec<_>>();
-        let (roots, bodies, initializations) =
+        let (roots, bodies, initializations, delegates) =
             SharedSourceRoots::with_callable_bodies(export, imported, &additional)?;
         Ok(Some(Self {
             roots,
             bodies,
             initializations,
+            delegates,
         }))
     }
 }

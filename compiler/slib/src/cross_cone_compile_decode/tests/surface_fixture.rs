@@ -80,6 +80,7 @@ fn interface_with_support(
         CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
         Default::default(),
         Default::default(),
+        Default::default(),
     );
     encode(&section.index_for_wire().unwrap()).unwrap()
 }

@@ -614,6 +614,7 @@ impl Lowerer {
             hir::PropertyRepresentation::Stored(stored) => stored.backing,
             hir::PropertyRepresentation::AccessorOnly
             | hir::PropertyRepresentation::Delegated { .. }
+            | hir::PropertyRepresentation::GenericDelegated { .. }
             | hir::PropertyRepresentation::Const { .. }
             | hir::PropertyRepresentation::NativeStorage { .. } => {
                 unreachable!("a class field is allocated only for stored properties")

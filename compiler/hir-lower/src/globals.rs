@@ -760,7 +760,10 @@ impl Lowerer {
             let outer_definition_root = self
                 .definition_root
                 .replace(hir::LexicalDefinitionRoot::Function(pending.function));
-            self.type_params_in_scope = self.signatures[&pending.function].type_params.clone();
+            let outer_type_params = std::mem::replace(
+                &mut self.type_params_in_scope,
+                self.signatures[&pending.function].type_params.clone(),
+            );
             self.current_return_ty = self.unit;
             self.current_fn_name = self.functions[pending.function].name.clone();
             self.push_suspension_context(SuspensionContext::Forbidden(
@@ -861,6 +864,7 @@ impl Lowerer {
             });
             debug_assert!(self.loop_targets.is_empty());
             self.loop_targets = outer_loop_targets;
+            self.type_params_in_scope = outer_type_params;
         }
         self.diagnose_initialization_cycles();
     }
@@ -977,7 +981,8 @@ impl Lowerer {
                         .clone(),
                 );
                 self.current_file = match self.initialization_units[unit].kind {
-                    hir::InitializationUnitKind::EagerTopLevel { property, .. } => {
+                    hir::InitializationUnitKind::EagerTopLevel { property, .. }
+                    | hir::InitializationUnitKind::GenericDelegatedExtension { property, .. } => {
                         self.property_files[&property]
                     }
                     hir::InitializationUnitKind::LazySingleton { value, .. } => {

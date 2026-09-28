@@ -11,7 +11,8 @@ pub(super) fn patch_local_function_calls(
 ) {
     for statement in statements {
         match &mut statement.kind {
-            hir::StatementKind::InitializationEnsure(_) => {}
+            hir::StatementKind::InitializationEnsure(_)
+            | hir::StatementKind::GenericDelegateEnsure(_) => {}
             hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
                 patch_local_function_call_expr(expr, target, captures)
             }
@@ -34,6 +35,7 @@ pub(super) fn patch_local_function_calls(
                 match place {
                     hir::AssignTarget::Local(_)
                     | hir::AssignTarget::Global(_)
+                    | hir::AssignTarget::GenericDelegateStorage(_)
                     | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                     hir::AssignTarget::Index { array, index } => {
                         patch_local_function_call_expr(array, target, captures);
@@ -329,6 +331,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::InitializingClassFieldAccess { .. }
         | hir::ExprKind::InitializingStructFieldAccess { .. }
         | hir::ExprKind::GlobalRead(_)
+        | hir::ExprKind::GenericDelegateStorageRead(_)
         | hir::ExprKind::SingletonValue(_)
         | hir::ExprKind::ImportedSingletonValue(_)
         | hir::ExprKind::Capture(_)

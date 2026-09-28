@@ -53,6 +53,7 @@ impl WireEncode for HirDependencyTypeSiteV1 {
             Self::InitializationCycleMessage { unit, exact } => {
                 declaration(encoder, 9, unit, exact)
             }
+            Self::GenericDelegateStorage { unit, exact } => declaration(encoder, 10, unit, exact),
         }
     }
 }

@@ -123,6 +123,7 @@ fn missing_occurrences(
         hir::CanonicalExternalHirReferencesV1::default(),
         public.generic_callable_bodies().clone(),
         public.generic_initializations().clone(),
+        public.generic_delegates().clone(),
     );
     let metadata = hir::SharedTypeMetadataV1 {
         public: &incomplete,

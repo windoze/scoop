@@ -326,6 +326,7 @@ fn interface(
         CanonicalExternalHirReferencesV1::try_new(references).unwrap(),
         Default::default(),
         Default::default(),
+        Default::default(),
     )
 }
 

@@ -48,6 +48,9 @@ impl CanonicalHirFoundation {
             HirDependencyTypePositionV1::InitializationCycleMessage(unit) => {
                 input.initialization(unit)
             }
+            HirDependencyTypePositionV1::GenericDelegateStorage(unit) => {
+                input.generic_delegate(unit)
+            }
         }
     }
 }

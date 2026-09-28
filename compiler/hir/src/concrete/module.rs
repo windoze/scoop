@@ -35,6 +35,7 @@ pub struct Module {
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
+    pub generic_delegate_specializations: Arena<GenericDelegateStorageSpecialization>,
     pub initialization_units: Arena<InitializationUnit>,
     pub initialization_failure_roots: Arena<InitializationFailureRoot>,
     pub objects: Arena<ObjectDecl>,
@@ -171,6 +172,9 @@ pub enum InitializationSchedule {
 pub enum InitializationUnitKind {
     EagerTopLevel {
         storage: GlobalId,
+    },
+    GenericDelegatedExtension {
+        specialization: GenericDelegateStorageSpecializationId,
     },
     LazySingleton {
         value: SingletonValueId,

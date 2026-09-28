@@ -74,6 +74,7 @@ impl ReferenceCollector<'_> {
                 self.variant_field_shape(*field, origin);
             }
             hir::ExprKind::GlobalRead(global) => self.global(*global, origin),
+            hir::ExprKind::GenericDelegateStorageRead(_) => self.direct_delegate_storage(origin),
             hir::ExprKind::SingletonValue(value) => {
                 self.singleton_value(hir::ExportDefaultSingletonTarget::Local(*value), origin)
             }

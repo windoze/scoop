@@ -39,6 +39,7 @@ impl Lowerer {
                                 hir::PropertyRepresentation::Stored(_)
                                 | hir::PropertyRepresentation::AccessorOnly
                                 | hir::PropertyRepresentation::Delegated { .. }
+                                | hir::PropertyRepresentation::GenericDelegated { .. }
                                 | hir::PropertyRepresentation::Const { .. } => None,
                             }
                         });

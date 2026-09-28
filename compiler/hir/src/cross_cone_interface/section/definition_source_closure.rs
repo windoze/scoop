@@ -145,6 +145,22 @@ impl CrossConeHirInterfaceSectionV1 {
                 .map_err(ExportDefinitionSourceClosureValidationError::Resource)?;
         }
 
+        for (body_index, delegate) in self.generic_delegates().records().iter().enumerate() {
+            delegate
+                .initializer()
+                .visit_definition_sources(
+                    &mut |source| {
+                        validator.observe(
+                            source,
+                            ExportDefinitionSourceUseSiteV1::GenericDelegate { body_index },
+                        );
+                        Ok(())
+                    },
+                    &path.clone().field(13).index(body_index as u64),
+                )
+                .map_err(ExportDefinitionSourceClosureValidationError::Resource)?;
+        }
+
         for (constant_index, constant) in self.constants().records().iter().enumerate() {
             validator.observe(
                 constant.definition_origin(),
@@ -242,6 +258,9 @@ struct MissingDefinitionSource {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExportDefinitionSourceUseSiteV1 {
     GenericInitialization {
+        body_index: usize,
+    },
+    GenericDelegate {
         body_index: usize,
     },
     GenericCallableBody {

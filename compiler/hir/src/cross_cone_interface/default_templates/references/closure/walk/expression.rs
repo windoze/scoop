@@ -31,6 +31,13 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match kind {
+            DefaultExpressionKindV1::GenericDelegateStorageRead(reference) => self
+                .push_generic_delegate(
+                    pending,
+                    reference,
+                    origin,
+                    ExportDefaultReferenceOccurrenceSiteV1::Expression,
+                ),
             DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)

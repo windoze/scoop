@@ -1537,6 +1537,19 @@ impl StaticStorageIdentity {
         )
     }
 
+    pub fn delegated_application(
+        unit: &scoop_identity::InitializationUnitKey,
+        zero_sized: bool,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_identity::RuntimeIdentityError> {
+        let key = if zero_sized {
+            scoop_identity::StaticStorageKey::static_place_for_delegated_application(unit)?
+        } else {
+            scoop_identity::StaticStorageKey::delegated_application_delegate(unit)?
+        };
+        Self::new(key, root).map_err(scoop_identity::RuntimeIdentityError::Hash)
+    }
+
     pub fn static_place_for_property(
         owner: scoop_identity::PropertyOwner,
         root: MaterializationRoot,

@@ -53,7 +53,10 @@ where
                 self.validate_expression(expression, &available, reachable)?;
                 Ok(Flow::falling_through(available))
             }
-            DefaultStatementKindV1::InitializationEnsure(_) => Ok(Flow::falling_through(available)),
+            DefaultStatementKindV1::InitializationEnsure(_)
+            | DefaultStatementKindV1::GenericDelegateEnsure(_) => {
+                Ok(Flow::falling_through(available))
+            }
             DefaultStatementKindV1::LocalFunction(function) => {
                 self.validate_captures(function.captures(), &available, reachable)?;
                 Ok(Flow::falling_through(available))
@@ -166,7 +169,8 @@ where
                 available,
                 owner,
             ),
-            DefaultAssignTargetV1::Global { .. } => Ok(()),
+            DefaultAssignTargetV1::Global { .. }
+            | DefaultAssignTargetV1::GenericDelegateStorage(_) => Ok(()),
             DefaultAssignTargetV1::Index { array, index } => {
                 self.validate_expression(array, available, reachable)?;
                 self.validate_expression(index, available, reachable)

@@ -47,6 +47,13 @@ impl Lowerer {
 }
 
 impl ReferenceCollector<'_> {
+    fn direct_delegate_storage(&mut self, origin: hir::DefinitionOrigin) {
+        self.lowerer.error(
+            origin.span,
+            "default expressions must access delegated properties through accessors".to_string(),
+        );
+    }
+
     fn checked_target_domain(
         &mut self,
         target_domain: hir::AccessDomain,

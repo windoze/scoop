@@ -19,6 +19,7 @@ pub enum HirDependencyTypePositionV1 {
     EnumVariantFieldStorage(PersistentExactTypeId, PersistentEnumVariantFieldId),
     ConstructorInitializerResult(CallableMaterialization),
     InitializationCycleMessage(PersistentInitializationUnitId),
+    GenericDelegateStorage(PersistentInitializationUnitId),
 }
 
 impl WireEncode for HirCallableTypePositionV1 {

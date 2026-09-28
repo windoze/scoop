@@ -18,6 +18,9 @@ pub(in super::super) fn collect_statement_types(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::GenericDelegateEnsure(reference) => {
+                out.extend(reference.arguments.iter().copied());
+            }
             hir::StatementKind::Expr(expression) | hir::StatementKind::Throw(expression) => {
                 collect_expr_types(lowerer, expression, out)
             }
@@ -32,6 +35,9 @@ pub(in super::super) fn collect_statement_types(
             }
             hir::StatementKind::Assign { target, value } => {
                 match target {
+                    hir::AssignTarget::GenericDelegateStorage(reference) => {
+                        out.extend(reference.arguments.iter().copied());
+                    }
                     hir::AssignTarget::Index { array, index } => {
                         collect_expr_types(lowerer, array, out);
                         collect_expr_types(lowerer, index, out);
@@ -252,6 +258,9 @@ pub(in super::super) fn collect_expr_types(
     out.push(expression.ty);
     use hir::ExprKind;
     match &expression.kind {
+        ExprKind::GenericDelegateStorageRead(reference) => {
+            out.extend(reference.arguments.iter().copied());
+        }
         ExprKind::TupleLiteral(values) | ExprKind::ArrayLiteral(values) => {
             for value in values {
                 collect_expr_types(lowerer, value, out);

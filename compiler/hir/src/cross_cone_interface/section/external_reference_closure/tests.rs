@@ -221,6 +221,7 @@ fn empty_section(references: CanonicalExternalHirReferencesV1) -> CrossConeHirIn
         references,
         Default::default(),
         Default::default(),
+        Default::default(),
     )
 }
 

@@ -13,6 +13,11 @@ pub(super) fn lower_initialization_units(
                     storage: local_global(globals, storage),
                 }
             }
+            mir::InitializationUnitKind::GenericDelegatedExtension { storage } => {
+                lir::InitializationUnitKind::GenericDelegatedExtension {
+                    storage: local_global(globals, storage),
+                }
+            }
             mir::InitializationUnitKind::LazySingleton { published_root, .. } => {
                 lir::InitializationUnitKind::LazySingleton {
                     published_root: local_global(

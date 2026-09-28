@@ -288,6 +288,7 @@ fn interface(callable: CallableInterfaceRecordV1) -> CrossConeHirInterfaceSectio
         CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
         Default::default(),
         Default::default(),
+        Default::default(),
     )
 }
 

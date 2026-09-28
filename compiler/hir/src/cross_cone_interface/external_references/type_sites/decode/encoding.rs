@@ -64,6 +64,9 @@ impl WireEncode for DecodedHirDependencyTypeSiteV1 {
             Self::InitializationCycleMessage { unit, exact } => {
                 super::super::wire::declaration(encoder, 9, unit, exact)
             }
+            Self::GenericDelegateStorage { unit, exact } => {
+                super::super::wire::declaration(encoder, 10, unit, exact)
+            }
         }
     }
 }

@@ -50,6 +50,17 @@ impl CrossConeHirInterfaceSectionV1 {
                 &path.clone().field(12).index(body_index as u64),
             )?;
         }
+        for (body_index, delegate) in self.generic_delegates().records().iter().enumerate() {
+            delegate.visit_declaration_targets(
+                &mut |target| {
+                    validator.observe(
+                        target,
+                        ExternalHirDefaultUseSiteV1::GenericDelegate { body_index },
+                    )
+                },
+                &path.clone().field(13).index(body_index as u64),
+            )?;
+        }
         validator.finish()
     }
 
@@ -346,6 +357,9 @@ const fn field_target(field: &DefaultFieldRefV1) -> Option<ExternalHirTargetV1> 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExternalHirDefaultUseSiteV1 {
+    GenericDelegate {
+        body_index: usize,
+    },
     GenericInitialization {
         body_index: usize,
     },

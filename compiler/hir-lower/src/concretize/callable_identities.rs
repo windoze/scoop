@@ -288,12 +288,20 @@ impl<'a> CallableIdentityBuilder<'a> {
                     self.lexical_context(source, &site, &arguments),
                 )
             }
-            export::HirFunctionIdentity::Initialization { record, .. } => {
-                assert!(self.concretizer.function_key_arguments(&key).is_empty());
-                CallableMaterialization::new(
-                    CallableTemplateOwner::Generated(record.id()),
-                    CallableMaterializationContext::NoSubstitution,
-                )
+            export::HirFunctionIdentity::Initialization { record, unit, .. } => {
+                let arguments = self.concretizer.function_key_arguments(&key);
+                let context = if arguments.is_empty() {
+                    CallableMaterializationContext::NoSubstitution
+                } else {
+                    let unit = self.concretizer.initialization_map[&InitializationKey {
+                        source: unit,
+                        arguments,
+                    }];
+                    CallableMaterializationContext::InitializationApplication(
+                        self.concretizer.initialization_units[unit].identity.id(),
+                    )
+                };
+                CallableMaterialization::new(CallableTemplateOwner::Generated(record.id()), context)
             }
             export::HirFunctionIdentity::DerivedEquality(applications) => {
                 let exact_owner = self.exact_method_owner(match key {

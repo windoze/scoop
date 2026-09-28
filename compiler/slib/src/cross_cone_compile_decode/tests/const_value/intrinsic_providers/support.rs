@@ -156,5 +156,6 @@ fn section(record: NominalInterfaceRecordV1) -> CrossConeHirInterfaceSectionV1 {
         CanonicalExternalHirReferencesV1::try_new(vec![]).unwrap(),
         Default::default(),
         Default::default(),
+        Default::default(),
     )
 }

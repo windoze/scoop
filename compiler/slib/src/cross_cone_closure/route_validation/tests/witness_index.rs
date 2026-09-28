@@ -46,6 +46,7 @@ fn witness_interface(fixture: &RouteFixture) -> CrossConeHirInterfaceSectionV1 {
         CanonicalExternalHirReferencesV1::try_new(vec![record]).unwrap(),
         empty.generic_callable_bodies().clone(),
         empty.generic_initializations().clone(),
+        empty.generic_delegates().clone(),
     )
 }
 

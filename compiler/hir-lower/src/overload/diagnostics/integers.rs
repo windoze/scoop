@@ -140,6 +140,7 @@ fn collect_statement_integer_literal_kinds(
                 collect_statement_integer_literal_kinds(lowerer, plan.body(), kinds);
             }
             hir::StatementKind::InitializationEnsure(_)
+            | hir::StatementKind::GenericDelegateEnsure(_)
             | hir::StatementKind::LocalFunction(_)
             | hir::StatementKind::Return { value: None }
             | hir::StatementKind::When(_)

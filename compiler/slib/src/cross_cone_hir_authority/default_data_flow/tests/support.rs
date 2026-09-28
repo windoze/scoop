@@ -114,6 +114,7 @@ pub(super) fn section(nominals: Vec<NominalInterfaceRecordV1>) -> CrossConeHirIn
         CanonicalExternalHirReferencesV1::try_new(vec![]).unwrap(),
         Default::default(),
         Default::default(),
+        Default::default(),
     )
 }
 

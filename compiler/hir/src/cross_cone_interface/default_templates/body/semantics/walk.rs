@@ -231,6 +231,23 @@ where
         Ok(())
     }
 
+    pub(super) fn push_generic_delegate<'body>(
+        &mut self,
+        pending: &mut Vec<WorkItem<'body>>,
+        reference: &'body crate::DefaultGenericDelegateReferenceV1,
+        definition_origin: &'body ExportDefinitionSourceV1,
+    ) -> Result<(), M::Error> {
+        for (index, argument) in reference.arguments().iter().enumerate().rev() {
+            self.push_type(
+                pending,
+                argument,
+                DefaultBodyProviderTypeSiteV1::GenericDelegateTypeArgument { index },
+                definition_origin,
+            )?;
+        }
+        Ok(())
+    }
+
     pub(super) fn push_binder<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,

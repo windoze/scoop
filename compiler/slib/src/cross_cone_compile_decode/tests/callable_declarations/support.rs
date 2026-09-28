@@ -61,6 +61,7 @@ impl Fixture {
             section.external_references().clone(),
             section.generic_callable_bodies().clone(),
             section.generic_initializations().clone(),
+            section.generic_delegates().clone(),
         );
         Self {
             foundation,
@@ -98,6 +99,7 @@ impl Fixture {
             section.external_references().clone(),
             section.generic_callable_bodies().clone(),
             section.generic_initializations().clone(),
+            section.generic_delegates().clone(),
         )
     }
 }

@@ -12,6 +12,7 @@ pub type ForeignCallbackRegistrationId = Idx<ForeignCallbackRegistration>;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
+pub type GenericDelegateStorageSpecializationId = Idx<GenericDelegateStorageSpecialization>;
 pub type InitializationUnitId = Idx<InitializationUnit>;
 pub type InitializationFailureRootId = Idx<InitializationFailureRoot>;
 pub type ObjectId = Idx<ObjectDecl>;

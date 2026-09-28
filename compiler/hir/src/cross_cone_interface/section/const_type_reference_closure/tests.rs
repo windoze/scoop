@@ -200,6 +200,7 @@ fn section(
         references,
         Default::default(),
         Default::default(),
+        Default::default(),
     )
 }
 

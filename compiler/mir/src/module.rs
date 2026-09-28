@@ -476,6 +476,7 @@ pub struct Global {
 pub enum StaticStorageOwner {
     PropertyBacking(scoop_identity::PropertyOwner),
     PropertyDelegate(scoop_identity::PropertyOwner),
+    GenericDelegate(scoop_identity::PersistentInitializationUnitId),
     SingletonPublishedRoot(scoop_identity::PersistentTypeId),
     InitializationFailureRoot(scoop_identity::PersistentInitializationUnitId),
 }
@@ -525,6 +526,9 @@ pub enum InitializationCycleThrower {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {
     EagerTopLevel {
+        storage: GlobalId,
+    },
+    GenericDelegatedExtension {
         storage: GlobalId,
     },
     LazySingleton {

@@ -178,6 +178,19 @@ fn static_storage_identity(
     let zero_sized = size_align(context, module, &enum_shape, &global.ty)?.0 == 0;
     let root = identity_roots.for_static_storage(global.storage_owner);
     let identity = match global.storage_owner {
+        mir::StaticStorageOwner::GenericDelegate(unit) => {
+            let unit = module
+                .initialization_units
+                .iter()
+                .find_map(|(_, value)| (value.identity.id() == unit).then_some(value))
+                .expect("delegate storage retains its initialization unit");
+            return Ok(lir::StaticStorageIdentity::delegated_application(
+                unit.identity.key(),
+                zero_sized,
+                root,
+            )
+            .expect("a generic delegate storage derives from its application unit"));
+        }
         mir::StaticStorageOwner::PropertyBacking(owner) if zero_sized => {
             lir::StaticStorageIdentity::static_place_for_property(owner, root)
         }

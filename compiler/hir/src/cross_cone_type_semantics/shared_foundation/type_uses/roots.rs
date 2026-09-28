@@ -47,6 +47,7 @@ impl Graph<'_> {
                     | HirDependencyTypeSiteV1::LocalValue { .. }
                     | HirDependencyTypeSiteV1::BackingStorage { .. }
                     | HirDependencyTypeSiteV1::DelegateStorage { .. }
+                    | HirDependencyTypeSiteV1::GenericDelegateStorage { .. }
                     | HirDependencyTypeSiteV1::FieldStorage { .. }
                     | HirDependencyTypeSiteV1::EnumVariantFieldStorage { .. } => {
                         Kind::Representation

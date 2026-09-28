@@ -174,6 +174,11 @@ impl crate::CrossConeHirInterfaceSectionV1 {
                 fragment.visit_evaluation_origins(visitor, &path.clone().field(12))?;
             }
         }
+        for delegate in self.generic_delegates().records() {
+            delegate
+                .initializer()
+                .visit_evaluation_origins(visitor, &path.clone().field(13))?;
+        }
         Ok(())
     }
 }
@@ -205,6 +210,7 @@ pub enum DefaultBodyProviderTypeSiteV1 {
     CallReceiver,
     CallableOwner,
     CallableTypeArgument { index: usize },
+    GenericDelegateTypeArgument { index: usize },
     BoundCallableBound,
     BoundCallableInstantiatedSignature,
     BoundCallableReceiverParameter,

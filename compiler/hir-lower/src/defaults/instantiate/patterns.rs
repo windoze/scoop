@@ -11,6 +11,11 @@ impl Lowerer {
                 hir::AssignTarget::Local(mapped_local(context, *local))
             }
             hir::AssignTarget::Global(global) => hir::AssignTarget::Global(*global),
+            hir::AssignTarget::GenericDelegateStorage(reference) => {
+                hir::AssignTarget::GenericDelegateStorage(
+                    self.instantiate_delegate_reference(reference, context),
+                )
+            }
             hir::AssignTarget::SingletonPublishedRoot(root) => {
                 hir::AssignTarget::SingletonPublishedRoot(*root)
             }

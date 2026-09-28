@@ -44,13 +44,15 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, unit) in module.initialization_units.iter() {
         let storage = match unit.kind {
-            InitializationUnitKind::EagerTopLevel { storage } => storage,
+            InitializationUnitKind::EagerTopLevel { storage }
+            | InitializationUnitKind::GenericDelegatedExtension { storage } => storage,
             InitializationUnitKind::LazySingleton { published_root, .. } => {
                 module.singleton_published_roots[published_root].global
             }
         };
         let kind = match unit.kind {
             InitializationUnitKind::EagerTopLevel { .. } => "",
+            InitializationUnitKind::GenericDelegatedExtension { .. } => "generic-delegate ",
             InitializationUnitKind::LazySingleton { .. } => "singleton ",
         };
         let schedule = match unit.schedule {

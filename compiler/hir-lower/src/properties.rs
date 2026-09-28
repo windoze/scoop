@@ -393,6 +393,7 @@ impl Lowerer {
             }
             hir::PropertyRepresentation::Stored(_)
             | hir::PropertyRepresentation::AccessorOnly
+            | hir::PropertyRepresentation::GenericDelegated { .. }
             | hir::PropertyRepresentation::Const { .. }
             | hir::PropertyRepresentation::NativeStorage { .. } => None,
         };
@@ -474,6 +475,7 @@ impl Lowerer {
             }
             hir::PropertyRepresentation::AccessorOnly
             | hir::PropertyRepresentation::Delegated { .. }
+            | hir::PropertyRepresentation::GenericDelegated { .. }
             | hir::PropertyRepresentation::Const { .. } => {
                 unreachable!("only stored and native properties have storage accessors")
             }
@@ -533,6 +535,7 @@ impl Lowerer {
             }
             hir::PropertyRepresentation::AccessorOnly
             | hir::PropertyRepresentation::Delegated { .. }
+            | hir::PropertyRepresentation::GenericDelegated { .. }
             | hir::PropertyRepresentation::Const { .. } => {
                 unreachable!("only stored and native properties have storage setters")
             }

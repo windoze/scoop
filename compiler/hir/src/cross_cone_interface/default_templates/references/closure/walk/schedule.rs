@@ -88,6 +88,32 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )
     }
 
+    pub(super) fn push_generic_delegate(
+        &mut self,
+        pending: &mut Vec<ScheduledWork<'body>>,
+        target: &'body crate::DefaultGenericDelegateReferenceV1,
+        origin: &'body ExportDefinitionSourceV1,
+        site: ExportDefaultReferenceOccurrenceSiteV1,
+    ) -> Result<(), V::Error> {
+        self.push_leaf(
+            pending,
+            WorkItem::GenericDelegate {
+                target,
+                origin,
+                site,
+            },
+        )?;
+        for (index, argument) in target.arguments().iter().enumerate().rev() {
+            self.push_type(
+                pending,
+                argument,
+                origin,
+                crate::DefaultBodyProviderTypeSiteV1::GenericDelegateTypeArgument { index },
+            )?;
+        }
+        Ok(())
+    }
+
     pub(super) fn push_singleton(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,

@@ -28,6 +28,23 @@ enum InstantiationEvaluation {
 }
 
 impl Lowerer {
+    fn instantiate_delegate_reference(
+        &mut self,
+        source: &hir::GenericDelegateReference,
+        context: &InstantiationContext,
+    ) -> hir::GenericDelegateReference {
+        let arguments = source
+            .arguments
+            .iter()
+            .map(|argument| self.instantiate_method_ty(*argument, &context.bindings))
+            .collect();
+        hir::GenericDelegateReference {
+            template: source.template,
+            arguments: hir::NonEmptyVec::from_vec(arguments)
+                .expect("type substitution preserves nonempty delegate arguments"),
+        }
+    }
+
     pub(crate) fn instantiate_default(
         &mut self,
         source: DefaultArgumentSource,

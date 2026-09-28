@@ -17,6 +17,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     ) -> Result<(), V::Error> {
         let origin = statement.definition_origin();
         match statement.kind() {
+            DefaultStatementKindV1::GenericDelegateEnsure(reference) => self.push_generic_delegate(
+                pending,
+                reference,
+                origin,
+                ExportDefaultReferenceOccurrenceSiteV1::Statement,
+            ),
             DefaultStatementKindV1::Expr(expression)
             | DefaultStatementKindV1::Throw(expression) => {
                 self.push_child(pending, BodyNode::Expression(expression))
@@ -149,6 +155,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match target {
+            DefaultAssignTargetV1::GenericDelegateStorage(reference) => self.push_generic_delegate(
+                pending,
+                reference,
+                origin,
+                ExportDefaultReferenceOccurrenceSiteV1::Assignment,
+            ),
             DefaultAssignTargetV1::Local { .. } => Ok(()),
             DefaultAssignTargetV1::Global { property } => self.push_global(
                 pending,

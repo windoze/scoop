@@ -42,6 +42,20 @@ struct DeclarationTargets<'a, V> {
     visitor: &'a mut V,
 }
 
+impl crate::ExportGenericDelegateTemplateV1 {
+    pub(crate) fn visit_declaration_targets<V, E>(
+        &self,
+        visitor: &mut V,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(ExternalHirTargetV1) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        self.visit_direct_references(&mut DeclarationTargets { visitor }, path)
+    }
+}
+
 impl<'body, V, E> DefaultBodyReferenceVisitorV1<'body> for DeclarationTargets<'_, V>
 where
     V: FnMut(ExternalHirTargetV1) -> Result<(), E>,
@@ -110,6 +124,11 @@ where
             },
             DefaultBodyReferenceTargetV1::Global(property) => {
                 ExternalHirTargetV1::Property(PropertyOwner::Property(property))
+            }
+            DefaultBodyReferenceTargetV1::GenericDelegate(reference) => {
+                ExternalHirTargetV1::Property(PropertyOwner::ExtensionProperty(
+                    reference.property(),
+                ))
             }
             DefaultBodyReferenceTargetV1::Singleton(value) => {
                 ExternalHirTargetV1::ObjectValue(value)

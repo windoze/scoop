@@ -37,6 +37,12 @@ pub(in super::super) fn collect_statement_type_occurrences(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::GenericDelegateEnsure(reference) => push_types_at(
+                file,
+                statement.span,
+                |types| types.extend(reference.arguments.iter().copied()),
+                out,
+            ),
             hir::StatementKind::InitializationEnsure(_)
             | hir::StatementKind::LocalFunction(_)
             | hir::StatementKind::Break { .. }
@@ -55,6 +61,12 @@ pub(in super::super) fn collect_statement_type_occurrences(
             }
             hir::StatementKind::Assign { target, value } => {
                 match target {
+                    hir::AssignTarget::GenericDelegateStorage(reference) => push_types_at(
+                        file,
+                        statement.span,
+                        |types| types.extend(reference.arguments.iter().copied()),
+                        out,
+                    ),
                     hir::AssignTarget::Local(_)
                     | hir::AssignTarget::Global(_)
                     | hir::AssignTarget::SingletonPublishedRoot(_) => {}
@@ -362,6 +374,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
 
     use hir::ExprKind;
     match &expression.kind {
+        ExprKind::GenericDelegateStorageRead(reference) => {
+            for argument in reference.arguments.iter() {
+                push_type_at_expression(*argument, expression, out);
+            }
+        }
         ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::BoolLiteral(_)

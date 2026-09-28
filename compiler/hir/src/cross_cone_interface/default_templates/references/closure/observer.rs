@@ -182,6 +182,12 @@ impl<'body> DefaultBodyReferenceVisitorV1<'body> for ClosureObserver<'_> {
             Target::Constructor(target) => self.observe_constructor(target, origin, site, path),
             Target::Type(target) => self.match_type(target, origin, site, path),
             Target::Global(target) => self.observe_global(target, origin, site, path),
+            Target::GenericDelegate(target) => Err(
+                ExportDefaultReferenceClosureValidationError::DirectGenericDelegate {
+                    property: target.property(),
+                    site,
+                },
+            ),
             Target::Singleton(target) => self.observe_singleton(target, origin, site, path),
             Target::Field(target) => self.observe_field(target, origin, site, path),
         }

@@ -147,6 +147,12 @@ impl Concretizer<'_> {
             export::ExprKind::GlobalRead(global) => {
                 concrete::ExprKind::GlobalRead(self.global_map[global])
             }
+            export::ExprKind::GenericDelegateStorageRead(reference) => {
+                let specialization = self.request_generic_delegate(reference, substitution);
+                concrete::ExprKind::GlobalRead(
+                    self.generic_delegate_specializations[specialization].storage,
+                )
+            }
             export::ExprKind::SingletonValue(value) => {
                 concrete::ExprKind::SingletonValue(self.lower_singleton_value(*value))
             }

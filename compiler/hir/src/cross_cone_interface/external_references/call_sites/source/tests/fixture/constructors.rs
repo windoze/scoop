@@ -61,6 +61,7 @@ impl Fixture {
             Default::default(),
             Default::default(),
             Default::default(),
+            Default::default(),
         );
         self.target = ExternalHirTargetV1::Callable(target);
         self.receiver = crate::SourceCallReceiver::NoReceiver;

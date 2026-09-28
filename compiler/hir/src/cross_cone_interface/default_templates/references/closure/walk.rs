@@ -68,6 +68,13 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 } => {
                     self.observe(Target::Global(target), origin, site)?;
                 }
+                WorkItem::GenericDelegate {
+                    target,
+                    origin,
+                    site,
+                } => {
+                    self.observe(Target::GenericDelegate(target), origin, site)?;
+                }
                 WorkItem::Singleton {
                     target,
                     origin,

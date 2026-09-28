@@ -194,6 +194,7 @@ fn statement_control_outcomes(statement: &hir::Statement) -> HirControlOutcomes 
         }
         hir::StatementKind::Expr(_)
         | hir::StatementKind::InitializationEnsure(_)
+        | hir::StatementKind::GenericDelegateEnsure(_)
         | hir::StatementKind::LocalFunction(_)
         | hir::StatementKind::ValDecl { .. }
         | hir::StatementKind::Assign { .. } => HirControlOutcomes::fallthrough(),

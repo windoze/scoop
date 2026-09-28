@@ -361,6 +361,7 @@ fn closure_section(
             CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
             Default::default(),
             Default::default(),
+            Default::default(),
         ),
         expected,
     )

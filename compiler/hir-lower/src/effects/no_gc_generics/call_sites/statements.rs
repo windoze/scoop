@@ -8,7 +8,8 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
-                hir::StatementKind::InitializationEnsure(_) => {}
+                hir::StatementKind::InitializationEnsure(_)
+                | hir::StatementKind::GenericDelegateEnsure(_) => {}
                 hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
                     self.collect_generic_calls_in_expr(expr, out);
                 }
@@ -28,6 +29,7 @@ impl Lowerer {
                     match target {
                         hir::AssignTarget::Local(_)
                         | hir::AssignTarget::Global(_)
+                        | hir::AssignTarget::GenericDelegateStorage(_)
                         | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                         hir::AssignTarget::Index { array, index } => {
                             self.collect_generic_calls_in_expr(array, out);

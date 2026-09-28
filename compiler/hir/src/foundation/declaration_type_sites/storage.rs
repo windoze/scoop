@@ -129,10 +129,33 @@ impl Input<'_> {
                 }
             }
             InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => {
-                return Err(Error::StoragePosition(at));
+                return self.generic_delegate(unit);
             }
         }
         self.origin(DefinitionOriginSubject::InitializationUnit(unit))
+    }
+
+    pub(super) fn generic_delegate(
+        &mut self,
+        unit: PersistentInitializationUnitId,
+    ) -> Result<(), Error> {
+        let at = HirDependencyTypePositionV1::GenericDelegateStorage(unit);
+        let InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. } =
+            self.key(&self.foundation.initialization_units, unit)?
+        else {
+            return Err(Error::StoragePosition(at));
+        };
+        let (foundation, _) =
+            self.source_record(*property, |foundation| &foundation.extension_properties)?;
+        let declaration = foundation
+            .initialization_units
+            .iter()
+            .find(|record| record.key() == &InitializationUnitKey::ExtensionProperty(*property))
+            .ok_or(Error::StoragePosition(at))?;
+        Self::source_origin(
+            foundation,
+            DefinitionOriginSubject::InitializationUnit(declaration.id()),
+        )
     }
 
     fn nominal(&mut self, owner: NominalDeclarationOwner) -> Result<&SourceDeclarationKey, Error> {

@@ -58,6 +58,13 @@ pub(super) fn collect<E>(local: &crate::LocalConcreteHirOutput) -> Result<Vec<Si
         output.add(global.ty, |exact| match global.storage_owner {
             PropertyStorageOwner::Backing(property) => Site::BackingStorage { property, exact },
             PropertyStorageOwner::Delegate(property) => Site::DelegateStorage { property, exact },
+            PropertyStorageOwner::GenericDelegate(specialization) => Site::GenericDelegateStorage {
+                unit: module.initialization_units
+                    [module.generic_delegate_specializations[specialization].initialization]
+                    .identity
+                    .id(),
+                exact,
+            },
         })?;
     }
     let mut sites = Vec::new();

@@ -40,6 +40,9 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match kind {
+            DefaultExpressionKindV1::GenericDelegateStorageRead(reference) => {
+                self.push_generic_delegate(pending, reference, definition_origin)
+            }
             DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)

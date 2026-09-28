@@ -22,5 +22,6 @@ pub(super) fn empty_interface(
         CanonicalExternalHirReferencesV1::try_new(references).unwrap(),
         Default::default(),
         Default::default(),
+        Default::default(),
     )
 }

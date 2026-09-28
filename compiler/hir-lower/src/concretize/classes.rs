@@ -327,6 +327,7 @@ impl Concretizer<'_> {
             export::PropertyRepresentation::Stored(_)
             | export::PropertyRepresentation::AccessorOnly
             | export::PropertyRepresentation::Delegated { .. }
+            | export::PropertyRepresentation::GenericDelegated { .. }
             | export::PropertyRepresentation::Const { .. }
             | export::PropertyRepresentation::NativeStorage { .. } => {
                 unreachable!(
