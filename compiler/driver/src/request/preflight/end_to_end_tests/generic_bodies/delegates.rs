@@ -1,6 +1,7 @@
 use super::super::imported_classes::runtime;
 use super::*;
 
+mod artifacts;
 mod combinations;
 mod negatives;
 mod siblings;
@@ -133,4 +134,9 @@ fn generic_delegated_properties_republish_and_execute_from_artifacts() {
             scoop_identity::LinkageClass::OdrWeak
         );
     }
+    artifacts::check(
+        &target,
+        &[&core, &provider, consumer],
+        sections.lir_strong_production(),
+    );
 }

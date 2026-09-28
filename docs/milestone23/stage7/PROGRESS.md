@@ -498,9 +498,17 @@
 
 本项完成委托访问、外来角色和上述语言组合。初始化正文中的更多生成实体及完整 unit 的损坏产物验证仍继续，M23-7 尚未完成。
 
+## 2026-09-29：委托 unit 的真实损坏产物验证
+
+- 复用已经完成发布、移走源码、下游消费与运行的真实委托产物，分别互换 initializer/ensure、删除 unit、删除 delegate storage、删除 failure root 和删除 initializer callable。修改后重新编码原 archive 并同步 LIR 与产物摘要，确保反例进入正式语义 reader，而非被外层摘要差异提前拒绝。
+- 五项反例精确断言消费方 provider 与实际错误类型：角色互换定位到原 unit 的 `initializer_role`，缺失 unit/storage/root 对应登记表长度，缺失 callable 对应完整登记 surface。复用现有正确性检查，没有增加生产阶段验证、格式字段或公共测试工厂。
+- `cargo fmt --all` 与 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，无警告。使用最新配套 `scoopc`，关闭快照更新后，基础委托产物聚合测试通过，用时 10.42 秒；包含真实发布、下游再次消费、链接、普通运行、移动 GC 及上述五种反例。日志为 `/tmp/scoop-m23-7-delegate-artifact-verified.log`。
+
+本项完成委托 unit 的上述损坏产物验证。初始化正文的生成实体和其他组合继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
-1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle 和表示组合基础上，完成 initializer 中的局部函数、closure、default 组合及完整 unit 的损坏产物验证；其余物理角色继续复用实际成员摘要与共有合并入口。
+1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合与完整 unit 损坏产物验证基础上，完成 initializer 中的局部函数、closure、default 组合；其余物理角色继续复用实际成员摘要与共有合并入口。
 2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch，以及 lambda、匿名函数和 callable reference 的捕获组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
