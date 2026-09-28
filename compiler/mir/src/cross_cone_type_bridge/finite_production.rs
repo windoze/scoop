@@ -1,15 +1,16 @@
 //! Actual MIR projection of the finite source shape-support materializations.
 
 use super::*;
-use crate::{ConeMirInput, GeneratedExactTypeLocation, StrongBoxedShapeSupportRoot};
+use crate::{
+    ConeMirInput, GeneratedExactTypeLocation, GeneratedNominalShapeRoot,
+    StrongBoxedShapeSupportRoot,
+};
 
 mod representation;
 
 impl CanonicalParamFreeMirTypeExportsV1 {
-    /// Produces the finite generated constituent of the complete type table.
-    /// The sealed source plan determines membership; unrelated execution
-    /// environments are not part of this export surface.
-    pub fn from_finite_shape_support(
+    /// Projects finite source support and the actually materialized ODR helpers.
+    pub fn from_generated_shapes(
         input: &ConeMirInput,
         sources: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
@@ -48,8 +49,12 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 )),
             ];
             for (helper, role) in helpers.into_iter().flatten() {
-                let (facts, representation, bases) =
-                    representation::project(input, source, helper.location(), &role)?;
+                let (facts, representation, bases) = representation::project(
+                    input,
+                    &source.base_and_interfaces().interfaces,
+                    helper.location(),
+                    &role,
+                )?;
                 records.push(ParamFreeMirTypeExportV1::try_new(
                     authority,
                     helper.exact(),
@@ -62,6 +67,54 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                     bases,
                 )?);
             }
+        }
+
+        for root in plan.generated_nominal_shapes() {
+            if !matches!(root, GeneratedNominalShapeRoot::Odr { .. }) {
+                continue;
+            }
+            let identity = input
+                .module()
+                .meta
+                .generated_exact_types
+                .get(root.location())
+                .expect("a generated materialization retains its MIR identity");
+            let role = identity.nominal_record().key();
+            let source_exact = match role {
+                GeneratedNominalKey::BoxedValue { payload } => *payload,
+                GeneratedNominalKey::CoroutineStep { result } => *result,
+                GeneratedNominalKey::CoroutineSlot { value } => *value,
+                _ => continue,
+            };
+            let source_key = identities.canonical_key::<_, ExactTypeKey>(source_exact)?;
+            let interfaces = match source_key.as_ref() {
+                ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
+                    &sources
+                        .get(source_exact)
+                        .ok_or(MirTypeBridgeError::MissingShapeSupportSource {
+                            exact: source_exact,
+                        })?
+                        .base_and_interfaces()
+                        .interfaces[..]
+                }
+                ExactTypeKey::Tuple(_)
+                | ExactTypeKey::Function { .. }
+                | ExactTypeKey::RawPointer(_)
+                | ExactTypeKey::NativeFunctionPointer { .. } => &[],
+            };
+            let (facts, representation, bases) =
+                representation::project(input, interfaces, root.location(), role)?;
+            records.push(ParamFreeMirTypeExportV1::try_new(
+                authority,
+                root.exact(),
+                MirTypeOriginV1::GeneratedNominal {
+                    nominal: root.nominal(),
+                    role: role.clone(),
+                },
+                facts,
+                representation,
+                bases,
+            )?);
         }
 
         Self::try_new(records)

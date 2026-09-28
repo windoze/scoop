@@ -1,5 +1,5 @@
 use super::*;
-use scoop_mir::{MirClassVtableSchemaV1, MirDispatchImplementationV1 as Implementation};
+use scoop_mir::{MirDispatchImplementationV1 as Implementation, MirDispatchSlotsV1};
 
 pub(super) fn object_overrides(
     output: &hir::DependencyHirOutput,
@@ -27,7 +27,6 @@ pub(super) fn object_overrides(
         .get(owner)
         .unwrap()
         .vtable()
-        .entries()
         .iter()
         .map(|entry| {
             let root = input
@@ -76,9 +75,31 @@ pub(super) fn actual(
             })
             .unwrap_or(schema.owner());
         let source = hir.inheritance().get(source_owner).unwrap();
+        if let Some(slots) = schema.interface_slots() {
+            assert!(schema.itables().is_empty());
+            let table = source
+                .slot_schemas()
+                .get(hir::InheritanceSlotSchemaRoleV1::Interface {
+                    interface_exact: schema.owner(),
+                })
+                .unwrap();
+            assert!(
+                slots
+                    .iter()
+                    .map(|slot| slot.slot())
+                    .eq(table.slots().iter().copied())
+            );
+            for slot in slots {
+                assert_eq!(
+                    slot.signature().exact().receiver().into_option(),
+                    Some(schema.owner())
+                );
+            }
+            continue;
+        }
         for table in source.slot_schemas().records() {
             let entries = match table.role() {
-                hir::InheritanceSlotSchemaRoleV1::ClassVtable => schema.vtable().entries(),
+                hir::InheritanceSlotSchemaRoleV1::ClassVtable => schema.vtable(),
                 hir::InheritanceSlotSchemaRoleV1::Interface { interface_exact } => {
                     schema.interface_table(interface_exact).unwrap().entries()
                 }
@@ -102,7 +123,6 @@ pub(super) fn actual(
         }
         for entry in schema
             .vtable()
-            .entries()
             .iter()
             .chain(schema.itables().iter().flat_map(|table| table.entries()))
         {
@@ -164,10 +184,21 @@ pub(super) fn dump(
     let mut blocks = Vec::new();
     for schema in schemas.records() {
         let mut text = format!("{}\n", names[&schema.owner()]);
-        let tables = match schema.vtable() {
-            MirClassVtableSchemaV1::NoClassVtable => Vec::new(),
-            MirClassVtableSchemaV1::ClassVtable(entries) => {
+        let tables = match schema.slots() {
+            MirDispatchSlotsV1::NoClassVtable => Vec::new(),
+            MirDispatchSlotsV1::ClassVtable(entries) => {
                 vec![("vtable".to_owned(), entries.as_slice())]
+            }
+            MirDispatchSlotsV1::InterfaceSlots(slots) => {
+                text.push_str("  interface slots\n");
+                for slot in slots {
+                    text.push_str(&format!(
+                        "    {} {:?}\n",
+                        slot.position().get(),
+                        slot.signature(),
+                    ));
+                }
+                Vec::new()
             }
         };
         for (name, entries) in tables

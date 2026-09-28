@@ -21,9 +21,8 @@ pub fn lower_type_exports(
     identities: &ValidatedIdentityGraph,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
     let source = lower_source_type_exports(hir, input, identities)?;
-    let finite = mir::CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-        input, &source, identities,
-    )?;
+    let finite =
+        mir::CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(input, &source, identities)?;
     let mut records = source.into_records();
     reserve(&mut records, finite.records().len())?;
     records.extend(finite.into_records());

@@ -4,7 +4,7 @@ use crate::cross_cone_type_bridge::dispatch::tests::support::{
 };
 
 #[test]
-fn class_and_diamond_edges_keep_slot_declaration_and_chosen_target() {
+fn class_and_diamond_edges_keep_slot_types_and_chosen_machine_targets() {
     let fixture = Fixture::new();
     let record = fixture.record(DERIVED);
     let references =
@@ -17,7 +17,7 @@ fn class_and_diamond_edges_keep_slot_declaration_and_chosen_target() {
         [BASE, ROOT, LEFT, RIGHT, DIAMOND]
             .map(|index| MirTypeBridgeTargetV1::Dispatch(fixture.exact(index))),
     );
-    targets.extend([0, 1, 3, 4, 5].map(|index| {
+    targets.extend([1, 4, 5].map(|index| {
         MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
             fixture.target(index),
         ))
@@ -49,7 +49,7 @@ fn boxed_default_preserves_payload_and_both_interface_receivers() {
 }
 
 #[test]
-fn abstract_interface_and_value_dispatch_keep_traps_and_real_adjusts() {
+fn interface_contracts_and_value_dispatch_reference_only_actual_implementations() {
     let fixture = Fixture::new();
     for owner in [LEFT, VALUE] {
         let record = fixture.record(owner);
@@ -57,7 +57,7 @@ fn abstract_interface_and_value_dispatch_keep_traps_and_real_adjusts() {
             MirTypeBridgeSemanticReferencesV1::of_dispatch(&record, &fixture.graph, &fixture.types)
                 .unwrap();
         assert!(
-            references
+            !references
                 .targets()
                 .contains(&MirTypeBridgeTargetV1::Callable(
                     scoop_identity::CallableDefinitionOwner::Strong(fixture.target(3))

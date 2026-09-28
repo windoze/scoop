@@ -36,7 +36,7 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
             );
             for owner in [base, derived] {
                 let schema = schemas.get(owner).unwrap();
-                assert_eq!(schema.vtable().entries().len(), 2);
+                assert_eq!(schema.vtable().len(), 2);
                 assert_eq!(
                     schema.itables().len(),
                     if case == "dispatch" { 1 } else { 2 }
@@ -75,7 +75,6 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
             }) {
                 for entry in schema
                     .vtable()
-                    .entries()
                     .iter()
                     .chain(schema.itables().iter().flat_map(|table| table.entries()))
                 {

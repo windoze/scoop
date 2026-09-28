@@ -84,13 +84,18 @@ impl Fixture {
     pub fn record(&self, owner: usize) -> ParamFreeMirDispatchSchemaV1 {
         let vtable = match owner {
             BASE | DERIVED => {
-                MirClassVtableSchemaV1::ClassVtable(vec![self.virtual_entry(owner == DERIVED)])
+                MirDispatchSlotsV1::ClassVtable(vec![self.virtual_entry(owner == DERIVED)])
             }
-            OTHER => MirClassVtableSchemaV1::ClassVtable(vec![]),
-            _ => MirClassVtableSchemaV1::NoClassVtable,
+            OTHER => MirDispatchSlotsV1::ClassVtable(vec![]),
+            ROOT..=DIAMOND => MirDispatchSlotsV1::InterfaceSlots(
+                self.interface_entries(owner, owner)
+                    .into_iter()
+                    .map(|entry| entry.contract)
+                    .collect(),
+            ),
+            _ => MirDispatchSlotsV1::NoClassVtable,
         };
         let interfaces = match owner {
-            ROOT..=DIAMOND => vec![owner],
             DERIVED => vec![ROOT, LEFT, RIGHT, DIAMOND],
             VALUE => vec![ROOT, LEFT],
             _ => vec![],
@@ -129,11 +134,11 @@ fn direct_class_override_and_interface_default_keep_source_slot_order() {
     let table = fixture.table();
     let derived = table.get(fixture.exact(DERIVED)).unwrap();
     assert_eq!(
-        derived.vtable().entries()[0].signature(),
-        table.get(fixture.exact(BASE)).unwrap().vtable().entries()[0].signature()
+        derived.vtable()[0].signature(),
+        table.get(fixture.exact(BASE)).unwrap().vtable()[0].signature()
     );
     assert!(matches!(
-        derived.vtable().entries()[0].implementation(),
+        derived.vtable()[0].implementation(),
         MirDispatchImplementationV1::DirectStrongTarget {
             receiver: MirDispatchReceiverAdaptationV1::ReferenceDispatch,
             ..
@@ -155,10 +160,12 @@ fn direct_class_override_and_interface_default_keep_source_slot_order() {
                 .iter()
                 .map(MirDispatchEntryV1::slot)
                 .collect::<Vec<_>>(),
-            fixture.record(ROOT).itables()[0]
-                .entries()
+            fixture
+                .record(ROOT)
+                .interface_slots()
+                .unwrap()
                 .iter()
-                .map(MirDispatchEntryV1::slot)
+                .map(MirDispatchSlotV1::slot)
                 .collect::<Vec<_>>()
         );
     }
@@ -224,32 +231,23 @@ fn diamond_receiver_paths_choose_shortest_then_canonical_exact_sequence() {
 }
 
 #[test]
-fn inherited_interface_trap_default_and_boxed_entries_use_current_table_receiver() {
+fn inherited_interface_contracts_and_boxed_entries_use_current_table_receiver() {
     let fixture = Fixture::new();
     let table = fixture.table();
     let left = table.get(fixture.exact(LEFT)).unwrap();
-    for entry in left.itables()[0].entries() {
+    assert!(left.itables().is_empty());
+    for entry in left.interface_slots().unwrap() {
         assert_eq!(
             entry.signature().exact().receiver().into_option(),
             Some(fixture.exact(LEFT))
         );
-        assert!(matches!(
-            entry.implementation(),
-            MirDispatchImplementationV1::AbstractObligation {
-                receiver: MirDispatchReceiverAdaptationV1::ReferenceDispatch,
-                ..
-            } | MirDispatchImplementationV1::InterfaceDefaultTarget {
-                receiver: MirDispatchReceiverAdaptationV1::ReferenceDispatch,
-                ..
-            }
-        ));
     }
     let boxed = table
         .get(fixture.exact(VALUE))
         .unwrap()
         .interface_table(fixture.exact(LEFT))
         .unwrap();
-    for (entry, contract) in boxed.entries().iter().zip(left.itables()[0].entries()) {
+    for (entry, contract) in boxed.entries().iter().zip(left.interface_slots().unwrap()) {
         assert_eq!(entry.signature(), contract.signature());
         let target = fixture
             .callables

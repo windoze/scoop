@@ -137,7 +137,7 @@ impl Replay<'_> {
         mir::ParamFreeMirDispatchSchemaV1::try_new(
             self.authority(),
             owner,
-            mir::MirClassVtableSchemaV1::ClassVtable(entries),
+            mir::MirDispatchSlotsV1::ClassVtable(entries),
             original.itables().to_vec(),
         )
         .unwrap()

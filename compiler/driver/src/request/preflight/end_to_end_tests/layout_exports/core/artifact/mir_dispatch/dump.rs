@@ -51,7 +51,25 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
         if !owner.contains("SharedDispatch") {
             continue;
         }
-        let tables = std::iter::once(("vtable".into(), record.vtable().entries())).chain(
+        for slot in record.interface_slots().into_iter().flatten() {
+            let signature = slot.signature();
+            let parameters = signature
+                .exact()
+                .parameters()
+                .iter()
+                .map(|id| exact(*id))
+                .collect::<Vec<_>>();
+            let receiver = signature.exact().receiver().into_option().map(&exact);
+            rows.push(format!(
+                "mir {owner} interface-slot[{}]: {:?} {:?} ({receiver:?}; {parameters:?}) -> {} {:?}\n",
+                slot.position().get(),
+                slot.slot(),
+                signature.exact().effect(),
+                exact(signature.exact().result()),
+                signature.gc_effect(),
+            ));
+        }
+        let tables = std::iter::once(("vtable".into(), record.vtable())).chain(
             record.itables().iter().map(|table| {
                 (
                     format!("itable {}", exact(table.interface())),

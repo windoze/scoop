@@ -47,7 +47,7 @@ pub(super) fn validate(
         Error::schema(
             any,
             Component::Tables,
-            matches!(record.vtable(), mir::MirClassVtableSchemaV1::ClassVtable(entries) if entries.is_empty())
+            matches!(record.slots(), mir::MirDispatchSlotsV1::ClassVtable(entries) if entries.is_empty())
                 && record.itables().is_empty(),
         )?;
         insert(&mut required, any)?;
@@ -66,7 +66,6 @@ pub(super) fn validate(
             }
             for entry in record
                 .vtable()
-                .entries()
                 .iter()
                 .chain(record.itables().iter().flat_map(|table| table.entries()))
             {
@@ -101,6 +100,48 @@ impl Replay<'_> {
         candidate: &mir::ParamFreeMirDispatchSchemaV1,
     ) -> Result<(), Error> {
         let expected = source.slot_schemas().records();
+        if let Some(slots) = candidate.interface_slots() {
+            let role = hir::InheritanceSlotSchemaRoleV1::Interface {
+                interface_exact: source.owner(),
+            };
+            Error::schema(
+                candidate.owner(),
+                Component::Tables,
+                expected.len() == 1 && expected[0].role() == role,
+            )?;
+            let schema = &expected[0];
+            Error::schema(
+                candidate.owner(),
+                Component::Slots,
+                schema.slots().len() == slots.len(),
+            )?;
+            for (position, (slot, candidate)) in schema.slots().iter().zip(slots).enumerate() {
+                Error::entry(
+                    source.owner(),
+                    *slot,
+                    Component::SlotIdentity,
+                    candidate.slot() == *slot,
+                )?;
+                Error::entry(
+                    source.owner(),
+                    *slot,
+                    Component::Position,
+                    candidate.position().get() as usize == position,
+                )?;
+                let contract = source.slots().get(*slot).ok_or(Error::SourceSlot {
+                    owner: source.owner(),
+                    slot: *slot,
+                })?;
+                let signature = bindings::signature(contract.signature(), Some(source.owner()))?;
+                Error::entry(
+                    source.owner(),
+                    *slot,
+                    Component::Signature,
+                    candidate.signature() == &signature,
+                )?;
+            }
+            return Ok(());
+        }
 
         let class = source
             .slot_schemas()
@@ -108,20 +149,10 @@ impl Replay<'_> {
         Error::schema(
             candidate.owner(),
             Component::Tables,
-            class.is_some()
-                == matches!(
-                    candidate.vtable(),
-                    mir::MirClassVtableSchemaV1::ClassVtable(_)
-                ),
+            class.is_some() == matches!(candidate.slots(), mir::MirDispatchSlotsV1::ClassVtable(_)),
         )?;
         if let Some(schema) = class {
-            self.table(
-                source,
-                schema,
-                value,
-                candidate.owner(),
-                candidate.vtable().entries(),
-            )?;
+            self.table(source, schema, value, candidate.owner(), candidate.vtable())?;
         }
         let interfaces = expected.iter().filter_map(|schema| match schema.role() {
             hir::InheritanceSlotSchemaRoleV1::ClassVtable => None,

@@ -19,11 +19,10 @@ pub(super) fn append(
             .physical
             .get(&owner)
             .ok_or(Error::MissingPhysicalType(owner))?;
-        let mut vtable = mir::MirClassVtableSchemaV1::NoClassVtable;
+        let mut vtable = mir::MirDispatchSlotsV1::NoClassVtable;
         let mut itables = Vec::new();
         if let mir::Type::Interface(_) = physical {
-            let (interface, entries) = interface_entries(local, context, owner, None)?;
-            itables.push(mir::MirInterfaceDispatchTableV1::new(interface, entries));
+            vtable = mir::MirDispatchSlotsV1::InterfaceSlots(slots::interface(local, owner)?);
         } else {
             let class = match physical {
                 mir::Type::Class(id) => Some(&context.input.module().classes[*id]),
@@ -42,9 +41,10 @@ pub(super) fn append(
                     for (position, target) in class.vtable.iter().enumerate() {
                         let target = physical_target(context, target)?;
                         let slot = *slots.get(&target).ok_or(Error::Application(owner))?;
-                        entries.push(entry(context, owner, None, slot, position, target)?);
+                        let contract = virtual_contract(context, owner, slot, position)?;
+                        entries.push(entry(context, owner, contract, target)?);
                     }
-                    vtable = mir::MirClassVtableSchemaV1::ClassVtable(entries);
+                    vtable = mir::MirDispatchSlotsV1::ClassVtable(entries);
                 }
                 for table in &class.itables {
                     let interface = context
@@ -56,8 +56,8 @@ pub(super) fn append(
                         .ok_or(Error::Application(owner))?
                         .identity_record()
                         .id();
-                    let (_, entries) =
-                        interface_entries(local, context, interface, Some((owner, &table.slots)))?;
+                    let entries =
+                        interface_entries(local, context, owner, interface, &table.slots)?;
                     itables.push(mir::MirInterfaceDispatchTableV1::new(interface, entries));
                 }
             }
@@ -138,47 +138,24 @@ fn virtual_slots(
 fn interface_entries(
     local: &hir::LocalConcreteHir,
     context: &Context<'_>,
+    owner: PersistentExactTypeId,
     interface: PersistentExactTypeId,
-    physical: Option<(PersistentExactTypeId, &[mir::TableSlot])>,
-) -> Result<(PersistentExactTypeId, Vec<mir::MirDispatchEntryV1>), Error> {
-    let ty = local
-        .exact_type_identities
-        .type_for_identity(interface)
-        .ok_or(Error::Application(interface))?;
-    let hir::concrete::TypeKind::Interface(id) = local.types[ty].kind else {
-        return Err(Error::Application(interface));
-    };
-    let mut entries = Vec::new();
-    if physical.is_some_and(|(_, slots)| slots.len() != local.interfaces[id].methods.len()) {
+    physical: &[mir::TableSlot],
+) -> Result<Vec<mir::MirDispatchEntryV1>, Error> {
+    let contracts = slots::interface(local, interface)?;
+    if physical.len() != contracts.len() {
         return Err(Error::Application(interface));
     }
-    for (position, (_, slot)) in local
-        .dispatch_slot_identities
-        .interface_slots(id)
-        .enumerate()
-    {
-        let (owner, target) = match physical {
-            Some((owner, slots)) => (owner, physical_target(context, &slots[position])?),
-            None => (
-                interface,
-                mir::dispatch_declaration_target(
-                    context.authority.identities,
-                    context.authority.types,
-                    slot.key().owner(),
-                    interface,
-                )?,
-            ),
-        };
+    let mut entries = reserve(contracts.len())?;
+    for (contract, target) in contracts.into_iter().zip(physical) {
         entries.push(entry(
             context,
             owner,
-            Some(interface),
-            slot.id(),
-            position,
-            target,
+            contract,
+            physical_target(context, target)?,
         )?);
     }
-    Ok((interface, entries))
+    Ok(entries)
 }
 
 fn physical_target(
@@ -196,14 +173,12 @@ fn physical_target(
     }
 }
 
-fn entry(
+fn virtual_contract(
     context: &Context<'_>,
     owner: PersistentExactTypeId,
-    interface: Option<PersistentExactTypeId>,
     slot: PersistentDispatchSlotId,
     position: usize,
-    target: CallableDefinitionOwner,
-) -> Result<mir::MirDispatchEntryV1, Error> {
+) -> Result<mir::MirDispatchSlotV1, Error> {
     let key = context
         .authority
         .identities
@@ -212,20 +187,25 @@ fn entry(
         context.authority.identities,
         context.authority.types,
         key.owner(),
-        interface.unwrap_or(owner),
+        owner,
     )?;
-    let original = context.callable(declaration)?.lowered_signature();
-    let signature = mir::MirBridgeCallableSignatureV1::new(
-        ExactCallableSignature::new(
-            original.exact().effect(),
-            interface.or(original.exact().receiver().into_option()),
-            original.exact().parameters().to_vec(),
-            original.exact().result(),
+    Ok(mir::MirDispatchSlotV1::new(
+        slot,
+        mir::MirDispatchPositionV1::new(
+            u32::try_from(position).map_err(|_| Error::Application(owner))?,
         ),
-        original.gc_effect(),
-    );
+        context.callable(declaration)?.lowered_signature().clone(),
+    ))
+}
+
+fn entry(
+    context: &Context<'_>,
+    owner: PersistentExactTypeId,
+    contract: mir::MirDispatchSlotV1,
+    target: CallableDefinitionOwner,
+) -> Result<mir::MirDispatchEntryV1, Error> {
     let binding = context.callable(target)?;
-    let receiver = if signature == *binding.lowered_signature() {
+    let receiver = if contract.signature() == binding.lowered_signature() {
         mir::MirDispatchReceiverAdaptationV1::Identity
     } else {
         mir::MirDispatchReceiverAdaptationV1::ReferenceDispatch
@@ -280,12 +260,8 @@ fn entry(
             }
         }
     };
-    Ok(mir::MirDispatchEntryV1::new(
-        slot,
-        mir::MirDispatchPositionV1::new(
-            u32::try_from(position).map_err(|_| Error::Application(owner))?,
-        ),
-        signature,
+    Ok(mir::MirDispatchEntryV1::from_contract(
+        contract,
         implementation,
     ))
 }

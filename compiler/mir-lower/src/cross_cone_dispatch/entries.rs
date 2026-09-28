@@ -9,19 +9,14 @@ impl Context<'_> {
     ) -> Result<Vec<mir::MirDispatchEntryV1>, Error> {
         let mut entries = reserve(schema.slots().len())?;
         for (position, (slot, target)) in schema.slots().iter().zip(targets).enumerate() {
-            let selection = self
+            let contract = self
                 .source
                 .inheritance()
                 .get(owner)
                 .and_then(|record| record.slots().get(*slot))
-                .ok_or(Error::MissingSelection { owner, slot: *slot })?
-                .implementation();
-            let key = self
-                .authority
-                .identities
-                .canonical_key::<_, DispatchSlotKey>(*slot)?;
-            let root = self.callable(declaration_target(key.owner()))?;
-            let exact = root.lowered_signature().exact();
+                .ok_or(Error::MissingSelection { owner, slot: *slot })?;
+            let selection = contract.implementation();
+            let exact = contract.signature().exact_signature();
             let receiver = match schema.role() {
                 hir::InheritanceSlotSchemaRoleV1::ClassVtable => exact.receiver().into_option(),
                 hir::InheritanceSlotSchemaRoleV1::Interface { interface_exact } => {
@@ -33,7 +28,10 @@ impl Context<'_> {
 
             let signature = mir::MirBridgeCallableSignatureV1::new(
                 ExactCallableSignature::new(exact.effect(), receiver, parameters, exact.result()),
-                root.lowered_signature().gc_effect(),
+                match contract.signature().effects().gc_effect() {
+                    scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
+                    scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
+                },
             );
             let binding = self.callable(*target)?;
             let mismatch = || Error::TargetMismatch { owner, slot: *slot };

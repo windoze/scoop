@@ -102,13 +102,45 @@ impl SourceNominalShapeRoot {
     }
 }
 
-/// One MIR-generated nominal whose exact owner closes back to the current
-/// Cone. ODR-owned generated nominals are rejected before a plan exists.
+/// One MIR-generated nominal owned by its source Cone.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongGeneratedNominalShapeRoot {
     location: GeneratedExactTypeLocation,
     nominal: PersistentTypeId,
     exact: PersistentExactTypeId,
+}
+
+/// An actual generated shape retains the owner already established by MIR.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GeneratedNominalShapeRoot {
+    Cone(StrongGeneratedNominalShapeRoot),
+    Odr {
+        location: GeneratedExactTypeLocation,
+        nominal: PersistentTypeId,
+        exact: PersistentExactTypeId,
+        group: scoop_identity::OdrGroupId,
+    },
+}
+
+impl GeneratedNominalShapeRoot {
+    pub const fn location(self) -> GeneratedExactTypeLocation {
+        match self {
+            Self::Cone(shape) => shape.location(),
+            Self::Odr { location, .. } => location,
+        }
+    }
+    pub const fn nominal(self) -> PersistentTypeId {
+        match self {
+            Self::Cone(shape) => shape.nominal(),
+            Self::Odr { nominal, .. } => nominal,
+        }
+    }
+    pub const fn exact(self) -> PersistentExactTypeId {
+        match self {
+            Self::Cone(shape) => shape.exact(),
+            Self::Odr { exact, .. } => exact,
+        }
+    }
 }
 
 /// One ordinary dependency callable after its request-local selected bridge
@@ -166,7 +198,7 @@ pub struct ConeMirMaterializationPlan {
     callable_roots: Vec<CallableMaterializationRoot>,
     external_callable_roots: Vec<StrongExternalCallableRoot>,
     source_nominal_shapes: Vec<SourceNominalShapeRoot>,
-    generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
+    generated_nominal_shapes: Vec<GeneratedNominalShapeRoot>,
     dependency_generated_nominal_shapes: Vec<StrongDependencyGeneratedNominalShapeRoot>,
     shape_support: Vec<StrongSourceShapeSupportRoot>,
     extern_functions: Vec<ExternFunctionId>,
@@ -196,7 +228,7 @@ impl ConeMirMaterializationPlan {
             .find(|root| root.ty() == ty)
     }
 
-    pub fn generated_nominal_shapes(&self) -> &[StrongGeneratedNominalShapeRoot] {
+    pub fn generated_nominal_shapes(&self) -> &[GeneratedNominalShapeRoot] {
         &self.generated_nominal_shapes
     }
 
@@ -209,7 +241,7 @@ impl ConeMirMaterializationPlan {
     pub fn generated_nominal_shape(
         &self,
         location: GeneratedExactTypeLocation,
-    ) -> Option<StrongGeneratedNominalShapeRoot> {
+    ) -> Option<GeneratedNominalShapeRoot> {
         self.generated_nominal_shapes
             .iter()
             .copied()

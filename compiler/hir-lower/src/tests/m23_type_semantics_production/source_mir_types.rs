@@ -91,7 +91,7 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
         let (bytes, dump) = with_production(&source, |output, strong, hir_types, graph, table| {
             identities::source_members(output, table);
             let finite =
-                CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(strong, table, graph)
+                CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(strong, table, graph)
                     .unwrap();
             let mut records = table.clone().into_records();
             records.extend(finite.into_records());

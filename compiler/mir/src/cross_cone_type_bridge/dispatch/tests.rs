@@ -7,6 +7,7 @@ use scoop_identity::{
 };
 use scoop_wire::{decode_canonical, encode};
 
+mod contracts;
 mod dependencies;
 mod records;
 mod rejections;

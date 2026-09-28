@@ -7,7 +7,7 @@ fn finite_boxes_export_direct_interfaces_while_machine_dispatch_keeps_the_diamon
     let source = std::fs::read_to_string(directory.join("combined.scoop")).unwrap();
     with_production(&source, |_, input, _, graph, sources| {
         let finite =
-            CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(input, sources, graph)
+            CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(input, sources, graph)
                 .unwrap();
         let mut diamonds = 0;
         for root in input.materialization().shape_support() {
@@ -43,7 +43,7 @@ fn finite_boxes_export_direct_interfaces_while_machine_dispatch_keeps_the_diamon
         )
         .unwrap();
         assert!(matches!(
-            CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
+            CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(
                 input,
                 &missing,
                 graph,

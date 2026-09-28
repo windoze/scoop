@@ -7,7 +7,7 @@ mod declarations;
 mod indexes;
 
 pub use callables::*;
-pub use declarations::dispatch_declaration_target;
+pub use declarations::{dispatch_declaration_receiver, dispatch_declaration_target};
 pub use indexes::*;
 
 mod sealed {

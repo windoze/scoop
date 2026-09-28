@@ -7,7 +7,7 @@ fn finite_mir_exports_require_the_same_identity_and_generated_foundation() {
         |input, graph, records, sources| {
             let empty_graph = PendingIdentityValidation::new().finish().unwrap();
             assert!(matches!(
-                CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
+                CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(
                     input,
                     sources,
                     &empty_graph

@@ -15,7 +15,7 @@ pub(super) fn check(
     }) {
         classes += 1;
         let schema = mir.dispatch().get(ty.exact()).unwrap();
-        assert_eq!(schema.vtable().entries().len(), 2);
+        assert_eq!(schema.vtable().len(), 2);
         assert_eq!(schema.itables().len(), interface_count);
         let tables: Vec<_> = lir
             .dispatch()
@@ -27,7 +27,7 @@ pub(super) fn check(
         for table in tables {
             assert_eq!(table.definition().symbol().linkage(), LinkageClass::OdrWeak);
             let expected = match table.role() {
-                ExactDispatchRoleV1::Vtable => schema.vtable().entries(),
+                ExactDispatchRoleV1::Vtable => schema.vtable(),
                 ExactDispatchRoleV1::Itable { interface_exact } => {
                     schema.interface_table(interface_exact).unwrap().entries()
                 }

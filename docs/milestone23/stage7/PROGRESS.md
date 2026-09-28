@@ -401,6 +401,18 @@
 
 本次按用户要求提交当前工作进度。完整泛型接口的产物消费仍有上述未解决失败，M23-7 尚未完成。
 
+## 2026-09-28：保存接口槽契约与 ODR 装箱接入进度
+
+- MIR 将接口声明的槽契约与实际机器表项分开。接口保存原 typed slot、槽位置和完成替换的完整签名，不再制造自身 itable；类和值类型的物理表项继续保存必需实现，并与接口契约逐槽匹配。签名依赖与实际 callable 依赖分别从真实记录收集，不再要求未调用或被抽象 override 压制的默认正文具有机器 binding。
+- 普通接口与泛型 application 共用上述结构，源码覆写选择仍来自 HIR。MIR producer、reader、语义引用和 LIR 派发表消费同步调整；新增回归覆盖没有根 callable binding 的接口契约、实际 override，以及缺失或错误槽种类的拒绝。`mir/cross-cone-type-bridge` 升至 `/4`，profile descriptor、固定 fingerprint、旧版本拒绝测试及三份 spec、设计说明同步，旧产物和缓存需重建，runtime C ABI 保持。
+- MIR materialization plan 开始保留生成类型的 Strong/ODR 归属，LIR 使用原 ODR group；生成 box、step/slot 沿原类型表示投影，装箱 adjust 和目标成员使用完整 Strong/ODR callable subject。这部分尚未接通完整产物路径，不能作为生成实体功能完成的结论。
+- 提交前执行 `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建，均通过，lint 无警告。全部 341 项 MIR 与 585 项 slib 单测通过；两个泛型成员 HIR 测试也通过，覆盖 18 组正例与 9 个反例。合计 928 项单测通过，本次未运行完整工作区回归。
+- 关闭快照更新开关后，真实成员产物测试中的原 10 组用例，以及 `interface-class`、`interface-abstract`，均完成发布、移走源码、下游再次实例化与发布、链接、普通运行和移动 GC。原抽象覆写的 `MissingCallable` 已解决。测试随后在 `interface-struct` 的发布入口失败于 `Layout(MirExports(Types(Bridge(MissingShapeSupportSource { ... }))))`；当前生成类型投影发生在 application 类型加入源表示表之前，尚需调整生产顺序，并完成装箱目标及生成类型验证的实际 ODR 路径。后续 5 组用例尚未执行，本次产物测试整体仍失败。
+- 其余新增接口场景的三阶段 golden、普通接口及 core dispatch 快照、既有结构装箱与 adapter 的旧拒绝测试仍待随完整路径更新和复验。不得通过跳过真实产物、物化无关默认正文或删去失败断言来完成这些验收。
+- 确认构建、测试和配套编译器进程结束，且 `target` 没有打开的文件。通过 Cargo metadata 核对实际构建目录，恢复缺失的标准缓存标记后执行 `cargo clean --target-dir target`，删除 2674 个构建文件，回收 4.4 GiB。
+
+本次按用户要求以 WIP 提交保存当前变更。接口抽象覆盖的产物闭环已恢复，ODR 装箱和其余主线继续实施，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成 delegate template 的生产、读取与消费；补齐其他物理角色的内容摘要，接入已有成员合并入口，随实际 payload 同步升级正式 profile inventory。

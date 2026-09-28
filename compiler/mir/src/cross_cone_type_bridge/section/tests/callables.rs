@@ -64,7 +64,7 @@ fn value_method(fixture: &mut Fixture) -> StrongCallableDefinitionOwner {
     let dispatch = ParamFreeMirDispatchSchemaV1::try_new(
         authority,
         fixture.types.payload.id(),
-        MirClassVtableSchemaV1::NoClassVtable,
+        MirDispatchSlotsV1::NoClassVtable,
         vec![],
     )
     .unwrap();

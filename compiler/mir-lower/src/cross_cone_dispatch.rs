@@ -14,6 +14,7 @@ mod applications;
 mod context;
 mod entries;
 mod physical;
+mod slots;
 use context::*;
 
 pub fn lower_dispatch_schemas(
@@ -30,12 +31,12 @@ pub fn lower_dispatch_schemas(
         let record = local_types
             .get(source.owner())
             .ok_or(Error::MissingType(source.owner()))?;
-        records.push(context.record(source, source.owner())?);
+        records.push(context.record(local, source, source.owner())?);
         if let mir::MirTypeRepresentationV1::Object { backing } = record.representation() {
             if local_types.get(*backing).is_none() {
                 return Err(Error::MissingType(*backing));
             }
-            records.push(context.record(source, *backing)?);
+            records.push(context.record(local, source, *backing)?);
         }
     }
 
@@ -49,7 +50,7 @@ pub fn lower_dispatch_schemas(
             records.push(mir::ParamFreeMirDispatchSchemaV1::try_new(
                 authority,
                 exact,
-                mir::MirClassVtableSchemaV1::ClassVtable(vec![]),
+                mir::MirDispatchSlotsV1::ClassVtable(vec![]),
                 vec![],
             )?);
         }

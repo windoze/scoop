@@ -8,7 +8,7 @@ impl Schema<'_> {
     pub(super) fn vtable(&self) -> &[mir::MirDispatchEntryV1] {
         match self {
             Self::Empty => &[],
-            Self::Source(source) => source.vtable().entries(),
+            Self::Source(source) => source.vtable(),
         }
     }
     pub(super) fn itables(&self) -> &[mir::MirInterfaceDispatchTableV1] {

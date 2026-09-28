@@ -35,7 +35,7 @@ impl<'input> IdentityRoots<'input> {
         self.input.materialization().source_nominal_shapes()
     }
 
-    pub(crate) fn generated_nominal_shapes(&self) -> &[mir::StrongGeneratedNominalShapeRoot] {
+    pub(crate) fn generated_nominal_shapes(&self) -> &[mir::GeneratedNominalShapeRoot] {
         self.input.materialization().generated_nominal_shapes()
     }
 
@@ -44,6 +44,15 @@ impl<'input> IdentityRoots<'input> {
             self.input.materialization().source_nominal_shape(ty)
         {
             return lir::MaterializationRoot::prior_stage_odr(*group);
+        }
+        if let Some(location) = generated_location(ty)
+            && self
+                .input
+                .materialization()
+                .generated_nominal_shape(location)
+                .is_some()
+        {
+            return self.for_generated(location);
         }
         assert!(
             self.materializes_type(ty),
@@ -56,14 +65,17 @@ impl<'input> IdentityRoots<'input> {
         &self,
         location: mir::GeneratedExactTypeLocation,
     ) -> lir::MaterializationRoot {
-        assert!(
-            self.input
-                .materialization()
-                .generated_nominal_shape(location)
-                .is_some(),
-            "the sealed strong plan does not materialize {location:?}"
-        );
-        lir::MaterializationRoot::cone_owned()
+        match self
+            .input
+            .materialization()
+            .generated_nominal_shape(location)
+            .expect("the MIR plan materializes this generated type")
+        {
+            mir::GeneratedNominalShapeRoot::Cone(_) => lir::MaterializationRoot::cone_owned(),
+            mir::GeneratedNominalShapeRoot::Odr { group, .. } => {
+                lir::MaterializationRoot::prior_stage_odr(group)
+            }
+        }
     }
 
     pub(crate) const fn for_static_storage(

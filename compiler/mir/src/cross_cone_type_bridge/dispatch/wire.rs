@@ -1,67 +1,15 @@
 use super::*;
 use scoop_identity::PersistentIdResolver;
 
-use super::implementation_wire::DecodedImplementation;
+use super::slot_wire::{DecodedEntry, DecodedSlot};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedEntry {
-    slot: DecodedPersistentId<PersistentDispatchSlotId>,
-    position: MirDispatchPositionV1,
-    signature: DecodedMirBridgeCallableSignatureV1,
-    implementation: DecodedImplementation,
-}
-impl DecodedEntry {
-    fn resolve(
-        self,
-        graph: &mut ValidatedIdentityGraph,
-    ) -> Result<MirDispatchEntryV1, MirDispatchSchemaError> {
-        Ok(MirDispatchEntryV1::new(
-            graph.resolve(self.slot)?,
-            self.position,
-            self.signature
-                .resolve(graph)
-                .map_err(|error| MirDispatchSchemaError::Signature(Box::new(error)))?,
-            self.implementation.resolve(graph)?,
-        ))
-    }
-}
-macro_rules! encode_entry {
-    ($ty:ty) => {
-        impl WireEncode for $ty {
-            fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-                encoder.map(4)?;
-                encoder.field(1)?;
-                self.slot.encode(encoder)?;
-                encoder.field(2)?;
-                encoder.unsigned(u64::from(self.position.get()))?;
-                encoder.field(3)?;
-                self.signature.encode(encoder)?;
-                encoder.field(4)?;
-                self.implementation.encode(encoder)
-            }
-        }
-    };
-}
-encode_entry!(MirDispatchEntryV1);
-encode_entry!(DecodedEntry);
-impl WireDecode for DecodedEntry {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
-        Ok(Self {
-            slot: decoder.field(1, DecodedPersistentId::decode)?,
-            position: MirDispatchPositionV1::new(decoder.field(2, Decoder::u32)?),
-            signature: decoder.field(3, DecodedMirBridgeCallableSignatureV1::decode)?,
-            implementation: decoder.field(4, DecodedImplementation::decode)?,
-        })
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum DecodedVtable {
+enum DecodedSlots {
     NoClassVtable,
     ClassVtable(Vec<DecodedEntry>),
+    InterfaceSlots(Vec<DecodedSlot>),
 }
-macro_rules! encode_vtable {
+macro_rules! encode_slots {
     ($ty:ty) => {
         impl WireEncode for $ty {
             fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -72,14 +20,19 @@ macro_rules! encode_vtable {
                         encoder.field(1)?;
                         sequence(encoder, entries)
                     }
+                    Self::InterfaceSlots(slots) => {
+                        tag(encoder, 2, 3)?;
+                        encoder.field(1)?;
+                        sequence(encoder, slots)
+                    }
                 }
             }
         }
     };
 }
-encode_vtable!(MirClassVtableSchemaV1);
-encode_vtable!(DecodedVtable);
-impl WireDecode for DecodedVtable {
+encode_slots!(MirDispatchSlotsV1);
+encode_slots!(DecodedSlots);
+impl WireDecode for DecodedSlots {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
@@ -91,6 +44,12 @@ impl WireDecode for DecodedVtable {
                 fields(decoder, count, 2)?;
                 Ok(Self::ClassVtable(decoder.field(1, |decoder| {
                     decoder.decode_array(|decoder, _| DecodedEntry::decode(decoder))
+                })?))
+            }
+            3 => {
+                fields(decoder, count, 2)?;
+                Ok(Self::InterfaceSlots(decoder.field(1, |decoder| {
+                    decoder.decode_array(|decoder, _| DecodedSlot::decode(decoder))
                 })?))
             }
             tag => Err(error(decoder, WireErrorKind::UnknownTag { tag })),
@@ -131,7 +90,7 @@ impl WireDecode for DecodedItable {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedParamFreeMirDispatchSchemaV1 {
     owner: DecodedPersistentId<PersistentExactTypeId>,
-    vtable: DecodedVtable,
+    slots: DecodedSlots,
     itables: Vec<DecodedItable>,
 }
 impl DecodedParamFreeMirDispatchSchemaV1 {
@@ -142,10 +101,17 @@ impl DecodedParamFreeMirDispatchSchemaV1 {
         callables: &dyn MirTypeBridgeCallableLookupV1,
     ) -> Result<ParamFreeMirDispatchSchemaV1, MirDispatchSchemaError> {
         let owner = graph.resolve(self.owner)?;
-        let vtable = match self.vtable {
-            DecodedVtable::NoClassVtable => MirClassVtableSchemaV1::NoClassVtable,
-            DecodedVtable::ClassVtable(entries) => {
-                MirClassVtableSchemaV1::ClassVtable(resolve_entries(entries, graph)?)
+        let slots = match self.slots {
+            DecodedSlots::NoClassVtable => MirDispatchSlotsV1::NoClassVtable,
+            DecodedSlots::ClassVtable(entries) => {
+                MirDispatchSlotsV1::ClassVtable(resolve_entries(entries, graph)?)
+            }
+            DecodedSlots::InterfaceSlots(slots) => {
+                let mut resolved = reserve(slots.len())?;
+                for slot in slots {
+                    resolved.push(slot.resolve(graph)?);
+                }
+                MirDispatchSlotsV1::InterfaceSlots(resolved)
             }
         };
         let mut itables = reserve(self.itables.len())?;
@@ -162,7 +128,7 @@ impl DecodedParamFreeMirDispatchSchemaV1 {
                 callables,
             },
             owner,
-            vtable,
+            slots,
             itables,
         )
     }
@@ -185,7 +151,7 @@ macro_rules! encode_schema {
                 encoder.field(1)?;
                 self.owner.encode(encoder)?;
                 encoder.field(2)?;
-                self.vtable.encode(encoder)?;
+                self.slots.encode(encoder)?;
                 encoder.field(3)?;
                 sequence(encoder, &self.itables)
             }
@@ -199,7 +165,7 @@ impl WireDecode for DecodedParamFreeMirDispatchSchemaV1 {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
-            vtable: decoder.field(2, DecodedVtable::decode)?,
+            slots: decoder.field(2, DecodedSlots::decode)?,
             itables: decoder.field(3, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedItable::decode(decoder))
             })?,

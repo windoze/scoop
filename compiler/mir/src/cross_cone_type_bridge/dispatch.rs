@@ -8,6 +8,7 @@ mod error;
 mod graph;
 mod implementation_wire;
 mod model;
+mod slot_wire;
 mod validation;
 mod wire;
 

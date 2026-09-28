@@ -47,24 +47,21 @@ impl MirDispatchImplementationV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MirDispatchEntryV1 {
+pub struct MirDispatchSlotV1 {
     pub(super) slot: PersistentDispatchSlotId,
     pub(super) position: MirDispatchPositionV1,
     pub(super) signature: MirBridgeCallableSignatureV1,
-    pub(super) implementation: MirDispatchImplementationV1,
 }
-impl MirDispatchEntryV1 {
+impl MirDispatchSlotV1 {
     pub fn new(
         slot: PersistentDispatchSlotId,
         position: MirDispatchPositionV1,
         signature: MirBridgeCallableSignatureV1,
-        implementation: MirDispatchImplementationV1,
     ) -> Self {
         Self {
             slot,
             position,
             signature,
-            implementation,
         }
     }
     pub const fn slot(&self) -> PersistentDispatchSlotId {
@@ -76,21 +73,68 @@ impl MirDispatchEntryV1 {
     pub const fn signature(&self) -> &MirBridgeCallableSignatureV1 {
         &self.signature
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MirDispatchEntryV1 {
+    pub(super) contract: MirDispatchSlotV1,
+    pub(super) implementation: MirDispatchImplementationV1,
+}
+impl MirDispatchEntryV1 {
+    pub fn new(
+        slot: PersistentDispatchSlotId,
+        position: MirDispatchPositionV1,
+        signature: MirBridgeCallableSignatureV1,
+        implementation: MirDispatchImplementationV1,
+    ) -> Self {
+        Self::from_contract(
+            MirDispatchSlotV1::new(slot, position, signature),
+            implementation,
+        )
+    }
+    pub fn from_contract(
+        contract: MirDispatchSlotV1,
+        implementation: MirDispatchImplementationV1,
+    ) -> Self {
+        Self {
+            contract,
+            implementation,
+        }
+    }
+    pub const fn contract(&self) -> &MirDispatchSlotV1 {
+        &self.contract
+    }
+    pub const fn slot(&self) -> PersistentDispatchSlotId {
+        self.contract.slot()
+    }
+    pub const fn position(&self) -> MirDispatchPositionV1 {
+        self.contract.position()
+    }
+    pub const fn signature(&self) -> &MirBridgeCallableSignatureV1 {
+        self.contract.signature()
+    }
     pub const fn implementation(&self) -> MirDispatchImplementationV1 {
         self.implementation
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MirClassVtableSchemaV1 {
+pub enum MirDispatchSlotsV1 {
     NoClassVtable,
     ClassVtable(Vec<MirDispatchEntryV1>),
+    InterfaceSlots(Vec<MirDispatchSlotV1>),
 }
-impl MirClassVtableSchemaV1 {
-    pub fn entries(&self) -> &[MirDispatchEntryV1] {
+impl MirDispatchSlotsV1 {
+    fn vtable(&self) -> &[MirDispatchEntryV1] {
         match self {
-            Self::NoClassVtable => &[],
+            Self::NoClassVtable | Self::InterfaceSlots(_) => &[],
             Self::ClassVtable(entries) => entries,
+        }
+    }
+    fn interface_slots(&self) -> Option<&[MirDispatchSlotV1]> {
+        match self {
+            Self::InterfaceSlots(slots) => Some(slots),
+            Self::NoClassVtable | Self::ClassVtable(_) => None,
         }
     }
 }
@@ -118,14 +162,14 @@ impl MirInterfaceDispatchTableV1 {
 pub struct ParamFreeMirDispatchSchemaV1 {
     application: bool,
     pub(super) owner: PersistentExactTypeId,
-    pub(super) vtable: MirClassVtableSchemaV1,
+    pub(super) slots: MirDispatchSlotsV1,
     pub(super) itables: Vec<MirInterfaceDispatchTableV1>,
 }
 impl ParamFreeMirDispatchSchemaV1 {
     pub fn try_new(
         authority: MirDispatchSchemaAuthority<'_>,
         owner: PersistentExactTypeId,
-        vtable: MirClassVtableSchemaV1,
+        slots: MirDispatchSlotsV1,
         itables: Vec<MirInterfaceDispatchTableV1>,
     ) -> Result<Self, MirDispatchSchemaError> {
         let record = Self {
@@ -134,7 +178,7 @@ impl ParamFreeMirDispatchSchemaV1 {
                 MirTypeOriginV1::NominalApplication(_)
             ),
             owner,
-            vtable,
+            slots,
             itables,
         };
         authority.validate_record(&record)?;
@@ -146,8 +190,14 @@ impl ParamFreeMirDispatchSchemaV1 {
     pub(in crate::cross_cone_type_bridge) const fn is_application(&self) -> bool {
         self.application
     }
-    pub const fn vtable(&self) -> &MirClassVtableSchemaV1 {
-        &self.vtable
+    pub const fn slots(&self) -> &MirDispatchSlotsV1 {
+        &self.slots
+    }
+    pub fn vtable(&self) -> &[MirDispatchEntryV1] {
+        self.slots.vtable()
+    }
+    pub fn interface_slots(&self) -> Option<&[MirDispatchSlotV1]> {
+        self.slots.interface_slots()
     }
     pub fn itables(&self) -> &[MirInterfaceDispatchTableV1] {
         &self.itables

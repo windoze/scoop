@@ -59,12 +59,9 @@ fn with_production<R>(
     )
     .unwrap();
     let sources = scoop_mir_lower::lower_source_type_exports(&source, &mir.strong, &graph).unwrap();
-    let records = CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-        &mir.strong,
-        &sources,
-        &graph,
-    )
-    .unwrap();
+    let records =
+        CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(&mir.strong, &sources, &graph)
+            .unwrap();
     run(&mir.strong, &mut graph, &records, &sources)
 }
 

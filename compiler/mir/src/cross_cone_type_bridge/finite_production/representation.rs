@@ -9,7 +9,7 @@ type Projection = (
 
 pub(super) fn project(
     input: &ConeMirInput,
-    source: &ParamFreeMirTypeExportV1,
+    source_interfaces: &[PersistentExactTypeId],
     location: GeneratedExactTypeLocation,
     role: &GeneratedNominalKey,
 ) -> Result<Projection, MirTypeBridgeError> {
@@ -30,10 +30,9 @@ pub(super) fn project(
             let [payload] = fields else {
                 unreachable!("validated boxes have exactly one payload field")
             };
-            let interfaces = &source.base_and_interfaces().interfaces;
-            reserve(&mut bases.interfaces, interfaces.len())?;
+            reserve(&mut bases.interfaces, source_interfaces.len())?;
 
-            bases.interfaces.extend_from_slice(interfaces);
+            bases.interfaces.extend_from_slice(source_interfaces);
             (
                 MirTypeFactsV1::try_new(
                     MirValueKindV1::Reference,

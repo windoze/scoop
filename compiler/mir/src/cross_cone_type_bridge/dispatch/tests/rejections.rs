@@ -9,7 +9,9 @@ fn interface_providers_preserve_the_relative_order_of_retained_parent_slots() {
             .iter_mut()
             .find(|record| record.owner() == fixture.exact(owner))
             .unwrap();
-        let entries = &mut record.itables[0].entries;
+        let MirDispatchSlotsV1::InterfaceSlots(entries) = &mut record.slots else {
+            panic!("an interface carries slot contracts");
+        };
         entries.reverse();
         for (position, entry) in entries.iter_mut().enumerate() {
             entry.position = MirDispatchPositionV1::new(position as u32);
@@ -25,7 +27,7 @@ fn interface_providers_preserve_the_relative_order_of_retained_parent_slots() {
 fn direct_receiver_tags_cannot_hide_wrong_or_unrelated_receiver() {
     let fixture = Fixture::new();
     let mut derived = fixture.record(DERIVED);
-    let MirClassVtableSchemaV1::ClassVtable(entries) = &mut derived.vtable else {
+    let MirDispatchSlotsV1::ClassVtable(entries) = &mut derived.slots else {
         unreachable!()
     };
     entries[0].implementation = MirDispatchImplementationV1::DirectStrongTarget {
@@ -36,7 +38,7 @@ fn direct_receiver_tags_cannot_hide_wrong_or_unrelated_receiver() {
         fixture.check(&derived),
         Err(MirDispatchSchemaError::TargetSignature { .. })
     ));
-    let MirClassVtableSchemaV1::ClassVtable(entries) = &mut derived.vtable else {
+    let MirDispatchSlotsV1::ClassVtable(entries) = &mut derived.slots else {
         unreachable!()
     };
     entries[0].implementation = MirDispatchImplementationV1::DirectStrongTarget {
@@ -48,7 +50,7 @@ fn direct_receiver_tags_cannot_hide_wrong_or_unrelated_receiver() {
         Err(MirDispatchSchemaError::MissingReceiverPath { .. })
     ));
     let mut base = fixture.record(BASE);
-    let MirClassVtableSchemaV1::ClassVtable(entries) = &mut base.vtable else {
+    let MirDispatchSlotsV1::ClassVtable(entries) = &mut base.slots else {
         unreachable!()
     };
     entries[0].implementation = MirDispatchImplementationV1::DirectStrongTarget {
@@ -90,13 +92,19 @@ fn value_interface_default_cannot_bypass_boxing_adjust_or_inherit_wrong_interfac
 fn slot_positions_duplicates_and_concrete_abstract_obligations_are_rejected() {
     let fixture = Fixture::new();
     let mut root = fixture.record(ROOT);
-    root.itables[0].entries[1].position = MirDispatchPositionV1::new(0);
+    let MirDispatchSlotsV1::InterfaceSlots(slots) = &mut root.slots else {
+        panic!("an interface carries slot contracts");
+    };
+    slots[1].position = MirDispatchPositionV1::new(0);
     assert!(matches!(
         fixture.check(&root),
         Err(MirDispatchSchemaError::Position { index: 1 })
     ));
-    root.itables[0].entries[1] = root.itables[0].entries[0].clone();
-    root.itables[0].entries[1].position = MirDispatchPositionV1::new(1);
+    let MirDispatchSlotsV1::InterfaceSlots(slots) = &mut root.slots else {
+        panic!("an interface carries slot contracts");
+    };
+    slots[1] = slots[0].clone();
+    slots[1].position = MirDispatchPositionV1::new(1);
     assert!(matches!(
         fixture.check(&root),
         Err(MirDispatchSchemaError::DuplicateSlot { .. })
@@ -133,11 +141,11 @@ fn cross_record_prefix_provider_order_and_closure_are_checked() {
             .find(|record| record.owner() == fixture.exact(DERIVED))
             .unwrap();
         match change {
-            0 => derived.vtable = MirClassVtableSchemaV1::ClassVtable(vec![]),
+            0 => derived.slots = MirDispatchSlotsV1::ClassVtable(vec![]),
             1 => {
                 derived.itables[0].entries.reverse();
                 for (position, entry) in derived.itables[0].entries.iter_mut().enumerate() {
-                    entry.position = MirDispatchPositionV1::new(position as u32);
+                    entry.contract.position = MirDispatchPositionV1::new(position as u32);
                 }
             }
             2 => {
@@ -181,11 +189,11 @@ fn slot_signature_checks_every_axis_and_adjust_checks_actual_target_gc() {
     let mut fixture = Fixture::new();
     for axis in 0..4 {
         let mut derived = fixture.record(DERIVED);
-        let MirClassVtableSchemaV1::ClassVtable(entries) = &mut derived.vtable else {
+        let MirDispatchSlotsV1::ClassVtable(entries) = &mut derived.slots else {
             unreachable!()
         };
         let original = entries[0].signature().exact();
-        entries[0].signature = MirBridgeCallableSignatureV1::new(
+        entries[0].contract.signature = MirBridgeCallableSignatureV1::new(
             ExactCallableSignature::new(
                 if axis == 0 {
                     Effect::Suspend
@@ -210,10 +218,11 @@ fn slot_signature_checks_every_axis_and_adjust_checks_actual_target_gc() {
                 crate::GcEffect::Managed
             },
         );
-        assert!(matches!(
-            fixture.check(&derived),
-            Err(MirDispatchSchemaError::SlotSignature { .. })
-        ));
+        let error = fixture.check(&derived).unwrap_err();
+        assert!(match axis {
+            3 => matches!(error, MirDispatchSchemaError::SlotSignature { .. }),
+            _ => matches!(error, MirDispatchSchemaError::TargetSignature { .. }),
+        });
     }
     let value = fixture.record(VALUE);
     let binding = fixture.callables.get(fixture.target(6)).unwrap();
@@ -348,7 +357,7 @@ fn abstract_class_keeps_original_typed_trap_and_derived_replaces_only_target() {
         .iter_mut()
         .find(|record| record.owner() == fixture.exact(BASE))
         .unwrap();
-    let MirClassVtableSchemaV1::ClassVtable(entries) = &mut record.vtable else {
+    let MirDispatchSlotsV1::ClassVtable(entries) = &mut record.slots else {
         unreachable!()
     };
     entries[0].implementation = MirDispatchImplementationV1::AbstractObligation {
@@ -358,16 +367,11 @@ fn abstract_class_keeps_original_typed_trap_and_derived_replaces_only_target() {
     };
     let table = CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records).unwrap();
     assert!(matches!(
-        table.get(fixture.exact(BASE)).unwrap().vtable().entries()[0].implementation(),
+        table.get(fixture.exact(BASE)).unwrap().vtable()[0].implementation(),
         MirDispatchImplementationV1::AbstractObligation { .. }
     ));
     assert!(matches!(
-        table
-            .get(fixture.exact(DERIVED))
-            .unwrap()
-            .vtable()
-            .entries()[0]
-            .implementation(),
+        table.get(fixture.exact(DERIVED)).unwrap().vtable()[0].implementation(),
         MirDispatchImplementationV1::DirectStrongTarget { .. }
     ));
 }

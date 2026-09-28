@@ -71,7 +71,6 @@ pub(super) fn actual(
         assert!(exports.types().get(schema.owner()).is_some());
         for entry in schema
             .vtable()
-            .entries()
             .iter()
             .chain(schema.itables().iter().flat_map(|table| table.entries()))
         {
@@ -158,7 +157,7 @@ pub(super) fn dump(
             "type {name}: {:?}/{:?} vslots={} itables={}",
             record.facts().kind(),
             record.facts().gc(),
-            schema.vtable().entries().len(),
+            schema.vtable().len(),
             schema.itables().len()
         )
         .unwrap();

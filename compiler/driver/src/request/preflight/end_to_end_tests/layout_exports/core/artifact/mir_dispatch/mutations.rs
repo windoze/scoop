@@ -15,13 +15,7 @@ pub(super) fn check(replay: &Replay<'_>, combined: bool) {
 
 fn order_and_target(replay: &Replay<'_>) {
     let owner = replay.owner("SharedDispatchOrder");
-    let entries = replay
-        .section
-        .dispatch()
-        .get(owner)
-        .unwrap()
-        .vtable()
-        .entries();
+    let entries = replay.section.dispatch().get(owner).unwrap().vtable();
     assert_eq!(entries.len(), 2);
     let changed = entries
         .iter()
@@ -68,19 +62,13 @@ fn abstract_target(replay: &Replay<'_>) {
         declaration: base_declaration,
         trap_target: base,
         ..
-    } = base.vtable().entries()[0].implementation()
+    } = base.vtable()[0].implementation()
     else {
         panic!("the base fixture has an abstract obligation")
     };
     for name in ["SharedDispatchAgain", "SharedDispatchInherited"] {
         let owner = replay.owner(name);
-        let entries = replay
-            .section
-            .dispatch()
-            .get(owner)
-            .unwrap()
-            .vtable()
-            .entries();
+        let entries = replay.section.dispatch().get(owner).unwrap().vtable();
         assert_eq!(entries.len(), 1);
         let entry = &entries[0];
         let Implementation::AbstractObligation { trap_target, .. } = entry.implementation() else {
@@ -138,7 +126,7 @@ fn default_target(replay: &Replay<'_>) {
     let changed = mir::ParamFreeMirDispatchSchemaV1::try_new(
         replay.authority(),
         owner,
-        record.vtable().clone(),
+        record.slots().clone(),
         tables,
     )
     .unwrap();

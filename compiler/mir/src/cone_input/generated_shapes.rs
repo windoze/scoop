@@ -41,7 +41,7 @@ impl StrongDependencyGeneratedNominalShapeRoot {
 }
 
 pub(super) struct Partition {
-    pub local: Vec<StrongGeneratedNominalShapeRoot>,
+    pub local: Vec<GeneratedNominalShapeRoot>,
     pub dependencies: Vec<StrongDependencyGeneratedNominalShapeRoot>,
 }
 
@@ -51,8 +51,14 @@ pub(super) fn partition(module: &Module) -> Result<Partition, ConeMirInputError>
     let mut dependencies = Vec::new();
     for identity in module.meta.generated_exact_types.iter() {
         let location = identity.location();
-        if identity.owner() != &GeneratedExactTypeOwner::ConeOwned {
-            return Err(Error::OdrGeneratedNominalShape(location));
+        if let GeneratedExactTypeOwner::OdrOwned(member) = identity.owner() {
+            local.push(GeneratedNominalShapeRoot::Odr {
+                location,
+                nominal: identity.nominal_record().id(),
+                exact: identity.exact_record().id(),
+                group: member.key().group(),
+            });
+            continue;
         }
         let shape = StrongGeneratedNominalShapeRoot {
             location,
@@ -68,14 +74,14 @@ pub(super) fn partition(module: &Module) -> Result<Partition, ConeMirInputError>
             | GeneratedNominalKey::ContinuationAdapterEnvironment { .. }
             | GeneratedNominalKey::CoroutineFrame { .. }
             | GeneratedNominalKey::ObjectBackingClass { .. } => {
-                local.push(shape);
+                local.push(GeneratedNominalShapeRoot::Cone(shape));
                 continue;
             }
         };
         let (source, provider) =
             source_owner(&module.meta.source_exact_types, location, source_exact)?;
         if provider == module.cone {
-            local.push(shape);
+            local.push(GeneratedNominalShapeRoot::Cone(shape));
         } else {
             if let GeneratedExactTypeLocation::Class(class) = location
                 && module

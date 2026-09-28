@@ -176,13 +176,13 @@ impl MirDispatchSchemaAuthority<'_> {
                 let base = schemas
                     .get(base)
                     .ok_or(MirDispatchSchemaError::MissingSchema { owner: base })?;
-                let prefix = base.vtable().entries();
+                let prefix = base.vtable();
 
                 if !prefix
                     .iter()
-                    .zip(record.vtable().entries())
-                    .all(|(left, right)| same_slot(left, right))
-                    || record.vtable().entries().len() < prefix.len()
+                    .zip(record.vtable())
+                    .all(|(left, right)| left.contract() == right.contract())
+                    || record.vtable().len() < prefix.len()
                 {
                     return Err(MirDispatchSchemaError::BasePrefix {
                         owner: record.owner(),
@@ -190,13 +190,16 @@ impl MirDispatchSchemaAuthority<'_> {
                 }
             }
             let interface_owner = matches!(ty.representation(), MirTypeRepresentationV1::Interface);
+            if let Some(slots) = record.interface_slots() {
+                self.interface_prefix(record, slots, schemas)?;
+            }
             let (reachable, _) = self.ancestry(record.owner())?;
             let mut expected = reserve(reachable.len())?;
             for (exact, _) in reachable {
                 if matches!(
                     self.type_export(exact)?.representation(),
                     MirTypeRepresentationV1::Interface
-                ) && (!interface_owner || exact == record.owner())
+                ) && !interface_owner
                 {
                     expected.push(exact);
                 }
@@ -214,33 +217,29 @@ impl MirDispatchSchemaAuthority<'_> {
                 });
             }
             for itable in record.itables() {
-                if itable.interface() == record.owner() {
-                    self.interface_prefix(record, itable, schemas)?;
-                } else {
-                    let provider = schemas.get(itable.interface()).ok_or(
-                        MirDispatchSchemaError::MissingSchema {
-                            owner: itable.interface(),
-                        },
-                    )?;
-                    let expected = provider.interface_table(itable.interface()).ok_or(
-                        MirDispatchSchemaError::MissingInterfaceTable {
-                            owner: provider.owner(),
-                            interface: itable.interface(),
-                        },
-                    )?;
+                let provider = schemas.get(itable.interface()).ok_or(
+                    MirDispatchSchemaError::MissingSchema {
+                        owner: itable.interface(),
+                    },
+                )?;
+                let expected = provider.interface_slots().ok_or(
+                    MirDispatchSchemaError::MissingInterfaceTable {
+                        owner: provider.owner(),
+                        interface: itable.interface(),
+                    },
+                )?;
 
-                    if itable.entries().len() != expected.entries().len()
-                        || !itable
-                            .entries()
-                            .iter()
-                            .zip(expected.entries())
-                            .all(|(left, right)| same_slot(left, right))
-                    {
-                        return Err(MirDispatchSchemaError::InterfaceOrder {
-                            owner: record.owner(),
-                            interface: itable.interface(),
-                        });
-                    }
+                if itable.entries().len() != expected.len()
+                    || !itable
+                        .entries()
+                        .iter()
+                        .zip(expected)
+                        .all(|(left, right)| left.contract() == right)
+                {
+                    return Err(MirDispatchSchemaError::InterfaceOrder {
+                        owner: record.owner(),
+                        interface: itable.interface(),
+                    });
                 }
             }
         }
@@ -250,22 +249,14 @@ impl MirDispatchSchemaAuthority<'_> {
     fn interface_prefix(
         &self,
         record: &ParamFreeMirDispatchSchemaV1,
-        own: &MirInterfaceDispatchTableV1,
+        own: &[MirDispatchSlotV1],
         table: &dyn MirTypeBridgeSchemaLookupV1,
     ) -> Result<(), MirDispatchSchemaError> {
         let mut inherited = HashSet::new();
-        scoop_wire::allocation::try_reserve_set(
-            &mut inherited,
-            own.entries().len(),
-            &WirePath::root(),
-        )?;
+        scoop_wire::allocation::try_reserve_set(&mut inherited, own.len(), &WirePath::root())?;
         let mut positions = HashMap::new();
-        scoop_wire::allocation::try_reserve_map(
-            &mut positions,
-            own.entries().len(),
-            &WirePath::root(),
-        )?;
-        for (position, entry) in own.entries().iter().enumerate() {
+        scoop_wire::allocation::try_reserve_map(&mut positions, own.len(), &WirePath::root())?;
+        for (position, entry) in own.iter().enumerate() {
             positions.insert(entry.slot(), position);
         }
         for interface in &self
@@ -276,21 +267,21 @@ impl MirDispatchSchemaAuthority<'_> {
             let provider = table
                 .get(*interface)
                 .ok_or(MirDispatchSchemaError::MissingSchema { owner: *interface })?;
-            let parent = provider.interface_table(*interface).ok_or(
+            let parent = provider.interface_slots().ok_or(
                 MirDispatchSchemaError::MissingInterfaceTable {
                     owner: *interface,
                     interface: *interface,
                 },
             )?;
             let mut cursor = 0;
-            for entry in parent.entries() {
+            for entry in parent {
                 let Some(&position) = positions.get(&entry.slot()) else {
                     // HIR owns the complete typed override suppression proof.
                     continue;
                 };
                 if position < cursor
                     || !super::validation::same_non_receiver(
-                        own.entries()[position].signature(),
+                        own[position].signature(),
                         entry.signature(),
                     )
                 {
@@ -304,7 +295,6 @@ impl MirDispatchSchemaAuthority<'_> {
             }
         }
         if own
-            .entries()
             .iter()
             .take(inherited.len())
             .any(|entry| !inherited.contains(&entry.slot()))
@@ -316,10 +306,4 @@ impl MirDispatchSchemaAuthority<'_> {
         }
         Ok(())
     }
-}
-
-fn same_slot(left: &MirDispatchEntryV1, right: &MirDispatchEntryV1) -> bool {
-    left.slot() == right.slot()
-        && left.position() == right.position()
-        && left.signature() == right.signature()
 }

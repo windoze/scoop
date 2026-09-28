@@ -15,9 +15,7 @@ impl CanonicalMirCallableBindingsV1 {
     ) -> Result<Self, MirBoxingCallableProductionError> {
         let mut roots = BTreeMap::new();
         for root in input.materialization().callable_roots() {
-            if let CallableSignatureSubject::Strong(owner) = root.subject() {
-                roots.insert(root.function(), owner);
-            }
+            roots.insert(root.function(), root.subject());
         }
         let adjusts = &input.module().meta.boxing_adjusts;
         let mut records = Vec::new();
@@ -53,12 +51,12 @@ pub enum MirBoxingCallableProductionError {
     Resource(WireError),
     Bridge(MirCallableBridgeError),
     InvalidAdjust(FunctionId),
-    MissingStrongRoot(FunctionId),
+    MissingRoot(FunctionId),
     InvalidTarget(CallableOwner),
-    MissingTargetBinding(StrongCallableDefinitionOwner),
-    TargetMismatch(StrongCallableDefinitionOwner),
-    MissingSignature(CallableOwner),
-    SignatureMismatch(CallableOwner),
+    MissingTargetBinding(CallableDefinitionOwner),
+    TargetMismatch(CallableDefinitionOwner),
+    MissingSignature(CallableSignatureSubject),
+    SignatureMismatch(CallableSignatureSubject),
 }
 impl From<WireError> for Error {
     fn from(error: WireError) -> Self {

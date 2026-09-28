@@ -232,8 +232,8 @@ fn reject_missing_string_vtable(input: LayoutAbiExportInputV1<'_>) {
         .id();
     let schema = input.bridge.dispatch().get(exact).unwrap();
     assert!(matches!(
-        schema.vtable(),
-        mir::MirClassVtableSchemaV1::ClassVtable(_)
+        schema.slots(),
+        mir::MirDispatchSlotsV1::ClassVtable(_)
     ));
     assert!(matches!(mir::ParamFreeMirDispatchSchemaV1::try_new(
         mir::MirDispatchSchemaAuthority {
@@ -242,7 +242,7 @@ fn reject_missing_string_vtable(input: LayoutAbiExportInputV1<'_>) {
             callables: input.bridge.callables(),
         },
         exact,
-        mir::MirClassVtableSchemaV1::NoClassVtable,
+        mir::MirDispatchSlotsV1::NoClassVtable,
         schema.itables().to_vec(),
 
     ), Err(mir::MirDispatchSchemaError::OwnerKind { owner }) if owner == exact));

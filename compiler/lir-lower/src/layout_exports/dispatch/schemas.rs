@@ -8,7 +8,7 @@ pub(super) enum Schema<'a> {
 impl Schema<'_> {
     pub fn vtable(&self) -> &[mir::MirDispatchEntryV1] {
         match self {
-            Self::Source(source) => source.vtable().entries(),
+            Self::Source(source) => source.vtable(),
             Self::Empty => &[],
         }
     }

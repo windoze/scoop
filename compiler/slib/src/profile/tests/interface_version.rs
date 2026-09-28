@@ -22,10 +22,10 @@ fn type_semantics_v9_requires_actual_application_facts() {
 }
 
 #[test]
-fn mir_type_bridge_v3_requires_application_callables_and_dispatch() {
+fn mir_type_bridge_v4_separates_interface_contracts_from_machine_targets() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        3,
+        4,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }

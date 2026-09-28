@@ -156,7 +156,7 @@ fn imported_base_still_requires_the_full_local_vtable_prefix() {
     let tables = Tables::new(&fixture);
     let (types, callables) = (tables.types(), tables.callables());
     let mut record = fixture.record(DERIVED);
-    record.vtable = MirClassVtableSchemaV1::ClassVtable(vec![]);
+    record.slots = MirDispatchSlotsV1::ClassVtable(vec![]);
     assert!(matches!(
         CanonicalMirDispatchSchemasV1::try_new_with_dependencies(
             MirDispatchSchemaAuthority {

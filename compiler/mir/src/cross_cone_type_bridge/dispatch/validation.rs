@@ -18,7 +18,10 @@ impl MirDispatchSchemaAuthority<'_> {
                 | MirTypeRepresentationV1::Object { .. }
                 | MirTypeRepresentationV1::ObjectBacking { .. }
         );
-        if class_like != matches!(record.vtable(), MirClassVtableSchemaV1::ClassVtable(_))
+        let interface_owner = matches!(representation, MirTypeRepresentationV1::Interface);
+        if class_like != matches!(record.slots(), MirDispatchSlotsV1::ClassVtable(_))
+            || interface_owner != record.interface_slots().is_some()
+            || (interface_owner && !record.itables().is_empty())
             || matches!(
                 representation,
                 MirTypeRepresentationV1::BoxedValue { .. }
@@ -30,7 +33,10 @@ impl MirDispatchSchemaAuthority<'_> {
                 owner: record.owner(),
             });
         }
-        self.entries(record.owner(), None, record.vtable().entries())?;
+        self.entries(record.owner(), None, record.vtable())?;
+        if let Some(slots) = record.interface_slots() {
+            self.slots(record.owner(), Some(record.owner()), slots.iter())?;
+        }
         for (index, itable) in record.itables().iter().enumerate() {
             if index > 0 && record.itables()[index - 1].interface() >= itable.interface() {
                 return Err(MirDispatchSchemaError::NonCanonicalInterfaceOrder { index });
@@ -55,10 +61,27 @@ impl MirDispatchSchemaAuthority<'_> {
         interface: Option<PersistentExactTypeId>,
         entries: &[MirDispatchEntryV1],
     ) -> Result<(), MirDispatchSchemaError> {
+        self.slots(
+            owner,
+            interface,
+            entries.iter().map(MirDispatchEntryV1::contract),
+        )?;
+        for entry in entries {
+            self.implementation(owner, interface, entry)?;
+        }
+        Ok(())
+    }
+
+    fn slots<'a>(
+        &self,
+        owner: PersistentExactTypeId,
+        interface: Option<PersistentExactTypeId>,
+        slots: impl ExactSizeIterator<Item = &'a MirDispatchSlotV1>,
+    ) -> Result<(), MirDispatchSchemaError> {
         let mut seen = HashSet::new();
 
-        scoop_wire::allocation::try_reserve_set(&mut seen, entries.len(), &WirePath::root())?;
-        for (index, entry) in entries.iter().enumerate() {
+        scoop_wire::allocation::try_reserve_set(&mut seen, slots.len(), &WirePath::root())?;
+        for (index, entry) in slots.enumerate() {
             if usize::try_from(entry.position().get()).ok() != Some(index) {
                 return Err(MirDispatchSchemaError::Position { index });
             }
@@ -74,21 +97,13 @@ impl MirDispatchSchemaAuthority<'_> {
             ) {
                 return Err(MirDispatchSchemaError::SlotRole { slot: entry.slot() });
             }
-            let declaration = self.callable(
-                dispatch_declaration_target(
-                    self.identities,
-                    self.types,
-                    key.owner(),
-                    interface.unwrap_or(owner),
-                )
-                .map_err(|error| MirDispatchSchemaError::Signature(Box::new(error)))?,
-            )?;
-            let original = declaration.lowered_signature();
-            let receiver = original
-                .exact()
-                .receiver()
-                .into_option()
-                .ok_or(MirDispatchSchemaError::SlotSignature { slot: entry.slot() })?;
+            let receiver = dispatch_declaration_receiver(
+                self.identities,
+                self.types,
+                key.owner(),
+                interface.unwrap_or(owner),
+            )
+            .map_err(|error| MirDispatchSchemaError::Signature(Box::new(error)))?;
             let receiver_is_interface = matches!(
                 self.type_export(receiver)?.representation(),
                 MirTypeRepresentationV1::Interface
@@ -97,13 +112,12 @@ impl MirDispatchSchemaAuthority<'_> {
                 return Err(MirDispatchSchemaError::SlotRole { slot: entry.slot() });
             }
             self.canonical_receiver_path(interface.unwrap_or(owner), receiver)?;
-            if !same_non_receiver(entry.signature(), original)
-                || entry.signature().exact().receiver().into_option()
-                    != Some(interface.unwrap_or(receiver))
+            if entry.signature().exact().receiver().into_option()
+                != Some(interface.unwrap_or(receiver))
+                || entry.signature().gc_effect() != crate::GcEffect::Managed
             {
                 return Err(MirDispatchSchemaError::SlotSignature { slot: entry.slot() });
             }
-            self.implementation(owner, interface, entry)?;
         }
         Ok(())
     }

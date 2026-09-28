@@ -49,6 +49,7 @@ impl<'a> Context<'a> {
     }
     pub fn record(
         &self,
+        local: &hir::LocalConcreteHir,
         source: &hir::NominalInheritanceInterfaceV1,
         owner: PersistentExactTypeId,
     ) -> Result<mir::ParamFreeMirDispatchSchemaV1, Error> {
@@ -56,14 +57,23 @@ impl<'a> Context<'a> {
             .physical
             .get(&source.owner())
             .ok_or(Error::MissingPhysicalType(source.owner()))?;
-        let mut vtable = mir::MirClassVtableSchemaV1::NoClassVtable;
+        if matches!(physical, mir::Type::Interface(_)) {
+            return mir::ParamFreeMirDispatchSchemaV1::try_new(
+                self.authority,
+                owner,
+                mir::MirDispatchSlotsV1::InterfaceSlots(slots::interface(local, owner)?),
+                vec![],
+            )
+            .map_err(Error::Schema);
+        }
+        let mut vtable = mir::MirDispatchSlotsV1::NoClassVtable;
         let mut itables = reserve(source.slot_schemas().records().len())?;
         for schema in source.slot_schemas().records() {
             let targets = physical::targets(self, source.owner(), physical, schema)?;
             let entries = self.entries(source.owner(), schema, &targets)?;
             match schema.role() {
                 hir::InheritanceSlotSchemaRoleV1::ClassVtable => {
-                    vtable = mir::MirClassVtableSchemaV1::ClassVtable(entries)
+                    vtable = mir::MirDispatchSlotsV1::ClassVtable(entries)
                 }
                 hir::InheritanceSlotSchemaRoleV1::Interface { interface_exact } => itables.push(
                     mir::MirInterfaceDispatchTableV1::new(interface_exact, entries),
@@ -75,16 +85,6 @@ impl<'a> Context<'a> {
     }
 }
 
-pub(super) fn declaration_target(declaration: DispatchDeclarationOwner) -> CallableDefinitionOwner {
-    match declaration {
-        DispatchDeclarationOwner::Function(id) => {
-            StrongCallableDefinitionOwner::Function(id).into()
-        }
-        DispatchDeclarationOwner::Accessor(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(id).into()
-        }
-    }
-}
 pub(super) fn source_target(
     declaration: hir::InheritanceCallableDeclarationV1,
 ) -> CallableDefinitionOwner {
