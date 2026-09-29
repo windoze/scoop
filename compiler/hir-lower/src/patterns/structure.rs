@@ -4,7 +4,52 @@ use std::collections::HashSet;
 
 use super::*;
 
+mod targets;
+
 impl Lowerer {
+    pub(super) fn lower_struct_positional_pattern(
+        &mut self,
+        owner: TypeId,
+        elements: &[ast::Pattern],
+        rest: Option<Span>,
+        span: Span,
+        ctx: PatternCtx,
+    ) -> Option<hir::Pattern> {
+        let structure = self
+            .struct_fields(owner)
+            .expect("a struct pattern has complete fields");
+        let description = format!("struct `{}`", structure.name);
+        let types = structure
+            .fields
+            .iter()
+            .map(|field| field.ty)
+            .collect::<Vec<_>>();
+        let fields =
+            self.lower_positional_pattern(elements, rest, &types, &description, span, ctx)?;
+        Some(hir::Pattern::Struct { owner, fields })
+    }
+
+    pub(super) fn lower_struct_named_pattern(
+        &mut self,
+        owner: TypeId,
+        fields: &[ast::FieldPattern],
+        rest: Option<Span>,
+        span: Span,
+        ctx: PatternCtx,
+    ) -> Option<hir::Pattern> {
+        let structure = self
+            .struct_fields(owner)
+            .expect("a struct pattern has complete fields");
+        let description = format!("struct `{}`", structure.name);
+        let types = structure
+            .fields
+            .into_iter()
+            .map(|field| (field.name, field.ty))
+            .collect::<Vec<_>>();
+        let fields = self.lower_named_fields(fields, rest, &types, &description, span, ctx)?;
+        Some(hir::Pattern::Struct { owner, fields })
+    }
+
     pub(super) fn bare_variant_pattern(
         &mut self,
         name: &ast::Ident,
@@ -48,9 +93,17 @@ impl Lowerer {
         if matches!(self.types[matched_ty], Type::ImportedEnum(_)) {
             return self.resolve_imported_enum_pattern_path(path, matched_ty, span);
         }
+        if matches!(
+            self.types[matched_ty],
+            Type::Struct(_) | Type::ImportedStruct(_)
+        ) {
+            return self.resolve_struct_pattern_path(path, matched_ty, span);
+        }
         match path {
             [] => match self.types[matched_ty].clone() {
-                Type::Struct(application) => Some(PatternTarget::Struct(application)),
+                Type::Struct(_) | Type::ImportedStruct(_) => {
+                    Some(PatternTarget::Struct(matched_ty))
+                }
                 _ => {
                     let found = self.type_name(matched_ty);
                     self.error(
@@ -72,84 +125,6 @@ impl Lowerer {
                         return None;
                     };
                     Some(PatternTarget::Variant(application, variant))
-                }
-                Type::Struct(application) => {
-                    let struct_id = self.struct_applications[application].template;
-                    if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
-                        if target == crate::NominalTarget::Struct(struct_id) {
-                            return Some(PatternTarget::Struct(application));
-                        }
-                        let found = self.type_name(matched_ty);
-                        self.error(
-                            name.span,
-                            format!(
-                                "pattern `{}` does not match a subject of type {found}",
-                                name.text
-                            ),
-                        );
-                        return None;
-                    }
-                    let target = match self.resolve_type_lookup(name) {
-                        Ok(Some(target)) => target,
-                        Ok(None) => {
-                            let found = self.type_name(matched_ty);
-                            self.error(
-                                name.span,
-                                format!(
-                                    "pattern `{}` does not match a subject of type {found}",
-                                    name.text
-                                ),
-                            );
-                            return None;
-                        }
-                        Err(()) => return None,
-                    };
-                    match target {
-                        crate::imports::lookup::TypeLookupTarget::Current(
-                            crate::namespace::TopLevelTypeTarget::Nominal(target),
-                        ) => {
-                            if !self.top_level_type_target_is_accessible(
-                                crate::namespace::TopLevelTypeTarget::Nominal(target),
-                            ) {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "type `{}` is not accessible from this source location",
-                                        name.text
-                                    ),
-                                );
-                                return None;
-                            }
-                            if target == crate::NominalTarget::Struct(struct_id) {
-                                return Some(PatternTarget::Struct(application));
-                            }
-                        }
-                        crate::imports::lookup::TypeLookupTarget::Current(
-                            crate::namespace::TopLevelTypeTarget::Alias(alias),
-                        ) => {
-                            let target =
-                                self.resolve_type_alias_id_reference(alias, name, false)?;
-                            if self.types_equal(target, matched_ty) {
-                                return Some(PatternTarget::Struct(application));
-                            }
-                        }
-                        crate::imports::lookup::TypeLookupTarget::Dependency(binding) => {
-                            let target = self
-                                .resolve_imported_dependency_type_target(&binding, name, false)?;
-                            if self.types_equal(target, matched_ty) {
-                                return Some(PatternTarget::Struct(application));
-                            }
-                        }
-                    }
-                    let found = self.type_name(matched_ty);
-                    self.error(
-                        name.span,
-                        format!(
-                            "pattern `{}` does not match a subject of type {found}",
-                            name.text
-                        ),
-                    );
-                    None
                 }
                 Type::Ptr(_) | Type::FunPtr(_) => {
                     let found = self.type_name(matched_ty);
@@ -310,7 +285,30 @@ impl Lowerer {
         span: Span,
         ctx: PatternCtx,
     ) -> Option<Vec<(u32, hir::Pattern)>> {
-        if rest.is_none() && fields.len() < field_types.len() {
+        let names = field_types
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>();
+        let indices = self.named_pattern_indices(fields, rest, &names, owner, span)?;
+        let mut normalized = (0..field_types.len())
+            .map(|index| (index as u32, hir::Pattern::Wildcard))
+            .collect::<Vec<_>>();
+        for (field, index) in fields.iter().zip(indices) {
+            normalized[index].1 =
+                self.lower_pattern_inner(&field.subpattern, field_types[index].1, ctx)?;
+        }
+        Some(normalized)
+    }
+
+    pub(super) fn named_pattern_indices(
+        &mut self,
+        fields: &[ast::FieldPattern],
+        rest: Option<Span>,
+        names: &[&str],
+        owner: &str,
+        span: Span,
+    ) -> Option<Vec<usize>> {
+        if rest.is_none() && fields.len() < names.len() {
             self.error(
                 span,
                 format!("pattern does not list all fields of {owner}; add `..` to ignore the rest"),
@@ -318,38 +316,32 @@ impl Lowerer {
             return None;
         }
         let mut seen = HashSet::new();
-        let mut normalized: Vec<(u32, hir::Pattern)> = (0..field_types.len())
-            .map(|index| (index as u32, hir::Pattern::Wildcard))
-            .collect();
+        let mut indices = Vec::with_capacity(fields.len());
         for field in fields {
             if field.field.text == "_" {
                 self.error(
                     field.field.span,
-                    "`_` is not allowed in a field pattern".to_string(),
+                    "`_` is not allowed in a field pattern".into(),
                 );
                 return None;
             }
-            if !seen.insert(field.field.text.clone()) {
+            if !seen.insert(field.field.text.as_str()) {
                 self.error(
                     field.field.span,
                     format!("duplicate field `{}` in pattern", field.field.text),
                 );
                 return None;
             }
-            let Some(index) = field_types
-                .iter()
-                .position(|(name, _)| name == &field.field.text)
-            else {
+            let Some(index) = names.iter().position(|name| *name == field.field.text) else {
                 self.error(
                     field.field.span,
                     format!("{owner} has no field `{}`", field.field.text),
                 );
                 return None;
             };
-            normalized[index].1 =
-                self.lower_pattern_inner(&field.subpattern, field_types[index].1, ctx)?;
+            indices.push(index);
         }
-        Some(normalized)
+        Some(indices)
     }
 
     pub(super) fn variant_field_types(
@@ -387,7 +379,7 @@ impl Lowerer {
     }
 }
 
-fn pattern_span(pattern: &ast::Pattern) -> Span {
+pub(super) fn pattern_span(pattern: &ast::Pattern) -> Span {
     match pattern {
         ast::Pattern::Binding(name) => name.span,
         ast::Pattern::Wildcard { span }

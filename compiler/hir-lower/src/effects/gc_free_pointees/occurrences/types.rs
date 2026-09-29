@@ -132,11 +132,8 @@ fn collect_pattern_types(lowerer: &Lowerer, pattern: &hir::Pattern, out: &mut Ve
                 collect_pattern_types(lowerer, field, out);
             }
         }
-        hir::Pattern::Struct {
-            application,
-            fields,
-        } => {
-            out.push(lowerer.struct_applications[*application].canonical_type);
+        hir::Pattern::Struct { owner, fields } => {
+            out.push(*owner);
             for (_, field) in fields {
                 collect_pattern_types(lowerer, field, out);
             }

@@ -330,9 +330,9 @@ impl Lowerer {
             });
         } else {
             let plan =
-                self.lower_irrefutable_binding_plan(&decl.target, init, decl.mutable, decl.span)?;
+                self.lower_irrefutable_binding(&decl.target, init, decl.mutable, decl.span)?;
             out.extend(sink);
-            out.extend(plan.into_statements());
+            out.extend(plan);
         }
         Some(())
     }

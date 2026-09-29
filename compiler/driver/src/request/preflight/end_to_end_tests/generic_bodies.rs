@@ -2,6 +2,7 @@ use super::*;
 
 mod argument_inference;
 mod arrays;
+mod bindings;
 mod bounds;
 mod constructors;
 mod delegates;

@@ -67,6 +67,7 @@ impl Lowerer {
                 application,
             }),
             Type::ImportedEnum(_)
+            | Type::ImportedStruct(_)
             | Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Tuple(_)
@@ -203,9 +204,12 @@ impl Lowerer {
 
     fn constructor_space(&mut self, ty: hir::TypeId, matrix: &Matrix) -> ConstructorSpace {
         match self.types[ty].clone() {
-            Type::ImportedStruct(structure) => {
+            Type::Struct(_) | Type::ImportedStruct(_) => {
+                let structure = self
+                    .struct_fields(ty)
+                    .expect("a struct subject has complete fields");
                 ConstructorSpace::Closed(vec![Constructor::Struct {
-                    name: structure.declaration.name().to_owned(),
+                    name: structure.name,
                     field_names: structure
                         .fields
                         .iter()
@@ -270,25 +274,7 @@ impl Lowerer {
             Type::Tuple(field_types) => {
                 ConstructorSpace::Closed(vec![Constructor::Tuple { field_types }])
             }
-            Type::Struct(application) => {
-                let application_value = self.struct_applications[application].clone();
-                let declaration = self.structs[application_value.template].clone();
-                let field_names = declaration
-                    .semantic_fields()
-                    .iter()
-                    .map(|field| field.name.clone())
-                    .collect();
-                let field_types = declaration
-                    .semantic_fields()
-                    .iter()
-                    .map(|field| self.instantiate_ty(field.ty, &application_value.arguments))
-                    .collect();
-                ConstructorSpace::Closed(vec![Constructor::Struct {
-                    name: declaration.name,
-                    field_names,
-                    field_types,
-                }])
-            }
+
             Type::Boolean => ConstructorSpace::Closed(vec![
                 Constructor::Boolean(false),
                 Constructor::Boolean(true),

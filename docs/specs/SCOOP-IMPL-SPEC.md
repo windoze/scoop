@@ -216,6 +216,8 @@ M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、own
 
 源码分析、导出投影与具体化均属于既有 HIR 工作流，不新增 stage 实现之间的依赖。默认值、普通函数、泛型正文、构造初始化和词法 callable 共用正文节点及必要的局部值、捕获、类型替换；编解码只做机械的身份／索引转换和边界验证。具体化按原定义身份、完整宿主／callable 实参和既有词法身份查询同一正文，不先创建独立 imported template 或当前 Cone 的同名替身。声明、泛型应用和具体实体保持不同的 typed ID；本地 arena 仅作实现内的存储索引，不能充当跨 Cone 实体身份。
 
+不可失败的 `val`／`var`、lambda 参数与 `for` 绑定在同一事务中直接生成普通声明、字段投影和已选 component 调用。字段访问、绑定及 `when` 模式从同一完整 struct application 查询声明顺序、字段身份与替换后的类型；class component 使用普通 operator 决议。成功输出不另存一份仅供互相校验的绑定形状和执行计划，不在展开时重演已完成的 callable 选择、字段范围或叶子调度。失败仍原子撤销局部值、候选状态和诊断副作用，命名模式按源码顺序求值，`..` 和 `_` 保持语言规定的跳过与调用行为。
+
 对外输出按消费者严格隔离为两个 IR：
 
 - **`ExportHir`**：只供下游 Cone 的 HIR 阶段消费，是 `SemanticHir` 中完整声明与必需正文的导出投影，并在结构上区分普通public/re-export lookup surface、公开owner跨Cone继承所需的protected inheritance/slot surface、以及exported generic template的hidden support closure；后两者不能枚举为普通import binding。它还包含非generic concrete声明的签名/成员/属性、导出的`const val`、non-generic typealias及作为callable接口在调用处展开的hygienic typed default template。default template节点保存已解析的kind-specific typed declaration reference及定义位置，public default不携带private/internal hidden dependency closure；前端完成可见性检查后，产物不再附加逐引用调用域覆盖证明。它不包含本Cone局部产生的concrete实例体。

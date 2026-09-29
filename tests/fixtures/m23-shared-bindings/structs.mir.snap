@@ -1,0 +1,533 @@
+Module
+  global0 subjects: Int managed initial=encoded(Int:0x0)
+  struct Pair<Int> (left: Int, right: Int)
+  struct Nested<Int> (payload: (Int, Int), spare: Int, empty: Unit)
+  struct LocalPair<Int> (left: Int, right: Int)
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
+  generated_exact_type get0 location=closure0 nominal_id=167830b9ed3967dc3a696b65aef668e8899e9606a03bb2910fa11768b8e6c93b exact_id=9db0f2bc721c97548aba16d09f87b138f79a3351df7a64e66fd43f20a13ee31b
+  fun marked @fn0() -> Pair<Int>
+    bb0 entry
+      call $dependency.receiver: Int = @fn2 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: Pair<Int> = @fn7 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      return
+        Type Pair<Int>
+        Local $call.1
+  fun result @fn1() -> Int
+    bb0 entry
+      call @fn3 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $binding.subject.6: Pair<Int> = @fn0 direct
+      val $binding.projection.7: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $binding.subject.6
+      var left: Int
+        Type Int
+        Local $binding.projection.7
+      val $binding.projection.8: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int>
+          Local $binding.subject.6
+      var right: Int
+        Type Int
+        Local $binding.projection.8
+      val $dependency.receiver: Int
+        Type Int
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        Local right
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign left
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.receiver: Int = @fn2 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.9
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.payload: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.spare: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.empty: Unit
+        Type Unit
+        Local $dependency.argument.2
+      call $binding.subject.10: Nested<Int> = @fn8 direct
+        Type (Int, Int)
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.spare
+        Type Unit
+        Local $dependency.parameter.empty
+      val $binding.projection.11: (Int, Int)
+        Type (Int, Int)
+        FieldAccess 0
+          Type Nested<Int>
+          Local $binding.subject.10
+      val $binding.projection.12: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local $binding.projection.11
+      val value: Int
+        Type Int
+        Local $binding.projection.12
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.payload: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.spare: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.empty: Unit
+        Type Unit
+        Local $dependency.argument.2
+      call $binding.subject.13: Nested<Int> = @fn8 direct
+        Type (Int, Int)
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.spare
+        Type Unit
+        Local $dependency.parameter.empty
+      val $binding.projection.14: Unit
+        Type Unit
+        FieldAccess 2
+          Type Nested<Int>
+          Local $binding.subject.13
+      val ignored: Unit
+        Type Unit
+        Local $binding.projection.14
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $binding.subject.15: Pair<Int> = @fn7 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $binding.projection.16: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int>
+          Local $binding.subject.15
+      val extra: Int
+        Type Int
+        Local $binding.projection.16
+      val $binding.projection.17: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $binding.subject.15
+      val first: Int
+        Type Int
+        Local $binding.projection.17
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        Local extra
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn5 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $get$subjects @fn2() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead subjects
+  fun $set$subjects @fn3(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign subjects
+        Type Int
+        Local value
+      return
+  fun $lambda.0 @fn4($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn5(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call pair: Pair<Int> = @fn7 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $binding.subject.0: Pair<Int>
+        Type Pair<Int>
+        Local pair
+      val $binding.projection.1: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $binding.subject.0
+      val value: Int
+        Type Int
+        Local $binding.projection.1
+      val $binding.projection.2: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int>
+          Local $binding.subject.0
+      val extra: Int
+        Type Int
+        Local $binding.projection.2
+      val $argument.0: Int
+        Type Int
+        Local seed
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.left: Int
+        Type Int
+        Local $argument.0
+      val $parameter.right: Int
+        Type Int
+        Local $argument.1
+      call $binding.subject.3: LocalPair<Int> = @fn9 direct
+        Type Int
+        Local $parameter.left
+        Type Int
+        Local $parameter.right
+      val $binding.projection.4: Int
+        Type Int
+        FieldAccess 0
+          Type LocalPair<Int>
+          Local $binding.subject.3
+      val localValue: Int
+        Type Int
+        Local $binding.projection.4
+      val $binding.projection.5: Int
+        Type Int
+        FieldAccess 1
+          Type LocalPair<Int>
+          Local $binding.subject.3
+      val localExtra: Int
+        Type Int
+        Local $binding.projection.5
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        Local extra
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local localValue
+      val $dependency.argument.0: Int
+        Type Int
+        Local localExtra
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $equality.lhs
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Pair<Int>
+        Type Pair<Int>
+        Local pair
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.parameter.pair: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $call.1: Int = @fn6 direct
+        Type Pair<Int>
+        Local $dependency.parameter.pair
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun fromDefinition @fn6(pair: Pair<Int>, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.4: Pair<Int>
+        Type Pair<Int>
+        Local pair
+      val $dependency.local.5: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int>
+          Local $dependency.local.4
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.6: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $dependency.local.4
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.6
+      call $dependency.local.7: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+  fun ctor.Pair.$c0 @fn7(left: Int, right: Int) -> Pair<Int> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Int>
+        StructInit Pair<Int>
+          Type Int
+          Local left
+          Type Int
+          Local right
+  fun ctor.Nested.$c1 @fn8(payload: (Int, Int), spare: Int, empty: Unit) -> Nested<Int> <no-gc>
+    bb0 entry
+      return
+        Type Nested<Int>
+        StructInit Nested<Int>
+          Type (Int, Int)
+          Local payload
+          Type Int
+          Local spare
+          Type Unit
+          Local empty
+  fun ctor.LocalPair.$c0 @fn9(left: Int, right: Int) -> LocalPair<Int> <no-gc>
+    bb0 entry
+      return
+        Type LocalPair<Int>
+        StructInit LocalPair<Int>
+          Type Int
+          Local left
+          Type Int
+          Local right
+  instance mi0 function=@fn5 <- exercise
+  instance mi1 function=@fn6 <- fromDefinition
+  output library

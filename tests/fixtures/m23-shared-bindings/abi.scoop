@@ -1,0 +1,18 @@
+package consumer.bindings
+import upstream.bindings.*
+
+private class Node(public val value: Int)
+private struct Wide(val first: Long, val second: Long, val third: Long, val node: Node)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val { payload: (value, _), .. } = Nested<T>((seed, 0), 0, Unit)
+    val (piece, _) = Pieces<T>(value, 0)
+    return patternBody<T>(Pair<T>(piece, 0), read)
+}
+
+public fun result(): Int {
+    val wide = Wide(1L, 2L, 3L, Node(42))
+    if (exercise<Wide>(wide, { item -> item.node.value }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Node>(wide.node, { item -> item.value })
+}

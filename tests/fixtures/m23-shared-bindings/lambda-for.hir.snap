@@ -1,0 +1,237 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Lambda lambda0 invoke=$lambda.0 captures=1 : (Pair<T0>) -> Int
+        capture read binding1 : (T0) -> Int
+    val local3
+      Local seed : T0
+    val local4
+      IntegerLiteral 0 : Int
+    val local5
+      Local $dependency.argument.0 : T0
+    val local6
+      Local $dependency.argument.1 : Int
+    val local7
+      CallableCall function_type1 : Int
+        Local consume : (Pair<T0>) -> Int
+        ImportedConstructorInit Pair : Pair<T0>
+          Local $dependency.parameter.left : T0
+          Local $dependency.parameter.right : Int
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local10
+      ArrayLiteral : MutableArray<() -> T0>
+        Lambda lambda1 invoke=$lambda.1 captures=1 : () -> T0
+          capture seed binding0 : T0
+        Lambda lambda2 invoke=$lambda.2 captures=1 : () -> T0
+          capture seed binding0 : T0
+    val local11
+      Local seed : T0
+    val local12
+      IntegerLiteral 0 : Int
+    val local13
+      Local $dependency.argument.0 : T0
+    val local14
+      Local $dependency.argument.1 : Int
+    val local15
+      Local seed : T0
+    val local16
+      IntegerLiteral 1 : Int
+    val local17
+      Local $dependency.argument.0 : T0
+    val local18
+      Local $dependency.argument.1 : Int
+    val local19
+      ArrayLiteral : Array<Pair<T0>>
+        ImportedConstructorInit Pair : Pair<T0>
+          Local $dependency.parameter.left : T0
+          Local $dependency.parameter.right : Int
+        ImportedConstructorInit Pair : Pair<T0>
+          Local $dependency.parameter.left : T0
+          Local $dependency.parameter.right : Int
+    val local20
+      Local entries : Array<Pair<T0>>
+    val local21
+      Local $for.source.2 : Array<Pair<T0>>
+    val local22
+      ImportedGenericCall iterator<Pair<T0>> : Iterator<Pair<T0>>
+        Local $dependency.receiver : Array<Pair<T0>>
+    val local23
+      Local $for.iterator.result.3 : Iterator<Pair<T0>>
+    while
+      condition setup
+        val local24
+          ImportedGenericCall next<Pair<T0>> : Option<Pair<T0>>
+            Local $for.iterator.4 : Iterator<Pair<T0>>
+      IsSome : Boolean
+        Local $for.next.5 : Option<Pair<T0>>
+      val local25
+        Unwrap trap=false : Pair<T0>
+          Local $for.next.5 : Option<Pair<T0>>
+      val local26
+        FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+          Local $for.element.6 : Pair<T0>
+      val local27
+        Local $binding.projection.7 : Int
+      val local28
+        FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : T0
+          Local $for.element.6 : Pair<T0>
+      val local29
+        Local $binding.projection.8 : T0
+      val local30
+        Local slot : Int
+      val local31
+        IntegerLiteral 0 : Int
+      val local32
+        Local $dependency.argument.0 : Int
+      if
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+        val local33
+          Local readers : MutableArray<() -> T0>
+        val local34
+          IntegerLiteral 0 : Long
+        val local35
+          Lambda lambda3 invoke=$lambda.3 captures=1 : () -> T0
+            capture value binding53 : T0
+        val local36
+          Local $dependency.argument.0 : Long
+        val local37
+          Local $dependency.argument.1 : () -> T0
+        ArraySet MutableSet : Unit
+          Local $dependency.receiver : MutableArray<() -> T0>
+          Local $dependency.parameter.index : Long
+          Local $dependency.parameter.value : () -> T0
+      else
+        val local38
+          Local readers : MutableArray<() -> T0>
+        val local39
+          IntegerLiteral 1 : Long
+        val local40
+          Lambda lambda4 invoke=$lambda.4 captures=1 : () -> T0
+            capture value binding53 : T0
+        val local41
+          Local $dependency.argument.0 : Long
+        val local42
+          Local $dependency.argument.1 : () -> T0
+        ArraySet MutableSet : Unit
+          Local $dependency.receiver : MutableArray<() -> T0>
+          Local $dependency.parameter.index : Long
+          Local $dependency.parameter.value : () -> T0
+    val local43
+      Local readers : MutableArray<() -> T0>
+    val local44
+      IntegerLiteral 0 : Long
+    val local45
+      Local $dependency.argument.0 : Long
+    val local46
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        CallableCall function_type2 : T0
+          Index MutableGet : () -> T0
+            Local $dependency.receiver : MutableArray<() -> T0>
+            Local $dependency.parameter.index : Long
+    val local47
+      IntegerLiteral 42 : Int
+    val local48
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local49
+      IntegerLiteral 0 : Int
+    val local50
+      Local seed : T0
+    val local51
+      IntegerLiteral 0 : Int
+    val local52
+      Local $dependency.argument.0 : T0
+    val local53
+      Local $dependency.argument.1 : Int
+    val local54
+      ArrayLiteral : Array<Pieces<T0>>
+        ImportedConstructorInit Pieces : Pieces<T0>
+          Local $dependency.parameter.first : T0
+          Local $dependency.parameter.second : Int
+    val local55
+      Local $for.source.9 : Array<Pieces<T0>>
+    val local56
+      ImportedGenericCall iterator<Pieces<T0>> : Iterator<Pieces<T0>>
+        Local $dependency.receiver : Array<Pieces<T0>>
+    val local57
+      Local $for.iterator.result.10 : Iterator<Pieces<T0>>
+    while
+      condition setup
+        val local58
+          ImportedGenericCall next<Pieces<T0>> : Option<Pieces<T0>>
+            Local $for.iterator.11 : Iterator<Pieces<T0>>
+      IsSome : Boolean
+        Local $for.next.12 : Option<Pieces<T0>>
+      val local59
+        Unwrap trap=false : Pieces<T0>
+          Local $for.next.12 : Option<Pieces<T0>>
+      val local60
+        Local $for.element.13 : Pieces<T0>
+      val local61
+        ImportedGenericCall component1<T0> : T0
+          Local $dependency.receiver : Pieces<T0>
+      val local62
+        Local $binding.component.14 : T0
+      val local63
+        Local $for.element.13 : Pieces<T0>
+      val local64
+        ImportedGenericCall component2<T0> : Int
+          Local $dependency.receiver : Pieces<T0>
+      val local65
+        Local $binding.component.15 : Int
+      val local66
+        Local total : Int
+      val local67
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+      val local68
+        Local $dependency.argument.0 : Int
+      val local69
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local70
+        Local extra : Int
+      val local71
+        Local $dependency.argument.0 : Int
+      assign total
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local total : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda5 invoke=$lambda.5 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

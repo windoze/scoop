@@ -1,0 +1,6 @@
+span=61..66
+expression=Other
+pattern `Other` does not match a subject of type Pair<Int>
+span=111..116
+expression=value
+unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

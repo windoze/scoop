@@ -1,0 +1,49 @@
+package upstream.bindings
+
+public struct Pair<T>(val left: T, val right: Int)
+public struct Nested<T>(val payload: (T, Int), val spare: Int, val empty: Unit)
+public struct Other<T>(val left: T, val right: Int)
+public typealias IntPair = Pair<Int>
+
+public var order: Int = 0
+public fun reset() { order = 0 }
+
+public class Pieces<T> public constructor(public val first: T, public val second: Int) {
+    public operator fun component1(): T {
+        order = order * 10 + 1
+        return this.first
+    }
+    public operator fun component2(): Int {
+        order = order * 10 + 2
+        return this.second
+    }
+}
+
+public class ExtensionPieces<T> public constructor(public val value: T)
+public operator fun <T> ExtensionPieces<T>.component1(): T = this.value
+
+public class NotOperator<T> public constructor(public val value: T) {
+    public fun component1(): T = this.value
+}
+
+public class HiddenComponent<T> public constructor(public val value: T) {
+    private operator fun component1(): T = this.value
+}
+
+public fun <T> fromDefinition(pair: Pair<T>, read: (T) -> Int): Int {
+    val Pair { right: extra, left: value } = pair
+    return read(value) + extra
+}
+
+public fun <T> chosen(pair: Pair<T>, value: T = if (true) {
+    val (selected, _) = pair
+    selected
+} else { pair.left }): T = value
+
+public fun <T> matched(pair: Pair<T>, value: T = when (pair) {
+    Pair(selected, _) -> selected
+}): T = value
+
+public fun <T> patternBody(pair: Pair<T>, read: (T) -> Int): Int = when (pair) {
+    Pair { left: value, right: extra } -> read(value) + extra
+}

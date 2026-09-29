@@ -1,0 +1,293 @@
+Module
+  struct LocalPair<T>
+    field0 left: T0
+    field1 right: Int
+    property0 val left: T0 getter0=storage <stored struct0-field0>
+    property1 val right: Int getter1=storage <stored struct0-field1>
+  property2 var subjects: Int getter2=body($get$subjects) setter0=body($set$subjects) <stored global0 image>
+  var subjects: Int <global0 managed>
+  fun marked(): Pair<Int>
+    val local0
+      Call $get$subjects : Int
+    val local1
+      IntegerLiteral 1 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    Call $set$subjects : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local3
+      IntegerLiteral 40 : Int
+    val local4
+      IntegerLiteral 2 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    val local6
+      Local $dependency.argument.1 : Int
+    return
+      ImportedConstructorInit Pair : Pair<Int>
+        Local $dependency.parameter.left : Int
+        Local $dependency.parameter.right : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      IntegerLiteral 0 : Int
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      Local $dependency.argument.1 : Int
+    val local6
+      ImportedConstructorInit Pair : Pair<T0>
+        Local $dependency.parameter.left : T0
+        Local $dependency.parameter.right : Int
+    val local7
+      Local pair : Pair<T0>
+    val local8
+      FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : T0
+        Local $binding.subject.0 : Pair<T0>
+    val local9
+      Local $binding.projection.1 : T0
+    val local10
+      FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+        Local $binding.subject.0 : Pair<T0>
+    val local11
+      Local $binding.projection.2 : Int
+    val local12
+      Local seed : T0
+    val local13
+      IntegerLiteral 0 : Int
+    val local14
+      Local $argument.0 : T0
+    val local15
+      Local $argument.1 : Int
+    val local16
+      StructInit LocalPair : LocalPair<T0>
+        Local $parameter.left : T0
+        Local $parameter.right : Int
+    val local17
+      FieldAccess field 0 : T0
+        Local $binding.subject.3 : LocalPair<T0>
+    val local18
+      Local $binding.projection.4 : T0
+    val local19
+      FieldAccess field 1 : Int
+        Local $binding.subject.3 : LocalPair<T0>
+    val local20
+      Local $binding.projection.5 : Int
+    val local21
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local value : T0
+    val local22
+      Local extra : Int
+    val local23
+      Local $dependency.argument.0 : Int
+    val local27
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local24
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local localValue : T0
+    val local25
+      Local localExtra : Int
+    val local26
+      Local $dependency.argument.0 : Int
+    val local28
+      Local $equality.lhs : Int
+    val local29
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local30
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local31
+      Local pair : Pair<T0>
+    val local32
+      Local read : (T0) -> Int
+    val local33
+      Local $dependency.argument.0 : Pair<T0>
+    val local34
+      Local $dependency.argument.1 : (T0) -> Int
+    return
+      ImportedGenericCall fromDefinition<T0> : Int
+        Local $dependency.parameter.pair : Pair<T0>
+        Local $dependency.parameter.read : (T0) -> Int
+  fun result(): Int
+    Call $set$subjects : Unit
+      IntegerLiteral 0 : Int
+    val local0
+      Call marked : Pair<Int>
+    val local1
+      FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : Int
+        Local $binding.subject.6 : Pair<Int>
+    val local2
+      Local $binding.projection.7 : Int
+    val local3
+      FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+        Local $binding.subject.6 : Pair<Int>
+    val local4
+      Local $binding.projection.8 : Int
+    val local5
+      Local left : Int
+    val local6
+      Local right : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    assign left
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local8
+      Call $get$subjects : Int
+    val local9
+      IntegerLiteral 1 : Int
+    val local10
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local14
+        BoolLiteral true : Boolean
+    else
+      val local11
+        Local left : Int
+      val local12
+        IntegerLiteral 42 : Int
+      val local13
+        Local $dependency.argument.0 : Int
+      val local14
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.9 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local15
+      TupleLiteral : (Int, Int)
+        IntegerLiteral 42 : Int
+        IntegerLiteral 9 : Int
+    val local16
+      IntegerLiteral 7 : Int
+    val local17
+      UnitLiteral : Unit
+    val local18
+      Local $dependency.argument.0 : (Int, Int)
+    val local19
+      Local $dependency.argument.1 : Int
+    val local20
+      Local $dependency.argument.2 : Unit
+    val local21
+      ImportedConstructorInit Nested : Nested<Int>
+        Local $dependency.parameter.payload : (Int, Int)
+        Local $dependency.parameter.spare : Int
+        Local $dependency.parameter.empty : Unit
+    val local22
+      FieldAccess dependency field 3c1a9cd5be21b9689f294fdf4fa00cbe794142a093fd5ed2cc09c0ec1b832122 : (Int, Int)
+        Local $binding.subject.10 : Nested<Int>
+    val local23
+      FieldAccess _1 : Int
+        Local $binding.projection.11 : (Int, Int)
+    val local24
+      Local $binding.projection.12 : Int
+    val local25
+      TupleLiteral : (Int, Int)
+        IntegerLiteral 0 : Int
+        IntegerLiteral 0 : Int
+    val local26
+      IntegerLiteral 0 : Int
+    val local27
+      UnitLiteral : Unit
+    val local28
+      Local $dependency.argument.0 : (Int, Int)
+    val local29
+      Local $dependency.argument.1 : Int
+    val local30
+      Local $dependency.argument.2 : Unit
+    val local31
+      ImportedConstructorInit Nested : Nested<Int>
+        Local $dependency.parameter.payload : (Int, Int)
+        Local $dependency.parameter.spare : Int
+        Local $dependency.parameter.empty : Unit
+    val local32
+      FieldAccess dependency field 959a336d0ef1ee7397ef72d543e16b8da512167e8dfe8c1a7abdc7240856b99c : Unit
+        Local $binding.subject.13 : Nested<Int>
+    val local33
+      Local $binding.projection.14 : Unit
+    val local34
+      IntegerLiteral 40 : Int
+    val local35
+      IntegerLiteral 2 : Int
+    val local36
+      Local $dependency.argument.0 : Int
+    val local37
+      Local $dependency.argument.1 : Int
+    val local38
+      ImportedConstructorInit Pair : Pair<Int>
+        Local $dependency.parameter.left : Int
+        Local $dependency.parameter.right : Int
+    val local39
+      FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+        Local $binding.subject.15 : Pair<Int>
+    val local40
+      Local $binding.projection.16 : Int
+    val local41
+      FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : Int
+        Local $binding.subject.15 : Pair<Int>
+    val local42
+      Local $binding.projection.17 : Int
+    val local43
+      Local first : Int
+    val local44
+      Local extra : Int
+    val local45
+      Local $dependency.argument.0 : Int
+    val local46
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local47
+      IntegerLiteral 42 : Int
+    val local48
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local49
+      Local value : Int
+    val local50
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local51
+      Local $argument.0 : Int
+    val local52
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  fun $get$subjects(): Int <no-gc cdecl>
+    return
+      GlobalRead subjects : Int
+  fun $set$subjects(value: Int): Unit <no-gc cdecl>
+    assign global subjects
+      Local value : Int
+  output library
+  instance exercise<Int>

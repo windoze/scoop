@@ -1,0 +1,6 @@
+span=76..81
+expression=value
+type `HiddenComponent<Int>` has no method `component1`
+span=122..127
+expression=value
+unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

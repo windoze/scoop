@@ -78,16 +78,11 @@ impl Concretizer<'_> {
                         .collect(),
                 )
             }
-            export::Pattern::Struct {
-                application,
-                fields,
-            } => {
-                let concrete_struct = self.lower_struct_application(*application, substitution);
-                assert_eq!(
-                    self.types[expected].kind,
-                    concrete::TypeKind::Struct(concrete_struct),
-                    "the checked pattern application must match its subject"
-                );
+            export::Pattern::Struct { owner, fields } => {
+                let owner = self.lower_type(*owner, substitution);
+                let concrete::TypeKind::Struct(concrete_struct) = self.types[owner].kind else {
+                    unreachable!("a checked struct pattern has a concrete struct subject")
+                };
                 let definition = self.structs[concrete_struct].declared_fields().to_vec();
                 concrete::Pattern::Struct {
                     struct_id: concrete_struct,

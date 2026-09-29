@@ -76,9 +76,6 @@ pub use body::*;
 mod source_call_receiver;
 pub use source_call_receiver::*;
 
-mod bindings;
-pub use bindings::*;
-
 mod iteration;
 pub use iteration::*;
 

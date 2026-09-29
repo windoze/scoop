@@ -200,7 +200,6 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
     let inner_application = h.enum_application_of(inner);
     let record = h.strukt("Record", &[("nested", inner), ("ignored", int)]);
     let record_ty = h.struct_ty(record);
-    let record_application = h.struct_application_of(record_ty);
     let outer = h.option(record_ty);
     let outer_application = h.enum_application_of(outer);
 
@@ -235,7 +234,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
                         fields: vec![(
                             0,
                             hir::Pattern::Struct {
-                                application: record_application,
+                                owner: record_ty,
                                 fields: vec![
                                     (
                                         0,
@@ -1207,7 +1206,6 @@ fn destructuring_val_declarations_extract_bindings() {
     let (int, string) = (h.int, h.string);
     let point = h.strukt("Point", &[("x", int), ("y", int)]);
     let point_ty = h.struct_ty(point);
-    let point_application = h.struct_application_of(point_ty);
     let pair = h.tuple(&[int, string]);
     let mut locals = Arena::new();
     let a = locals.alloc(local("a", int));
@@ -1235,7 +1233,7 @@ fn destructuring_val_declarations_extract_bindings() {
                 ),
                 stmt(hir::StatementKind::ValDecl {
                     pattern: hir::Pattern::Struct {
-                        application: point_application,
+                        owner: point_ty,
                         fields: vec![(0, hir::Pattern::Binding { local: x })],
                     },
                     init: local_ref(p, point_ty),

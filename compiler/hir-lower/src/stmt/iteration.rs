@@ -106,16 +106,14 @@ impl Lowerer {
         let target = self.fresh_loop();
         self.push_scope();
         let planned = (|| {
-            let binding = self
-                .lower_irrefutable_binding_plan_from_subject(
-                    &source.pattern,
-                    hir::BindingTemporary {
-                        local,
-                        ty: element_type,
-                    },
-                    false,
-                )?
-                .into_statements();
+            let binding = self.lower_irrefutable_binding_from_subject(
+                &source.pattern,
+                crate::patterns::BindingSubject {
+                    local,
+                    ty: element_type,
+                },
+                false,
+            )?;
             body.extend(binding);
             self.loop_targets.push(target);
             for statement in &source.body.statements {

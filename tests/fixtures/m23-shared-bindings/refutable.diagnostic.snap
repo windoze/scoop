@@ -1,0 +1,6 @@
+span=76..77
+expression=0
+refutable patterns are only allowed in `when`
+span=109..114
+expression=value
+unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

@@ -203,7 +203,8 @@ pub enum Pattern {
     },
     Tuple(Vec<Pattern>),
     Struct {
-        application: StructApplicationId,
+        /// Complete subject application, preserving its original declaration.
+        owner: TypeId,
         fields: Vec<(u32, Pattern)>,
     },
 }

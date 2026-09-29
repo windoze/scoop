@@ -114,12 +114,8 @@ impl ReferenceCollector<'_> {
                     self.pattern(element, origin);
                 }
             }
-            hir::Pattern::Struct {
-                application,
-                fields,
-            } => {
-                let owner = self.lowerer.struct_applications[*application].canonical_type;
-                self.type_reference(owner, origin);
+            hir::Pattern::Struct { owner, fields } => {
+                self.type_reference(*owner, origin);
                 for (_, field) in fields {
                     self.pattern(field, origin);
                 }

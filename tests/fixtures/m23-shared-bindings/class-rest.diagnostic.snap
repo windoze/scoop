@@ -1,0 +1,6 @@
+span=74..76
+expression=..
+a class component pattern cannot contain `..`
+span=110..115
+expression=value
+unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

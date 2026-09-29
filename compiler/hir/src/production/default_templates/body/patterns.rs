@@ -62,23 +62,9 @@ impl BodyProjection<'_, '_> {
                 DefaultPatternV1::try_tuple(elements)
                     .map_err(super::super::DefaultBodyProjectionError::Pattern)
             }
-            Pattern::Struct {
-                application,
-                fields,
-            } => {
-                let application = super::super::arena_get(
-                    &self.entities.export().struct_applications,
-                    *application,
-                )
-                .ok_or(super::super::DefaultEntityProjectionError::Unknown {
-                    kind: "struct application",
-                    index: super::super::raw_index(*application),
-                })?;
-                DefaultPatternV1::try_struct(
-                    self.type_key(application.canonical_type)?,
-                    self.pattern_fields(fields)?,
-                )
-                .map_err(super::super::DefaultBodyProjectionError::Pattern)
+            Pattern::Struct { owner, fields } => {
+                DefaultPatternV1::try_struct(self.type_key(*owner)?, self.pattern_fields(fields)?)
+                    .map_err(super::super::DefaultBodyProjectionError::Pattern)
             }
         }
     }

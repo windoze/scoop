@@ -98,11 +98,8 @@ impl Lowerer {
                     .map(|element| self.instantiate_default_pattern(element, context))
                     .collect(),
             ),
-            hir::Pattern::Struct {
-                application,
-                fields,
-            } => hir::Pattern::Struct {
-                application: self.instantiate_default_struct_application(*application, context),
+            hir::Pattern::Struct { owner, fields } => hir::Pattern::Struct {
+                owner: self.instantiate_method_ty(*owner, &context.bindings),
                 fields: fields
                     .iter()
                     .map(|(index, pattern)| {

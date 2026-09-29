@@ -235,8 +235,20 @@ impl Lowerer {
                 .map(|element| self.materialize_imported_default_pattern(element, context))
                 .collect::<Result<Vec<_>, _>>()
                 .map(hir::Pattern::Tuple),
-            hir::DefaultPatternViewV1::Literal { .. }
-            | hir::DefaultPatternViewV1::Struct { .. } => {
+            hir::DefaultPatternViewV1::Struct { owner_type, fields } => {
+                let owner = self.materialize_imported_default_type(owner_type, context)?;
+                let fields = fields
+                    .iter()
+                    .map(|field| {
+                        Ok((
+                            field.declaration_index(),
+                            self.materialize_imported_default_pattern(field.pattern(), context)?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, ImportedDefaultMaterializationError>>()?;
+                Ok(hir::Pattern::Struct { owner, fields })
+            }
+            hir::DefaultPatternViewV1::Literal { .. } => {
                 Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default pattern".to_owned(),
                 ))

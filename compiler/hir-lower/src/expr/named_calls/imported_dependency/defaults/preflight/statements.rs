@@ -223,8 +223,14 @@ impl Lowerer {
                 }
                 Ok(())
             }
-            hir::DefaultPatternViewV1::Literal { .. }
-            | hir::DefaultPatternViewV1::Struct { .. } => Err(ImportedDefaultPlanError::Requires {
+            hir::DefaultPatternViewV1::Struct { owner_type, fields } => {
+                self.imported_default_type_with_bindings(owner_type, bindings)?;
+                for field in fields {
+                    self.preflight_imported_default_pattern(field.pattern(), locals, bindings)?;
+                }
+                Ok(())
+            }
+            hir::DefaultPatternViewV1::Literal { .. } => Err(ImportedDefaultPlanError::Requires {
                 requirement: ImportedCapabilityRequirement::Layout,
                 operation: "dependency default destructuring pattern",
             }),

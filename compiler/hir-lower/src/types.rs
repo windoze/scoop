@@ -65,6 +65,7 @@ mod adaptation;
 mod arrays;
 mod constraints;
 mod display;
+mod fields;
 mod interning;
 mod invariance;
 mod kinds;

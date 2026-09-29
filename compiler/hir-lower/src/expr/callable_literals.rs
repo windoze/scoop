@@ -201,15 +201,15 @@ impl Lowerer {
                             .expect("a destructured lambda parameter is explicit")
                             .span,
                     );
-                    let plan = self.lower_irrefutable_binding_plan_from_subject(
+                    let plan = self.lower_irrefutable_binding_from_subject(
                         target.expect("non-binding source parameter has a pattern"),
-                        hir::BindingTemporary {
+                        crate::patterns::BindingSubject {
                             local,
                             ty: parameter_ty,
                         },
                         false,
                     )?;
-                    prefix.extend(plan.into_statements());
+                    prefix.extend(plan);
                     abi_params.push(hir::Param {
                         name: format!("$arg.{index}"),
                         ty: parameter_ty,

@@ -110,7 +110,10 @@ impl Lowerer {
                     access.span,
                 );
             }
-            if let Some((field, ty)) = self.imported_struct_field(receiver.ty, &field.text) {
+            if let Some((field, ty)) = self
+                .struct_field(receiver.ty, &field.text)
+                .map(|field| (field.reference, field.ty))
+            {
                 return Some(hir::Expr {
                     kind: ExprKind::FieldAccess {
                         receiver: Box::new(receiver),
@@ -237,7 +240,10 @@ impl Lowerer {
                     self.find_accessible_nominal_property(inner, &name.text)
                 {
                     self.lower_property_read(property, Some(owner), Some(unwrapped), ty, span)?
-                } else if let Some((field, ty)) = self.imported_struct_field(inner, &name.text) {
+                } else if let Some((field, ty)) = self
+                    .struct_field(inner, &name.text)
+                    .map(|field| (field.reference, field.ty))
+                {
                     hir::Expr {
                         kind: ExprKind::FieldAccess {
                             receiver: Box::new(unwrapped),
@@ -514,26 +520,27 @@ impl Lowerer {
         receiver_ty: TypeId,
         selector: &ast::FieldSelector,
     ) -> Option<(hir::FieldRef, TypeId)> {
-        match self.types[receiver_ty].clone() {
-            Type::ImportedStruct(structure) => {
-                if let ast::FieldSelector::Name(name) = selector
-                    && let Some(field) = self.imported_struct_field(receiver_ty, &name.text)
-                {
-                    return Some(field);
+        if let Some(structure) = self.struct_fields(receiver_ty) {
+            let (name, span) = match selector {
+                ast::FieldSelector::Name(name) => {
+                    if let Some(field) = structure
+                        .fields
+                        .iter()
+                        .find(|field| field.name == name.text)
+                    {
+                        return Some((field.reference, field.ty));
+                    }
+                    (name.text.clone(), name.span)
                 }
-                let (name, span) = match selector {
-                    ast::FieldSelector::Name(name) => (name.text.clone(), name.span),
-                    ast::FieldSelector::Index(index, span) => (format!("_{index}"), *span),
-                };
-                self.error(
-                    span,
-                    format!(
-                        "struct `{}` has no field `{name}`",
-                        structure.declaration.name()
-                    ),
-                );
-                None
-            }
+                ast::FieldSelector::Index(index, span) => (format!("_{index}"), *span),
+            };
+            self.error(
+                span,
+                format!("struct `{}` has no field `{name}`", structure.name),
+            );
+            return None;
+        }
+        match self.types[receiver_ty].clone() {
             Type::Class(application) => {
                 let class_id = self.class_applications[application].template;
                 let class_name = self.classes[class_id].name.clone();
@@ -554,40 +561,7 @@ impl Lowerer {
                     }
                 }
             }
-            Type::Struct(application) => {
-                let application_value = self.struct_applications[application].clone();
-                let struct_id = application_value.template;
-                let struct_name = self.structs[struct_id].name.clone();
-                match selector {
-                    ast::FieldSelector::Name(field) => {
-                        let fields = self.structs[struct_id].semantic_fields();
-                        let Some(index) = fields.iter().position(|f| f.name == field.text) else {
-                            self.error(
-                                field.span,
-                                format!("struct `{struct_name}` has no field `{}`", field.text),
-                            );
-                            return None;
-                        };
-                        let ty = fields[index].ty;
-                        let ty = self.instantiate_ty(ty, &application_value.arguments);
-                        let field = hir::AppliedStructFieldRef::checked(
-                            &self.structs,
-                            &self.struct_applications,
-                            application,
-                            index as u32,
-                        )
-                        .expect("the selected semantic struct field is in range");
-                        Some((hir::FieldRef::StructField(field), ty))
-                    }
-                    ast::FieldSelector::Index(index, span) => {
-                        self.error(
-                            *span,
-                            format!("struct `{struct_name}` has no field `_{index}`"),
-                        );
-                        None
-                    }
-                }
-            }
+
             Type::Tuple(elements) => match selector {
                 ast::FieldSelector::Index(index, span) => {
                     // Tuple indices are 1-based (`._1` is the first
@@ -626,19 +600,5 @@ impl Lowerer {
                 None
             }
         }
-    }
-
-    fn imported_struct_field(&self, owner: TypeId, name: &str) -> Option<(hir::FieldRef, TypeId)> {
-        let Type::ImportedStruct(structure) = &self.types[owner] else {
-            return None;
-        };
-        let field = structure.fields.iter().find(|field| field.name == name)?;
-        Some((
-            hir::FieldRef::ImportedStruct {
-                owner,
-                field: field.identity,
-            },
-            field.ty,
-        ))
     }
 }

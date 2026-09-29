@@ -25,7 +25,7 @@ M23-7 已实现的泛型、默认值、构造、closure、数组与迭代代码�
 | 同一默认值有两套正文替换 | [`defaults/instantiate`](../../../compiler/hir-lower/src/defaults/instantiate/mod.rs) 与 [`defaults/materialize`](../../../compiler/hir-lower/src/expr/named_calls/imported_dependency/defaults/materialize.rs) | 本地与读出正文使用共同节点、局部值环境和替换操作，保留定义位置、求值位置及求值顺序 |
 | 语义正文先转换成 transport，再重建 imported template | [`production/default_templates`](../../../compiler/hir/src/production/default_templates/body/mod.rs)、[`imported_generics.rs`](../../../compiler/hir-lower/src/imported_generics.rs) | wire 只编码／解码共同语义节点；具体化直接查询原正文，不再建立导入专用语义图 |
 | 具体化请求和入口继续按来源分流 | [`concretize.rs`](../../../compiler/hir-lower/src/concretize.rs) 的 `Free/Method/Imported/ImportedMethod` | 按原定义和完整 application 统一请求、查询及固定点，来源只参与定义归属与外部实现关联 |
-| 合法解构因 imported 类型进入不匹配分支 | [`patterns/binding.rs`](../../../compiler/hir-lower/src/patterns/binding.rs) | 从共同 nominal/field/member 查询建立同一 binding plan；覆盖直接源码、默认值和泛型正文 |
+| 合法解构因 imported 类型进入不匹配分支 | [`patterns/binding.rs`](../../../compiler/hir-lower/src/patterns/binding.rs) | 从共同 nominal/field/member 查询直接展开普通绑定、字段及 component 调用；覆盖直接源码、默认值和泛型正文 |
 | 参数自由声明被旧物化闭包排除 | [`concretize/automatic.rs`](../../../compiler/hir-lower/src/concretize/automatic.rs)、[`nominal_materialization.rs`](../../../compiler/hir/src/semantic_world/nominal_materialization.rs) | 按完整应用和实际需求闭合，消除封闭泛型父类型、签名、默认参数导致的 source-only gate |
 | 协议操作的语言处理与模板适配仍可能重复 | 已有 `for`、数组、指针、Option、bound 和派生相等路径 | 在定义处选定目标并正规化；共同正文只保存已选操作和必要条件，具体化不重新做语言选择 |
 

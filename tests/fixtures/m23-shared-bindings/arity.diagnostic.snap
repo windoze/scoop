@@ -1,0 +1,6 @@
+span=64..72
+expression=(value,)
+pattern has 1 element(s), but struct `Pair` has 2
+span=103..108
+expression=value
+unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

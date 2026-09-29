@@ -36,6 +36,9 @@ mod exhaustiveness;
 mod imported;
 mod structure;
 
+pub(crate) use binding::BindingSubject;
+use structure::pattern_span;
+
 /// Where a pattern appears (spec 4.6 / 5).
 #[derive(Clone, Copy)]
 pub(crate) struct PatternCtx {
@@ -59,7 +62,7 @@ impl Lowerer {
         self.with_pattern_transaction(|state| state.lower_pattern_inner(pattern, matched_ty, ctx))
     }
 
-    /// Run one complete pattern or binding-plan owner against private lowering
+    /// Run one complete pattern or binding owner against private lowering
     /// state. Recursive helpers call their non-transactional inner forms, so
     /// each owner clones at most once.
     pub(super) fn with_pattern_transaction<T>(
@@ -247,31 +250,8 @@ impl Lowerer {
                 }
                 // A positional struct pattern without the type prefix
                 // (spec 5.3: `(x, ..)` against a struct subject).
-                Type::Struct(application) => {
-                    let application_value = self.struct_applications[application].clone();
-                    let struct_id = application_value.template;
-                    let owner = format!("struct `{}`", self.structs[struct_id].name);
-                    let declared: Vec<TypeId> = self.structs[struct_id]
-                        .semantic_fields()
-                        .iter()
-                        .map(|f| f.ty)
-                        .collect();
-                    let field_types: Vec<TypeId> = declared
-                        .into_iter()
-                        .map(|ty| self.instantiate_ty(ty, &application_value.arguments))
-                        .collect();
-                    let fields = self.lower_positional_pattern(
-                        elements,
-                        *rest,
-                        &field_types,
-                        &owner,
-                        *span,
-                        ctx,
-                    )?;
-                    Some(hir::Pattern::Struct {
-                        application,
-                        fields,
-                    })
+                Type::Struct(_) | Type::ImportedStruct(_) => {
+                    self.lower_struct_positional_pattern(matched_ty, elements, *rest, *span, ctx)
                 }
                 _ => {
                     let found = self.type_name(matched_ty);
@@ -339,31 +319,8 @@ impl Lowerer {
                         .imported_positional_variant_pattern(
                             owner, variant, elements, *rest, *span, ctx,
                         ),
-                    PatternTarget::Struct(application) => {
-                        let application_value = self.struct_applications[application].clone();
-                        let struct_id = application_value.template;
-                        let owner = format!("struct `{}`", self.structs[struct_id].name);
-                        let declared: Vec<TypeId> = self.structs[struct_id]
-                            .semantic_fields()
-                            .iter()
-                            .map(|f| f.ty)
-                            .collect();
-                        let field_types: Vec<TypeId> = declared
-                            .into_iter()
-                            .map(|ty| self.instantiate_ty(ty, &application_value.arguments))
-                            .collect();
-                        let fields = self.lower_positional_pattern(
-                            elements,
-                            *rest,
-                            &field_types,
-                            &owner,
-                            *span,
-                            ctx,
-                        )?;
-                        Some(hir::Pattern::Struct {
-                            application,
-                            fields,
-                        })
+                    PatternTarget::Struct(owner) => {
+                        self.lower_struct_positional_pattern(owner, elements, *rest, *span, ctx)
                     }
                 }
             }
@@ -422,33 +379,8 @@ impl Lowerer {
                     }
                     PatternTarget::ImportedVariant { owner, variant } => self
                         .imported_named_variant_pattern(owner, variant, fields, *rest, *span, ctx),
-                    PatternTarget::Struct(application) => {
-                        let application_value = self.struct_applications[application].clone();
-                        let struct_id = application_value.template;
-                        let owner = format!("struct `{}`", self.structs[struct_id].name);
-                        let declared: Vec<(String, TypeId)> = self.structs[struct_id]
-                            .semantic_fields()
-                            .iter()
-                            .map(|f| (f.name.clone(), f.ty))
-                            .collect();
-                        let named_fields: Vec<(String, TypeId)> = declared
-                            .into_iter()
-                            .map(|(name, ty)| {
-                                (name, self.instantiate_ty(ty, &application_value.arguments))
-                            })
-                            .collect();
-                        let fields = self.lower_named_fields(
-                            fields,
-                            *rest,
-                            &named_fields,
-                            &owner,
-                            *span,
-                            ctx,
-                        )?;
-                        Some(hir::Pattern::Struct {
-                            application,
-                            fields,
-                        })
+                    PatternTarget::Struct(owner) => {
+                        self.lower_struct_named_pattern(owner, fields, *rest, *span, ctx)
                     }
                 }
             }
@@ -475,7 +407,7 @@ impl Lowerer {
 enum PatternTarget {
     Variant(hir::EnumApplicationId, u32),
     ImportedVariant { owner: TypeId, variant: usize },
-    Struct(hir::StructApplicationId),
+    Struct(TypeId),
 }
 
 /// `variant \`V\` of \`E\``, for diagnostics.

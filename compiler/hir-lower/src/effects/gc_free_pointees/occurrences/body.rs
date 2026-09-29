@@ -203,12 +203,9 @@ fn collect_pattern_type_occurrences(
                 collect_pattern_type_occurrences(lowerer, element, file, span, out);
             }
         }
-        hir::Pattern::Struct {
-            application,
-            fields,
-        } => {
+        hir::Pattern::Struct { owner, fields } => {
             out.push(TypeOccurrence {
-                ty: lowerer.struct_applications[*application].canonical_type,
+                ty: *owner,
                 file,
                 span,
             });
