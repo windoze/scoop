@@ -9,7 +9,7 @@ pub enum SourceMirEqualityProductionError {
     MissingSignature(PersistentGeneratedCallableId),
     SignatureMismatch(PersistentGeneratedCallableId),
     InvalidRole(PersistentGeneratedCallableId),
-    OdrRequired(PersistentGeneratedCallableId),
+    InvalidMaterialization(PersistentGeneratedCallableId),
 }
 impl From<scoop_wire::WireError> for Error {
     fn from(error: scoop_wire::WireError) -> Self {

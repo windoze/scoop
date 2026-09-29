@@ -5,7 +5,7 @@ impl Lowerer {
     pub(super) fn materialize_imported_method_callee(
         &mut self,
         source: &hir::DefaultMethodCalleeV1,
-        span: Span,
+        origin: hir::ExpressionOrigin,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ImportedMethodCallee, ImportedDefaultMaterializationError> {
         match source {
@@ -120,13 +120,13 @@ impl Lowerer {
             },
             hir::DefaultMethodCalleeV1::DerivedEquality { owner_type } => {
                 let owner = self.materialize_imported_default_type(owner_type, context)?;
-                let candidate = self.derived_equality_candidate(owner, span)
+                let candidate = self.derived_equality_candidate_at(owner, origin)
                     .map_err(ImportedDefaultMaterializationError::Plan)?
                     .ok_or_else(|| ImportedDefaultMaterializationError::Plan(
                         "a derived equality target requires an equality derivation for its owner".into(),
                     ))?;
                 let (crate::derived::DerivedEqualityCandidate::Nominal { application, .. }
-                | crate::derived::DerivedEqualityCandidate::Structural { application, .. }) =
+                | crate::derived::DerivedEqualityCandidate::TypeOwned { application, .. }) =
                     candidate;
                 Ok(hir::ImportedMethodCallee::DerivedEquality(application))
             }

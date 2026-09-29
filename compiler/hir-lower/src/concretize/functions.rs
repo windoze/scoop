@@ -256,7 +256,7 @@ impl Concretizer<'_> {
             concrete::MethodOwner::Enum(id) => &self.enums[id].type_arguments,
             concrete::MethodOwner::Interface(id) => &self.interfaces[id].type_arguments,
             concrete::MethodOwner::Object(_) => &[],
-            concrete::MethodOwner::Structural(_) => &[],
+            concrete::MethodOwner::TypeOwned(_) => &[],
         }
     }
 }

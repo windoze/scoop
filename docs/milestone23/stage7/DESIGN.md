@@ -122,6 +122,8 @@ bound callable 的 receiver 使用完整 `SignatureTypeKey`，可以是定义处
 
 未装箱值的 TypeDescriptor 不携带接口运行时表；其完整 conformance 仍保留在 HIR 和 MIR 类型关系中。泛型值只有实际产生 box 时才导出 payload 的物理 dispatch schema，并由该 box 的 TD 引用；单纯的 bound 直接调用不请求 box 或 adjust helper。LIR 发布与 reader 对未装箱值使用空运行时分派，对实际 box 要求完整接口表及目标，因此同一 payload 的直接使用与装箱使用可以贡献不同 helper 成员而保持共同值布局和 TD 一致。
 
+派生相等复用语言规范 11.11：外来泛型 struct、enum 从共有字段及 variant 的真实 identity 生成完整比较正文，替换字段类型并按声明顺序短路；enum 先检查 tag，再读取 active payload。字段的本地、外来及 bound 成员共用普通相等选择，显式同类型 `equals` 取代派生候选，其他重载不屏蔽它。模板与绑定引用只保留完整 owner type，仍使用已有 `DerivedEquality` generated key；泛型及结构 owner 按 exact type 发射 ODR helper，参数自由外来名义 owner 引用定义 Cone 的 helper。派生正文没有源码词法根；表达式保留派生需求或字段诊断的位置，reader 从当前物化产物解析 helper 的 generated key，从位置所属产物检查真实文件、context 和 span；提供方模板无须预先物化消费方的 exact helper，位置也无须归属不存在的 helper 源码声明。完整 exact owner 的 materialization 使用 `NoSubstitution`。不可比较的字段给出原字段／variant 路径，不引入额外接口、wire 节点或 runtime 相等槽。真实产物验收覆盖独立 struct／enum、嵌套 payload、显式重载、ZST、大值与引用字段、默认值、函数引用及再次发布。
+
 导入模板中的局部具名函数声明与本地声明一样不产生运行时语句。实际直接调用复用原 typed callee 及完整类型实参，把已解析捕获表达式按原顺序放在显式参数之前，并进入已有导入 callable 的具体化队列；不为声明标记生成 Unit 占位表达式，也不把 provider 的源码函数复制为当前 Cone 的 `FunctionId`。
 
 无自身类型参数的局部声明保持 `PersistentFunctionId`，其继承实参通过 enclosing callable application 或 initialization application 表达；局部 generic 声明另外保留自身实参组。initializer 中的生成正文沿原 generated callable、unit 与 property/type 关系取得声明所属 Cone，不增加可按名字导入的 initializer binding。词法正文从已有正文表读取，不成为可按名字导入的源码接口。该正文的 binder 已在定义处检查，消费端保存有序替换参数及已有条件约束；它们与需要参与源码推断的声明参数使用不同表示，不能伪造一组无约束声明参数来填充接口。

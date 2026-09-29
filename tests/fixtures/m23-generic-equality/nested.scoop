@@ -1,0 +1,22 @@
+package consumer.equality
+
+import templates.equality.*
+
+public struct LocalKey<T>(val payload: T, val number: Int) : EqualTo<LocalKey<T>> {
+    public override operator fun equals(other: LocalKey<T>): Boolean = this.number == other.number
+}
+
+public fun <T> exercise(value: T): Int {
+    val first = LocalKey<T>(value, 42)
+    val same = LocalKey<T>(value, 42)
+    val other = LocalKey<T>(value, 1)
+    val left = Nested<LocalKey<T>>(Payload<LocalKey<T>>(first, 2), 3)
+    val right = Nested<LocalKey<T>>(Payload<LocalKey<T>>(same, 2), 3)
+    if (!compareNested(left, right) || left != right) { return 1 }
+    if (left == Nested<LocalKey<T>>(Payload<LocalKey<T>>(other, 2), 3)) { return 2 }
+    if (left == Nested<LocalKey<T>>(Payload<LocalKey<T>>(same, 3), 3)) { return 3 }
+    if (left == Nested<LocalKey<T>>(Payload<LocalKey<T>>(same, 2), 4)) { return 4 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

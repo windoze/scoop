@@ -1,0 +1,576 @@
+Module
+  enum Choice<Key<Int>>
+    Empty()
+    Value(_0: Key<Int>)
+    Pair(_0: Key<Int>, _1: Key<Int>)
+  class Key<Int> vtable=0 itables=1
+  interface EqualTo<Key<Int>>
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Key<Int>
+        ClassAlloc Key<Int>
+      call @fn9 direct
+        Type Key<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val first: Key<Int>
+        Type Key<Int>
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.2
+        Type Key<Int>
+        ClassAlloc Key<Int>
+      call @fn9 direct
+        Type Key<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val same: Key<Int>
+        Type Key<Int>
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.3
+        Type Key<Int>
+        ClassAlloc Key<Int>
+      call @fn9 direct
+        Type Key<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val other: Key<Int>
+        Type Key<Int>
+        Local $new.3
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local first
+      val $dependency.parameter.value: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      call left: Choice<Key<Int>> = @fn3 direct
+        Type Key<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local same
+      val $dependency.parameter.value: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      call right: Choice<Key<Int>> = @fn3 direct
+        Type Key<Int>
+        Local $dependency.parameter.value
+      call empty: Choice<Key<Int>> = @fn4 direct
+      val $dependency.argument.0: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local left
+      val $dependency.argument.1: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local right
+      val $dependency.parameter.left: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn5 direct
+        Type Choice<Key<Int>>
+        Local $dependency.parameter.left
+        Type Choice<Key<Int>>
+        Local $dependency.parameter.right
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $equality.lhs: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local left
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local other
+      val $dependency.parameter.value: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      call $call.4: Choice<Key<Int>> = @fn3 direct
+        Type Key<Int>
+        Local $dependency.parameter.value
+      call $call.5: Boolean = @fn6 direct
+        Type Choice<Key<Int>>
+        Local $equality.lhs
+        Type Choice<Key<Int>>
+        Local $call.4
+      branch bb4 bb3
+        Type Boolean
+        Local $call.5
+    bb3 logic.rhs.3
+      call $call.7: Boolean = @fn6 direct
+        Type Choice<Key<Int>>
+        Local left
+        Type Choice<Key<Int>>
+        Local empty
+      assign $logic.6
+        Type Boolean
+        Local $call.7
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.6
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.6
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      call $call.8: Choice<Key<Int>> = @fn4 direct
+      call $call.9: Boolean = @fn6 direct
+        Type Choice<Key<Int>>
+        Local empty
+        Type Choice<Key<Int>>
+        Local $call.8
+      branch bb8 bb9
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.9
+    bb8 if.then.8
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb9 if.merge.9
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local first
+      val $dependency.argument.1: Key<Int>
+        Type Key<Int>
+        Local same
+      val $dependency.parameter.first: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.1
+      call both: Choice<Key<Int>> = @fn7 direct
+        Type Key<Int>
+        Local $dependency.parameter.first
+        Type Key<Int>
+        Local $dependency.parameter.second
+      val $dependency.argument.0: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local both
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local same
+      val $dependency.argument.1: Key<Int>
+        Type Key<Int>
+        Local first
+      val $dependency.parameter.first: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.1
+      call $dependency.argument.1: Choice<Key<Int>> = @fn7 direct
+        Type Key<Int>
+        Local $dependency.parameter.first
+        Type Key<Int>
+        Local $dependency.parameter.second
+      val $dependency.parameter.left: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn5 direct
+        Type Choice<Key<Int>>
+        Local $dependency.parameter.left
+        Type Choice<Key<Int>>
+        Local $dependency.parameter.right
+      branch bb10 bb11
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb10 if.then.10
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb11 if.merge.11
+      val $equality.lhs: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local both
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local first
+      val $dependency.argument.1: Key<Int>
+        Type Key<Int>
+        Local other
+      val $dependency.parameter.first: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.1
+      call $call.10: Choice<Key<Int>> = @fn7 direct
+        Type Key<Int>
+        Local $dependency.parameter.first
+        Type Key<Int>
+        Local $dependency.parameter.second
+      call $call.11: Boolean = @fn6 direct
+        Type Choice<Key<Int>>
+        Local $equality.lhs
+        Type Choice<Key<Int>>
+        Local $call.10
+      branch bb13 bb12
+        Type Boolean
+        Local $call.11
+    bb12 logic.rhs.12
+      call $call.13: Boolean = @fn6 direct
+        Type Choice<Key<Int>>
+        Local both
+        Type Choice<Key<Int>>
+        Local left
+      assign $logic.12
+        Type Boolean
+        Local $call.13
+      goto bb14
+    bb13 logic.short.13
+      assign $logic.12
+        Type Boolean
+        BoolLiteral true
+      goto bb14
+    bb14 logic.merge.14
+      branch bb15 bb16
+        Type Boolean
+        Local $logic.12
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb16 if.merge.16
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun equals @fn2(this: Key<Int>, other: Key<Int>) -> Boolean
+    bb0 entry
+      call $dependency.local.2: Int = @fn8 direct
+        Type Key<Int>
+        Local this
+      call $dependency.local.3: Int = @fn8 direct
+        Type Key<Int>
+        Local other
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun single @fn3(value: Key<Int>) -> Choice<Key<Int>>
+    bb0 entry
+      val $dependency.local.1: Key<Int>
+        Type Key<Int>
+        Local value
+      val $dependency.local.2: Key<Int>
+        Type Key<Int>
+        Local $dependency.local.1
+      return
+        Type Choice<Key<Int>>
+        VariantConstruct Choice<Key<Int>> v1
+          Type Key<Int>
+          Local $dependency.local.2
+  fun emptyChoice @fn4() -> Choice<Key<Int>>
+    bb0 entry
+      return
+        Type Choice<Key<Int>>
+        VariantConstruct Choice<Key<Int>> v0
+  fun compareChoices @fn5(left: Choice<Key<Int>>, right: Choice<Key<Int>>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn6 direct
+        Type Choice<Key<Int>>
+        Local left
+        Type Choice<Key<Int>>
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.0 @fn6(this: Choice<Key<Int>>, other: Choice<Key<Int>>) -> Boolean
+    bb0 entry
+      val $when.1: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local this
+      val $pattern.subject.2: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Key<Int>> v0
+          Type Choice<Key<Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local other
+      val $pattern.subject.4: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice<Key<Int>> v0
+          Type Choice<Key<Int>>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice<Key<Int>> v1
+          Type Choice<Key<Int>>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Key<Int>
+        Type Key<Int>
+        VariantPayloadProject Choice<Key<Int>> v1 f0
+          Type Choice<Key<Int>>
+          Local $pattern.subject.5
+      val $when.6: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local other
+      val $pattern.subject.7: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Key<Int>> v1
+          Type Choice<Key<Int>>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Choice<Key<Int>> v2
+          Type Choice<Key<Int>>
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Key<Int>
+        Type Key<Int>
+        VariantPayloadProject Choice<Key<Int>> v1 f0
+          Type Choice<Key<Int>>
+          Local $pattern.subject.7
+      call $call.1: Boolean = @fn2 direct
+        Type Key<Int>
+        Local $left.1.0
+        Type Key<Int>
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: Key<Int>
+        Type Key<Int>
+        VariantPayloadProject Choice<Key<Int>> v2 f0
+          Type Choice<Key<Int>>
+          Local $pattern.subject.8
+      val $left.2.1: Key<Int>
+        Type Key<Int>
+        VariantPayloadProject Choice<Key<Int>> v2 f1
+          Type Choice<Key<Int>>
+          Local $pattern.subject.8
+      val $when.9: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local other
+      val $pattern.subject.10: Choice<Key<Int>>
+        Type Choice<Key<Int>>
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Choice<Key<Int>> v2
+          Type Choice<Key<Int>>
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: Key<Int>
+        Type Key<Int>
+        VariantPayloadProject Choice<Key<Int>> v2 f0
+          Type Choice<Key<Int>>
+          Local $pattern.subject.10
+      val $right.2.1: Key<Int>
+        Type Key<Int>
+        VariantPayloadProject Choice<Key<Int>> v2 f1
+          Type Choice<Key<Int>>
+          Local $pattern.subject.10
+      call $call.2: Boolean = @fn2 direct
+        Type Key<Int>
+        Local $left.2.0
+        Type Key<Int>
+        Local $right.2.0
+      branch bb19 bb20
+        Type Boolean
+        Local $call.2
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+    bb19 logic.rhs.19
+      call $call.4: Boolean = @fn2 direct
+        Type Key<Int>
+        Local $left.2.1
+        Type Key<Int>
+        Local $right.2.1
+      assign $logic.3
+        Type Boolean
+        Local $call.4
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      return
+        Type Boolean
+        Local $logic.3
+  fun pair @fn7(first: Key<Int>, second: Key<Int>) -> Choice<Key<Int>>
+    bb0 entry
+      val $dependency.local.2: Key<Int>
+        Type Key<Int>
+        Local first
+      val $dependency.local.3: Key<Int>
+        Type Key<Int>
+        Local second
+      val $dependency.local.4: Key<Int>
+        Type Key<Int>
+        Local $dependency.local.2
+      val $dependency.local.5: Key<Int>
+        Type Key<Int>
+        Local $dependency.local.3
+      return
+        Type Choice<Key<Int>>
+        VariantConstruct Choice<Key<Int>> v2
+          Type Key<Int>
+          Local $dependency.local.4
+          Type Key<Int>
+          Local $dependency.local.5
+  fun number @fn8(this: Key<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Key<Int>
+          Local this
+  fun init.Key.$c0 @fn9(this: Key<Int>, payload: Int, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Key<Int>
+        Local this
+        Type Int
+        Local payload
+      field_set 1
+        Type Key<Int>
+        Local this
+        Type Int
+        Local number
+      return
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- equals
+  instance mi2 function=@fn3 <- single
+  instance mi3 function=@fn4 <- emptyChoice
+  instance mi4 function=@fn5 <- compareChoices
+  instance mi5 function=@fn7 <- pair
+  instance mi6 function=@fn8 <- number
+  output library

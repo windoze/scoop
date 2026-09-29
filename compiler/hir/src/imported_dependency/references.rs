@@ -56,7 +56,7 @@ impl ImportedCallableReferenceTarget {
 /// A provider-defined invoke with captures evaluated at this creation site.
 #[derive(Debug, Clone)]
 pub struct ImportedCallableReference {
-    pub definition: crate::concrete::CallableReferenceRecord,
+    pub definition: crate::concrete::GeneratedCallableRecord,
     pub parent: ImportedCallableTemplateParent,
     pub owner_type_arguments: Vec<TypeId>,
     pub target: ImportedCallableReferenceTarget,

@@ -3,6 +3,7 @@ use super::*;
 mod bounds;
 mod constructors;
 mod delegates;
+mod equality;
 mod helpers;
 mod initialization;
 mod machine;

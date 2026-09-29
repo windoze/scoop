@@ -1,6 +1,6 @@
 use super::*;
 
-pub type CallableReferenceRecord =
+pub type GeneratedCallableRecord =
     CborIdentityRecord<PersistentGeneratedCallableId, GeneratedCallableKey>;
 
 /// Persistent identity of one concrete callable-reference invoke wrapper.
@@ -8,13 +8,13 @@ pub type CallableReferenceRecord =
 /// the wrapper identity used by downstream stages.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CallableReferenceIdentity {
-    callable: CallableReferenceRecord,
+    callable: GeneratedCallableRecord,
     materialization: CallableMaterialization,
 }
 
 impl CallableReferenceIdentity {
     pub fn from_record(
-        callable: CallableReferenceRecord,
+        callable: GeneratedCallableRecord,
         context: CallableMaterializationContext,
     ) -> Option<Self> {
         if !matches!(
@@ -49,7 +49,7 @@ impl CallableReferenceIdentity {
         })
     }
 
-    pub const fn callable_record(&self) -> &CallableReferenceRecord {
+    pub const fn callable_record(&self) -> &GeneratedCallableRecord {
         &self.callable
     }
 

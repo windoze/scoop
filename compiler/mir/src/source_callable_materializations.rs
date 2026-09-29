@@ -9,6 +9,12 @@ use crate::{CallableSignatureRecord, CallableSignatureSubject, FunctionId};
 
 pub type SourceCallableOdrMemberRecord = CborIdentityRecord<OdrMemberId, OdrMemberKey>;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum SourceCallableOwner {
+    Lexical(Option<SourceCallableOdrMemberRecord>),
+    Exact(crate::ExactOwnerRoot),
+}
+
 /// One callable materialization from LocalConcrete HIR at its MIR function
 /// location.
 ///
@@ -19,7 +25,7 @@ pub type SourceCallableOdrMemberRecord = CborIdentityRecord<OdrMemberId, OdrMemb
 pub struct SourceCallableMaterialization {
     function: FunctionId,
     materialization: CallableMaterialization,
-    odr_member: Option<SourceCallableOdrMemberRecord>,
+    owner: SourceCallableOwner,
     signature: CallableSignatureRecord,
 }
 
@@ -79,7 +85,44 @@ impl SourceCallableMaterialization {
         Ok(Self {
             function,
             materialization,
-            odr_member,
+            owner: SourceCallableOwner::Lexical(odr_member),
+            signature: CallableSignatureRecord::new(subject, signature),
+        })
+    }
+
+    pub fn derived_equality(
+        function: FunctionId,
+        exact: &crate::SourceExactTypeRecord,
+        nominal_group: Option<&crate::SourceNominalSpecializationRecord>,
+        signature: ExactCallableSignature,
+    ) -> Result<Self, SourceCallableMaterializationError> {
+        let generated = scoop_identity::PersistentGeneratedCallableId::from_key(
+            &scoop_identity::GeneratedCallableKey::DerivedEquality {
+                exact_owner: exact.id(),
+            },
+        )
+        .map_err(SourceCallableMaterializationError::GeneratedCallable)?;
+        let owner = crate::ExactOwnerRoot::for_member(
+            exact,
+            nominal_group,
+            OdrMemberRole::CallableBody,
+            OdrMemberDiscriminator::GeneratedCallable(generated),
+        )
+        .map_err(SourceCallableMaterializationError::ExactOwner)?;
+        let subject = match owner.member_record() {
+            Some(member) => CallableSignatureSubject::odr(
+                CallableOdrMemberId::from_key(member.key())
+                    .map_err(SourceCallableMaterializationError::OdrMember)?,
+            ),
+            None => CallableSignatureSubject::strong(CallableOwner::Generated(generated)),
+        };
+        Ok(Self {
+            function,
+            materialization: CallableMaterialization::new(
+                CallableTemplateOwner::Generated(generated),
+                CallableMaterializationContext::NoSubstitution,
+            ),
+            owner: SourceCallableOwner::Exact(owner),
             signature: CallableSignatureRecord::new(subject, signature),
         })
     }
@@ -93,7 +136,17 @@ impl SourceCallableMaterialization {
     }
 
     pub const fn odr_member_record(&self) -> Option<&SourceCallableOdrMemberRecord> {
-        self.odr_member.as_ref()
+        match &self.owner {
+            SourceCallableOwner::Lexical(member) => member.as_ref(),
+            SourceCallableOwner::Exact(owner) => owner.member_record(),
+        }
+    }
+
+    pub const fn exact_owner(&self) -> Option<&crate::ExactOwnerRoot> {
+        match &self.owner {
+            SourceCallableOwner::Lexical(_) => None,
+            SourceCallableOwner::Exact(owner) => Some(owner),
+        }
     }
 
     pub const fn signature_record(&self) -> &CallableSignatureRecord {
@@ -236,6 +289,8 @@ pub enum SourceCallableMaterializationError {
     InvalidInitializationTemplate,
     OdrMember(OdrMemberIdentityError),
     OdrMemberRecord(HashError),
+    GeneratedCallable(scoop_identity::GeneratedCallableIdentityError),
+    ExactOwner(crate::ExactOwnerRootError),
 }
 
 impl std::fmt::Display for SourceCallableMaterializationError {
@@ -256,6 +311,8 @@ impl std::fmt::Display for SourceCallableMaterializationError {
             Self::OdrMemberRecord(error) => {
                 write!(formatter, "cannot derive callable ODR member identity: {error}")
             }
+            Self::GeneratedCallable(error) => write!(formatter, "cannot derive equality identity: {error}"),
+            Self::ExactOwner(error) => error.fmt(formatter),
         }
     }
 }

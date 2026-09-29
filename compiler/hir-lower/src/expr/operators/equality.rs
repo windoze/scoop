@@ -2,6 +2,8 @@ use super::*;
 use crate::expr::members::ImportedMemberSelectionFailure;
 use crate::expr::named_calls::imported_dependency::{ImportedMemberReceiver, ImportedProbeCall};
 
+mod fields;
+
 impl Lowerer {
     /// Finish the left evaluation before any statements produced by the right.
     pub(super) fn lower_equality_rhs(
@@ -55,7 +57,7 @@ impl Lowerer {
                     derived = Some((overload.function, application));
                     candidates.push(overload);
                 }
-                Ok(Some(crate::derived::DerivedEqualityCandidate::Structural {
+                Ok(Some(crate::derived::DerivedEqualityCandidate::TypeOwned {
                     function,
                     application,
                 })) => structural_derived = Some((function, application)),

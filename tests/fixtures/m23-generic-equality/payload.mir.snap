@@ -1,0 +1,344 @@
+Module
+  struct Payload<Key<Int>> (data: Key<Int>, last: Int)
+  class Key<Int> vtable=0 itables=1
+  interface EqualTo<Key<Int>>
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Key<Int>
+        ClassAlloc Key<Int>
+      call @fn6 direct
+        Type Key<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val first: Key<Int>
+        Type Key<Int>
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.2
+        Type Key<Int>
+        ClassAlloc Key<Int>
+      call @fn6 direct
+        Type Key<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val same: Key<Int>
+        Type Key<Int>
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.3
+        Type Key<Int>
+        ClassAlloc Key<Int>
+      call @fn6 direct
+        Type Key<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val other: Key<Int>
+        Type Key<Int>
+        Local $new.3
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local first
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.data: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.last: Int
+        Type Int
+        Local $dependency.argument.1
+      call left: Payload<Key<Int>> = @fn7 direct
+        Type Key<Int>
+        Local $dependency.parameter.data
+        Type Int
+        Local $dependency.parameter.last
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local same
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.data: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.last: Int
+        Type Int
+        Local $dependency.argument.1
+      call right: Payload<Key<Int>> = @fn7 direct
+        Type Key<Int>
+        Local $dependency.parameter.data
+        Type Int
+        Local $dependency.parameter.last
+      val $dependency.argument.0: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local left
+      val $dependency.argument.1: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local right
+      val $dependency.parameter.left: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn3 direct
+        Type Payload<Key<Int>>
+        Local $dependency.parameter.left
+        Type Payload<Key<Int>>
+        Local $dependency.parameter.right
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local left
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local other
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.data: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.last: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.1: Payload<Key<Int>> = @fn7 direct
+        Type Key<Int>
+        Local $dependency.parameter.data
+        Type Int
+        Local $dependency.parameter.last
+      val $dependency.parameter.left: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local $dependency.argument.1
+      call $call.4: Boolean = @fn3 direct
+        Type Payload<Key<Int>>
+        Local $dependency.parameter.left
+        Type Payload<Key<Int>>
+        Local $dependency.parameter.right
+      branch bb3 bb4
+        Type Boolean
+        Local $call.4
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $equality.lhs: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local left
+      val $dependency.argument.0: Key<Int>
+        Type Key<Int>
+        Local same
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.data: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.last: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.5: Payload<Key<Int>> = @fn7 direct
+        Type Key<Int>
+        Local $dependency.parameter.data
+        Type Int
+        Local $dependency.parameter.last
+      call $call.6: Boolean = @fn4 direct
+        Type Payload<Key<Int>>
+        Local $equality.lhs
+        Type Payload<Key<Int>>
+        Local $call.5
+      branch bb5 bb6
+        Type Boolean
+        Local $call.6
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      call $call.7: Boolean = @fn4 direct
+        Type Payload<Key<Int>>
+        Local left
+        Type Payload<Key<Int>>
+        Local right
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.7
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb8 if.merge.8
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun equals @fn2(this: Key<Int>, other: Key<Int>) -> Boolean
+    bb0 entry
+      call $dependency.local.2: Int = @fn5 direct
+        Type Key<Int>
+        Local this
+      call $dependency.local.3: Int = @fn5 direct
+        Type Key<Int>
+        Local other
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun comparePayloads @fn3(left: Payload<Key<Int>>, right: Payload<Key<Int>>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn4 direct
+        Type Payload<Key<Int>>
+        Local left
+        Type Payload<Key<Int>>
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.0 @fn4(this: Payload<Key<Int>>, other: Payload<Key<Int>>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Key<Int>
+        FieldAccess 0
+          Type Payload<Key<Int>>
+          Local this
+        Type Key<Int>
+        FieldAccess 0
+          Type Payload<Key<Int>>
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Payload<Key<Int>>
+            Local this
+          Type Int
+          FieldAccess 1
+            Type Payload<Key<Int>>
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun number @fn5(this: Key<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Key<Int>
+          Local this
+  fun init.Key.$c0 @fn6(this: Key<Int>, payload: Int, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Key<Int>
+        Local this
+        Type Int
+        Local payload
+      field_set 1
+        Type Key<Int>
+        Local this
+        Type Int
+        Local number
+      return
+  fun ctor.Payload.$c1 @fn7(data: Key<Int>, last: Int) -> Payload<Key<Int>> <no-gc>
+    bb0 entry
+      return
+        Type Payload<Key<Int>>
+        StructInit Payload<Key<Int>>
+          Type Key<Int>
+          Local data
+          Type Int
+          Local last
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- equals
+  instance mi2 function=@fn3 <- comparePayloads
+  instance mi3 function=@fn5 <- number
+  output library

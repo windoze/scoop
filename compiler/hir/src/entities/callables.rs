@@ -68,13 +68,12 @@ pub struct MethodApplication {
 }
 
 /// Exact origin of one compiler-derived value-type equality method.
-/// Nominal declarations reuse their owner application; structural Unit/tuple
-/// methods carry their owner type directly because they have no declaration
-/// arena whose identity could stand in for that type.
+/// Local nominal declarations reuse their owner application. Structural and
+/// imported types carry their actual owner type without a local declaration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DerivedEqualityOrigin {
     Nominal(MethodOwnerApplication),
-    Structural(TypeId),
+    TypeOwned(TypeId),
 }
 
 /// One application of a compiler-derived value-type equality method. The

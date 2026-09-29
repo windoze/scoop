@@ -1,0 +1,205 @@
+Module
+  struct LocalKey<T> : EqualTo<LocalKey<T0>>
+    field0 payload: T0
+    field1 number: Int
+    property0 val payload: T0 getter0=storage <stored struct0-field0>
+    property1 val number: Int getter1=storage <stored struct0-field1>
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      IntegerLiteral 42 : Int
+    val local3
+      Local $argument.0 : T0
+    val local4
+      Local $argument.1 : Int
+    val local5
+      StructInit LocalKey : LocalKey<T0>
+        Local $parameter.payload : T0
+        Local $parameter.number : Int
+    val local6
+      Local value : T0
+    val local7
+      IntegerLiteral 42 : Int
+    val local8
+      Local $argument.0 : T0
+    val local9
+      Local $argument.1 : Int
+    val local10
+      StructInit LocalKey : LocalKey<T0>
+        Local $parameter.payload : T0
+        Local $parameter.number : Int
+    val local11
+      Local value : T0
+    val local12
+      IntegerLiteral 1 : Int
+    val local13
+      Local $argument.0 : T0
+    val local14
+      Local $argument.1 : Int
+    val local15
+      StructInit LocalKey : LocalKey<T0>
+        Local $parameter.payload : T0
+        Local $parameter.number : Int
+    val local16
+      Local first : LocalKey<T0>
+    val local17
+      IntegerLiteral 2 : Int
+    val local18
+      Local $dependency.argument.0 : LocalKey<T0>
+    val local19
+      Local $dependency.argument.1 : Int
+    val local20
+      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+        Local $dependency.parameter.data : LocalKey<T0>
+        Local $dependency.parameter.last : Int
+    val local21
+      IntegerLiteral 3 : Int
+    val local22
+      Local $dependency.argument.0 : Payload<LocalKey<T0>>
+    val local23
+      Local $dependency.argument.1 : Int
+    val local24
+      ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+        Local $dependency.parameter.inner : Payload<LocalKey<T0>>
+        Local $dependency.parameter.tag : Int
+    val local25
+      Local same : LocalKey<T0>
+    val local26
+      IntegerLiteral 2 : Int
+    val local27
+      Local $dependency.argument.0 : LocalKey<T0>
+    val local28
+      Local $dependency.argument.1 : Int
+    val local29
+      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+        Local $dependency.parameter.data : LocalKey<T0>
+        Local $dependency.parameter.last : Int
+    val local30
+      IntegerLiteral 3 : Int
+    val local31
+      Local $dependency.argument.0 : Payload<LocalKey<T0>>
+    val local32
+      Local $dependency.argument.1 : Int
+    val local33
+      ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+        Local $dependency.parameter.inner : Payload<LocalKey<T0>>
+        Local $dependency.parameter.tag : Int
+    val local34
+      Local left : Nested<LocalKey<T0>>
+    val local35
+      Local right : Nested<LocalKey<T0>>
+    val local36
+      Local $dependency.argument.0 : Nested<LocalKey<T0>>
+    val local37
+      Local $dependency.argument.1 : Nested<LocalKey<T0>>
+    val local38
+      ImportedGenericCall compareNested<LocalKey<T0>> : Boolean
+        Local $dependency.parameter.left : Nested<LocalKey<T0>>
+        Local $dependency.parameter.right : Nested<LocalKey<T0>>
+    if
+      Binary Or : Boolean
+        PrimitiveUnary BooleanNot : Boolean
+          Local $dependency.receiver : Boolean
+        Unary Not : Boolean
+          MethodCall Nested<LocalKey<T>>.equals <derived> : Boolean
+            Local left : Nested<LocalKey<T0>>
+            Local right : Nested<LocalKey<T0>>
+      return
+        IntegerLiteral 1 : Int
+    val local47
+      Local left : Nested<LocalKey<T0>>
+    val local39
+      Local other : LocalKey<T0>
+    val local40
+      IntegerLiteral 2 : Int
+    val local41
+      Local $dependency.argument.0 : LocalKey<T0>
+    val local42
+      Local $dependency.argument.1 : Int
+    val local43
+      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+        Local $dependency.parameter.data : LocalKey<T0>
+        Local $dependency.parameter.last : Int
+    val local44
+      IntegerLiteral 3 : Int
+    val local45
+      Local $dependency.argument.0 : Payload<LocalKey<T0>>
+    val local46
+      Local $dependency.argument.1 : Int
+    if
+      MethodCall Nested<LocalKey<T>>.equals <derived> : Boolean
+        Local $equality.lhs : Nested<LocalKey<T0>>
+        ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+          Local $dependency.parameter.inner : Payload<LocalKey<T0>>
+          Local $dependency.parameter.tag : Int
+      return
+        IntegerLiteral 2 : Int
+    val local56
+      Local left : Nested<LocalKey<T0>>
+    val local48
+      Local same : LocalKey<T0>
+    val local49
+      IntegerLiteral 3 : Int
+    val local50
+      Local $dependency.argument.0 : LocalKey<T0>
+    val local51
+      Local $dependency.argument.1 : Int
+    val local52
+      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+        Local $dependency.parameter.data : LocalKey<T0>
+        Local $dependency.parameter.last : Int
+    val local53
+      IntegerLiteral 3 : Int
+    val local54
+      Local $dependency.argument.0 : Payload<LocalKey<T0>>
+    val local55
+      Local $dependency.argument.1 : Int
+    if
+      MethodCall Nested<LocalKey<T>>.equals <derived> : Boolean
+        Local $equality.lhs : Nested<LocalKey<T0>>
+        ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+          Local $dependency.parameter.inner : Payload<LocalKey<T0>>
+          Local $dependency.parameter.tag : Int
+      return
+        IntegerLiteral 3 : Int
+    val local65
+      Local left : Nested<LocalKey<T0>>
+    val local57
+      Local same : LocalKey<T0>
+    val local58
+      IntegerLiteral 2 : Int
+    val local59
+      Local $dependency.argument.0 : LocalKey<T0>
+    val local60
+      Local $dependency.argument.1 : Int
+    val local61
+      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+        Local $dependency.parameter.data : LocalKey<T0>
+        Local $dependency.parameter.last : Int
+    val local62
+      IntegerLiteral 4 : Int
+    val local63
+      Local $dependency.argument.0 : Payload<LocalKey<T0>>
+    val local64
+      Local $dependency.argument.1 : Int
+    if
+      MethodCall Nested<LocalKey<T>>.equals <derived> : Boolean
+        Local $equality.lhs : Nested<LocalKey<T0>>
+        ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+          Local $dependency.parameter.inner : Payload<LocalKey<T0>>
+          Local $dependency.parameter.tag : Int
+      return
+        IntegerLiteral 4 : Int
+    return
+      IntegerLiteral 42 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

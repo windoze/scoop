@@ -10,18 +10,23 @@ pub(super) fn project(
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
 ) -> Result<mir::ParamFreeMirCallableBindingV1, Error> {
-    let implementation = CallableOwner::Generated(callable);
+    let materialization = input
+        .module()
+        .meta
+        .source_callable_materializations
+        .get_by_materialization(local.functions[source].materialization)
+        .ok_or(Error::MissingMirMaterialization(callable))?;
+    let subject = materialization.signature_record().subject();
+    let implementation =
+        CallableDefinitionOwner::try_from(subject).map_err(|_| Error::InvalidRole(callable))?;
     let roots = input.materialization().callable_roots();
     let signatures = &input.module().meta.callable_signatures;
 
     let position = roots
-        .binary_search_by(|root| {
-            root.subject()
-                .compare_sort_key(mir::CallableSignatureSubject::Strong(implementation))
-        })
+        .binary_search_by(|root| root.subject().compare_sort_key(subject))
         .map_err(|_| Error::MissingMirMaterialization(callable))?;
     let actual = signatures
-        .get(mir::CallableSignatureSubject::Strong(implementation))
+        .get(subject)
         .ok_or(Error::MissingSignature(callable))?;
 
     let expected = crate::source_callables::exact_function_signature(local, source);
@@ -45,7 +50,7 @@ pub(super) fn project(
             callable,
             role: key.clone(),
         },
-        StrongCallableDefinitionOwner::GeneratedCallable(callable),
+        implementation,
         mir::MirBridgeCallableSignatureV1::new(expected.clone(), gc),
         mir::MirBridgeCallableSignatureV1::new(expected, lowered_gc),
         mir::MirCallableLoweringRoleV1::DerivedEquality { owner: exact_owner },

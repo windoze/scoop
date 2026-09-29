@@ -162,9 +162,8 @@ impl Lowerer {
                         crate::derived::DerivedEqualityCandidate::Nominal {
                             application, ..
                         }
-                        | crate::derived::DerivedEqualityCandidate::Structural {
-                            application,
-                            ..
+                        | crate::derived::DerivedEqualityCandidate::TypeOwned {
+                            application, ..
                         } => application,
                     };
                     hir::MethodCallee::DerivedEquality(application)

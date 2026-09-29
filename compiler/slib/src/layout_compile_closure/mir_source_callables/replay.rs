@@ -83,7 +83,8 @@ pub(super) fn validate_sources(
                 validate_shared_mir_equality(
                     *source,
                     dependencies,
-                    parts.mir_core.strong_callable_bridges(),
+                    parts.mir_foundation,
+                    mir.types(),
                     mir.callables(),
                 )
                 .map_err(|error| Error::Equality(Box::new(error)))?;

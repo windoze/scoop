@@ -1,0 +1,905 @@
+Module
+  struct Wide<Tracked<Int>> (first: Tracked<Int>, second: Tracked<Int>, third: Tracked<Int>)
+  enum Choice<Tracked<Int>>
+    Empty()
+    Value(_0: Tracked<Int>)
+    Pair(_0: Tracked<Int>, _1: Tracked<Int>)
+  class Trace<Int> vtable=0 itables=0
+  class Tracked<Int> vtable=0 itables=1
+  interface EqualTo<Tracked<Int>>
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.visits: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Trace<Int>
+        ClassAlloc Trace<Int>
+      call @fn14 direct
+        Type Trace<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.visits
+      val trace: Trace<Int>
+        Type Trace<Int>
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Trace<Int>
+        Type Trace<Int>
+        Local trace
+      val $dependency.argument.2: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace<Int>
+        Type Trace<Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.2
+      val $dependency.parameter.digit: Int
+        Type Int
+        Local $dependency.argument.3
+      assign $new.2
+        Type Tracked<Int>
+        ClassAlloc Tracked<Int>
+      call @fn15 direct
+        Type Tracked<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.payload
+        Type Trace<Int>
+        Local $dependency.parameter.trace
+        Type Int
+        Local $dependency.parameter.number
+        Type Int
+        Local $dependency.parameter.digit
+      val first: Tracked<Int>
+        Type Tracked<Int>
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Trace<Int>
+        Type Trace<Int>
+        Local trace
+      val $dependency.argument.2: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.3: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace<Int>
+        Type Trace<Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.2
+      val $dependency.parameter.digit: Int
+        Type Int
+        Local $dependency.argument.3
+      assign $new.3
+        Type Tracked<Int>
+        ClassAlloc Tracked<Int>
+      call @fn15 direct
+        Type Tracked<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.payload
+        Type Trace<Int>
+        Local $dependency.parameter.trace
+        Type Int
+        Local $dependency.parameter.number
+        Type Int
+        Local $dependency.parameter.digit
+      val second: Tracked<Int>
+        Type Tracked<Int>
+        Local $new.3
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Trace<Int>
+        Type Trace<Int>
+        Local trace
+      val $dependency.argument.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.argument.3: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace<Int>
+        Type Trace<Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.2
+      val $dependency.parameter.digit: Int
+        Type Int
+        Local $dependency.argument.3
+      assign $new.4
+        Type Tracked<Int>
+        ClassAlloc Tracked<Int>
+      call @fn15 direct
+        Type Tracked<Int>
+        Local $new.4
+        Type Int
+        Local $dependency.parameter.payload
+        Type Trace<Int>
+        Local $dependency.parameter.trace
+        Type Int
+        Local $dependency.parameter.number
+        Type Int
+        Local $dependency.parameter.digit
+      val third: Tracked<Int>
+        Type Tracked<Int>
+        Local $new.4
+      val $dependency.argument.0: Tracked<Int>
+        Type Tracked<Int>
+        Local first
+      val $dependency.argument.1: Tracked<Int>
+        Type Tracked<Int>
+        Local second
+      val $dependency.argument.2: Tracked<Int>
+        Type Tracked<Int>
+        Local third
+      val $dependency.parameter.first: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.2
+      call left: Wide<Tracked<Int>> = @fn16 direct
+        Type Tracked<Int>
+        Local $dependency.parameter.first
+        Type Tracked<Int>
+        Local $dependency.parameter.second
+        Type Tracked<Int>
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Tracked<Int>
+        Type Tracked<Int>
+        Local first
+      val $dependency.argument.1: Tracked<Int>
+        Type Tracked<Int>
+        Local third
+      val $dependency.argument.2: Tracked<Int>
+        Type Tracked<Int>
+        Local third
+      val $dependency.parameter.first: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.2
+      call other: Wide<Tracked<Int>> = @fn16 direct
+        Type Tracked<Int>
+        Local $dependency.parameter.first
+        Type Tracked<Int>
+        Local $dependency.parameter.second
+        Type Tracked<Int>
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Wide<Tracked<Int>>
+        Type Wide<Tracked<Int>>
+        Local left
+      val $dependency.argument.1: Wide<Tracked<Int>>
+        Type Wide<Tracked<Int>>
+        Local other
+      val $dependency.parameter.left: Wide<Tracked<Int>>
+        Type Wide<Tracked<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Wide<Tracked<Int>>
+        Type Wide<Tracked<Int>>
+        Local $dependency.argument.1
+      call $call.5: Boolean = @fn3 direct
+        Type Wide<Tracked<Int>>
+        Local $dependency.parameter.left
+        Type Wide<Tracked<Int>>
+        Local $dependency.parameter.right
+      branch bb1 bb2
+        Type Boolean
+        Local $call.5
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.receiver: Int = @fn4 direct
+        Type Trace<Int>
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $place.1: Trace<Int>
+        Type Trace<Int>
+        Local trace
+      call @fn5 direct
+        Type Trace<Int>
+        Local $place.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $call.6: Boolean = @fn6 direct
+        Type Wide<Tracked<Int>>
+        Local left
+        Type Wide<Tracked<Int>>
+        Local left
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.6
+    bb6 if.then.6
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      call $dependency.receiver: Int = @fn4 direct
+        Type Trace<Int>
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=123 bits=0x0000007b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $shortCircuit.2
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      val $place.3: Trace<Int>
+        Type Trace<Int>
+        Local trace
+      call @fn5 direct
+        Type Trace<Int>
+        Local $place.3
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Tracked<Int>
+        Type Tracked<Int>
+        Local first
+      val $dependency.argument.1: Tracked<Int>
+        Type Tracked<Int>
+        Local second
+      val $dependency.parameter.first: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.1
+      call $equality.lhs: Choice<Tracked<Int>> = @fn7 direct
+        Type Tracked<Int>
+        Local $dependency.parameter.first
+        Type Tracked<Int>
+        Local $dependency.parameter.second
+      val $dependency.argument.0: Tracked<Int>
+        Type Tracked<Int>
+        Local first
+      val $dependency.parameter.value: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.0
+      call $call.7: Choice<Tracked<Int>> = @fn9 direct
+        Type Tracked<Int>
+        Local $dependency.parameter.value
+      call $call.8: Boolean = @fn8 direct
+        Type Choice<Tracked<Int>>
+        Local $equality.lhs
+        Type Choice<Tracked<Int>>
+        Local $call.7
+      branch bb11 bb12
+        Type Boolean
+        Local $call.8
+    bb11 if.then.11
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      call $dependency.receiver: Int = @fn4 direct
+        Type Trace<Int>
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $shortCircuit.4
+    bb14 if.then.14
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb15 if.merge.15
+      val $dependency.argument.0: Tracked<Int>
+        Type Tracked<Int>
+        Local first
+      val $dependency.argument.1: Tracked<Int>
+        Type Tracked<Int>
+        Local second
+      val $dependency.parameter.first: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.1
+      call $dependency.argument.0: Choice<Tracked<Int>> = @fn7 direct
+        Type Tracked<Int>
+        Local $dependency.parameter.first
+        Type Tracked<Int>
+        Local $dependency.parameter.second
+      val $dependency.argument.0: Tracked<Int>
+        Type Tracked<Int>
+        Local first
+      val $dependency.argument.1: Tracked<Int>
+        Type Tracked<Int>
+        Local third
+      val $dependency.parameter.first: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.argument.1
+      call $dependency.argument.1: Choice<Tracked<Int>> = @fn7 direct
+        Type Tracked<Int>
+        Local $dependency.parameter.first
+        Type Tracked<Int>
+        Local $dependency.parameter.second
+      val $dependency.parameter.left: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $dependency.argument.1
+      call $call.9: Boolean = @fn10 direct
+        Type Choice<Tracked<Int>>
+        Local $dependency.parameter.left
+        Type Choice<Tracked<Int>>
+        Local $dependency.parameter.right
+      branch bb16 bb17
+        Type Boolean
+        Local $call.9
+    bb16 if.then.16
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb18
+    bb17 if.else.17
+      call $dependency.receiver: Int = @fn4 direct
+        Type Trace<Int>
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $shortCircuit.5
+    bb19 if.then.19
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb20 if.merge.20
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun equals @fn2(this: Tracked<Int>, other: Tracked<Int>) -> Boolean
+    bb0 entry
+      call $call.1: Trace<Int> = @fn11 direct
+        Type Tracked<Int>
+        Local this
+      call $dependency.local.2: Int = @fn4 direct
+        Type Trace<Int>
+        Local $call.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      call $dependency.local.6: Int = @fn12 direct
+        Type Tracked<Int>
+        Local this
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call $call.2: Trace<Int> = @fn11 direct
+        Type Tracked<Int>
+        Local this
+      call @fn5 direct
+        Type Trace<Int>
+        Local $call.2
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      call $dependency.local.8: Int = @fn13 direct
+        Type Tracked<Int>
+        Local this
+      call $dependency.local.9: Int = @fn13 direct
+        Type Tracked<Int>
+        Local other
+      val $dependency.local.10: Int
+        Type Int
+        Local $dependency.local.9
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.8
+          Type Int
+          Local $dependency.local.10
+  fun compareWide @fn3(left: Wide<Tracked<Int>>, right: Wide<Tracked<Int>>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn6 direct
+        Type Wide<Tracked<Int>>
+        Local left
+        Type Wide<Tracked<Int>>
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun visits @fn4(this: Trace<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Trace<Int>
+          Local this
+  fun visits @fn5(this: Trace<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun $derived.equals.0 @fn6(this: Wide<Tracked<Int>>, other: Wide<Tracked<Int>>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Tracked<Int>
+        FieldAccess 0
+          Type Wide<Tracked<Int>>
+          Local this
+        Type Tracked<Int>
+        FieldAccess 0
+          Type Wide<Tracked<Int>>
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn2 direct
+        Type Tracked<Int>
+        FieldAccess 1
+          Type Wide<Tracked<Int>>
+          Local this
+        Type Tracked<Int>
+        FieldAccess 1
+          Type Wide<Tracked<Int>>
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.2
+    bb4 logic.rhs.4
+      call $call.5: Boolean = @fn2 direct
+        Type Tracked<Int>
+        FieldAccess 2
+          Type Wide<Tracked<Int>>
+          Local this
+        Type Tracked<Int>
+        FieldAccess 2
+          Type Wide<Tracked<Int>>
+          Local other
+      assign $logic.4
+        Type Boolean
+        Local $call.5
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.4
+  fun pair @fn7(first: Tracked<Int>, second: Tracked<Int>) -> Choice<Tracked<Int>>
+    bb0 entry
+      val $dependency.local.2: Tracked<Int>
+        Type Tracked<Int>
+        Local first
+      val $dependency.local.3: Tracked<Int>
+        Type Tracked<Int>
+        Local second
+      val $dependency.local.4: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.local.2
+      val $dependency.local.5: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.local.3
+      return
+        Type Choice<Tracked<Int>>
+        VariantConstruct Choice<Tracked<Int>> v2
+          Type Tracked<Int>
+          Local $dependency.local.4
+          Type Tracked<Int>
+          Local $dependency.local.5
+  fun $derived.equals.1 @fn8(this: Choice<Tracked<Int>>, other: Choice<Tracked<Int>>) -> Boolean
+    bb0 entry
+      val $when.1: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local this
+      val $pattern.subject.2: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v0
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local other
+      val $pattern.subject.4: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v0
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v1
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Tracked<Int>
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v1 f0
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.5
+      val $when.6: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local other
+      val $pattern.subject.7: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v1
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v2
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Tracked<Int>
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v1 f0
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.7
+      call $call.1: Boolean = @fn2 direct
+        Type Tracked<Int>
+        Local $left.1.0
+        Type Tracked<Int>
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: Tracked<Int>
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f0
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.8
+      val $left.2.1: Tracked<Int>
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f1
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.8
+      val $when.9: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local other
+      val $pattern.subject.10: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v2
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: Tracked<Int>
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f0
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.10
+      val $right.2.1: Tracked<Int>
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f1
+          Type Choice<Tracked<Int>>
+          Local $pattern.subject.10
+      call $call.2: Boolean = @fn2 direct
+        Type Tracked<Int>
+        Local $left.2.0
+        Type Tracked<Int>
+        Local $right.2.0
+      branch bb19 bb20
+        Type Boolean
+        Local $call.2
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+    bb19 logic.rhs.19
+      call $call.4: Boolean = @fn2 direct
+        Type Tracked<Int>
+        Local $left.2.1
+        Type Tracked<Int>
+        Local $right.2.1
+      assign $logic.3
+        Type Boolean
+        Local $call.4
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      return
+        Type Boolean
+        Local $logic.3
+  fun single @fn9(value: Tracked<Int>) -> Choice<Tracked<Int>>
+    bb0 entry
+      val $dependency.local.1: Tracked<Int>
+        Type Tracked<Int>
+        Local value
+      val $dependency.local.2: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.local.1
+      return
+        Type Choice<Tracked<Int>>
+        VariantConstruct Choice<Tracked<Int>> v1
+          Type Tracked<Int>
+          Local $dependency.local.2
+  fun compareChoices @fn10(left: Choice<Tracked<Int>>, right: Choice<Tracked<Int>>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn8 direct
+        Type Choice<Tracked<Int>>
+        Local left
+        Type Choice<Tracked<Int>>
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun trace @fn11(this: Tracked<Int>) -> Trace<Int>
+    bb0 entry
+      return
+        Type Trace<Int>
+        FieldAccess 1
+          Type Tracked<Int>
+          Local this
+  fun digit @fn12(this: Tracked<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 3
+          Type Tracked<Int>
+          Local this
+  fun number @fn13(this: Tracked<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Tracked<Int>
+          Local this
+  fun init.Trace.$c0 @fn14(this: Trace<Int>, visits: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace<Int>
+        Local this
+        Type Int
+        Local visits
+      return
+  fun init.Tracked.$c1 @fn15(this: Tracked<Int>, payload: Int, trace: Trace<Int>, number: Int, digit: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Tracked<Int>
+        Local this
+        Type Int
+        Local payload
+      field_set 1
+        Type Tracked<Int>
+        Local this
+        Type Trace<Int>
+        Local trace
+      field_set 2
+        Type Tracked<Int>
+        Local this
+        Type Int
+        Local number
+      field_set 3
+        Type Tracked<Int>
+        Local this
+        Type Int
+        Local digit
+      return
+  fun ctor.Wide.$c2 @fn16(first: Tracked<Int>, second: Tracked<Int>, third: Tracked<Int>) -> Wide<Tracked<Int>> <no-gc>
+    bb0 entry
+      return
+        Type Wide<Tracked<Int>>
+        StructInit Wide<Tracked<Int>>
+          Type Tracked<Int>
+          Local first
+          Type Tracked<Int>
+          Local second
+          Type Tracked<Int>
+          Local third
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- equals
+  instance mi2 function=@fn3 <- compareWide
+  instance mi3 function=@fn4 <- visits
+  instance mi4 function=@fn5 <- visits
+  instance mi5 function=@fn7 <- pair
+  instance mi6 function=@fn9 <- single
+  instance mi7 function=@fn10 <- compareChoices
+  instance mi8 function=@fn11 <- trace
+  instance mi9 function=@fn12 <- digit
+  instance mi10 function=@fn13 <- number
+  output library

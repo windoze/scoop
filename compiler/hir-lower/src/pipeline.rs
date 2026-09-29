@@ -362,6 +362,7 @@ impl Lowerer {
             return_inference: None,
             current_fn_name: String::new(),
             current_source_context: None,
+            derived_expression_origin: None,
             suspension_contexts: vec![SuspensionContext::Forbidden(
                 ForbiddenSuspendContext::TopLevel,
             )],

@@ -40,7 +40,7 @@ impl super::ImportedDependencySelectionPlan {
     pub fn callable_reference_definition(
         &self,
         invoke: scoop_identity::PersistentGeneratedCallableId,
-    ) -> Option<&crate::concrete::CallableReferenceRecord> {
+    ) -> Option<&crate::concrete::GeneratedCallableRecord> {
         self.catalog.reference_invokes.get(&invoke)
     }
 

@@ -1,0 +1,15 @@
+package consumer.equality
+
+import templates.equality.*
+
+public fun <T> exercise(value: T): Int {
+    val left = Counter<T>(42)
+    val same = Counter<T>(42)
+    val other = Counter<T>(1)
+    if (!compareCounters(left, same)) { return 1 }
+    if (compareCounters(left, other)) { return 2 }
+    if (left != same || left == other) { return 3 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

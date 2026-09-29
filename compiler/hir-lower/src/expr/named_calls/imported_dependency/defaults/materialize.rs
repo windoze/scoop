@@ -413,7 +413,7 @@ impl Lowerer {
                 receiver: Box::new(
                     self.materialize_imported_default_expression(receiver, context)?,
                 ),
-                callee: self.materialize_imported_method_callee(callee, span, context)?,
+                callee: self.materialize_imported_method_callee(callee, origin, context)?,
                 args: self.materialize_imported_default_expressions(arguments, context)?,
             },
             Kind::PrimitiveBinary { kind, lhs, rhs } => hir::ExprKind::PrimitiveBinary {

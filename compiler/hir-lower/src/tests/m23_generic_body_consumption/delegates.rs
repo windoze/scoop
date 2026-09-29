@@ -279,6 +279,7 @@ fn imported_initializer_closures_keep_the_initialization_materialization() {
         ("initializer-local-closure", 2, 0),
     ] {
         with_provider_consumer(&source("provider"), &source(case), |output, _, foundation, _, _| {
+            let materializations = hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
             let local = output.output().local.module();
             assert_eq!(local.initialization_units.len(), 1);
             let unit = local
@@ -345,7 +346,7 @@ fn imported_initializer_closures_keep_the_initialization_materialization() {
                     source.identity.clone(), span, context.key(),
                 ).unwrap();
                 foundation.validate_executable_evaluation_origin(
-                    source.identity.cone(), position.root, &origin,
+                    source.identity.cone(), position.root, &origin, &materializations,
                 ).unwrap_or_else(|error| panic!(
                     "{case} {position:?} {:?} {:?}: {error:?}",
                     occurrence.expression.kind, context.key(),

@@ -201,6 +201,13 @@ fn project_functions_and_constructors(
             HirFoundationTable::GeneratedCallable,
         )?;
     }
+    for record in &local.generated_callable_identities {
+        insert_identity(
+            &mut generated,
+            record,
+            HirFoundationTable::GeneratedCallable,
+        )?;
+    }
 
     foundation.set_functions(functions)?;
     foundation.set_generic_functions(generic_functions)?;

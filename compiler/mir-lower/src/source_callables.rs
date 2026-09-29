@@ -19,6 +19,31 @@ impl SourceCallableRegistry {
     ) {
         let declaration = &module.functions[source];
         let signature = exact_function_signature(module, source);
+        if let hir::CallableTemplateOwner::Generated(generated) =
+            declaration.materialization.template()
+            && module.generated_callable_identities.iter().any(|record| {
+                record.id() == generated
+                    && matches!(
+                        record.key(),
+                        hir::GeneratedCallableKey::DerivedEquality { .. }
+                    )
+            })
+        {
+            let owner = declaration
+                .receiver
+                .value_type()
+                .expect("derived equality has its exact owner as receiver");
+            let entry = mir::SourceCallableMaterialization::derived_equality(
+                function,
+                &module.exact_type_identities[owner],
+                module.exact_type_identities.nominal_specialization(owner),
+                signature,
+            )
+            .expect("derived equality retains its exact type ownership");
+            debug_assert_eq!(entry.materialization(), declaration.materialization);
+            self.entries.push(entry);
+            return;
+        }
         self.record(module, function, declaration.materialization, signature);
     }
 

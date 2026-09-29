@@ -42,6 +42,7 @@ impl Concretizer<'_> {
 pub(super) struct BuiltCallableIdentities {
     pub(super) default_local_values: Vec<concrete::DefaultLocalValueScope>,
     pub(super) callable_applications: concrete::CallableApplicationIdentities,
+    pub(super) generated_callable_identities: Vec<concrete::GeneratedCallableRecord>,
     pub(super) callback_applications: concrete::CallbackApplicationIdentities,
     pub(super) function_materializations: Vec<CallableMaterialization>,
     pub(super) class_constructor_materializations: Vec<CallableMaterialization>,
@@ -63,6 +64,10 @@ struct CallableIdentityBuilder<'a> {
     callback_applications: Vec<concrete::CallbackApplicationRecord>,
     callback_application_by_key: HashMap<CallbackApplicationKey, PersistentCallbackApplicationId>,
     foreign_callback_applications: Vec<Option<PersistentCallbackApplicationId>>,
+    generated_callable_identities: std::collections::BTreeMap<
+        scoop_identity::PersistentGeneratedCallableId,
+        concrete::GeneratedCallableRecord,
+    >,
 }
 
 impl<'a> CallableIdentityBuilder<'a> {
@@ -123,6 +128,7 @@ impl<'a> CallableIdentityBuilder<'a> {
             callback_applications: Vec::new(),
             callback_application_by_key: HashMap::new(),
             foreign_callback_applications: vec![None; concretizer.foreign_callback_slots.len()],
+            generated_callable_identities: std::collections::BTreeMap::new(),
         }
     }
 
@@ -186,6 +192,10 @@ impl<'a> CallableIdentityBuilder<'a> {
         BuiltCallableIdentities {
             default_local_values,
             callable_applications,
+            generated_callable_identities: self
+                .generated_callable_identities
+                .into_values()
+                .collect(),
             callback_applications,
             function_materializations,
             class_constructor_materializations,
@@ -316,7 +326,7 @@ impl<'a> CallableIdentityBuilder<'a> {
                 };
                 CallableMaterialization::new(CallableTemplateOwner::Generated(record.id()), context)
             }
-            export::HirFunctionIdentity::DerivedEquality(applications) => {
+            export::HirFunctionIdentity::DerivedEquality(_) => {
                 let exact_owner = self.exact_method_owner(match key {
                     FunctionKey::Method { owner, .. } => owner,
                     FunctionKey::Free { .. }
@@ -325,19 +335,16 @@ impl<'a> CallableIdentityBuilder<'a> {
                         panic!("derived equality is always an exact-owner method")
                     }
                 });
-                let record = applications
-                    .iter()
-                    .map(export::HirDerivedEqualityFunctionIdentity::record)
-                    .find(|record| {
-                        matches!(
-                            record.key(),
-                            GeneratedCallableKey::DerivedEquality { exact_owner: candidate }
-                                if *candidate == exact_owner
-                        )
-                    })
-                    .expect("a concrete derived equality retains its exact generated template");
+                let record = CborIdentityRecord::from_key(GeneratedCallableKey::DerivedEquality {
+                    exact_owner,
+                })
+                .expect("a derived equality has its complete exact owner");
+                let id = record.id();
+                self.generated_callable_identities
+                    .entry(id)
+                    .or_insert(record);
                 CallableMaterialization::new(
-                    CallableTemplateOwner::Generated(record.id()),
+                    CallableTemplateOwner::Generated(id),
                     CallableMaterializationContext::NoSubstitution,
                 )
             }

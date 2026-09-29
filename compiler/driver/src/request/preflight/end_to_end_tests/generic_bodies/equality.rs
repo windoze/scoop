@@ -1,0 +1,25 @@
+#[test]
+fn generic_derived_equality_republishes_and_executes() {
+    super::members::check_fixture_cases(
+        "m23-generic-equality",
+        &[
+            "struct",
+            "payload",
+            "enum",
+            "nested",
+            "overloads",
+            "empty",
+            "order",
+            "defaults",
+        ],
+        &[
+            "bad-reference",
+            "bad-enum",
+            "bad-extension",
+            "bad-static-type",
+            "bad-exact-type",
+            "bad-no-gc",
+        ],
+        "downstream",
+    );
+}

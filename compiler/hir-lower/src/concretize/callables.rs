@@ -303,6 +303,10 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::Callable {
         let application = self.source.derived_equality_applications[source].clone();
+        let owner_ty = self.lower_type(application.owner_ty, substitution);
+        if let Some(&function) = self.derived_functions.get(&owner_ty) {
+            return concrete::Callable::Function(function);
+        }
         match application.origin {
             export::DerivedEqualityOrigin::Nominal(owner) => {
                 let owner = self.lower_method_owner(owner, substitution);
@@ -311,20 +315,14 @@ impl Concretizer<'_> {
                     owner,
                     specialization: MethodRequest::Plain,
                 };
-                if !self.derived_bodies.contains_key(&key) {
-                    let body = self.lower_body(&application.body, substitution);
-                    self.derived_bodies.insert(key.clone(), body);
-                }
-                concrete::Callable::Function(self.request_function_key(key))
+                let function = self.request_function_key(key.clone());
+                self.derived_functions.insert(owner_ty, function);
+                let body = self.lower_body(&application.body, substitution);
+                self.derived_bodies.insert(key, body);
+                concrete::Callable::Function(function)
             }
-            export::DerivedEqualityOrigin::Structural(source_owner_ty) => {
+            export::DerivedEqualityOrigin::TypeOwned(source_owner_ty) => {
                 debug_assert_eq!(source_owner_ty, application.owner_ty);
-                let owner_ty = self.lower_type(application.owner_ty, substitution);
-                let cache_key = (source, owner_ty);
-                if let Some(&function) = self.structural_derived_functions.get(&cache_key) {
-                    return concrete::Callable::Function(function);
-                }
-
                 // Reserve and publish the identity before lowering the body,
                 // so nested structural applications can refer back to it
                 // without requiring a downstream recursion heuristic.
@@ -332,12 +330,11 @@ impl Concretizer<'_> {
                 self.function_slots.push(None);
                 self.function_keys.push(FunctionKey::Method {
                     source: application.function,
-                    owner: concrete::MethodOwner::Structural(owner_ty),
+                    owner: concrete::MethodOwner::TypeOwned(owner_ty),
                     specialization: MethodRequest::Plain,
                 });
                 let function = concrete::FunctionId::from_raw(raw.into());
-                self.structural_derived_functions
-                    .insert(cache_key, function);
+                self.derived_functions.insert(owner_ty, function);
 
                 let (body, local_map) = self.lower_body(&application.body, substitution);
                 let source_function = &self.source.functions[application.function];

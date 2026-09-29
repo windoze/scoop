@@ -2,8 +2,8 @@
 
 use scoop_hir as hir;
 use scoop_identity::{
-    CallableMaterializationContext, CallableOwner, CallableTemplateOwner, GeneratedCallableKey,
-    PersistentGeneratedCallableId, StrongCallableDefinitionOwner, ValidatedIdentityGraph,
+    CallableDefinitionOwner, CallableMaterializationContext, CallableTemplateOwner,
+    GeneratedCallableKey, PersistentGeneratedCallableId, ValidatedIdentityGraph,
 };
 use scoop_mir as mir;
 use scoop_wire::WirePath;
@@ -35,7 +35,7 @@ pub fn lower_derived_equality_bindings(
             continue;
         }
         if function.materialization.context() != CallableMaterializationContext::NoSubstitution {
-            return Err(Error::OdrRequired(callable));
+            return Err(Error::InvalidMaterialization(callable));
         }
 
         scoop_wire::allocation::try_reserve(&mut records, 1, &WirePath::root())?;

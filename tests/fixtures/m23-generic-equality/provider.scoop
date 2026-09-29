@@ -1,0 +1,59 @@
+package templates.equality
+
+public struct Counter<T>(val number: Int)
+
+public fun <T> compareCounters(left: Counter<T>, right: Counter<T>): Boolean = left == right
+
+public interface EqualTo<T> {
+    public operator fun equals(other: T): Boolean
+}
+
+public class Key<T> public constructor(public val payload: T, public val number: Int) : EqualTo<Key<T>> {
+    public override operator fun equals(other: Key<T>): Boolean = this.number == other.number
+}
+
+public struct Payload<T>(val data: T, val last: Int)
+public struct Nested<T>(val inner: Payload<T>, val tag: Int)
+public struct Empty<T>()
+public struct Wide<T>(val first: T, val second: T, val third: T)
+
+public enum Choice<T> {
+    Empty,
+    Value(T),
+    Pair(T, T)
+}
+
+public fun <T> emptyChoice(): Choice<T> = Choice.Empty
+public fun <T> single(value: T): Choice<T> = Choice.Value(value)
+public fun <T> pair(first: T, second: T): Choice<T> = Choice.Pair(first, second)
+
+public fun <T : EqualTo<T>> comparePayloads(left: Payload<T>, right: Payload<T>): Boolean = left == right
+public fun <T : EqualTo<T>> compareNested(left: Nested<T>, right: Nested<T>): Boolean = left == right
+public fun <T : EqualTo<T>> compareChoices(left: Choice<T>, right: Choice<T>): Boolean = left == right
+public fun <T : EqualTo<T>> compareWide(left: Wide<T>, right: Wide<T>): Boolean = left == right
+
+public struct Manual<T>(val payload: T, val number: Int) {
+    public operator fun equals(other: Manual<T>): Boolean = this.number == other.number
+}
+
+public struct Different<T>(val number: Int) {
+    public operator fun equals(other: Int): Boolean = this.number == other
+}
+
+public class Trace<T> public constructor(public var visits: Int)
+public class Tracked<T> public constructor(
+    public val payload: T,
+    public val trace: Trace<T>,
+    public val number: Int,
+    public val digit: Int
+) : EqualTo<Tracked<T>> {
+    public override operator fun equals(other: Tracked<T>): Boolean {
+        this.trace.visits = this.trace.visits * 10 + this.digit
+        return this.number == other.number
+    }
+}
+
+public fun <T> defaultCompare(left: Counter<T>, right: Counter<T>, same: Boolean = left == right): Int {
+    if (same) { return 42 }
+    return 0
+}

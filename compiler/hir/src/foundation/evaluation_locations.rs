@@ -2,7 +2,7 @@
 
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner, ConeIdentity,
-    EvaluationOrigin, PersistentSourceContextId,
+    EvaluationOrigin, GeneratedCallableKey, PersistentSourceContextId,
 };
 
 use super::{
@@ -18,8 +18,12 @@ impl OdrFreeHirFoundation {
         root: CallableMaterialization,
         origin: &EvaluationOrigin,
     ) -> Result<(), ExecutableEvaluationValidationError> {
-        self.as_canonical()
-            .validate_executable_evaluation_origin(current, root, origin)
+        self.as_canonical().validate_executable_evaluation_origin(
+            current,
+            root,
+            origin,
+            self.as_canonical(),
+        )
     }
 }
 
@@ -32,11 +36,14 @@ impl CanonicalHirFoundation {
         self.validate_source_location(provider, origin.source(), origin.span(), origin.context())
     }
 
+    /// Resolve locations in this source provider and generated roots in the
+    /// current materialization, which may instantiate an external template.
     pub fn validate_executable_evaluation_origin(
         &self,
         provider: ConeIdentity,
         root: CallableMaterialization,
         origin: &EvaluationOrigin,
+        materializations: &CanonicalHirFoundation,
     ) -> Result<(), ExecutableEvaluationValidationError> {
         use ExecutableEvaluationValidationError as Error;
         self.validate_source_location(provider, origin.source(), origin.span(), origin.context())
@@ -48,6 +55,20 @@ impl CanonicalHirFoundation {
             )
         {
             return Err(Error::Materialization(root));
+        }
+        if let CallableTemplateOwner::Generated(id) = root.template()
+            && materializations.generated_callables.iter().any(|record| {
+                record.id() == id
+                    && matches!(record.key(), GeneratedCallableKey::DerivedEquality { .. })
+            })
+        {
+            // Derived bodies are owned by an exact type, without a lexical source
+            // body. Their locations can belong to an uninstantiated provider
+            // template, while the exact helper is defined in the current Cone.
+            return match root.context() {
+                CallableMaterializationContext::NoSubstitution => Ok(()),
+                _ => Err(Error::Materialization(root)),
+            };
         }
         let context_error = || Error::Context {
             root,

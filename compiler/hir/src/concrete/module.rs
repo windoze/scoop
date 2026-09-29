@@ -19,6 +19,8 @@ pub struct Module {
     /// Canonical application identities referenced by callable
     /// materializations in this local graph.
     pub callable_applications: CallableApplicationIdentities,
+    /// Generated keys whose exact owners become known during concretization.
+    pub generated_callable_identities: Vec<GeneratedCallableRecord>,
     /// Canonical callback applications referenced by concrete callback
     /// registrations in this local graph.
     pub callback_applications: CallbackApplicationIdentities,

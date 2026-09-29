@@ -51,11 +51,7 @@ impl Lowerer {
                     receiver: Box::new(
                         self.materialize_imported_default_expression(receiver, context)?,
                     ),
-                    callee: self.materialize_imported_method_callee(
-                        callee,
-                        creation.concrete().definition.span,
-                        context,
-                    )?,
+                    callee: self.materialize_imported_method_callee(callee, creation, context)?,
                 }
             }
             hir::DefaultCallableReferenceTargetV1::BoundExtension { receiver, callee } => {

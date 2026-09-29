@@ -7,6 +7,13 @@ impl Lowerer {
         template: &crate::imported_generics::PreparedImportedGeneric,
     ) -> Result<hir::Body, ImportedDefaultMaterializationError> {
         let saved_locals = std::mem::replace(&mut self.locals, template.locals.clone());
+        let saved_parameters = match &template.type_parameters {
+            hir::ImportedCallableTypeParameters::Declared(parameters) => Some(std::mem::replace(
+                &mut self.type_params_in_scope,
+                parameters.clone(),
+            )),
+            hir::ImportedCallableTypeParameters::Substitution(_) => None,
+        };
         let mut context = ImportedDefaultContext {
             owner: ImportedTemplateSource::Callable(&template.source),
             callables: &BTreeMap::new(),
@@ -48,6 +55,9 @@ impl Lowerer {
             })
             .collect::<Result<Vec<_>, _>>();
         let locals = std::mem::replace(&mut self.locals, saved_locals);
+        if let Some(parameters) = saved_parameters {
+            self.type_params_in_scope = parameters;
+        }
         statements.map(|statements| hir::Body { locals, statements })
     }
 

@@ -1,8 +1,8 @@
 use scoop_hir as hir;
 use scoop_identity::{
-    CallableOwner, CoreBuiltinNominal, Effect, ExactCallableSignature, ExactTypeKey,
-    GeneratedCallableKey, PersistentExactTypeId, PersistentGeneratedCallableId, SignatureTypeKey,
-    StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, CallableOwner, Effect, ExactCallableSignature, GeneratedCallableKey,
+    OdrMemberDiscriminator, OdrMemberKey, PersistentExactTypeId, PersistentGeneratedCallableId,
+    SignatureTypeKey, StrongCallableDefinitionOwner,
 };
 use scoop_mir as mir;
 use std::collections::BTreeSet;
@@ -11,20 +11,38 @@ mod errors;
 use SharedMirEqualityValidationError as Error;
 pub use errors::SharedMirEqualityValidationError;
 
-/// Joins source applications to the existing complete strong definition surface.
+/// Joins source applications to the existing complete MIR definition surface.
 /// A source-only application never creates a callable export by itself.
 pub fn validate_shared_mir_equality(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
     dependencies: &[hir::CheckedSharedTypeFoundationV1<'_>],
-    strong: &mir::StrongCallableBridgeSurfaceV1,
+    foundation: &mir::CanonicalMirFoundation,
+    types: &mir::CanonicalParamFreeMirTypeExportsV1,
     callables: &mir::CanonicalMirCallableBindingsV1,
 ) -> Result<(), Error> {
     let metadata = source.metadata();
     let applications = metadata.derived_equality_applications()?;
     let mut required = BTreeSet::new();
-    for definition in strong.bridges() {
-        let CallableOwner::Generated(callable) = definition.implementation() else {
-            continue;
+    let mut boolean_cache = None;
+    for definition in foundation.callable_signatures() {
+        let (implementation, callable) = match definition.subject() {
+            mir::CallableSignatureSubject::Strong(CallableOwner::Generated(callable)) => (
+                CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::GeneratedCallable(
+                    callable,
+                )),
+                callable,
+            ),
+            mir::CallableSignatureSubject::Odr(member) => {
+                let key = metadata
+                    .identities
+                    .canonical_key::<_, OdrMemberKey>(member.member())?;
+                let OdrMemberDiscriminator::GeneratedCallable(callable) = *key.discriminator()
+                else {
+                    continue;
+                };
+                (CallableDefinitionOwner::Odr(member), callable)
+            }
+            _ => continue,
         };
 
         let key = metadata
@@ -33,7 +51,7 @@ pub fn validate_shared_mir_equality(
         let GeneratedCallableKey::DerivedEquality { exact_owner } = *key else {
             continue;
         };
-        if !exported_owner(source, exact_owner)? {
+        if types.get(exact_owner).is_none() {
             continue;
         }
 
@@ -42,9 +60,12 @@ pub fn validate_shared_mir_equality(
         }
 
         let binding = callables
-            .get(StrongCallableDefinitionOwner::GeneratedCallable(callable))
+            .get(implementation)
             .ok_or(Error::MissingCallable(callable))?;
-        let boolean = boolean_type(source, dependencies)?;
+        let boolean = match boolean_cache {
+            Some(exact) => exact,
+            None => *boolean_cache.insert(boolean_type(source, dependencies)?),
+        };
         validate_binding(definition, binding, callable, exact_owner, boolean)?;
 
         required.insert(callable);
@@ -63,38 +84,8 @@ pub fn validate_shared_mir_equality(
     Ok(())
 }
 
-fn exported_owner(
-    source: hir::CheckedSharedTypeFoundationV1<'_>,
-    exact: PersistentExactTypeId,
-) -> Result<bool, Error> {
-    let metadata = source.metadata();
-
-    let key = metadata
-        .identities
-        .canonical_key::<_, ExactTypeKey>(exact)?;
-    let ExactTypeKey::Nominal(nominal) = *key else {
-        return Ok(false);
-    };
-    let unit = CoreBuiltinNominal::Unit.identity_record();
-    if nominal == unit.id() {
-        return Ok(metadata.provider == unit.key().origin());
-    }
-
-    let Some(representation) = source.representations().get(nominal) else {
-        return Ok(false);
-    };
-    if !matches!(
-        representation.shape(),
-        hir::NominalRepresentationShapeV1::Struct { .. }
-            | hir::NominalRepresentationShapeV1::Enum { .. }
-    ) {
-        return Err(Error::Owner(exact));
-    }
-    Ok(true)
-}
-
 fn validate_binding(
-    definition: &mir::StrongCallableBridgeV1,
+    definition: &mir::CallableSignatureRecord,
     binding: &mir::ParamFreeMirCallableBindingV1,
     callable: PersistentGeneratedCallableId,
     owner: PersistentExactTypeId,
@@ -105,9 +96,7 @@ fn validate_binding(
         mir::GcEffect::Managed,
     );
 
-    if definition.signature() != expected.exact()
-        || definition.role() != mir::CallableRole::Ordinary
-    {
+    if definition.signature() != expected.exact() {
         return Err(Error::Definition(callable));
     }
     if binding.semantic_signature() != &expected || binding.lowered_signature() != &expected {

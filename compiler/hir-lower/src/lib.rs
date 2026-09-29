@@ -785,6 +785,9 @@ pub(crate) struct Lowerer {
     pub(crate) current_fn_name: String,
     /// Typed lexical context attached to every expression origin.
     pub(crate) current_source_context: Option<hir::SourceContextId>,
+    /// The actual request location for a synthesized equality body, including
+    /// dependency definition and evaluation locations.
+    pub(crate) derived_expression_origin: Option<hir::ExpressionOrigin>,
     /// Explicit suspension-permission stack; it is never empty.
     pub(crate) suspension_contexts: Vec<SuspensionContext>,
     /// Lexical permission for unsafe operations; independent of suspension.

@@ -12,13 +12,14 @@ use crate::{
 };
 
 mod body;
+mod imported;
 
 pub(crate) enum DerivedEqualityCandidate {
     Nominal {
         overload: CallableCandidate,
         application: hir::DerivedEqualityApplicationId,
     },
-    Structural {
+    TypeOwned {
         function: hir::FunctionId,
         application: hir::DerivedEqualityApplicationId,
     },
@@ -158,6 +159,17 @@ impl Lowerer {
         function
     }
 
+    pub(crate) fn derived_equality_candidate_at(
+        &mut self,
+        ty: hir::TypeId,
+        origin: hir::ExpressionOrigin,
+    ) -> Result<Option<DerivedEqualityCandidate>, String> {
+        let previous = self.derived_expression_origin.replace(origin);
+        let result = self.derived_equality_candidate(ty, origin.concrete().definition.span);
+        self.derived_expression_origin = previous;
+        result
+    }
+
     pub(crate) fn derived_equality_candidate(
         &mut self,
         ty: hir::TypeId,
@@ -179,6 +191,15 @@ impl Lowerer {
                 Some((function, hir::MethodOwnerApplication::Enum(application)))
             }
             Type::Unit | Type::Tuple(_) => None,
+            Type::ImportedStruct(_) | Type::ImportedEnum(_) => {
+                let (_, arguments) = self.types[ty]
+                    .imported_nominal_application()
+                    .expect("an imported value retains its nominal application");
+                if arguments.is_empty() || self.has_imported_same_type_equals(ty)? {
+                    return Ok(None);
+                }
+                None
+            }
             _ => return Ok(None),
         };
         if let Some((function, owner)) = nominal {
@@ -197,7 +218,7 @@ impl Lowerer {
 
         let (function, application) =
             self.ensure_structural_derived_equality_application(ty, span, &mut Vec::new())?;
-        Ok(Some(DerivedEqualityCandidate::Structural {
+        Ok(Some(DerivedEqualityCandidate::TypeOwned {
             function,
             application,
         }))
@@ -219,7 +240,7 @@ impl Lowerer {
         let application = self.ensure_derived_equality_application(
             ty,
             function,
-            hir::DerivedEqualityOrigin::Structural(ty),
+            hir::DerivedEqualityOrigin::TypeOwned(ty),
             span,
             stack,
         )?;
@@ -237,7 +258,11 @@ impl Lowerer {
         }
         let this = hir::LocalId::from_raw(0.into());
         let other = hir::LocalId::from_raw(1.into());
-        let access = self.local_declaration_access();
+        let access = hir::DeclarationAccess {
+            declared: hir::DeclaredVisibility::Public,
+            lookup: hir::EffectiveLookupDomain(self.type_access_domain(owner_ty)),
+            slot: None,
+        };
         let function = self.functions.alloc(Function {
             name: format!("{}.equals", self.type_name(owner_ty)),
             access,

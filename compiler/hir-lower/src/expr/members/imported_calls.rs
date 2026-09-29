@@ -12,7 +12,7 @@ pub(in crate::expr) enum ImportedMemberSelectionFailure {
 }
 
 impl Lowerer {
-    pub(super) fn imported_member_call_candidates(
+    pub(in crate::expr) fn imported_member_call_candidates(
         &mut self,
         receiver: TypeId,
         name: &ast::Ident,

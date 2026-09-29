@@ -1,0 +1,13 @@
+import consumer.equality.result
+import consumer.equality.exercise
+
+private class Later(public val number: Int)
+
+public fun check(): Int {
+    val value = Later(result())
+    val answer = exercise<Later>(value)
+    if (exercise<Int>(2) != 42) { return 2 }
+    val allocated = Later(0)
+    if (value.number != 42 || allocated.number != 0) { return 1 }
+    return answer
+}

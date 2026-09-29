@@ -232,8 +232,7 @@ struct Concretizer<'a> {
     /// Concrete ordinary bodies supplied by typed derived-equality
     /// applications before their function key enters the emission queue.
     derived_bodies: HashMap<FunctionKey, (concrete::Body, Vec<concrete::LocalId>)>,
-    structural_derived_functions:
-        HashMap<(export::DerivedEqualityApplicationId, concrete::TypeId), concrete::FunctionId>,
+    derived_functions: HashMap<concrete::TypeId, concrete::FunctionId>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId)>,
     pending_constructors: VecDeque<constructor_work::ConstructorWork>,
     emitted_functions: Vec<concrete::FunctionId>,
@@ -402,7 +401,7 @@ impl<'a> Concretizer<'a> {
             function_keys: Vec::new(),
             function_by_key: HashMap::new(),
             derived_bodies: HashMap::new(),
-            structural_derived_functions: HashMap::new(),
+            derived_functions: HashMap::new(),
             pending_functions: VecDeque::new(),
             pending_constructors: VecDeque::new(),
             emitted_functions: Vec::new(),
@@ -607,6 +606,7 @@ impl<'a> Concretizer<'a> {
             local_value_identities,
             dispatch_slot_identities,
             callable_applications: identities.callable_applications,
+            generated_callable_identities: identities.generated_callable_identities,
             callback_applications: identities.callback_applications,
             function_types: self.function_types,
             lambdas: self.lambdas,

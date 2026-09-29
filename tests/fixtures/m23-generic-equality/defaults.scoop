@@ -1,0 +1,12 @@
+package consumer.equality
+
+import templates.equality.*
+
+public fun <T> exercise(value: T): Int {
+    val left = Counter<T>(42)
+    if (defaultCompare(left, Counter<T>(1)) != 0) { return 1 }
+    if (defaultCompare(left, Counter<T>(1), true) != 42) { return 2 }
+    return defaultCompare(left, Counter<T>(42))
+}
+
+public fun result(): Int = exercise<Int>(1)

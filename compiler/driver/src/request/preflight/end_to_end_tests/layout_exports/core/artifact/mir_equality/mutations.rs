@@ -20,21 +20,29 @@ pub(super) fn check(replay: &Replay<'_>) {
             replay.validate(&remaining),
             Err(Error::MissingCallable(id)) if id == callable
         ));
-        let strong = mir::StrongCallableBridgeSurfaceV1::try_new(
-            replay
-                .strong
-                .bridges()
-                .iter()
-                .filter(|record| record.implementation() != CallableOwner::Generated(callable))
-                .cloned()
-                .collect(),
-        )
-        .unwrap();
+        let mut missing_definition = replay.foundation.clone();
+        missing_definition
+            .set_callable_signatures(
+                replay
+                    .foundation
+                    .callable_signatures()
+                    .iter()
+                    .filter(|record| {
+                        record.subject()
+                            != mir::CallableSignatureSubject::strong(CallableOwner::Generated(
+                                callable,
+                            ))
+                    })
+                    .cloned()
+                    .collect(),
+            )
+            .unwrap();
         assert!(matches!(
             scoop_slib::validate_shared_mir_equality(
                 replay.source,
                 &[],
-                &strong,
+                &missing_definition,
+                replay.section.types(),
                 replay.section.callables()
             ),
             Err(Error::UnexpectedCallable(id)) if id == callable
@@ -61,7 +69,8 @@ pub(super) fn check(replay: &Replay<'_>) {
         scoop_slib::validate_shared_mir_equality(
             missing,
             &[],
-            replay.strong,
+            replay.foundation,
+            replay.section.types(),
             replay.section.callables()
         ),
         Err(Error::MissingSource(_))

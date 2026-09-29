@@ -9,7 +9,6 @@ pub enum SharedMirEqualityValidationError {
     MissingSource(PersistentGeneratedCallableId),
     MissingCallable(PersistentGeneratedCallableId),
     UnexpectedCallable(PersistentGeneratedCallableId),
-    Owner(PersistentExactTypeId),
     BooleanSource,
     Definition(PersistentGeneratedCallableId),
     Signature(PersistentGeneratedCallableId),

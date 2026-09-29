@@ -6,6 +6,8 @@ use scoop_hir as hir;
 
 use crate::{Lowerer, Type};
 
+mod enums;
+
 impl Lowerer {
     pub(super) fn build_derived_equality_body(
         &mut self,
@@ -28,7 +30,6 @@ impl Lowerer {
                 declaration_index: 0,
             },
         );
-        let mut synthetic_ordinal = 0_u32;
         let this_expr = self.local_expr(this, ty, span);
         let other_expr = self.local_expr(other, ty, span);
         let statements = match self.types[ty].clone() {
@@ -81,93 +82,36 @@ impl Lowerer {
                     span,
                 )]
             }
-            Type::Enum(application) => {
-                let value = self.enum_applications[application].clone();
-                let declaration = self.enums[value.template].clone();
-                let mut arms = Vec::with_capacity(declaration.variants.len());
-                for (variant_index, variant) in declaration.variants.into_iter().enumerate() {
-                    let mut left_fields = Vec::with_capacity(variant.fields.len());
-                    let mut right_fields = Vec::with_capacity(variant.fields.len());
-                    let mut comparisons = Vec::with_capacity(variant.fields.len());
-                    for (field_index, field) in variant.fields.into_iter().enumerate() {
-                        let field_ty = self.instantiate_ty(field.ty, &value.arguments);
-                        let left = self.alloc_derived_local(
-                            &mut locals,
-                            &format!("$left.{variant_index}.{field_index}"),
-                            field_ty,
-                            next_derived_synthetic_selector(&mut synthetic_ordinal),
-                        );
-                        let right = self.alloc_derived_local(
-                            &mut locals,
-                            &format!("$right.{variant_index}.{field_index}"),
-                            field_ty,
-                            next_derived_synthetic_selector(&mut synthetic_ordinal),
-                        );
-                        left_fields
-                            .push((field_index as u32, hir::Pattern::Binding { local: left }));
-                        right_fields
-                            .push((field_index as u32, hir::Pattern::Binding { local: right }));
-                        let field_name = if field.name.is_empty() {
-                            format!("_{}", field_index + 1)
-                        } else {
-                            field.name
-                        };
-                        let path = format!("{}.{}.{}", declaration.name, variant.name, field_name);
-                        comparisons.push(self.build_derived_field_comparison(
-                            field_ty,
-                            self.local_expr(left, field_ty, span),
-                            self.local_expr(right, field_ty, span),
-                            &path,
-                            span,
-                            stack,
-                        )?);
-                    }
-                    let equal = self.fold_conjunction(comparisons, self.boolean, span);
-                    let inner = hir::Statement {
-                        kind: hir::StatementKind::When(hir::When {
-                            subject: other_expr.clone(),
-                            arms: vec![hir::WhenArm {
-                                pattern: hir::Pattern::Variant {
-                                    application,
-                                    variant: variant_index as u32,
-                                    fields: right_fields,
-                                },
-                                guard: None,
-                                body: vec![return_statement(equal, span)],
-                                span,
-                            }],
-                            fallback: hir::WhenFallback::Else(vec![return_statement(
-                                self.bool_expr(false, self.boolean, span),
-                                span,
-                            )]),
-                        }),
-                        span,
+            Type::ImportedStruct(structure) => {
+                let mut comparisons = Vec::with_capacity(structure.fields.len());
+                for field in &structure.fields {
+                    let field_ref = hir::FieldRef::ImportedStruct {
+                        owner: ty,
+                        field: field.identity,
                     };
-                    arms.push(hir::WhenArm {
-                        pattern: hir::Pattern::Variant {
-                            application,
-                            variant: variant_index as u32,
-                            fields: left_fields,
-                        },
-                        guard: None,
-                        body: vec![inner],
+                    let path = format!("{}.{}", self.type_name(ty), field.name);
+                    comparisons.push(self.build_derived_field_comparison(
+                        field.ty,
+                        self.field_expr(this_expr.clone(), field_ref, field.ty, span),
+                        self.field_expr(other_expr.clone(), field_ref, field.ty, span),
+                        &path,
                         span,
-                    });
+                        stack,
+                    )?);
                 }
-                vec![hir::Statement {
-                    kind: hir::StatementKind::When(hir::When {
-                        subject: this_expr,
-                        arms,
-                        fallback: hir::WhenFallback::Impossible(
-                            hir::ExhaustivenessProof::EnumPatternMatrix {
-                                subject_ty: ty,
-                                application,
-                            },
-                        ),
-                    }),
+                vec![return_statement(
+                    self.fold_conjunction(comparisons, self.boolean, span),
                     span,
-                }]
+                )]
             }
+            Type::Enum(_) | Type::ImportedEnum(_) => self.build_derived_enum_equality(
+                ty,
+                this_expr,
+                other_expr,
+                &mut locals,
+                span,
+                stack,
+            )?,
             _ => unreachable!("only Unit, tuple, struct and enum have derived equality"),
         };
         Ok(hir::Body { locals, statements })
@@ -211,12 +155,12 @@ impl Lowerer {
                         }
                         Err(reason) => {
                             return self
-                                .resolve_explicit_field_equality(ty, lhs, rhs, path, span)
+                                .resolve_derived_field_member_equality(lhs, rhs, path, span)
                                 .map_err(|_| reason);
                         }
                     }
                 }
-                self.resolve_explicit_field_equality(ty, lhs, rhs, path, span)
+                self.resolve_derived_field_member_equality(lhs, rhs, path, span)
             }
             Type::Enum(application) => {
                 let function =
@@ -241,95 +185,39 @@ impl Lowerer {
                         }
                         Err(reason) => {
                             return self
-                                .resolve_explicit_field_equality(ty, lhs, rhs, path, span)
+                                .resolve_derived_field_member_equality(lhs, rhs, path, span)
                                 .map_err(|_| reason);
                         }
                     }
                 }
-                self.resolve_explicit_field_equality(ty, lhs, rhs, path, span)
+                self.resolve_derived_field_member_equality(lhs, rhs, path, span)
             }
-            _ => self.resolve_explicit_field_equality(ty, lhs, rhs, path, span),
-        }
-    }
-
-    fn resolve_explicit_field_equality(
-        &mut self,
-        ty: hir::TypeId,
-        lhs: hir::Expr,
-        rhs: hir::Expr,
-        path: &str,
-        span: ast::Span,
-    ) -> Result<hir::Expr, String> {
-        let candidates = self
-            .methods_by_name(ty, "equals")
-            .into_iter()
-            .filter(|candidate| {
-                !self
-                    .declaration_surface
-                    .rejects_function(candidate.function)
-                    && self.signatures[&candidate.function].modifiers.operator
-                        == Some(hir::OperatorKind::Equals)
-            })
-            .collect::<Vec<_>>();
-        let mut applicable = Vec::new();
-        for candidate in candidates {
-            let arguments = self.callable_candidate_owner_arguments(&candidate);
-            let signature = self.signatures[&candidate.function].clone();
-            debug_assert_eq!(
-                signature.type_params.len(),
-                signature.owner_type_param_count
-            );
-            let parameter = self.instantiate_ty(signature.params[0].ty, &arguments);
-            if self.is_subtype(rhs.ty, parameter) {
-                applicable.push((candidate, arguments, parameter));
+            Type::ImportedStruct(_) | Type::ImportedEnum(_) => {
+                let (_, arguments) = self.types[ty]
+                    .imported_nominal_application()
+                    .expect("an imported equality field retains its declaration");
+                if !arguments.is_empty() && !self.has_imported_same_type_equals(ty)? {
+                    match self.ensure_structural_derived_equality_application(ty, span, stack) {
+                        Ok((_, application)) => {
+                            return Ok(self.derived_call(
+                                lhs,
+                                rhs,
+                                application,
+                                self.boolean,
+                                span,
+                            ));
+                        }
+                        Err(reason) => {
+                            return self
+                                .resolve_derived_field_member_equality(lhs, rhs, path, span)
+                                .map_err(|_| reason);
+                        }
+                    }
+                }
+                self.resolve_derived_field_member_equality(lhs, rhs, path, span)
             }
+            _ => self.resolve_derived_field_member_equality(lhs, rhs, path, span),
         }
-        let mut winners = Vec::new();
-        for index in 0..applicable.len() {
-            let parameter = applicable[index].2;
-            let dominates_all = (0..applicable.len())
-                .all(|other| index == other || self.is_subtype(parameter, applicable[other].2));
-            if dominates_all {
-                winners.push(index);
-            }
-        }
-        let [winner] = winners.as_slice() else {
-            let reason = if applicable.is_empty() {
-                format!(
-                    "field `{path}` of type `{}` has no applicable member operator `equals`",
-                    self.type_name(ty)
-                )
-            } else {
-                format!(
-                    "field `{path}` has an ambiguous member operator `equals` for type `{}`",
-                    self.type_name(ty)
-                )
-            };
-            return Err(reason);
-        };
-        let (candidate, arguments, parameter) = applicable.swap_remove(*winner);
-        let args = vec![self.adapt_to(rhs, parameter)];
-        if let Some(normalized) = self.normalize_primitive_method_call(
-            candidate.function,
-            lhs.clone(),
-            &args,
-            self.boolean,
-            span,
-        ) {
-            return Ok(normalized);
-        }
-        let callable = self.materialize_candidate_callable(&candidate, &arguments);
-        let callee = self.materialize_method_callee(candidate.source, callable, &arguments);
-        Ok(hir::Expr {
-            kind: hir::ExprKind::MethodCall {
-                receiver: Box::new(lhs),
-                callee,
-                args,
-            },
-            ty: self.boolean,
-            span,
-            origin: self.expression_origin(span),
-        })
     }
 
     fn alloc_derived_local(

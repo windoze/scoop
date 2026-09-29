@@ -169,7 +169,7 @@ impl Lowerer {
             }
             NamedFunctionLikeProbe::ImportedDependency(probe) => {
                 let effect = DelegateCallEffect::Imported(probe.safety());
-                (self.commit_imported_delegate_callable(*probe), effect)
+                (self.commit_imported_lowered_callable(*probe), effect)
             }
             _ => unreachable!("delegate partitions contain only callable declarations"),
         };

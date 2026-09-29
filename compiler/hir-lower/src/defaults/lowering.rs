@@ -249,7 +249,8 @@ impl Lowerer {
     }
 
     pub(crate) fn expression_origin(&self, span: ast::Span) -> hir::ExpressionOrigin {
-        hir::ExpressionOrigin::Definition(self.definition_origin(span))
+        self.derived_expression_origin
+            .unwrap_or_else(|| hir::ExpressionOrigin::Definition(self.definition_origin(span)))
     }
 }
 

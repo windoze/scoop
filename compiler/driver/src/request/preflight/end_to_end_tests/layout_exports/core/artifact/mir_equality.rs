@@ -40,7 +40,13 @@ struct Replay<'a> {
 
 impl Replay<'_> {
     fn validate(&self, callables: &mir::CanonicalMirCallableBindingsV1) -> Result<(), Error> {
-        scoop_slib::validate_shared_mir_equality(self.source, &[], self.strong, callables)
+        scoop_slib::validate_shared_mir_equality(
+            self.source,
+            &[],
+            self.foundation,
+            self.section.types(),
+            callables,
+        )
     }
 
     fn resolve(

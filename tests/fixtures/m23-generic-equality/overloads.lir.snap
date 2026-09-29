@@ -1,0 +1,223 @@
+Module
+  fun @scoop$1$cb$518bcb9762461a583b7aa4ba534a29665eb2bc00c5870015051e9f19aac03262() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000001) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$0eb4c2912f089c00b4fe17676457648b00fa5b46a1d23cbe157e5c1fb62e4fbd(i32) -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.argument.1: i32
+    local %2 $dependency.parameter.payload: i32
+    local %3 $dependency.parameter.number: i32
+    local %4 left: struct0
+    local %5 $dependency.argument.0: i32
+    local %6 $dependency.argument.1: i32
+    local %7 $dependency.parameter.payload: i32
+    local %8 $dependency.parameter.number: i32
+    local %9 $equality.lhs: struct0
+    local %10 $dependency.receiver: struct0
+    local %11 $dependency.argument.0: struct0
+    local %12 $dependency.parameter.other: struct0
+    local %13 $dependency.argument.0: i32
+    local %14 $dependency.argument.1: i32
+    local %15 $dependency.parameter.payload: i32
+    local %16 $dependency.parameter.number: i32
+    local %17 $equality.lhs: struct0
+    local %18 $dependency.receiver: struct0
+    local %19 $dependency.argument.0: struct0
+    local %20 $dependency.parameter.other: struct0
+    local %21 $shortCircuit.0: i1
+    local %22 $dependency.argument.0: i32
+    local %23 $dependency.parameter.number: i32
+    local %24 derived: struct1
+    local %25 $dependency.argument.0: i32
+    local %26 $dependency.parameter.number: i32
+    local %27 $equality.lhs: struct1
+    local %28 $dependency.argument.0: i32
+    local %29 $dependency.parameter.number: i32
+    local %30 $equality.lhs: struct1
+    local %31 $shortCircuit.1: i1
+    local %32 $dependency.receiver: struct1
+    local %33 $dependency.argument.0: i32
+    local %34 $dependency.parameter.other: i32
+    local %35 $dependency.receiver: i1
+    local %36 $dependency.receiver: struct1
+    local %37 $dependency.argument.0: i32
+    local %38 $dependency.parameter.other: i32
+    local %39 $shortCircuit.2: i1
+    local %40 $call.1: i1
+    local %41 $call.2: struct1
+    local %42 $call.3: i1
+    local %43 $call.4: struct1
+    local %44 $sc.1: struct0
+    local %45 $sc.2: struct0
+    local %46 $sc.3: struct0
+    local %47 $sc.4: struct0
+    local %48 $sc.5: struct0
+    local %49 $sc.6: struct0
+    local %50 $sc.7: struct0
+    local %51 $sc.8: struct1
+    local %52 $sc.9: struct1
+    local %53 $sc.10: struct1
+    local %54 $sc.11: struct1
+    local %55 $sc.12: struct1
+    local %56 $sc.13: struct1
+    local %57 $sc.14: struct1
+    local %58 $sc.15: struct1
+    local %59 $sc.16: struct1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int>(0x0000002a) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call no-gc-indirect-target0 local44 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn5(local2, local3)
+    store local44 -> local4
+    store local4 -> local9
+    store param0 -> local5
+    store integer<Int>(0x0000002a) -> local6
+    store local5 -> local7
+    store local6 -> local8
+    store local9 -> local10
+    call no-gc-indirect-target1 local45 = sig=indirect1 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn5(local7, local8)
+    store local45 -> local11
+    store local11 -> local12
+    store local10 -> local46
+    store local12 -> local47
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> i1 local-fn2(indirect local46, indirect local47)
+    store t0 -> local40
+    t1 = Not local40 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    store true -> local21
+    br @if.merge.3
+  block if.else.2
+    store local4 -> local17
+    store param0 -> local13
+    store integer<Int>(0x00000001) -> local14
+    store local13 -> local15
+    store local14 -> local16
+    store local17 -> local18
+    call no-gc-indirect-target2 local48 = sig=indirect2 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn5(local15, local16)
+    store local48 -> local19
+    store local19 -> local20
+    store local18 -> local49
+    store local20 -> local50
+    call managed-direct-target1 sp<managed-call:1> live=[] t2 = sig=direct1 (indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> i1 local-fn2(indirect local49, indirect local50)
+    store t2 -> local21
+    br @if.merge.3
+  block if.merge.3
+    cbr local21 then @if.then.4 else @if.merge.5
+  block if.then.4
+    ret integer<Int>(0x00000001)
+  block if.merge.5
+    store integer<Int>(0x0000002a) -> local22
+    store local22 -> local23
+    call no-gc-indirect-target3 local51 = sig=indirect3 (sret struct1 size=4 align=4 scan=none, i32) local-fn6(local23)
+    store local51 -> local24
+    store local24 -> local27
+    store integer<Int>(0x0000002a) -> local25
+    store local25 -> local26
+    call no-gc-indirect-target4 local52 = sig=indirect4 (sret struct1 size=4 align=4 scan=none, i32) local-fn6(local26)
+    store local52 -> local41
+    store local27 -> local53
+    store local41 -> local54
+    call managed-direct-target2 sp<managed-call:2> live=[] t3 = sig=direct2 (indirect<struct1 size=4 align=4 scan=none>, indirect<struct1 size=4 align=4 scan=none>) -> i1 local-fn3(indirect local53, indirect local54)
+    store t3 -> local42
+    t4 = Not local42 : i1
+    cbr t4 then @if.then.6 else @if.else.7
+  block if.then.6
+    store true -> local31
+    br @if.merge.8
+  block if.else.7
+    store local24 -> local30
+    store integer<Int>(0x00000001) -> local28
+    store local28 -> local29
+    call no-gc-indirect-target5 local55 = sig=indirect5 (sret struct1 size=4 align=4 scan=none, i32) local-fn6(local29)
+    store local55 -> local43
+    store local30 -> local56
+    store local43 -> local57
+    call managed-direct-target3 sp<managed-call:3> live=[] t5 = sig=direct3 (indirect<struct1 size=4 align=4 scan=none>, indirect<struct1 size=4 align=4 scan=none>) -> i1 local-fn3(indirect local56, indirect local57)
+    store t5 -> local31
+    br @if.merge.8
+  block if.merge.8
+    cbr local31 then @if.then.9 else @if.merge.10
+  block if.then.9
+    ret integer<Int>(0x00000002)
+  block if.merge.10
+    store local24 -> local32
+    store integer<Int>(0x0000002a) -> local33
+    store local33 -> local34
+    store local32 -> local58
+    call managed-direct-target4 sp<managed-call:4> live=[] t6 = sig=direct4 (indirect<struct1 size=4 align=4 scan=none>, i32) -> i1 local-fn4(indirect local58, local34)
+    store t6 -> local35
+    t7 = Not local35 : i1
+    cbr t7 then @if.then.11 else @if.else.12
+  block if.then.11
+    store true -> local39
+    br @if.merge.13
+  block if.else.12
+    store local24 -> local36
+    store integer<Int>(0x00000001) -> local37
+    store local37 -> local38
+    store local36 -> local59
+    call managed-direct-target5 sp<managed-call:5> live=[] t8 = sig=direct5 (indirect<struct1 size=4 align=4 scan=none>, i32) -> i1 local-fn4(indirect local59, local38)
+    store t8 -> local39
+    br @if.merge.13
+  block if.merge.13
+    cbr local39 then @if.then.14 else @if.merge.15
+  block if.then.14
+    ret integer<Int>(0x00000003)
+  block if.merge.15
+    ret integer<Int>(0x0000002a)
+  fun @scoop$1$cb$ec94cd7a39ec9a866bc8507bdb34d06b6632d256809659a20c49c8e07c59d0d2(indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> i1
+    local %0 $dependency.local.2: i32
+    local %1 $dependency.local.3: i32
+    local %2 $dependency.local.4: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 1 : i32
+    store t0 -> local0
+    t1 = extract param1, 1 : i32
+    store t1 -> local1
+    store local1 -> local2
+    t2 = integer_compare_Equal<Int> local0, local2 : i1
+    ret t2
+  fun @scoop$1$cb$69ee0763584488db6f39fc0fa443e54ef5b2b0a0001a276ca86b35c7b47d6cbf(indirect<struct1 size=4 align=4 scan=none>, indirect<struct1 size=4 align=4 scan=none>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i32
+    t1 = extract param1, 0 : i32
+    t2 = integer_compare_Equal<Int> t0, t1 : i1
+    ret t2
+  fun @scoop$1$cb$8c78bf23b954868e53a4482924af60c220ebeae6b027b3445c32a1d85fc81819(indirect<struct1 size=4 align=4 scan=none>, i32) -> i1
+    local %0 $dependency.local.2: i32
+    local %1 $dependency.local.3: i32
+    local %2 $dependency.local.4: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i32
+    store t0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    t1 = integer_compare_Equal<Int> local0, local2 : i1
+    ret t1
+  fun @scoop$1$cb$676e07fbfcd725786a8cc8cd3209b1a9f867be467ca0801526a173946e96c66a(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct0
+    ret t0
+  fun @scoop$1$cb$b6cdfe527f86983f7760e2a0c1c24ac0fd27fd76548f324621e3463fdc0f50fe(i32) -> sret<struct1 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct1
+    ret t0
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=S;x=Different);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$693dbd7b6434a915896ceb317db8585e385dbcb55c2206cc08a62cb26ff9d432 type-id=3173546062643030485 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=S;x=Manual);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$e45f62b98f4747ece85d946978c619fea8dc4b11dac4eb25de00040353703dd0 type-id=5726960171233876877 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Manual size=8 align=4 refs=[]
+  layout Different size=4 align=4 refs=[]
+  output library

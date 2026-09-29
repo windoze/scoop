@@ -351,7 +351,7 @@ impl CallableIdentityBuilder<'_> {
             concrete::MethodOwner::Object(owner) => {
                 self.concretizer.object_types[owner].canonical_type
             }
-            concrete::MethodOwner::Structural(ty) => ty,
+            concrete::MethodOwner::TypeOwned(ty) => ty,
         };
         self.exact_types[ty].id()
     }

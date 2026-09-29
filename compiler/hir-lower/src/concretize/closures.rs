@@ -7,7 +7,7 @@ pub(super) enum CallableReferenceSource {
     Local(export::CallableReferenceId),
     Imported {
         parent: export::ImportedCallableTemplateParent,
-        definition: concrete::CallableReferenceRecord,
+        definition: concrete::GeneratedCallableRecord,
     },
 }
 

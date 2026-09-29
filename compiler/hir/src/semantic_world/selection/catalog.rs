@@ -64,7 +64,7 @@ pub(super) struct DependencyCatalog {
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
     pub(super) reference_invokes: BTreeMap<
         scoop_identity::PersistentGeneratedCallableId,
-        crate::concrete::CallableReferenceRecord,
+        crate::concrete::GeneratedCallableRecord,
     >,
     pub(super) initializations: BTreeMap<
         scoop_identity::PersistentGenericTypeId,

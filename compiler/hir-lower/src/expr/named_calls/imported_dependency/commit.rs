@@ -31,7 +31,7 @@ impl Lowerer {
         self.commit_imported_callable_arguments(probe, sink, kind, ArgumentEvaluation::Source)
     }
 
-    pub(in crate::expr) fn commit_imported_delegate_callable(
+    pub(in crate::expr) fn commit_imported_lowered_callable(
         &mut self,
         probe: ImportedDependencyCallProbe,
     ) -> Option<hir::Expr> {
@@ -44,7 +44,7 @@ impl Lowerer {
         );
         assert!(
             sink.is_empty(),
-            "delegate roles have already lowered, required arguments"
+            "prepared calls have already lowered, required arguments"
         );
         expression
     }

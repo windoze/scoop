@@ -95,7 +95,7 @@ impl ReferenceCollector<'_> {
                 let application = &self.lowerer.derived_equality_applications[application];
                 match application.origin {
                     hir::DerivedEqualityOrigin::Nominal(_) => application.function,
-                    hir::DerivedEqualityOrigin::Structural(owner_type) => {
+                    hir::DerivedEqualityOrigin::TypeOwned(owner_type) => {
                         return self.lowerer.type_access_domain(owner_type);
                     }
                 }

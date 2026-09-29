@@ -203,6 +203,9 @@ fn odr_records(
     let mut members = BTreeMap::new();
 
     for source in module.meta.source_callable_materializations.iter() {
+        if let Some(owner) = source.exact_owner() {
+            register_exact_root(owner, &mut groups, &mut members)?;
+        }
         if matches!(
             source.materialization().context(),
             scoop_identity::CallableMaterializationContext::InitializationApplication(_)

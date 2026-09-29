@@ -102,6 +102,7 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                             evaluation_provider,
                             site.position().root,
                             site.origin().evaluation(),
+                            &foundation,
                         )
                         .unwrap();
 

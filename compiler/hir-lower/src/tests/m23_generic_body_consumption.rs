@@ -8,6 +8,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 mod bounds;
 mod constructors;
 mod delegates;
+mod equality;
 mod machine;
 mod members;
 mod metadata;

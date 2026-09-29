@@ -1,0 +1,137 @@
+Module
+  struct Empty<Int> ()
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      call left: Empty<Int> = @fn4 direct
+      call $call.1: Empty<Int> = @fn4 direct
+      call $call.2: Boolean = @fn2 direct
+        Type Empty<Int>
+        Local left
+        Type Empty<Int>
+        Local $call.1
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val nested: (Empty<Int>, Int)
+        Type (Empty<Int>, Int)
+        TupleLiteral
+          Type Empty<Int>
+          Local left
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      call $call.3: Empty<Int> = @fn4 direct
+      call $call.4: Boolean = @fn3 direct
+        Type (Empty<Int>, Int)
+        Local nested
+        Type (Empty<Int>, Int)
+        TupleLiteral
+          Type Empty<Int>
+          Local $call.3
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      branch bb4 bb3
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.4
+    bb3 logic.rhs.3
+      call $call.6: Empty<Int> = @fn4 direct
+      call $call.7: Boolean = @fn3 direct
+        Type (Empty<Int>, Int)
+        Local nested
+        Type (Empty<Int>, Int)
+        TupleLiteral
+          Type Empty<Int>
+          Local $call.6
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      assign $logic.5
+        Type Boolean
+        Local $call.7
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.5
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.5
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $derived.equals.0 @fn2(this: Empty<Int>, other: Empty<Int>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun $derived.equals.1 @fn3(this: (Empty<Int>, Int), other: (Empty<Int>, Int)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Empty<Int>
+        FieldAccess 0
+          Type (Empty<Int>, Int)
+          Local this
+        Type Empty<Int>
+        FieldAccess 0
+          Type (Empty<Int>, Int)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Empty<Int>, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Empty<Int>, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun ctor.Empty.$c0 @fn4() -> Empty<Int> <no-gc>
+    bb0 entry
+      return
+        Type Empty<Int>
+        StructInit Empty<Int>
+  instance mi0 function=@fn1 <- exercise
+  output library
