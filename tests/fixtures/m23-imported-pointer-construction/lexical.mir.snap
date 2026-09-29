@@ -1,0 +1,254 @@
+Module
+  struct Number (value: Int)
+  enum CoroutineStep<Number>
+    Completed(value: Number)
+    Suspended()
+  enum CoroutineSlot<Number>
+    Empty()
+    Value(value: Number)
+  class box<Number> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=2
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn6 captures=2
+  generated_exact_type get0 location=enum0 nominal_id=16803cca00ac4a0cdd92201c94dd5c19fd323807e17b0962b951dcf343f68a74 exact_id=14d155988c277eebafdded6f0bdf8ca3926c3c28a690f10e6299d1adf9c654fc
+  generated_exact_type get1 location=closure0 nominal_id=0727ea57833a60c8e85a1e462dca6ef0c6062322d97bafbac9454feac447ef1f exact_id=3f9150cdb7cd5d659e69b4669f388facd44c438dcac1f0702c8ade0cf0386ac2
+  generated_exact_type get2 location=closure1 nominal_id=31955c72f72d01c54f504fcfe5354dbe29eeca1c1b788d2231ee13dea09270bd exact_id=5a85839cbd89129f2246cd8694ff207eefd2577e283a4c78e4dbbd94e2dc50ce
+  generated_exact_type get3 location=enum1 nominal_id=c75ee9af9f5931b9cd277f7f0bc8d55a4c978ba584a7bee200ba36a28d4ff2f2 exact_id=b83af2defe198316d5d6d6ea67a32f78886e88c92a51f5d10e09f5da50f5890a
+  generated_exact_type get4 location=class0 nominal_id=7e1dea6262c147a81964fbbd0557697f61786d87080117fbd29b01aa2cad9ea0 exact_id=cf0c97e2c1639bda7a3dfbce9c88116358ea468018d4df1f6e88f0289b3138bc
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call number: Number = @fn7 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.receiver: Ptr<Number>
+        Type Ptr<Number>
+        AddressOf number : Ptr<Number>
+      val raw: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.receiver
+      val closure: () -> Number
+        Type () -> Number
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=1
+            Type Number
+            Local number
+          CaptureInit field=0
+            Type ULong
+            Local raw
+      call $call.1: Number = @fn3 direct
+        Type ULong
+        Local raw
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $call.2: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local closure
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.argument.0: Number
+        Type Number
+        Local number
+      val $dependency.parameter.value: Number
+        Type Number
+        Local $dependency.argument.0
+      call $call.3: Number = @fn4 direct
+        Type Number
+        Local $dependency.parameter.value
+      return
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.3
+  fun $lambda.0 @fn2($closure: () -> Number) -> Number
+    bb0 entry
+      var loaded: Number
+        Type Number
+        ClosureCapture cc0 1
+          Type () -> Number
+          Local $closure
+      val $dependency.receiver: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          ClosureCapture cc0 0
+            Type () -> Number
+            Local $closure
+      assign loaded
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.receiver
+      return
+        Type Number
+        Local loaded
+  fun $local.0.read @fn3($capture.raw: ULong) -> Number
+    bb0 entry
+      val $dependency.receiver: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          Local $capture.raw
+      return
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.receiver
+  fun lexicalCopy @fn4(value: Number) -> Number
+    bb0 entry
+      val $dependency.local.5: Ptr<Number>
+        Type Ptr<Number>
+        AddressOf value : Ptr<Number>
+      val $dependency.local.1: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.local.5
+      call $dependency.local.2: Number = @fn5 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.6: Ptr<Number>
+        Type Ptr<Number>
+        AddressOf $dependency.local.2 : Ptr<Number>
+      val $dependency.local.3: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.local.6
+      val $dependency.local.4: () -> Number
+        Type () -> Number
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Number
+            Local $dependency.local.2
+          CaptureInit field=1
+            Type ULong
+            Local $dependency.local.3
+      call $call.1: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local $dependency.local.4
+      return
+        Type Number
+        Local $call.1
+  fun read @fn5($capture.0: ULong) -> Number
+    bb0 entry
+      val $dependency.local.0: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          Local $capture.0
+      return
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.0
+  fun $lambda @fn6($argument.0: () -> Number) -> Number
+    bb0 entry
+      var $dependency.local.0: Number
+        Type Number
+        ClosureCapture cc1 0
+          Type () -> Number
+          Local $argument.0
+      val $dependency.local.1: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          ClosureCapture cc1 1
+            Type () -> Number
+            Local $argument.0
+      assign $dependency.local.0
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.1
+      return
+        Type Number
+        Local $dependency.local.0
+  fun ctor.Number.$c0 @fn7(value: Int) -> Number <no-gc>
+    bb0 entry
+      return
+        Type Number
+        StructInit Number
+          Type Int
+          Local value
+  coroutine_step cs0 CoroutineStep<Number> result=Number
+  coroutine_slot cl0 CoroutineSlot<Number> value=Number
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- $lambda.0
+  instance mi2 function=@fn3 <- $local.0.read
+  instance mi3 function=@fn4 <- lexicalCopy
+  instance mi4 function=@fn5 <- read
+  instance mi5 function=@fn6 <- $lambda
+  output library

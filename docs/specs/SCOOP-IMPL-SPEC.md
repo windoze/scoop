@@ -188,6 +188,10 @@ M24起class body member sum增加独立`ReleaseBlock`。`release`只在class mem
 
 M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、owner binder、方法 binder 和 effects，参与既有候选推断后正规化到 `AddressOf`、`SizeOf`、`AlignOf` 及指针操作节点。它们不需要共有执行正文或机器 callable。`addressOf` 的原始 local/raw-global place 必须在普通实参临时复制之前确定；泛型 GC-free 条件复用 `Ptr<T>` 的现有传播。布局查询只要求值类型，具体化代换被查询类型后交给后续布局阶段求值（语言规范 13.10）。默认值与泛型正文直接消费既有 typed 节点与 selector，不增加格式分支或重复完整语义验证。
 
+显式 `Ptr<T>(raw)` 从已解析的实际 `core_ptr` 名义声明进入特殊构造候选，与同层普通 callable 共用重载选择。当前声明和依赖声明共用 pointee 推断、参数与常量非零检查，并产生已有 `PtrFromNonZeroULong` 节点；固定 application 的 typealias 作为非参数化候选。依赖路径使用原 typed nominal identity 及其 binder，不补造本地 struct、普通 constructor identity、共有正文或机器函数。unsafe 和常量非零错误不改变候选适用性；仅在选中后提交诊断并结束该错误表达式的 lowering，避免回退到其他候选或产生级联的语句形态错误。合法调用保留唯一一次原实参求值。默认值及泛型正文沿现有节点代换和条件约束路径消费。
+
+`Ptr`／`FunPtr` 别名按既有结构化指针签名发布，`AliasTarget` 引用由该签名实际包含的 pointee／函数参数与结果中的名义类型构成；指针类型源码绑定不额外变成签名中不存在的泛型名义目标。直接指向外来 typealias 的别名仍保留原 alias 边及正常名称绑定，构造时再从已解析类型取得实际 core owner。
+
 负责 desugaring、type check 和 overload resolution；综合上游 Cone 的 HIR export representation；解析每个表达式/子表达式的 type，解析每个 callable 的 target。输出不是一个同时容纳parameterized与concrete节点的`Module`，而是按消费者严格隔离的两个IR：
 
 - **`ExportHir`**：只供下游Cone的HIR阶段消费，并在结构上区分普通public/re-export lookup surface、公开owner跨Cone继承所需的protected inheritance/slot surface、以及exported generic template的hidden support closure；后两者不能枚举为普通import binding。它还包含非generic concrete声明的签名/成员/属性、导出的`const val`、non-generic typealias及作为callable接口在调用处展开的hygienic typed default template。default template节点保存已解析的kind-specific typed declaration reference及定义位置，public default不携带private/internal hidden dependency closure；前端完成可见性检查后，产物不再附加逐引用调用域覆盖证明。它不包含本Cone局部产生的concrete实例体。

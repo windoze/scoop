@@ -609,12 +609,25 @@
 - 关闭 snapshot 更新后，使用实际配套 `scoopc` 完成 `cargo test --workspace`：**5212 passed、0 failed、0 ignored**，包含既有 Option、成员、函数引用、继承／接口、core 和产物视图回归。完整日志为 `/tmp/scoop-m23-7-pointers-workspace.log`，专项产物日志为 `/tmp/scoop-m23-7-pointers-driver.log`。
 - 全部验证完成后，通过 Cargo metadata 确认 `target` 为实际构建目录，核对无符号链接、无打开文件且只含编译／编辑器检查缓存；恢复缺失的标准 `CACHEDIR.TAG` 并执行 `cargo clean --target-dir target`，删除 2622 个文件，Cargo 报告 6.1 GiB。
 
-本项完成上述指针与布局调用闭环。显式 `Ptr<T>(raw)` 的外来构造入口、外来 raw storage 的取址和泛型组合、指针函数值适配仍需推进；不把已通过的调用正例视为这些能力或整个 M23-7 已完成。
+本项完成上述指针与布局调用闭环。显式 `Ptr<T>(raw)` 的外来构造见下一节；外来 raw storage 的取址和泛型组合、指针函数值适配仍需推进。
+
+## 显式原始指针构造
+
+- 普通名称查找得到实际 core `Ptr` 声明后，外来入口与当前 Cone 共用 pointee 推断、`raw: ULong` 参数和 GC-free 检查。显式类型实参、期望类型推断、`_`、位置／命名参数与导入别名均进入同一特殊构造候选，直接生成已有 `PtrFromNonZeroULong`；不补造本地 struct、普通 constructor identity、机器 callable 或新的 wire 分支。
+- 固定 `Ptr<Int>` application 的本地／外来 typealias 作为非参数化候选，和同层普通函数统一比较。unsafe 和常量零错误只由已选入口提交，错误表达式随即结束；修复常量零被当作不适用、从而错误回退到较弱普通函数的情况。合法调用仍只求值一次 raw 实参，动态非零继续是既有 unsafe 前置条件，不增加 runtime 检查。
+- `Ptr`／`FunPtr` 别名按结构化指针签名保留实际 component 类型引用，移除签名中不存在的 pointer family 名义 AliasTarget；直接 alias 边继续保留真实绑定。`FunPtr` 及其别名仍无整数构造器。构造中的泛型 GC-free 条件复用既有正文条件传播，结果立即转成整数的包装函数也不能绕过条件；已检查的具体 pointee 不再登记到后续重复检查列表。
+- 默认值、局部函数和 lambda 直接消费现有指针节点。新增 `m23-imported-pointer-construction` 的 **32 份源码、45 份 golden**，含 8 组真实产物正例和 21 个反例：显式／推断构造、别名、普通重载与歧义、同名普通 struct、raw 求值顺序、泛型正文及默认值、捕获、ZST、嵌套指针和 Option niche；反例覆盖参数协议、类型与 kind、非零、unsafe、直接和泛型 GC-free 条件及无效 FunPtr 构造。
+- provider／consumer 发布后移走源码，下游以自有值类型、Unit 及重复 Int application 再次消费和发布，核对 HIR/MIR/LIR、共同 ODR member、普通运行与移动 GC。泛型测试把重新编码的 raw 和局部函数的读取结果实际传给后续读取，保证这些路径影响最终结果。
+- 专项验证依次完成 `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets`、配套 `scoopc` 构建和测试，无 lint 警告。5 个前端测试通过（含 3 个既有构造测试）；最终 2 个集成测试覆盖上述 8 组正例及 21 个反例并通过，用时 46.70 秒。日志为 `/tmp/scoop-m23-7-pointer-construction-frontend.log` 和 `/tmp/scoop-m23-7-pointer-construction-driver.log`。
+- 关闭 snapshot 更新，使用实际配套 `scoopc` 完成 `cargo test --workspace --no-fail-fast`：37 个测试组全部完成，**5216 passed、0 failed、0 ignored**，包含上述用例以及既有 core、属性初始化、继承／接口、函数引用、普通状态、Option 和指针调用回归。完整日志为 `/tmp/scoop-m23-7-pointer-construction-workspace.log`。
+- 全部测试结束后，通过 Cargo metadata 核对实际 `target`，确认目录非符号链接、无打开文件且只含构建／编辑器缓存；恢复缺失的标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 2731 个文件，Cargo 报告 **5.5 GiB**，清理后 `target` 不存在。
+
+复核还发现一般性的依赖 package 限定类型名缺口：`dependency.construction.IntPointer` 在类型位置报 `unknown type dependency`，通过普通 import 引入的 `IntPointer` 可用。`types/resolution.rs` 的限定类型入口目前只选当前 Cone 的 package 前缀，`imports/selector.rs` 已有当前与 direct package 合并的最长前缀逻辑；该一般名称查找问题列入下一项独立变更。原始复现保存在 `/tmp/scoop-m23-7-qualified-pointer-alias.scoop`，使用本组 provider 即可复现。
 
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通显式原始指针构造、指针函数值适配，以及显式 native storage（含取址）的泛型组合。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造的基础上，补齐依赖 package 限定类型路径的普通查找、vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

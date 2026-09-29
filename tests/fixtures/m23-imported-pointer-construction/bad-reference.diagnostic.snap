@@ -1,0 +1,3 @@
+span=97..114
+expression=Ptr<Managed>(1uL)
+type argument `Managed` for `T` of struct `Ptr` must satisfy `value`

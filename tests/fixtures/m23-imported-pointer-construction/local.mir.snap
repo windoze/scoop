@@ -1,0 +1,210 @@
+Module
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      var number: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf number : Ptr<Int>
+      val raw: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val explicit: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local raw
+      val inferred: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local raw
+      val placeholder: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local raw
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local explicit
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local raw
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local inferred
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local raw
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local placeholder
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local raw
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local explicit
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local inferred
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local placeholder
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local placeholder
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local number
+  instance mi0 function=@fn1 <- exercise
+  output library

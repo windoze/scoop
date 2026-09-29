@@ -1,0 +1,20 @@
+package consumer.construction
+
+import Ptr as Make
+import dependency.construction.safely as Make
+import dependency.construction.IntPointer as Fixed
+import dependency.construction.shifted as Fixed
+
+public fun <T> exercise(value: T): Int {
+    var number = 1
+    var raw = 1uL
+    @Unsafe { raw = addressOf(number).toULong() }
+    val ordinary: Ptr<Int> = Make(raw)
+    @Unsafe {
+        val fixed: Ptr<Int> = Fixed(raw)
+        if (fixed.toULong() != raw || ordinary.toULong() != raw) { return 1 }
+        return fixed.load()
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

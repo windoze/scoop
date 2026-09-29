@@ -1,0 +1,3 @@
+span=41..54
+expression=Ptr<Int>(1uL)
+constructing `Ptr` from a raw integer requires an unsafe context

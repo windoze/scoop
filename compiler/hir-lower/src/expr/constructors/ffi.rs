@@ -18,7 +18,25 @@ impl Lowerer {
             return None;
         }
         debug_assert_eq!(Some(struct_id), self.ffi_ptr);
+        let parameters = self.structs[struct_id].type_params.clone();
+        let diagnostics_before = self.diagnostics.len();
+        let expression = self.lower_raw_pointer_init(&parameters, call, sink, expected);
+        if self.diagnostics[diagnostics_before..]
+            .iter()
+            .any(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error)
+        {
+            return None;
+        }
+        expression
+    }
 
+    pub(in crate::expr) fn lower_raw_pointer_init(
+        &mut self,
+        parameters: &[hir::TypeParamDecl],
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
         let explicit = self.resolve_call_type_args(call.type_args)?;
         if explicit.len() > 1 {
             self.error(
@@ -49,8 +67,7 @@ impl Lowerer {
             }
             _ => unreachable!("the explicit Ptr arity was checked"),
         };
-        let parameter = self.structs[struct_id].type_params.clone();
-        if !self.check_type_argument_kinds(&parameter, &[pointee], call.span, "struct `Ptr`") {
+        if !self.check_type_argument_kinds(parameters, &[pointee], call.span, "struct `Ptr`") {
             return None;
         }
         if !self.type_contains_param(pointee) && !self.is_gc_free(pointee) {
@@ -118,11 +135,10 @@ impl Lowerer {
                 argument.span,
                 "`Ptr` raw address must be nonzero".to_string(),
             );
-            return None;
+            // Keep the candidate applicable. Only the selected entry commits
+            // this diagnostic, just like its unsafe-context requirement.
         }
         let ty = self.intern_type(Type::Ptr(pointee));
-        self.pointer_type_uses
-            .push((ty, self.current_file, call.span));
         Some(hir::Expr {
             kind: ExprKind::PtrFromNonZeroULong(Box::new(raw)),
             ty,

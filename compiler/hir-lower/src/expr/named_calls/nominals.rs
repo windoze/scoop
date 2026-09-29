@@ -3,6 +3,7 @@ use crate::constructor_resolution::NominalConstructorCall;
 
 mod imported;
 mod plans;
+mod pointers;
 
 struct NominalPlan {
     view: NominalConstructorView,
@@ -11,10 +12,14 @@ struct NominalPlan {
 }
 
 enum PreparedNominalPlans {
-    Local(Vec<NominalPlan>, Option<(hir::StructId, Option<TypeId>)>),
+    Local(
+        Vec<NominalPlan>,
+        Option<(hir::StructId, Option<TypeId>, bool)>,
+    ),
     Imported {
         owner: hir::SourceNominalId,
         expected: Option<TypeId>,
+        fixed_alias: bool,
     },
 }
 
@@ -42,8 +47,12 @@ impl Lowerer {
                         intrinsics.push(intrinsic);
                     }
                 }
-                Ok(PreparedNominalPlans::Imported { owner, expected }) => {
-                    imported.push((preparation, owner, expected));
+                Ok(PreparedNominalPlans::Imported {
+                    owner,
+                    expected,
+                    fixed_alias,
+                }) => {
+                    imported.push((preparation, owner, expected, fixed_alias));
                 }
                 Err(()) => {
                     failures.push(Box::new(preparation));
@@ -167,11 +176,12 @@ impl Lowerer {
                 Err(failure) => failures.push(failure),
             }
         }
-        for (state, owner, expected) in imported {
+        for (state, owner, expected, fixed_alias) in imported {
             state.collect_imported_constructor_probes(
                 owner,
                 call,
                 expected,
+                fixed_alias,
                 &mut applicable,
                 &mut failures,
             );
@@ -207,36 +217,15 @@ impl Lowerer {
                 }
             }
         }
-        for (structure, fixed) in intrinsics {
-            match self.probe_expr_layer(|state, sink| {
-                state.lower_ffi_struct_init(
-                    structure,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    sink,
-                    fixed,
-                )
-            }) {
-                Ok(layer) => {
-                    let ulong = self.integer_type(hir::IntegerKind::UNSIGNED_64);
-                    let probe = crate::call_resolution::named::NamedIntrinsicStructProbe {
-                        structure,
-                        owners: self.structs[structure].type_params.clone(),
-                        parameter_types: vec![ulong],
-                        integer_arguments: vec![Some(hir::IntegerKind::UNSIGNED_64)],
-                    };
-                    applicable.push(NamedApplicable {
-                        probe: NamedFunctionLikeProbe::IntrinsicStruct(probe),
-                        commit: NamedFunctionCommit::Intrinsic(layer),
-                    });
-                }
-                Err(failure) => {
-                    failures.push(failure);
-                }
-            }
+        for (structure, fixed, fixed_alias) in intrinsics {
+            self.clone().collect_pointer_construction_probe(
+                crate::call_resolution::named::NamedIntrinsicStructOrigin::Current(structure),
+                call,
+                fixed,
+                fixed_alias,
+                &mut applicable,
+                &mut failures,
+            );
         }
         if applicable.is_empty() {
             let functions = targets
@@ -342,7 +331,15 @@ impl Lowerer {
                 Some(self.finish_named_nominal(resolved, call.span))
             }
             (NamedFunctionLikeProbe::IntrinsicStruct(_), NamedFunctionCommit::Intrinsic(layer)) => {
-                Some(self.commit_expr_layer(layer, sink))
+                if layer.state.diagnostics[diagnostics_before..]
+                    .iter()
+                    .any(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error)
+                {
+                    self.commit_layer_diagnostics(*layer.state);
+                    None
+                } else {
+                    Some(self.commit_expr_layer(layer, sink))
+                }
             }
             _ => unreachable!("each typed probe retains its matching commit protocol"),
         };

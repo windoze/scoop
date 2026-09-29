@@ -1,0 +1,3 @@
+span=51..70
+expression=Ptr<Int, Long>(1uL)
+`Ptr` expects one explicit type argument, but 2 were supplied

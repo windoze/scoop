@@ -84,6 +84,8 @@ abstract slot、intrinsic 声明和 source extern 继续使用各自已有 imple
 
 外来指针与布局 intrinsic 使用实际声明的 owner、binder、签名及 effects 参与普通候选选择和约束求解。`Ptr<T>` 的结构表示仍关联真实 core 泛型 owner，成员的 owner 与方法类型参数分别绑定；已选 intrinsic 直接正规化到既有指针/布局节点，不产生空模板或虚构机器函数。`addressOf` 保留源码原 place，泛型 pointee 沿现有 `Ptr` 条件传播 GC-free 要求；布局查询仅要求值类型，待代换后求布局。默认值和共有泛型正文复用同一组 typed 节点、局部 selector 与 raw global 引用，保持实际求值顺序、方法 `this` 副本和 ZST 地址语义。该能力不增加 wire tag 或 runtime ABI。
 
+显式 `Ptr<T>(raw)` 的外来入口由普通 lookup 找到的实际 `core_ptr` 类型提供，参与同层函数与名义构造候选选择。导入别名和固定 application 的 typealias 保留既有推断、遮蔽及具体性规则；后者是非参数化候选。与当前 Cone 共用特殊构造检查，保留 `raw: ULong`、unsafe、常量非零和递归 GC-free 契约，并直接产生已有 `PtrFromNonZeroULong` 节点。共有泛型正文及默认值保存该节点与 pointee 类型，下游可用自己的 GC-free 值类型实例化并再次发布。不新增普通 constructor 声明、来源证明、wire tag 或 runtime 检查。
+
 模板可引用 direct 或 support provider 的声明。只保存原 typed target 和实际 provider；re-export 不复制正文、不改 origin。一次 reader 得到的不可变模板和声明供后续查询复用。模板内已经绑定的引用不制造消费方 public lookup observation，也不重新枚举 hidden 名称；只有消费方实际源码 lookup 才进入原候选记录。
 
 当前 Cone 在 Export HIR 完成后、LocalConcrete HIR 生成前，从公开声明、默认值与泛型正文收集共有声明和模板正文闭包，供具体化选择自动 shape roots。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 及实际导出的泛型成员的 receiver、参数和结果类型沿表示依赖，把当前 Cone 所需的源码名义声明补入同一支持集合，并闭合其字段、成员和模板引用；普通函数正文中用于泛型 payload 或共有成员 ABI 的私有类型也必须有完整表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，最终不可变结果由 HIR 类型语义、MIR/LIR 布局和正式共有 section 复用。支持声明保留原 typed identity 和可见性，不生成 public binding；所有本地私有物理声明、未调用模板、未求值默认值和整个类型 arena 仍不构成共有机器根。该结果是当前编译的数据投影，不新增产物字段或来源资格。

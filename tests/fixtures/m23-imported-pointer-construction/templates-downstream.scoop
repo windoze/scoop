@@ -1,0 +1,17 @@
+import consumer.construction.result
+import consumer.construction.exercise
+import consumer.construction.roundTrip
+
+private class Later(public val number: Int)
+private struct LaterValue(val number: Int)
+
+public fun check(): Int {
+    val value = Later(result())
+    val answer = exercise<Later>(value)
+    @Unsafe {
+        val empty = roundTrip<Unit>(Unit)
+        if (roundTrip<LaterValue>(LaterValue(42)).number != 42) { return 1 }
+        if (roundTrip<Int>(42) != 42) { return 2 }
+    }
+    return if (exercise<Int>(0) == 42 && value.number == 42) { answer } else { 3 }
+}

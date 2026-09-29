@@ -1,0 +1,51 @@
+Module
+  enum CoroutineStep<Ptr> tagged size=16 align=8 variants=(struct0)@8+4 ()@8+0
+  enum CoroutineSlot<Ptr> tagged size=16 align=8 variants=()@8+0 (struct0)@8+4
+  fun @scoop$1$cb$70424ba84cef52e98e34b9a7d4900efa56192a9940fb9b04d67da04c300718e7() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$2980ed754b0d0f766eb215255f21521f262fe04190974be5db4e3467c3fb55f4(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.raw: i32
+    local %2 ordinary: struct0
+    local %3 $dependency.receiver: ptr<raw>
+    local %4 pointer: ptr<raw>
+    local %5 $dependency.receiver: ptr<raw>
+    local %6 $sc.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002a) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn2(local1)
+    store local6 -> local2
+    t0 = local_address local2 : ptr
+    store t0 -> local3
+    t1 = ptr_to_ulong local3 : i64
+    t2 = ulong_to_ptr t1 : ptr
+    store t2 -> local4
+    store local4 -> local5
+    t3 = raw_load local5 align 4 : struct0
+    t4 = extract t3, 0 : i32
+    ret t4
+  fun @scoop$1$cb$a452791ca02ec7581818c77f00b5c344143290a8d3485c1c5339d8ec69b10fdd(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  td td0 g(r=00000006;i=b94aab7c18ef06c1350f5bccc2f0f1b295c776b4ef2b3e0e603156a6f8ebb454) @scoop$1$td$990065e6c3277c62a18dee344406bb44161c85507dd1d9c500062dfc86e024ed type-id=6274353651789839060 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=dev.example%3Ageneric-member-shadow%3A0.1.0;p=consumer.construction;o=-;k=S;x=Ptr) @scoop$1$td$9e410ab837b9be15b2f9003cff0f75cdd24682ebf4675709b133d46bb23597d8 type-id=18246697169631521915 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000005;i=90351132843957e46edc959b0a2fdac4343ef14e1661d122eed03262017b65cd) @scoop$1$td$28eba349ff478c1330a19ab5d4cd8973d068ba1c1abb693e491e56b4343d1791 type-id=13227643697932069204 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000007;i=040784317c4370b948551dd80c0cde6c8043da543855729a7f256f8d6cb6653d) @scoop$1$td$721bbba57954719bbaadaecb331641bab722b56497eebe75658bcd24d5ab3172 type-id=12921004679464323212 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Ptr size=4 align=4 refs=[]
+  layout CoroutineStep<Ptr> size=16 align=8 enum-scan=none
+  layout CoroutineSlot<Ptr> size=16 align=8 enum-scan=none
+  layout box<Ptr> value size=8 align=8 refs=[0]
+  layout box<Ptr> size=24 align=8 refs=[]
+  output library

@@ -8,6 +8,7 @@ impl Lowerer {
         owner: hir::SourceNominalId,
         call: &ast::CallExpr,
         expected: Option<TypeId>,
+        fixed_alias: bool,
         applicable: &mut Vec<NamedApplicable>,
         failures: &mut Vec<Box<Lowerer>>,
     ) {
@@ -18,6 +19,29 @@ impl Lowerer {
         let declaration = dependencies
             .nominal_declaration(owner)
             .expect("a resolved dependency type retains its declaration");
+        if let hir::NominalSourceShapeV1::Intrinsic(representation) =
+            declaration.interface.source_shape()
+        {
+            if representation.family() == hir::IntrinsicTypeKind::Ptr {
+                self.collect_pointer_construction_probe(
+                    crate::call_resolution::named::NamedIntrinsicStructOrigin::Imported(owner),
+                    call,
+                    expected,
+                    fixed_alias,
+                    applicable,
+                    failures,
+                );
+                return;
+            }
+            if representation.family() == hir::IntrinsicTypeKind::FunPtr {
+                self.error(
+                    call.span,
+                    "intrinsic struct `FunPtr` has no source constructor".to_string(),
+                );
+                failures.push(Box::new(self));
+                return;
+            }
+        }
         if declaration.interface.declaration_details().modality()
             == hir::NominalInheritanceModalityV1::Abstract
         {
@@ -84,6 +108,7 @@ impl Lowerer {
             hir::SourceNominalId::Concrete(owner),
             &call,
             expected,
+            false,
             &mut applicable,
             &mut failures,
         );

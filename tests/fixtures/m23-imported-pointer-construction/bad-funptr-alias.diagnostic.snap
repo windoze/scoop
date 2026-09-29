@@ -1,0 +1,3 @@
+span=91..104
+expression=Callback(1uL)
+type `Callback` does not name a constructible type

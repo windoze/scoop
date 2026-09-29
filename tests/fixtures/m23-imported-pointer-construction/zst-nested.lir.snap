@@ -1,0 +1,174 @@
+Module
+  enum Option niche(kind=raw,payload_variant=0)
+  fun @scoop$1$cb$5e2d16b96fcc20b6572f8e07f9c9744095606a283be3a149549e5fd018cb4c6c() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$1c5f2e7cd0978ceea83d9199d19b8829b91217fd6b1ebb943fb2f584765ada17(i32) -> i32
+    local %0 empty: {} <zst-token 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align=1 lifetime=function>
+    local %1 number: i32
+    local %2 $dependency.receiver: ptr<raw>
+    local %3 emptyRaw: i64
+    local %4 emptyPointer: ptr<raw>
+    local %5 $dependency.receiver: i64
+    local %6 $dependency.argument.0: i64
+    local %7 $dependency.parameter.other: i64
+    local %8 $dependency.receiver: ptr<raw>
+    local %9 $dependency.receiver: i64
+    local %10 $dependency.argument.0: i64
+    local %11 $dependency.parameter.other: i64
+    local %12 $shortCircuit.0: i1
+    local %13 $dependency.receiver: ptr<raw>
+    local %14 unit: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %15 $dependency.receiver: ptr<raw>
+    local %16 $dependency.argument.0: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %17 $dependency.parameter.value: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %18 $dependency.receiver: ptr<raw>
+    local %19 inner: ptr<raw>
+    local %20 $dependency.receiver: ptr<raw>
+    local %21 outer: ptr<raw>
+    local %22 $dependency.receiver: ptr<raw>
+    local %23 $dependency.argument.0: ptr<raw>
+    local %24 $dependency.parameter._1: ptr<raw>
+    local %25 present: enum0
+    local %26 absent: enum0
+    local %27 $dependency.receiver: i64
+    local %28 $dependency.argument.0: i64
+    local %29 $dependency.parameter.other: i64
+    local %30 pointer: ptr<raw>
+    local %31 $dependency.receiver: ptr<raw>
+    local %32 $dependency.receiver: i32
+    local %33 $dependency.argument.0: i32
+    local %34 $dependency.parameter.other: i32
+    local %35 $dependency.receiver: ptr<raw>
+    local %36 $dependency.argument.0: i32
+    local %37 $dependency.parameter.value: i32
+    local %38 pointer: ptr<raw>
+    local %39 $when.1: enum0
+    local %40 $pattern.subject.2: enum0
+    local %41 $pattern.subject.3: enum0
+    local %42 $when.4: enum0
+    local %43 $pattern.subject.5: enum0
+    local %44 $pattern.subject.6: enum0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = aggregate () : {}
+    store t0 -> local0
+    store integer<Int>(0x00000028) -> local1
+    t1 = local_address local0 : ptr
+    store t1 -> local2
+    t2 = ptr_to_ulong local2 : i64
+    store t2 -> local3
+    t3 = ulong_to_ptr local3 : ptr
+    store t3 -> local4
+    store local3 -> local5
+    store integer<ULong>(0x0000000000000000) -> local6
+    store local6 -> local7
+    t4 = integer_compare_Equal<ULong> local5, local7 : i1
+    cbr t4 then @if.then.1 else @if.else.2
+  block if.then.1
+    store true -> local12
+    br @if.merge.3
+  block if.else.2
+    store local4 -> local8
+    t5 = ptr_to_ulong local8 : i64
+    store t5 -> local9
+    store local3 -> local10
+    store local10 -> local11
+    t6 = integer_compare_Equal<ULong> local9, local11 : i1
+    t7 = Not t6 : i1
+    store t7 -> local12
+    br @if.merge.3
+  block if.merge.3
+    cbr local12 then @if.then.4 else @if.merge.5
+  block if.then.4
+    ret integer<Int>(0x00000001)
+  block if.merge.5
+    store local4 -> local13
+    t8 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
+    store t8 -> local14
+    store local4 -> local15
+    store local14 -> local16
+    store local16 -> local17
+    t9 = aggregate () : {}
+    t10 = local_address local1 : ptr
+    store t10 -> local18
+    t11 = ptr_to_ulong local18 : i64
+    t12 = ulong_to_ptr t11 : ptr
+    store t12 -> local19
+    t13 = local_address local19 : ptr
+    store t13 -> local20
+    t14 = ptr_to_ulong local20 : i64
+    t15 = ulong_to_ptr t14 : ptr
+    store t15 -> local21
+    store local21 -> local22
+    t16 = raw_load local22 align 8 : ptr<raw>
+    store t16 -> local23
+    store local23 -> local24
+    t17 = enum_wrap e0 v0 (local24) : enum0
+    store t17 -> local25
+    t18 = enum_wrap e0 v1 () : enum0
+    store t18 -> local26
+    store integer<ULong>(0x0000000000000008) -> local27
+    store integer<ULong>(0x0000000000000008) -> local28
+    store local28 -> local29
+    t19 = integer_compare_Equal<ULong> local27, local29 : i1
+    t20 = Not t19 : i1
+    cbr t20 then @if.then.6 else @if.merge.7
+  block if.then.6
+    ret integer<Int>(0x00000002)
+  block if.merge.7
+    store local25 -> local39
+    store local39 -> local40
+    t21 = variant_test e0 v0 local40 : i1
+    cbr t21 then @pattern.pass.8 else @pattern.else.9
+  block pattern.pass.8
+    t22 = variant_payload_project e0 v0 f0 local40 : ptr<raw>
+    store t22 -> local30
+    store local30 -> local35
+    store local30 -> local31
+    t23 = raw_load local31 align 4 : i32
+    store t23 -> local32
+    store integer<Int>(0x00000002) -> local33
+    store local33 -> local34
+    t24 = integer_Add<Int> local32, local34 : i32
+    store t24 -> local36
+    store local36 -> local37
+    raw_store local35 local37 align 4
+    t25 = aggregate () : {}
+    br @pattern.merge.10
+  block pattern.else.9
+    store local39 -> local41
+    t26 = variant_test e0 v1 local41 : i1
+    cbr t26 then @pattern.pass.11 else @pattern.else.12
+  block pattern.merge.10
+    store local26 -> local42
+    store local42 -> local43
+    t27 = variant_test e0 v0 local43 : i1
+    cbr t27 then @pattern.pass.14 else @pattern.else.15
+  block pattern.pass.11
+    ret integer<Int>(0x00000003)
+  block pattern.else.12
+    unreachable
+  block pattern.pass.14
+    t28 = variant_payload_project e0 v0 f0 local43 : ptr<raw>
+    store t28 -> local38
+    ret integer<Int>(0x00000004)
+  block pattern.else.15
+    store local42 -> local44
+    t29 = variant_test e0 v1 local44 : i1
+    cbr t29 then @pattern.pass.17 else @pattern.else.18
+  block pattern.pass.17
+    ret local1
+  block pattern.else.18
+    unreachable
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9d572fb7b6764129002a75b480deee5a0cda74232de03f5e6f9c4d461dcd7c6b type-id=6459035658027077739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Option size=8 align=8 enum-scan=none
+  output library

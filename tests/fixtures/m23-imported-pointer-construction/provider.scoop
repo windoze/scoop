@@ -1,0 +1,47 @@
+package dependency.construction
+
+public typealias IntPointer = Ptr<Int>
+public typealias Callback = FunPtr<() -> Int>
+
+@Unsafe
+public fun <T: value> reconstruct(raw: ULong): Ptr<T> = Ptr<T>(raw)
+
+@Unsafe
+public fun <T: value> reencode(raw: ULong): ULong = Ptr<T>(raw).toULong()
+
+@Unsafe
+public fun <T: value> loadDefault(raw: ULong, pointer: Ptr<T> = Ptr<T>(raw)): T = pointer.load()
+
+@Unsafe
+public fun <T: value> copy(value: T): T {
+    val raw = addressOf(value).toULong()
+    return reconstruct<T>(raw).load()
+}
+
+@Unsafe
+public fun <T: value> lexicalCopy(value: T): T {
+    val raw = addressOf(value).toULong()
+    fun read(): T {
+        @Unsafe { return Ptr<T>(raw).load() }
+    }
+    val first = read()
+    val nextRaw = addressOf(first).toULong()
+    val closure: () -> T = {
+        var loaded = first
+        @Unsafe { loaded = Ptr<T>(nextRaw).load() }
+        loaded
+    }
+    return closure()
+}
+
+public fun safely(raw: ULong): Ptr<Int> {
+    @Unsafe {
+        val pointer = Ptr<Int>(raw)
+        pointer.store(42)
+        return pointer
+    }
+}
+
+public fun <T: value> shifted(raw: ULong): Ptr<T> {
+    @Unsafe { return Ptr<T>(raw + 8uL) }
+}

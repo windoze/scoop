@@ -1,0 +1,68 @@
+Module
+  struct Ptr (raw: Int)
+  enum CoroutineStep<Ptr>
+    Completed(value: Ptr)
+    Suspended()
+  enum CoroutineSlot<Ptr>
+    Empty()
+    Value(value: Ptr)
+  class box<Ptr> vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=90351132843957e46edc959b0a2fdac4343ef14e1661d122eed03262017b65cd exact_id=28eba349ff478c1330a19ab5d4cd8973d068ba1c1abb693e491e56b4343d1791
+  generated_exact_type get1 location=enum1 nominal_id=040784317c4370b948551dd80c0cde6c8043da543855729a7f256f8d6cb6653d exact_id=721bbba57954719bbaadaecb331641bab722b56497eebe75658bcd24d5ab3172
+  generated_exact_type get2 location=class0 nominal_id=b94aab7c18ef06c1350f5bccc2f0f1b295c776b4ef2b3e0e603156a6f8ebb454 exact_id=990065e6c3277c62a18dee344406bb44161c85507dd1d9c500062dfc86e024ed
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.raw: Int
+        Type Int
+        Local $argument.0
+      call ordinary: Ptr = @fn2 direct
+        Type Int
+        Local $parameter.raw
+      val $dependency.receiver: Ptr<Ptr>
+        Type Ptr<Ptr>
+        AddressOf ordinary : Ptr<Ptr>
+      val pointer: Ptr<Ptr>
+        Type Ptr<Ptr>
+        PtrFromNonZeroULong Ptr
+          Type ULong
+          PtrToULong
+            Type Ptr<Ptr>
+            Local $dependency.receiver
+      val $dependency.receiver: Ptr<Ptr>
+        Type Ptr<Ptr>
+        Local pointer
+      return
+        Type Int
+        FieldAccess 0
+          Type Ptr
+          PtrLoad Ptr
+            Type Ptr<Ptr>
+            Local $dependency.receiver
+  fun ctor.Ptr.$c0 @fn2(raw: Int) -> Ptr <no-gc>
+    bb0 entry
+      return
+        Type Ptr
+        StructInit Ptr
+          Type Int
+          Local raw
+  coroutine_step cs0 CoroutineStep<Ptr> result=Ptr
+  coroutine_slot cl0 CoroutineSlot<Ptr> value=Ptr
+  instance mi0 function=@fn1 <- exercise
+  output library

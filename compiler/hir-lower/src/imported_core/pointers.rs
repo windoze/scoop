@@ -62,12 +62,8 @@ impl Lowerer {
                 .push((ty, self.current_file, name.span));
             ty
         };
-        self.retain_imported_alias_target_bindings(
-            binding,
-            hir::ExternalHirTargetV1::Nominal(
-                scoop_identity::NominalDeclarationOwner::GenericTemplate(declaration.persistent()),
-            ),
-        );
+        // Pointer signatures retain their component types, not a nominal
+        // application of the compiler-represented pointer family.
         Some(ty)
     }
 }

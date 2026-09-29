@@ -1,0 +1,280 @@
+Module
+  enum CoroutineStep<Counter>
+    Completed(value: Counter)
+    Suspended()
+  enum CoroutineSlot<Counter>
+    Empty()
+    Value(value: Counter)
+  class Counter vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=dc59a25212fc796f3c815d0144e7ffd3583ccfeb18b4aa0248fb806008cda184 exact_id=6ceec49829176eefd7b08a51a0ad4b04ca56e52f84313afaf13634a40ffade88
+  generated_exact_type get1 location=enum0 nominal_id=f532d82203fea8a7a765a330d7dab8e1ce9e4cc1f76ecc53cd5bf6efb2940034 exact_id=74d4f5fb0715f3d7263627ccb90e3882ceb9c3a8bb8ba318e52c71fae956c376
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      var number: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.calls: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call @fn5 direct
+        Type Counter
+        Local $new.1
+        Type Int
+        Local $parameter.calls
+      val counter: Counter
+        Type Counter
+        Local $new.1
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf number : Ptr<Int>
+      val raw: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      call $call.2: ULong = @fn2 direct
+        Type Counter
+        Local counter
+        Type ULong
+        Local raw
+      val pointer: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local $call.2
+      call $dependency.argument.0: ULong = @fn2 direct
+        Type Counter
+        Local counter
+        Type ULong
+        Local raw
+      val $dependency.parameter.raw: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $dependency.parameter.pointer: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local $dependency.parameter.raw
+      call first: Int = @fn3 direct
+        Type ULong
+        Local $dependency.parameter.raw
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+      call $argument.0: ULong = @fn2 direct
+        Type Counter
+        Local counter
+        Type ULong
+        Local raw
+      val $parameter.raw: ULong
+        Type ULong
+        Local $argument.0
+      val $parameter.pointer: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local $parameter.raw
+      call second: Int = @fn4 direct
+        Type ULong
+        Local $parameter.raw
+        Type Ptr<Int>
+        Local $parameter.pointer
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local counter
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.2
+    bb4 if.then.4
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.receiver: Int
+        Type Int
+        Local second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.3
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local number
+  fun $local.0.next @fn2($capture.counter: Counter, $capture.raw: ULong) -> ULong
+    bb0 entry
+      val $place.0: Counter
+        Type Counter
+        Local $capture.counter
+      val $old.1: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local $place.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Counter
+        Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type ULong
+        Local $capture.raw
+  fun loadDefault @fn3(raw: ULong, pointer: Ptr<Int>) -> Int
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      return
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.local.2
+  fun localDefault @fn4(raw: ULong, pointer: Ptr<Int>) -> Int
+    bb0 entry
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      return
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+  fun init.Counter.$c0 @fn5(this: Counter, calls: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Counter
+        Local this
+        Type Int
+        Local calls
+      return
+  coroutine_step cs0 CoroutineStep<Counter> result=Counter
+  coroutine_slot cl0 CoroutineSlot<Counter> value=Counter
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- $local.0.next
+  instance mi2 function=@fn3 <- loadDefault
+  instance mi3 function=@fn4 <- localDefault
+  output library

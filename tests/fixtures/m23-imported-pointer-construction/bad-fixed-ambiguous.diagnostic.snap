@@ -1,0 +1,5 @@
+span=157..166
+expression=Make(1uL)
+call to `Make` is ambiguous in exact import layer:
+  - Make(raw: ULong): Ptr<Int> — applicable; tied by MSC
+  - Make(raw: ULong) — applicable; tied by MSC

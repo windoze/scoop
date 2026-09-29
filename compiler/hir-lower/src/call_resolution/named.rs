@@ -13,10 +13,56 @@ pub(crate) enum NamedFunctionLikeProbe {
 }
 
 pub(crate) struct NamedIntrinsicStructProbe {
-    pub(crate) structure: hir::StructId,
-    pub(crate) owners: Vec<hir::TypeParamDecl>,
-    pub(crate) parameter_types: Vec<hir::TypeId>,
-    pub(crate) integer_arguments: Vec<Option<hir::IntegerKind>>,
+    pub(crate) origin: NamedIntrinsicStructOrigin,
+    pub(crate) fixed_alias: bool,
+    pub(crate) span: ast::Span,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum NamedIntrinsicStructOrigin {
+    Current(hir::StructId),
+    Imported(hir::SourceNominalId),
+}
+
+impl NamedIntrinsicStructOrigin {
+    pub(crate) fn type_parameters(
+        self,
+        state: &mut Lowerer,
+        span: ast::Span,
+    ) -> Result<Vec<hir::TypeParamDecl>, String> {
+        match self {
+            Self::Current(structure) => Ok(state.structs[structure].type_params.clone()),
+            Self::Imported(owner) => {
+                let declaration = state
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                    .cloned()
+                    .expect("a resolved intrinsic type retains its actual declaration");
+                let binders = declaration
+                    .interface
+                    .type_parameters()
+                    .binders()
+                    .iter()
+                    .collect::<Vec<_>>();
+                let keys = (0..binders.len())
+                    .map(|index| scoop_identity::SignatureTypeKey::Binder {
+                        depth: 0,
+                        index: index as u32,
+                    })
+                    .collect::<Vec<_>>();
+                state
+                    .prepare_imported_type_parameters(&binders, &keys, span)
+                    .map(|(parameters, _)| parameters)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum DeclarationDiagnosticOrder {
+    Source(usize, u32, u32),
+    ImportedIntrinsic(hir::SourceNominalId),
 }
 
 impl NamedFunctionLikeProbe {
@@ -27,11 +73,17 @@ impl NamedFunctionLikeProbe {
             Self::ImportedDependencyProperty(probe) => probe.forwarding(state),
             Self::Nominal(probe) => probe.forwarding().to_owned(),
             Self::IntrinsicStruct(probe) => {
-                super::specificity::DeclarationForwardingView::nominal_parameters(
-                    &probe.owners,
-                    &probe.parameter_types,
-                )
-                .to_owned()
+                let owners = if probe.fixed_alias {
+                    Vec::new()
+                } else {
+                    probe
+                        .origin
+                        .type_parameters(state, probe.span)
+                        .expect("an applicable intrinsic has resolved declaration parameters")
+                };
+                let ulong = state.integer_type(hir::IntegerKind::UNSIGNED_64);
+                super::specificity::DeclarationForwardingView::nominal_parameters(&owners, &[ulong])
+                    .to_owned()
             }
         }
     }
@@ -41,7 +93,7 @@ impl NamedFunctionLikeProbe {
             Self::ImportedDependency(probe) => probe.parameterized(),
             Self::ImportedDependencyProperty(probe) => probe.parameterized(),
             Self::Nominal(probe) => probe.parameterized(),
-            Self::IntrinsicStruct(probe) => !probe.owners.is_empty(),
+            Self::IntrinsicStruct(probe) => !probe.fixed_alias,
         }
     }
     fn defaults(&self) -> usize {
@@ -68,7 +120,7 @@ impl NamedFunctionLikeProbe {
             Self::ImportedDependency(probe) => probe.source_argument_integer(index),
             Self::ImportedDependencyProperty(_) => None,
             Self::Nominal(probe) => probe.source_argument_integer(index),
-            Self::IntrinsicStruct(probe) => probe.integer_arguments[index],
+            Self::IntrinsicStruct(_) => Some(hir::IntegerKind::UNSIGNED_64),
         }
     }
     fn signature(&self, state: &Lowerer, name: &str) -> String {
@@ -78,22 +130,29 @@ impl NamedFunctionLikeProbe {
             Self::ImportedDependencyProperty(probe) => probe.signature(name),
             Self::Nominal(probe) => probe.signature(state),
             Self::IntrinsicStruct(probe) => {
-                format!("{}<T>(raw: ULong)", state.structs[probe.structure].name)
+                let parameters = if probe.fixed_alias { "" } else { "<T>" };
+                format!("{name}{parameters}(raw: ULong)")
             }
         }
     }
 
-    fn declaration_location(&self, state: &Lowerer) -> (usize, ast::Span) {
-        match self {
+    fn diagnostic_order(&self, state: &Lowerer) -> DeclarationDiagnosticOrder {
+        let (file, span) = match self {
             Self::Callable(probe) => probe.declaration_location(state),
             Self::ImportedDependency(probe) => probe.declaration_location(),
             Self::ImportedDependencyProperty(probe) => probe.declaration_location(),
             Self::Nominal(probe) => probe.declaration_location(state),
-            Self::IntrinsicStruct(probe) => (
-                state.struct_files[&probe.structure],
-                state.structs[probe.structure].span,
-            ),
-        }
+            Self::IntrinsicStruct(probe) => match probe.origin {
+                NamedIntrinsicStructOrigin::Current(structure) => (
+                    state.struct_files[&structure],
+                    state.structs[structure].span,
+                ),
+                NamedIntrinsicStructOrigin::Imported(owner) => {
+                    return DeclarationDiagnosticOrder::ImportedIntrinsic(owner);
+                }
+            },
+        };
+        DeclarationDiagnosticOrder::Source(file, span.start, span.end)
     }
 }
 
@@ -191,9 +250,8 @@ impl Lowerer {
         let mut signatures = pool
             .iter()
             .map(|&candidate| {
-                let (file, span) = probes[candidate].declaration_location(self);
                 (
-                    (file, span.start, span.end, candidate),
+                    (probes[candidate].diagnostic_order(self), candidate),
                     probes[candidate].signature(self, name),
                 )
             })

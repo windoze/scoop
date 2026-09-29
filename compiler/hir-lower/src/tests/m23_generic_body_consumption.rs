@@ -14,6 +14,7 @@ mod members;
 mod metadata;
 mod nominals;
 mod options;
+mod pointer_construction;
 mod pointers;
 mod references;
 

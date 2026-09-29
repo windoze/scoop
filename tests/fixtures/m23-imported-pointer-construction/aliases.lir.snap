@@ -1,0 +1,70 @@
+Module
+  fun @scoop$1$cb$f672d5f064fc676a9707d2118e68e006a88948a4db6d88799e0fa113a440ee13() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$5688996f6553d87ee8154455a280eb0bab70fdc61f4bae11c1571c07a5c75cbf(i32) -> i32
+    local %0 number: i32
+    local %1 $dependency.receiver: ptr<raw>
+    local %2 raw: i64
+    local %3 imported: ptr<raw>
+    local %4 local: ptr<raw>
+    local %5 renamed: ptr<raw>
+    local %6 $dependency.receiver: ptr<raw>
+    local %7 $dependency.receiver: i32
+    local %8 $dependency.argument.0: i32
+    local %9 $dependency.parameter.other: i32
+    local %10 $dependency.receiver: ptr<raw>
+    local %11 $dependency.argument.0: i32
+    local %12 $dependency.parameter.value: i32
+    local %13 $dependency.receiver: ptr<raw>
+    local %14 $dependency.receiver: i32
+    local %15 $dependency.argument.0: i32
+    local %16 $dependency.parameter.other: i32
+    local %17 $dependency.receiver: ptr<raw>
+    local %18 $dependency.argument.0: i32
+    local %19 $dependency.parameter.value: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000028) -> local0
+    t0 = local_address local0 : ptr
+    store t0 -> local1
+    t1 = ptr_to_ulong local1 : i64
+    store t1 -> local2
+    t2 = ulong_to_ptr local2 : ptr
+    store t2 -> local3
+    t3 = ulong_to_ptr local2 : ptr
+    store t3 -> local4
+    t4 = ulong_to_ptr local2 : ptr
+    store t4 -> local5
+    store local3 -> local10
+    store local4 -> local6
+    t5 = raw_load local6 align 4 : i32
+    store t5 -> local7
+    store integer<Int>(0x00000001) -> local8
+    store local8 -> local9
+    t6 = integer_Add<Int> local7, local9 : i32
+    store t6 -> local11
+    store local11 -> local12
+    raw_store local10 local12 align 4
+    t7 = aggregate () : {}
+    store local5 -> local17
+    store local3 -> local13
+    t8 = raw_load local13 align 4 : i32
+    store t8 -> local14
+    store integer<Int>(0x00000001) -> local15
+    store local15 -> local16
+    t9 = integer_Add<Int> local14, local16 : i32
+    store t9 -> local18
+    store local18 -> local19
+    raw_store local17 local19 align 4
+    t10 = aggregate () : {}
+    ret local0
+  output library

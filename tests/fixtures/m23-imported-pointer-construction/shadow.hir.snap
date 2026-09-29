@@ -1,0 +1,34 @@
+Module
+  struct Ptr
+    field0 raw: Int
+    property0 val raw: Int getter0=storage <stored struct0-field0>
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 42 : Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      StructInit Ptr : Ptr
+        Local $parameter.raw : Int
+    val local4
+      AddressOf ordinary : Ptr<Ptr>
+    val local5
+      PtrFromNonZeroULong : Ptr<Ptr>
+        PtrToULong : ULong
+          Local $dependency.receiver : Ptr<Ptr>
+    val local6
+      Local pointer : Ptr<Ptr>
+    return
+      FieldAccess field 0 : Int
+        PtrLoad : Ptr
+          Local $dependency.receiver : Ptr<Ptr>
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

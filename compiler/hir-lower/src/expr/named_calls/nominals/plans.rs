@@ -40,6 +40,7 @@ impl Lowerer {
                                 hir::SourceNominalId::Concrete(_) => expected,
                                 hir::SourceNominalId::GenericTemplate(_) => Some(ty),
                             },
+                            fixed_alias: true,
                         });
                     }
                     self.error(
@@ -57,6 +58,7 @@ impl Lowerer {
                 return Ok(PreparedNominalPlans::Imported {
                     owner: hir::SourceNominalId::GenericTemplate(owner.persistent()),
                     expected,
+                    fixed_alias: false,
                 });
             }
             NamedCallTarget::ImportedDependency(
@@ -88,6 +90,7 @@ impl Lowerer {
                         hir::SourceNominalId::Concrete(_) => expected,
                         hir::SourceNominalId::GenericTemplate(_) => Some(ty),
                     },
+                    fixed_alias: true,
                 });
             }
             NamedCallTarget::Value(ValueTarget::Variant(target)) => {
@@ -117,10 +120,17 @@ impl Lowerer {
                     );
                     return Err(());
                 }
-                if Some(id) == self.ffi_ptr || Some(id) == self.ffi_fun_ptr {
+                if Some(id) == self.ffi_fun_ptr {
+                    self.error(
+                        call.span,
+                        "intrinsic struct `FunPtr` has no source constructor".to_string(),
+                    );
+                    return Err(());
+                }
+                if Some(id) == self.ffi_ptr {
                     return Ok(PreparedNominalPlans::Local(
                         Vec::new(),
-                        Some((id, expected)),
+                        Some((id, expected, fixed_alias)),
                     ));
                 }
                 if matches!(

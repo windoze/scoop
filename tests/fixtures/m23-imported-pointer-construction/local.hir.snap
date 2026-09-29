@@ -1,0 +1,124 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 40 : Int
+    val local2
+      AddressOf number : Ptr<Int>
+    val local3
+      PtrToULong : ULong
+        Local $dependency.receiver : Ptr<Int>
+    val local4
+      PtrFromNonZeroULong : Ptr<Int>
+        Local raw : ULong
+    val local5
+      PtrFromNonZeroULong : Ptr<Int>
+        Local raw : ULong
+    val local6
+      PtrFromNonZeroULong : Ptr<Int>
+        Local raw : ULong
+    val local7
+      Local explicit : Ptr<Int>
+    val local8
+      PtrToULong : ULong
+        Local $dependency.receiver : Ptr<Int>
+    val local9
+      Local raw : ULong
+    val local10
+      Local $dependency.argument.0 : ULong
+    if
+      Unary Not : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
+          Local $dependency.receiver : ULong
+          Local $dependency.parameter.other : ULong
+      val local15
+        BoolLiteral true : Boolean
+    else
+      val local11
+        Local inferred : Ptr<Int>
+      val local12
+        PtrToULong : ULong
+          Local $dependency.receiver : Ptr<Int>
+      val local13
+        Local raw : ULong
+      val local14
+        Local $dependency.argument.0 : ULong
+      val local15
+        Unary Not : Boolean
+          IntegerOperation ulong.equals <no-gc> : Boolean
+            Local $dependency.receiver : ULong
+            Local $dependency.parameter.other : ULong
+    if
+      Local $shortCircuit.0 : Boolean
+      val local20
+        BoolLiteral true : Boolean
+    else
+      val local16
+        Local placeholder : Ptr<Int>
+      val local17
+        PtrToULong : ULong
+          Local $dependency.receiver : Ptr<Int>
+      val local18
+        Local raw : ULong
+      val local19
+        Local $dependency.argument.0 : ULong
+      val local20
+        Unary Not : Boolean
+          IntegerOperation ulong.equals <no-gc> : Boolean
+            Local $dependency.receiver : ULong
+            Local $dependency.parameter.other : ULong
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local25
+      Local explicit : Ptr<Int>
+    val local21
+      Local inferred : Ptr<Int>
+    val local22
+      PtrLoad : Int
+        Local $dependency.receiver : Ptr<Int>
+    val local23
+      IntegerLiteral 1 : Int
+    val local24
+      Local $dependency.argument.0 : Int
+    val local26
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local27
+      Local $dependency.argument.0 : Int
+    PtrStore : Unit
+      Local $dependency.receiver : Ptr<Int>
+      Local $dependency.parameter.value : Int
+    val local32
+      Local placeholder : Ptr<Int>
+    val local28
+      Local placeholder : Ptr<Int>
+    val local29
+      PtrLoad : Int
+        Local $dependency.receiver : Ptr<Int>
+    val local30
+      IntegerLiteral 1 : Int
+    val local31
+      Local $dependency.argument.0 : Int
+    val local33
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local34
+      Local $dependency.argument.0 : Int
+    PtrStore : Unit
+      Local $dependency.receiver : Ptr<Int>
+      Local $dependency.parameter.value : Int
+    return
+      Local number : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>
