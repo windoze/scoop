@@ -46,7 +46,7 @@ pub(super) fn visit_types(
             (&nominal.type_params, &nominal.private_methods)
         }
     };
-    bounds(export, parameters, &mut visit)?;
+    bounds(parameters, &mut visit)?;
     for method in methods {
         function(export, *method, &mut visit)?;
     }
@@ -71,18 +71,18 @@ pub(super) fn function(
     visit(function.return_ty)?;
     match &function.genericity {
         FunctionGenericity::Plain => Ok(()),
-        FunctionGenericity::Generic { parameters, .. } => bounds(export, parameters, visit),
+        FunctionGenericity::Generic { parameters, .. } => bounds(parameters, visit),
         FunctionGenericity::OwnerParameterizedMethod {
             owner_parameters, ..
-        } => bounds(export, owner_parameters, visit),
+        } => bounds(owner_parameters, visit),
         FunctionGenericity::GenericMethod {
             owner_parameters,
             method_parameters,
             ..
         } => {
-            bounds(export, owner_parameters, visit)?;
+            bounds(owner_parameters, visit)?;
             for parameter in method_parameters.iter() {
-                bounds(export, std::slice::from_ref(parameter), visit)?;
+                bounds(std::slice::from_ref(parameter), visit)?;
             }
             Ok(())
         }
@@ -90,22 +90,12 @@ pub(super) fn function(
 }
 
 pub(super) fn bounds(
-    export: &ExportHir,
     parameters: &[TypeParamDecl],
     visit: &mut impl FnMut(TypeId) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for parameter in parameters {
         for bound in parameter.nominal_bounds_in_source_order() {
-            let ty = match bound {
-                NominalBoundRef::Class(bound) => {
-                    export.class_applications[bound.application].canonical_type
-                }
-                NominalBoundRef::Interface(bound) => {
-                    export.interface_applications[bound.application].canonical_type
-                }
-                NominalBoundRef::ImportedClass(bound)
-                | NominalBoundRef::ImportedInterface(bound) => bound.ty,
-            };
+            let ty = bound.ty();
             visit(ty)?;
         }
     }

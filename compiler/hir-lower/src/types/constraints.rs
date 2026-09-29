@@ -152,25 +152,14 @@ impl Lowerer {
                                 ),
                             );
                         } else {
-                            bounds.class =
-                                Some(match self.types[ty] {
-                                    Type::Class(application) => {
-                                        hir::ClassUpperBound::Local(hir::ClassBound {
-                                            application,
-                                            span,
-                                        })
-                                    }
-                                    _ => hir::ClassUpperBound::Imported(
-                                        hir::ImportedNominalTypeBound { ty, span },
-                                    ),
-                                });
+                            bounds.class = Some(hir::ClassUpperBound { ty, span });
                         }
                     }
                     Type::Interface(_) | Type::ImportedInterface(_) => {
-                        let duplicate = bounds.interfaces.iter().any(|bound| match bound {
-                            hir::InterfaceUpperBound::Local(bound) => matches!(self.types[ty], Type::Interface(application) if application == bound.application),
-                            hir::InterfaceUpperBound::Imported(bound) => bound.ty == ty,
-                        });
+                        let duplicate = bounds
+                            .interfaces
+                            .iter()
+                            .any(|bound| self.types_equal(bound.ty, ty));
                         if duplicate {
                             self.error(
                                 span,
@@ -180,17 +169,9 @@ impl Lowerer {
                                 ),
                             );
                         } else {
-                            bounds.interfaces.push(match self.types[ty] {
-                                Type::Interface(application) => {
-                                    hir::InterfaceUpperBound::Local(hir::InterfaceBound {
-                                        application,
-                                        span,
-                                    })
-                                }
-                                _ => hir::InterfaceUpperBound::Imported(
-                                    hir::ImportedNominalTypeBound { ty, span },
-                                ),
-                            });
+                            bounds
+                                .interfaces
+                                .push(hir::InterfaceUpperBound { ty, span });
                         }
                     }
                     _ => {
@@ -247,35 +228,32 @@ impl Lowerer {
             self.type_params_in_scope = params.clone();
             for parameter in &params {
                 for bound in parameter.nominal_bounds_in_source_order() {
-                    match bound {
-                        // Imported bounds were checked with their declaration and
-                        // are substituted at each consumer application.
-                        hir::NominalBoundRef::ImportedClass(_)
-                        | hir::NominalBoundRef::ImportedInterface(_) => continue,
-                        hir::NominalBoundRef::Class(bound) => {
-                            let application = self.class_applications[bound.application].clone();
-                            let target_params =
-                                self.classes[application.template].type_params.clone();
-                            self.check_type_argument_kinds(
-                                &target_params,
-                                &application.arguments,
-                                bound.span,
-                                &format!("upper bound of {kind} `{name}`"),
-                            );
+                    let (target_params, arguments) = match self.types[bound.ty()] {
+                        Type::Class(application) => {
+                            let application = self.class_applications[application].clone();
+                            (
+                                self.classes[application.template].type_params.clone(),
+                                application.arguments,
+                            )
                         }
-                        hir::NominalBoundRef::Interface(bound) => {
-                            let application =
-                                self.interface_applications[bound.application].clone();
-                            let target_params =
-                                self.interfaces[application.template].type_params.clone();
-                            self.check_type_argument_kinds(
-                                &target_params,
-                                &application.arguments,
-                                bound.span,
-                                &format!("upper bound of {kind} `{name}`"),
-                            );
+                        Type::Interface(application) => {
+                            let application = self.interface_applications[application].clone();
+                            (
+                                self.interfaces[application.template].type_params.clone(),
+                                application.arguments,
+                            )
                         }
-                    }
+                        // Source references to dependency applications have already
+                        // checked their complete declaration constraints on entry.
+                        Type::ImportedClass(_) | Type::ImportedInterface(_) => continue,
+                        _ => unreachable!("nominal bounds retain a class or interface type"),
+                    };
+                    self.check_type_argument_kinds(
+                        &target_params,
+                        &arguments,
+                        bound.span(),
+                        &format!("upper bound of {kind} `{name}`"),
+                    );
                 }
             }
         }

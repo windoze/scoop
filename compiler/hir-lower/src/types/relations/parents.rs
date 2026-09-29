@@ -56,16 +56,7 @@ impl Lowerer {
                 .map(hir::TypeParamDecl::nominal_bounds_in_source_order)
                 .unwrap_or_default()
                 .into_iter()
-                .map(|bound| match bound {
-                    hir::NominalBoundRef::ImportedClass(bound)
-                    | hir::NominalBoundRef::ImportedInterface(bound) => bound.ty,
-                    hir::NominalBoundRef::Class(bound) => {
-                        self.class_applications[bound.application].canonical_type
-                    }
-                    hir::NominalBoundRef::Interface(bound) => {
-                        self.interface_applications[bound.application].canonical_type
-                    }
-                })
+                .map(|bound| bound.ty())
                 .collect(),
             Type::Integer(kind) => {
                 self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))

@@ -6,22 +6,19 @@ use std::fmt;
 use scoop_identity::{CanonicalIdentifier, CanonicalIdentifierError, SignatureTypeKey};
 
 use crate::{
-    CanonicalBinderListV1, CanonicalSignatureTypesV1, ClassUpperBound, ExportHir,
-    HirSignatureBinder, HirSignatureTypeMapper, HirSignatureTypeMappingError, InterfaceUpperBound,
-    NominalTypeParameterBoundsV1, SignatureTypeSetBuildError, TypeParamBounds, TypeParamDecl,
-    TypeParameterBinderBuildError, TypeParameterBinderV1, TypeParameterBoundsBuildError,
-    TypeParameterBoundsV1,
+    CanonicalBinderListV1, CanonicalSignatureTypesV1, ExportHir, HirSignatureBinder,
+    HirSignatureTypeMapper, HirSignatureTypeMappingError, NominalTypeParameterBoundsV1,
+    SignatureTypeSetBuildError, TypeParamBounds, TypeParamDecl, TypeParameterBinderBuildError,
+    TypeParameterBinderV1, TypeParameterBoundsBuildError, TypeParameterBoundsV1,
 };
 
 pub(super) struct HirInterfaceSignatureProjector<'a> {
-    export: &'a ExportHir,
     mapper: HirSignatureTypeMapper<'a>,
 }
 
 impl<'a> HirInterfaceSignatureProjector<'a> {
     pub(super) fn new(export: &'a ExportHir) -> Self {
         Self {
-            export,
             mapper: HirSignatureTypeMapper::new(crate::HirTypeIdentityInputs::from_export(export)),
         }
     }
@@ -135,50 +132,12 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
                 let class = bounds
                     .class
                     .as_ref()
-                    .map(|bound| {
-                        let bound = match bound {
-                            ClassUpperBound::Local(bound) => bound,
-                            ClassUpperBound::Imported(bound) => {
-                                return self.map_type(bound.ty, binders);
-                            }
-                        };
-                        let index = raw_index(bound.application);
-                        if index as usize >= self.export.class_applications.len() {
-                            return Err(
-                                HirInterfaceSignatureProjectionError::UnknownClassApplication(
-                                    index,
-                                ),
-                            );
-                        }
-                        self.map_type(
-                            self.export.class_applications[bound.application].canonical_type,
-                            binders,
-                        )
-                    })
+                    .map(|bound| self.map_type(bound.ty, binders))
                     .transpose()?;
                 let interfaces = bounds
                     .interfaces
                     .iter()
-                    .map(|bound| {
-                        let bound = match bound {
-                            InterfaceUpperBound::Local(bound) => bound,
-                            InterfaceUpperBound::Imported(bound) => {
-                                return self.map_type(bound.ty, binders);
-                            }
-                        };
-                        let index = raw_index(bound.application);
-                        if index as usize >= self.export.interface_applications.len() {
-                            return Err(
-                                HirInterfaceSignatureProjectionError::UnknownInterfaceApplication(
-                                    index,
-                                ),
-                            );
-                        }
-                        self.map_type(
-                            self.export.interface_applications[bound.application].canonical_type,
-                            binders,
-                        )
-                    })
+                    .map(|bound| self.map_type(bound.ty, binders))
                     .collect::<Result<Vec<_>, _>>()?;
                 let interfaces = CanonicalSignatureTypesV1::try_new(interfaces)
                     .map_err(HirInterfaceSignatureProjectionError::InterfaceBounds)?;
@@ -190,10 +149,6 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
     }
 }
 
-fn raw_index<T>(id: la_arena::Idx<T>) -> u32 {
-    id.into_raw().into_u32()
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirInterfaceSignatureProjectionError {
     TooManyTypeParameters,
@@ -202,8 +157,6 @@ pub enum HirInterfaceSignatureProjectionError {
         source: CanonicalIdentifierError,
     },
     Type(HirSignatureTypeMappingError),
-    UnknownClassApplication(u32),
-    UnknownInterfaceApplication(u32),
     InterfaceBounds(SignatureTypeSetBuildError),
     NominalBounds(TypeParameterBoundsBuildError),
     BinderList(TypeParameterBinderBuildError),
@@ -222,14 +175,6 @@ impl fmt::Display for HirInterfaceSignatureProjectionError {
                 )
             }
             Self::Type(source) => source.fmt(formatter),
-            Self::UnknownClassApplication(application) => write!(
-                formatter,
-                "type-parameter bound references unknown class application {application}"
-            ),
-            Self::UnknownInterfaceApplication(application) => write!(
-                formatter,
-                "type-parameter bound references unknown interface application {application}"
-            ),
             Self::InterfaceBounds(source) => source.fmt(formatter),
             Self::NominalBounds(source) => source.fmt(formatter),
             Self::BinderList(source) => source.fmt(formatter),

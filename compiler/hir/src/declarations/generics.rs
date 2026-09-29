@@ -40,12 +40,6 @@ pub enum TypeParamBounds {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedNominalTypeBound {
-    pub ty: TypeId,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NominalBounds {
     /// At most one complete class application, enforced structurally.
     pub class: Option<ClassUpperBound>,
@@ -58,60 +52,44 @@ impl NominalBounds {
         let mut ordered =
             Vec::with_capacity(usize::from(self.class.is_some()) + self.interfaces.len());
         if let Some(bound) = &self.class {
-            ordered.push(match bound {
-                ClassUpperBound::Local(bound) => NominalBoundRef::Class(bound),
-                ClassUpperBound::Imported(bound) => NominalBoundRef::ImportedClass(bound),
-            });
+            ordered.push(NominalBoundRef::Class(bound));
         }
-        ordered.extend(self.interfaces.iter().map(|bound| match bound {
-            InterfaceUpperBound::Local(bound) => NominalBoundRef::Interface(bound),
-            InterfaceUpperBound::Imported(bound) => NominalBoundRef::ImportedInterface(bound),
-        }));
+        ordered.extend(self.interfaces.iter().map(NominalBoundRef::Interface));
         ordered.sort_by_key(|bound| bound.span().start);
         ordered
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ClassUpperBound {
-    Local(ClassBound),
-    Imported(ImportedNominalTypeBound),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InterfaceUpperBound {
-    Local(InterfaceBound),
-    Imported(ImportedNominalTypeBound),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ClassBound {
-    pub application: ClassApplicationId,
+pub struct ClassUpperBound {
+    pub ty: TypeId,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InterfaceBound {
-    /// Complete interface application.  The bound cannot name a declaration
-    /// without its arguments or another nominal kind.
-    pub application: InterfaceApplicationId,
+pub struct InterfaceUpperBound {
+    pub ty: TypeId,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NominalBoundRef<'a> {
-    Class(&'a ClassBound),
-    Interface(&'a InterfaceBound),
-    ImportedClass(&'a ImportedNominalTypeBound),
-    ImportedInterface(&'a ImportedNominalTypeBound),
+    Class(&'a ClassUpperBound),
+    Interface(&'a InterfaceUpperBound),
 }
 
 impl NominalBoundRef<'_> {
+    pub fn ty(self) -> TypeId {
+        match self {
+            Self::Class(bound) => bound.ty,
+            Self::Interface(bound) => bound.ty,
+        }
+    }
+
     pub fn span(self) -> Span {
         match self {
             Self::Class(bound) => bound.span,
             Self::Interface(bound) => bound.span,
-            Self::ImportedClass(bound) | Self::ImportedInterface(bound) => bound.span,
         }
     }
 }

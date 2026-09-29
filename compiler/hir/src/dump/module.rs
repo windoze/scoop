@@ -669,16 +669,7 @@ fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
                         .in_source_order()
                         .into_iter()
                         .map(|bound| {
-                            let ty = match bound {
-                                NominalBoundRef::Class(bound) => {
-                                    module.class_applications[bound.application].canonical_type
-                                }
-                                NominalBoundRef::Interface(bound) => {
-                                    module.interface_applications[bound.application].canonical_type
-                                }
-                                NominalBoundRef::ImportedClass(bound)
-                                | NominalBoundRef::ImportedInterface(bound) => bound.ty,
-                            };
+                            let ty = bound.ty();
                             type_name_with_params(module, ty, params)
                         })
                         .collect::<Vec<_>>();

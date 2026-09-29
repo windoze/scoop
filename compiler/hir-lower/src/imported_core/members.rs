@@ -148,17 +148,7 @@ impl Lowerer {
                             declaration
                                 .nominal_bounds_in_source_order()
                                 .into_iter()
-                                .map(|bound| match bound {
-                                    hir::NominalBoundRef::ImportedClass(bound)
-                                    | hir::NominalBoundRef::ImportedInterface(bound) => bound.ty,
-                                    hir::NominalBoundRef::Class(bound) => {
-                                        self.class_applications[bound.application].canonical_type
-                                    }
-                                    hir::NominalBoundRef::Interface(bound) => {
-                                        self.interface_applications[bound.application]
-                                            .canonical_type
-                                    }
-                                }),
+                                .map(|bound| bound.ty()),
                         );
                     }
                 }

@@ -257,16 +257,7 @@ pub(crate) fn render_type_parameters(
                         .in_source_order()
                         .into_iter()
                         .map(|bound| {
-                            let ty = match bound {
-                                hir::NominalBoundRef::Class(bound) => {
-                                    lowerer.class_applications[bound.application].canonical_type
-                                }
-                                hir::NominalBoundRef::Interface(bound) => {
-                                    lowerer.interface_applications[bound.application].canonical_type
-                                }
-                                hir::NominalBoundRef::ImportedClass(bound)
-                                | hir::NominalBoundRef::ImportedInterface(bound) => bound.ty,
-                            };
+                            let ty = bound.ty();
                             lowerer.type_name_with_params(ty, all_parameters)
                         })
                         .collect::<Vec<_>>();

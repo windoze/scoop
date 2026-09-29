@@ -30,16 +30,8 @@ impl Lowerer {
         for (param, &arg) in params.iter().zip(args) {
             for bound in param.nominal_bounds_in_source_order() {
                 let (required, description) = match bound {
-                    hir::NominalBoundRef::ImportedClass(bound) => (bound.ty, "class"),
-                    hir::NominalBoundRef::ImportedInterface(bound) => (bound.ty, "interface"),
-                    hir::NominalBoundRef::Class(bound) => (
-                        self.class_applications[bound.application].canonical_type,
-                        "class",
-                    ),
-                    hir::NominalBoundRef::Interface(bound) => (
-                        self.interface_applications[bound.application].canonical_type,
-                        "interface",
-                    ),
+                    hir::NominalBoundRef::Class(bound) => (bound.ty, "class"),
+                    hir::NominalBoundRef::Interface(bound) => (bound.ty, "interface"),
                 };
                 let required = self.instantiate_ty(required, args);
                 if !self.is_subtype(arg, required) {

@@ -200,18 +200,9 @@ fn class_and_interface_bounds_form_one_typed_nominal_set() {
     let hir::TypeParamBounds::Nominal(bounds) = &declaration.type_params[0].bounds else {
         panic!("upper bounds use the nominal constraint branch")
     };
-    let hir::ClassUpperBound::Local(class) = bounds.class.as_ref().expect("one typed class bound")
-    else {
-        panic!("the class bound is declared in this source module")
-    };
+    let class = bounds.class.as_ref().expect("one complete class bound");
     assert_eq!(bounds.interfaces.len(), 1);
-    assert_eq!(
-        hir::type_name(
-            &module,
-            module.class_applications[class.application].canonical_type
-        ),
-        "Base<String>"
-    );
+    assert_eq!(hir::type_name(&module, class.ty), "Base<String>");
 }
 
 #[test]

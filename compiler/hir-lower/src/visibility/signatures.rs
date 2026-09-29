@@ -10,16 +10,7 @@ impl Lowerer {
         let mut result = Vec::new();
         for parameter in parameters {
             for bound in parameter.nominal_bounds_in_source_order() {
-                let ty = match bound {
-                    hir::NominalBoundRef::ImportedClass(bound)
-                    | hir::NominalBoundRef::ImportedInterface(bound) => bound.ty,
-                    hir::NominalBoundRef::Class(bound) => {
-                        self.class_applications[bound.application].canonical_type
-                    }
-                    hir::NominalBoundRef::Interface(bound) => {
-                        self.interface_applications[bound.application].canonical_type
-                    }
-                };
+                let ty = bound.ty();
                 result.push(ty);
             }
         }

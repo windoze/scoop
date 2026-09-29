@@ -182,29 +182,29 @@ impl Lowerer {
                     .into_iter()
                     .enumerate()
                 {
-                    match bound {
-                        // Imported member candidates are collected by the dependency
-                        // member catalog, with provider-owned dispatch slots.
-                        hir::NominalBoundRef::ImportedClass(_)
-                        | hir::NominalBoundRef::ImportedInterface(_) => continue,
-                        hir::NominalBoundRef::Class(bound) => {
+                    match self.types[bound.ty()] {
+                        Type::Class(application) => {
                             self.collect_class_method_candidates(
-                                bound.application,
+                                application,
                                 root,
-                                Some((receiver_parameter, bound.application)),
+                                Some((receiver_parameter, application)),
                                 &mut declared,
                             );
                         }
-                        hir::NominalBoundRef::Interface(bound) => {
+                        Type::Interface(application) => {
                             self.collect_interface_method_candidates(
-                                bound.application,
+                                application,
                                 0,
                                 root,
-                                Some((receiver_parameter, bound.application)),
+                                Some((receiver_parameter, application)),
                                 &mut Vec::new(),
                                 &mut declared,
                             );
                         }
+                        // The dependency catalog contributes the same declared
+                        // member kinds from the remaining declaration storage.
+                        Type::ImportedClass(_) | Type::ImportedInterface(_) => continue,
+                        _ => unreachable!("nominal bounds retain a class or interface type"),
                     }
                 }
             }

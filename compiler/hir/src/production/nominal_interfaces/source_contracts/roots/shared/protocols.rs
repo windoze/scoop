@@ -55,7 +55,7 @@ impl SourceRoots {
         if let PropertyOwner::Extension(id) = property.owner {
             let extension = &export.extension_properties[id];
             roots.require_field_type(export, index, extension.receiver_ty)?;
-            super::super::callables::bounds(export, &extension.type_params, &mut |ty| {
+            super::super::callables::bounds(&extension.type_params, &mut |ty| {
                 roots.require_field_type(export, index, ty)
             })?;
         }
