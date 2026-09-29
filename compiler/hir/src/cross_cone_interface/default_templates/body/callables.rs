@@ -23,6 +23,18 @@ pub enum DefaultCallableDeclarationV1 {
     Generated(PersistentGeneratedCallableId),
 }
 
+impl DefaultCallableDeclarationV1 {
+    pub const fn template_owner(self) -> scoop_identity::CallableTemplateOwner {
+        use scoop_identity::CallableTemplateOwner as Owner;
+        match self {
+            Self::Function(id) => Owner::Function(id),
+            Self::GenericFunction(id) => Owner::GenericFunction(id),
+            Self::PropertyAccessor(id) => Owner::Accessor(id),
+            Self::Generated(id) => Owner::Generated(id),
+        }
+    }
+}
+
 impl WireEncode for DefaultCallableDeclarationV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;

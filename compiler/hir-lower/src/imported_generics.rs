@@ -37,7 +37,7 @@ pub(crate) struct ImportedGenericTemplates {
 
 #[derive(Clone)]
 struct ImportedLocalFunctionSource {
-    parent: hir::ImportedCallableTemplateParent,
+    parent: scoop_identity::CallableTemplateOwner,
     descriptor: hir::DefaultLocalFunctionV1,
 }
 
@@ -119,6 +119,17 @@ impl Index<hir::ImportedGenericCallableTemplateId> for ImportedGenericTemplates 
 }
 
 impl ImportedGenericTemplates {
+    pub(crate) fn definition(
+        &self,
+        owner: scoop_identity::CallableTemplateOwner,
+    ) -> &PreparedImportedGeneric {
+        self.templates
+            .iter()
+            .flatten()
+            .find(|template| template.declaration.body_owner().template_owner() == owner)
+            .expect("a lexical parent retains its original body declaration")
+    }
+
     pub(crate) fn into_completed(self) -> Arena<hir::ImportedGenericCallableTemplate> {
         self.templates
             .into_iter()
@@ -268,12 +279,11 @@ impl Lowerer {
                 index += 1;
                 continue;
             };
-            let id = Idx::from_raw(RawIdx::from(index as u32));
             if template.statements.is_some() {
                 index += 1;
                 continue;
             }
-            match self.materialize_imported_callable_body(id, &template) {
+            match self.materialize_imported_callable_body(&template) {
                 Ok(body) => {
                     let target = self.imported_generic_templates.templates[index]
                         .as_mut()

@@ -80,11 +80,11 @@ pub enum ImportedCallableTemplateOrigin {
         dispatch: ImportedMethodDispatch,
     },
     Local {
-        parent: ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         descriptor: crate::DefaultLocalFunctionV1,
     },
     Closure {
-        parent: ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         body: scoop_identity::PersistentGeneratedCallableId,
         capture_bindings: Vec<crate::BindingId>,
     },
@@ -108,12 +108,6 @@ pub enum ImportedDispatchCallable {
 pub enum ImportedGenericCallKind {
     Ordinary,
     DirectSuper,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ImportedCallableTemplateParent {
-    Function(crate::ImportedGenericCallableTemplateId),
-    Constructor(crate::ImportedConstructorTemplateId),
 }
 
 impl ImportedCallableTemplateOrigin {

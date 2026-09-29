@@ -52,6 +52,10 @@ impl Index<hir::ImportedConstructorTemplateId> for ImportedConstructorTemplates 
 }
 
 impl ImportedConstructorTemplates {
+    pub(crate) fn definition(&self, id: PersistentConstructorId) -> &PreparedImportedConstructor {
+        &self[self.by_declaration[&id]]
+    }
+
     pub(crate) fn into_completed(self) -> Arena<hir::ImportedConstructorTemplate> {
         self.templates
             .into_iter()
@@ -112,8 +116,7 @@ impl Lowerer {
 
     pub(crate) fn complete_imported_constructor(&mut self, index: usize) {
         let template = self.imported_constructor_templates.templates[index].clone();
-        let id = Idx::from_raw(RawIdx::from(index as u32));
-        match self.materialize_imported_constructor(id, &template) {
+        match self.materialize_imported_constructor(&template) {
             Ok(kind) => self.imported_constructor_templates.templates[index].kind = Some(kind),
             Err(error) => {
                 self.current_file = template.signature.origin.file as usize;

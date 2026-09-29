@@ -4,7 +4,6 @@ use crate::imported_constructors::{PreparedImportedConstructor, source_construct
 impl Lowerer {
     pub(crate) fn materialize_imported_constructor(
         &mut self,
-        id: hir::ImportedConstructorTemplateId,
         template: &PreparedImportedConstructor,
     ) -> Result<hir::ImportedConstructorKind, ImportedDefaultMaterializationError> {
         use hir::ExportConstructorInitializationKindV1 as Source;
@@ -16,8 +15,8 @@ impl Lowerer {
                 let target =
                     self.imported_constructor_application(&delegation.target, &template.bindings)?;
                 let arguments =
-                    self.imported_constructor_fragment(id, template, &delegation.arguments)?;
-                let body = self.imported_constructor_body(id, template, body)?;
+                    self.imported_constructor_fragment(template, &delegation.arguments)?;
+                let body = self.imported_constructor_body(template, body)?;
                 Ok(Target::StructSecondary {
                     target,
                     arguments,
@@ -32,8 +31,8 @@ impl Lowerer {
                 let target =
                     self.imported_constructor_application(&delegation.target, &template.bindings)?;
                 let arguments =
-                    self.imported_constructor_fragment(id, template, &delegation.arguments)?;
-                let body = self.imported_constructor_body(id, template, body)?;
+                    self.imported_constructor_fragment(template, &delegation.arguments)?;
+                let body = self.imported_constructor_body(template, body)?;
                 Ok(Target::ClassThis {
                     target,
                     arguments,
@@ -44,7 +43,7 @@ impl Lowerer {
                 base,
                 primary_stores,
             } => {
-                let base = self.imported_constructor_base(id, template, base.as_ref())?;
+                let base = self.imported_constructor_base(template, base.as_ref())?;
                 let saved_locals = std::mem::take(&mut self.locals);
                 let mut statements = Vec::new();
                 let result = (|| {
@@ -66,7 +65,7 @@ impl Lowerer {
                             value,
                         )?);
                     }
-                    self.append_imported_common_initialization(id, template, &mut statements)
+                    self.append_imported_common_initialization(template, &mut statements)
                 })();
                 let locals = std::mem::replace(&mut self.locals, saved_locals);
                 result?;
@@ -76,12 +75,12 @@ impl Lowerer {
                 })
             }
             Source::ClassSecondaryTerminal { base, body } => {
-                let base = self.imported_constructor_base(id, template, base.as_ref())?;
+                let base = self.imported_constructor_base(template, base.as_ref())?;
                 let saved_locals = std::mem::take(&mut self.locals);
                 let mut statements = Vec::new();
                 let result = (|| {
-                    self.append_imported_common_initialization(id, template, &mut statements)?;
-                    self.append_imported_constructor_fragment(id, template, body, &mut statements)?;
+                    self.append_imported_common_initialization(template, &mut statements)?;
+                    self.append_imported_constructor_fragment(template, body, &mut statements)?;
                     Ok::<_, ImportedDefaultMaterializationError>(())
                 })();
                 let locals = std::mem::replace(&mut self.locals, saved_locals);
@@ -96,11 +95,10 @@ impl Lowerer {
 
     fn imported_constructor_body(
         &mut self,
-        id: hir::ImportedConstructorTemplateId,
         template: &PreparedImportedConstructor,
         fragment: &hir::ExportTemplateFragmentV1,
     ) -> Result<hir::Body, ImportedDefaultMaterializationError> {
-        let plan = self.imported_constructor_fragment(id, template, fragment)?;
+        let plan = self.imported_constructor_fragment(template, fragment)?;
         debug_assert!(plan.args.is_empty());
         Ok(hir::Body {
             locals: plan.locals,
@@ -110,14 +108,12 @@ impl Lowerer {
 
     fn imported_constructor_fragment(
         &mut self,
-        id: hir::ImportedConstructorTemplateId,
         template: &PreparedImportedConstructor,
         fragment: &hir::ExportTemplateFragmentV1,
     ) -> Result<hir::ConstructorArguments, ImportedDefaultMaterializationError> {
         let saved_locals = std::mem::take(&mut self.locals);
         let mut statements = Vec::new();
-        let args =
-            self.append_imported_constructor_fragment(id, template, fragment, &mut statements);
+        let args = self.append_imported_constructor_fragment(template, fragment, &mut statements);
         let locals = std::mem::replace(&mut self.locals, saved_locals);
         Ok(hir::ConstructorArguments {
             locals,
@@ -128,7 +124,6 @@ impl Lowerer {
 
     fn append_imported_constructor_fragment(
         &mut self,
-        id: hir::ImportedConstructorTemplateId,
         template: &PreparedImportedConstructor,
         fragment: &hir::ExportTemplateFragmentV1,
         statements: &mut Vec<hir::Statement>,
@@ -141,7 +136,7 @@ impl Lowerer {
             captures: &[],
             loop_targets: Vec::new(),
             evaluation: ImportedTemplateEvaluation::Definition(
-                hir::ImportedCallableTemplateParent::Constructor(id),
+                scoop_identity::CallableTemplateOwner::Constructor(template.signature.declaration),
             ),
         };
         for local in fragment.locals().records() {
@@ -195,7 +190,6 @@ impl Lowerer {
 
     fn append_imported_common_initialization(
         &mut self,
-        id: hir::ImportedConstructorTemplateId,
         template: &PreparedImportedConstructor,
         statements: &mut Vec<hir::Statement>,
     ) -> Result<(), ImportedDefaultMaterializationError> {
@@ -203,14 +197,14 @@ impl Lowerer {
             match step {
                 hir::ExportCommonInitializationStepV1::Field { field, value } => {
                     let mut values =
-                        self.append_imported_constructor_fragment(id, template, value, statements)?;
+                        self.append_imported_constructor_fragment(template, value, statements)?;
                     let value = values
                         .pop()
                         .expect("validated field initialization has one result");
                     statements.push(self.imported_constructor_store(template, field, value)?);
                 }
                 hir::ExportCommonInitializationStepV1::Body(body) => {
-                    self.append_imported_constructor_fragment(id, template, body, statements)?;
+                    self.append_imported_constructor_fragment(template, body, statements)?;
                 }
             }
         }
@@ -245,7 +239,6 @@ impl Lowerer {
 
     fn imported_constructor_base(
         &mut self,
-        id: hir::ImportedConstructorTemplateId,
         template: &PreparedImportedConstructor,
         base: Option<&hir::ExportConstructorDelegationV1>,
     ) -> Result<hir::BaseInitialization, ImportedDefaultMaterializationError> {
@@ -283,7 +276,7 @@ impl Lowerer {
                 })?;
             hir::BaseInitializerTarget::Imported { owner, callable }
         };
-        let arguments = self.imported_constructor_fragment(id, template, &base.arguments)?;
+        let arguments = self.imported_constructor_fragment(template, &base.arguments)?;
         Ok(hir::BaseInitialization::Super { target, arguments })
     }
 

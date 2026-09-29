@@ -144,16 +144,25 @@ impl Concretizer<'_> {
 
     fn imported_capture_binding(
         &self,
-        parent: export::ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         source: &export::DefaultCaptureSourceV1,
     ) -> concrete::BindingId {
-        let template = match parent {
-            export::ImportedCallableTemplateParent::Function(template) => template,
-            export::ImportedCallableTemplateParent::Constructor(template) => {
-                return self.imported_constructor_capture_binding(template, source);
-            }
-        };
-        let template = &self.source.imported_generic_templates[template];
+        if let scoop_identity::CallableTemplateOwner::Constructor(declaration) = parent {
+            let template = self
+                .source
+                .imported_constructor_templates
+                .iter()
+                .find(|(_, template)| template.declaration == declaration)
+                .expect("a lexical constructor retains its original definition")
+                .0;
+            return self.imported_constructor_capture_binding(template, source);
+        }
+        let template = self
+            .source
+            .imported_generic_templates
+            .values()
+            .find(|template| template.declaration.body_owner().template_owner() == parent)
+            .expect("a lexical function retains its original definition");
         let capture_index = match source {
             export::DefaultCaptureSourceV1::Local(selector) => {
                 let (id, local) = template

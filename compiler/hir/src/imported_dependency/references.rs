@@ -1,7 +1,6 @@
 use crate::{
-    Capture, DefinitionOrigin, Expr, FunctionTypeId, ImportedCallableTemplateParent,
-    ImportedDependencyCallableUseId, ImportedGenericCallableApplicationId, ImportedMethodCallee,
-    TypeId,
+    Capture, DefinitionOrigin, Expr, FunctionTypeId, ImportedDependencyCallableUseId,
+    ImportedGenericCallableApplicationId, ImportedMethodCallee, TypeId,
 };
 
 /// A resolved dependency target shared by direct calls and callable references.
@@ -63,7 +62,7 @@ impl ImportedCallableReferenceTarget {
 #[derive(Debug, Clone)]
 pub struct ImportedCallableReference {
     pub definition: crate::concrete::GeneratedCallableRecord,
-    pub parent: ImportedCallableTemplateParent,
+    pub parent: scoop_identity::CallableTemplateOwner,
     pub owner_type_arguments: Vec<TypeId>,
     pub target: ImportedCallableReferenceTarget,
     pub function_type: FunctionTypeId,

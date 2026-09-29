@@ -97,7 +97,7 @@ impl Lowerer {
     pub(super) fn imported_closure_capture_binding(
         &self,
         source: &hir::DefaultCaptureSourceV1,
-        parent: hir::ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::BindingId, ImportedDefaultMaterializationError> {
         match source {
@@ -108,11 +108,12 @@ impl Lowerer {
                 match source.kind {
                     hir::ExprKind::Local(id) => Ok(self.locals[id].binding),
                     hir::ExprKind::ConstructorParam(parameter) => {
-                        let hir::ImportedCallableTemplateParent::Constructor(parent) = parent
+                        let scoop_identity::CallableTemplateOwner::Constructor(parent) = parent
                         else {
                             unreachable!("constructor inputs retain their lexical constructor")
                         };
-                        self.imported_constructor_templates[parent]
+                        self.imported_constructor_templates
+                            .definition(parent)
                             .signature
                             .parameters
                             .iter()
@@ -204,20 +205,22 @@ impl Lowerer {
 
     pub(super) fn imported_lexical_owner_arguments(
         &mut self,
-        parent: hir::ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
     ) -> Vec<hir::TypeId> {
         let parameters = match parent {
-            hir::ImportedCallableTemplateParent::Function(parent) => self
-                .imported_generic_templates[parent]
-                .type_parameters
-                .ids(),
-            hir::ImportedCallableTemplateParent::Constructor(parent) => self
-                .imported_constructor_templates[parent]
+            scoop_identity::CallableTemplateOwner::Constructor(parent) => self
+                .imported_constructor_templates
+                .definition(parent)
                 .signature
                 .type_parameters
                 .iter()
                 .map(|parameter| parameter.id)
                 .collect(),
+            _ => self
+                .imported_generic_templates
+                .definition(parent)
+                .type_parameters
+                .ids(),
         };
         parameters
             .into_iter()

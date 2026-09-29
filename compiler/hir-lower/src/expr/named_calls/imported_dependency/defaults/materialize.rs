@@ -59,7 +59,7 @@ impl ImportedTemplateSource<'_> {
 }
 
 enum ImportedTemplateEvaluation {
-    Definition(hir::ImportedCallableTemplateParent),
+    Definition(scoop_identity::CallableTemplateOwner),
     DefaultUse(hir::EvaluationOrigin),
 }
 

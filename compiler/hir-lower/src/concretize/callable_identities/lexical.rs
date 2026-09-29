@@ -101,26 +101,35 @@ impl CallableIdentityBuilder<'_> {
 
     pub(super) fn imported_parent_materialization(
         &mut self,
-        parent: export::ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
-        match parent {
-            export::ImportedCallableTemplateParent::Function(parent) => {
-                let index = self
-                    .concretizer
-                    .function_keys
-                    .iter()
-                    .position(|key| {
-                        matches!(self.concretizer.function_source(key), FunctionSource::Imported(source) if source == parent)
-                            && self.concretizer.function_key_arguments(key) == arguments
-                    })
-                    .expect("a lexical application retains its instantiated parent");
-                self.resolve_function(index)
-            }
-            export::ImportedCallableTemplateParent::Constructor(parent) => {
-                self.imported_constructor_materialization(parent, arguments)
-            }
+        if let CallableTemplateOwner::Constructor(declaration) = parent {
+            let template = self
+                .concretizer
+                .source
+                .imported_constructor_templates
+                .iter()
+                .find(|(_, template)| template.declaration == declaration)
+                .expect("a lexical constructor retains its original definition")
+                .0;
+            return self.imported_constructor_materialization(template, arguments);
         }
+        self.function_definition_materialization(parent, arguments)
+    }
+
+    fn function_definition_materialization(
+        &mut self,
+        definition: CallableTemplateOwner,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
+        let index = self
+            .concretizer
+            .function_keys
+            .iter()
+            .position(|key| key.template_owner() == Some(definition) && key.arguments == arguments)
+            .expect("a lexical application retains its original parent and complete arguments");
+        self.resolve_function(index)
     }
 
     pub(super) fn lexical_context(
@@ -210,24 +219,12 @@ impl CallableIdentityBuilder<'_> {
         let expected = self.concretizer.source.functions[source].type_param_count();
         assert!(expected <= inherited_arguments.len());
         let arguments = &inherited_arguments[..expected];
-        let candidates = self
+        let definition = self
             .concretizer
-            .function_keys
-            .iter()
-            .enumerate()
-            .filter_map(|(index, key)| {
-                (matches!(self.concretizer.function_source(key), FunctionSource::Local(actual) if actual == source)
-                    && self.concretizer.function_key_arguments(key) == arguments)
-                    .then_some(index)
-            })
-            .collect::<Vec<_>>();
-        let [index] = candidates.as_slice() else {
-            panic!(
-                "a lexical parent has exactly one concrete materialization, found {}",
-                candidates.len()
-            )
-        };
-        self.resolve_function(*index)
+            .function_key(FunctionSource::Local(source), None, Vec::new())
+            .template_owner()
+            .expect("a lexical root has an original body definition");
+        self.function_definition_materialization(definition, arguments)
     }
 
     pub(super) fn constructor_application_context(

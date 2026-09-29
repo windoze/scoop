@@ -90,3 +90,10 @@
 - 新增 `m23-shared-requests` 的 2 组源码与三阶段快照，覆盖 import alias 重复请求、Int／String／Unit、当前和依赖泛型方法、lambda／局部泛型与完整继承实参；单元测试确认同一 application 复用且不同宿主／方法实参分别具体化。
 - 全仓 fmt／clippy、2848 项 HIR／HIR lowering／MIR lowering／slib 单元测试，以及关闭快照更新开关的 55 项真实泛型与 enum 产物回归全部通过。真实回归包含移走源码、再次发布、下游组合和普通／移动 GC；既有快照未变。日志 `/tmp/scoop-m23-6a-function-requests-unit.log`、`/tmp/scoop-m23-6a-function-requests-fixtures.log`。
 - 新组合同时复现外来函数值默认参数的旧阶段限制；本批显式传入函数值验证请求身份，该缺口继续归默认正文与词法上下文迁移，不作为合法程序的最终限制。
+
+## 词法 parent 保留原 callable 身份
+
+- 删除依赖模板专用的 Function／Constructor parent handle，统一保存原 `CallableTemplateOwner`。局部函数、闭包与函数引用沿原定义及完整继承实参关联父 application；本地和依赖函数复用同一请求身份查询，内部 arena 只定位正文。
+- 默认值／构造正文加载已不再传递仅用于 parent 归属的 arena ID，构造 helper 的多层透传参数一并删除。现有源码 binder、捕获、派生身份与 wire 格式保持。
+- 全仓 fmt／clippy、2848 项 HIR／HIR lowering／MIR lowering／slib 单元测试，以及 10 项真实产物回归通过。覆盖构造器内闭包、局部泛型、函数引用、委托初始化、相同实例汇合、再次发布及普通／移动 GC；快照更新开关关闭。日志 `/tmp/scoop-m23-6a-lexical-parent-unit.log`、`/tmp/scoop-m23-6a-lexical-parent-fixtures.log`。
+- 确认没有构建占用后，清理本轮临时生成的 `compiler/target` 和编辑器增量缓存，共约 391 MiB；继续复用 `target/m23-6a`。默认值正文统一与无父函数机器实例的词法归属继续迁移。

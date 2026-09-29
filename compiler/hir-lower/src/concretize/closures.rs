@@ -6,7 +6,7 @@ mod references;
 pub(super) enum CallableReferenceSource {
     Local(export::CallableReferenceId),
     Imported {
-        parent: export::ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         definition: concrete::GeneratedCallableRecord,
     },
 }

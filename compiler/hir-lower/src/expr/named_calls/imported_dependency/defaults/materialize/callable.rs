@@ -3,7 +3,6 @@ use super::*;
 impl Lowerer {
     pub(crate) fn materialize_imported_callable_body(
         &mut self,
-        id: hir::ImportedGenericCallableTemplateId,
         template: &crate::imported_generics::PreparedImportedGeneric,
     ) -> Result<hir::Body, ImportedDefaultMaterializationError> {
         let saved_locals = std::mem::replace(&mut self.locals, template.locals.clone());
@@ -41,7 +40,7 @@ impl Lowerer {
             },
             loop_targets: Vec::new(),
             evaluation: ImportedTemplateEvaluation::Definition(
-                hir::ImportedCallableTemplateParent::Function(id),
+                template.declaration.body_owner().template_owner(),
             ),
         };
         let statements = template

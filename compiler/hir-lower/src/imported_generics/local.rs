@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn register_imported_local_function(
         &mut self,
-        parent: hir::ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         descriptor: &hir::DefaultLocalFunctionV1,
     ) {
         self.imported_generic_templates.local_functions.insert(

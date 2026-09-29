@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn request_imported_closure(
         &mut self,
-        parent: hir::ImportedCallableTemplateParent,
+        parent: scoop_identity::CallableTemplateOwner,
         body: scoop_identity::PersistentGeneratedCallableId,
         kind: hir::ImportedClosureKind,
         capture_bindings: Vec<hir::BindingId>,

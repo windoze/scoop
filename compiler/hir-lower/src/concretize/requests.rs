@@ -15,6 +15,15 @@ enum FunctionDefinition {
     DerivedEquality,
 }
 
+impl FunctionKey {
+    pub(super) fn template_owner(&self) -> Option<scoop_identity::CallableTemplateOwner> {
+        match self.definition {
+            FunctionDefinition::Body(declaration) => Some(declaration.template_owner()),
+            FunctionDefinition::DerivedEquality => None,
+        }
+    }
+}
+
 /// A record location is separate from a request's semantic identity.
 #[derive(Clone, Copy)]
 pub(super) enum FunctionSource {
