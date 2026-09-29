@@ -528,6 +528,9 @@ pub(crate) struct Lowerer {
     /// Published once after every source callable signature is resolved.
     /// Rejected ids remain diagnostic-only and never enter body resolution.
     pub(crate) declaration_surface: declaration_surface::DeclarationSurface,
+    /// Established after declaration collection, before semantic queries.
+    pub(crate) nominal_identities: Option<hir::HirNominalIdentities>,
+    pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,

@@ -1,4 +1,5 @@
 use super::*;
+use crate::Owner;
 
 impl Lowerer {
     /// Add the source-level explanation for the otherwise easy-to-misread
@@ -51,37 +52,42 @@ impl Lowerer {
         None
     }
 
-    fn nominal_template_name(&self, template: NominalTemplate) -> &str {
-        match template {
-            NominalTemplate::Imported(owner) => self
-                .dependencies
-                .as_ref()
-                .and_then(|dependencies| dependencies.nominal_declaration(owner))
-                .expect("resolved dependency nominal retains its declaration")
-                .name(),
-            NominalTemplate::Struct(id) => &self.structs[id].name,
-            NominalTemplate::Class(id) => &self.classes[id].name,
-            NominalTemplate::Enum(id) => &self.enums[id].name,
-            NominalTemplate::Interface(id) => &self.interfaces[id].name,
+    fn nominal_template_name(&self, template: hir::SourceNominalId) -> &str {
+        if let Some(owner) = self.nominal_owners.get(&template) {
+            return match *owner {
+                Owner::Struct(id) => &self.structs[id].name,
+                Owner::Class(id) => &self.classes[id].name,
+                Owner::Enum(id) => &self.enums[id].name,
+                Owner::Interface(id) => &self.interfaces[id].name,
+                Owner::Object(id) => &self.objects[id].name,
+            };
         }
+        self.dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.nominal_declaration(template))
+            .expect("a resolved nominal retains its original declaration")
+            .name()
     }
 
-    fn nominal_parameter_name(&self, template: NominalTemplate, index: usize) -> &str {
-        match template {
-            NominalTemplate::Imported(owner) => self
-                .dependencies
-                .as_ref()
-                .and_then(|dependencies| dependencies.nominal_declaration(owner))
-                .expect("resolved dependency nominal retains its declaration")
-                .interface
-                .type_parameters()
-                .binders()[index]
-                .name()
-                .as_str(),
-            NominalTemplate::Struct(id) => &self.structs[id].type_params[index].name,
-            NominalTemplate::Class(id) => &self.classes[id].type_params[index].name,
-            NominalTemplate::Enum(id) => &self.enums[id].type_params[index].name,
-            NominalTemplate::Interface(id) => &self.interfaces[id].type_params[index].name,
+    fn nominal_parameter_name(&self, template: hir::SourceNominalId, index: usize) -> &str {
+        if let Some(owner) = self.nominal_owners.get(&template) {
+            let parameters = match *owner {
+                Owner::Struct(id) => &self.structs[id].type_params,
+                Owner::Class(id) => &self.classes[id].type_params,
+                Owner::Enum(id) => &self.enums[id].type_params,
+                Owner::Interface(id) => &self.interfaces[id].type_params,
+                Owner::Object(_) => unreachable!("objects cannot have type arguments"),
+            };
+            return &parameters[index].name;
         }
+        self.dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.nominal_declaration(template))
+            .expect("a resolved nominal retains its original declaration")
+            .interface
+            .type_parameters()
+            .binders()[index]
+            .name()
+            .as_str()
     }
 }

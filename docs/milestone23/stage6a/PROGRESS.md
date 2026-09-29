@@ -45,3 +45,10 @@
 - invariant 诊断与约束求解共用完整 nominal application 查询；删除按本地／依赖来源分别遍历父类型的分支，补齐 rigid 参数到本地 generic class bound 的关系。存储适配暂存于 67 行的 `types/nominal.rs`，继续归后续实体统一迁移。
 - 求解主文件降至 441 行，完成解验证为独立 212 行模块，约束传播为 156 行模块。新增 `m23-shared-bounds` 的 3 组正例、4 组反例，覆盖菱形、本地与依赖 class/interface、参数拓宽、lambda 上下文及无解；真实再次发布与普通／移动 GC 已通过。原 iteration 推断 fixture 也已移除结果类型注解。
 - fmt／clippy 与 1288 项 HIR lowering 回归通过。关闭快照更新开关的完整泛型产物回归为 50 passed、1 failed；唯一失败是上界传播后错误原因从整个 application 不满足 bound 细化为 `U` 的 `Int`／`String` 冲突，报错位置不变。核对并更新该诊断后，原配套二进制的专项复验通过，51 项测试均已覆盖。日志 `/tmp/scoop-m23-6a-shared-bounds-regression.log`、`/tmp/scoop-m23-6a-shared-bounds-bound-diagnostic.log`。
+
+## 语义查询使用原声明身份
+
+- nominal 身份在完整声明树收集后建立，供 import、约束与正文查询使用，Export HIR 直接接收同一记录。应用查询已删除 `NominalTemplate::Imported` 等来源／本地 arena 身份分支，统一使用原 `SourceNominalId`；本次构建的反向表只将当前声明身份定位到原 arena 记录。
+- 源码位置、嵌套 owner、声明种类与元数沿既有身份规则，wire 格式和身份算法未改变；本地 arena 索引不作为共同查询的声明 key。约束单元测试补齐实际声明来源与 namespace，沿生产身份建立方法构造测试输入。
+- 全仓 fmt／clippy、HIR 与 HIR lowering 的 2143 项单元测试，以及 8 项真实产物组合通过，所有快照更新开关关闭。组合涵盖泛型名义类型、上界、同包／限定名称、嵌套重导出和再次发布；日志 `/tmp/scoop-m23-6a-nominal-identity-unit.log`、`/tmp/scoop-m23-6a-nominal-identity-fixtures.log`。
+- 清理编辑器后续生成且当时未被构建使用的 `target/debug/incremental`，再释放约 2.2 GiB；当前阶段仍使用 `target/m23-6a`。底层来源专用 Type／声明存储及正文路径仍待后续迁移，不能以查询 key 统一代替完整完成门。

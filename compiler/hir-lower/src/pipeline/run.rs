@@ -165,6 +165,12 @@ impl Lowerer {
             self.declare_object_nested(Owner::Object(id), declaration, &mut nested_queues, file);
         }
 
+        if let Err(error) = self.establish_nominal_identities() {
+            let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+            diagnostic.file = error.file();
+            return Err(vec![diagnostic]);
+        }
+
         let errors_before_imports = self.diagnostics.len();
         self.collect_and_resolve_imports(
             files,

@@ -10,10 +10,54 @@ use scoop_identity::{
 
 use crate::{Lowerer, Owner, namespace::TopLevelLookupLayer};
 
-pub(crate) fn build(
-    lowerer: &Lowerer,
-) -> Result<hir::HirNominalIdentities, PersistentNominalIdentityError> {
-    NominalIdentityBuilder::new(lowerer).build()
+impl Lowerer {
+    pub(crate) fn establish_nominal_identities(
+        &mut self,
+    ) -> Result<(), PersistentNominalIdentityError> {
+        let identities = NominalIdentityBuilder::new(self).build()?;
+        let owners = self
+            .structs
+            .iter()
+            .map(|(id, _)| (identities[id].declaration_id(), Owner::Struct(id)))
+            .chain(
+                self.enums
+                    .iter()
+                    .map(|(id, _)| (identities[id].declaration_id(), Owner::Enum(id))),
+            )
+            .chain(
+                self.classes
+                    .iter()
+                    .map(|(id, _)| (identities[id].declaration_id(), Owner::Class(id))),
+            )
+            .chain(
+                self.interfaces
+                    .iter()
+                    .map(|(id, _)| (identities[id].declaration_id(), Owner::Interface(id))),
+            )
+            .chain(
+                self.objects
+                    .iter()
+                    .map(|(id, _)| (identities[id].declaration_id(), Owner::Object(id))),
+            )
+            .collect();
+        self.nominal_identities = Some(identities);
+        self.nominal_owners = owners;
+        Ok(())
+    }
+
+    pub(crate) fn nominal_identity(&self, owner: Owner) -> &hir::HirNominalIdentity {
+        let identities = self
+            .nominal_identities
+            .as_ref()
+            .expect("nominal identities precede semantic queries");
+        match owner {
+            Owner::Struct(id) => &identities[id],
+            Owner::Enum(id) => &identities[id],
+            Owner::Class(id) => &identities[id],
+            Owner::Interface(id) => &identities[id],
+            Owner::Object(id) => &identities[id],
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -19,29 +19,22 @@ impl Lowerer {
             }
         };
         let public_surface = self.public_semantic_surface();
-        let nominal_identities = match crate::persistent_nominals::build(&self) {
-            Ok(identities) => identities,
-            Err(error) => {
-                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
-                diagnostic.file = error.file();
-                return Err(vec![diagnostic]);
-            }
-        };
-        let type_identities = match crate::persistent_type_identities::build(
-            &self,
-            &nominal_identities,
-            core_types,
-        ) {
-            Ok(identities) => identities,
-            Err(error) => {
-                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
-                diagnostic.file = error.file();
-                return Err(vec![diagnostic]);
-            }
-        };
+        let nominal_identities = self
+            .nominal_identities
+            .as_ref()
+            .expect("nominal identities precede semantic analysis");
+        let type_identities =
+            match crate::persistent_type_identities::build(&self, nominal_identities, core_types) {
+                Ok(identities) => identities,
+                Err(error) => {
+                    let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                    diagnostic.file = error.file();
+                    return Err(vec![diagnostic]);
+                }
+            };
         let constructor_identities = match crate::persistent_constructor_identities::build(
             &self,
-            &nominal_identities,
+            nominal_identities,
             core_types,
         ) {
             Ok(identities) => identities,
@@ -52,7 +45,7 @@ impl Lowerer {
             }
         };
         let property_identities =
-            match crate::persistent_properties::build(&self, &nominal_identities, core_types) {
+            match crate::persistent_properties::build(&self, nominal_identities, core_types) {
                 Ok(identities) => identities,
                 Err(error) => {
                     let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
@@ -78,7 +71,7 @@ impl Lowerer {
             }
         };
         let enum_member_identities =
-            match crate::persistent_enum_members::build(&self, &nominal_identities) {
+            match crate::persistent_enum_members::build(&self, nominal_identities) {
                 Ok(identities) => identities,
                 Err(error) => {
                     let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
@@ -86,18 +79,20 @@ impl Lowerer {
                     return Err(vec![diagnostic]);
                 }
             };
-        let field_identities =
-            match crate::persistent_fields::build(&self, &nominal_identities, &property_identities)
-            {
-                Ok(identities) => identities,
-                Err(error) => {
-                    let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
-                    diagnostic.file = error.file();
-                    return Err(vec![diagnostic]);
-                }
-            };
+        let field_identities = match crate::persistent_fields::build(
+            &self,
+            nominal_identities,
+            &property_identities,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+                diagnostic.file = error.file();
+                return Err(vec![diagnostic]);
+            }
+        };
         let object_value_identities =
-            match crate::persistent_object_values::build(&self, &nominal_identities) {
+            match crate::persistent_object_values::build(&self, nominal_identities) {
                 Ok(identities) => identities,
                 Err(error) => {
                     let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
@@ -107,7 +102,7 @@ impl Lowerer {
             };
         let initialization_unit_identities = match crate::persistent_initialization_units::build(
             &self,
-            &nominal_identities,
+            nominal_identities,
             &property_identities,
         ) {
             Ok(identities) => identities,
@@ -119,7 +114,7 @@ impl Lowerer {
         };
         let function_identities = match crate::persistent_functions::build(
             &self,
-            &nominal_identities,
+            nominal_identities,
             &property_identities,
             &property_accessor_identities,
             &initialization_unit_identities,
@@ -140,7 +135,7 @@ impl Lowerer {
                 match crate::persistent_callbacks::build(
                     &self,
                     protocols.foreign_callbacks,
-                    &nominal_identities,
+                    nominal_identities,
                     &property_accessor_identities,
                     &constructor_identities,
                     &enum_member_identities,
@@ -195,7 +190,7 @@ impl Lowerer {
         let public_bindings = match crate::persistent_export_bindings::build(
             &self,
             &public_surface,
-            &nominal_identities,
+            nominal_identities,
             &enum_member_identities,
             &object_value_identities,
             &function_identities,
@@ -225,7 +220,7 @@ impl Lowerer {
         };
         let source_native_contracts = match crate::persistent_native_contracts::build(
             &self,
-            &nominal_identities,
+            nominal_identities,
             &function_identities,
             &property_identities,
             core_types,
@@ -263,7 +258,7 @@ impl Lowerer {
         let source_context_identities = match crate::persistent_source_contexts::build(
             &self,
             &source_files,
-            &nominal_identities,
+            nominal_identities,
             &function_identities,
             &property_accessor_identities,
             &constructor_identities,
@@ -280,7 +275,7 @@ impl Lowerer {
         };
         let local_binding_identities = match crate::persistent_local_bindings::build(
             &self,
-            &nominal_identities,
+            nominal_identities,
             &object_value_identities,
             &function_identities,
             &property_identities,
@@ -297,7 +292,7 @@ impl Lowerer {
         };
         let export_definition_origins = match crate::persistent_definition_origins::build(
             &self,
-            &nominal_identities,
+            nominal_identities,
             &property_identities,
             &property_accessor_identities,
             &type_alias_identities,
@@ -320,7 +315,9 @@ impl Lowerer {
         };
         let module = hir::Module {
             cone: current_cone,
-            nominal_identities,
+            nominal_identities: self
+                .nominal_identities
+                .expect("completed nominal identities are retained for export"),
             property_identities,
             property_accessor_identities,
             type_alias_identities,

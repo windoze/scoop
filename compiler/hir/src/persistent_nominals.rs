@@ -76,6 +76,19 @@ pub enum HirNominalIdentity {
 }
 
 impl HirNominalIdentity {
+    /// The original declaration/template identity used by semantic queries.
+    pub const fn declaration_id(&self) -> crate::SourceNominalId {
+        match self {
+            Self::Source(HirSourceNominalIdentity::Concrete(record)) => {
+                crate::SourceNominalId::Concrete(record.id())
+            }
+            Self::Generated(record) => crate::SourceNominalId::Concrete(record.id()),
+            Self::Source(HirSourceNominalIdentity::Generic(record)) => {
+                crate::SourceNominalId::GenericTemplate(record.id())
+            }
+        }
+    }
+
     pub fn from_source_declaration(
         declaration: SourceDeclarationKey,
     ) -> Result<Self, HirNominalIdentityError> {

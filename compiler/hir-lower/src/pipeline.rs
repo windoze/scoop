@@ -213,6 +213,8 @@ impl Lowerer {
             dependencies: None,
             imports: crate::imports::CurrentUnitImports::default(),
             declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
+            nominal_identities: None,
+            nominal_owners: HashMap::new(),
             source_contexts: Arena::new(),
             source_context_by_value: HashMap::new(),
             file_source_contexts: Vec::new(),
