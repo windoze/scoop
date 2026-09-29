@@ -3,8 +3,9 @@ use std::fmt;
 
 use scoop_hir as hir;
 
-use super::super::arguments::{ImportedArgumentMap, ImportedParameterInput};
+use super::super::arguments::ImportedArgumentMap;
 use crate::Lowerer;
+use crate::call_resolution::arguments::{ResolvedParameterInput, ResolvedVarargInput};
 use crate::imported_capabilities::ImportedCapabilityRequirement;
 
 #[derive(Clone)]
@@ -54,7 +55,9 @@ impl Lowerer {
     ) -> Result<ImportedDefaultPlan, ImportedDefaultPlanError> {
         let mut plan = ImportedDefaultPlan::empty();
         for input in arguments.parameters() {
-            let ImportedParameterInput::Default(key) = input else {
+            let (ResolvedParameterInput::Default(key)
+            | ResolvedParameterInput::Vararg(ResolvedVarargInput::Default(key))) = &input.input
+            else {
                 continue;
             };
             if plan.templates.contains_key(key) {

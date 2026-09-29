@@ -1,0 +1,650 @@
+Module
+  fun localOrdered<T>(values: Array<T0>, seed: T0, after: Int, copied: Array<T0>): T0
+    val local4
+      IntegerLiteral 4 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    ImportedDependencyCall #0 : Int
+      Local $dependency.parameter.digit : Int
+    val local6
+      Local copied : Array<T0>
+    val local7
+      Local seed : T0
+    val local8
+      Local $dependency.argument.0 : Array<T0>
+    val local9
+      Local $dependency.argument.1 : T0
+    return
+      ImportedGenericCall arrayOrSeed<T0> : T0
+        Local $dependency.parameter.values : Array<T0>
+        Local $dependency.parameter.seed : T0
+  fun localPack<T>(values: Array<T0>, after: Int): Array<T0>
+    val local2
+      IntegerLiteral 5 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    ImportedDependencyCall #0 : Int
+      Local $dependency.parameter.digit : Int
+    return
+      Local values : Array<T0>
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      ArrayLiteral : Array<T0>
+    val local4
+      IntegerLiteral 0 : Int
+    val local5
+      Local $argument.1 : Array<T0>
+    val local6
+      Local $argument.0 : T0
+    val local7
+      Local $argument.2 : Int
+    val local8
+      Local $parameter.values : Array<T0>
+    val local9
+      Call localOrdered<T0> : T0
+        Local $parameter.values : Array<T0>
+        Local $parameter.seed : T0
+        Local $parameter.after : Int
+        Local $parameter.copied : Array<T0>
+    val local10
+      Local seed : T0
+    val local11
+      ArrayLiteral : Array<T0>
+    val local12
+      IntegerLiteral 0 : Int
+    val local13
+      Local $dependency.argument.1 : Array<T0>
+    val local14
+      Local $dependency.argument.0 : T0
+    val local15
+      Local $dependency.argument.2 : Int
+    val local16
+      Local $dependency.parameter.values : Array<T0>
+    val local17
+      ImportedGenericCall ordered<T0> : T0
+        Local $dependency.parameter.values : Array<T0>
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.after : Int
+        Local $dependency.parameter.copied : Array<T0>
+    val local18
+      ArrayLiteral : Array<T0>
+        Local first : T0
+    val local19
+      IntegerLiteral 0 : Int
+    val local20
+      Local $argument.0 : Array<T0>
+    val local21
+      Local $argument.1 : Int
+    val local22
+      Call localPack<T0> : Array<T0>
+        Local $parameter.values : Array<T0>
+        Local $parameter.after : Int
+    val local23
+      ArrayLiteral : Array<T0>
+        Local second : T0
+    val local24
+      IntegerLiteral 0 : Int
+    val local25
+      Local $dependency.argument.0 : Array<T0>
+    val local26
+      Local $dependency.argument.1 : Int
+    val local27
+      ImportedGenericCall orderedPack<T0> : Array<T0>
+        Local $dependency.parameter.values : Array<T0>
+        Local $dependency.parameter.after : Int
+    val local28
+      ArrayLen : Long
+        Local local : Array<T0>
+    val local29
+      IntegerLiteral 1 : Long
+    val local30
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      val local34
+        BoolLiteral true : Boolean
+    else
+      val local31
+        ArrayLen : Long
+          Local external : Array<T0>
+      val local32
+        IntegerLiteral 1 : Long
+      val local33
+        Local $dependency.argument.0 : Long
+      val local34
+        Unary Not : Boolean
+          IntegerOperation long.equals <no-gc> : Boolean
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local35
+      Local local : Array<T0>
+    val local36
+      IntegerLiteral 0 : Long
+    val local37
+      Local $dependency.argument.0 : Long
+    val local38
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Index ImmutableGet : T0
+          Local $dependency.receiver : Array<T0>
+          Local $dependency.parameter.index : Long
+    val local39
+      IntegerLiteral 42 : Int
+    val local40
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local41
+        Local external : Array<T0>
+      val local42
+        IntegerLiteral 0 : Long
+      val local43
+        Local $dependency.argument.0 : Long
+      assign $result.1
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          Index ImmutableGet : T0
+            Local $dependency.receiver : Array<T0>
+            Local $dependency.parameter.index : Long
+    else
+      assign $result.1
+        IntegerLiteral 2 : Int
+    return
+      Local $result.1 : Int
+  fun result(): Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local4
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local2
+      IntegerLiteral 2 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    val local5
+      ImportedGenericCall deferredEmpty<Int> : Array<Int>
+        Local $dependency.parameter.digit : Int
+    val local6
+      Local $argument.1 : Array<Int>
+    val local7
+      Local $argument.0 : Int
+    val local8
+      IntegerLiteral 3 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    val local10
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local11
+      Local $parameter.values : Array<Int>
+    val local12
+      Call localOrdered<Int> : Int
+        Local $parameter.values : Array<Int>
+        Local $parameter.seed : Int
+        Local $parameter.after : Int
+        Local $parameter.copied : Array<Int>
+    val local13
+      Local local : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local19
+        BoolLiteral true : Boolean
+    else
+      val local16
+        ImportedDependencyCall #2 : Int
+      val local17
+        IntegerLiteral 1234 : Int
+      val local18
+        Local $dependency.argument.0 : Int
+      val local19
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local20
+      IntegerLiteral 1 : Int
+    val local21
+      Local $dependency.argument.0 : Int
+    val local24
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local22
+      IntegerLiteral 2 : Int
+    val local23
+      Local $dependency.argument.0 : Int
+    val local25
+      ImportedGenericCall deferredEmpty<Int> : Array<Int>
+        Local $dependency.parameter.digit : Int
+    val local26
+      Local $dependency.argument.1 : Array<Int>
+    val local27
+      Local $dependency.argument.0 : Int
+    val local28
+      IntegerLiteral 3 : Int
+    val local29
+      Local $default.local.2 : Int
+    val local30
+      ImportedDependencyCall #0 : Int
+        Local $default.local.3 : Int
+    val local31
+      Local $dependency.parameter.values : Array<Int>
+    val local32
+      ImportedGenericCall ordered<Int> : Int
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.seed : Int
+        Local $dependency.parameter.after : Int
+        Local $dependency.parameter.copied : Array<Int>
+    val local33
+      Local external : Int
+    val local34
+      IntegerLiteral 42 : Int
+    val local35
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local39
+        BoolLiteral true : Boolean
+    else
+      val local36
+        ImportedDependencyCall #2 : Int
+      val local37
+        IntegerLiteral 1234 : Int
+      val local38
+        Local $dependency.argument.0 : Int
+      val local39
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.3 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local40
+      IntegerLiteral 1 : Int
+    val local41
+      Local $dependency.argument.0 : Int
+    val local46
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local42
+      IntegerLiteral 2 : Int
+    val local43
+      Local $dependency.argument.0 : Int
+    val local47
+      ImportedDependencyCall #3 : Array<Int>
+        Local $dependency.parameter.digit : Int
+    val local44
+      IntegerLiteral 3 : Int
+    val local45
+      Local $dependency.argument.0 : Int
+    val local48
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local49
+      ArrayAssembly : Array<Int>
+        Element
+          Local $argument.0 : Int
+        CopyArray
+          Local $argument.1 : Array<Int>
+    val local50
+      Local $argument.2 : Int
+    val local51
+      Call localPack<Int> : Array<Int>
+        Local $parameter.values : Array<Int>
+        Local $parameter.after : Int
+    val local52
+      ArrayLen : Long
+        Local first : Array<Int>
+    val local53
+      IntegerLiteral 2 : Long
+    val local54
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      val local61
+        BoolLiteral true : Boolean
+    else
+      val local55
+        Local first : Array<Int>
+      val local56
+        IntegerLiteral 1 : Long
+      val local57
+        Local $dependency.argument.0 : Long
+      val local58
+        Index ImmutableGet : Int
+          Local $dependency.receiver : Array<Int>
+          Local $dependency.parameter.index : Long
+      val local59
+        IntegerLiteral 42 : Int
+      val local60
+        Local $dependency.argument.0 : Int
+      val local61
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.4 : Boolean
+      val local65
+        BoolLiteral true : Boolean
+    else
+      val local62
+        ImportedDependencyCall #2 : Int
+      val local63
+        IntegerLiteral 1235 : Int
+      val local64
+        Local $dependency.argument.0 : Int
+      val local65
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.5 : Boolean
+      return
+        IntegerLiteral 5 : Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local66
+      IntegerLiteral 1 : Int
+    val local67
+      Local $dependency.argument.0 : Int
+    val local72
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local68
+      IntegerLiteral 2 : Int
+    val local69
+      Local $dependency.argument.0 : Int
+    val local73
+      ImportedDependencyCall #3 : Array<Int>
+        Local $dependency.parameter.digit : Int
+    val local70
+      IntegerLiteral 3 : Int
+    val local71
+      Local $dependency.argument.0 : Int
+    val local74
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local75
+      ArrayAssembly : Array<Int>
+        Element
+          Local $dependency.argument.0 : Int
+        CopyArray
+          Local $dependency.argument.1 : Array<Int>
+    val local76
+      Local $dependency.argument.2 : Int
+    val local77
+      ImportedGenericCall orderedPack<Int> : Array<Int>
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.after : Int
+    val local78
+      ArrayLen : Long
+        Local second : Array<Int>
+    val local79
+      IntegerLiteral 2 : Long
+    val local80
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      val local87
+        BoolLiteral true : Boolean
+    else
+      val local81
+        Local second : Array<Int>
+      val local82
+        IntegerLiteral 1 : Long
+      val local83
+        Local $dependency.argument.0 : Long
+      val local84
+        Index ImmutableGet : Int
+          Local $dependency.receiver : Array<Int>
+          Local $dependency.parameter.index : Long
+      val local85
+        IntegerLiteral 42 : Int
+      val local86
+        Local $dependency.argument.0 : Int
+      val local87
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.6 : Boolean
+      val local91
+        BoolLiteral true : Boolean
+    else
+      val local88
+        ImportedDependencyCall #2 : Int
+      val local89
+        IntegerLiteral 1235 : Int
+      val local90
+        Local $dependency.argument.0 : Int
+      val local91
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.7 : Boolean
+      return
+        IntegerLiteral 6 : Int
+    val local92
+      ArrayLiteral : Array<Int>
+        IntegerLiteral 42 : Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local93
+      Local values : Array<Int>
+    val local94
+      Local $argument.0 : Array<Int>
+    val local95
+      IntegerLiteral 4 : Int
+    val local96
+      Local $dependency.argument.0 : Int
+    val local97
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local98
+      Call localPack<Int> : Array<Int>
+        Local $parameter.values : Array<Int>
+        Local $parameter.after : Int
+    if
+      Binary RefNe : Boolean
+        Local namedLocal : Array<Int>
+        Local values : Array<Int>
+      val local102
+        BoolLiteral true : Boolean
+    else
+      val local99
+        ImportedDependencyCall #2 : Int
+      val local100
+        IntegerLiteral 45 : Int
+      val local101
+        Local $dependency.argument.0 : Int
+      val local102
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.8 : Boolean
+      return
+        IntegerLiteral 7 : Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local103
+      Local values : Array<Int>
+    val local104
+      Local $dependency.argument.0 : Array<Int>
+    val local105
+      IntegerLiteral 4 : Int
+    val local106
+      Local $default.local.1 : Int
+    val local107
+      ImportedDependencyCall #0 : Int
+        Local $default.local.2 : Int
+    val local108
+      ImportedGenericCall orderedPack<Int> : Array<Int>
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.after : Int
+    if
+      Binary RefNe : Boolean
+        Local namedExternal : Array<Int>
+        Local values : Array<Int>
+      val local112
+        BoolLiteral true : Boolean
+    else
+      val local109
+        ImportedDependencyCall #2 : Int
+      val local110
+        IntegerLiteral 45 : Int
+      val local111
+        Local $dependency.argument.0 : Int
+      val local112
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.9 : Boolean
+      return
+        IntegerLiteral 8 : Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local113
+      ArrayAssembly : Array<Int>
+    val local114
+      IntegerLiteral 4 : Int
+    val local115
+      Local $dependency.argument.0 : Int
+    val local116
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.digit : Int
+    val local117
+      Call localPack<Int> : Array<Int>
+        Local $parameter.values : Array<Int>
+        Local $parameter.after : Int
+    val local118
+      ArrayLen : Long
+        Local emptyLocal : Array<Int>
+    val local119
+      IntegerLiteral 0 : Long
+    val local120
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      val local124
+        BoolLiteral true : Boolean
+    else
+      val local121
+        ImportedDependencyCall #2 : Int
+      val local122
+        IntegerLiteral 45 : Int
+      val local123
+        Local $dependency.argument.0 : Int
+      val local124
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.10 : Boolean
+      return
+        IntegerLiteral 9 : Int
+    ImportedDependencyCall #1 : Unit
+      IntegerLiteral 0 : Int
+    val local125
+      ArrayAssembly : Array<Int>
+    val local126
+      IntegerLiteral 4 : Int
+    val local127
+      Local $default.local.1 : Int
+    val local128
+      ImportedDependencyCall #0 : Int
+        Local $default.local.2 : Int
+    val local129
+      ImportedGenericCall orderedPack<Int> : Array<Int>
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.after : Int
+    val local130
+      ArrayLen : Long
+        Local emptyExternal : Array<Int>
+    val local131
+      IntegerLiteral 0 : Long
+    val local132
+      Local $dependency.argument.0 : Long
+    if
+      IntegerOperation long.equals <no-gc> : Boolean
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+      val local133
+        ImportedDependencyCall #2 : Int
+      val local134
+        IntegerLiteral 45 : Int
+      val local135
+        Local $dependency.argument.0 : Int
+      val local136
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local136
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.11 : Boolean
+      assign $result.12
+        IntegerLiteral 42 : Int
+    else
+      assign $result.12
+        IntegerLiteral 10 : Int
+    return
+      Local $result.12 : Int
+  output library
+  instance localOrdered<T0>
+  instance localPack<T0>
+  instance localOrdered<Int>
+  instance localPack<Int>

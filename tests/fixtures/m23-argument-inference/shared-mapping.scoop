@@ -1,0 +1,49 @@
+package consumer.inference
+
+import dependency.inference.*
+
+private fun <T> localOrdered(values: Array<T>, seed: T, after: Int = mark(3), copied: Array<T> = values): T {
+    mark(4)
+    return arrayOrSeed(copied, seed)
+}
+private fun <T> localPack(vararg values: T, after: Int = mark(4)): Array<T> {
+    mark(5)
+    return values
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val first = localOrdered(seed = seed, values = [], after = 0)
+    val second = ordered(seed = seed, values = [], after = 0)
+    val local = localPack(values = [first], after = 0)
+    val external = orderedPack(values = [second], after = 0)
+    if (local.size != 1L || external.size != 1L) { return 1 }
+    return if (read(local[0L]) == 42) { read(external[0L]) } else { 2 }
+}
+
+public fun result(): Int {
+    trace = 0
+    val local = localOrdered(seed = mark(1), values = deferredEmpty(2))
+    if (local != 42 || trace != 1234) { return 3 }
+    trace = 0
+    val external = ordered(seed = mark(1), values = deferredEmpty(2))
+    if (external != 42 || trace != 1234) { return 4 }
+    trace = 0
+    val first = localPack(mark(1), *markedArray(2), after = mark(3))
+    if (first.size != 2L || first[1L] != 42 || trace != 1235) { return 5 }
+    trace = 0
+    val second = orderedPack(mark(1), *markedArray(2), after = mark(3))
+    if (second.size != 2L || second[1L] != 42 || trace != 1235) { return 6 }
+    val values = [42]
+    trace = 0
+    val namedLocal = localPack(values = values)
+    if (namedLocal !== values || trace != 45) { return 7 }
+    trace = 0
+    val namedExternal = orderedPack(values = values)
+    if (namedExternal !== values || trace != 45) { return 8 }
+    trace = 0
+    val emptyLocal = localPack<Int>()
+    if (emptyLocal.size != 0L || trace != 45) { return 9 }
+    trace = 0
+    val emptyExternal = orderedPack<Int>()
+    return if (emptyExternal.size == 0L && trace == 45) { 42 } else { 10 }
+}

@@ -2,9 +2,9 @@ use super::candidate::{ImportedCallableCandidate, NormalizedImportedIntrinsic};
 use hir::ImportedCallableSource;
 use scoop_hir as hir;
 
-use super::arguments::ImportedParameterInput;
 use super::{ImportedCallReceiver, ImportedDependencyCallProbe, ImportedMemberReceiver};
 use crate::Lowerer;
+use crate::call_resolution::arguments::{ResolvedParameterInput, ResolvedVarargInput};
 use crate::expr::MemberCallKind;
 
 #[derive(Clone, Copy)]
@@ -153,12 +153,13 @@ impl Lowerer {
             .zip(parameter_types.iter().copied())
             .zip(parameter_names)
         {
-            let value = match input {
-                ImportedParameterInput::Explicit(source)
-                | ImportedParameterInput::WholeArray(source) => {
-                    self.adapt_to(source_args[*source].clone(), parameter)
+            let value = match &input.input {
+                ResolvedParameterInput::Explicit(source)
+                | ResolvedParameterInput::Vararg(ResolvedVarargInput::WholeArray(source)) => {
+                    self.adapt_to(source_args[source.index()].clone(), parameter)
                 }
-                ImportedParameterInput::Default(template) => {
+                ResolvedParameterInput::Default(template)
+                | ResolvedParameterInput::Vararg(ResolvedVarargInput::Default(template)) => {
                     let Some(prepared) = default_plan.get(*template) else {
                         self.error(
                             call_span,
@@ -183,7 +184,13 @@ impl Lowerer {
                         }
                     }
                 }
-                ImportedParameterInput::Vararg(parts) => {
+                ResolvedParameterInput::Vararg(ResolvedVarargInput::Empty) => {
+                    let element = self
+                        .array_element_ty(parameter)
+                        .expect("a resolved vararg parameter has an array element type");
+                    self.array_assembly(element, parameter, Vec::new(), call_span)
+                }
+                ResolvedParameterInput::Vararg(ResolvedVarargInput::Parts(parts)) => {
                     let element = self
                         .array_element_ty(parameter)
                         .expect("a resolved vararg parameter has an array element type");

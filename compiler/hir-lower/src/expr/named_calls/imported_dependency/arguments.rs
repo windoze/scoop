@@ -1,33 +1,20 @@
-//! Source-call argument mapping for imported dependency callables.
+//! Dependency declaration storage adapts to the common argument mapper.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
 use scoop_identity::SignatureTypeKey;
 
 use crate::call_resolution::arguments::{
-    ArgumentShapeFailure, SourceInputId, VarargPart, VarargPartKind,
+    ArgumentShape, ArgumentShapeFailure, CandidateArgumentMap, ParameterCalling, ParameterInput,
+    ParameterShape, ReceiverInput, SourceInputId, SourceInputKind,
 };
+use crate::call_resolution::candidates::ArgumentMode;
 
 #[derive(Clone, Debug)]
 pub(in crate::expr) struct ImportedArgumentMap {
-    parameters: Vec<ImportedParameterInput>,
+    mapping: CandidateArgumentMap<hir::ExportDefaultTemplateKeyV1>,
     source_parameters: Vec<SignatureTypeKey>,
-    defaults: usize,
     vararg: bool,
-}
-
-#[derive(Clone, Debug)]
-pub(super) enum ImportedParameterInput {
-    Explicit(usize),
-    WholeArray(usize),
-    Default(hir::ExportDefaultTemplateKeyV1),
-    Vararg(Vec<VarargPart>),
-}
-
-#[derive(Clone, Copy)]
-struct ArgumentShape<'a> {
-    name: Option<&'a str>,
-    spread: bool,
 }
 
 impl ImportedArgumentMap {
@@ -35,17 +22,14 @@ impl ImportedArgumentMap {
         parameters: &[hir::CallableSourceParameterV1],
         arguments: &[ast::CallArgument],
     ) -> Result<Self, ArgumentShapeFailure> {
-        let arguments = arguments
-            .iter()
-            .map(|argument| ArgumentShape {
-                name: match &argument.name {
-                    ast::CallArgumentName::Positional => None,
-                    ast::CallArgumentName::Named(name) => Some(name.text.as_str()),
-                },
-                spread: matches!(argument.spread, ast::SpreadSyntax::Spread(_)),
-            })
-            .collect::<Vec<_>>();
-        Self::map(parameters, &arguments)
+        Self::map(
+            parameters,
+            &arguments
+                .iter()
+                .map(ArgumentShape::from)
+                .collect::<Vec<_>>(),
+            false,
+        )
     }
 
     pub(super) fn lowered(
@@ -61,199 +45,87 @@ impl ImportedArgumentMap {
                 };
                 count
             ],
+            false,
         )
-    }
-
-    fn map(
-        parameters: &[hir::CallableSourceParameterV1],
-        arguments: &[ArgumentShape<'_>],
-    ) -> Result<Self, ArgumentShapeFailure> {
-        let positional_required_call = arguments.iter().all(|argument| argument.name.is_none())
-            && parameters.iter().all(|parameter| {
-                matches!(
-                    parameter.calling(),
-                    hir::CallableParameterCallingV1::Required
-                )
-            });
-        let mut mapped = vec![None; parameters.len()];
-        let mut source_parameters = vec![None; arguments.len()];
-        let mut next = 0;
-        let mut named_only = false;
-
-        for (source_index, argument) in arguments.iter().enumerate() {
-            match argument.name {
-                None => {
-                    if named_only {
-                        return Err(ArgumentShapeFailure::PositionalAfterNamed);
-                    }
-                    let Some(parameter) = parameters.get(next) else {
-                        return Err(ArgumentShapeFailure::Arity {
-                            expected: parameters.len(),
-                            supplied: arguments.len(),
-                        });
-                    };
-                    match parameter.calling() {
-                        hir::CallableParameterCallingV1::Required
-                        | hir::CallableParameterCallingV1::Default { .. } => {
-                            if argument.spread {
-                                return Err(ArgumentShapeFailure::SpreadForRegular {
-                                    name: parameter.name().as_str().to_owned(),
-                                });
-                            }
-                            mapped[next] = Some(ImportedParameterInput::Explicit(source_index));
-                            source_parameters[source_index] = Some(parameter.value_type().clone());
-                            next += 1;
-                        }
-                        hir::CallableParameterCallingV1::VarargEmpty { element_type }
-                        | hir::CallableParameterCallingV1::VarargDefault { element_type, .. } => {
-                            let part = VarargPart {
-                                input: SourceInputId::from_index(source_index),
-                                kind: if argument.spread {
-                                    VarargPartKind::CopyArray
-                                } else {
-                                    VarargPartKind::Element
-                                },
-                            };
-                            match &mut mapped[next] {
-                                None => {
-                                    mapped[next] = Some(ImportedParameterInput::Vararg(vec![part]))
-                                }
-                                Some(ImportedParameterInput::Vararg(parts)) => parts.push(part),
-                                Some(_) => {
-                                    return Err(ArgumentShapeFailure::MixedVarargInputs {
-                                        name: parameter.name().as_str().to_owned(),
-                                    });
-                                }
-                            }
-                            source_parameters[source_index] = Some(match argument.spread {
-                                false => element_type.clone(),
-                                true => parameter.value_type().clone(),
-                            });
-                        }
-                    }
-                }
-                Some(name) => {
-                    let Some(index) = parameters
-                        .iter()
-                        .position(|parameter| parameter.name().as_str() == name)
-                    else {
-                        return Err(ArgumentShapeFailure::UnknownName {
-                            name: name.to_owned(),
-                        });
-                    };
-                    let parameter = &parameters[index];
-                    if mapped[index].is_some() {
-                        return Err(ArgumentShapeFailure::DuplicateParameter {
-                            name: parameter.name().as_str().to_owned(),
-                        });
-                    }
-                    match parameter.calling() {
-                        hir::CallableParameterCallingV1::Required
-                        | hir::CallableParameterCallingV1::Default { .. } => {
-                            if argument.spread {
-                                return Err(ArgumentShapeFailure::SpreadForRegular {
-                                    name: parameter.name().as_str().to_owned(),
-                                });
-                            }
-                            mapped[index] = Some(ImportedParameterInput::Explicit(source_index));
-                            source_parameters[source_index] = Some(parameter.value_type().clone());
-                        }
-                        hir::CallableParameterCallingV1::VarargEmpty { .. }
-                        | hir::CallableParameterCallingV1::VarargDefault { .. } => {
-                            mapped[index] = Some(ImportedParameterInput::WholeArray(source_index));
-                            source_parameters[source_index] = Some(parameter.value_type().clone());
-                            named_only = true;
-                        }
-                    }
-                    if index == next {
-                        next += 1;
-                        while next < mapped.len() && mapped[next].is_some() {
-                            next += 1;
-                        }
-                    } else {
-                        named_only = true;
-                    }
-                }
-            }
-        }
-
-        if positional_required_call && arguments.len() != parameters.len() {
-            return Err(ArgumentShapeFailure::Arity {
-                expected: parameters.len(),
-                supplied: arguments.len(),
-            });
-        }
-
-        let mut defaults = 0;
-        let vararg = parameters.iter().any(|parameter| {
-            matches!(
-                parameter.calling(),
-                hir::CallableParameterCallingV1::VarargEmpty { .. }
-                    | hir::CallableParameterCallingV1::VarargDefault { .. }
-            )
-        });
-        let mut resolved = Vec::with_capacity(parameters.len());
-        for (parameter, input) in parameters.iter().zip(mapped) {
-            let input = match input {
-                Some(input) => input,
-                None => match parameter.calling() {
-                    hir::CallableParameterCallingV1::Required => {
-                        return Err(ArgumentShapeFailure::MissingRequired {
-                            name: parameter.name().as_str().to_owned(),
-                        });
-                    }
-                    hir::CallableParameterCallingV1::Default { template } => {
-                        defaults += 1;
-                        ImportedParameterInput::Default(*template)
-                    }
-                    hir::CallableParameterCallingV1::VarargEmpty { .. } => {
-                        ImportedParameterInput::Vararg(Vec::new())
-                    }
-                    hir::CallableParameterCallingV1::VarargDefault { template, .. } => {
-                        defaults += 1;
-                        ImportedParameterInput::Default(*template)
-                    }
-                },
-            };
-            resolved.push(input);
-        }
-
-        Ok(Self {
-            parameters: resolved,
-            source_parameters: source_parameters
-                .into_iter()
-                .map(|parameter| parameter.expect("each source argument is bound exactly once"))
-                .collect(),
-            defaults,
-            vararg,
-        })
     }
 
     pub(super) fn source_operator_set(
         parameters: &[hir::CallableSourceParameterV1],
         arguments: &[ast::CallArgument],
     ) -> Result<Self, ArgumentShapeFailure> {
-        let Some(value_parameter) = parameters.last() else {
-            return Err(ArgumentShapeFailure::Arity {
-                expected: 1,
-                supplied: arguments.len(),
-            });
-        };
-        let mut arguments = arguments.to_vec();
-        let Some(value) = arguments.last_mut() else {
-            return Err(ArgumentShapeFailure::MissingRequired {
-                name: value_parameter.name().as_str().to_owned(),
-            });
-        };
-        value.name = ast::CallArgumentName::Named(ast::Ident {
-            text: value_parameter.name().as_str().to_owned(),
-            span: value.span,
-        });
-        Self::source(parameters, &arguments)
+        Self::map(
+            parameters,
+            &arguments
+                .iter()
+                .map(ArgumentShape::from)
+                .collect::<Vec<_>>(),
+            true,
+        )
     }
 
-    pub(super) fn parameters(&self) -> &[ImportedParameterInput] {
-        &self.parameters
+    fn map(
+        parameters: &[hir::CallableSourceParameterV1],
+        arguments: &[ArgumentShape<'_>],
+        operator_set: bool,
+    ) -> Result<Self, ArgumentShapeFailure> {
+        let shapes = parameters
+            .iter()
+            .map(|parameter| ParameterShape {
+                name: parameter.name().as_str(),
+                calling: match parameter.calling() {
+                    hir::CallableParameterCallingV1::Required => ParameterCalling::Required,
+                    hir::CallableParameterCallingV1::Default { template } => {
+                        ParameterCalling::Default(*template)
+                    }
+                    hir::CallableParameterCallingV1::VarargEmpty { .. } => {
+                        ParameterCalling::Vararg { default: None }
+                    }
+                    hir::CallableParameterCallingV1::VarargDefault { template, .. } => {
+                        ParameterCalling::Vararg {
+                            default: Some(*template),
+                        }
+                    }
+                },
+            })
+            .collect::<Vec<_>>();
+        let mapping = if operator_set {
+            CandidateArgumentMap::operator_set(&shapes, arguments, ReceiverInput::Absent)?
+        } else {
+            CandidateArgumentMap::map(
+                &shapes,
+                ArgumentMode::Mixed,
+                arguments,
+                ReceiverInput::Absent,
+            )?
+        };
+        let source_parameters = mapping
+            .source_order
+            .iter()
+            .map(|source| {
+                let (parameter, kind) = mapping.source_binding(*source);
+                let parameter = &parameters[parameter.index()];
+                match (parameter.calling(), kind) {
+                    (
+                        hir::CallableParameterCallingV1::VarargEmpty { element_type }
+                        | hir::CallableParameterCallingV1::VarargDefault { element_type, .. },
+                        SourceInputKind::VarargElement,
+                    ) => element_type.clone(),
+                    _ => parameter.value_type().clone(),
+                }
+            })
+            .collect();
+        let vararg = shapes
+            .iter()
+            .any(|parameter| matches!(parameter.calling, ParameterCalling::Vararg { .. }));
+        Ok(Self {
+            mapping,
+            source_parameters,
+            vararg,
+        })
+    }
+
+    pub(super) fn parameters(&self) -> &[ParameterInput<hir::ExportDefaultTemplateKeyV1>] {
+        &self.mapping.parameters
     }
 
     pub(super) fn source_parameters(&self) -> &[SignatureTypeKey] {
@@ -261,17 +133,14 @@ impl ImportedArgumentMap {
     }
 
     pub(super) fn is_array_input(&self, source: usize) -> bool {
-        self.parameters.iter().any(|parameter| match parameter {
-            ImportedParameterInput::WholeArray(input) => *input == source,
-            ImportedParameterInput::Vararg(parts) => parts
-                .iter()
-                .any(|part| part.input.index() == source && part.kind == VarargPartKind::CopyArray),
-            ImportedParameterInput::Explicit(_) | ImportedParameterInput::Default(_) => false,
-        })
+        self.mapping
+            .source_binding(SourceInputId::from_index(source))
+            .1
+            == SourceInputKind::VarargArray
     }
 
-    pub(super) const fn defaults(&self) -> usize {
-        self.defaults
+    pub(super) fn defaults(&self) -> usize {
+        self.mapping.explicit_default_count()
     }
 
     pub(in crate::expr) const fn has_vararg(&self) -> bool {
@@ -281,6 +150,7 @@ impl ImportedArgumentMap {
 
 #[cfg(test)]
 mod tests {
+    use crate::call_resolution::arguments::ResolvedParameterInput;
     use scoop_identity::{
         CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal, DefinitionOrigin,
         NormalizedSourcePath, SourceContextKey, SourceIdentity, SourceSpan,
@@ -295,13 +165,15 @@ mod tests {
 
         let mapping = ImportedArgumentMap::source(&parameters, &arguments).unwrap();
 
-        assert!(matches!(
-            mapping.parameters(),
-            [
-                ImportedParameterInput::Explicit(1),
-                ImportedParameterInput::Explicit(0)
-            ]
-        ));
+        let inputs = mapping
+            .parameters()
+            .iter()
+            .map(|parameter| match &parameter.input {
+                ResolvedParameterInput::Explicit(source) => source.index(),
+                _ => panic!("required parameters retain their explicit inputs"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(inputs, vec![1, 0]);
         assert_eq!(mapping.source_parameters(), &[unit_type(), unit_type()]);
     }
 

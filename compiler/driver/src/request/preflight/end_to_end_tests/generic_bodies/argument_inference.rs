@@ -10,6 +10,7 @@ fn imported_contextual_arguments_republish_and_execute_from_artifacts() {
             "overloads",
             "abi",
             "shared-fixed-point",
+            "shared-mapping",
         ],
         &[
             "no-seed-vararg",
