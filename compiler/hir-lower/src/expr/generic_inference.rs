@@ -331,7 +331,10 @@ impl Lowerer {
                 true
             }
             ast::Expr::Var(name) => self.bare_value_requires_expected(name),
-            ast::Expr::FieldAccess(access) => self.unit_variant_from_field(access).is_some(),
+            ast::Expr::FieldAccess(access) => {
+                self.unit_variant_from_field(access).is_some()
+                    || self.imported_unit_variant_requires_expected(access)
+            }
             ast::Expr::CopyUpdate { base, .. } => self.expr_requires_expected_type(base),
             ast::Expr::TupleLiteral { elements, .. } => {
                 elements.is_empty()
@@ -391,6 +394,9 @@ impl Lowerer {
         }
         match self.lookup_value_origin(&name.text) {
             crate::imports::lookup::LookupResult::Unique(origin) => {
+                if let crate::imports::lookup::values::ValueOrigin::Dependency(binding) = &origin {
+                    return self.imported_variant_binding_requires_expected(binding);
+                }
                 match self.materialized_value_target(&origin) {
                     Some(crate::imports::lookup::values::ValueTarget::Variant(target)) => {
                         self.resolved_variant_style(target) == VariantStyle::Unit

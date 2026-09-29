@@ -18,7 +18,7 @@ impl Lowerer {
         name: &ast::Ident,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
         let static_type = receiver.ty;
-        self.clone().probe_imported_generic(
+        Box::new(self.clone()).probe_imported_generic(
             ImportedCallableCandidate::Declaration(Box::new(declaration)),
             name,
             ImportedProbeCall::lowered(&[], name.span),

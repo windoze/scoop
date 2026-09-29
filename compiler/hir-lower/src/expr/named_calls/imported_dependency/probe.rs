@@ -301,7 +301,7 @@ impl Lowerer {
                         | hir::PublicDeclarationOwnerV1::Nominal(_)
                 ))
         {
-            return state.probe_imported_generic(
+            return Box::new(state).probe_imported_generic(
                 candidate,
                 name,
                 call,

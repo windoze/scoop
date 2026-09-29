@@ -267,6 +267,43 @@ impl Lowerer {
             .map(|_| ImportedNominalQualifier::Applied(owner)))
     }
 
+    pub(in crate::expr) fn imported_unit_variant_requires_expected(
+        &self,
+        access: &ast::FieldAccess,
+    ) -> bool {
+        if self.dependencies.is_none() || access.navigation != ast::Navigation::Direct {
+            return false;
+        }
+        let ast::FieldSelector::Name(name) = &access.selector else {
+            return false;
+        };
+        let mut root = access.receiver.as_ref();
+        while let ast::Expr::FieldAccess(parent) = root {
+            root = parent.receiver.as_ref();
+        }
+        let ast::Expr::Var(root) = root else {
+            return false;
+        };
+        if self.lexical_or_member_value_blocks_type_qualifier(&root.text)
+            || self.lexical_nested_nominal_target(&root.text).is_some()
+        {
+            return false;
+        }
+        let mut probe = self.clone();
+        let Ok(Some(ImportedNominalQualifier::Generic(owner))) =
+            probe.resolve_imported_nominal_qualifier(&access.receiver)
+        else {
+            return false;
+        };
+        let bindings = probe.imported_static_bindings(
+            hir::SourceNominalId::GenericTemplate(owner),
+            BindingNamespace::Value,
+            &name.text,
+        );
+        matches!(bindings.as_slice(), [binding]
+            if probe.imported_variant_binding_requires_expected(binding))
+    }
+
     pub(in crate::expr) fn lower_imported_qualified_field(
         &mut self,
         owner: ImportedNominalQualifier,

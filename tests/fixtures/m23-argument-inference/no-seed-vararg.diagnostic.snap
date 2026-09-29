@@ -1,0 +1,3 @@
+span=79..81
+expression=[]
+cannot infer the element type of an empty array literal

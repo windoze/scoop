@@ -3,18 +3,19 @@
 
 use super::*;
 
+mod arguments;
 mod signature;
-use crate::call_resolution::arguments::SourceInputId;
 use crate::call_resolution::constraints::{
     Constraint, ConstraintOrigin, InferenceSession, TypeTerm,
 };
 use crate::expr::ResolvedCallTypeArgument;
+use arguments::InferredImportedArguments;
 pub(in crate::expr) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
 
 impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn probe_imported_generic(
-        mut self,
+        mut self: Box<Self>,
         candidate: ImportedCallableCandidate,
         name: &ast::Ident,
         call: ImportedProbeCall<'_>,
@@ -32,14 +33,14 @@ impl Lowerer {
             Ok(template) => template,
             Err(error) => {
                 self.error(call.span, error);
-                return Err(Box::new(self));
+                return Err(self);
             }
         };
         let (signature, template_bindings) = template.signature(&self);
         let signature = &signature;
         let explicit = match self.resolve_call_type_args(call.type_args) {
             Some(arguments) => arguments,
-            None => return Err(Box::new(self)),
+            None => return Err(self),
         };
         let mut session = InferenceSession::new();
         let environment =
@@ -110,13 +111,10 @@ impl Lowerer {
                         call.span,
                         format!("cannot resolve dependency parameter type: {error:?}"),
                     );
-                    return Err(Box::new(self));
+                    return Err(self);
                 }
             }
         }
-        let mut source_args = Vec::new();
-        let mut argument_sinks = Vec::new();
-        let mut integer_arguments = Vec::new();
         let address_place =
             if candidate.pointer_intrinsic() == Some(hir::PointerIntrinsic::AddressOf) {
                 let Some(source) = call.arguments.source(0) else {
@@ -124,74 +122,42 @@ impl Lowerer {
                         call.span,
                         "`addressOf` requires an addressable source argument".into(),
                     );
-                    return Err(Box::new(self));
+                    return Err(self);
                 };
                 match self.addressable_source_place(source) {
                     Some(place) => Some(place),
-                    None => return Err(Box::new(self)),
+                    None => return Err(self),
                 }
             } else {
                 None
             };
-        for (index, pattern) in source_patterns.iter().enumerate() {
-            let partial = match self.solve_constraints_partially(&session, environment) {
-                Ok(partial) => partial,
-                Err(failure) => {
-                    self.imported_generic_inference_error(name, call, signature, &failure);
-                    return Err(Box::new(self));
-                }
-            };
-            let bindings = signature
-                .owner_parameters
-                .iter()
-                .chain(&signature.type_parameters)
-                .zip(partial.owner.into_iter().chain(partial.callable))
-                .map(|(p, ty)| {
-                    (
-                        p.id,
-                        ty.unwrap_or_else(|| self.intern_type(hir::Type::Param(p.id))),
-                    )
-                })
-                .collect::<Vec<_>>();
-            let hint = self.instantiate_method_ty(*pattern, &bindings);
-            // A resolved outer binder is a valid contextual type. Only this
-            // candidate's unresolved variables prevent an expected-type hint.
-            let hint =
-                (!crate::call_resolution::type_contains_session_parameter(&self, &session, hint))
-                    .then_some(hint);
-            let mut sink = Vec::new();
-            let value = if let Some((place, ty)) = address_place {
-                Some(hir::Expr {
-                    kind: match place {
-                        hir::Place::Local(local) => hir::ExprKind::Local(local),
-                        hir::Place::Global(global) => hir::ExprKind::GlobalRead(global),
-                    },
-                    ty,
-                    span: call.arguments.span(index),
-                    origin: self.expression_origin(call.arguments.span(index)),
-                })
-            } else {
-                call.arguments.lower(index, &mut self, &mut sink, hint)
-            };
-            let Some(value) = value else {
-                return Err(Box::new(self));
-            };
-            session.push(
-                Constraint::Subtype(TypeTerm::Rigid(value.ty), TypeTerm::Type(*pattern)),
-                ConstraintOrigin::Argument(SourceInputId::from_index(index)),
-            );
-            integer_arguments.push(match self.types[value.ty] {
+        let Some(InferredImportedArguments {
+            mut source_args,
+            argument_sinks,
+        }) = self.infer_imported_generic_arguments(
+            name,
+            call,
+            signature,
+            &source_patterns,
+            &mut session,
+            environment,
+            address_place,
+        )
+        else {
+            return Err(self);
+        };
+        let integer_arguments = source_args
+            .iter()
+            .map(|value| match self.types[value.ty] {
                 hir::Type::Integer(kind) => Some(kind),
                 _ => None,
-            });
-            source_args.push(value);
-            argument_sinks.push(sink);
-        }
+            })
+            .collect();
         let solution = match self.solve_constraints(&session) {
             Ok(solution) => solution,
             Err(failure) => {
                 self.imported_generic_inference_error(name, call, signature, &failure);
-                return Err(Box::new(self));
+                return Err(self);
             }
         };
         let solution = solution.arguments_for(&session, environment);
@@ -253,7 +219,7 @@ impl Lowerer {
             Ok(plan) => plan,
             Err(error) => {
                 self.error(call.span, error.to_string());
-                return Err(Box::new(self));
+                return Err(self);
             }
         };
         let implementation = if let Some(operation) = candidate.array_intrinsic() {
@@ -288,7 +254,7 @@ impl Lowerer {
                 | hir::PointerIntrinsic::SizeOf
                 | hir::PointerIntrinsic::AlignOf => match expression {
                     Some(expression) => ImportedIntrinsicCall::Expression(expression),
-                    None => return Err(Box::new(self)),
+                    None => return Err(self),
                 },
                 _ => ImportedIntrinsicCall::PointerMember(intrinsic),
             };
@@ -326,7 +292,7 @@ impl Lowerer {
             implementation,
             declaration_file: signature.origin.file as usize,
             declaration_span: signature.span,
-            state: Box::new(self),
+            state: self,
             candidate,
             receiver,
             source_args,

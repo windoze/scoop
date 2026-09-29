@@ -1,0 +1,5 @@
+span=113..145
+expression=conflict(::identity, [], 42, 42)
+call to `conflict` is ambiguous in exact import layer:
+  - conflict<T>(action: (T) -> T, values: Array<T>, left: T, right: Any): T — applicable; tied by MSC
+  - conflict<T>(action: (T) -> T, values: Array<T>, left: Any, right: T): T — applicable; tied by MSC

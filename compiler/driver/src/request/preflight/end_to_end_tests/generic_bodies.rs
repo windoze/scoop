@@ -1,5 +1,6 @@
 use super::*;
 
+mod argument_inference;
 mod arrays;
 mod bounds;
 mod constructors;

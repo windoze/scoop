@@ -5,6 +5,37 @@ use hir::ImportedCallableSource;
 use scoop_identity::CallableTemplateOrigin;
 
 impl Lowerer {
+    pub(in crate::expr) fn imported_variant_binding_requires_expected(
+        &self,
+        binding: &hir::DirectImportedTargetBinding,
+    ) -> bool {
+        let hir::ImportedTarget::EnumVariant(variant) = binding.target() else {
+            return false;
+        };
+        let Some(dependencies) = self.dependencies.as_ref() else {
+            return false;
+        };
+        let Ok(declaration) = dependencies.callable_declaration(
+            CallableTemplateOrigin::VariantConstructor(variant.persistent()),
+        ) else {
+            return false;
+        };
+        let hir::PublicDeclarationOwnerV1::Nominal(owner) = declaration.interface().owner() else {
+            return false;
+        };
+        let Some(nominal) = dependencies.nominal_declaration(owner) else {
+            return false;
+        };
+        let hir::NominalSourceShapeV1::Enum(shape) = nominal.interface.source_shape() else {
+            return false;
+        };
+        !nominal.interface.type_parameters().binders().is_empty()
+            && shape.variants().iter().any(|value| {
+                value.variant() == variant.persistent()
+                    && value.style() == hir::EnumSourceVariantStyleV1::Unit
+            })
+    }
+
     pub(in crate::expr) fn contextual_imported_variant(
         &self,
         name: &str,

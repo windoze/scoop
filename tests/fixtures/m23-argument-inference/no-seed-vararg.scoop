@@ -1,0 +1,2 @@
+import dependency.inference.pack
+public fun result(): Int { val values = pack(*[]); return 42 }

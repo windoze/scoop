@@ -1,0 +1,29 @@
+package consumer.inference
+
+import dependency.inference.*
+import dependency.inference.exercise as providerExercise
+
+private class Reference(public val number: Int)
+private struct Large(val first: Reference, val second: Reference, val third: Reference)
+private enum Payload<T> { Data(val value: T), Empty }
+private fun readLarge(value: Large): Int = value.first.number + value.second.number + value.third.number
+private fun readPayload(value: Payload<Large>): Int = when (value) {
+    Data(inner) -> readLarge(inner)
+    Empty -> 0
+}
+private fun readUnit(value: Unit): Int = 42
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val large = Large(Reference(10), Reference(12), Reference(20))
+    if (exercise<Large>(large, ::readLarge) != 42) { return 1 }
+    if (exercise<Payload<Large>>(Payload.Data(large), ::readPayload) != 42) { return 2 }
+    if (exercise<Unit>(Unit, ::readUnit) != 42) { return 3 }
+    val values = pack(*[], large)
+    val wrapped = Pair([], large)
+    val nested = pack(*[], values)
+    val units = pack(*[], Unit, Unit)
+    if (wrapped.values.size != 0L || units.size != 2L || readLarge(wrapped.seed) != 42) { return 4 }
+    val allocated = Reference(0)
+    return readLarge(nested[0L][0L]) + allocated.number
+}

@@ -1,0 +1,9 @@
+import dependency.inference.arrayOrSeed
+private open class Base(public val number: Int)
+private class Child(number: Int) : Base(number)
+public fun result(): Int {
+    val values: Array<Child> = [Child(42)]
+    val seed: Base = Base(42)
+    val value = arrayOrSeed(values, seed)
+    return 42
+}

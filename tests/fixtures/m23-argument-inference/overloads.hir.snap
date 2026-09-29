@@ -1,0 +1,114 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local read : (T0) -> Int
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      Local $dependency.argument.1 : (T0) -> Int
+    return
+      ImportedGenericCall exercise<T0> : Int
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.read : (T0) -> Int
+  fun result(): Int
+    val local0
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local1
+      ArrayLiteral : Array<Int>
+    val local2
+      IntegerLiteral 42 : Int
+    val local3
+      Local $dependency.argument.0 : (Int) -> Int
+    val local4
+      Local $dependency.argument.1 : Array<Int>
+    val local5
+      Local $dependency.argument.2 : Int
+    val local6
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.action : (Int) -> Int
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.seed : Int
+    val local7
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local8
+      ArrayLiteral : Array<Int>
+    val local9
+      IntegerLiteral 42 : Int
+    val local10
+      Local $dependency.argument.0 : (Int) -> Int
+    val local11
+      Local $dependency.argument.1 : Array<Int>
+    val local12
+      Local $dependency.argument.2 : Int
+    val local13
+      ImportedGenericCall route<Int> : Int
+        Local $dependency.parameter.action : (Int) -> Int
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.seed : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      ArrayLiteral : Array<Int>
+    val local16
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local17
+      Local $dependency.argument.2 : (Int) -> Int
+    val local18
+      Local $dependency.argument.1 : Array<Int>
+    val local19
+      Local $dependency.argument.0 : Int
+    val local20
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.action : (Int) -> Int
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.seed : Int
+    val local21
+      Local selected : Int
+    val local22
+      IntegerLiteral 43 : Int
+    val local23
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local24
+        Local explicit : Int
+      val local25
+        IntegerLiteral 42 : Int
+      val local26
+        Local $dependency.argument.0 : Int
+      val local27
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local27
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.0 : Boolean
+      val local28
+        Local named : Int
+      val local29
+        IntegerLiteral 43 : Int
+      val local30
+        Local $dependency.argument.0 : Int
+      val local31
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local31
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.1 : Boolean
+      assign $result.2
+        IntegerLiteral 42 : Int
+    else
+      assign $result.2
+        IntegerLiteral 1 : Int
+    return
+      Local $result.2 : Int
+  output library

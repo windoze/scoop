@@ -233,6 +233,8 @@ M23把import层具体化为typed binding source。无显式receiver的顺序为l
 
 调用与值构造的泛型推导对整组已映射实参执行constraint固定点求解，不得按从左到右的一次遍历决定成败。constraint递归穿过invariant nominal application与function type variance，并同时检查kind/class/interface bound；显式`_`只创建与整组省略时相同的candidate-local fresh variable。lambda、callable reference、裸enum variant（包括`None`）、空数组及依赖expected type的嵌套构造可以postpone到其他约束推进后检查。MSC使用与本次actual inference隔离的pairwise fresh-variable forwarding system，不能比较两个候选已经推断出的concrete arguments。solver内部可以暂存未固定变量，但winner commit必须原子地产生全部concrete arguments、完整实参映射、coercion和唯一typed target；未解、多解或bound失败只能形成HIR诊断/候选失败，不能输出给下游补齐。
 
+导入泛型调用按已经完成的源码实参映射维护待检查输入，复用相同的上下文依赖分类、partial constraint solver 与默认类型种子顺序。先收集不依赖期望类型的实参，再反复检查已有完整 hint 的输入；没有进展时，事务性尝试可独立推断的输入，成功后继续传播，全部失败时保留实际失败位置。宿主与 callable 参数仍分组，调用方已解析的外层 binder 可作为 hint，只有本候选尚未解出的变量需要等待。裸名称与限定名称的外来泛型 unit variant 从实际声明识别上下文需求，固定 typealias 的完整 application 不因原 owner 含 binder 而被重新视为待推断。每项成功输入只保留一份表达式和独立 sink，按原源码索引交给普通求值／参数物化；`addressOf` 保持在创建参数临时值之前解析的实际 place。模板、实例化输出与 ABI 不增加推断状态。
+
 M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR按候选分别映射而不先公共重排。目标选定后，receiver先求值，所有显式实参各自保存独立desugaring sink并按源码顺序拼接；随后按形参声明顺序构造vararg值及实例化实际使用的缺省表达式，最后才产生按形参顺序排列的call arguments。类型检查/constraint求解顺序不得改变这套运行期顺序。若这些temporary/sink位于`while`条件，HIR必须把它们保存在随条件重复执行的typed condition-setup区域，MIR在每次条件检查前执行该区域；不得把它提升到循环外，也不得因sink非空而拒绝普通调用或空安全脱糖。跨挂起点存活的已求值显式实参和部分物化参数使用普通M10 frame规则，不能在恢复后重新求值。
 
 struct/enum 的派生 equality 条件签名必须在继承与源码签名检查完成后、默认参数正文和 constructor 表达式 lowering 之前登记。默认参数可按普通规则选择派生 equality；生成完整应用正文仍由实际调用需求触发，不能将其限制为普通函数 body 阶段才能使用，也不能覆盖已有的同型用户 equals。

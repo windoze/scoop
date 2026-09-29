@@ -1,0 +1,26 @@
+package consumer.inference
+
+import dependency.inference.*
+import dependency.inference.exercise as providerExercise
+import Option.None as EmptyOption
+
+private class Reference(public val number: Int)
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val selected = prefer(EmptyOption, seed)
+    val referenced = viaReference(::identity, selected)
+    val host = Host(seed)
+    if (read(host.transform({ value -> value }, referenced)) != 42) { return 6 }
+    return providerExercise<T>(seed, read)
+}
+
+public fun result(): Int {
+    if (applyTo({ value -> value }, 42) != 42) { return 1 }
+    if (applyTo({ value -> value.number }, Reference(42)) != 42) { return 2 }
+    if (viaReference(::identity, 42) != 42) { return 3 }
+    if (prefer(None, 42) != 42 || prefer(EmptyOption, 42) != 42) { return 4 }
+    val host = Host(Reference(42))
+    val transformed = host.transform({ value -> Reference(value) }, 42)
+    val seed = 42
+    if (transformed.number != 42 || seed.fromEmpty([]) != 42) { return 5 }
+    return viaReference(::identity, host.value).number
+}

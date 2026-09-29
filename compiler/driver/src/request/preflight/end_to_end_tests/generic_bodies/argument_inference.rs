@@ -1,0 +1,26 @@
+#[test]
+fn imported_contextual_arguments_republish_and_execute_from_artifacts() {
+    super::members::check_fixture_cases(
+        "m23-argument-inference",
+        &[
+            "arrays",
+            "callbacks",
+            "nominals",
+            "order",
+            "overloads",
+            "abi",
+        ],
+        &[
+            "no-seed-vararg",
+            "no-seed-default",
+            "no-seed-reference",
+            "missing-binder",
+            "invariant-array",
+            "lambda-result",
+            "bound",
+            "mixed-kind",
+            "ambiguous",
+        ],
+        "downstream",
+    );
+}
