@@ -1,0 +1,97 @@
+Module
+  fun local<T>(value: T0): T0
+    return
+      Local value : T0
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $argument.0 : T0
+    val local4
+      Call local<T0> : T0
+        Local $parameter.value : T0
+    val local5
+      Local $dependency.argument.0 : T0
+    val local6
+      ImportedGenericCall identity<T0> : T0
+        Local $dependency.parameter.value : T0
+    val local7
+      Local $dependency.argument.0 : T0
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall identity<T0> : T0
+          Local $dependency.parameter.value : T0
+  fun result(): Int
+    val local0
+      StringLiteral "value" : String
+    val local1
+      Local $dependency.argument.0 : String
+    val local4
+      ImportedGenericCall identity<String> : String
+        Local $dependency.parameter.value : String
+    val local2
+      StringLiteral "value" : String
+    val local3
+      Local $dependency.argument.0 : String
+    val local5
+      Local $equality.lhs : String
+    val local6
+      ImportedGenericCall identity<String> : String
+        Local $dependency.parameter.value : String
+    val local7
+      Local $dependency.argument.0 : String
+    if
+      Unary Not : Boolean
+        ImportedDependencyCall #0 : Boolean
+          Local $dependency.receiver : String
+          Local $dependency.parameter.other : String
+      return
+        IntegerLiteral 1 : Int
+    val local8
+      UnitLiteral : Unit
+    val local9
+      Local $dependency.argument.0 : Unit
+    ImportedGenericCall identity<Unit> : Unit
+      Local $dependency.parameter.value : Unit
+    val local10
+      UnitLiteral : Unit
+    val local11
+      Local $dependency.argument.0 : Unit
+    ImportedGenericCall identity<Unit> : Unit
+      Local $dependency.parameter.value : Unit
+    val local12
+      IntegerLiteral 40 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    val local16
+      ImportedGenericCall identity<Int> : Int
+        Local $dependency.parameter.value : Int
+    val local14
+      IntegerLiteral 2 : Int
+    val local15
+      Local $dependency.argument.0 : Int
+    val local17
+      ImportedGenericCall identity<Int> : Int
+        Local $dependency.parameter.value : Int
+    val local18
+      Local $dependency.argument.0 : Int
+    val local19
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local20
+      Local number : Int
+    val local21
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local22
+      Local $argument.0 : Int
+    val local23
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance local<T0>
+  instance exercise<Int>

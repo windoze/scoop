@@ -1,0 +1,147 @@
+Module
+  class Local<T>(value: T0)
+    field0 property0: T0
+    property0 val value: T0 getter0=body(Local.$get$value) <stored field0 init=parameter0>
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+    val local5
+      Local box : Box<T0>
+    val local6
+      IntegerLiteral 0 : Int
+    val local7
+      Lambda lambda0 invoke=$lambda.0 captures=1 : (T0, Int) -> Int
+        capture read binding2 : (T0) -> Int
+    val local8
+      Local $dependency.argument.0 : Int
+    val local9
+      Local $dependency.argument.1 : (T0, Int) -> Int
+    val local10
+      ImportedGenericCall mix<T0, Int> : Int
+        Local $dependency.receiver : Box<T0>
+        Local $dependency.parameter.extra : Int
+        Local $dependency.parameter.select : (T0, Int) -> Int
+    val local11
+      Local box : Box<T0>
+    val local12
+      UnitLiteral : Unit
+    val local13
+      Lambda lambda1 invoke=$lambda.1 captures=1 : (T0, Unit) -> Int
+        capture read binding2 : (T0) -> Int
+    val local14
+      Local $dependency.argument.0 : Unit
+    val local15
+      Local $dependency.argument.1 : (T0, Unit) -> Int
+    val local16
+      ImportedGenericCall mix<T0, Unit> : Int
+        Local $dependency.receiver : Box<T0>
+        Local $dependency.parameter.extra : Unit
+        Local $dependency.parameter.select : (T0, Unit) -> Int
+    val local17
+      Local box : Box<T0>
+    val local18
+      ImportedGenericCall read<T0> : T0
+        Local $dependency.receiver : Box<T0>
+    val local19
+      Local $argument.0 : T0
+    val local20
+      ClassInit Local<T0> : Local<T0>
+        Local $parameter.value : T0
+    val local21
+      Local local : Local<T0>
+    val local22
+      IntegerLiteral 0 : Int
+    val local23
+      Lambda lambda2 invoke=$lambda.2 captures=1 : (T0, Int) -> Int
+        capture read binding2 : (T0) -> Int
+    val local24
+      Local $argument.0 : Int
+    val local25
+      Local $argument.1 : (T0, Int) -> Int
+    val local26
+      MethodCall Local.mix : Int
+        Local $receiver : Local<T0>
+        Local $parameter.extra : Int
+        Local $parameter.select : (T0, Int) -> Int
+    val local27
+      Local first : Int
+    val local28
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local29
+      Local local : Local<T0>
+    val local30
+      UnitLiteral : Unit
+    val local31
+      Lambda lambda3 invoke=$lambda.3 captures=1 : (T0, Unit) -> Int
+        capture read binding2 : (T0) -> Int
+    val local32
+      Local $argument.0 : Unit
+    val local33
+      Local $argument.1 : (T0, Unit) -> Int
+    val local34
+      MethodCall Local.mix : Int
+        Local $receiver : Local<T0>
+        Local $parameter.extra : Unit
+        Local $parameter.select : (T0, Unit) -> Int
+    val local35
+      Local second : Int
+    val local36
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local37
+      Local seed : T0
+    val local38
+      Local $dependency.argument.0 : T0
+    val local39
+      ImportedGenericCall factory<T0> : () -> T0
+        Local $dependency.parameter.value : T0
+    val local40
+      CallableCall function_type6 : T0
+        Local callback : () -> T0
+    val local41
+      Lambda lambda4 invoke=$lambda.4 captures=0 : (T0) -> T0
+    val local42
+      Local $dependency.argument.0 : T0
+    val local43
+      Local $dependency.argument.1 : (T0) -> T0
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall defaulted<T0> : T0
+          Local $dependency.parameter.value : T0
+          Local $dependency.parameter.select : (T0) -> T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda5 invoke=$lambda.5 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>
+  method instance Local.mix<owner=[T0], method=[Int]>
+  method instance Local.mix<owner=[T0], method=[Unit]>

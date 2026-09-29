@@ -111,7 +111,7 @@ impl CallableIdentityBuilder<'_> {
                     .function_keys
                     .iter()
                     .position(|key| {
-                        matches!(key.source(), FunctionSource::Imported(source) if source == parent)
+                        matches!(self.concretizer.function_source(key), FunctionSource::Imported(source) if source == parent)
                             && self.concretizer.function_key_arguments(key) == arguments
                     })
                     .expect("a lexical application retains its instantiated parent");
@@ -216,7 +216,7 @@ impl CallableIdentityBuilder<'_> {
             .iter()
             .enumerate()
             .filter_map(|(index, key)| {
-                (matches!(key.source(), FunctionSource::Local(actual) if actual == source)
+                (matches!(self.concretizer.function_source(key), FunctionSource::Local(actual) if actual == source)
                     && self.concretizer.function_key_arguments(key) == arguments)
                     .then_some(index)
             })

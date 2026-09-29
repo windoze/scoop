@@ -23,6 +23,7 @@ mod reexported_namespaces;
 mod references;
 mod shared_bounds;
 mod shared_enums;
+mod shared_requests;
 mod siblings;
 
 #[test]

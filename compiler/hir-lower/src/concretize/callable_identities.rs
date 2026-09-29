@@ -239,17 +239,14 @@ impl<'a> CallableIdentityBuilder<'a> {
             "concrete callable materialization parents are acyclic"
         );
         let key = self.concretizer.function_keys[index].clone();
-        let source = match key.source() {
+        let source = match self.concretizer.function_source(&key) {
             FunctionSource::Local(source) => source,
             FunctionSource::Imported(source) => {
                 let declaration = self.concretizer.source.imported_generic_templates[source]
                     .declaration
                     .clone();
                 let arguments = self.concretizer.function_key_arguments(&key);
-                let owner = match key {
-                    FunctionKey::ImportedMethod { owner, .. } => Some(owner),
-                    _ => None,
-                };
+                let owner = key.owner;
                 let materialization = self.imported_materialization(declaration, owner, &arguments);
                 self.visiting[index] = false;
                 self.materializations[index] = Some(materialization);
@@ -327,14 +324,10 @@ impl<'a> CallableIdentityBuilder<'a> {
                 CallableMaterialization::new(CallableTemplateOwner::Generated(record.id()), context)
             }
             export::HirFunctionIdentity::DerivedEquality(_) => {
-                let exact_owner = self.exact_method_owner(match key {
-                    FunctionKey::Method { owner, .. } => owner,
-                    FunctionKey::Free { .. }
-                    | FunctionKey::Imported { .. }
-                    | FunctionKey::ImportedMethod { .. } => {
-                        panic!("derived equality is always an exact-owner method")
-                    }
-                });
+                let exact_owner = self.exact_method_owner(
+                    key.owner
+                        .expect("derived equality always has a complete owner"),
+                );
                 let record = CborIdentityRecord::from_key(GeneratedCallableKey::DerivedEquality {
                     exact_owner,
                 })
@@ -374,32 +367,24 @@ impl<'a> CallableIdentityBuilder<'a> {
         key: &FunctionKey,
         template: SourceTemplate,
     ) -> CallableMaterialization {
-        match key {
-            FunctionKey::ImportedMethod { .. } => {
-                unreachable!("imported methods use their provider identity")
-            }
-            FunctionKey::Free { arguments, .. } | FunctionKey::Imported { arguments, .. } => self
-                .source_materialization(template, CallableInstantiationOwner::NoOwner, arguments),
-            FunctionKey::Method {
-                owner,
-                specialization,
-                ..
-            } => {
-                let owner_arguments = self.concretizer.concrete_method_owner_arguments(*owner);
-                let instantiation_owner = if owner_arguments.is_empty() {
-                    CallableInstantiationOwner::NoOwner
-                } else {
-                    CallableInstantiationOwner::ExactNominalOwner(self.exact_method_owner(*owner))
-                };
-                let callable_arguments = match specialization {
-                    MethodRequest::Plain => Vec::new(),
-                    MethodRequest::Generic {
-                        method_arguments, ..
-                    } => method_arguments.iter().copied().collect(),
-                };
-                self.source_materialization(template, instantiation_owner, &callable_arguments)
-            }
-        }
+        let Some(owner) = key.owner else {
+            return self.source_materialization(
+                template,
+                CallableInstantiationOwner::NoOwner,
+                &key.arguments,
+            );
+        };
+        let owner_arguments = self.concretizer.concrete_method_owner_arguments(owner);
+        let instantiation_owner = if owner_arguments.is_empty() {
+            CallableInstantiationOwner::NoOwner
+        } else {
+            CallableInstantiationOwner::ExactNominalOwner(self.exact_method_owner(owner))
+        };
+        self.source_materialization(
+            template,
+            instantiation_owner,
+            &key.arguments[owner_arguments.len()..],
+        )
     }
 
     fn local_source_materialization(
@@ -408,13 +393,18 @@ impl<'a> CallableIdentityBuilder<'a> {
         template: SourceTemplate,
         site: &LexicalSite,
     ) -> CallableMaterialization {
-        let FunctionKey::Free { source, arguments } = key else {
-            panic!("a block-local source callable is not a nominal method")
+        assert!(
+            key.owner.is_none(),
+            "a block-local callable is not a nominal method"
+        );
+        let FunctionSource::Local(source) = self.concretizer.function_source(key) else {
+            unreachable!("a current lexical site retains its source record")
         };
+        let arguments = &key.arguments;
         assert!(site.owner_type_parameter_count <= arguments.len());
         let inherited = &arguments[..site.owner_type_parameter_count];
         let own = &arguments[site.owner_type_parameter_count..];
-        let owner = match self.lexical_context(*source, site, inherited) {
+        let owner = match self.lexical_context(source, site, inherited) {
             CallableMaterializationContext::NoSubstitution => CallableInstantiationOwner::NoOwner,
             CallableMaterializationContext::Application(application) => {
                 CallableInstantiationOwner::EnclosingCallableApplication(application)

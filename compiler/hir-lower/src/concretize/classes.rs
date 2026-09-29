@@ -159,7 +159,7 @@ impl Concretizer<'_> {
                 match function.genericity {
                     export::FunctionGenericity::Plain
                     | export::FunctionGenericity::OwnerParameterizedMethod { .. } => {
-                        Some(self.request_method(method, owner, MethodRequest::Plain))
+                        Some(self.request_method(method, owner, Vec::new()))
                     }
                     export::FunctionGenericity::GenericMethod { .. } => None,
                     export::FunctionGenericity::Generic { .. } => {

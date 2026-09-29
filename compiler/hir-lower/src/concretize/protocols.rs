@@ -145,10 +145,11 @@ impl Concretizer<'_> {
                 illegal_state_exception: lower_exception(
                     source_exception_core.illegal_state_exception,
                 ),
-                initialization_cycle_thrower: self.function_by_key[&FunctionKey::Free {
-                    source: source_exception_core.initialization_cycle_thrower,
-                    arguments: Vec::new(),
-                }],
+                initialization_cycle_thrower: self.function_by_key[&self.function_key(
+                    FunctionSource::Local(source_exception_core.initialization_cycle_thrower),
+                    None,
+                    Vec::new(),
+                )],
             },
             coroutines: coroutine_protocols,
             foreign_callbacks: concrete::ForeignCallbackCore {
@@ -221,22 +222,22 @@ impl Concretizer<'_> {
                     continuation_resume: self.request_method(
                         core.continuation_resume,
                         concrete::MethodOwner::Interface(continuation),
-                        MethodRequest::Plain,
+                        Vec::new(),
                     ),
                     continuation_resume_with_exception: self.request_method(
                         core.continuation_resume_with_exception,
                         concrete::MethodOwner::Interface(continuation),
-                        MethodRequest::Plain,
+                        Vec::new(),
                     ),
                     suspend_task_run: self.request_method(
                         core.suspend_task_run,
                         concrete::MethodOwner::Interface(suspend_task),
-                        MethodRequest::Plain,
+                        Vec::new(),
                     ),
                     suspend_registration_register: self.request_method(
                         core.suspend_registration_register,
                         concrete::MethodOwner::Interface(suspend_registration),
-                        MethodRequest::Plain,
+                        Vec::new(),
                     ),
                 }
             }));

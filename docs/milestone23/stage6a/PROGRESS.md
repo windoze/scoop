@@ -82,3 +82,11 @@
 - 新增 6 项源码测试、`m23-shared-enums/qualified.scoop` 及两个名称前缀反例；覆盖当前／exact／star／alias／包／嵌套类型、不同泛型实参、错误 exact 遮蔽、star 歧义与未导入名称。真实泛型默认值、再次发布、下游本地引用类型／Int／Unit 和普通／移动 GC 组合通过。
 - 全仓 fmt／clippy、1294 项 HIR lowering 测试与 10 项相关真实产物测试通过。两份既有 qualified 类型诊断快照按完整前缀更新；新增三阶段与反例快照已核对，关闭更新开关的 5 项专项复验通过。日志 `/tmp/scoop-m23-6a-qualified-names-unit.log`、`/tmp/scoop-m23-6a-qualified-names-fixtures.log`、`/tmp/scoop-m23-6a-qualified-names-verify.log`。
 - 确认没有构建占用后，再清理约 1.71 GiB 的 `target/debug/incremental`。当前名称解析已共用；nominal 存储、候选和正文其他路径继续按设计迁移。
+
+## 按原定义统一具体化函数请求
+
+- 函数请求统一为原函数／泛型函数／访问器／生成正文身份、完整宿主和完整实参；删除 Free／Method／Imported／ImportedMethod 请求分支及单独 MethodRequest。当前与依赖记录位置单独保存，不参与请求去重；同一队列处理普通、方法与词法正文，宿主参数和方法参数保持完整顺序，包含 `Ptr<T>` 的 pointee。
+- 初始化、接口 dispatch、派生相等、core 协议、词法 parent 与默认局部值查询已适配共同请求。请求模块 170 行，函数 lowering 主模块由 271 行降至 155 行；现有正文存储适配仍待后续统一，本批未把它包装成阶段完成。
+- 新增 `m23-shared-requests` 的 2 组源码与三阶段快照，覆盖 import alias 重复请求、Int／String／Unit、当前和依赖泛型方法、lambda／局部泛型与完整继承实参；单元测试确认同一 application 复用且不同宿主／方法实参分别具体化。
+- 全仓 fmt／clippy、2848 项 HIR／HIR lowering／MIR lowering／slib 单元测试，以及关闭快照更新开关的 55 项真实泛型与 enum 产物回归全部通过。真实回归包含移走源码、再次发布、下游组合和普通／移动 GC；既有快照未变。日志 `/tmp/scoop-m23-6a-function-requests-unit.log`、`/tmp/scoop-m23-6a-function-requests-fixtures.log`。
+- 新组合同时复现外来函数值默认参数的旧阶段限制；本批显式传入函数值验证请求身份，该缺口继续归默认正文与词法上下文迁移，不作为合法程序的最终限制。

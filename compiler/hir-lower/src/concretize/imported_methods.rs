@@ -40,15 +40,8 @@ impl Concretizer<'_> {
             match method.target {
                 concrete::InterfaceImplementationTarget::Method(function) => {
                     let interface =
-                        match self.function_keys[function.into_raw().into_u32() as usize] {
-                            FunctionKey::Method {
-                                owner: concrete::MethodOwner::Interface(interface),
-                                ..
-                            }
-                            | FunctionKey::ImportedMethod {
-                                owner: concrete::MethodOwner::Interface(interface),
-                                ..
-                            } => Some(interface),
+                        match self.function_keys[function.into_raw().into_u32() as usize].owner {
+                            Some(concrete::MethodOwner::Interface(interface)) => Some(interface),
                             _ => None,
                         };
                     return (

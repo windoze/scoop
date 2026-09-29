@@ -9,7 +9,7 @@ impl CallableIdentityBuilder<'_> {
         let mut scopes = Vec::new();
         let mut seen = HashSet::new();
         for key in &self.concretizer.function_keys {
-            let FunctionSource::Local(source) = key.source() else {
+            let FunctionSource::Local(source) = self.concretizer.function_source(key) else {
                 continue;
             };
             let Some(site) = self.lexical_sites.get(&source).cloned() else {

@@ -6,15 +6,14 @@ impl Concretizer<'_> {
         application: &export::ImportedGenericCallableApplication,
         substitution: &[concrete::TypeId],
     ) -> concrete::FunctionId {
-        let source = application.template;
-        let key = match &application.arguments {
-            export::ImportedCallableArguments::Function(arguments) => FunctionKey::Imported {
-                source,
-                arguments: arguments
+        let (owner, arguments) = match &application.arguments {
+            export::ImportedCallableArguments::Function(arguments) => (
+                None,
+                arguments
                     .iter()
                     .map(|ty| self.lower_type(*ty, substitution))
                     .collect(),
-            },
+            ),
             export::ImportedCallableArguments::Method {
                 owner,
                 method_arguments,
@@ -26,19 +25,20 @@ impl Concretizer<'_> {
                     concrete::TypeKind::Enum(id) => concrete::MethodOwner::Enum(id),
                     concrete::TypeKind::Interface(id) => concrete::MethodOwner::Interface(id),
                     concrete::TypeKind::Ptr(_) => concrete::MethodOwner::TypeOwned(ty),
-                    _ => unreachable!("an imported method has a nominal owner"),
+                    _ => unreachable!("a method has a nominal owner"),
                 };
-                FunctionKey::ImportedMethod {
-                    source,
-                    owner,
-                    method_arguments: method_arguments
+                let mut arguments = self.concrete_method_owner_arguments(owner).to_vec();
+                arguments.extend(
+                    method_arguments
                         .iter()
-                        .map(|ty| self.lower_type(*ty, substitution))
-                        .collect(),
-                }
+                        .map(|ty| self.lower_type(*ty, substitution)),
+                );
+                (Some(owner), arguments)
             }
         };
-        self.request_function_key(key)
+        let source = FunctionSource::Imported(application.template);
+        let key = self.function_key(source, owner, arguments);
+        self.request_function_key(key, source)
     }
 
     pub(super) fn lower_imported_function(

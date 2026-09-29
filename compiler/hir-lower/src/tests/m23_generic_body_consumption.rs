@@ -19,6 +19,7 @@ mod pointer_construction;
 mod pointers;
 mod qualified_types;
 mod references;
+mod requests;
 
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

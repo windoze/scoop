@@ -99,7 +99,7 @@ impl Concretizer<'_> {
                 self.request_method(
                     member.function,
                     concrete::MethodOwner::Interface(id),
-                    MethodRequest::Plain,
+                    Vec::new(),
                 );
             }
         }

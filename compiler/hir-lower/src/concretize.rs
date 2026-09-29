@@ -30,6 +30,7 @@ mod interfaces;
 mod nominals;
 mod objects;
 mod protocols;
+mod requests;
 mod runtime_exceptions;
 mod types;
 mod variants;
@@ -87,60 +88,12 @@ pub(crate) fn lower_output(
     )
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum FunctionKey {
-    Imported {
-        source: export::ImportedGenericCallableTemplateId,
-        arguments: Vec<concrete::TypeId>,
-    },
-    ImportedMethod {
-        source: export::ImportedGenericCallableTemplateId,
-        owner: concrete::MethodOwner,
-        method_arguments: Vec<concrete::TypeId>,
-    },
-    Free {
-        source: export::FunctionId,
-        arguments: Vec<concrete::TypeId>,
-    },
-    Method {
-        source: export::FunctionId,
-        owner: concrete::MethodOwner,
-        specialization: MethodRequest,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum MethodRequest {
-    Plain,
-    Generic {
-        definition: export::GenericMethodId,
-        method_arguments: export::NonEmptyVec<concrete::TypeId>,
-    },
-}
+use requests::{FunctionKey, FunctionSource};
 
 #[derive(Debug, Clone)]
 enum ConcreteApplicationRepresentation {
     Declared,
     Intrinsic(concrete::IntrinsicTypeRepresentation),
-}
-
-impl FunctionKey {
-    fn source(&self) -> FunctionSource {
-        match *self {
-            Self::Free { source, .. } | Self::Method { source, .. } => {
-                FunctionSource::Local(source)
-            }
-            Self::Imported { source, .. } | Self::ImportedMethod { source, .. } => {
-                FunctionSource::Imported(source)
-            }
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum FunctionSource {
-    Local(export::FunctionId),
-    Imported(export::ImportedGenericCallableTemplateId),
 }
 
 struct Concretizer<'a> {
@@ -229,6 +182,7 @@ struct Concretizer<'a> {
     singleton_published_roots: Arena<concrete::SingletonPublishedRoot>,
     function_slots: Vec<Option<PendingFunction>>,
     function_keys: Vec<FunctionKey>,
+    function_sources: Vec<FunctionSource>,
     function_by_key: HashMap<FunctionKey, concrete::FunctionId>,
     /// Concrete ordinary bodies supplied by typed derived-equality
     /// applications before their function key enters the emission queue.
@@ -400,6 +354,7 @@ impl<'a> Concretizer<'a> {
             singleton_published_roots: Arena::new(),
             function_slots: Vec::new(),
             function_keys: Vec::new(),
+            function_sources: Vec::new(),
             function_by_key: HashMap::new(),
             derived_bodies: HashMap::new(),
             derived_functions: HashMap::new(),
@@ -431,10 +386,8 @@ impl<'a> Concretizer<'a> {
     fn run_with_entry(self, entry: export::FunctionId) -> (concrete::Module, concrete::FunctionId) {
         self.run_with(|concretizer| {
             concretizer.intern_type(concrete::TypeKind::Any, false);
-            concretizer.function_by_key[&FunctionKey::Free {
-                source: entry,
-                arguments: Vec::new(),
-            }]
+            concretizer.function_by_key
+                [&concretizer.function_key(FunctionSource::Local(entry), None, Vec::new())]
         })
     }
 

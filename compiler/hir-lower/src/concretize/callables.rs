@@ -165,7 +165,7 @@ impl Concretizer<'_> {
                         concrete::Callable::Function(self.request_method(
                             function,
                             concrete::MethodOwner::Interface(required_interface),
-                            MethodRequest::Plain,
+                            Vec::new(),
                         )),
                         Some(required_interface),
                     )
@@ -266,10 +266,7 @@ impl Concretizer<'_> {
                 let concrete = self.request_method(
                     function,
                     owner,
-                    MethodRequest::Generic {
-                        definition: application.method,
-                        method_arguments,
-                    },
+                    method_arguments.iter().copied().collect(),
                 );
                 (concrete::Callable::Function(concrete), arguments)
             }
@@ -293,7 +290,7 @@ impl Concretizer<'_> {
         let application = self.source.method_applications[source].clone();
         let owner = self.lower_method_owner(application.owner, substitution);
         let arguments = self.concrete_method_owner_arguments(owner).to_vec();
-        let function = self.request_method(application.function, owner, MethodRequest::Plain);
+        let function = self.request_method(application.function, owner, Vec::new());
         (concrete::Callable::Function(function), arguments)
     }
 
@@ -310,12 +307,13 @@ impl Concretizer<'_> {
         match application.origin {
             export::DerivedEqualityOrigin::Nominal(owner) => {
                 let owner = self.lower_method_owner(owner, substitution);
-                let key = FunctionKey::Method {
-                    source: application.function,
-                    owner,
-                    specialization: MethodRequest::Plain,
-                };
-                let function = self.request_function_key(key.clone());
+                let source = FunctionSource::Local(application.function);
+                let key = self.function_key(
+                    source,
+                    Some(owner),
+                    self.concrete_method_owner_arguments(owner).to_vec(),
+                );
+                let function = self.request_function_key(key.clone(), source);
                 self.derived_functions.insert(owner_ty, function);
                 let body = self.lower_body(&application.body, substitution);
                 self.derived_bodies.insert(key, body);
@@ -328,12 +326,16 @@ impl Concretizer<'_> {
                 // without requiring a downstream recursion heuristic.
                 let raw = self.function_slots.len() as u32;
                 self.function_slots.push(None);
-                self.function_keys.push(FunctionKey::Method {
-                    source: application.function,
-                    owner: concrete::MethodOwner::TypeOwned(owner_ty),
-                    specialization: MethodRequest::Plain,
-                });
+                let location = FunctionSource::Local(application.function);
+                let key = self.function_key(
+                    location,
+                    Some(concrete::MethodOwner::TypeOwned(owner_ty)),
+                    Vec::new(),
+                );
+                self.function_keys.push(key.clone());
+                self.function_sources.push(location);
                 let function = concrete::FunctionId::from_raw(raw.into());
+                self.function_by_key.insert(key, function);
                 self.derived_functions.insert(owner_ty, function);
 
                 let (body, local_map) = self.lower_body(&application.body, substitution);

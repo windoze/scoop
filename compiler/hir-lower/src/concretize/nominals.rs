@@ -408,11 +408,7 @@ impl Concretizer<'_> {
                 concrete::MethodDispatch::FinalOverride(self.lower_virtual_method(source))
             }
             export::MethodDispatch::Interface(member) => {
-                let FunctionKey::Method {
-                    owner: concrete::MethodOwner::Interface(interface),
-                    ..
-                } = *key
-                else {
+                let Some(concrete::MethodOwner::Interface(interface)) = key.owner else {
                     unreachable!("interface dispatch belongs to a concrete interface method")
                 };
                 let source_slot = self.source.dispatch_slot_identities[member].id();

@@ -69,10 +69,9 @@ impl Concretizer<'_> {
             InitializationSource::ImportedDelegate(template) => {
                 let template = &self.source.imported_generic_delegate_templates[template];
                 for source in [template.initializer, template.ensure] {
-                    self.request_function_key(FunctionKey::Imported {
-                        source,
-                        arguments: key.arguments.clone(),
-                    });
+                    let source = FunctionSource::Imported(source);
+                    let function = self.function_key(source, None, key.arguments.clone());
+                    self.request_function_key(function, source);
                 }
             }
         }
@@ -101,8 +100,10 @@ impl Concretizer<'_> {
     ) {
         for request in &self.initialization_requests {
             let identity = self.initialization_identity(&request.key, exact_types);
-            let function =
-                |source, arguments| self.function_by_key[&FunctionKey::Free { source, arguments }];
+            let function = |source, arguments| {
+                self.function_by_key
+                    [&self.function_key(FunctionSource::Local(source), None, arguments)]
+            };
             let cycle_thrower = match self.core {
                 export::CoreProtocols::Defined(protocols) => {
                     concrete::InitializationCycleThrower::Local(function(
@@ -179,10 +180,11 @@ impl Concretizer<'_> {
                 InitializationSource::ImportedDelegate(template) => {
                     let template = &self.source.imported_generic_delegate_templates[template];
                     let function = |source| {
-                        self.function_by_key[&FunctionKey::Imported {
-                            source,
-                            arguments: request.key.arguments.clone(),
-                        }]
+                        self.function_by_key[&self.function_key(
+                            FunctionSource::Imported(source),
+                            None,
+                            request.key.arguments.clone(),
+                        )]
                     };
                     concrete::InitializationUnit {
                         identity,
