@@ -156,13 +156,13 @@ Module
     local %2 $dependency.parameter.other: i32
     local %3 $call.1: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
   block entry
-    poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 local-fn14()
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn14()
     store t0 -> local0
     store integer<Int>(0x00000001) -> local1
     store local1 -> local2
     t1 = integer_Add<Int> local0, local2 : i32
-    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn15(t1)
+    call no-gc-void-target0 sig=void0 (i32) local-fn15(t1)
     t2 = aggregate () : {}
     call no-gc-elided-zst-target0 t3 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn24()
     store t3 -> local3
@@ -265,26 +265,24 @@ Module
     t25 = aggregate () : {}
     call managed-direct-target7 sp<managed-call:19> live=[local10:ptr<managed>@0] t26 = sig=direct7 (ptr<managed>) -> i32 local-fn4(local10)
     store t26 -> local18
-    call managed-direct-target8 sp<managed-call:20> live=[local10:ptr<managed>@0] t27 = sig=direct8 () -> i32 local-fn14()
+    call no-gc-direct-target0 t27 = sig=direct8 () -> i32 local-fn14()
     store t27 -> local19
     store local19 -> local20
     t28 = integer_Add<Int> local18, local20 : i32
-    call managed-void-target7 sp<managed-call:21> live=[local10:ptr<managed>@0] sig=void7 (ptr<managed>, i32) local-fn5(local10, t28)
+    call managed-void-target7 sp<managed-call:20> live=[local10:ptr<managed>@0] sig=void7 (ptr<managed>, i32) local-fn5(local10, t28)
     t29 = aggregate () : {}
-    call managed-void-target8 sp<managed-call:22> live=[] sig=void8 () local-fn11()
+    call managed-void-target8 sp<managed-call:21> live=[] sig=void8 () local-fn11()
     t30 = aggregate () : {}
     t31 = global_load global1 : ptr<managed>
-    call managed-elided-zst-target5 sp<managed-call:23> live=[t31:ptr<managed>@0] t32 = sig=elided-zst7 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn8(t31)
+    call managed-elided-zst-target5 sp<managed-call:22> live=[t31:ptr<managed>@0] t32 = sig=elided-zst7 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn8(t31)
     store t32 -> local28
     ret local28
-  fun @scoop$1$cb$245a5fd490a3d1225706ea675cab36851a1292d34fa69dd0494911631da2450e() -> i32
+  fun @scoop$1$cb$245a5fd490a3d1225706ea675cab36851a1292d34fa69dd0494911631da2450e() -> i32 <no-gc>
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = global_load global0 : i32
     ret t0
-  fun @scoop$1$cb$15e8836935d895254a7910abad4103328330e6c3196e33d87ce015d2c8a63b0f(i32) -> void
+  fun @scoop$1$cb$15e8836935d895254a7910abad4103328330e6c3196e33d87ce015d2c8a63b0f(i32) -> void <no-gc>
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
     global_store global0, param0
     ret
   fun @scoop$1$cb$236c8e38f4bece7e20dd38324b86c0f07f4bf5c268cf823b80367eb0a228667e(ptr<managed>) -> elided-zst<struct0 size=0 align=1>

@@ -4,6 +4,7 @@ mod bounds;
 mod constructors;
 mod delegates;
 mod equality;
+mod globals;
 mod helpers;
 mod initialization;
 mod machine;

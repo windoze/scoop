@@ -1,0 +1,137 @@
+package templates.globals
+
+private var counter: Int = 0
+internal var internalCounter: Int = 0
+private val enabled: Boolean = true
+private val banner: String = "global"
+public var base: Int = 40
+public var guarded: Int = 0
+    private set(value) { field = value }
+private val offset: Int = 2
+
+public fun reset(): Unit {
+    counter = 0
+    internalCounter = 0
+    base = 40
+}
+public fun count(): Int = counter
+public fun <T> advance(value: T): Int {
+    counter += 1
+    internalCounter += 1
+    if (!enabled || internalCounter != counter) { return -1 }
+    return counter
+}
+public fun first(): Int = advance<Int>(0)
+public fun <T> text(): String = banner
+
+@NoGC
+public fun <T> leafStep(): Int {
+    counter += 1
+    return counter
+}
+public fun firstLeaf(): Int = leafStep<Int>()
+
+private var reads: Int = 0
+private var writes: Int = 0
+private var order: Int = 0
+private var tracked: Int = 10
+    get() { reads += 1; order = order * 10 + 1; return field }
+    set(value) { writes += 1; order = order * 10 + 3; field = value }
+private fun rhs(fail: Boolean): Int {
+    order = order * 10 + 2
+    if (fail) { throw IllegalStateException() }
+    return 32
+}
+public fun <T> ordered(value: T, fail: Boolean): Int {
+    tracked = 10
+    reads = 0
+    writes = 0
+    order = 0
+    try { tracked += rhs(fail) } catch (error: IllegalStateException) {
+        if (reads != 1 || writes != 0 || order != 12) { return 1 }
+        return if (tracked == 10) { 42 } else { 2 }
+    }
+    if (reads != 1 || writes != 1 || order != 123) { return 3 }
+    return tracked
+}
+
+private class Cell(public val number: Int)
+private struct Triple(val first: Cell, val second: Cell, val third: Cell)
+private struct Empty()
+private var initializations: Int = 0
+private fun makeCell(number: Int): Cell {
+    initializations += 1
+    return Cell(number)
+}
+private val initial: Cell = makeCell(42)
+private val dependent: Int = initial.number
+private var payload: Triple = Triple(Cell(10), Cell(12), Cell(20))
+private var emptyBuilds: Int = 0
+private fun makeEmpty(): Empty { emptyBuilds += 1; return Empty() }
+private var empty: Empty = makeEmpty()
+private var reference: Cell = Cell(0)
+public fun <T> initialized(value: T): Int {
+    val firstValue = dependent
+    val allocated = Cell(0)
+    if (initializations != 1 || allocated.number != 0) { return 1 }
+    return firstValue + initial.number - 42
+}
+public fun <T> values(value: T): Int {
+    payload = Triple(Cell(10), Cell(12), Cell(20))
+    val saved = payload
+    reference = saved.first
+    payload = Triple(Cell(0), Cell(0), Cell(0))
+    val zero = empty
+    val before = emptyBuilds
+    empty = makeEmpty()
+    val allocated = Cell(0)
+    if (emptyBuilds != before + 1) { return 2 }
+    if (reference.number != 10 || payload.first.number != 0 || allocated.number != 0) { return 1 }
+    return saved.first.number + saved.second.number + saved.third.number
+}
+public fun <T> makeStep(value: T): () -> Int {
+    fun read(): Int {
+        val retained = value
+        counter += 1
+        return counter
+    }
+    return { read() }
+}
+public class Probe<T> public constructor(private val value: T) {
+    init { counter += 1; internalCounter += 1 }
+    public fun take(): Int = advance<T>(this.value)
+}
+private fun <T> hiddenDefault(value: T, amount: Int = offset): Int = 40 + amount
+public fun <T> defaults(value: T, amount: Int = base): Int {
+    if (hiddenDefault<T>(value) != 42) { return 1 }
+    return amount + offset
+}
+
+private class PlainSlot(private var value: Int) {
+    operator fun getValue(thisRef: Unit): Int = this.value
+    operator fun setValue(thisRef: Unit, value: Int): Unit { this.value = value }
+}
+private var ordinaryDelegate: Int by PlainSlot(40)
+public fun <T> delegated(value: T): Int {
+    ordinaryDelegate = 40
+    ordinaryDelegate += 2
+    return ordinaryDelegate
+}
+
+private var builds: Int = 0
+private var failures: Int = 0
+public fun buildCount(): Int = builds
+public fun failureCount(): Int = failures
+public class Receiver<T> public constructor(public val value: T)
+public struct Slot<T>(val number: Int) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.number
+}
+public class Failed public constructor() : Throwable()
+public val <T> Receiver<T>.shared: Int by if (true) {
+    builds += 1
+    Slot<T>(42)
+} else { Slot<T>(0) }
+public val <T> Receiver<T>.broken: Int by if (true) {
+    failures += 1
+    throw Failed()
+} else { Slot<T>(0) }

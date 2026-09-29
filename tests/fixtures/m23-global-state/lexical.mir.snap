@@ -1,0 +1,198 @@
+Module
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=ebc5559d7880d53e575c4a9343a88e9fb31b4bb0a9a4d0d94f8a7c13e50dc66e exact_id=d5a3c66bbb0423ed8b4ba9bfc6521f1ea49290d1f3a14cf432092a7d51253be0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      call external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call step: () -> Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call other: () -> Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local step
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local step
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 if.else.8
+      call $dependency.receiver: Int = external1 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.2
+    bb10 if.then.10
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb11 if.merge.11
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun makeStep @fn2(value: Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local value
+  fun $lambda @fn3($argument.0: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $argument.0
+      return
+        Type Int
+        Local $call.1
+  fun read @fn4($capture.0: Int) -> Int
+    bb0 entry
+      val $dependency.local.0: Int
+        Type Int
+        Local $capture.0
+      call $dependency.local.1: Int = external2 direct
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call external3 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      call $call.1: Int = external2 direct
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- makeStep
+  instance mi2 function=@fn3 <- $lambda
+  instance mi3 function=@fn4 <- read
+  output library

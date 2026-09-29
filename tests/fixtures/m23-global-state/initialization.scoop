@@ -1,0 +1,8 @@
+package consumer.globals
+import templates.globals.initialized
+
+public fun <T> exercise(value: T): Int {
+    if (initialized<Int>(0) != 42) { return 1 }
+    return initialized<T>(value)
+}
+public fun result(): Int = exercise<Int>(0)

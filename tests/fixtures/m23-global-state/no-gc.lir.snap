@@ -1,0 +1,110 @@
+Module
+  fun @scoop$1$cb$0e4c742bfb7a05963200f27cf35802ff7d6af01e8e6ab24d0480edc7222ad936() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$e66a71c954c63303663fead39a183d13b53197bfff46d2f0d9111a87cbf5858a(i32) -> i32
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
+    local %3 $dependency.receiver: i32
+    local %4 $dependency.argument.0: i32
+    local %5 $dependency.parameter.other: i32
+    local %6 $shortCircuit.0: i1
+    local %7 $dependency.receiver: i32
+    local %8 $dependency.argument.0: i32
+    local %9 $dependency.parameter.other: i32
+    local %10 $shortCircuit.1: i1
+    local %11 $dependency.receiver: i32
+    local %12 $dependency.argument.0: i32
+    local %13 $dependency.parameter.other: i32
+    local %14 $shortCircuit.2: i1
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn0()
+    t0 = aggregate () : {}
+    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 () -> i32 external-fn1()
+    store t1 -> local0
+    store integer<Int>(0x00000001) -> local1
+    store local1 -> local2
+    t2 = integer_compare_Equal<Int> local0, local2 : i1
+    t3 = Not t2 : i1
+    cbr t3 then @if.then.1 else @if.else.2
+  block if.then.1
+    store true -> local6
+    br @if.merge.3
+  block if.else.2
+    call no-gc-direct-target0 t4 = sig=direct1 () -> i32 local-fn2()
+    store t4 -> local3
+    store integer<Int>(0x00000002) -> local4
+    store local4 -> local5
+    t5 = integer_compare_Equal<Int> local3, local5 : i1
+    t6 = Not t5 : i1
+    store t6 -> local6
+    br @if.merge.3
+  block if.merge.3
+    cbr local6 then @if.then.4 else @if.else.5
+  block if.then.4
+    store true -> local10
+    br @if.merge.6
+  block if.else.5
+    call no-gc-direct-target1 t7 = sig=direct2 () -> i32 local-fn2()
+    store t7 -> local7
+    store integer<Int>(0x00000003) -> local8
+    store local8 -> local9
+    t8 = integer_compare_Equal<Int> local7, local9 : i1
+    t9 = Not t8 : i1
+    store t9 -> local10
+    br @if.merge.6
+  block if.merge.6
+    cbr local10 then @if.then.7 else @if.else.8
+  block if.then.7
+    store true -> local14
+    br @if.merge.9
+  block if.else.8
+    call managed-direct-target1 sp<managed-call:2> live=[] t10 = sig=direct3 () -> i32 external-fn2()
+    store t10 -> local11
+    store integer<Int>(0x00000003) -> local12
+    store local12 -> local13
+    t11 = integer_compare_Equal<Int> local11, local13 : i1
+    t12 = Not t11 : i1
+    store t12 -> local14
+    br @if.merge.9
+  block if.merge.9
+    cbr local14 then @if.then.10 else @if.merge.11
+  block if.then.10
+    ret integer<Int>(0x00000001)
+  block if.merge.11
+    ret integer<Int>(0x0000002a)
+  fun @scoop$1$cb$cae8fab4cb64ea3eb2576d7eb5e88b958647e05047f8e74499edba303000bf37() -> i32 <no-gc>
+    local %0 $call.1: i32
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn3()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$5a1b92a0b3b227f84bfb9c714ae9da4e07d503e3b1219c4987d4ba9d6f09bc8a() -> i32 <no-gc>
+    local %0 $dependency.local.0: i32
+    local %1 $dependency.local.1: i32
+    local %2 $dependency.local.2: i32
+    local %3 $dependency.local.3: i32
+    local %4 $call.1: i32
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 external-fn3()
+    store t0 -> local0
+    store local0 -> local1
+    store integer<Int>(0x00000001) -> local2
+    store local2 -> local3
+    t1 = integer_Add<Int> local1, local3 : i32
+    call no-gc-void-target0 sig=void0 (i32) external-fn4(t1)
+    t2 = aggregate () : {}
+    call no-gc-direct-target1 t3 = sig=direct1 () -> i32 external-fn3()
+    store t3 -> local4
+    ret local4
+  output library

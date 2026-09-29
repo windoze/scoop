@@ -191,17 +191,9 @@ pub(super) fn check_fixture_cases(
             &sysroot.path().join(format!("run-{case}")),
             case,
         );
-        let (provider_sections, _) = closure
-            .artifact(provider_coordinate.identity().unwrap())
-            .unwrap();
-        assert!(
-            provider_sections
-                .lir_strong_production()
-                .canonical_shape_definitions()
-                .definitions()
-                .is_empty(),
-            "the provider has not instantiated these generic types"
-        );
+        // Providers can instantiate their own templates and emit value helpers.
+        // The runtime closure compares every overlapping ODR member, including
+        // definitions shared by the provider and these consumers.
         let mut materializations = 0;
         for artifact in [consumer, &downstream] {
             let identity = artifact

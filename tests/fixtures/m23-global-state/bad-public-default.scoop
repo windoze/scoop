@@ -1,0 +1,2 @@
+private var hidden: Int = 42
+public fun <T> bad(value: T, amount: Int = hidden): Int = amount

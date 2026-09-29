@@ -1,0 +1,11 @@
+package consumer.globals
+import templates.globals.*
+
+public fun <T> exercise(value: T): Int {
+    reset()
+    val step = makeStep<T>(value)
+    val other = makeStep<Int>(0)
+    if (step() != 1 || other() != 2 || step() != 3 || count() != 3) { return 1 }
+    return 42
+}
+public fun result(): Int = exercise<Int>(0)

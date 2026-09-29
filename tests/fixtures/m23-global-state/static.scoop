@@ -1,0 +1,10 @@
+package consumer.globals
+import templates.globals.*
+
+public fun <T> exercise(value: T): Int {
+    reset()
+    if (first() != 1 || advance<T>(value) != 2 || advance<Int>(0) != 3) { return 1 }
+    if (count() != 3 || text<T>() != "global") { return 2 }
+    return 42
+}
+public fun result(): Int = exercise<Int>(0)

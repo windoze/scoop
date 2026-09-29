@@ -60,6 +60,8 @@ M23-2 已有 identity 并不表示模板正文或 ODR 机器能力已实现。M2
 
 generic body 的 private/internal 实现依赖来自定义处已经解析的 typed 引用。依赖为参数自由 helper 时，定义 Cone 必须实际发射该 helper 及执行所需的类型、存储和初始化；下游只有签名与外部定义引用，不复制其正文。
 
+普通顶层 stored property 统一在声明阶段生成实际 getter/setter，涵盖 private/internal 的静态初值。源码泛型正文中的属性读写、复合赋值及嵌套 callable 调用原访问器；访问域和 RHS 求值顺序沿既有前端规则处理。访问器本身持有 backing 存储与必要的初始化 ensure，作为参数自由 hidden support 在提供方发射。这样提供方、下游及再次发布的实例具有相同调用目标，全部类型实参共用原状态、初始化单元和 GC root。不得只在导入转换中把直接存储访问改成调用，导致同一 specialization 的两边正文不同；也无需为这一源码能力新增一套全局存储导入表示。
+
 `TemplateSupportHidden` 只表示普通的跨对象可链接、native hidden 定义。前端的实际 template 引用和原声明可见性足以决定保留该符号；不生成逐边授权表、访问收据、来源包装或“同次编译”证明。若同一 subject 同时需要公开机器导出，保留 `ConeStrong`，不以 hidden 缩窄其他合法使用。源码 public lookup 仍由原有 binding 表决定。
 
 generic helper、template-owned lambda/local function 或含宿主 binder 的 constructor/member 需要在消费方替换，才随模板导出。是否字面出现 type parameter 不能代替词法归属：捕获外层值的局部函数仍由其 enclosing application 物化。
@@ -347,7 +349,7 @@ field 5 通常保存实际 ObjectDefinition leaves；static-storage registration
 
 代码生成按实际发射的块和指令顺序，以局部值首次使用或定义的次序分配函数栈槽；同一指令先读取操作数，再处理结果定义。该顺序复用既有 use/def 遍历，未引用的局部槽最后处理，不依赖源码或导入模板的 arena 编号。局部值重新编号不能改变同一 ODR 正文的栈偏移及对象摘要；这项代码生成修正不改变 LIR 编码、摘要格式或 runtime ABI。
 
-对象摘要中的普通 callable relocation 统一编码实际 callable-body 身份：Strong callable 使用既有 runtime target tag 1 及其 CallableBody definition owner，ODR callable 使用既有 tag 14 及原 member；同一已解析函数在定义 Cone 和消费 Cone 必须得到相同字节。provider 与声明目标仍保留在普通依赖记录中，用于既有引用、ABI 和符号检查，不再成为 callable 对象摘要的本地/外来分类差异。原普通依赖 callable runtime target tag 11 退役且不复用；tag 12 继续用于非 callable 的外来 shape，原服务 tag 2、13 保持退役。此变更将 link-identity-closure 升至 /5，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
+对象摘要中的普通 callable relocation 统一编码实际 callable-body 身份：Strong callable 使用既有 runtime target tag 1 及其 CallableBody definition owner，ODR callable 使用既有 tag 14 及原 member。Strong 类型描述符同样以 tag 1、实际 exact type 与 TypeDescriptor role 编码，ODR 描述符沿用 tag 14；同一已解析目标在定义 Cone 和消费 Cone 必须得到相同字节。provider 与声明目标仍保留在普通依赖记录中，用于既有引用、ABI 和符号检查，不再成为这些对象摘要的本地/外来分类差异。原普通依赖 callable runtime target tag 11 退役且不复用；tag 12 继续用于其余外来 shape，原服务 tag 2、13 保持退役。描述符引用正规化将 link-identity-closure 从 /5 升至 /6，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
 
 production section 新增必需 field 13，保存按 callable-body ID 排序的 records：Strong 使用 `{1=body, 2=canonical LIR fingerprint}`，ODR 必需追加 `3=OdrAbiFingerprint`。此排序独立于 foundation 为解析引用使用的拓扑顺序，并精确覆盖全部 callable-body；其中普通 Strong/ODR 正文与 lowering 已生成的 root/init gateway 均按实际 `Function` 编码，不用空记录或入口计划替代 gateway 正文。body 的实际 Strong/ODR 分类及 ODR group/member/role 直接来自 foundation，wire 不复制身份字段；reader 拒绝 Strong 携带 ODR ABI 或 ODR 缺少 ABI。producer 从同一最终 LIR 计算一次，reader 检查集合、引用、排序和 fingerprint 格式后复用；物理对象仍独立按实际内容验证。当前两种 Strong reference schema 的 production capability 分别由 `/11`、`/12` 升至 `/13`、`/14`，旧产物重建，ODR 发布限制保持；ODR 必需分支随完整泛型 profile 发布，当前格式为下述 cone-production/2，不改变 Strong callable record 编码。
 
@@ -482,7 +484,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | `org.scoop-lang.lir/cross-cone-layout-abi` | `/5` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用；完整 callable ABI 保留实际 callable member |
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |
 | `org.scoop-lang.lir/cross-cone-layout-link-closure` | `/3` | layout/descriptor/helper/callable 的实际 Strong/ODR 物理引用 |
-| `org.scoop-lang.lir/link-identity-closure` | `/5` | ODR definition、symbol、relocation 与 member-aware materialization；普通 callable 的本地和依赖 relocation 使用同一 callable-body 身份 |
+| `org.scoop-lang.lir/link-identity-closure` | `/6` | ODR definition、symbol、relocation 与 member-aware materialization；普通 callable 与类型描述符的本地和依赖 relocation 使用各自相同的定义身份 |
 | `org.scoop-lang.lir/cone-production` | `/2` | 取代完整 layout 路径的 Strong production `/14`，统一表示完整 Strong/ODR 定义、六类 registration、image、digest plan 与实际 shape 内容摘要 |
 | `org.scoop-lang.link-object/scoop-lir` | `/3` | 同一 Mach-O verifier 支持并核对实际 ODR 对象与 member 摘要 |
 
@@ -510,7 +512,7 @@ manifest/single-cone-production `/2` 在原十字段 product 后增加必需 fie
 
 目录沿既有 producer/reader 迁移，`single-cone-production/1` 退役；全部当前 production profile 的 required inventory、profile fingerprint 和缓存同步改用 `/2`。历史 Strong profile 的完整目录为空，其既有语义边界继续拒绝 ODR；正式 generic 产物复用同一目录和共有生产投影。后续物理角色沿同一摘要与目录入口接入，不增加另一套发布路径。
 
-`link-identity-closure/5` 沿用 `/4` 的 defined owner 分支 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/3` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
+`link-identity-closure/6` 沿用 `/4` 的 defined owner 分支 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/3` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
 
 ReleaseHook role 16 仍只由 M24 启用，本阶段完整 profile 继续拒绝其语义成员。退役字段和 tag 不复用；旧 Strong profile 保持“不支持 ODR”的含义。正式工具链、core、provider 与 consumer 同批重建为新 profile；不把新字段作为旧 section 的 optional 扩展，也不保留长期双轨 reader/publisher。尚未迁移的真实回归入口必须在正式切换前接入共有路径，旧格式仅保留拒绝测试。
 

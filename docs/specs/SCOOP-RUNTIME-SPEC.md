@@ -76,7 +76,7 @@ runtime 消费完整类型布局、scan、ABI 与对象引用，不依赖编译�
 
 Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专用 ABI field 11 和外部服务表 field 12，section 保留 field 2～9，并由新增 field 13 保存实际 callable 正文的 canonical LIR 摘要，共九字段。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
 
-对象摘要中的普通 callable relocation 统一编码实际 callable-body 身份：Strong callable 使用既有 runtime target tag 1 及其 CallableBody definition owner，ODR callable 使用既有 tag 14 及原 member；同一已解析函数在定义 Cone 和消费 Cone 必须得到相同字节。provider 与声明目标仍保留在普通依赖记录中，用于既有引用、ABI 和符号检查，不再成为 callable 对象摘要的本地/外来分类差异。原普通依赖 callable runtime target tag 11 退役且不复用；tag 12 继续用于非 callable 的外来 shape，原服务 tag 2、13 保持退役。此变更将 link-identity-closure 升至 /5，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
+对象摘要中的普通 callable relocation 统一编码实际 callable-body 身份：Strong callable 使用既有 runtime target tag 1 及其 CallableBody definition owner，ODR callable 使用既有 tag 14 及原 member。Strong 类型描述符同样以 tag 1、实际 exact type 与 TypeDescriptor role 编码，ODR 描述符沿用 tag 14；同一已解析目标在定义 Cone 和消费 Cone 必须得到相同字节。provider 与声明目标仍保留在普通依赖记录中，用于既有引用、ABI 和符号检查，不再成为这些对象摘要的本地/外来分类差异。原普通依赖 callable runtime target tag 11 退役且不复用；tag 12 继续用于其余外来 shape，原服务 tag 2、13 保持退役。描述符引用正规化将 link-identity-closure 从 /5 升至 /6，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
 
 ODR callable-body 的 ABI/LIR 摘要由最终 LIR 产生，产物读取复用 production 中的值，并与实际 body ObjectDefinition 和所属 normalized stackmap 组合为该 member 的定义摘要。此项只补齐逐 member 链接比较需要的内容；callable registration 的 body-definition 字段继续保存 ObjectDefinition，runtime record layout、GC 和 C ABI 不变。Strong production field 13 记录保持原编码，ODR 的必需 ABI 字段随完整泛型 profile 发布，具体编码见实现规范 2.5。
 
@@ -200,6 +200,8 @@ managed 函数值是普通引用对象，不是原生函数指针。每个 concr
 跨 Cone singleton 访问调用提供方的同一个 ensure 入口，再读取其已登记的 published-root；consumer 不分配或登记根的副本。对象引用离开读取点后遵守普通 GC root 规则，静态根始终由实际提供方登记。失败缓存、循环检测、发布顺序及 C 调用约定沿用本节契约。
 
 每个需要runtime求值的top-level property及每个object/companion拥有独立、GC-free的`ScoopInitializationCell` side metadata；它不位于managed object内，也不是TypeDescriptor字段。状态为`Uninitialized`、`Initializing(owner_thread, dependency_stack)`、`Initialized`或`Failed`。cell只控制整个generated initializer entry恰好执行一次：ordinary stored property在Initialized状态下始终已有声明type的合法值，`var p: T?`省略initializer时写入的就是普通`None`；runtime不得为property另建late-init bit或读取检查。
+
+零字节普通属性或委托值仍保留其 initializer、ensure、cell 和求值副作用；初始化登记关联原属性拥有的 `StaticPlaceToken` 存储。该角色只用于实际 value byte size 为零的存储，其 allocation extent 与空 scan 沿已有 ZST 规则处理；非零字节值仍使用实际 backing/delegate 角色。此关系不增加 runtime 状态或 C ABI。
 
 singleton winner线程先按2.1/3.1普通分配对象，只把initializing receiver保存在generated managed frame的精确root中；base/common initializer全部成功后，才把ref以release语义写入已登记的published global root slot并把cell转为Initialized。loser线程以acquire观察terminal state后从published slot重新读取；不得在Initializing时读取临时ref、pin对象或把旧地址缓存在cell。moving collector只更新普通root slot。
 

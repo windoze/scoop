@@ -4,12 +4,12 @@ Module
   class Plain vtable=0 itables=0
   class Child<Int> vtable=0 itables=0
   class Box<Int> vtable=0 itables=0
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn10 captures=1
-  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn11 captures=1
-  closure cc2 $Closure$reference2 type=function_type1 invoke=@fn12 captures=1
-  closure cc3 $Closure$reference3 type=function_type0 invoke=@fn13 captures=1
-  closure cc4 $Closure$reference4 type=function_type2 invoke=@fn14 captures=1
-  closure cc5 $Closure$reference5 type=function_type0 invoke=@fn15 captures=1
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn12 captures=1
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn13 captures=1
+  closure cc2 $Closure$reference2 type=function_type1 invoke=@fn14 captures=1
+  closure cc3 $Closure$reference3 type=function_type0 invoke=@fn15 captures=1
+  closure cc4 $Closure$reference4 type=function_type2 invoke=@fn16 captures=1
+  closure cc5 $Closure$reference5 type=function_type0 invoke=@fn17 captures=1
   generated_exact_type get0 location=closure4 nominal_id=f36102e233c1d95d9ee0456ceec8ba33a064bbbca3f301fb8f1fcedb2946139f exact_id=0bb1690592416d315b62e39eeb214b238696d12560f87d708cd7158ec9b38965
   generated_exact_type get1 location=closure3 nominal_id=3027c565f07d6a50eb7b21e9aa4bf06c92b0959c790b5042edd0c32670e71c83 exact_id=51cffd9a12d8c15962fcd15a10fe81a930d99566cc5015584d589d0ee5805f77
   generated_exact_type get2 location=closure2 nominal_id=1eb1c6f5bf4f8d8a0451ad7c1d11a8d97196ef6f3f1fb6a47015cb848e5ca115 exact_id=52988242458002ec85df32c4690505393b916f3e999eae94f081ae0351784d37
@@ -18,20 +18,19 @@ Module
   generated_exact_type get5 location=closure5 nominal_id=9928eeff3316b4d264f02766dc0fea3abf87f6f15641d14fd99975003f9cf0cd exact_id=f509f32765d7d140de6796c6bb7717fffa2836e344624d3caa3c543bd161fadb
   fun resetEvaluations @fn0() -> Unit
     bb0 entry
-      global_assign evaluations
+      call @fn5 direct
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
   fun evaluationCount @fn1() -> Int
     bb0 entry
+      call $call.1: Int = @fn4 direct
       return
         Type Int
-        GlobalRead evaluations
+        Local $call.1
   fun next @fn2() -> Plain
     bb0 entry
-      val $old.0: Int
-        Type Int
-        GlobalRead evaluations
+      call $old.0: Int = @fn4 direct
       val $dependency.receiver: Int
         Type Int
         Local $old.0
@@ -41,7 +40,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      global_assign evaluations
+      call @fn5 direct
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -73,13 +72,24 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @fn4 direct
+      call $call.1: Int = @fn6 direct
         Type Int
         Local $parameter.value
       return
         Type Int
         Local $call.1
-  fun exercise @fn4(value: Int) -> Int
+  fun $get$evaluations @fn4() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead evaluations
+  fun $set$evaluations @fn5(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign evaluations
+        Type Int
+        Local value
+      return
+  fun exercise @fn6(value: Int) -> Int
     bb0 entry
       call @fn0 direct
       call $call.1: Plain = @fn2 direct
@@ -144,7 +154,7 @@ Module
       assign $new.4
         Type Child<Int>
         ClassAlloc Child<Int>
-      call @fn16 direct
+      call @fn18 direct
         Type Child<Int>
         Local $new.4
         Type Int
@@ -174,7 +184,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call cell: Cell<Int> = @fn18 direct
+      call cell: Cell<Int> = @fn20 direct
         Type Int
         Local $dependency.parameter.value
       val valueRead: () -> Int
@@ -347,39 +357,39 @@ Module
       return
         Type Int
         Local $call.8
-  fun choose @fn5(this: Plain, value: Int) -> Int
+  fun choose @fn7(this: Plain, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun read @fn6(this: Box<Int>) -> Int
+  fun read @fn8(this: Box<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn9 direct
+      call $call.1: Int = @fn11 direct
         Type Box<Int>
         Local this
       return
         Type Int
         Local $call.1
-  fun choose @fn7(this: Box<Int>, owner: Int, value: Int) -> Int
+  fun choose @fn9(this: Box<Int>, owner: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun read @fn8(this: Cell<Int>) -> Int
+  fun read @fn10(this: Cell<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Cell<Int>
           Local this
-  fun value @fn9(this: Box<Int>) -> Int
+  fun value @fn11(this: Box<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Box<Int>
           Local this
-  fun $reference.0 @fn10($closure: () -> Int) -> Int
+  fun $reference.0 @fn12($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external1 direct
         Type Plain
@@ -389,7 +399,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn11($closure: () -> Int) -> Int
+  fun $reference.1 @fn13($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external1 direct
         Type Plain
@@ -399,9 +409,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn12($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.2 @fn14($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn5 direct
+      call $call.1: Int = @fn7 direct
         Type Plain
         ClosureCapture cc2 0
           Type (Int) -> Int
@@ -411,9 +421,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.3 @fn13($closure: () -> Int) -> Int
+  fun $reference.3 @fn15($closure: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn6 direct
+      call $call.1: Int = @fn8 direct
         Type Box<Int>
         ClosureCapture cc3 0
           Type () -> Int
@@ -421,9 +431,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.4 @fn14($closure: (Int, Int) -> Int, arg0: Int, arg1: Int) -> Int
+  fun $reference.4 @fn16($closure: (Int, Int) -> Int, arg0: Int, arg1: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn7 direct
+      call $call.1: Int = @fn9 direct
         Type Box<Int>
         ClosureCapture cc4 0
           Type (Int, Int) -> Int
@@ -435,9 +445,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.5 @fn15($closure: () -> Int) -> Int
+  fun $reference.5 @fn17($closure: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn8 direct
+      call $call.1: Int = @fn10 direct
         Type Cell<Int>
         ClosureCapture cc5 0
           Type () -> Int
@@ -445,7 +455,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Child.$c0 @fn16(this: Child<Int>, value: Int) -> Unit
+  fun init.Child.$c0 @fn18(this: Child<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
         Type Int
@@ -453,7 +463,7 @@ Module
       val $dependency.constructor.local.1: Int
         Type Int
         Local $dependency.constructor.local.0
-      call @fn17 direct
+      call @fn19 direct
         Type Box<Int>
         Retype Box<Int>
           Type Child<Int>
@@ -461,7 +471,7 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
-  fun init.Box.$c2 @fn17(this: Box<Int>, value: Int) -> Unit
+  fun init.Box.$c2 @fn19(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -469,17 +479,17 @@ Module
         Type Int
         Local value
       return
-  fun ctor.Cell.$c1 @fn18(value: Int) -> Cell<Int> <no-gc>
+  fun ctor.Cell.$c1 @fn20(value: Int) -> Cell<Int> <no-gc>
     bb0 entry
       return
         Type Cell<Int>
         StructInit Cell<Int>
           Type Int
           Local value
-  instance mi0 function=@fn4 <- exercise
-  instance mi1 function=@fn5 <- choose
-  instance mi2 function=@fn6 <- read
-  instance mi3 function=@fn7 <- choose
-  instance mi4 function=@fn8 <- read
-  instance mi5 function=@fn9 <- value
+  instance mi0 function=@fn6 <- exercise
+  instance mi1 function=@fn7 <- choose
+  instance mi2 function=@fn8 <- read
+  instance mi3 function=@fn9 <- choose
+  instance mi4 function=@fn10 <- read
+  instance mi5 function=@fn11 <- value
   output library

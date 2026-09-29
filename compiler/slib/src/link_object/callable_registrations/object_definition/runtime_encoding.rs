@@ -103,6 +103,17 @@ impl RuntimeEncode for CanonicalObjectDefinitionRequirementV1 {
             } => {
                 return encode_callable_target(encoder, target);
             }
+            CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
+                subject: scoop_lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
+                ..
+            } => {
+                let owner = StrongDefinitionOwnerV1::new(
+                    StrongDefinitionEntity::exact_type(exact),
+                    StrongDefinitionRole::TypeDescriptor,
+                )
+                .expect("a type descriptor has an exact type definition owner");
+                FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner }
+            }
             CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { provider, subject } => {
                 encoder.u32(12)?;
                 encoder.fixed(provider.as_array())?;

@@ -16,6 +16,7 @@ fn source_callable_references_republish_and_execute_from_artifacts() {
             "defaults",
             "lexical",
             "values",
+            "global-state",
         ],
         &[
             "bad-generic",

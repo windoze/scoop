@@ -34,9 +34,10 @@ fn local_descriptor_references_and_relocations_keep_their_bytes() {
 }
 
 #[test]
-fn dependency_descriptor_semantics_and_relocations_retain_provider_and_exact_type() {
+fn dependency_descriptor_keeps_provider_in_semantics_and_exact_identity_in_relocations() {
     let exact = exact();
-    let mut encoded = Vec::new();
+    let local =
+        encode_runtime(&StrongTypeDescriptorRefV2::Local(exact).canonical_relocation(80)).unwrap();
     for provider in [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE] {
         let reference = StrongTypeDescriptorRefV2::DependencyExternal { provider, exact };
         let mut expected = 3u32.to_le_bytes().to_vec();
@@ -45,20 +46,14 @@ fn dependency_descriptor_semantics_and_relocations_retain_provider_and_exact_typ
         assert_eq!(bytes(reference), expected);
 
         let actual = encode_runtime(&reference.canonical_relocation(80)).unwrap();
-        let mut target = 12u32.to_le_bytes().to_vec();
-        target.extend_from_slice(provider.as_array());
-        target.extend_from_slice(&4u32.to_le_bytes()); // TypeDescriptor shape subject.
-        target.extend_from_slice(exact.as_array());
-        assert_eq!(&actual[actual.len() - target.len()..], target);
+        assert_eq!(actual, local);
         let legacy = StrongTypeDescriptorRefV1::DependencyExternal { provider, exact };
         assert_eq!(bytes(legacy), expected);
         assert_eq!(
             actual,
             encode_runtime(&legacy.canonical_relocation(80)).unwrap()
         );
-        encoded.push(actual);
     }
-    assert_ne!(encoded[0], encoded[1]);
 }
 
 #[test]

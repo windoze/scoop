@@ -25,10 +25,9 @@ fn source_callable_references_select_dependency_targets_and_publish() {
         "defaults",
         "lexical",
         "values",
-        // These exercise HIR publication; imported coroutine protocols and
-        // direct global accesses in generic bodies are separate stage work.
-        "suspend-signature",
         "global-state",
+        // Imported coroutine protocols still require a separate machine path.
+        "suspend-signature",
     ] {
         with_provider_consumer(
             &fixture("provider"),

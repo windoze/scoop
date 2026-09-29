@@ -99,6 +99,23 @@ fn rejects_non_owner_bound_failure_root_and_nonzeroed_value_storage() {
 }
 
 #[test]
+fn rejects_a_static_place_token_for_nonzero_value_storage() {
+    let mut fixture = Fixture::eager();
+    replace_storage_identity(
+        &mut fixture.globals[fixture.storage],
+        StaticStorageIdentity::static_place_for_property(
+            PropertyOwner::Property(property("value")),
+            MaterializationRoot::cone_owned(),
+        )
+        .unwrap(),
+    );
+    assert_eq!(
+        fixture.build(),
+        Err(StrongInitializationUnitSemanticPlanBuildError::ValueStorageKey(fixture.unit_id)),
+    );
+}
+
+#[test]
 fn rejects_missing_gateway_wrong_callable_and_invalid_dependencies() {
     let mut missing_gateway = Fixture::eager();
     missing_gateway.functions.pop();

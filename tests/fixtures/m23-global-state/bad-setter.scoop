@@ -1,0 +1,2 @@
+import templates.globals.guarded
+public fun <T> bad(value: T): Unit { guarded = 42 }

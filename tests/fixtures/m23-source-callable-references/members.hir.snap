@@ -1,22 +1,22 @@
 Module
-  property0 var evaluations: Int getter0=storage setter0=storage <stored global0 image>
+  property0 var evaluations: Int getter0=body($get$evaluations) setter0=body($set$evaluations) <stored global0 image>
   var evaluations: Int <global0 managed>
   fun resetEvaluations(): Unit
-    assign global evaluations
+    Call $set$evaluations : Unit
       IntegerLiteral 0 : Int
   fun evaluationCount(): Int
     return
-      GlobalRead evaluations : Int
+      Call $get$evaluations : Int
   fun next(): Plain
     val local0
-      GlobalRead evaluations : Int
+      Call $get$evaluations : Int
     val local1
       Local $old.0 : Int
     val local2
       IntegerLiteral 1 : Int
     val local3
       Local $dependency.argument.0 : Int
-    assign global evaluations
+    Call $set$evaluations : Unit
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
@@ -179,5 +179,11 @@ Module
     return
       Call exercise<Int> : Int
         Local $parameter.value : Int
+  fun $get$evaluations(): Int <no-gc cdecl>
+    return
+      GlobalRead evaluations : Int
+  fun $set$evaluations(value: Int): Unit <no-gc cdecl>
+    assign global evaluations
+      Local value : Int
   output library
   instance exercise<Int>

@@ -1,0 +1,485 @@
+Module
+  global0 evaluations: Int managed initial=encoded(Int:0x0)
+  struct Cell<Int> (value: Int)
+  class Plain vtable=0 itables=0
+  class Child<Int> vtable=0 itables=0
+  class Box<Int> vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn10 captures=1
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn11 captures=1
+  closure cc2 $Closure$reference2 type=function_type1 invoke=@fn12 captures=1
+  closure cc3 $Closure$reference3 type=function_type0 invoke=@fn13 captures=1
+  closure cc4 $Closure$reference4 type=function_type2 invoke=@fn14 captures=1
+  closure cc5 $Closure$reference5 type=function_type0 invoke=@fn15 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=7fb0fc81b4348f515cbe20ec090f4c8fc1574f1814a4408eee603adc766b72ca exact_id=6cf6f236b923c8d0407140c5114c08f10c4af258626ce7976253215102028709
+  generated_exact_type get1 location=closure4 nominal_id=c73ab6884f9da3a9b66d8bc73203a5a51319f3eaa999d78d11e25d9d4bcc3fc6 exact_id=7c1baa4eebacd8e172cf2d4db7c82e639e79580b0a88a8f0c5741cc89703f19e
+  generated_exact_type get2 location=closure1 nominal_id=760dda4b7fb1e9cd06b6c4f172fc91c5b821ba76a6477e89340df2dcdea5b23c exact_id=8b3a51454ffd622733cb5155066f6b1937c958ac06204061a6b40e55323bcc06
+  generated_exact_type get3 location=closure3 nominal_id=3a7f3ec86fe139e14687b5d66a16cde10e5524a80ef1f0235798ea8ec2f1231c exact_id=c25cbb7e7b10f86a03a865dc4b277cb46fae29d04ee47b4e959820dc46905901
+  generated_exact_type get4 location=closure2 nominal_id=ed17ff0856b073d4466b164cab7f8cafc4c095eea0bc9c05e528e488c9640a39 exact_id=e59eaaa9d7c64f8dd0871388ce0b084aecff1c10757aa886350ea58bcf9a8647
+  generated_exact_type get5 location=closure5 nominal_id=ce9085fe95ead9598c9112efa02d617cd38d44f9ccdc668d8a14dc519f2aedf7 exact_id=f7bee721fe1200cb6d496e9b5846bc032a5d0bc46886d80113ec2db552531d56
+  fun next @fn0() -> Plain
+    bb0 entry
+      call $old.0: Int = @fn2 direct
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.number
+      return
+        Type Plain
+        Local $new.1
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun $get$evaluations @fn2() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead evaluations
+  fun $set$evaluations @fn3(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign evaluations
+        Type Int
+        Local value
+      return
+  fun exercise @fn4(value: Int) -> Int
+    bb0 entry
+      call @fn3 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $call.1: Plain = @fn0 direct
+      val computed: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Plain
+            Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.number
+      var current: Plain
+        Type Plain
+        Local $new.2
+      val saved: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Plain
+            Local current
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.3
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.number
+      assign current
+        Type Plain
+        Local $new.3
+      val choose: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$reference2
+          CaptureInit field=0
+            Type Plain
+            Local current
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.4
+        Type Child<Int>
+        ClassAlloc Child<Int>
+      call @fn16 direct
+        Type Child<Int>
+        Local $new.4
+        Type Int
+        Local $dependency.parameter.value
+      val child: Child<Int>
+        Type Child<Int>
+        Local $new.4
+      val read: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$reference3
+          CaptureInit field=0
+            Type Box<Int>
+            Retype Box<Int>
+              Type Child<Int>
+              Local child
+      val chooseBoth: (Int, Int) -> Int
+        Type (Int, Int) -> Int
+        ClosureAlloc cc4 $Closure$reference4
+          CaptureInit field=0
+            Type Box<Int>
+            Retype Box<Int>
+              Type Child<Int>
+              Local child
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call cell: Cell<Int> = @fn18 direct
+        Type Int
+        Local $dependency.parameter.value
+      val valueRead: () -> Int
+        Type () -> Int
+        ClosureAlloc cc5 $Closure$reference5
+          CaptureInit field=0
+            Type Cell<Int>
+            Local cell
+      call $call.5: Int = <closure:function_type1> closure[function_type1]
+        Type (Int) -> Int
+        Local choose
+        Type Int
+        Local value
+      call $call.6: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      call $call.7: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local valueRead
+      val values: (Int, Int, Int)
+        Type (Int, Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.5
+          Type Int
+          Local $call.6
+          Type Int
+          Local $call.7
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local computed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local computed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.1
+    bb4 if.then.4
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      call $dependency.receiver: Int = @fn2 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.2
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local saved
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb9 if.then.9
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb10 if.else.10
+      val $dependency.receiver: Plain
+        Type Plain
+        Local current
+      call $dependency.receiver: Int = external1 direct
+        Type Plain
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb11
+    bb11 if.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $shortCircuit.3
+    bb12 if.then.12
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb13 if.merge.13
+      call $call.8: Int = <closure:function_type2> closure[function_type2]
+        Type (Int, Int) -> Int
+        Local chooseBoth
+        Type Int
+        Local value
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      return
+        Type Int
+        Local $call.8
+  fun choose @fn5(this: Plain, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun read @fn6(this: Box<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn9 direct
+        Type Box<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun choose @fn7(this: Box<Int>, owner: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun read @fn8(this: Cell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local this
+  fun value @fn9(this: Box<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local this
+  fun $reference.0 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external1 direct
+        Type Plain
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn11($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external1 direct
+        Type Plain
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn12($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type Plain
+        ClosureCapture cc2 0
+          Type (Int) -> Int
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.3 @fn13($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type Box<Int>
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.4 @fn14($closure: (Int, Int) -> Int, arg0: Int, arg1: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn7 direct
+        Type Box<Int>
+        ClosureCapture cc4 0
+          Type (Int, Int) -> Int
+          Local $closure
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+      return
+        Type Int
+        Local $call.1
+  fun $reference.5 @fn15($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type Cell<Int>
+        ClosureCapture cc5 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.Child.$c0 @fn16(this: Child<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call @fn17 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Child<Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.1
+      return
+  fun init.Box.$c2 @fn17(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Cell.$c1 @fn18(value: Int) -> Cell<Int> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Int>
+        StructInit Cell<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn4 <- exercise
+  instance mi1 function=@fn5 <- choose
+  instance mi2 function=@fn6 <- read
+  instance mi3 function=@fn7 <- choose
+  instance mi4 function=@fn8 <- read
+  instance mi5 function=@fn9 <- value
+  output library

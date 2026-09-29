@@ -75,18 +75,24 @@ pub(super) fn validate_value_storage_key(
     unit: PersistentInitializationUnitId,
     semantic: &InitializationUnit,
     global: &crate::Global,
+    storage: &StrongStaticStorageSemanticPlanV1,
 ) -> Result<(), StrongInitializationUnitSemanticPlanBuildError> {
     let GlobalInit::Storage { identity, .. } = &global.init else {
         return Err(StrongInitializationUnitSemanticPlanBuildError::ValueStorageKey(unit));
     };
     let key = identity.identity_record().key();
+    if key.role() == StorageRole::StaticPlaceToken && storage.byte_size() != 0 {
+        return Err(StrongInitializationUnitSemanticPlanBuildError::ValueStorageKey(unit));
+    }
     let valid = match semantic.identity.key() {
         InitializationUnitKey::TopLevelProperty(property) => {
             matches!(
                 (key.owner(), key.role()),
                 (
                     DefinitionOwner::Property(PropertyOwner::Property(actual)),
-                    StorageRole::PropertyBacking | StorageRole::PropertyDelegate,
+                    StorageRole::PropertyBacking
+                        | StorageRole::PropertyDelegate
+                        | StorageRole::StaticPlaceToken,
                 ) if actual == *property
             )
         }
@@ -95,7 +101,9 @@ pub(super) fn validate_value_storage_key(
                 (key.owner(), key.role()),
                 (
                     DefinitionOwner::Property(PropertyOwner::ExtensionProperty(actual)),
-                    StorageRole::PropertyBacking | StorageRole::PropertyDelegate,
+                    StorageRole::PropertyBacking
+                        | StorageRole::PropertyDelegate
+                        | StorageRole::StaticPlaceToken,
                 ) if actual == *property
             )
         }

@@ -6,6 +6,7 @@ use crate::annotations::FunctionTarget;
 use crate::{Function, FunctionKind, Lowerer, Owner, TypeId};
 
 mod interface;
+mod storage;
 
 struct AccessorFunctionAllocation {
     property: hir::PropertyId,
@@ -117,13 +118,10 @@ impl Lowerer {
             hir::PropertyOwner::Class(_) | hir::PropertyOwner::Object(_)
         ) && (modifier != hir::MethodModifier::Final
             || declaration.is_override);
-        let runtime_storage = matches!(
-            backing,
-            Some(hir::PropertyBacking::TopLevelGlobal {
-                initialization: hir::TopLevelInitialization::Runtime(_),
-                ..
-            })
-        );
+        // Templates retain the original accessor target for every top-level
+        // property, including hidden storage with an encoded static value.
+        let top_level_storage =
+            matches!(backing, Some(hir::PropertyBacking::TopLevelGlobal { .. }));
         let exported_storage = backing.is_some() && Self::declaration_is_exported(&access);
         if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
             return Some(self.allocate_delegated_property_accessors(
@@ -177,7 +175,7 @@ impl Lowerer {
                 )
             }
             _ if backing.is_some()
-                && (runtime_storage
+                && (top_level_storage
                     || exported_storage
                     || dispatch_storage
                     || getter_source.is_some()) =>
@@ -200,6 +198,10 @@ impl Lowerer {
                         modifier,
                     },
                 );
+                self.property_accessor_sources
+                    .last_mut()
+                    .expect("the implicit getter source was recorded")
+                    .body_kind = super::PropertyAccessorBodyKind::Storage;
                 (
                     hir::PropertyAccessorImplementation::Body(function),
                     self.functions[function].attributes,
@@ -286,7 +288,7 @@ impl Lowerer {
                 )
             }
             _ if backing.is_some()
-                && (runtime_storage
+                && (top_level_storage
                     || exported_storage
                     || dispatch_storage
                     || setter_source.is_some()) =>
@@ -332,6 +334,10 @@ impl Lowerer {
                         modifier,
                     },
                 );
+                self.property_accessor_sources
+                    .last_mut()
+                    .expect("the implicit setter source was recorded")
+                    .body_kind = super::PropertyAccessorBodyKind::Storage;
                 (
                     hir::PropertyAccessorImplementation::Body(function),
                     self.functions[function].attributes,
@@ -843,7 +849,7 @@ impl Lowerer {
         self.property_accessor_sources
             .last_mut()
             .expect("the generated getter source was recorded")
-            .generated_delegate = true;
+            .body_kind = super::PropertyAccessorBodyKind::Delegate;
         let getter = self.property_getters.alloc(hir::PropertyGetter {
             access: access.clone(),
             implementation: hir::PropertyAccessorImplementation::Body(getter),
@@ -876,7 +882,7 @@ impl Lowerer {
         self.property_accessor_sources
             .last_mut()
             .expect("the generated setter source was recorded")
-            .generated_delegate = true;
+            .body_kind = super::PropertyAccessorBodyKind::Delegate;
         let setter = self.property_setters.alloc(hir::PropertySetter {
             access: setter_access,
             implementation: hir::PropertyAccessorImplementation::Body(setter_function),
@@ -1011,7 +1017,7 @@ impl Lowerer {
                 | hir::PropertyBacking::ClassField { .. } => Some(backing),
                 hir::PropertyBacking::StructField { .. } => None,
             }),
-            generated_delegate: false,
+            body_kind: super::PropertyAccessorBodyKind::Source,
         });
         function
     }
@@ -1019,6 +1025,19 @@ impl Lowerer {
     pub(crate) fn resolve_property_accessor_signatures(&mut self) {
         for source in self.property_accessor_sources.clone() {
             self.current_file = self.function_files[&source.function];
+            if source.body_kind == super::PropertyAccessorBodyKind::Storage
+                && let Some(hir::PropertyBacking::TopLevelGlobal {
+                    storage,
+                    initialization,
+                }) = source.backing
+            {
+                self.resolve_top_level_storage_accessor_signature(
+                    &source,
+                    self.globals[storage].ty,
+                    initialization,
+                );
+                continue;
+            }
             match source.owner {
                 Some(owner) => {
                     self.resolve_method_signature(source.function, &source.declaration, owner)
@@ -1037,7 +1056,7 @@ impl Lowerer {
                 continue;
             }
             self.current_file = self.function_files[&source.function];
-            if source.generated_delegate {
+            if source.body_kind == super::PropertyAccessorBodyKind::Delegate {
                 let mut body = self.lower_generated_delegate_accessor(&source);
                 self.prepend_accessor_initialization_ensure(&source, &mut body);
                 self.functions[source.function].kind = FunctionKind::User(body);

@@ -415,12 +415,12 @@ Module
       return
         Type HeapEmpty
         Local $call.8
-  fun $get$heapEffects @fn14() -> Int
+  fun $get$heapEffects @fn14() -> Int <no-gc>
     bb0 entry
       return
         Type Int
         GlobalRead heapEffects
-  fun $set$heapEffects @fn15(value: Int) -> Unit
+  fun $set$heapEffects @fn15(value: Int) -> Unit <no-gc>
     bb0 entry
       global_assign heapEffects
         Type Int

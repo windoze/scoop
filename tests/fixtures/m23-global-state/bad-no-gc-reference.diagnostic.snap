@@ -1,0 +1,10 @@
+span=38..81
+expression=@NoGC
+public fun <T> bad(): String = answer
+`@NoGC` function `bad` has non-GC-free return type String
+span=75..81
+expression=answer
+value of non-GC-free type String is not allowed in `@NoGC` code
+span=75..81
+expression=answer
+`@NoGC` code may not call managed function `$get$answer`

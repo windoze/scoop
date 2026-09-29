@@ -115,10 +115,10 @@ Module
     return
       MethodCall HeapSingleton.$get$empty : HeapEmpty
         SingletonValue HeapSingleton : HeapSingleton
-  fun $get$heapEffects(): Int
+  fun $get$heapEffects(): Int <no-gc cdecl>
     return
       GlobalRead heapEffects : Int
-  fun $set$heapEffects(value: Int): Unit
+  fun $set$heapEffects(value: Int): Unit <no-gc cdecl>
     assign global heapEffects
       Local value : Int
   output library

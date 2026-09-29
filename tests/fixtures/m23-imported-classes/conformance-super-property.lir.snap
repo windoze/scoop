@@ -24,7 +24,7 @@ Module
     local %17 $dependency.argument.0: i64
     local %18 $dependency.parameter.other: i64
   block entry
-    poll managed-void-target5 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    poll managed-void-target4 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn4(local0)
     t0 = aggregate () : {}
@@ -46,15 +46,15 @@ Module
     call managed-void-target3 sp<managed-call:5> live=[param0:ptr<managed>@0] sig=void3 (ptr<managed>, i64) external-fn2(param0, local7)
     t7 = aggregate () : {}
     store local5 -> local8
-    call managed-direct-target2 sp<managed-call:6> live=[] t8 = sig=direct2 () -> i64 external-fn4()
+    call no-gc-direct-target0 t8 = sig=direct2 () -> i64 external-fn4()
     store t8 -> local9
     store local9 -> local10
     store integer<Long>(0x0000000000000000) -> local11
     store local11 -> local12
     t9 = integer_Add<Long> local10, local12 : i64
-    call managed-void-target4 sp<managed-call:7> live=[] sig=void4 (i64) external-fn1(t9)
+    call no-gc-void-target0 sig=void4 (i64) external-fn1(t9)
     t10 = aggregate () : {}
-    call managed-direct-target3 sp<managed-call:8> live=[] t11 = sig=direct3 () -> i64 external-fn4()
+    call no-gc-direct-target1 t11 = sig=direct3 () -> i64 external-fn4()
     store t11 -> local13
     store local8 -> local14
     store local14 -> local15
@@ -97,8 +97,8 @@ Module
     ret local4
   fun @scoop$1$cb$53b197b127aa2ac0d159e54f0404dde4fd49cac03090b503096b929d92a339e0(ptr<managed>) -> void
   block entry
-    poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i64) external-fn1(integer<Long>(0x0000000000000000))
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call no-gc-void-target0 sig=void0 (i64) external-fn1(integer<Long>(0x0000000000000000))
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$5001ba16b0af83422ea8d96eacb3d2e75ecc04a266ad964665680eb27e05ad29(ptr<managed>) -> void

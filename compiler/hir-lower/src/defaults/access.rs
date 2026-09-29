@@ -18,6 +18,23 @@ struct ReferenceCollector<'a> {
 }
 
 impl Lowerer {
+    fn default_callable_reference_kind(
+        &self,
+        target: &hir::ExportDefaultCallableTarget,
+    ) -> &'static str {
+        if let hir::ExportDefaultCallableTarget::Callable(callable) = target {
+            let function = self.callable_function_id(*callable);
+            if self
+                .property_accessor_sources
+                .iter()
+                .any(|source| source.function == function)
+            {
+                return "a property";
+            }
+        }
+        "a callable"
+    }
+
     pub(super) fn collect_export_default_references(
         &mut self,
         owner: hir::ExportParameterOwner,
@@ -151,7 +168,8 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let target_domain = self.callable_target_domain(&target);
-        let target_domain = self.checked_target_domain(target_domain, origin, "a callable");
+        let kind = self.lowerer.default_callable_reference_kind(&target);
+        let target_domain = self.checked_target_domain(target_domain, origin, kind);
         self.references
             .callables
             .push(hir::ExportDefaultCallableRef {

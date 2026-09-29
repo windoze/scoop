@@ -1,8 +1,4 @@
-use std::collections::BTreeSet;
-
-use scoop_identity::{
-    BindingTarget, ConeCoordinate, ConeIdentity, ExportBindingKey, NominalDeclarationOwner,
-};
+use scoop_identity::ConeCoordinate;
 
 use super::super::super::m23_ordinary_core_only::support::{
     TrustedCoreFixture, parsed_ordinary_at, parsed_ordinary_text_at,
@@ -44,7 +40,7 @@ fn project_dependency_with_core_roles(
     scoop_hir::CrossConeHirInterfaceSectionV1,
 ) {
     let parsed = parsed_ordinary_at(coordinate, source);
-    project_parsed_dependency(core, coordinate, &parsed, core_types, include_default_role)
+    project_parsed_dependency(core, &parsed, core_types, include_default_role)
 }
 
 pub(crate) fn project_dependency_text(
@@ -57,12 +53,11 @@ pub(crate) fn project_dependency_text(
     scoop_hir::CrossConeHirInterfaceSectionV1,
 ) {
     let parsed = parsed_ordinary_text_at(coordinate, source);
-    project_parsed_dependency(core, coordinate, &parsed, core_types, false)
+    project_parsed_dependency(core, &parsed, core_types, false)
 }
 
 fn project_parsed_dependency(
     core: &TrustedCoreFixture,
-    coordinate: &ConeCoordinate,
     parsed: &scoop_ast::CurrentConeParsedSources,
     core_types: &[&str],
     include_default_role: bool,
@@ -79,13 +74,13 @@ fn project_parsed_dependency(
     let input = CurrentConeSources::try_new(parsed, core_inputs, &world).unwrap();
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the dependency provider must lower before interface projection");
-    let current_nominals = current_nominal_targets(output.output().export.module());
     let mut foundation =
         scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
-    let mut authority = ProviderProjectionAuthority {
-        provider: coordinate.identity().unwrap(),
-        current_nominals,
-    };
+    let mut authority = scoop_hir::CrossConeHirProductionAuthority::new(
+        &foundation,
+        &output.output().export.module().public_export_bindings,
+        &world,
+    );
     let interface = scoop_hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(
         &output,
         &witnesses,
@@ -126,89 +121,4 @@ fn core_type_witnesses(
         ));
     }
     witnesses
-}
-
-struct ProviderProjectionAuthority {
-    provider: ConeIdentity,
-    current_nominals: BTreeSet<scoop_hir::ExternalHirTargetV1>,
-}
-
-fn current_nominal_targets(module: &scoop_hir::Module) -> BTreeSet<scoop_hir::ExternalHirTargetV1> {
-    let mut targets = BTreeSet::new();
-    let mut insert = |identity: &scoop_hir::HirNominalIdentity| {
-        let owner = match (identity.concrete_type_id(), identity.generic_type_id()) {
-            (Some(id), None) => NominalDeclarationOwner::Concrete(id),
-            (None, Some(id)) => NominalDeclarationOwner::GenericTemplate(id),
-            _ => unreachable!("a source nominal has exactly one persistent identity kind"),
-        };
-        targets.insert(scoop_hir::ExternalHirTargetV1::Nominal(owner));
-    };
-    for (id, _) in module.structs.iter() {
-        insert(&module.nominal_identities[id]);
-    }
-    for (id, _) in module.enums.iter() {
-        insert(&module.nominal_identities[id]);
-    }
-    for (id, _) in module.classes.iter() {
-        insert(&module.nominal_identities[id]);
-    }
-    for (id, _) in module.interfaces.iter() {
-        insert(&module.nominal_identities[id]);
-    }
-    for (id, _) in module.objects.iter() {
-        insert(&module.nominal_identities[id]);
-    }
-    targets
-}
-
-impl scoop_hir::PublicExportBindingClosureAuthority for ProviderProjectionAuthority {
-    fn closure_node_count(&self) -> usize {
-        1
-    }
-
-    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
-        false
-    }
-
-    fn binding_key(
-        &self,
-        _binding: scoop_identity::PersistentExportBindingId,
-    ) -> Option<&ExportBindingKey> {
-        None
-    }
-
-    fn public_bindings(
-        &self,
-        _exporter: ConeIdentity,
-    ) -> Option<&scoop_hir::CanonicalPublicExportBindingsV1> {
-        None
-    }
-}
-
-impl scoop_hir::ExternalHirReferenceSemanticAuthority<&'static str>
-    for ProviderProjectionAuthority
-{
-    fn current_cone(&self) -> ConeIdentity {
-        self.provider
-    }
-
-    fn external_hir_target_origin(
-        &mut self,
-        target: scoop_hir::ExternalHirTargetV1,
-    ) -> Result<ConeIdentity, &'static str> {
-        if self.current_nominals.contains(&target) {
-            return Ok(self.provider);
-        }
-        Ok(match target {
-            scoop_hir::ExternalHirTargetV1::Nominal(_) => ConeIdentity::CORE,
-            _ => self.provider,
-        })
-    }
-
-    fn external_hir_target_binding_root(
-        &mut self,
-        _target: scoop_hir::ExternalHirTargetV1,
-    ) -> Result<BindingTarget, &'static str> {
-        Err("the provider fixture has no external binding witnesses")
-    }
 }

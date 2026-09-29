@@ -573,10 +573,24 @@
 
 本项完成上述消费方源码函数引用的候选选择、再次发布与运行闭环；M23-7 尚未完成。
 
+## 2026-09-29：泛型正文共用普通顶层状态
+
+- 普通顶层 stored property 在声明阶段统一生成真实 getter/setter，涵盖 private/internal 和静态初值。源码与导入模板调用同一原访问器，backing 读写、初始化 ensure、存储与 GC root 留在声明方；隐式访问器沿已有 hidden support 闭包发射，不新增全局存储导入表。泛型函数、局部函数／lambda、构造和成员、默认参数及 delegate initializer 在不同类型实参和再次发布后共用原状态，公开查找仍按原可见性处理。
+- 纯存储、静态初值且完整 value type 为 GC-free 的隐式顶层访问器使用 NoGc 合同；runtime ensure、managed ref 和自定义正文保持原 effect 检查。签名直接复用已解析的属性类型，避免重复解析 `Ptr` type syntax 并对同一来源追加多份诊断。默认参数中访问器引用按源码属性类别诊断；前端测试改用已有真实声明查询，删除根据名义类型猜测 provider 的旧测试实现。
+- 修复普通 ZST 属性的初始化登记：零字节值关联原属性拥有的 `StaticPlaceToken`，继续保留 initializer、ensure、cell 和 RHS 副作用，非零存储不得使用该角色。复用已计算的存储大小，不重放布局计算；新增反例拒绝非零字节 token，实际 ZST 初始化和赋值通过产物运行验证。
+- 泛型 enum 状态用例暴露了类型描述符引用的 ODR 摘要差异：消费方与下游的重复 callable 对象字节完全相同，但本地／外来 Strong 描述符目标编码不同。对象摘要现统一编码实际 exact type 与 TypeDescriptor role，已有 ODR 描述符沿原 member 编码；普通依赖记录仍保留真实 provider 并承担原引用检查。`link-identity-closure` 从 `/5` 升至 `/6`，规范、profile、固定向量及旧版本拒绝测试同步，旧产物与缓存需重建，runtime C ABI 保持。
+- 新增 23 份源码、11 组真实产物正例、9 组实际编译反例及 42 份 HIR/MIR/LIR／诊断 golden；另用同目录的取址反例在完整本地 core 前端检查错误位置和信息。正例覆盖静态与运行时初值、读改写和异常求值顺序、托管 String／引用、24 字节含三个引用的值、ZST、泛型 enum niche、词法捕获、成员／构造、默认值、普通委托和泛型委托成功／失败状态。提供方与消费方发布后移走源码，下游仅凭产物以自身引用类型再次实例化并重复 Int application，11 组均完成链接、普通运行和移动 GC。初始化用例先访问属性，再检查求值次数；完整多 image 启动仍属 M23-8。
+- 原源码函数引用的 `global-state` 用例从 HIR 验证提升为真实产物闭环，新增三阶段 golden，完整套件的 14 组正例和 13 组反例通过。已核对旧 `members` 三阶段 golden：全局直接读写改为原访问器调用，追加 NoGc getter/setter，其他函数引用、捕获、派发及 GC 结构保持。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和最新配套 `scoopc` 构建通过，无警告。关闭全部快照更新开关后运行 `cargo test --workspace --no-fail-fast`，5204 项通过、0 失败、0 忽略；其中 HIR lowering 的 1279 项、LIR 的 466 项、slib 的 586 项和 driver library 的 147 项全部通过，driver 用时 380.82 秒。完整日志为 `/tmp/scoop-m23-7-global-state-workspace-verified.log`，两组定向实际产物测试日志为 `/tmp/scoop-m23-7-global-state-driver.log` 与 `/tmp/scoop-m23-7-global-state-references.log`。
+- 既有快照差异已核对：普通全局读写改为原访问器调用，纯静态 GC-free 访问器移除 managed poll，相关 safepoint、stackmap、patch 和 symbol 计数相应更新；profile `/6`、对象引用编码与实际生成代码同步改变产物摘要。原对象、引用、初始化和损坏产物反例均在关闭更新开关的全仓回归中通过。
+- 确认构建、测试及配套编译器进程全部结束、`target` 中没有打开的文件，并通过 Cargo metadata 核对实际目录与标准缓存标记后，执行 `cargo clean --target-dir target`，删除 2814 个构建文件，Cargo 报告总大小 5.4 GiB。
+
+本项完成上述普通顶层状态的模板消费和再次发布路径。外来 core 的 `Option` 短写与变体构造、`addressOf` intrinsic 仍分别触发既有角色／能力缺口；本批的普通属性不可取址规则由独立前端反例验收，不把能力诊断算作该语言规则通过。其余主线继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等，以及消费方源码直接引用外来函数的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合，以及泛型正文直接全局读写的导入转换。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数及普通顶层状态共享的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通外来 core 的 `Option` 短写／泛型变体、`addressOf` 等 intrinsic，以及显式 native storage 的泛型组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

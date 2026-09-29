@@ -195,7 +195,7 @@ fn build_unit(
     let failure = require_storage(globals, static_storages, id, failure_global)?;
     require_zeroed(id, storage, InitializationStorageRoleV1::Value)?;
     require_zeroed(id, failure, InitializationStorageRoleV1::FailureRoot)?;
-    validate_value_storage_key(id, unit, &globals[storage_global])?;
+    validate_value_storage_key(id, unit, &globals[storage_global], storage)?;
     validate_failure_root_key(id, &globals[failure_global])?;
     validate_failure_shape(target, id, failure)?;
 

@@ -41,16 +41,19 @@ impl Lowerer {
         let call_domain = self.default_call_domain(hir::ExportParameterOwner::Function(function));
         // The same lowering transaction checked these declaration-bound targets.
         // An override can widen its call domain while retaining the original body.
+        for reference in &references.callables {
+            let kind = self.default_callable_reference_kind(&reference.target);
+            self.check_default_reference_access(
+                &call_domain,
+                &reference.target_domain,
+                reference.origin,
+                kind,
+            );
+        }
         for (target_domain, origin, kind) in references
-            .callables
+            .constructors
             .iter()
-            .map(|r| (&r.target_domain, r.origin, "a callable"))
-            .chain(
-                references
-                    .constructors
-                    .iter()
-                    .map(|r| (&r.target_domain, r.origin, "a constructor")),
-            )
+            .map(|r| (&r.target_domain, r.origin, "a constructor"))
             .chain(
                 references
                     .globals

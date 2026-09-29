@@ -1,0 +1,10 @@
+package consumer.globals
+import templates.globals.*
+
+public fun <T> exercise(value: T): Int {
+    reset()
+    val probe = Probe<T>(value)
+    if (count() != 1 || probe.take() != 2 || count() != 2) { return 1 }
+    return 42
+}
+public fun result(): Int = exercise<Int>(0)

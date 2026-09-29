@@ -27,7 +27,14 @@ pub(crate) struct PropertyAccessorSource {
     pub(crate) declaration: ast::FunctionDecl,
     pub(crate) owner: Option<Owner>,
     pub(crate) backing: Option<hir::PropertyBacking>,
-    pub(crate) generated_delegate: bool,
+    pub(crate) body_kind: PropertyAccessorBodyKind,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PropertyAccessorBodyKind {
+    Source,
+    Storage,
+    Delegate,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

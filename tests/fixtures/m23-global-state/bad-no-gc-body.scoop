@@ -1,0 +1,4 @@
+private val answer: Int = 42
+    get() = field
+@NoGC
+public fun <T> bad(): Int = answer

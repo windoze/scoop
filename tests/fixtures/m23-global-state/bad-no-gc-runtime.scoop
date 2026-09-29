@@ -1,0 +1,4 @@
+private fun initial(): Int = 42
+private val answer: Int = initial()
+@NoGC
+public fun <T> bad(): Int = answer

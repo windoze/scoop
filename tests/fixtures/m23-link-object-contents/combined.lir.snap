@@ -561,7 +561,7 @@ Module
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn3()
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 external-fn3()
     store t0 -> local0
     global_store global5, local0
     ret
@@ -656,12 +656,12 @@ Module
     local %1 $call.1: i32
     local %2 $call.2: i32
   block entry
-    poll managed-void-target1 sp<managed-poll:0> live=[]
+    poll managed-void-target0 sp<managed-poll:0> live=[]
     br @if.then.1
   block if.then.1
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) external-fn4(integer<Int>(0x00000006))
+    call no-gc-void-target0 sig=void0 (i32) external-fn4(integer<Int>(0x00000006))
     t0 = aggregate () : {}
-    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 () -> i32 external-fn5()
+    call no-gc-direct-target0 t1 = sig=direct0 () -> i32 external-fn5()
     store t1 -> local1
     store local1 -> local0
     br @if.merge.3

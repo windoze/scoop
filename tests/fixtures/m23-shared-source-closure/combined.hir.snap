@@ -8,7 +8,7 @@ Module
   class SourceChild<U>()
   class SourceHost<T>()
   object SourceRegistry <object0 type0 value0 root0 init0>
-  property1 var sourceBias: Int getter1=storage setter0=storage <stored global0 image>
+  property1 var sourceBias: Int getter1=body($get$sourceBias) setter0=body($set$sourceBias) <stored global0 image>
   var sourceBias: Int <global0 managed>
   fun sourceSeed(value: Int): Int
     return
@@ -33,6 +33,12 @@ Module
       Local value : Int
   fun unreachableRight(value: Int): Int
     return
+      Local value : Int
+  fun $get$sourceBias(): Int <no-gc cdecl>
+    return
+      GlobalRead sourceBias : Int
+  fun $set$sourceBias(value: Int): Unit <no-gc cdecl>
+    assign global sourceBias
       Local value : Int
   output library
   instance $local.0.nested<T0, T0>

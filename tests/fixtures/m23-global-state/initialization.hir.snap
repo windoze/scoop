@@ -1,0 +1,37 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 0 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      ImportedGenericCall initialized<Int> : Int
+        Local $dependency.parameter.value : Int
+    val local4
+      IntegerLiteral 42 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local6
+      Local value : T0
+    val local7
+      Local $dependency.argument.0 : T0
+    return
+      ImportedGenericCall initialized<T0> : Int
+        Local $dependency.parameter.value : T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

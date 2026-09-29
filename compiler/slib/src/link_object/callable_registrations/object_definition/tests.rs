@@ -59,7 +59,7 @@ fn local_and_dependency_callable_targets_have_the_same_runtime_encoding() {
 }
 
 #[test]
-fn shape_targets_encode_typed_payload_without_reusing_retired_service_tags() {
+fn descriptor_targets_use_definition_identity_without_reusing_retired_service_tags() {
     let provider = ConeCoordinate::new("test", "provider", "1.0.0")
         .unwrap()
         .identity()
@@ -84,11 +84,23 @@ fn shape_targets_encode_typed_payload_without_reusing_retired_service_tags() {
         subject: ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
     };
 
-    let mut expected = 12_u32.to_le_bytes().to_vec();
-    expected.extend_from_slice(provider.as_array());
+    let mut expected = 1_u32.to_le_bytes().to_vec();
     expected.extend_from_slice(&4_u32.to_le_bytes());
     expected.extend_from_slice(exact.as_array());
+    expected.extend_from_slice(&4_u32.to_le_bytes());
     assert_eq!(encode_runtime(&requirement).unwrap(), expected);
+    assert_eq!(
+        encode_runtime(&CanonicalObjectRelocationV1::intra_cone_type_descriptor(
+            16, exact
+        ))
+        .unwrap(),
+        encode_runtime(&CanonicalObjectRelocationV1::dependency_target(
+            16,
+            provider,
+            ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
+        ))
+        .unwrap(),
+    );
 
     let tuple = PersistentExactTypeId::from_key(&ExactTypeKey::Tuple(NonEmptyVec::from_first(
         exact,
