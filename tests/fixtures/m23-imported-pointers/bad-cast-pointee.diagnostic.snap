@@ -1,0 +1,3 @@
+span=93..116
+expression=pointer.cast<Managed>()
+`Ptr` pointee must be GC-free, found Managed

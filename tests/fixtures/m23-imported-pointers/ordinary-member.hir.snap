@@ -1,0 +1,46 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 42 : Int
+    val local2
+      AddressOf number : Ptr<Int>
+    val local3
+      Local pointer : Ptr<Int>
+    val local4
+      IntegerLiteral 0 : Long
+    val local5
+      Local $dependency.argument.0 : Long
+    val local6
+      PtrOffset subtract=false : Ptr<Int>
+        Local $dependency.receiver : Ptr<Int>
+        Local $dependency.parameter.offset : Long
+    val local7
+      Local copy : Ptr<Int>
+    val local8
+      Local pointer : Ptr<Int>
+    val local9
+      Local $dependency.argument.0 : Ptr<Int>
+    if
+      ImportedGenericCall equals<Int> : Boolean
+        Local $dependency.receiver : Ptr<Int>
+        Local $dependency.parameter.other : Ptr<Int>
+      val local10
+        Local pointer : Ptr<Int>
+      assign $result.0
+        PtrLoad : Int
+          Local $dependency.receiver : Ptr<Int>
+    else
+      assign $result.0
+        IntegerLiteral 1 : Int
+    return
+      Local $result.0 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

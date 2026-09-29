@@ -18,14 +18,22 @@ impl ImportedCallableArguments {
             Self::Method {
                 owner,
                 method_arguments,
-            } => types[*owner]
-                .imported_nominal_application()
-                .expect("an imported method retains its complete nominal owner")
-                .1
-                .iter()
-                .chain(method_arguments)
-                .copied()
-                .collect(),
+            } => {
+                let owner_arguments = match &types[*owner] {
+                    Type::Ptr(pointee) => std::slice::from_ref(pointee),
+                    owner => {
+                        owner
+                            .imported_nominal_application()
+                            .expect("an imported method retains its complete nominal owner")
+                            .1
+                    }
+                };
+                owner_arguments
+                    .iter()
+                    .chain(method_arguments)
+                    .copied()
+                    .collect()
+            }
         }
     }
 

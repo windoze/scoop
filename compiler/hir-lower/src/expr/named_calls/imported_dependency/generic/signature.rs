@@ -1,5 +1,6 @@
 use super::*;
 
+mod intrinsic;
 mod variant;
 
 #[derive(Clone)]
@@ -7,6 +8,7 @@ pub(in crate::expr) enum ImportedGenericTarget {
     Function(hir::ImportedGenericCallableTemplateId),
     Constructor(hir::ImportedConstructorTemplateId),
     Variant(std::sync::Arc<variant::ImportedVariantSignature>),
+    Intrinsic(std::sync::Arc<intrinsic::ImportedIntrinsicSignature>),
 }
 
 #[derive(Clone)]
@@ -25,6 +27,13 @@ impl ImportedGenericTarget {
         state: &mut Lowerer,
         declaration: hir::ImportedCallableDeclaration,
     ) -> Result<Self, String> {
+        if matches!(
+            declaration.interface().effects().implementation(),
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Pointer(_))
+        ) {
+            return intrinsic::ImportedIntrinsicSignature::prepare(state, declaration)
+                .map(|signature| Self::Intrinsic(std::sync::Arc::new(signature)));
+        }
         match declaration.interface().declaration() {
             scoop_identity::CallableTemplateOrigin::Constructor(_) => state
                 .request_imported_constructor_template(declaration)
@@ -50,6 +59,7 @@ impl ImportedGenericTarget {
                 .clone(),
             Self::Constructor(id) => state.imported_constructor_templates[*id].source.clone(),
             Self::Variant(signature) => signature.declaration.clone(),
+            Self::Intrinsic(signature) => signature.declaration.clone(),
         }
     }
 
@@ -112,6 +122,7 @@ impl ImportedGenericTarget {
                 )
             }
             Self::Variant(signature) => (signature.signature.clone(), signature.bindings.clone()),
+            Self::Intrinsic(signature) => (signature.signature.clone(), signature.bindings.clone()),
         }
     }
 }

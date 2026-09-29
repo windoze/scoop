@@ -599,10 +599,22 @@
 
 本项完成上述外来 Option 与泛型 enum 变体的源码、产物消费和再次发布闭环；`addressOf`、数组／vararg、其余 adapter 与 coroutine 等主线继续推进，M23-7 尚未完成。
 
+## 外来指针与布局 intrinsic
+
+- 外来 `addressOf`、`sizeOf`、`alignOf` 与 `Ptr<T>` 的 `load/store`（含元素偏移）、`toULong`、`cast<U>`、`plus/minus` 进入普通候选推断。签名从实际共有声明取得，owner 与方法 binder 分别求解，已选调用使用现有指针／布局 HIR 节点；不制造 intrinsic 正文或 Strong 函数。
+- `addressOf` 保留调用处参数、局部值和方法 `this` 的原 place，命名参数与导入别名不改变取址对象。泛型 pointee 的 GC-free 条件沿现有 `Ptr` 条件传播；`sizeOf/alignOf` 仅要求值类型，支持含引用字段的值与泛型布局查询。新生成的 cast pointee 接入既有类型检查，避免结果立即转成整数时漏检，直接与泛型包装的反例均已覆盖。
+- 共有正文和默认值消费既有 `AddressOf(Local)`、布局查询及指针节点。普通 `Ptr.equals` 保留真实 core 正文、结构 receiver 和实际 owner 类型实参，跨 Cone 再次发布时继续沿已有方法 application / ODR 路径；不要求补造本地 struct 声明。
+- 新增 `m23-imported-pointers` 的 25 份源码及 40 份 golden：9 组实际产物正例、13 个诊断反例。覆盖泛型 provider / consumer / downstream、下游新值类型与重复 `Int` 实例、显式与推断 cast、实际 core 普通成员、参数写回、`this` 副本、ZST 独立地址与 offset 副作用、GC-bearing value 布局、默认值、别名和普通重载遮蔽。provider / consumer 源码移走后继续消费与链接，验证 HIR/MIR/LIR、共同 ODR member、普通运行和移动 GC。
+- 专项验证：2 个前端测试通过；重建配套 `scoopc` 后，2 个 driver 测试包含上述全部实际产物与反例并通过（43.78 秒）。执行顺序为 `cargo fmt --all` → `cargo clippy --workspace` → 重建配套编译器 → 专项测试。
+- 关闭 snapshot 更新后，使用实际配套 `scoopc` 完成 `cargo test --workspace`：**5212 passed、0 failed、0 ignored**，包含既有 Option、成员、函数引用、继承／接口、core 和产物视图回归。完整日志为 `/tmp/scoop-m23-7-pointers-workspace.log`，专项产物日志为 `/tmp/scoop-m23-7-pointers-driver.log`。
+- 全部验证完成后，通过 Cargo metadata 确认 `target` 为实际构建目录，核对无符号链接、无打开文件且只含编译／编辑器检查缓存；恢复缺失的标准 `CACHEDIR.TAG` 并执行 `cargo clean --target-dir target`，删除 2622 个文件，Cargo 报告 6.1 GiB。
+
+本项完成上述指针与布局调用闭环。显式 `Ptr<T>(raw)` 的外来构造入口、外来 raw storage 的取址和泛型组合、指针函数值适配仍需推进；不把已通过的调用正例视为这些能力或整个 M23-7 已完成。
+
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通 `addressOf` 等 intrinsic，以及显式 native storage 的泛型组合。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通显式原始指针构造、指针函数值适配，以及显式 native storage（含取址）的泛型组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

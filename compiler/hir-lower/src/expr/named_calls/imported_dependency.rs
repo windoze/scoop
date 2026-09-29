@@ -33,6 +33,15 @@ enum ImportedCallImplementation {
         template: generic::ImportedGenericTarget,
         arguments: hir::ImportedCallableArguments,
     },
+    Intrinsic {
+        template: generic::ImportedGenericTarget,
+        operation: ImportedPointerCall,
+    },
+}
+
+enum ImportedPointerCall {
+    Expression(hir::Expr),
+    Member(hir::PointerIntrinsic),
 }
 
 pub(crate) struct ImportedDependencyCallProbe {
@@ -60,7 +69,8 @@ impl ImportedDependencyCallProbe {
     pub(crate) fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
         let (owner_parameters, callable_parameters, bindings) = match &self.implementation {
             ImportedCallImplementation::Native => (Vec::new(), Vec::new(), Default::default()),
-            ImportedCallImplementation::Generic { template, .. } => {
+            ImportedCallImplementation::Generic { template, .. }
+            | ImportedCallImplementation::Intrinsic { template, .. } => {
                 let declaration = template.declaration(&self.state);
                 let template = generic::ImportedGenericTarget::request(state, declaration)
                     .expect("an applicable imported candidate has a resolved declaration");
@@ -117,7 +127,9 @@ impl ImportedDependencyCallProbe {
 
     pub(crate) fn signature(&self, name: &str) -> String {
         let state = &self.state;
-        if let ImportedCallImplementation::Generic { template, .. } = &self.implementation {
+        if let ImportedCallImplementation::Generic { template, .. }
+        | ImportedCallImplementation::Intrinsic { template, .. } = &self.implementation
+        {
             let (signature, _) = template.signature(state);
             let all_parameters = signature
                 .owner_parameters

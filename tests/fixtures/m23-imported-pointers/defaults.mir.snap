@@ -1,0 +1,47 @@
+Module
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.default.local.1: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf $dependency.parameter.value : Ptr<Int>
+      val $dependency.parameter.next: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.default.local.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.next
+      return
+        Type Int
+        Local $call.1
+  fun loadDefault @fn2(value: Int, next: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local next
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- loadDefault
+  output library

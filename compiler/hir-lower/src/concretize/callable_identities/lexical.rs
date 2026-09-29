@@ -40,11 +40,7 @@ impl CallableIdentityBuilder<'_> {
                 ..
             } => {
                 let owner = method_owner.expect("a member application retains its concrete owner");
-                let owner = if self
-                    .concretizer
-                    .concrete_method_owner_arguments(owner)
-                    .is_empty()
-                {
+                let owner = if owner_parameter_count == 0 {
                     CallableInstantiationOwner::NoOwner
                 } else {
                     CallableInstantiationOwner::ExactNominalOwner(self.exact_method_owner(owner))

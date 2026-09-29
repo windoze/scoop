@@ -77,9 +77,19 @@ impl ImportedCallableCandidate {
         }
     }
 
+    pub(super) fn pointer_intrinsic(&self) -> Option<hir::PointerIntrinsic> {
+        match self.interface().effects().implementation() {
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Pointer(kind)) => {
+                Some(kind)
+            }
+            _ => None,
+        }
+    }
+
     pub(super) fn executable(&self) -> bool {
         self.capability().is_some()
             || self.normalized_intrinsic().is_some()
+            || self.pointer_intrinsic().is_some()
             || matches!(
                 self.interface().declaration(),
                 scoop_identity::CallableTemplateOrigin::VariantConstructor(_)

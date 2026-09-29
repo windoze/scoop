@@ -15,6 +15,7 @@ mod closures;
 mod constructors;
 mod delegates;
 mod methods;
+mod pointers;
 mod references;
 mod statements;
 
@@ -210,12 +211,15 @@ impl Lowerer {
                     args: self.materialize_imported_default_expressions(arguments, context)?,
                 }
             }
-            Kind::PtrFromNonZeroULong(operand) => hir::ExprKind::PtrFromNonZeroULong(Box::new(
-                self.materialize_imported_default_expression(operand, context)?,
-            )),
-            Kind::PtrToULong(operand) => hir::ExprKind::PtrToULong(Box::new(
-                self.materialize_imported_default_expression(operand, context)?,
-            )),
+            kind @ (Kind::PtrFromNonZeroULong(_)
+            | Kind::PtrToULong(_)
+            | Kind::PtrCast(_)
+            | Kind::PtrLoad { .. }
+            | Kind::PtrStore { .. }
+            | Kind::PtrOffset { .. }
+            | Kind::AddressOf(_)
+            | Kind::SizeOf(_)
+            | Kind::AlignOf(_)) => self.materialize_imported_pointer_expression(kind, context)?,
             Kind::SingletonValue(value) => hir::ExprKind::ImportedSingletonValue(*value),
             Kind::SomeWrap(value) => hir::ExprKind::SomeWrap(Box::new(
                 self.materialize_imported_default_expression(value, context)?,
@@ -514,13 +518,6 @@ impl Lowerer {
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
             | Kind::FunctionCoercion { .. }
-            | Kind::PtrCast(_)
-            | Kind::PtrLoad { .. }
-            | Kind::PtrStore { .. }
-            | Kind::PtrOffset { .. }
-            | Kind::AddressOf(_)
-            | Kind::SizeOf(_)
-            | Kind::AlignOf(_)
             | Kind::FunctionAddress(_)
             | Kind::ForeignCallbackRegister { .. }
             | Kind::ForeignCallbackOperation { .. }

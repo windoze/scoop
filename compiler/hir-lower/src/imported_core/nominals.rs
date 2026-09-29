@@ -64,6 +64,11 @@ impl Lowerer {
                 self.imported_enum_type(declaration, arguments, &bindings)
             }
             hir::NominalSourceShapeV1::Intrinsic(representation)
+                if representation.family() == hir::IntrinsicTypeKind::Ptr =>
+            {
+                Ok(self.intern_type(hir::Type::Ptr(arguments[0])))
+            }
+            hir::NominalSourceShapeV1::Intrinsic(representation)
                 if matches!(
                     representation.family(),
                     hir::IntrinsicTypeKind::Array | hir::IntrinsicTypeKind::MutableArray

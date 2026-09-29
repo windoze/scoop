@@ -1,0 +1,311 @@
+Module
+  enum CoroutineStep<Counter>
+    Completed(value: Counter)
+    Suspended()
+  enum CoroutineSlot<Counter>
+    Empty()
+    Value(value: Counter)
+  class Counter vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=f2d9be433c7fd9509b4700a5b864ee59b402d6f3b42a3cfe6793dd4dc0b33077 exact_id=55d7b9ec939a365563729c318d63a5249c431d45f13a87bb8c40c3d7faa9b18b
+  generated_exact_type get1 location=enum0 nominal_id=eaf0e82a37ed12e972a391eafc27268b99d652f37467f02c30ecdb1ede6849f7 exact_id=9815a99d64e12fe2675e1382e17d980b28bb68ca619960e99de9f9668ce3fb24
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val left: Unit
+        Type Unit
+        UnitLiteral
+      val right: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.calls: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call @fn4 direct
+        Type Counter
+        Local $new.1
+        Type Int
+        Local $parameter.calls
+      val state: Counter
+        Type Counter
+        Local $new.1
+      val pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        AddressOf left : Ptr<Unit>
+      val other: Ptr<Unit>
+        Type Ptr<Unit>
+        AddressOf right : Ptr<Unit>
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      call $dependency.argument.0: Long = @fn2 direct
+        Type Counter
+        Local state
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val moved: Ptr<Unit>
+        Type Ptr<Unit>
+        PtrOffset Unit subtract=false
+          Type Ptr<Unit>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local moved
+      call $dependency.argument.0: Long = @fn2 direct
+        Type Counter
+        Local state
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val empty: Unit
+        Type Unit
+        PtrLoad Unit
+          Type Ptr<Unit>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local moved
+      call $dependency.argument.0: Long = @fn2 direct
+        Type Counter
+        Local state
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local empty
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Unit
+        Local $dependency.parameter.value
+      val $dependency.argument.1: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.1
+      Type Unit
+      PtrStore Unit
+        Type Ptr<Unit>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.offset
+        Type Unit
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      val $equality.lhs: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.receiver
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.receiver: ULong
+        Type ULong
+        Local $equality.lhs
+      val $dependency.argument.0: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.receiver
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+    bb3 if.then.3
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb4 if.else.4
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local moved
+      val $equality.lhs: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.receiver
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      val $dependency.receiver: ULong
+        Type ULong
+        Local $equality.lhs
+      val $dependency.argument.0: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.receiver
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb5
+    bb5 if.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $shortCircuit.2
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local state
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb8 bb9
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb8 if.then.8
+      assign $result.3
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb10
+    bb9 if.else.9
+      assign $result.3
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb10
+    bb10 if.merge.10
+      return
+        Type Int
+        Local $result.3
+  fun $local.0.offset @fn2($capture.state: Counter) -> Long
+    bb0 entry
+      val $place.0: Counter
+        Type Counter
+        Local $capture.state
+      val $old.1: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local $place.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Counter
+        Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type Long
+        IntegerLiteral Long value=500 bits=0x00000000000001f4
+  fun copy @fn3(value: Unit) -> Unit
+    bb0 entry
+      val $dependency.local.1: Ptr<Unit>
+        Type Ptr<Unit>
+        AddressOf value : Ptr<Unit>
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.1
+      Type Unit
+      PtrLoad Unit
+        Type Ptr<Unit>
+        Local $dependency.local.2
+      return
+  fun init.Counter.$c0 @fn4(this: Counter, calls: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Counter
+        Local this
+        Type Int
+        Local calls
+      return
+  coroutine_step cs0 CoroutineStep<Counter> result=Counter
+  coroutine_slot cl0 CoroutineSlot<Counter> value=Counter
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- $local.0.offset
+  instance mi2 function=@fn3 <- copy
+  output library

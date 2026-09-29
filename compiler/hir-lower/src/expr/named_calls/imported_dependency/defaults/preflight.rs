@@ -84,6 +84,9 @@ impl Lowerer {
             }
             Kind::Capture(index) => Err(ImportedDefaultPlanError::UnboundCapture(*index)),
             Kind::ReferenceUpcast(operand)
+            | Kind::PtrFromNonZeroULong(operand)
+            | Kind::PtrToULong(operand)
+            | Kind::PtrCast(operand)
             | Kind::Box(operand)
             | Kind::Unbox(operand)
             | Kind::SomeWrap(operand)
@@ -123,6 +126,45 @@ impl Lowerer {
             }),
             Kind::Local(local) if locals.contains(local) => Ok(()),
             Kind::Local(local) => Err(ImportedDefaultPlanError::UnknownLocal(local.clone())),
+            Kind::AddressOf(hir::DefaultPlaceV1::Local { local }) => {
+                if locals.contains(local) {
+                    Ok(())
+                } else {
+                    Err(ImportedDefaultPlanError::UnknownLocal(local.clone()))
+                }
+            }
+            Kind::SizeOf(ty) | Kind::AlignOf(ty) => self
+                .imported_default_type_with_bindings(ty, bindings)
+                .map(|_| ()),
+            Kind::PtrLoad { pointer, offset }
+            | Kind::PtrStore {
+                pointer, offset, ..
+            } => {
+                self.preflight_imported_default_expression(
+                    owner, template, pointer, locals, bindings, callables,
+                )?;
+                if let Some(offset) = offset.as_ref() {
+                    self.preflight_imported_default_expression(
+                        owner, template, offset, locals, bindings, callables,
+                    )?;
+                }
+                if let Kind::PtrStore { value, .. } = expression.kind() {
+                    self.preflight_imported_default_expression(
+                        owner, template, value, locals, bindings, callables,
+                    )?;
+                }
+                Ok(())
+            }
+            Kind::PtrOffset {
+                pointer, offset, ..
+            } => {
+                self.preflight_imported_default_expression(
+                    owner, template, pointer, locals, bindings, callables,
+                )?;
+                self.preflight_imported_default_expression(
+                    owner, template, offset, locals, bindings, callables,
+                )
+            }
             Kind::TupleLiteral(elements) => self.preflight_imported_default_expressions(
                 owner, template, elements, locals, bindings, callables,
             ),
@@ -290,13 +332,7 @@ impl Lowerer {
                 requirement: ImportedCapabilityRequirement::Generic,
                 operation: "dependency default callable value",
             }),
-            Kind::PtrFromNonZeroULong(_)
-            | Kind::PtrToULong(_)
-            | Kind::PtrCast(_)
-            | Kind::PtrLoad { .. }
-            | Kind::PtrStore { .. }
-            | Kind::PtrOffset { .. }
-            | Kind::AddressOf(_)
+            Kind::AddressOf(hir::DefaultPlaceV1::Global { .. })
             | Kind::FunctionAddress(_)
             | Kind::ForeignCallbackRegister { .. }
             | Kind::ForeignCallbackOperation { .. } => Err(ImportedDefaultPlanError::Requires {
@@ -309,8 +345,6 @@ impl Lowerer {
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
-            | Kind::SizeOf(_)
-            | Kind::AlignOf(_)
             | Kind::FieldAccess { .. }
             | Kind::ArrayLiteral(_)
             | Kind::ArrayAssembly(_)

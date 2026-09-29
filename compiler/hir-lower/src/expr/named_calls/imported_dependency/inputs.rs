@@ -38,7 +38,14 @@ impl<'a> ImportedProbeCall<'a> {
     }
 }
 
-impl ImportedCallArguments<'_> {
+impl<'a> ImportedCallArguments<'a> {
+    pub(super) fn source(self, index: usize) -> Option<&'a ast::Expr> {
+        match self {
+            Self::Source(arguments) => Some(&arguments[index].expression),
+            Self::Lowered(_) => None,
+        }
+    }
+
     pub(super) fn check_variant_style(
         self,
         style: hir::EnumSourceVariantStyleV1,

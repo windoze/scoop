@@ -56,6 +56,13 @@ impl Lowerer {
     }
 
     pub(crate) fn imported_nominal_owner(&self, ty: hir::TypeId) -> Option<hir::SourceNominalId> {
+        if matches!(self.types[ty], hir::Type::Ptr(_))
+            && let CoreLoweringAuthority::Imported(core) = &self.core
+        {
+            return Some(hir::SourceNominalId::GenericTemplate(
+                core.fundamental_types().ptr().persistent(),
+            ));
+        }
         self.types[ty]
             .imported_nominal_application()
             .map(|(declaration, _)| declaration.owner())
@@ -63,6 +70,15 @@ impl Lowerer {
                 self.imported_nominal_declaration(ty)
                     .map(hir::SourceNominalId::Concrete)
             })
+    }
+
+    pub(crate) fn imported_owner_arguments(&self, ty: hir::TypeId) -> &[hir::TypeId] {
+        match &self.types[ty] {
+            hir::Type::Ptr(pointee) => std::slice::from_ref(pointee),
+            ty => ty
+                .imported_nominal_application()
+                .map_or(&[], |(_, args)| args),
+        }
     }
 
     pub(crate) fn imported_nominal_declaration(&self, ty: hir::TypeId) -> Option<PersistentTypeId> {

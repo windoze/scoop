@@ -284,6 +284,7 @@ impl Lowerer {
             argument_map.has_vararg(),
         )?;
         if constructor_owner.is_some()
+            || candidate.pointer_intrinsic().is_some()
             || (interface.modality() == hir::CallableModalityV1::Abstract
                 && matches!(
                     interface.owner(),

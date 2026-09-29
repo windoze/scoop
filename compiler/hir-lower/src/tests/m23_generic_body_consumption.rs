@@ -14,6 +14,7 @@ mod members;
 mod metadata;
 mod nominals;
 mod options;
+mod pointers;
 mod references;
 
 const PROVIDER: &str = include_str!(concat!(

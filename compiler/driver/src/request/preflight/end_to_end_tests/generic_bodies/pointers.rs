@@ -1,0 +1,42 @@
+#[test]
+fn imported_pointer_intrinsics_republish_and_execute_from_artifacts() {
+    super::members::check_fixture_cases(
+        "m23-imported-pointers",
+        &[
+            "local",
+            "operations",
+            "ordinary-member",
+            "layout",
+            "this-copy",
+            "zst",
+            "defaults",
+            "bindings",
+        ],
+        &[
+            "bad-temporary",
+            "bad-field",
+            "bad-property",
+            "bad-reference",
+            "bad-managed-value",
+            "bad-unsafe",
+            "bad-load-unsafe",
+            "bad-layout-reference",
+            "bad-layout-inference",
+            "bad-pointee-bound",
+            "bad-cast-pointee",
+            "bad-generic-cast",
+            "bad-layout-arity",
+        ],
+        "downstream",
+    );
+}
+
+#[test]
+fn imported_pointer_templates_accept_downstream_pointees() {
+    super::members::check_fixture_cases(
+        "m23-imported-pointers",
+        &["template"],
+        &[],
+        "template-downstream",
+    );
+}

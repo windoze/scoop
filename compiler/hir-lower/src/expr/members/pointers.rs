@@ -23,6 +23,17 @@ impl Lowerer {
         ) {
             return None;
         }
+        Some(self.normalize_pointer_intrinsic(kind, receiver, args, ty, span))
+    }
+
+    pub(in crate::expr) fn normalize_pointer_intrinsic(
+        &self,
+        kind: hir::PointerIntrinsic,
+        receiver: hir::Expr,
+        args: Vec<hir::Expr>,
+        ty: TypeId,
+        span: Span,
+    ) -> hir::Expr {
         let mut args = args.into_iter();
         let pointer = Box::new(receiver);
         let expr = match kind {
@@ -53,11 +64,11 @@ impl Lowerer {
             },
             _ => unreachable!("top-level pointer intrinsic is not a method"),
         };
-        Some(hir::Expr {
+        hir::Expr {
             kind: expr,
             ty,
             span,
             origin: self.expression_origin(span),
-        })
+        }
     }
 }

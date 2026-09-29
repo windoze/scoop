@@ -1,0 +1,215 @@
+Module
+  enum CoroutineStep<Pair> tagged size=16 align=8 variants=(struct0)@8+8 ()@8+0
+  enum CoroutineSlot<Pair> tagged size=16 align=8 variants=()@8+0 (struct0)@8+8
+  fun @scoop$1$cb$c96d7c00ffcdb7fe3b13b4c301ebdcf6bf4041feb8dce15ae9a35e8384319ab2() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$fce926d75622df06ba10ce4e7eaeac3aa4dee36cac57587f2ee65876af684bfd(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $argument.1: i32
+    local %2 $parameter.left: i32
+    local %3 $parameter.right: i32
+    local %4 $dependency.argument.0: struct0
+    local %5 $dependency.parameter.value: struct0
+    local %6 original: struct1
+    local %7 $argument.0: i32
+    local %8 $argument.1: i32
+    local %9 $parameter.left: i32
+    local %10 $parameter.right: i32
+    local %11 $dependency.receiver: struct1
+    local %12 $dependency.argument.0: struct0
+    local %13 $dependency.parameter.next: struct0
+    local %14 changed: struct0
+    local %15 $dependency.argument.0: struct0
+    local %16 $dependency.parameter.value: struct0
+    local %17 result: struct0
+    local %18 $dependency.receiver: i32
+    local %19 $dependency.argument.0: i32
+    local %20 $dependency.parameter.other: i32
+    local %21 $dependency.receiver: i32
+    local %22 $dependency.argument.0: i32
+    local %23 $dependency.parameter.other: i32
+    local %24 $shortCircuit.0: i1
+    local %25 $argument.0: i32
+    local %26 $argument.1: i32
+    local %27 $parameter.left: i32
+    local %28 $parameter.right: i32
+    local %29 $dependency.argument.0: struct0
+    local %30 $dependency.argument.1: struct0
+    local %31 $dependency.parameter.value: struct0
+    local %32 $dependency.parameter.replacement: struct0
+    local %33 replaced: struct0
+    local %34 $dependency.receiver: i32
+    local %35 $dependency.argument.0: i32
+    local %36 $dependency.parameter.other: i32
+    local %37 $sc.1: struct0
+    local %38 $sc.2: struct0
+    local %39 $sc.3: struct1
+    local %40 $sc.4: struct0
+    local %41 $sc.5: struct1
+    local %42 $sc.6: struct0
+    local %43 $sc.7: struct0
+    local %44 $sc.8: struct0
+    local %45 $sc.9: struct0
+    local %46 $sc.10: struct0
+    local %47 $sc.11: struct0
+    local %48 $sc.12: struct0
+    local %49 $sc.13: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000001) -> local0
+    store integer<Int>(0x00000002) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call no-gc-indirect-target0 local37 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn5(local2, local3)
+    store local37 -> local4
+    store local4 -> local5
+    store local5 -> local38
+    call no-gc-indirect-target1 local39 = sig=indirect1 (sret struct1 size=8 align=4 scan=none, indirect<struct0 size=8 align=4 scan=none>) local-fn6(indirect local38)
+    store local39 -> local6
+    store local6 -> local11
+    store integer<Int>(0x00000014) -> local7
+    store integer<Int>(0x00000016) -> local8
+    store local7 -> local9
+    store local8 -> local10
+    call no-gc-indirect-target2 local40 = sig=indirect2 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn5(local9, local10)
+    store local40 -> local12
+    store local12 -> local13
+    store local11 -> local41
+    store local13 -> local42
+    call managed-indirect-target0 sp<managed-call:0> live=[] local43 = sig=indirect3 (sret struct0 size=8 align=4 scan=none, indirect<struct1 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) local-fn2(indirect local41, indirect local42)
+    store local43 -> local14
+    store local14 -> local15
+    store local15 -> local16
+    store local16 -> local44
+    call managed-indirect-target1 sp<managed-call:1> live=[] local45 = sig=indirect4 (sret struct0 size=8 align=4 scan=none, indirect<struct0 size=8 align=4 scan=none>) local-fn3(indirect local44)
+    store local45 -> local17
+    t0 = extract local6, 0 : struct0
+    t1 = extract t0, 0 : i32
+    store t1 -> local18
+    store integer<Int>(0x00000001) -> local19
+    store local19 -> local20
+    t2 = integer_compare_Equal<Int> local18, local20 : i1
+    t3 = Not t2 : i1
+    cbr t3 then @if.then.1 else @if.else.2
+  block if.then.1
+    store true -> local24
+    br @if.merge.3
+  block if.else.2
+    t4 = extract local6, 0 : struct0
+    t5 = extract t4, 1 : i32
+    store t5 -> local21
+    store integer<Int>(0x00000002) -> local22
+    store local22 -> local23
+    t6 = integer_compare_Equal<Int> local21, local23 : i1
+    t7 = Not t6 : i1
+    store t7 -> local24
+    br @if.merge.3
+  block if.merge.3
+    cbr local24 then @if.then.4 else @if.merge.5
+  block if.then.4
+    ret integer<Int>(0x00000001)
+  block if.merge.5
+    store integer<Int>(0x00000000) -> local25
+    store integer<Int>(0x00000000) -> local26
+    store local25 -> local27
+    store local26 -> local28
+    call no-gc-indirect-target3 local46 = sig=indirect5 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn5(local27, local28)
+    store local46 -> local29
+    store local17 -> local30
+    store local29 -> local31
+    store local30 -> local32
+    store local31 -> local47
+    store local32 -> local48
+    call managed-indirect-target2 sp<managed-call:2> live=[] local49 = sig=indirect6 (sret struct0 size=8 align=4 scan=none, indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) local-fn4(indirect local47, indirect local48)
+    store local49 -> local33
+    t8 = extract local33, 0 : i32
+    store t8 -> local34
+    t9 = extract local33, 1 : i32
+    store t9 -> local35
+    store local35 -> local36
+    t10 = integer_Add<Int> local34, local36 : i32
+    ret t10
+  fun @scoop$1$cb$a0a7bbe6d0140d618bd36b9c573096a73b9263f72a7c534f44a460e025238d4b(indirect<struct1 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
+    local %0 this: struct1
+    local %1 $dependency.local.2: ptr<raw>
+    local %2 $dependency.local.3: struct0
+    local %3 $dependency.local.4: struct0
+    local %4 $dependency.local.5: ptr<raw>
+    local %5 $dependency.local.6: struct1
+    local %6 $dependency.local.7: struct1
+    local %7 $sc.1: struct0
+    local %8 $sc.2: struct1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = local_address local0 : ptr
+    store t0 -> local1
+    store local1 -> local4
+    store param1 -> local2
+    store local2 -> local3
+    store local3 -> local7
+    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct1 size=8 align=4 scan=none, indirect<struct0 size=8 align=4 scan=none>) local-fn6(indirect local7)
+    store local8 -> local5
+    store local5 -> local6
+    raw_store local4 local6 align 4
+    t1 = aggregate () : {}
+    t2 = extract local0, 0 : struct0
+    ret t2
+  fun @scoop$1$cb$2195129d3678c3a4688747d37aafdae51ea02075ce061658983858c5e3a1b687(indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
+    local %0 value: struct0
+    local %1 $dependency.local.1: ptr<raw>
+    local %2 $dependency.local.2: ptr<raw>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = local_address local0 : ptr
+    store t0 -> local1
+    store local1 -> local2
+    t1 = raw_load local2 align 4 : struct0
+    ret t1
+  fun @scoop$1$cb$f8405e411f2ca5e1b1728526dab73c6c68c8306cded46705352d038c5f6811b3(indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
+    local %0 value: struct0
+    local %1 $dependency.local.2: ptr<raw>
+    local %2 $dependency.local.3: ptr<raw>
+    local %3 $dependency.local.4: struct0
+    local %4 $dependency.local.5: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = local_address local0 : ptr
+    store t0 -> local1
+    store local1 -> local2
+    store param1 -> local3
+    store local3 -> local4
+    raw_store local2 local4 align 4
+    t1 = aggregate () : {}
+    ret local0
+  fun @scoop$1$cb$ae1e6109c0a705bd87a2c1cf6bf5ff798c0b5c4438f403c92390a45a987f33cf(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct0
+    ret t0
+  fun @scoop$1$cb$0c6fa62b3b8c222d0be1aafaefcedc9d618631f61613179cb68f3b98083ff741(indirect<struct0 size=8 align=4 scan=none>) -> sret<struct1 size=8 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct1
+    ret t0
+  td td0 g(r=00000006;i=7a8c799771f14bb7d2e50185438bd442eb04dbed51f4ec09c6cb7e3b8867970b) @scoop$1$td$9e4ce28d35b133acdc6c45bc9d7cde9fef5b76344eb129983a376ff003879f2c type-id=5877231357862076113 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=dev.example%3Ageneric-member-this-copy%3A0.1.0;p=consumer.pointers;o=-;k=S;x=Pair) @scoop$1$td$2f1e20eebd2c0402ebaaea7d5e6cdf457e15b62dfad3ee65792eca9a186c74c0 type-id=11533310937246623369 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.pointers;o=-;k=S;x=Slot);[n(c=dev.example%3Ageneric-member-this-copy%3A0.1.0;p=consumer.pointers;o=-;k=S;x=Pair)]) @scoop$1$td$9b2cc4f8c1f153192da2b4b2eea10e620bd15c0a6cc07cce4e3451ac987bd025 type-id=6730839120041629912 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000005;i=0d84471e4a32480f4745b767c985313ff6df9450de3d96cf2d356637b9ad386c) @scoop$1$td$8b16a4729940be2eb21f64e5e013b7c0693fc6460242e43cb186bd2507d3b6b3 type-id=5077292442405776522 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td4 g(r=00000007;i=fb526dca8f564217efbb4f0072aa1c1a1d4aeecd1b23aeb933ee61a5d9c726eb) @scoop$1$td$bd0e44c3bdecdaade88504b45044f374533d114e576629a4f4dfed47b081c09e type-id=9195860365632787824 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Pair size=8 align=4 refs=[]
+  layout Slot size=8 align=4 refs=[]
+  layout CoroutineStep<Pair> size=16 align=8 enum-scan=none
+  layout CoroutineSlot<Pair> size=16 align=8 enum-scan=none
+  layout box<Pair> value size=8 align=8 refs=[0]
+  layout box<Pair> size=24 align=8 refs=[]
+  output library

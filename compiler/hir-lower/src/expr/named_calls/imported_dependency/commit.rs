@@ -87,6 +87,14 @@ impl Lowerer {
             );
         }
 
+        if let super::ImportedCallImplementation::Intrinsic {
+            operation: super::ImportedPointerCall::Expression(expression),
+            ..
+        } = &implementation
+        {
+            return Some(expression.clone());
+        }
+
         let (receiver, source_receiver) = match receiver {
             ImportedCallReceiver::Absent => (None, hir::SourceCallReceiver::NoReceiver),
             ImportedCallReceiver::Member {
@@ -249,6 +257,19 @@ impl Lowerer {
                 origin: self.expression_origin(call_span),
             });
         }
+        if let super::ImportedCallImplementation::Intrinsic {
+            operation: super::ImportedPointerCall::Member(intrinsic),
+            ..
+        } = implementation
+        {
+            return Some(self.normalize_pointer_intrinsic(
+                intrinsic,
+                receiver.expect("pointer member has a receiver"),
+                parameter_values,
+                result_type,
+                call_span,
+            ));
+        }
         let mut args = Vec::with_capacity(parameter_values.len() + usize::from(receiver.is_some()));
         args.extend(receiver);
         args.extend(parameter_values);
@@ -309,6 +330,9 @@ impl Lowerer {
                 }
                 super::generic::ImportedGenericTarget::Variant(_) => {
                     unreachable!("enum variants were constructed before callable dispatch")
+                }
+                super::generic::ImportedGenericTarget::Intrinsic(_) => {
+                    unreachable!("intrinsic operations were normalized before callable dispatch")
                 }
             };
             return Some(hir::Expr {

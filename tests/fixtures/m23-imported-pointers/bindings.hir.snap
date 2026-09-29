@@ -1,0 +1,56 @@
+Module
+  fun addressOf(value: Int): Int
+    val local1
+      Local value : Int
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 40 : Int
+    val local2
+      AddressOf number : Ptr<Int>
+    val local5
+      Local pointer : Ptr<Int>
+    val local3
+      IntegerLiteral 41 : Int
+    val local4
+      Local $argument.0 : Int
+    val local6
+      Call addressOf : Int
+        Local $parameter.value : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    PtrStore : Unit
+      Local $dependency.receiver : Ptr<Int>
+      Local $dependency.parameter.value : Int
+    val local8
+      SizeOf Int : ULong
+    val local9
+      IntegerLiteral 4uL : ULong
+    val local10
+      Local $dependency.argument.0 : ULong
+    if
+      Unary Not : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
+          Local $dependency.receiver : ULong
+          Local $dependency.parameter.other : ULong
+      return
+        IntegerLiteral 1 : Int
+    return
+      Local number : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

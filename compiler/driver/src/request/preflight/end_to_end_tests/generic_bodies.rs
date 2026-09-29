@@ -11,6 +11,7 @@ mod machine;
 mod members;
 mod nominals;
 mod options;
+mod pointers;
 mod publication;
 mod references;
 mod siblings;

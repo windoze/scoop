@@ -1,0 +1,100 @@
+Module
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      var number: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val pointer: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf number : Ptr<Int>
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val copy: Ptr<Int>
+        Type Ptr<Int>
+        PtrOffset Int subtract=false
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local copy
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.parameter.other: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      call $call.1: Boolean = @fn2 direct
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Ptr<Int>
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      assign $result.0
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.0
+  fun equals @fn2(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- equals
+  output library

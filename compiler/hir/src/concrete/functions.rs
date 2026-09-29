@@ -66,8 +66,9 @@ pub enum MethodOwner {
     Enum(EnumId),
     Interface(InterfaceId),
     Object(ObjectTypeId),
-    /// A compiler-derived method without a local source owner application.
-    /// Its complete concrete owner type determines the generated identity.
+    /// A method whose owner has no local nominal arena entry, including
+    /// structural derived methods and imported pointer members.
+    /// Its complete concrete type retains the actual receiver identity.
     TypeOwned(TypeId),
 }
 

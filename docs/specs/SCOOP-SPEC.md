@@ -1974,6 +1974,7 @@ public fun <T : value> addressOf(v: T): Ptr<T>
 - registry只为显式`Ptr<T>(raw: ULong)`提供一个call-shaped、`@NoGC @Unsafe`的特殊construction entry；它不是普通struct constructor，也不能由representation field合成。该entry是从integer显式制造data pointer的唯一形态，要求unsafe context及`raw != 0uL`前置条件。编译期常量零直接诊断；运行期值违反该unsafe前置条件时行为未定义。它不建立隐式conversion，未对齐、越界、悬垂地址、算术结果变为零及生命周期均由unsafe调用者负责。
 - 源码中的 `pointer + offset` / `pointer - offset` 分别按 `ptr_plus` / `ptr_minus` 的契约处理；`offset: Long` 以**元素个数**计，其数学byte displacement为`offset`与`sizeOf<T>()`数值的乘积，与非ZST C object pointer算术一致。带 `offset` 的 `load` / `store` 使用相同的元素偏移语义。对ZST pointee，任意offset的物理byte displacement恒为0且所得pointer bit值不变；`load`产生该exact ZST值，`store`不写payload byte，但receiver、offset、value仍求值，且unsafe调用者仍必须保证pointer非null、满足alignment/lifetime并指向相应逻辑place。算法不得用ZST pointer值变化表达迭代进度；`Ptr<Unit>`若需要逐byte移动必须先使用语义上正确的`Ptr<UInt8>`，不能把opaque `void *`自动当byte pointer；
 - `addressOf` 是 intrinsic，且带 **lvalue 约束**：实参必须是参数、局部变量、全局变量，或值类型成员方法的 `this`，取的是该 place 实际存储的地址；对临时值、字面量、计算结果等非 lvalue 表达式调用是编译错误。对 `this` 取址时指向 3.3 规定的方法局部副本，不是调用方的 value 或 box payload。
+- 泛型正文中的 `addressOf` 保留原 place 与 exact pointee type；尚未具体化的值参数按 `Ptr<T>` 的既有规则传播 GC-free 条件，不要求在泛型定义处得到具体布局。经过普通名称查找和重载选择后才应用这一 intrinsic 规则；命名参数和导入别名不改变取址对象，不得取为普通按值调用准备的临时副本。
 - `Ptr<T>` 自身是值类型，因此满足 `value` 约束，可以出现在要求 `T : value` 的位置（包括 `Ptr<Ptr<T>>`）。
 - **null与可空指针**：裸`Ptr<T>`没有null值，内部data-pointer carrier的全零位模式保留给`Option<Ptr<T>>.None`及inactive/zeroed storage。FFI边界上的可空data pointer必须用`Option<Ptr<T>>`表示；声明返回裸`Ptr<T>`的native函数返回null属于契约违反。布局由niche保证（见7.4）。
 - **`void*` 与 opaque 类型**：`void*` 及 C 的 opaque handle（不完全类型指针）统一用 `Ptr<Unit>` 表示。
@@ -1991,6 +1992,7 @@ public fun <T : value> alignOf(): ULong
 ```
 
 - 返回 `T` 的大小 / 对齐（字节数），编译期求值；ZST返回size 0和严格大于0的alignment。手工内存管理（配合 C 的 `malloc` / `free` 等）时不能把`malloc(0)`结果当成可取址ZST place，需按4.7自行提供至少1 byte且满足alignment的token。
+- `T : value` 是布局查询的类型约束；含引用字段的值类型也可查询布局，不增加 GC-free 条件。泛型正文及默认值保留被查询的类型，单态化后按具体类型的实际布局求值。声明来自当前 Cone 或普通依赖时遵守相同规则。
 
 #### `FunPtr<F>`
 

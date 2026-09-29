@@ -25,6 +25,7 @@ impl Concretizer<'_> {
                     concrete::TypeKind::Struct(id) => concrete::MethodOwner::Struct(id),
                     concrete::TypeKind::Enum(id) => concrete::MethodOwner::Enum(id),
                     concrete::TypeKind::Interface(id) => concrete::MethodOwner::Interface(id),
+                    concrete::TypeKind::Ptr(_) => concrete::MethodOwner::TypeOwned(ty),
                     _ => unreachable!("an imported method has a nominal owner"),
                 };
                 FunctionKey::ImportedMethod {

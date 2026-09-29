@@ -223,12 +223,20 @@ impl Concretizer<'_> {
                 owner,
                 method_arguments,
                 ..
-            } => self
-                .concrete_method_owner_arguments(*owner)
-                .iter()
-                .chain(method_arguments)
-                .copied()
-                .collect(),
+            } => {
+                let owner_arguments = match owner {
+                    concrete::MethodOwner::TypeOwned(ty) => match &self.types[*ty].kind {
+                        concrete::TypeKind::Ptr(pointee) => std::slice::from_ref(pointee),
+                        _ => self.concrete_method_owner_arguments(*owner),
+                    },
+                    _ => self.concrete_method_owner_arguments(*owner),
+                };
+                owner_arguments
+                    .iter()
+                    .chain(method_arguments)
+                    .copied()
+                    .collect()
+            }
             FunctionKey::Method {
                 owner,
                 specialization,

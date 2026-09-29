@@ -62,9 +62,7 @@ impl Lowerer {
             let owner = self
                 .imported_member_owner_type(value.ty(), owner)
                 .expect("nominal member inference retains its declared owner application");
-            let (_, owner_arguments) = self.types[owner]
-                .imported_nominal_application()
-                .expect("nominal member inference retains its declared owner application");
+            let owner_arguments = self.imported_owner_arguments(owner);
             for (variable, argument) in session
                 .owner_variables(environment)
                 .to_vec()
@@ -119,6 +117,22 @@ impl Lowerer {
         let mut source_args = Vec::new();
         let mut argument_sinks = Vec::new();
         let mut integer_arguments = Vec::new();
+        let address_place =
+            if candidate.pointer_intrinsic() == Some(hir::PointerIntrinsic::AddressOf) {
+                let Some(source) = call.arguments.source(0) else {
+                    self.error(
+                        call.span,
+                        "`addressOf` requires an addressable source argument".into(),
+                    );
+                    return Err(Box::new(self));
+                };
+                match self.addressable_source_place(source) {
+                    Some(place) => Some(place),
+                    None => return Err(Box::new(self)),
+                }
+            } else {
+                None
+            };
         for (index, pattern) in source_patterns.iter().enumerate() {
             let partial = match self.solve_constraints_partially(&session, environment) {
                 Ok(partial) => partial,
@@ -146,7 +160,20 @@ impl Lowerer {
                 (!crate::call_resolution::type_contains_session_parameter(&self, &session, hint))
                     .then_some(hint);
             let mut sink = Vec::new();
-            let Some(value) = call.arguments.lower(index, &mut self, &mut sink, hint) else {
+            let value = if let Some((place, ty)) = address_place {
+                Some(hir::Expr {
+                    kind: match place {
+                        hir::Place::Local(local) => hir::ExprKind::Local(local),
+                        hir::Place::Global(global) => hir::ExprKind::GlobalRead(global),
+                    },
+                    ty,
+                    span: call.arguments.span(index),
+                    origin: self.expression_origin(call.arguments.span(index)),
+                })
+            } else {
+                call.arguments.lower(index, &mut self, &mut sink, hint)
+            };
+            let Some(value) = value else {
                 return Err(Box::new(self));
             };
             session.push(
@@ -229,31 +256,69 @@ impl Lowerer {
                 return Err(Box::new(self));
             }
         };
-        let arguments = match &template {
-            ImportedGenericTarget::Function(id)
-                if matches!(
-                    self.imported_generic_templates[*id].declaration,
-                    hir::ImportedCallableTemplateOrigin::Nominal { .. }
-                ) =>
-            {
-                hir::ImportedCallableArguments::Method {
-                    owner: self.instantiate_method_ty(
-                        signature.receiver.expect("a nominal method has an owner"),
-                        &bindings,
-                    ),
-                    method_arguments: solution.callable,
-                }
+        let implementation = if let Some(intrinsic) = candidate.pointer_intrinsic() {
+            if intrinsic == hir::PointerIntrinsic::Cast {
+                self.pointer_type_uses
+                    .push((result_type, self.current_file, call.span));
             }
-            _ => hir::ImportedCallableArguments::Function(
-                hir::NonEmptyVec::from_vec(solution.callable)
-                    .expect("a generic function or constructor has binders"),
-            ),
-        };
-        Ok(ImportedDependencyCallProbe {
-            implementation: ImportedCallImplementation::Generic {
+            let expression = match intrinsic {
+                hir::PointerIntrinsic::AddressOf => {
+                    let (place, ty) =
+                        address_place.expect("address intrinsic retains its source place");
+                    self.normalize_address_of(
+                        place,
+                        ty,
+                        solution.callable[0],
+                        call.arguments.span(0),
+                        call.span,
+                    )
+                }
+                hir::PointerIntrinsic::SizeOf | hir::PointerIntrinsic::AlignOf => {
+                    self.normalize_layout_intrinsic(intrinsic, solution.callable[0], call.span)
+                }
+                _ => None,
+            };
+            let operation = match intrinsic {
+                hir::PointerIntrinsic::AddressOf
+                | hir::PointerIntrinsic::SizeOf
+                | hir::PointerIntrinsic::AlignOf => match expression {
+                    Some(expression) => ImportedPointerCall::Expression(expression),
+                    None => return Err(Box::new(self)),
+                },
+                _ => ImportedPointerCall::Member(intrinsic),
+            };
+            ImportedCallImplementation::Intrinsic {
+                template,
+                operation,
+            }
+        } else {
+            let arguments = match &template {
+                ImportedGenericTarget::Function(id)
+                    if matches!(
+                        self.imported_generic_templates[*id].declaration,
+                        hir::ImportedCallableTemplateOrigin::Nominal { .. }
+                    ) =>
+                {
+                    hir::ImportedCallableArguments::Method {
+                        owner: self.instantiate_method_ty(
+                            signature.receiver.expect("a nominal method has an owner"),
+                            &bindings,
+                        ),
+                        method_arguments: solution.callable,
+                    }
+                }
+                _ => hir::ImportedCallableArguments::Function(
+                    hir::NonEmptyVec::from_vec(solution.callable)
+                        .expect("a generic function or constructor has binders"),
+                ),
+            };
+            ImportedCallImplementation::Generic {
                 template,
                 arguments,
-            },
+            }
+        };
+        Ok(ImportedDependencyCallProbe {
+            implementation,
             declaration_file: signature.origin.file as usize,
             declaration_span: signature.span,
             state: Box::new(self),
