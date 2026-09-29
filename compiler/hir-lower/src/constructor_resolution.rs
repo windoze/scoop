@@ -4,7 +4,7 @@ use scoop_hir as hir;
 use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::diagnostics::nominal_source_signature;
-use crate::call_resolution::specificity::NominalForwardingDeclaration;
+use crate::call_resolution::specificity::ApplicableDeclaration;
 use crate::expr::ResolvedCallTypeArgument;
 use crate::expr::{NominalArgumentInput, NominalArguments};
 use crate::{Lowerer, TypeId};
@@ -123,64 +123,20 @@ impl Lowerer {
         applicable: &[ApplicableConstructor],
         span: ast::Span,
     ) -> Option<usize> {
-        let mut forwards = vec![vec![false; applicable.len()]; applicable.len()];
-        for source in 0..applicable.len() {
-            for target in 0..applicable.len() {
-                forwards[source][target] = source == target
-                    || self.nominal_constructor_forwards(
-                        NominalForwardingDeclaration {
-                            view: &applicable[source].view,
-                            parameter_types: &applicable[source].parameter_types,
-                        },
-                        NominalForwardingDeclaration {
-                            view: &applicable[target].view,
-                            parameter_types: &applicable[target].parameter_types,
-                        },
-                    );
-            }
-        }
-        let mut pool = (0..applicable.len())
-            .filter(|&candidate| {
-                !(0..applicable.len()).any(|other| {
-                    other != candidate && forwards[other][candidate] && !forwards[candidate][other]
-                })
+        let declarations = applicable
+            .iter()
+            .map(|candidate| ApplicableDeclaration {
+                declaration: candidate.view.forwarding(&candidate.parameter_types),
+                parameterized: !candidate.view.owner_parameters.is_empty(),
+                defaults: candidate.argument_map.explicit_default_count(),
+                vararg: candidate
+                    .view
+                    .value_parameters
+                    .iter()
+                    .any(|parameter| parameter.is_vararg()),
             })
             .collect::<Vec<_>>();
-        let mutually_forwarding = pool.iter().all(|&source| {
-            pool.iter()
-                .all(|&target| forwards[source][target] && forwards[target][source])
-        });
-        if mutually_forwarding {
-            let minimum_defaults = pool
-                .iter()
-                .map(|&candidate| applicable[candidate].argument_map.explicit_default_count())
-                .min()
-                .expect("constructor MSC receives candidates");
-            pool.retain(|&candidate| {
-                applicable[candidate].argument_map.explicit_default_count() == minimum_defaults
-            });
-            if pool.len() > 1 {
-                let non_vararg = pool
-                    .iter()
-                    .copied()
-                    .filter(|&candidate| {
-                        !applicable[candidate]
-                            .view
-                            .value_parameters
-                            .iter()
-                            .any(|parameter| {
-                                matches!(
-                                    parameter.calling,
-                                    crate::defaults::SourceParameterCalling::Vararg { .. }
-                                )
-                            })
-                    })
-                    .collect::<Vec<_>>();
-                if !non_vararg.is_empty() {
-                    pool = non_vararg;
-                }
-            }
-        }
+        let pool = self.most_specific_declarations(&declarations);
         if let [winner] = pool.as_slice() {
             return Some(*winner);
         }

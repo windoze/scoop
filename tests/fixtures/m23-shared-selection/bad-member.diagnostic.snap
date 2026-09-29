@@ -1,0 +1,5 @@
+span=61..85
+expression=Host().ambiguous(42, 42)
+call to `ambiguous` is ambiguous in member layer:
+  - ambiguous(first: Int, second: Any, extra: Int): Int — applicable; tied by MSC
+  - ambiguous(first: Any, second: Int): Int — applicable; tied by MSC

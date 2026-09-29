@@ -1,0 +1,36 @@
+package consumer.selection
+
+import dependency.selection.Host
+import dependency.selection.GenericHost
+
+private class LocalHost() {
+    public fun choose(value: Any): Int = 1
+    public fun choose(value: Int): Int = value
+    public fun <T> prefer(value: T): Int = 1
+    public fun prefer(value: Any): Int = 42
+    public fun fewer(value: Int, extra: Int = 0): Int = 1
+    public fun fewer(value: Int): Int = value
+    public fun rest(vararg values: Int): Int = 1
+    public fun rest(value: Int): Int = value
+    public fun relay(): Int = choose(42)
+}
+
+private class LocalGenericHost<T>(public val value: T) {
+    public fun fewer(value: T, extra: Int = 0): Int = 1
+    public fun fewer(value: T): Int = 42
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    if (LocalGenericHost<T>(seed).fewer(seed) != 42) { return 1 }
+    return if (read(seed) == 42) { GenericHost<T>(seed).fewer(seed) } else { 2 }
+}
+
+public fun result(): Int {
+    val local = LocalHost()
+    val external = Host()
+    if (local.choose(42) != 42 || external.choose(42) != 42) { return 3 }
+    if (local.prefer(42) != 42 || external.prefer(42) != 42) { return 4 }
+    if (local.fewer(42) != 42 || external.fewer(42) != 42) { return 5 }
+    if (local.rest(42) != 42 || external.rest(42) != 42) { return 6 }
+    return if (local.relay() == 42) { external.relay() } else { 7 }
+}

@@ -34,6 +34,12 @@ pub(crate) struct ValueParameter {
     pub(crate) ty: hir::TypeId,
 }
 
+impl ValueParameter {
+    pub(crate) fn is_vararg(&self) -> bool {
+        matches!(self.calling, SourceParameterCalling::Vararg { .. })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ArgumentMode {
     Mixed,

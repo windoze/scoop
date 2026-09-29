@@ -1,0 +1,5 @@
+span=71..88
+expression=Ambiguous(42, 42)
+call to `Ambiguous` is ambiguous in exact import layer:
+  - Ambiguous(first: Int, second: Any, extra: Int): Ambiguous — applicable; tied by MSC
+  - Ambiguous(first: Any, second: Int): Ambiguous — applicable; tied by MSC

@@ -14,6 +14,9 @@ impl Collector<'_> {
             && let crate::SourceCallReceiver::Receiver { static_type } = receiver
         {
             self.add(*static_type)?;
+            if matches!(expression.kind, ExprKind::ImportedDependencyCall { .. }) {
+                self.dependency_receivers.insert(*static_type);
+            }
         }
         if let ExprKind::CallableCall { function_type, .. } = &expression.kind {
             self.function_type(*function_type)?;

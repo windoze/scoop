@@ -1,0 +1,5 @@
+span=187..211
+expression=Host().ambiguous(42, 42)
+call to `ambiguous` is ambiguous in member candidate layer:
+  - fun Host.ambiguous(first: Int, second: Any, extra: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int
+  - fun Host.ambiguous(first: Any, second: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int

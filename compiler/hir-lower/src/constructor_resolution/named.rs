@@ -29,12 +29,7 @@ impl NamedNominalProbe {
             .view
             .value_parameters
             .iter()
-            .any(|parameter| {
-                matches!(
-                    parameter.calling,
-                    crate::defaults::SourceParameterCalling::Vararg { .. }
-                )
-            })
+            .any(|parameter| parameter.is_vararg())
     }
     pub(crate) fn source_argument_integer(&self, index: usize) -> Option<hir::IntegerKind> {
         match self.candidate.state.types[self.candidate.inferred.args[index].ty] {

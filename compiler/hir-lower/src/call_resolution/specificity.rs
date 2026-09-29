@@ -6,22 +6,11 @@ use super::candidates::{CallableView, NominalConstructorView};
 use super::constraints::{Constraint, ConstraintOrigin, InferenceSession, TypeTerm};
 use crate::Lowerer;
 
+mod selection;
+pub(crate) use selection::ApplicableDeclaration;
+
 #[cfg(test)]
 mod tests;
-
-#[derive(Clone, Copy)]
-pub(crate) struct ForwardingDeclaration<'a> {
-    pub(crate) view: &'a CallableView,
-    /// The complete M16 forwarding list. Extension receivers are prepended by
-    /// the caller; ordinary receivers never enter MSC.
-    pub(crate) parameter_types: &'a [hir::TypeId],
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct NominalForwardingDeclaration<'a> {
-    pub(crate) view: &'a NominalConstructorView,
-    pub(crate) parameter_types: &'a [hir::TypeId],
-}
 
 /// Declaration binders and the mapped source-input types used by MSC.
 /// Owner and callable groups remain distinct; no callable identity is needed
@@ -82,22 +71,30 @@ impl<'a> DeclarationForwardingView<'a> {
     }
 }
 
-impl<'a> From<ForwardingDeclaration<'a>> for DeclarationForwardingView<'a> {
-    fn from(declaration: ForwardingDeclaration<'a>) -> Self {
-        Self {
-            owner_parameters: &declaration.view.owner_parameters,
-            callable_parameters: &declaration.view.callable_parameters,
-            parameter_types: declaration.parameter_types,
+impl CallableView {
+    /// The mapped declaration parameters include an extension receiver, but
+    /// never an ordinary instance receiver or inferred call-site arguments.
+    pub(crate) fn forwarding<'a>(
+        &'a self,
+        parameter_types: &'a [hir::TypeId],
+    ) -> DeclarationForwardingView<'a> {
+        DeclarationForwardingView {
+            owner_parameters: &self.owner_parameters,
+            callable_parameters: &self.callable_parameters,
+            parameter_types,
         }
     }
 }
 
-impl<'a> From<NominalForwardingDeclaration<'a>> for DeclarationForwardingView<'a> {
-    fn from(declaration: NominalForwardingDeclaration<'a>) -> Self {
-        Self {
-            owner_parameters: &declaration.view.owner_parameters,
+impl NominalConstructorView {
+    pub(crate) fn forwarding<'a>(
+        &'a self,
+        parameter_types: &'a [hir::TypeId],
+    ) -> DeclarationForwardingView<'a> {
+        DeclarationForwardingView {
+            owner_parameters: &self.owner_parameters,
             callable_parameters: &[],
-            parameter_types: declaration.parameter_types,
+            parameter_types,
         }
     }
 }
@@ -109,22 +106,6 @@ impl Lowerer {
     /// state. Both target groups receive fresh variables. The comparison thus
     /// depends only on declarations, never on the current call's inferred
     /// concrete arguments (including receiver owner arguments).
-    pub(crate) fn callable_forwards(
-        &self,
-        source: ForwardingDeclaration<'_>,
-        target: ForwardingDeclaration<'_>,
-    ) -> bool {
-        self.declaration_forwards(source.into(), target.into())
-    }
-
-    pub(crate) fn nominal_constructor_forwards(
-        &self,
-        source: NominalForwardingDeclaration<'_>,
-        target: NominalForwardingDeclaration<'_>,
-    ) -> bool {
-        self.declaration_forwards(source.into(), target.into())
-    }
-
     pub(crate) fn declaration_forwards(
         &self,
         source: DeclarationForwardingView<'_>,

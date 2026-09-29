@@ -270,7 +270,7 @@ impl crate::Output {
             _ => return Err(HirOutputError::OutputKindMismatch),
         }
         let types = local
-            .materialized_application_type_closure()
+            .shared_declaration_type_closure()
             .map_err(HirOutputError::MaterializedTypes)?;
         if let Some(shared_source) = export
             .shared_source

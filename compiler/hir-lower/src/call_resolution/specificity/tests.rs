@@ -63,14 +63,8 @@ fn cross_kind_forwarding_keeps_source_parameters_rigid_and_state_unchanged() {
     let function = callable(Vec::new(), Vec::new(), Vec::new(), state.unit);
     let source_types = [owner_ty];
     let target_types = [integer];
-    let source = DeclarationForwardingView::from(NominalForwardingDeclaration {
-        view: &generic_constructor,
-        parameter_types: &source_types,
-    });
-    let target = DeclarationForwardingView::from(ForwardingDeclaration {
-        view: &function,
-        parameter_types: &target_types,
-    });
+    let source = generic_constructor.forwarding(&source_types);
+    let target = function.forwarding(&target_types);
     let types_before = state.types.len();
     for _ in 0..2 {
         assert!(
@@ -105,14 +99,8 @@ fn owner_and_callable_binders_do_not_collapse_across_constructor_comparison() {
     let target_types = [target_ty, target_ty];
     let function = callable(vec![owner], vec![method], Vec::new(), state.unit);
     let nominal = constructor(vec![target_owner], Vec::new(), state.unit);
-    let source = DeclarationForwardingView::from(ForwardingDeclaration {
-        view: &function,
-        parameter_types: &source_types,
-    });
-    let target = DeclarationForwardingView::from(NominalForwardingDeclaration {
-        view: &nominal,
-        parameter_types: &target_types,
-    });
+    let source = function.forwarding(&source_types);
+    let target = nominal.forwarding(&target_types);
     assert_eq!(source.owner_parameters.len(), 1);
     assert_eq!(source.callable_parameters.len(), 1);
     assert_eq!(target.owner_parameters.len(), 1);
@@ -139,37 +127,17 @@ fn cross_kind_forwarding_checks_both_source_and_target_kind_bounds() {
     let target_types = [state.intern_type(Type::Param(target_parameter.id))];
     let source = constructor(vec![source_parameter], Vec::new(), state.unit);
     let mut target = callable(Vec::new(), vec![target_parameter], Vec::new(), state.unit);
-    assert!(
-        !state.declaration_forwards(
-            NominalForwardingDeclaration {
-                view: &source,
-                parameter_types: &source_types
-            }
-            .into(),
-            ForwardingDeclaration {
-                view: &target,
-                parameter_types: &target_types
-            }
-            .into()
-        )
-    );
+    assert!(!state.declaration_forwards(
+        source.forwarding(&source_types),
+        target.forwarding(&target_types)
+    ));
     target.callable_parameters[0].bounds = hir::TypeParamBounds::Value {
         span: ast::Span::new(0, 0),
     };
-    assert!(
-        state.declaration_forwards(
-            NominalForwardingDeclaration {
-                view: &source,
-                parameter_types: &source_types
-            }
-            .into(),
-            ForwardingDeclaration {
-                view: &target,
-                parameter_types: &target_types
-            }
-            .into()
-        )
-    );
+    assert!(state.declaration_forwards(
+        source.forwarding(&source_types),
+        target.forwarding(&target_types)
+    ));
 }
 
 #[test]
@@ -183,28 +151,19 @@ fn fixed_application_parameter_types_are_not_replaced_by_generic_owner_binders()
     let function = callable(Vec::new(), Vec::new(), Vec::new(), state.unit);
     let generic_types = [template_type];
     let fixed_types = [integer];
-    let function = ForwardingDeclaration {
-        view: &function,
-        parameter_types: &fixed_types,
-    };
-    let generic = NominalForwardingDeclaration {
-        view: &generic,
-        parameter_types: &generic_types,
-    };
-    let fixed = NominalForwardingDeclaration {
-        view: &fixed,
-        parameter_types: &fixed_types,
-    };
-    assert!(!state.declaration_forwards(generic.into(), function.into()));
-    assert!(state.declaration_forwards(fixed.into(), function.into()));
-    assert!(state.declaration_forwards(function.into(), fixed.into()));
+    let function = function.forwarding(&fixed_types);
+    let generic = generic.forwarding(&generic_types);
+    let fixed = fixed.forwarding(&fixed_types);
+    assert!(!state.declaration_forwards(generic, function));
+    assert!(state.declaration_forwards(fixed, function));
+    assert!(state.declaration_forwards(function, fixed));
     assert!(
         !state.declaration_forwards(
             DeclarationForwardingView {
                 parameter_types: &[],
-                ..fixed.into()
+                ..fixed
             },
-            function.into()
+            function
         ),
         "source arity is checked before constraint solving"
     );
@@ -274,20 +233,10 @@ fn callable_and_constructor_mappings_share_default_and_named_source_order() {
         assert_eq!(nominal_types, expected);
         assert_eq!(function_map.explicit_default_count(), defaults);
         assert_eq!(nominal_map.explicit_default_count(), defaults);
-        assert!(
-            state.declaration_forwards(
-                ForwardingDeclaration {
-                    view: &function,
-                    parameter_types: &function_types
-                }
-                .into(),
-                NominalForwardingDeclaration {
-                    view: &nominal,
-                    parameter_types: &nominal_types
-                }
-                .into()
-            )
-        );
+        assert!(state.declaration_forwards(
+            function.forwarding(&function_types),
+            nominal.forwarding(&nominal_types)
+        ));
     }
 }
 

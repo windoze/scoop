@@ -279,6 +279,8 @@ M23把import层具体化为typed binding source。无显式receiver的顺序为l
 
 调用与值构造的泛型推导对整组已映射实参执行constraint固定点求解，不得按从左到右的一次遍历决定成败。constraint递归穿过invariant nominal application与function type variance，并同时检查kind/class/interface bound；显式`_`只创建与整组省略时相同的candidate-local fresh variable。lambda、callable reference、裸enum variant（包括`None`）、空数组及依赖expected type的嵌套构造可以postpone到其他约束推进后检查。MSC使用与本次actual inference隔离的pairwise fresh-variable forwarding system，不能比较两个候选已经推断出的concrete arguments。solver内部可以暂存未固定变量，但winner commit必须原子地产生全部concrete arguments、完整实参映射、coercion和唯一typed target；未解、多解或bound失败只能形成HIR诊断/候选失败，不能输出给下游补齐。
 
+普通函数、成员、混合 function-like 分区及 constructor delegation 共用同一 MSC 集合筛选。每次比较只读取完整声明 binder、映射后的声明参数类型，以及本次是否参数化、实际默认值数量和 vararg 信息；目标身份、诊断位置与提交动作留在原候选上。先按声明转发关系排除被严格支配者，再保留非参数化候选；默认值数量与 vararg 优先只作用于互相可转发的剩余集合。来源和声明种类不能另行实现这些优先规则，诊断排序及既有整数字面量默认类型偏好在共同筛选之后处理。
+
 当前与依赖泛型调用进入同一完整决议过程，按已完成的源码实参映射维护待检查输入，共用上下文依赖分类、partial constraint solver、默认类型种子顺序及 winner 提交；不能在导入路径另行组织推断。先收集不依赖期望类型的实参，再反复检查已有完整 hint 的输入；没有进展时，事务性尝试可独立推断的输入，成功后继续传播，全部失败时保留实际失败位置。宿主与 callable 参数仍分组，调用方已解析的外层 binder 可作为 hint，只有本候选尚未解出的变量需要等待。裸名称与限定名称的外来泛型 unit variant 从实际声明识别上下文需求，固定 typealias 的完整 application 不因原 owner 含 binder 而被重新视为待推断。每项成功输入只保留一份表达式和独立 sink，按原源码索引交给普通求值／参数物化；`addressOf` 保持在创建参数临时值之前解析的实际 place。模板、实例化输出与 ABI 不增加推断状态。
 
 M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR按候选分别映射而不先公共重排。目标选定后，receiver先求值，所有显式实参各自保存独立desugaring sink并按源码顺序拼接；随后按形参声明顺序构造vararg值及实例化实际使用的缺省表达式，最后才产生按形参顺序排列的call arguments。类型检查/constraint求解顺序不得改变这套运行期顺序。若这些temporary/sink位于`while`条件，HIR必须把它们保存在随条件重复执行的typed condition-setup区域，MIR在每次条件检查前执行该区域；不得把它提升到循环外，也不得因sink非空而拒绝普通调用或空安全脱糖。跨挂起点存活的已求值显式实参和部分物化参数使用普通M10 frame规则，不能在恢复后重新求值。
@@ -1114,7 +1116,7 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 
 本节消费 [M23-6a 设计](../milestone23/stage6a/DESIGN.md) 与 2.2 节的共同 HIR 合同，并与 [M23-7 设计](../milestone23/stage7/DESIGN.md) 规定其后的机器定义、ODR 与委托运行闭环；6a 待实现，Stage 7 保留已有实现进度。语言行为沿用语言规范 3.2、8.5、9.1.1、9.2、12.5，runtime 沿用运行时规范 2.2、2.7、2.8。共同类型、查询、正文、参数推断和具体化由 6a 收敛，本节不再安排导入专用语义；ODR 仍比较实际重复 member，同组独立成员允许并集。
 
-SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出支持闭包，并独立收集实际物化需求；二者通过 6a 的共同查询连接，不用导出可见集合替代机器根。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 及实际导出的泛型成员的 receiver、参数和结果类型出发，沿其表示依赖收集属于当前 Cone 的源码名义声明，补入同一支持集合，并沿已有声明、字段、成员与模板引用闭合；普通函数正文中用于泛型 payload 或共有成员 ABI 的私有类型因而具有完整的共有表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，已完成的不可变结果供 HIR 类型语义、MIR/LIR 布局及共有 section 复用。新增支持保留原 typed identity 和声明可见性，不产生 public binding，也不把所有本地私有物理声明、未调用模板、未求值默认值或整个类型 arena 当成共有机器根。该数据投影不新增产物字段或来源资格。
+SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出支持闭包，并独立收集实际物化需求；二者通过 6a 的共同查询连接，不用导出可见集合替代机器根。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application、实际导出的泛型成员的 receiver、参数和结果类型，以及普通依赖调用的静态 receiver 出发，沿其表示依赖收集属于当前 Cone 的源码名义声明，补入同一支持集合，并沿已有声明、字段、成员与模板引用闭合；普通函数正文中用于泛型 payload、共有成员 ABI 或依赖成员接收者关系的私有类型因而具有完整的共有声明与继承依赖。实际接收者与其他物化类型在同一次表达式遍历中收集，不从未执行模板或类型 arena 猜测调用需求。只有支持根增加时才扩展源码投影及对应的 shape support plan，已完成的不可变结果供 HIR 类型语义、MIR/LIR 布局及共有 section 复用。新增支持保留原 typed identity 和声明可见性，不产生 public binding，也不把所有本地私有物理声明、未调用模板、未求值默认值或整个类型 arena 当成共有机器根。该数据投影不新增产物字段或来源资格。
 
 共有 HIR 的 generic callable body、constructor/common initialization、默认值、普通函数和 generic delegate initializer 使用 6a 的同一正文结构。声明、binder、字段和定义位置按原身份查询；正文保留已选 typed target、符号化实参、bound、局部值／capture、control flow 和必要条件。Export HIR 只选择必需记录，不保存 AST、未解析名称、上游 LocalConcrete 实例或另一套语义检查结果。默认值和泛型正文根仍遵守各自访问规则；前端完成定义处语言分析，reader 检查新输入的格式、类型连接、binder/owner 和引用。局部值与捕获保持原正文／词法作用域，消费方直接查询共同正文，不重建 imported template。历史 `/31`–`/40` 编码迁移按 Stage 7 第 10 节保留记录；共同模型实际改变 bytes 时由 6a 升级对应格式，不能依赖旧编号强制保留平行实现。
 

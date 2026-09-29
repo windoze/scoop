@@ -1,0 +1,5 @@
+span=173..190
+expression=Ambiguous(42, 42)
+call to `Ambiguous` is ambiguous in current package layer:
+  - class Ambiguous(first: Int, second: Any, extra: Int) — applicable; tied by MSC
+  - class Ambiguous(first: Any, second: Int) — applicable; tied by MSC

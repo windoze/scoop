@@ -197,44 +197,19 @@ impl Lowerer {
             .iter()
             .map(|probe| probe.forwarding(&mut comparison))
             .collect::<Vec<_>>();
-        let mut forwards = vec![vec![false; probes.len()]; probes.len()];
-        for (source, row) in forwards.iter_mut().enumerate() {
-            for (target, value) in row.iter_mut().enumerate() {
-                *value = source == target
-                    || comparison.declaration_forwards(
-                        declarations[source].as_view(),
-                        declarations[target].as_view(),
-                    );
-            }
-        }
-        let mut pool = (0..probes.len())
-            .filter(|&candidate| {
-                !(0..probes.len()).any(|other| {
-                    other != candidate && forwards[other][candidate] && !forwards[candidate][other]
-                })
-            })
-            .collect::<Vec<_>>();
-        if pool
+        let candidates = probes
             .iter()
-            .any(|&candidate| !probes[candidate].parameterized())
-        {
-            pool.retain(|&candidate| !probes[candidate].parameterized());
-        }
-        let mutually_forwarding = pool.iter().all(|&source| {
-            pool.iter()
-                .all(|&target| forwards[source][target] && forwards[target][source])
-        });
-        if mutually_forwarding
-            && let Some(defaults) = pool
-                .iter()
-                .map(|&candidate| probes[candidate].defaults())
-                .min()
-        {
-            pool.retain(|&candidate| probes[candidate].defaults() == defaults);
-            if pool.iter().any(|&candidate| !probes[candidate].vararg()) {
-                pool.retain(|&candidate| !probes[candidate].vararg());
-            }
-        }
+            .zip(&declarations)
+            .map(
+                |(probe, declaration)| super::specificity::ApplicableDeclaration {
+                    declaration: declaration.as_view(),
+                    parameterized: probe.parameterized(),
+                    defaults: probe.defaults(),
+                    vararg: probe.vararg(),
+                },
+            )
+            .collect::<Vec<_>>();
+        let mut pool = comparison.most_specific_declarations(&candidates);
         let ordinary = pool.clone();
         pool.retain(|&candidate| {
             !ordinary.iter().any(|&other| {

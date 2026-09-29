@@ -1,0 +1,5 @@
+span=156..173
+expression=ambiguous(42, 42)
+call to `ambiguous` is ambiguous in current-unit top-level candidate layer:
+  - fun ambiguous(first: Int, second: Any, extra: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int
+  - fun ambiguous(first: Any, second: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int

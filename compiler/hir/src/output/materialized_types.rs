@@ -15,11 +15,11 @@ impl LocalConcreteHirOutput {
     /// semantic children. The complete identity arena is only a lookup table;
     /// unrelated source metadata and intrinsic declarations are not roots.
     pub fn materialized_type_closure(&self) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
-        let mut collector = Collector {
-            module: self.module(),
-            seen: BTreeSet::new(),
-            pending: Vec::new(),
-        };
+        self.materialized_types()?.into_types()
+    }
+
+    fn materialized_types(&self) -> Result<Collector<'_>, MaterializedTypeClosureError> {
+        let mut collector = Collector::new(self.module());
         collector.roots(self)?;
         self.module()
             .visit_executable_expressions(|occurrence| collector.expression(occurrence.expression))
@@ -29,25 +29,23 @@ impl LocalConcreteHirOutput {
                 }
                 ExecutableExpressionVisitError::Visitor(error) => error,
             })?;
-        collector.finish()
+        collector.close()
     }
 
-    /// Shared generic representations and member ABIs need their actual
-    /// type declarations; unrelated private declarations remain local.
-    pub(crate) fn materialized_application_type_closure(
+    /// Shared representations, member ABIs and dependency receiver relations
+    /// need actual declarations; unrelated private declarations remain local.
+    pub(crate) fn shared_declaration_type_closure(
         &self,
     ) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
-        let mut collector = Collector {
-            module: self.module(),
-            seen: BTreeSet::new(),
-            pending: Vec::new(),
-        };
-        for ty in self.materialized_type_closure()? {
-            if self
-                .module()
-                .exact_type_identities
-                .nominal_specialization(ty)
-                .is_some()
+        let materialized = self.materialized_types()?;
+        let mut collector = Collector::new(self.module());
+        for ty in materialized.seen {
+            if materialized.dependency_receivers.contains(&ty)
+                || self
+                    .module()
+                    .exact_type_identities
+                    .nominal_specialization(ty)
+                    .is_some()
             {
                 collector.add(ty)?;
             }
@@ -67,7 +65,7 @@ impl LocalConcreteHirOutput {
                 collector.signature(function)?;
             }
         }
-        collector.finish()
+        collector.close()?.into_types()
     }
 }
 
@@ -75,13 +73,27 @@ struct Collector<'a> {
     module: &'a Module,
     seen: BTreeSet<TypeId>,
     pending: Vec<TypeId>,
+    dependency_receivers: BTreeSet<TypeId>,
 }
 
-impl Collector<'_> {
-    fn finish(mut self) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
+impl<'a> Collector<'a> {
+    fn new(module: &'a Module) -> Self {
+        Self {
+            module,
+            seen: BTreeSet::new(),
+            pending: Vec::new(),
+            dependency_receivers: BTreeSet::new(),
+        }
+    }
+
+    fn close(mut self) -> Result<Self, MaterializedTypeClosureError> {
         while let Some(ty) = self.pending.pop() {
             self.children(ty)?;
         }
+        Ok(self)
+    }
+
+    fn into_types(self) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
         let mut result = Vec::new();
         scoop_wire::allocation::try_reserve(&mut result, self.seen.len(), &WirePath::root())?;
         result.extend(self.seen);

@@ -30,11 +30,7 @@ impl NamedCallableProbe {
     pub(crate) fn forwarding(
         &self,
     ) -> crate::call_resolution::specificity::DeclarationForwardingView<'_> {
-        crate::call_resolution::specificity::ForwardingDeclaration {
-            view: &self.prepared.view,
-            parameter_types: &self.prepared.params,
-        }
-        .into()
+        self.prepared.view.forwarding(&self.prepared.params)
     }
 
     pub(crate) fn parameterized(&self) -> bool {
@@ -50,12 +46,11 @@ impl NamedCallableProbe {
     }
 
     pub(crate) fn vararg(&self) -> bool {
-        self.prepared.view.value_parameters.iter().any(|parameter| {
-            matches!(
-                parameter.calling,
-                crate::defaults::SourceParameterCalling::Vararg { .. }
-            )
-        })
+        self.prepared
+            .view
+            .value_parameters
+            .iter()
+            .any(|parameter| parameter.is_vararg())
     }
 
     pub(crate) fn source_argument_integer(&self, index: usize) -> Option<hir::IntegerKind> {
