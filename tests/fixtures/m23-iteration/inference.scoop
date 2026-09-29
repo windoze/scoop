@@ -15,7 +15,7 @@ private fun <T> readBase(value: Reader<T>): T = value.read()
 private fun <T, R: BothReader<T>> readBound(value: R): T = readBase(value)
 
 public fun <T> exercise(seed: T, read: (T) -> Int): Int {
-    val value: T = readBound(Holder<T>(seed))
+    val value = readBound(Holder<T>(seed))
     return boundTotal(Cursor<T>([value]), read)
 }
 

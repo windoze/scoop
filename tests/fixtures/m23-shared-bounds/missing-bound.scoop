@@ -1,0 +1,3 @@
+import upstream.sharedbounds.readBound
+
+public fun <R> invalid(value: R): Int = readBound(value)

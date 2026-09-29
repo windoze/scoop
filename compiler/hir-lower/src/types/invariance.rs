@@ -1,21 +1,5 @@
 use super::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NominalTemplate {
-    Imported(hir::SourceNominalId),
-    Struct(hir::StructId),
-    Class(hir::ClassId),
-    Enum(hir::EnumId),
-    Interface(hir::InterfaceId),
-}
-
-#[derive(Debug, Clone)]
-struct NominalApplication {
-    ty: TypeId,
-    template: NominalTemplate,
-    arguments: Vec<TypeId>,
-}
-
 impl Lowerer {
     /// Add the source-level explanation for the otherwise easy-to-misread
     /// `G<S>` versus `G<T>` mismatch. The source application may be reached
@@ -65,52 +49,6 @@ impl Lowerer {
             pending.extend(self.direct_nominal_supertypes(ty));
         }
         None
-    }
-
-    fn nominal_application(&self, ty: TypeId) -> Option<NominalApplication> {
-        if let Some((declaration, arguments)) = self.types[ty].imported_nominal_application() {
-            return Some(NominalApplication {
-                ty,
-                template: NominalTemplate::Imported(declaration.owner()),
-                arguments: arguments.to_vec(),
-            });
-        }
-        let (template, arguments) = match self.types[ty] {
-            Type::Struct(application) => {
-                let application = &self.struct_applications[application];
-                (
-                    NominalTemplate::Struct(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            Type::Class(application) => {
-                let application = &self.class_applications[application];
-                (
-                    NominalTemplate::Class(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            Type::Enum(application) => {
-                let application = &self.enum_applications[application];
-                (
-                    NominalTemplate::Enum(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            Type::Interface(application) => {
-                let application = &self.interface_applications[application];
-                (
-                    NominalTemplate::Interface(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            _ => return None,
-        };
-        Some(NominalApplication {
-            ty,
-            template,
-            arguments,
-        })
     }
 
     fn nominal_template_name(&self, template: NominalTemplate) -> &str {

@@ -70,11 +70,13 @@ mod interning;
 mod invariance;
 mod kinds;
 mod layout_cycles;
+mod nominal;
 mod qualified;
 mod relations;
 mod resolution;
 mod substitution;
 
+pub(crate) use nominal::NominalTemplate;
 pub(crate) use qualified::TypeQualifier;
 
 fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {

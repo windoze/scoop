@@ -21,6 +21,7 @@ mod publication;
 mod qualified_types;
 mod reexported_namespaces;
 mod references;
+mod shared_bounds;
 mod siblings;
 
 #[test]

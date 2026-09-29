@@ -1,0 +1,3 @@
+span=59..114
+expression=readBound<Int, Holder<String>>(Holder<String>("wrong"))
+dependency function `readBound`: conflicting types for `T`: Int and String

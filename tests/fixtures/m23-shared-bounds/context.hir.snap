@@ -1,0 +1,77 @@
+Module
+  fun observe(value: Any): Int
+    return
+      IntegerLiteral 42 : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local4
+      Box : Any
+        Local seed : T0
+    val local2
+      Box : Any
+        Local seed : T0
+    val local3
+      Local $dependency.argument.0 : Any
+    val local5
+      ImportedConstructorInit Holder : Holder<Any>
+        Local $dependency.parameter.value : Any
+    val local6
+      Local $dependency.argument.0 : Any
+    val local7
+      Local $dependency.argument.1 : Holder<Any>
+    val local8
+      ImportedGenericCall choose<Any, Holder<Any>> : Any
+        Local $dependency.parameter.value : Any
+        Local $dependency.parameter.source : Holder<Any>
+    val local9
+      Local widened : Any
+    val local10
+      Local $argument.0 : Any
+    val local11
+      Call observe : Int
+        Local $parameter.value : Any
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local14
+      Local seed : T0
+    val local15
+      Local $dependency.argument.0 : T0
+    val local16
+      ImportedConstructorInit Holder : Holder<T0>
+        Local $dependency.parameter.value : T0
+    val local17
+      Local source : Holder<T0>
+    val local18
+      Lambda lambda0 invoke=$lambda.0 captures=1 : (T0) -> Int
+        capture read binding2 : (T0) -> Int
+    val local19
+      Local $dependency.argument.0 : Holder<T0>
+    val local20
+      Local $dependency.argument.1 : (T0) -> Int
+    return
+      ImportedGenericCall delayed<T0, Holder<T0>> : Int
+        Local $dependency.parameter.source : Holder<T0>
+        Local $dependency.parameter.read : (T0) -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

@@ -1,0 +1,14 @@
+package consumer.sharedbounds
+
+import upstream.sharedbounds.*
+
+private fun observe(value: Any): Int = 42
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val widened = choose(seed, Holder<Any>(seed))
+    if (observe(widened) != 42) { return 1 }
+    val source = Holder<T>(seed)
+    return delayed(source, { value -> read(value) })
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })
