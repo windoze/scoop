@@ -1,0 +1,43 @@
+Module
+  fun localSelect<T>(value: T0): Int
+    return
+      IntegerLiteral 1 : Int
+  fun localPrefer<T>(value: T0): Int
+    return
+      IntegerLiteral 2 : Int
+  fun exercise<T>(value: T0): Int
+    val local1
+      CallableReference reference0 target=imported select captures=0 : ((T0, Int)) -> Int
+    val local2
+      CallableReference reference1 target=dependency #0 captures=0 : (Int) -> Int
+    val local3
+      CallableCall function_type0 : Int
+        Local selected : ((T0, Int)) -> Int
+        TupleLiteral : (T0, Int)
+          Local value : T0
+          IntegerLiteral 0 : Int
+    val local4
+      IntegerLiteral 42 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    return
+      CallableCall function_type1 : Int
+        Local preference : (Int) -> Int
+        IntegerLiteral 0 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

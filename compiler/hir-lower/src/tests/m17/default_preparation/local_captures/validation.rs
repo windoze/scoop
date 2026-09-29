@@ -67,7 +67,9 @@ fn repeated_bound_receivers_reject_conflicting_definition_origins() {
     let output = lower_source("public fun String.copy(): String = this\npublic fun callback(seed: String, value: () -> String = seed::copy): () -> String = value\nfun main() { callback(\"first\"); callback(\"second\") }").unwrap();
     rebuild(&output, &output.local.functions).unwrap();
     let mut references = output.local.callable_references.clone();
+    let identity = references.iter().next().unwrap().1.identity.clone();
     let (second, _) = references.iter().nth(1).unwrap();
+    references[second].identity = identity;
     references[second].origin.span.start += 1;
     let mut input = inputs(&output, &output.local.functions);
     input.callable_references = &references;

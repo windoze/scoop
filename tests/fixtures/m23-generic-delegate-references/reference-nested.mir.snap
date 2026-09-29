@@ -12,7 +12,7 @@ Module
   closure cc2 $Closure$reference1 type=function_type0 invoke=@fn9 captures=1
   generated_exact_type get0 location=closure1 nominal_id=f9d7c1eb68e96c526ecbb540db24b50ba692d8dbcd57b3ccf37206a319025c12 exact_id=63c16a60f5e7f81f9fc7715ed5def55c7d30305808cb6b1ad32e8bfc48f3df6d
   generated_exact_type get1 location=closure0 nominal_id=6585a5c5e788f10b4e8dfe284a4f6798ddb41b6215dcf4b6ee1f0068d2786f9a exact_id=6d5169c653d19fb18ea596798352361e84cfb02af914e55c05a3e44be28cb573
-  generated_exact_type get2 location=closure2 nominal_id=b5a8451a3eca433160bd4f1c3402260db6237c1820301007a7ca804e5567e268 exact_id=df00e2d9cda011846e8b993c85e517f4cc086200a67ae420f195da3f8e8ce575
+  generated_exact_type get2 location=closure2 nominal_id=a17445cdae2a055799caeecd9a80c2aaaee6b12b296382ed192eaf8234dc86f6 exact_id=f819a38780d5a73076d2720b5000560246125d8ecd2cafab4eab10e6762d6935
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int

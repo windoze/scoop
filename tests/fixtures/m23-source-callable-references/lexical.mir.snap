@@ -1,0 +1,181 @@
+Module
+  class Plain vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type1 invoke=@fn3 captures=2
+  closure cc1 $Closure$anonymous0 type=function_type1 invoke=@fn4 captures=1
+  closure cc2 $Closure$reference0 type=function_type0 invoke=@fn7 captures=0
+  closure cc3 $Closure$reference1 type=function_type1 invoke=@fn8 captures=1
+  closure cc4 $Closure$reference2 type=function_type1 invoke=@fn9 captures=1
+  closure cc5 $Closure$reference3 type=function_type0 invoke=@fn10 captures=0
+  generated_exact_type get0 location=closure4 nominal_id=bbb1b0f1668d27e5ac6673601d70fc024b346c3ae787aefade4c0c5f200abf63 exact_id=0166147cd2dfccd20fe90d3e3ba3e59d5a0c44439366bcc8eb9032e5729e70a2
+  generated_exact_type get1 location=closure0 nominal_id=0099ffbabf35491dfa3b5b0dc348803a590b7af0734720e9c62dd73f88be97fc exact_id=394ae520f02dfa4e4e13349d289428564d5a0750414a1afe2d7b5c5b3a55ff8d
+  generated_exact_type get2 location=closure1 nominal_id=abfaf805cfa535a6cd9224914b014d43c0dce028031ec0d38f3cdc614d85e1d5 exact_id=7843270137ba942b0949dc125444ca2407d43ab64c19f54b9d47799be1e1d2e7
+  generated_exact_type get3 location=closure3 nominal_id=adc6bd3d5022419d1cd978e99550bd2663dba0a86e52c6c50ff73a3f420421f6 exact_id=9ce0616ed05a5e194a74cf43d1d2b2fe2fc07936bfddfe8e4f2e521282950074
+  generated_exact_type get4 location=closure5 nominal_id=c37771d5d0187846a5b7fac356dd595f67e5ad495aedb0c771cc3f32ca5cab32 exact_id=ad450a687a7ff78a36f2a0cd9715d79f1a0bcf83edfabc2dca2081ddafc3f26d
+  generated_exact_type get5 location=closure2 nominal_id=62c919fffe049e2c373f29ddd314fcb169a6f32fea9bcb63aaf104b9a9b811ad exact_id=edf4e6d9f1fc7f49cc77039d624e7975c92044fe1eb33c23f620180032754d89
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val copy: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$reference0
+      val invoke: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=1
+            Type (Int) -> Int
+            Local copy
+          CaptureInit field=0
+            Type Int
+            Local value
+      val invokeAgain: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$anonymous0
+          CaptureInit field=0
+            Type () -> Int
+            Local invoke
+      call $call.1: (Int) -> Int = @fn5 direct
+      call $call.2: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local invokeAgain
+      call copied: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $call.1
+        Type Int
+        Local $call.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.3
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.number
+      val member: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$reference1
+          CaptureInit field=0
+            Type Plain
+            Local $new.3
+      val call: () -> Int
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$reference2
+          CaptureInit field=0
+            Type () -> Int
+            Local member
+      val values: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local value
+          Type Int
+          Local copied
+      call $call.4: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local call
+      return
+        Type Int
+        Local $call.4
+  fun identity @fn2(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $lambda.0 @fn3($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        ClosureCapture cc0 1
+          Type () -> Int
+          Local $closure
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $anonymous.0 @fn4($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $local.0.make @fn5() -> (Int) -> Int
+    bb0 entry
+      return
+        Type (Int) -> Int
+        ClosureAlloc cc5 $Closure$reference3
+  fun $local.1.read @fn6($capture.member: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local $capture.member
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn7($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn8($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external1 direct
+        Type Plain
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn9($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type () -> Int
+        ClosureCapture cc4 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.3 @fn10($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- identity
+  instance mi2 function=@fn3 <- $lambda.0
+  instance mi3 function=@fn4 <- $anonymous.0
+  instance mi4 function=@fn5 <- $local.0.make
+  instance mi5 function=@fn6 <- $local.1.read
+  output library

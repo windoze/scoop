@@ -13,20 +13,32 @@ impl Lowerer {
         let hir::FunctionKind::User(body) = &function.kind else {
             unreachable!("only user functions have MIR bodies")
         };
-        let current_local_capture_params = function
+        let current_closure = self.closure_by_function.get(&hir_id).copied();
+        let mut lowerer = self.body_lowerer(module, mir_id, function.materialization, string_owner);
+        lowerer.current_local_capture_params = function
             .capture_parameters
             .iter()
             .map(|capture| (capture.binding, capture.local))
             .collect();
-        let current_closure = self.closure_by_function.get(&hir_id).copied();
+        lowerer.current_closure = current_closure;
+        lowerer.lower_function(hir_id, function, body)
+    }
+
+    pub(crate) fn body_lowerer<'a>(
+        &'a mut self,
+        module: &'a hir::Module,
+        function: mir::FunctionId,
+        materialization: hir::CallableMaterialization,
+        string_owner: mir::ImmortalObjectOwner,
+    ) -> BodyLowerer<'a> {
         BodyLowerer {
             module,
             core_protocols: &self.core_protocols,
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
-            current_function: mir_id,
-            current_materialization: function.materialization,
+            current_function: function,
+            current_materialization: materialization,
             current_string_owner: string_owner,
             next_string_ordinal: 0,
             struct_map: &self.struct_map,
@@ -80,11 +92,10 @@ impl Lowerer {
             dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
             function_bridge_targets: &mut self.function_bridge_targets,
             suspend_sources: &mut self.suspend_sources,
-            current_closure,
+            current_closure: None,
             current_closure_local: None,
-            current_local_capture_params,
+            current_local_capture_params: HashMap::new(),
             contains_suspend_call: false,
         }
-        .lower_function(hir_id, function, body)
     }
 }

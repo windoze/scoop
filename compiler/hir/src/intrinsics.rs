@@ -470,6 +470,23 @@ impl IntrinsicFunctionKind {
     }
 }
 
+/// Primitive member operations shared by calls and bound reference invokes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveMemberIntrinsic {
+    Integer(IntegerIntrinsicKind),
+    Unary(PrimitiveUnaryKind),
+    Binary(PrimitiveBinaryKind),
+}
+
+impl PrimitiveMemberIntrinsic {
+    pub const fn requires_arithmetic_exception(self) -> bool {
+        matches!(
+            self,
+            Self::Integer(IntegerIntrinsicKind::ManagedOperation { .. })
+        )
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntegerIntrinsicKind {
     NoGcOperation {

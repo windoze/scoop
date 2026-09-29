@@ -124,7 +124,8 @@ impl<'a> Traversal<'a> {
                 self.captures(&reference.captures)?;
                 match &reference.target {
                     CallableReferenceTarget::BoundMember { receiver, .. }
-                    | CallableReferenceTarget::BoundExtension { receiver, .. } => {
+                    | CallableReferenceTarget::BoundExtension { receiver, .. }
+                    | CallableReferenceTarget::BoundIntrinsic { receiver, .. } => {
                         self.push(Item::Expression(receiver))
                     }
                     CallableReferenceTarget::Named(_) | CallableReferenceTarget::Local { .. } => {

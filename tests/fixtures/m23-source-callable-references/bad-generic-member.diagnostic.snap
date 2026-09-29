@@ -1,0 +1,4 @@
+span=80..96
+expression=Plain(1)::choose
+no applicable candidate for bound callable reference `receiver::choose` in member candidate layer:
+  - fun Plain.choose<U>(value: U): U — generic callable references require an expected function type

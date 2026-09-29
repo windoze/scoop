@@ -1,0 +1,118 @@
+Module
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn2 captures=0
+  closure cc1 $Closure$reference1 type=function_type1 invoke=@fn3 captures=0
+  closure cc2 $Closure$reference2 type=function_type1 invoke=@fn4 captures=0
+  generated_exact_type get0 location=closure2 nominal_id=84fd2a2333955858e441d5993b657b18d600e467d4fdbec2ca8b4b63b8b68bf1 exact_id=1490809b5dd5deaa34c7116b78d871b5839791e58ec5bf2294b116d81269c9f2
+  generated_exact_type get1 location=closure1 nominal_id=0ed3a90b55b76c199cb5b717f2c2a253b202a99fbb4993db36f49e100fe451dd exact_id=261882b979c7d51c24ae18852a41d153439df58773783184468faae8b4f8c406
+  generated_exact_type get2 location=closure0 nominal_id=cfc33b0cfd407415d67e19120eef27fbc157ca7382acb8a16030adc471ff9792 exact_id=c45fc5147dae101c04eb29d414b66a99211cb90af98acc8a4fc12d97211e49fd
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val read: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+      val adjusted: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$reference1
+      val selected: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$reference2
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+        Type (Int) -> Int
+        Local adjusted
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      call $call.1: Int = <closure:function_type1> closure[function_type1]
+        Type (Int) -> Int
+        Local selected
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn2($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn3($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = external1 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn4($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = external2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  output library

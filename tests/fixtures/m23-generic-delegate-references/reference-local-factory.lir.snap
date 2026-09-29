@@ -275,7 +275,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$cb$e31ef8ee7ff86219766801be521612f5b2e4ad242a5e51c45238b45544eb13a0 : ptr
+    t1 = function_address @scoop$1$cb$0c46844a6cbe5137cc5b4ba49e185753cbb992f75f259a8802c765d3aae6a82f : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
@@ -293,7 +293,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn4()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$e31ef8ee7ff86219766801be521612f5b2e4ad242a5e51c45238b45544eb13a0(ptr<managed>) -> i32
+  fun @scoop$1$cb$0c46844a6cbe5137cc5b4ba49e185753cbb992f75f259a8802c765d3aae6a82f(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -314,7 +314,7 @@ Module
   td td0 a(n(c=dev.example%3Adelegate-combinations-provider%3A0.1.0;p=templates.delegateGenerated;o=-;k=C;x=Receiver);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$0c4ebbc425604e4fdb16fb30f8ba806a9a540151a9e6471d126cd586f1348fe7 type-id=16145692307425127988 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td1 a(n(c=dev.example%3Adelegate-combinations-provider%3A0.1.0;p=templates.delegateGenerated;o=-;k=C;x=ReaderSlot);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$faff0dadc3881be4393788adc64746dba15881d108ba876216771ed08fb22c00 type-id=7180568392892733961 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td2 g(r=00000001;i=15273aabb6c76ae08f11247e4bb825426ab369e25ec656c16b00a0c6b61a87c5) @scoop$1$td$703d54057527fcdb3ecd632cbe6ee7319457939af10f3ca92b7e6a85dec71f83 type-id=9072710846957938756 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 g(r=00000001;i=7290e47cea89908c60fd8f5de1d8ed18267672576969ede19362349056c50c2a) @scoop$1$td$0edb11dbed228f149f08b7759ad01c2db11a485c44235cc7b2c1d375940ff5d1 type-id=4597431547805774475 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000001;i=0788d41507f5eae7cec5ba19e8472506cc980d6f97bf99a47d55d2d7556f7a14) @scoop$1$td$e41aa93a1ef59650433488c3e5093c5830f8a760bcf9d6a8bc641c65ad5ef03f type-id=3651990840835431779 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Receiver value size=8 align=8 refs=[0]
   layout Receiver size=24 align=8 refs=[]
   layout ReaderSlot value size=8 align=8 refs=[0]

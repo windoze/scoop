@@ -33,6 +33,13 @@ impl ValidatedCrossConeSemanticClosure {
                         ..
                     }
                 );
+                if let concrete::ExprKind::CallableReference(id) = occurrence.expression.kind {
+                    arithmetic_required |= matches!(
+                        module.callable_references[id].target,
+                        concrete::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. }
+                            if intrinsic.requires_arithmetic_exception()
+                    );
+                }
                 Ok::<_, std::convert::Infallible>(())
             })
             .map_err(|error| match error {

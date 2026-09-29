@@ -300,7 +300,7 @@ impl Lowerer {
                 self.register_generic(function, type_params.clone());
             }
             self.function_files.insert(function, self.current_file);
-            let captures = self.finish_current_captures();
+            let captures = self.finish_current_captures(literal_origin);
             let id = self.lambdas.alloc(hir::Lambda {
                 definition_root: self.current_definition_root(),
                 definition_path: definition_path.clone(),

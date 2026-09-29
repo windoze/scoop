@@ -281,17 +281,20 @@ impl BodyLowerer<'_> {
                             &reference.target,
                             hir::CallableReferenceTarget::BoundMember { .. }
                                 | hir::CallableReferenceTarget::BoundExtension { .. }
+                                | hir::CallableReferenceTarget::BoundIntrinsic { .. }
                         )),
                 );
                 match &reference.target {
                     hir::CallableReferenceTarget::BoundMember { receiver, .. }
-                    | hir::CallableReferenceTarget::BoundExtension { receiver, .. } => {
+                    | hir::CallableReferenceTarget::BoundExtension { receiver, .. }
+                    | hir::CallableReferenceTarget::BoundIntrinsic { receiver, .. } => {
                         sources.push((
                             self.closure_receiver_indices[&class],
                             receiver.as_ref().clone(),
                         ));
                     }
-                    _ => {}
+                    hir::CallableReferenceTarget::Named(_)
+                    | hir::CallableReferenceTarget::Local { .. } => {}
                 }
                 sources.extend(reference.captures.iter().map(|capture| {
                     (

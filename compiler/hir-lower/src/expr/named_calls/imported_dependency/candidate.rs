@@ -2,17 +2,12 @@ use hir::ImportedCallableSource;
 use scoop_hir as hir;
 
 #[derive(Clone)]
-pub(super) enum ImportedCallableCandidate {
+pub(in crate::expr) enum ImportedCallableCandidate {
     Binding(Box<hir::ImportedDependencyCallableCandidate>),
     Declaration(Box<hir::ImportedCallableDeclaration>),
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum NormalizedImportedIntrinsic {
-    Integer(hir::IntegerIntrinsicKind),
-    Unary(hir::PrimitiveUnaryKind),
-    Binary(hir::PrimitiveBinaryKind),
-}
+pub(super) use hir::PrimitiveMemberIntrinsic as NormalizedImportedIntrinsic;
 
 impl ImportedCallableCandidate {
     pub(super) fn description(&self) -> &'static str {
@@ -41,7 +36,7 @@ impl ImportedCallableCandidate {
         }
     }
 
-    pub(super) fn normalized_intrinsic(&self) -> Option<NormalizedImportedIntrinsic> {
+    pub(in crate::expr) fn normalized_intrinsic(&self) -> Option<NormalizedImportedIntrinsic> {
         let Self::Declaration(source) = self else {
             return None;
         };

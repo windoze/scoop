@@ -1,0 +1,3 @@
+span=80..87
+expression=::Plain
+constructor reference `::Plain` is not supported; construct the value in a lambda

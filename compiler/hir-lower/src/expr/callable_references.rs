@@ -2,10 +2,11 @@ use super::*;
 
 mod native;
 mod resolution;
+use resolution::ReferenceCandidate;
 
 enum BoundReferenceLayer<'a> {
-    Members(&'a [crate::CallableCandidate]),
-    Extensions(&'a [hir::FunctionId]),
+    Members(&'a [ReferenceCandidate]),
+    Extensions(&'a [ReferenceCandidate]),
 }
 
 enum ReferenceResolutionOutcome {
@@ -86,7 +87,11 @@ impl Lowerer {
                 }
             }
         }
-        let candidate_layers = self.named_reference_candidate_layers(&name.text);
+        let candidate_layers = self
+            .named_callable_reference_layers(&name.text)
+            .into_iter()
+            .filter(|layer| !layer.candidates.is_empty() || !layer.suppressed_callables.is_empty())
+            .collect::<Vec<_>>();
         if candidate_layers.is_empty() && first_failure.is_none() {
             if self.lexical_nested_nominal_target(&name.text).is_none()
                 && self.source_type_alias_named(&name.text).is_some()
@@ -101,7 +106,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            if self.is_declared_type_name(&name.text) {
+            if self.is_declared_type_name(name) {
                 self.error(
                     span,
                     format!(
@@ -124,9 +129,14 @@ impl Lowerer {
                 return None;
             }
             let mut state = self.clone();
-            match state.resolve_reference_candidates(
-                &layer.candidates,
-                &[],
+            let candidates = layer
+                .candidates
+                .into_iter()
+                .map(ReferenceCandidate::named)
+                .collect::<Vec<_>>();
+            match state.resolve_reference_candidate_set(
+                &candidates,
+                None,
                 ReferenceResolutionContext {
                     expected: expected_signature.as_ref(),
                     name: &name.text,
@@ -169,7 +179,6 @@ impl Lowerer {
         resolved: ResolvedReference,
         span: Span,
     ) -> Option<hir::Expr> {
-        let callee = resolved.callable;
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
@@ -181,7 +190,7 @@ impl Lowerer {
         let id = self.callable_references.alloc(hir::CallableReference {
             definition_root: self.current_definition_root(),
             definition_path,
-            target: hir::CallableReferenceTarget::Named(callee),
+            target: resolved.target,
             function_type,
             owner_type_arguments,
             captures: Vec::new(),
@@ -221,7 +230,7 @@ impl Lowerer {
         if let ast::Expr::Var(type_name) = receiver
             && self.scopes.lookup(&type_name.text).is_none()
             && !self.host_has_property(&type_name.text)
-            && (self.is_declared_type_name(&type_name.text)
+            && (self.is_declared_type_name(type_name)
                 || self
                     .type_params_in_scope
                     .iter()
@@ -261,6 +270,27 @@ impl Lowerer {
                 first_failure = Some(Box::new(failure));
             }
         }
+        let imported_candidates = match self.imported_member_call_candidates(
+            receiver.ty,
+            name,
+            RequiredCallableModifiers::default(),
+            MemberCallKind::Ordinary,
+        ) {
+            Ok(candidates) => candidates,
+            Err(failure) => {
+                self.commit_layer_diagnostics(*failure);
+                return None;
+            }
+        };
+        let member_candidates = member_candidates
+            .into_iter()
+            .map(ReferenceCandidate::Local)
+            .chain(
+                imported_candidates
+                    .into_iter()
+                    .map(|declaration| ReferenceCandidate::Member(Box::new(declaration))),
+            )
+            .collect::<Vec<_>>();
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
         if !member_candidates.is_empty() {
@@ -291,7 +321,7 @@ impl Lowerer {
                 }
             }
         }
-        for layer in self.named_extension_call_layers(&name.text) {
+        for layer in self.named_executable_extension_call_layers(&name.text) {
             if layer.candidates.is_empty() {
                 if !layer.suppressed_callables.is_empty() {
                     if let Some(failure) = first_failure {
@@ -302,8 +332,13 @@ impl Lowerer {
                 continue;
             }
             let mut state = self.clone();
+            let candidates = layer
+                .candidates
+                .into_iter()
+                .map(ReferenceCandidate::extension)
+                .collect::<Vec<_>>();
             match state.finish_bound_callable_reference(
-                BoundReferenceLayer::Extensions(&layer.candidates),
+                BoundReferenceLayer::Extensions(&candidates),
                 receiver.clone(),
                 expected_signature.as_ref(),
                 &name.text,
@@ -355,10 +390,10 @@ impl Lowerer {
         display: &str,
         span: Span,
     ) -> BoundReferenceOutcome {
-        let is_extension = matches!(layer, BoundReferenceLayer::Extensions(_));
         let outcome = match layer {
-            BoundReferenceLayer::Members(candidates) => self.resolve_member_reference_candidates(
+            BoundReferenceLayer::Members(candidates) => self.resolve_reference_candidate_set(
                 candidates,
+                Some(&receiver),
                 ReferenceResolutionContext {
                     expected,
                     name,
@@ -367,9 +402,9 @@ impl Lowerer {
                     extension_mode: ReferenceExtensionMode::Exclude,
                 },
             ),
-            BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidates(
+            BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidate_set(
                 candidates,
-                &[],
+                Some(&receiver),
                 ReferenceResolutionContext {
                     expected,
                     name,
@@ -387,25 +422,9 @@ impl Lowerer {
             ReferenceResolutionOutcome::Blocked => return BoundReferenceOutcome::Blocked,
             ReferenceResolutionOutcome::Failed => return BoundReferenceOutcome::Failed,
         };
-        let callee = resolved.callable;
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
-        };
-        let target = if is_extension {
-            hir::CallableReferenceTarget::BoundExtension {
-                receiver: Box::new(receiver),
-                callee,
-            }
-        } else {
-            hir::CallableReferenceTarget::BoundMember {
-                receiver: Box::new(receiver),
-                callee: self.materialize_method_callee(
-                    resolved.source,
-                    callee,
-                    &resolved.type_args,
-                ),
-            }
         };
         let definition_path = self
             .definition_paths
@@ -414,7 +433,7 @@ impl Lowerer {
         let id = self.callable_references.alloc(hir::CallableReference {
             definition_root: self.current_definition_root(),
             definition_path,
-            target,
+            target: resolved.target,
             function_type,
             owner_type_arguments,
             captures: Vec::new(),
@@ -461,7 +480,10 @@ impl Lowerer {
             ReferenceResolutionOutcome::Blocked => return Ok(None),
             ReferenceResolutionOutcome::Failed => return Err(()),
         };
-        let function = self.callable_function_id(resolved.callable);
+        let hir::CallableReferenceTarget::Named(callee) = resolved.target else {
+            unreachable!("lexical reference candidates are local named declarations")
+        };
+        let function = self.callable_function_id(callee);
         let local_function = self.local_function_by_function[&function];
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
@@ -504,7 +526,7 @@ impl Lowerer {
             definition_path,
             target: hir::CallableReferenceTarget::Local {
                 local_function,
-                callee: resolved.callable,
+                callee,
             },
             function_type,
             owner_type_arguments,

@@ -226,7 +226,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn ambient_type_args(&mut self, count: usize) -> Vec<TypeId> {
+    pub(crate) fn ambient_type_args(&mut self, count: usize) -> Vec<TypeId> {
         self.type_params_in_scope[..count]
             .iter()
             .map(|parameter| parameter.id)

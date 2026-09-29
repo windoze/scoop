@@ -182,7 +182,16 @@ impl Concretizer<'_> {
             return id;
         }
         let source = self.source.callable_references[source_id].clone();
+        let function_type = self.lower_function_type(source.function_type, substitution);
         let target = match source.target {
+            export::CallableReferenceTarget::Imported(target) => self
+                .lower_imported_reference_target(
+                    &target,
+                    function_type,
+                    source.span,
+                    substitution,
+                    locals,
+                ),
             export::CallableReferenceTarget::Named(callee) => {
                 concrete::CallableReferenceTarget::Named(concrete::CallableTarget::Local(
                     self.lower_callable(callee, substitution),
@@ -238,7 +247,7 @@ impl Concretizer<'_> {
                 .map(|&argument| self.lower_type(argument, substitution))
                 .collect(),
             target,
-            function_type: self.lower_function_type(source.function_type, substitution),
+            function_type,
             captures: source
                 .captures
                 .iter()

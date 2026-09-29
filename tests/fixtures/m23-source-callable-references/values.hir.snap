@@ -1,0 +1,133 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 14 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local7
+      ImportedDependencyCall #0 : Plain
+        Local $dependency.parameter.number : Int
+    val local3
+      IntegerLiteral 14 : Int
+    val local4
+      Local $dependency.argument.0 : Int
+    val local8
+      ImportedDependencyCall #0 : Plain
+        Local $dependency.parameter.number : Int
+    val local5
+      IntegerLiteral 14 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    val local9
+      ImportedDependencyCall #0 : Plain
+        Local $dependency.parameter.number : Int
+    val local10
+      Local $dependency.argument.0 : Plain
+    val local11
+      Local $dependency.argument.1 : Plain
+    val local12
+      Local $dependency.argument.2 : Plain
+    val local13
+      ImportedDependencyCall #1 : Triple
+        Local $dependency.parameter.first : Plain
+        Local $dependency.parameter.second : Plain
+        Local $dependency.parameter.third : Plain
+    val local14
+      CallableReference reference0 target=dependency #2 captures=0 : () -> Int
+        Local triple : Triple
+    val local15
+      IntegerLiteral 0 : Int
+    val local16
+      Local $dependency.argument.0 : Int
+    val local21
+      ImportedDependencyCall #0 : Plain
+        Local $dependency.parameter.number : Int
+    val local17
+      IntegerLiteral 0 : Int
+    val local18
+      Local $dependency.argument.0 : Int
+    val local22
+      ImportedDependencyCall #0 : Plain
+        Local $dependency.parameter.number : Int
+    val local19
+      IntegerLiteral 0 : Int
+    val local20
+      Local $dependency.argument.0 : Int
+    val local23
+      ImportedDependencyCall #0 : Plain
+        Local $dependency.parameter.number : Int
+    val local24
+      Local $dependency.argument.0 : Plain
+    val local25
+      Local $dependency.argument.1 : Plain
+    val local26
+      Local $dependency.argument.2 : Plain
+    assign triple
+      ImportedDependencyCall #1 : Triple
+        Local $dependency.parameter.first : Plain
+        Local $dependency.parameter.second : Plain
+        Local $dependency.parameter.third : Plain
+    val local27
+      CallableReference reference1 target=dependency #4 captures=0 : () -> Int
+        ImportedDependencyCall #3 : Empty
+    val local28
+      Local value : T0
+    val local29
+      Local $dependency.argument.0 : T0
+    val local30
+      ImportedConstructorInit Cell : Cell<T0>
+        Local $dependency.parameter.value : T0
+    val local31
+      CallableReference reference2 target=imported read captures=0 : () -> T0
+        Local box : Cell<T0>
+    val local32
+      TupleLiteral : (T0, T0)
+        CallableCall function_type1 : T0
+          Local valueRead : () -> T0
+        Local value : T0
+    val local33
+      Local triple : Triple
+    val local34
+      ImportedDependencyCall #2 : Int
+        Local $dependency.receiver : Triple
+    val local35
+      IntegerLiteral 0 : Int
+    val local36
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local40
+        BoolLiteral true : Boolean
+    else
+      val local37
+        CallableCall function_type0 : Int
+          Local empty : () -> Int
+      val local38
+        IntegerLiteral 42 : Int
+      val local39
+        Local $dependency.argument.0 : Int
+      val local40
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    return
+      CallableCall function_type0 : Int
+        Local read : () -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

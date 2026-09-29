@@ -248,28 +248,50 @@ pub(super) fn dump_expr(
         }
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];
-            let (function, receiver) = match &reference.target {
-                CallableReferenceTarget::Named(callable) => {
-                    (callable_function(module, *callable), None)
-                }
-                CallableReferenceTarget::Local { callee, .. } => {
-                    (callable_function(module, *callee), None)
-                }
-                CallableReferenceTarget::BoundMember { receiver, callee } => (
-                    method_callee_function(module, *callee),
-                    Some(receiver.as_ref()),
-                ),
-                CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                    (callable_function(module, *callee), Some(receiver.as_ref()))
-                }
+            let function = match &reference.target {
+                CallableReferenceTarget::Imported(target) => match target.callee() {
+                    Some(crate::ImportedCallableTarget::Application(application)) => {
+                        let template = module.imported_generic_applications[application].template;
+                        format!(
+                            "imported {}",
+                            module.imported_generic_templates[template].name
+                        )
+                    }
+                    Some(crate::ImportedCallableTarget::Dependency(callee)) => {
+                        format!("dependency #{}", callee.into_raw().into_u32())
+                    }
+                    None => match target {
+                        crate::ImportedCallableReferenceTarget::BoundIntrinsic {
+                            intrinsic,
+                            ..
+                        } => format!("intrinsic {intrinsic:?}"),
+                        _ => "imported bound member".to_owned(),
+                    },
+                },
+                CallableReferenceTarget::Named(callable) => module.functions
+                    [callable_function(module, *callable)]
+                .name
+                .clone(),
+                CallableReferenceTarget::Local { callee, .. } => module.functions
+                    [callable_function(module, *callee)]
+                .name
+                .clone(),
+                CallableReferenceTarget::BoundMember { callee, .. } => module.functions
+                    [method_callee_function(module, *callee)]
+                .name
+                .clone(),
+                CallableReferenceTarget::BoundExtension { callee, .. } => module.functions
+                    [callable_function(module, *callee)]
+                .name
+                .clone(),
             };
             out.push_str(&format!(
                 "{pad}CallableReference reference{} target={} captures={} : {ty}\n",
                 id.into_raw(),
-                module.functions[function].name,
+                function,
                 reference.captures.len()
             ));
-            if let Some(receiver) = receiver {
+            if let Some(receiver) = reference.target.receiver() {
                 dump_expr(module, locals, receiver, indent + 1, out);
             }
         }

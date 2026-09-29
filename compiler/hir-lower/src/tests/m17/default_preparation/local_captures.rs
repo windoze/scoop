@@ -31,10 +31,10 @@ fn default_local_captures_combine_generics_local_defaults_and_repeated_closures(
     assert_eq!(output.local.callable_references.len(), 2);
     assert_eq!(
         mir.closure_classes.len(),
-        4,
-        "repeated creations reuse closure types"
+        5,
+        "lambda bodies are reused while expanded references retain distinct creation sites"
     );
-    assert_eq!(mir.closure_invoke_functions.len(), 4);
+    assert_eq!(mir.closure_invoke_functions.len(), 5);
     assert_eq!(
         selected(&hir::dump(&output.export)),
         include_str!(concat!(
@@ -81,7 +81,7 @@ fn selected(dump: &str) -> String {
 }
 
 #[test]
-fn repeated_defaults_reuse_anonymous_and_bound_reference_identities() {
+fn repeated_defaults_reuse_anonymous_bodies_and_separate_reference_creations() {
     let output = lower_source(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m23-type-source-defaults/repeated-default-closures.scoop"
@@ -112,8 +112,8 @@ fn repeated_defaults_reuse_anonymous_and_bound_reference_identities() {
                 .id()
         })
         .collect::<Vec<_>>();
-    assert_eq!(receivers[0], receivers[1]);
+    assert_ne!(receivers[0], receivers[1]);
     let mir = scoop_mir_lower::lower(module).unwrap();
-    assert_eq!(mir.closure_classes.len(), 2);
-    assert_eq!(mir.closure_invoke_functions.len(), 2);
+    assert_eq!(mir.closure_classes.len(), 3);
+    assert_eq!(mir.closure_invoke_functions.len(), 3);
 }

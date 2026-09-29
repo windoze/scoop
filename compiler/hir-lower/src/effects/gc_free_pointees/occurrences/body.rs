@@ -5,7 +5,7 @@ use crate::Lowerer;
 use super::TypeOccurrence;
 use super::types::{
     collect_callable_types, collect_field_ref_types, collect_imported_method_callee_types,
-    collect_method_callee_types,
+    collect_imported_reference_target_types, collect_method_callee_types,
 };
 
 /// Collect source-backed type occurrences for diagnostics. Unlike the
@@ -509,22 +509,9 @@ pub(in super::super) fn collect_expr_type_occurrences(
             push_types_at_expression(
                 expression,
                 |types| {
-                    if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } =
-                        &reference.target
-                    {
-                        collect_imported_method_callee_types(lowerer, callee, types);
-                    }
+                    collect_imported_reference_target_types(lowerer, &reference.target, types);
                     types.extend(reference.owner_type_arguments.iter().copied());
                     types.extend(reference.captures.iter().map(|capture| capture.ty));
-                    if let Some(hir::ImportedCallableTarget::Application(application)) =
-                        reference.target.callee()
-                    {
-                        types.extend(
-                            lowerer.imported_generic_applications[application]
-                                .arguments
-                                .substitution(&lowerer.types),
-                        );
-                    }
                 },
                 out,
             );
@@ -546,6 +533,16 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
             match &reference.target {
+                hir::CallableReferenceTarget::Imported(target) => {
+                    push_types_at_expression(
+                        expression,
+                        |types| collect_imported_reference_target_types(lowerer, target, types),
+                        out,
+                    );
+                    if let Some(receiver) = target.receiver() {
+                        collect_expr_type_occurrences(lowerer, receiver, out);
+                    }
+                }
                 hir::CallableReferenceTarget::Named(callee)
                 | hir::CallableReferenceTarget::Local { callee, .. } => {
                     push_types_at_expression(

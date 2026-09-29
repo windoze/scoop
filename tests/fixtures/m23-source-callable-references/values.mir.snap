@@ -1,0 +1,310 @@
+Module
+  struct Triple (first: Plain, second: Plain, third: Plain)
+  struct Cell<Int> (value: Int)
+  struct Empty ()
+  class Plain vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=1
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn4 captures=1
+  closure cc2 $Closure$reference2 type=function_type0 invoke=@fn5 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=545d8a0e83aa24c4b525c451aeda9e44b71da8b66e20d70120204d58e1870906 exact_id=2d945e4602688e8da9cba961fbdd6e64f45881e6e2e0ee0f60fe399fc7bbedaf
+  generated_exact_type get1 location=closure1 nominal_id=39afcb44e649af9e14611594d4376c1ec385eab9d30559a83055ff4041beeb4e exact_id=4472606c3a0dfb1b7799decadfd717787896a0fe1d72dadcccaa5ca57b9958ed
+  generated_exact_type get2 location=closure2 nominal_id=487004b46cf0071a748dccaf97c64dda2ac617767a8e171096209b0cc149ddee exact_id=557ffe227608c607a7c0f1dc39d038d4d76573faaa54b65e8a412c3bfec63c5b
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Plain
+        Type Plain
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.1: Plain
+        Type Plain
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.3
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.2: Plain
+        Type Plain
+        Local $new.3
+      val $dependency.parameter.first: Plain
+        Type Plain
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Plain
+        Type Plain
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Plain
+        Type Plain
+        Local $dependency.argument.2
+      call triple: Triple = external1 direct
+        Type Plain
+        Local $dependency.parameter.first
+        Type Plain
+        Local $dependency.parameter.second
+        Type Plain
+        Local $dependency.parameter.third
+      val read: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Triple
+            Local triple
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.4
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.4
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Plain
+        Type Plain
+        Local $new.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.5
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.5
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.1: Plain
+        Type Plain
+        Local $new.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.6
+        Type Plain
+        ClassAlloc Plain
+      call external0 direct
+        Type Plain
+        Local $new.6
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.2: Plain
+        Type Plain
+        Local $new.6
+      val $dependency.parameter.first: Plain
+        Type Plain
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Plain
+        Type Plain
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Plain
+        Type Plain
+        Local $dependency.argument.2
+      call $call.7: Triple = external1 direct
+        Type Plain
+        Local $dependency.parameter.first
+        Type Plain
+        Local $dependency.parameter.second
+        Type Plain
+        Local $dependency.parameter.third
+      assign triple
+        Type Triple
+        Local $call.7
+      call $call.8: Empty = external3 direct
+      val empty: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Empty
+            Local $call.8
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call box: Cell<Int> = @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val valueRead: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference2
+          CaptureInit field=0
+            Type Cell<Int>
+            Local box
+      call $call.9: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local valueRead
+      val values: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.9
+          Type Int
+          Local value
+      val $dependency.receiver: Triple
+        Type Triple
+        Local triple
+      call $dependency.receiver: Int = external2 direct
+        Type Triple
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local empty
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      call $call.10: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.10
+  fun read @fn2(this: Cell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local this
+  fun $reference.0 @fn3($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external2 direct
+        Type Triple
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn4($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external4 direct
+        Type Empty
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn5($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Cell<Int>
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun ctor.Cell.$c0 @fn6(value: Int) -> Cell<Int> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Int>
+        StructInit Cell<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- read
+  output library

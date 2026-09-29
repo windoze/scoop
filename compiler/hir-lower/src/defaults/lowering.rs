@@ -175,7 +175,7 @@ impl Lowerer {
         });
         let locals = std::mem::take(&mut self.locals);
         let captures = if environment.is_some() {
-            let captures = self.finish_current_captures();
+            let captures = self.finish_current_captures(hir::ExpressionOrigin::Definition(origin));
             self.capture_contexts.pop();
             captures
         } else {

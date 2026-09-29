@@ -296,46 +296,6 @@ impl Lowerer {
         })
     }
 
-    pub(crate) fn named_extension_call_layers(
-        &self,
-        name: &str,
-    ) -> Vec<LookupLayer<hir::FunctionId>> {
-        let mut layers = self
-            .named_call_layers(name)
-            .into_iter()
-            .map(|layer| LookupLayer {
-                kind: layer.kind,
-                suppressed_callables: layer
-                    .suppressed_callables
-                    .into_iter()
-                    .filter(|function| self.extension_receivers.contains_key(function))
-                    .collect(),
-                candidates: layer
-                    .candidates
-                    .into_iter()
-                    .filter_map(|binding| match binding.target {
-                        NamedCallTarget::Function(id)
-                            if self.extension_receivers.contains_key(&id) =>
-                        {
-                            Some(id)
-                        }
-                        _ => None,
-                    })
-                    .collect(),
-            })
-            .collect::<Vec<_>>();
-        if let Some(index) = layers
-            .iter()
-            .position(|layer| !layer.suppressed_callables.is_empty())
-        {
-            // Rejection is terminal only after the raw callable layer has
-            // been narrowed to the extension role. Keep the rejecting layer
-            // itself so valid peers in that same layer are still resolved.
-            layers.truncate(index + 1);
-        }
-        layers
-    }
-
     pub(crate) fn named_executable_extension_call_layers(
         &self,
         name: &str,
@@ -413,7 +373,7 @@ impl Lowerer {
     pub(crate) fn named_callable_reference_layers(
         &self,
         name: &str,
-    ) -> Vec<LookupLayer<hir::FunctionId>> {
+    ) -> Vec<LookupLayer<super::NamedCallBinding>> {
         self.named_call_layers(name)
             .into_iter()
             .map(|layer| LookupLayer {
@@ -426,11 +386,13 @@ impl Lowerer {
                 candidates: layer
                     .candidates
                     .into_iter()
-                    .filter_map(|binding| match binding.target {
-                        NamedCallTarget::Function(id) if !self.function_owner.contains_key(&id) => {
-                            Some(id)
-                        }
-                        _ => None,
+                    .filter(|binding| match binding.target {
+                        NamedCallTarget::Function(id) => !self.function_owner.contains_key(&id),
+                        NamedCallTarget::ImportedDependency(
+                            hir::ImportedTarget::Function(_)
+                            | hir::ImportedTarget::GenericFunction(_),
+                        ) => true,
+                        _ => false,
                     })
                     .collect(),
             })

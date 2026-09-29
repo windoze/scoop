@@ -539,20 +539,7 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::ImportedCallableReference(reference) => {
             collect_function_type_types(lowerer, reference.function_type, out);
             out.extend(reference.owner_type_arguments.iter().copied());
-            if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } =
-                &reference.target
-            {
-                collect_imported_method_callee_types(lowerer, callee, out);
-            }
-            if let Some(hir::ImportedCallableTarget::Application(application)) =
-                reference.target.callee()
-            {
-                out.extend(
-                    lowerer.imported_generic_applications[application]
-                        .arguments
-                        .substitution(&lowerer.types),
-                );
-            }
+            collect_imported_reference_target_types(lowerer, &reference.target, out);
             if let Some(receiver) = reference.target.receiver() {
                 collect_expr_types(lowerer, receiver, out);
             }
@@ -764,6 +751,12 @@ fn collect_callable_reference_types(
         collect_expr_types(lowerer, &capture.source, out);
     }
     match &reference.target {
+        hir::CallableReferenceTarget::Imported(target) => {
+            collect_imported_reference_target_types(lowerer, target, out);
+            if let Some(receiver) = target.receiver() {
+                collect_expr_types(lowerer, receiver, out);
+            }
+        }
         hir::CallableReferenceTarget::Named(callee)
         | hir::CallableReferenceTarget::Local { callee, .. } => {
             collect_callable_types(lowerer, *callee, out)
@@ -776,5 +769,22 @@ fn collect_callable_reference_types(
             collect_callable_types(lowerer, *callee, out);
             collect_expr_types(lowerer, receiver, out);
         }
+    }
+}
+
+pub(super) fn collect_imported_reference_target_types(
+    lowerer: &Lowerer,
+    target: &hir::ImportedCallableReferenceTarget,
+    out: &mut Vec<hir::TypeId>,
+) {
+    if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } = target {
+        collect_imported_method_callee_types(lowerer, callee, out);
+    }
+    if let Some(hir::ImportedCallableTarget::Application(application)) = target.callee() {
+        out.extend(
+            lowerer.imported_generic_applications[application]
+                .arguments
+                .substitution(&lowerer.types),
+        );
     }
 }

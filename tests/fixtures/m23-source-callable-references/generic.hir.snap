@@ -1,0 +1,30 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      CallableReference reference0 target=imported identity captures=0 : (T0) -> T0
+    val local2
+      CallableReference reference1 target=imported identity captures=0 : (T0) -> T0
+    val local3
+      TupleLiteral : (T0, T0)
+        CallableCall function_type0 : T0
+          Local copy : (T0) -> T0
+          Local value : T0
+        CallableCall function_type0 : T0
+          Local copyAgain : (T0) -> T0
+          Local value : T0
+    val local4
+      CallableReference reference2 target=imported identity captures=0 : (Int) -> Int
+    return
+      CallableCall function_type1 : Int
+        Local number : (Int) -> Int
+        IntegerLiteral 42 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

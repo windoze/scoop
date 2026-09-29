@@ -1,0 +1,5 @@
+span=80..90
+expression=::overload
+callable reference `::overload` is ambiguous in dependency top-level candidate layer:
+  - fun overload(value: Int): Int — forms a complete non-generic function type
+  - fun overload(value: Boolean): Int — forms a complete non-generic function type

@@ -273,8 +273,43 @@ impl DefaultEntityProjector<'_> {
         root: LexicalDefinitionRoot,
         path: &scoop_identity::StructuralDefinitionPath,
     ) -> Result<GeneratedCallableKey, super::super::DefaultEntityProjectionError> {
+        let sites = self
+            .export
+            .local_functions
+            .values()
+            .map(|declaration| {
+                (
+                    declaration.function,
+                    declaration.definition_root,
+                    &declaration.definition_path,
+                )
+            })
+            .chain(self.export.lambdas.values().map(|declaration| {
+                (
+                    declaration.function,
+                    declaration.definition_root,
+                    &declaration.definition_path,
+                )
+            }))
+            .chain(self.export.anonymous_functions.values().map(|declaration| {
+                (
+                    declaration.function,
+                    declaration.definition_root,
+                    &declaration.definition_path,
+                )
+            }));
+        let parent = sites
+            .filter(|(_, candidate_root, candidate_path)| {
+                *candidate_root == root
+                    && candidate_path.segments().len() < path.segments().len()
+                    && path.segments().starts_with(candidate_path.segments())
+            })
+            .max_by_key(|(_, _, candidate_path)| candidate_path.segments().len())
+            .map_or(root, |(function, _, _)| {
+                LexicalDefinitionRoot::Function(function)
+            });
         Ok(GeneratedCallableKey::CallableReferenceInvoke {
-            parent: self.lexical_parent(root)?,
+            parent: self.lexical_parent(parent)?,
             path: path.clone(),
         })
     }

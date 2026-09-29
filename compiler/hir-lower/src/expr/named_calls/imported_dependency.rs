@@ -19,8 +19,9 @@ mod probe;
 mod properties;
 
 pub(in crate::expr) use arguments::ImportedArgumentMap;
-use candidate::ImportedCallableCandidate;
+pub(in crate::expr) use candidate::ImportedCallableCandidate;
 use defaults::ImportedDefaultPlan;
+pub(in crate::expr) use generic::ImportedGenericTarget;
 use inputs::ImportedCallReceiver;
 pub(in crate::expr) use inputs::{
     ImportedCallArguments, ImportedMemberReceiver, ImportedProbeCall,

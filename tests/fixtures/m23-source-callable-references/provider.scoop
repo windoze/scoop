@@ -1,0 +1,65 @@
+package templates.references
+
+public fun answer(): Int = 42
+public fun offset(value: Int = 1): Int = value + 1
+public fun overload(value: Int): Int = value
+public fun overload(value: Boolean): Int = 0
+public fun <T> identity(value: T): T = value
+public fun <T : value> valueOnly(value: T): T = value
+public fun <T> unresolved(): Int = 42
+public fun <T> select(value: T): Int = 1
+public fun <A, B> select(value: (A, B)): Int = 42
+public fun <T> conflict(left: T, right: Int): Int = 1
+public fun <T> conflict(left: Int, right: T): Int = 2
+public fun prefer(value: Int): Int = 42
+@Unsafe public fun unsafeAnswer(): Int = 42
+public suspend fun <T> suspended(value: T): T = value
+
+public fun Int.increment(): Int = this + 1
+public fun <T> T.retain(): T = this
+public fun <T> T.extensionSelect(value: Int): Int = value
+
+public class Plain public constructor(public var number: Int) {
+    public fun read(): Int = this.number
+    public fun <U> choose(value: U): U = value
+}
+public open class Box<T> public constructor(public val value: T) {
+    public fun read(): T = this.value
+    public fun <U> choose(owner: T, value: U): U = value
+}
+public class Child<T> public constructor(value: T): Box<T>(value)
+public struct Cell<T>(val value: T) {
+    public fun read(): T = this.value
+}
+public struct Triple(val first: Plain, val second: Plain, val third: Plain) {
+    public fun sum(): Int = this.first.read() + this.second.read() + this.third.read()
+}
+public struct Empty() {
+    public fun read(): Int = 42
+}
+
+public open class Base public constructor() {
+    public open fun read(): Int = 1
+}
+public class Derived public constructor(): Base() {
+    public override fun read(): Int = 42
+}
+public interface Readable {
+    public fun read(): Int
+}
+public class Reader public constructor(): Readable {
+    public override fun read(): Int = 42
+}
+public interface Chooser<T> {
+    public fun choose(value: T): T = value
+}
+public class Choosing<T> public constructor(): Chooser<T>
+public open class VirtualBox<T> public constructor(public val value: T) {
+    public open fun read(): T = this.value
+}
+public class VirtualChild<T> public constructor(value: T, private val other: T): VirtualBox<T>(value) {
+    public override fun read(): T = this.other
+}
+public open class Protected<T> protected constructor(protected val value: T) {
+    protected fun read(): T = this.value
+}

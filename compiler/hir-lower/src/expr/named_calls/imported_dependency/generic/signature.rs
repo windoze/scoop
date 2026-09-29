@@ -1,12 +1,12 @@
 use super::*;
 
 #[derive(Clone, Copy)]
-pub(in crate::expr::named_calls::imported_dependency) enum ImportedGenericTarget {
+pub(in crate::expr) enum ImportedGenericTarget {
     Function(hir::ImportedGenericCallableTemplateId),
     Constructor(hir::ImportedConstructorTemplateId),
 }
 
-pub(in crate::expr::named_calls::imported_dependency) struct ImportedInferenceSignature {
+pub(in crate::expr) struct ImportedInferenceSignature {
     pub owner_parameters: Vec<hir::TypeParamDecl>,
     pub type_parameters: Vec<hir::TypeParamDecl>,
     pub parameters: Vec<(String, hir::TypeId)>,
@@ -48,7 +48,7 @@ impl ImportedGenericTarget {
         }
     }
 
-    pub(in crate::expr::named_calls::imported_dependency) fn signature(
+    pub(in crate::expr) fn signature(
         self,
         state: &Lowerer,
     ) -> (

@@ -2,6 +2,7 @@
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn38 captures=1
   closure cc2 $Closure$lambda4 type=function_type0 invoke=@fn40 captures=1
   closure cc3 $Closure$reference0 type=function_type0 invoke=@fn43 captures=1
+  closure cc4 $Closure$reference1 type=function_type0 invoke=@fn44 captures=1
   fun localDefault @fn24(seed: String) -> String
     bb0 entry
       branch bb1 bb2
@@ -314,7 +315,7 @@
     bb16 if.then.16
       val reference: () -> String
         Type () -> String
-        ClosureAlloc cc3 $Closure$reference0
+        ClosureAlloc cc4 $Closure$reference1
           CaptureInit field=0
             Type String
             Local $parameter.seed
@@ -464,6 +465,16 @@
       call $call.1: String = @fn39 direct
         Type String
         ClosureCapture cc3 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.1 @fn44($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn39 direct
+        Type String
+        ClosureCapture cc4 0
           Type () -> String
           Local $closure
       return

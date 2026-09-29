@@ -1,0 +1,265 @@
+Module
+  class Box<Int> vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type1 invoke=@fn9 captures=0
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn10 captures=1
+  closure cc2 $Closure$reference2 type=function_type1 invoke=@fn11 captures=0
+  closure cc3 $Closure$reference3 type=function_type1 invoke=@fn12 captures=0
+  closure cc4 $Closure$reference4 type=function_type0 invoke=@fn13 captures=0
+  generated_exact_type get0 location=closure1 nominal_id=9c5b0f09f3567a541ac7c6640375abe0b455f92f5488c3a50f554f58c6230c8a exact_id=668fee90747420a3f147c44f1bb13325921701a2d49e4d33e17f11200e21b3e9
+  generated_exact_type get1 location=closure2 nominal_id=56250ea8e2d5f53783c5a67ddd57e4f815dcf4ce0da8e9014c0aa8f3ff26e550 exact_id=6a82d16380bad7d73d14992e4ac9f1c037e076b5071706144504d7f563a27535
+  generated_exact_type get2 location=closure3 nominal_id=88d33a9e396ad6fb465d810b478aacd9fe70d85ec2ec96656c5d153f97540a54 exact_id=7d5b022ce6f74f6399af5994eef76d269aa5eb0bf23ef0af3cc0d1ff7ad14ca9
+  generated_exact_type get3 location=closure4 nominal_id=8a462acaabb8e7cd627955067eb1b27a1a5471622299d88a96b4e72372756a07 exact_id=b276a873ac0432d8cae9ac75766ca4cc274ce8c9f40c851a7e8875126afd6870
+  generated_exact_type get4 location=closure0 nominal_id=f9b41c70579dba8f75dfed6345024b8fa1a5fc8a689f6385ce71dfcd5e4e63aa exact_id=edaeaee66360f6d74645aa126fae4932d16edac9724870a1a819d00cb3fe6cf6
+  fun answer @fn0(read: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.1
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.transform: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+      call copied: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.transform
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn14 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Box<Int>
+        Type Box<Int>
+        Local $new.1
+      val $parameter.owner: Box<Int>
+        Type Box<Int>
+        Local $argument.0
+      val $parameter.read: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Box<Int>
+            Local $parameter.owner
+      call $call.2: Int = @fn6 direct
+        Type Box<Int>
+        Local $parameter.owner
+        Type () -> Int
+        Local $parameter.read
+      val values: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local copied
+          Type Int
+          Local $call.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.other: Int
+        Type Int
+        Local $argument.1
+      val $parameter.copy: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$reference2
+      call $dependency.receiver: Int = @fn7 direct
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.other
+        Type (Int) -> Int
+        Local $parameter.copy
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.other: Int
+        Type Int
+        Local $argument.1
+      val $parameter.copy: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc3 $Closure$reference3
+      call reordered: Int = @fn7 direct
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.other
+        Type (Int) -> Int
+        Local $parameter.copy
+      val $parameter.read: () -> Int
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$reference4
+      call $call.3: Int = @fn0 direct
+        Type () -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.3
+  fun identity @fn3(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun copy @fn4(value: Int, transform: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type1> closure[function_type1]
+        Type (Int) -> Int
+        Local transform
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun read @fn5(this: Box<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type Box<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun copyOwner @fn6(owner: Box<Int>, read: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.1
+  fun first @fn7(value: Int, other: Int, copy: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type1> closure[function_type1]
+        Type (Int) -> Int
+        Local copy
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun value @fn8(this: Box<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local this
+  fun $reference.0 @fn9($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type Box<Int>
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn11($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.3 @fn12($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.4 @fn13($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+      return
+        Type Int
+        Local $call.1
+  fun init.Box.$c0 @fn14(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- identity
+  instance mi2 function=@fn4 <- copy
+  instance mi3 function=@fn5 <- read
+  instance mi4 function=@fn6 <- copyOwner
+  instance mi5 function=@fn7 <- first
+  instance mi6 function=@fn8 <- value
+  output library

@@ -9,7 +9,7 @@ use crate::call_resolution::constraints::{
     Constraint, ConstraintOrigin, InferenceSession, TypeTerm,
 };
 use crate::expr::ResolvedCallTypeArgument;
-pub(super) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
+pub(in crate::expr) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
 
 impl Lowerer {
     #[allow(clippy::too_many_arguments)]
@@ -273,20 +273,41 @@ impl Lowerer {
         signature: &ImportedInferenceSignature,
         failure: &crate::call_resolution::constraints::ConstraintFailure,
     ) {
+        let message = self.render_imported_constraint_failure(
+            &signature.owner_parameters,
+            &signature.type_parameters,
+            failure,
+        );
+        let span = match failure.origin {
+            ConstraintOrigin::Argument(input) => call.arguments.span(input.index()),
+            ConstraintOrigin::ExplicitTypeArgument(index) => call.type_args[index as usize].span(),
+            _ => call.span,
+        };
+        self.error(
+            span,
+            format!("dependency function `{}`: {message}", name.text),
+        );
+    }
+
+    pub(in crate::expr) fn render_imported_constraint_failure(
+        &self,
+        owner_parameters: &[hir::TypeParamDecl],
+        callable_parameters: &[hir::TypeParamDecl],
+        failure: &crate::call_resolution::constraints::ConstraintFailure,
+    ) -> String {
         use crate::call_resolution::constraints::ConstraintFailureKind as Kind;
-        let all_parameters = signature
-            .owner_parameters
+        let all_parameters = owner_parameters
             .iter()
-            .chain(&signature.type_parameters)
+            .chain(callable_parameters)
             .cloned()
             .collect::<Vec<_>>();
         let parameter = |variable: crate::call_resolution::constraints::InferenceVariableId| {
             let parameters = match variable {
                 crate::call_resolution::constraints::InferenceVariableId::Owner(_) => {
-                    &signature.owner_parameters
+                    owner_parameters
                 }
                 crate::call_resolution::constraints::InferenceVariableId::Callable(_) => {
-                    &signature.type_parameters
+                    callable_parameters
                 }
             };
             &parameters[variable.group_index()].name
@@ -297,7 +318,7 @@ impl Lowerer {
                 self.type_name_with_params(ty, &all_parameters)
             }
         };
-        let message = match &failure.kind {
+        match &failure.kind {
             Kind::Kind {
                 variable,
                 solution,
@@ -380,15 +401,6 @@ impl Lowerer {
             Kind::NonConcreteApplication(_) => {
                 "candidate result is not a complete concrete type application".into()
             }
-        };
-        let span = match failure.origin {
-            ConstraintOrigin::Argument(input) => call.arguments.span(input.index()),
-            ConstraintOrigin::ExplicitTypeArgument(index) => call.type_args[index as usize].span(),
-            _ => call.span,
-        };
-        self.error(
-            span,
-            format!("dependency function `{}`: {message}", name.text),
-        );
+        }
     }
 }

@@ -7,7 +7,7 @@ use scoop_identity::{
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::{
-    AnonymousFunction, AnonymousFunctionId, BindingId, CallableApplicationIdentities,
+    AnonymousFunction, AnonymousFunctionId, BindingId, Callable, CallableApplicationIdentities,
     CallableReference, CallableReferenceId, CallableReferenceTarget, Capture, ClassConstructor,
     ClassConstructorId, ClassConstructorKind, Function, FunctionId, FunctionKind, Lambda, LambdaId,
     LocalId, StructConstructor, StructConstructorId, StructConstructorKind,
@@ -366,8 +366,15 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             .callable_references
             .iter()
             .map(|(reference, declaration)| {
+                let context = match &declaration.target {
+                    CallableReferenceTarget::Local {
+                        callee: Callable::Function(function),
+                        ..
+                    } => self.inputs.functions[*function].materialization.context(),
+                    _ => declaration.identity.materialization().context(),
+                };
                 self.collect_captures(
-                    declaration.identity.materialization().context(),
+                    context,
                     &declaration.captures,
                     CaptureOwnerLocation::CallableReference(raw_arena_index(reference)),
                 )

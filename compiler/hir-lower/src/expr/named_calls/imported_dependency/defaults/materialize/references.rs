@@ -1,4 +1,5 @@
 use super::*;
+use crate::expr::named_calls::imported_dependency::ImportedCallableCandidate;
 
 impl Lowerer {
     pub(super) fn materialize_imported_callable_reference(
@@ -47,11 +48,27 @@ impl Lowerer {
                 hir::ImportedCallableReferenceTarget::Local(application)
             }
             hir::DefaultCallableReferenceTargetV1::BoundMember { receiver, callee } => {
-                hir::ImportedCallableReferenceTarget::BoundMember {
-                    receiver: Box::new(
-                        self.materialize_imported_default_expression(receiver, context)?,
-                    ),
-                    callee: self.materialize_imported_method_callee(callee, creation, context)?,
+                let receiver =
+                    Box::new(self.materialize_imported_default_expression(receiver, context)?);
+                if let Some((declaration, intrinsic)) = self.imported_reference_intrinsic(callee)? {
+                    if intrinsic.requires_arithmetic_exception() {
+                        self.prepare_arithmetic_exception_type().map_err(|error| {
+                            ImportedDefaultMaterializationError::Plan(
+                                error.diagnostic("integer reference exception type"),
+                            )
+                        })?;
+                    }
+                    hir::ImportedCallableReferenceTarget::BoundIntrinsic {
+                        receiver,
+                        declaration,
+                        intrinsic,
+                    }
+                } else {
+                    hir::ImportedCallableReferenceTarget::BoundMember {
+                        receiver,
+                        callee: self
+                            .materialize_imported_method_callee(callee, creation, context)?,
+                    }
                 }
             }
             hir::DefaultCallableReferenceTargetV1::BoundExtension { receiver, callee } => {
@@ -88,5 +105,36 @@ impl Lowerer {
                 origin: creation.concrete().definition,
             },
         )))
+    }
+
+    fn imported_reference_intrinsic(
+        &self,
+        callee: &hir::DefaultMethodCalleeV1,
+    ) -> Result<
+        Option<(
+            scoop_identity::PersistentFunctionId,
+            hir::PrimitiveMemberIntrinsic,
+        )>,
+        ImportedDefaultMaterializationError,
+    > {
+        let hir::DefaultMethodCalleeV1::Callable(callee) = callee else {
+            return Ok(None);
+        };
+        let hir::DefaultCallableDeclarationV1::Function(id) = callee.declaration() else {
+            return Ok(None);
+        };
+        let declaration = self
+            .dependencies
+            .as_ref()
+            .expect("a dependency reference retains its source catalog")
+            .callable_declaration(scoop_identity::CallableTemplateOrigin::Function(id))
+            .map_err(|error| {
+                ImportedDefaultMaterializationError::DependencySelection(error.to_string())
+            })?;
+        Ok(
+            ImportedCallableCandidate::Declaration(Box::new(declaration))
+                .normalized_intrinsic()
+                .map(|intrinsic| (id, intrinsic)),
+        )
     }
 }

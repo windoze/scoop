@@ -35,10 +35,13 @@ pub(crate) struct NominalApplicabilityInput<'a> {
 
 #[derive(Debug, Clone)]
 pub(crate) struct CallableReferenceApplicabilityInput<'a> {
-    pub(crate) view: &'a CallableView,
+    pub(crate) owner_parameters: &'a [hir::TypeParamDecl],
+    pub(crate) callable_parameters: &'a [hir::TypeParamDecl],
     pub(crate) owner_arguments: &'a [hir::TypeId],
-    pub(crate) bound_receiver: Option<hir::TypeId>,
+    pub(crate) bound_receiver: Option<(hir::TypeId, hir::TypeId)>,
     pub(crate) parameter_types: &'a [hir::TypeId],
+    pub(crate) return_type: hir::TypeId,
+    pub(crate) is_suspend: bool,
     pub(crate) expected_type: hir::TypeId,
 }
 
@@ -99,17 +102,19 @@ impl Lowerer {
         input: CallableReferenceApplicabilityInput<'_>,
     ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
         let CallableReferenceApplicabilityInput {
-            view,
+            owner_parameters,
+            callable_parameters,
             owner_arguments,
             bound_receiver,
             parameter_types,
+            return_type,
+            is_suspend,
             expected_type,
         } = input;
-        debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
+        debug_assert_eq!(owner_parameters.len(), owner_arguments.len());
 
         let mut session = InferenceSession::new();
-        let environment =
-            session.add_environment(&view.owner_parameters, &view.callable_parameters);
+        let environment = session.add_environment(owner_parameters, callable_parameters);
         for (&variable, &argument) in session
             .owner_variables(environment)
             .to_vec()
@@ -123,33 +128,26 @@ impl Lowerer {
         }
         self.add_declaration_bounds(
             &mut session,
-            view.owner_parameters
-                .iter()
-                .chain(&view.callable_parameters),
+            owner_parameters.iter().chain(callable_parameters),
         );
 
-        match (view.receiver, bound_receiver) {
-            (ReceiverShape::Extension(declared), Some(actual)) => session.push(
+        if let Some((declared, actual)) = bound_receiver {
+            session.push(
                 Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(declared)),
                 ConstraintOrigin::Receiver,
-            ),
-            (ReceiverShape::Extension(_), None)
-            | (ReceiverShape::None | ReceiverShape::Instance, None) => {}
-            (ReceiverShape::None | ReceiverShape::Instance, Some(_)) => {
-                unreachable!("only an extension reference has a separately constrained receiver")
-            }
+            );
         }
 
         let shape = CallableShape {
             category: CallableCategory::Managed,
-            is_suspend: view.effects.is_suspend,
+            is_suspend,
             parameters: parameter_types
                 .iter()
                 .copied()
                 .map(TypeTerm::Type)
                 .map(CallableParameter::Explicit)
                 .collect(),
-            return_type: CallableReturn::Explicit(TypeTerm::Type(view.return_type)),
+            return_type: CallableReturn::Explicit(TypeTerm::Type(return_type)),
         };
         // A declaration reference denotes its exact instantiated signature.
         // Function variance is represented by later value coercions, not by
@@ -167,7 +165,7 @@ impl Lowerer {
             }
             session.push(
                 Constraint::Equal(
-                    TypeTerm::Type(view.return_type),
+                    TypeTerm::Type(return_type),
                     TypeTerm::Rigid(expected.return_type),
                 ),
                 ConstraintOrigin::ExpectedResult,

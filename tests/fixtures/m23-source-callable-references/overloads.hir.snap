@@ -1,0 +1,20 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      CallableReference reference0 target=imported select captures=0 : ((T0, Int)) -> Int
+    return
+      CallableCall function_type0 : Int
+        Local selected : ((T0, Int)) -> Int
+        TupleLiteral : (T0, Int)
+          Local value : T0
+          IntegerLiteral 0 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

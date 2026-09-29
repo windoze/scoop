@@ -181,8 +181,7 @@ struct ReferenceResolutionContext<'a> {
 }
 
 struct ResolvedReference {
-    callable: hir::Callable,
-    source: crate::CallableCandidateSource,
+    target: hir::CallableReferenceTarget,
     type_args: Vec<TypeId>,
     ty: TypeId,
 }

@@ -1,0 +1,40 @@
+Module
+  class LocalChild<T>(value: T0)
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      ClassInit LocalChild<T0> : LocalChild<T0>
+        Local $parameter.value : T0
+    val local4
+      Local child : LocalChild<T0>
+    val local5
+      MethodCall LocalChild.reference : () -> T0
+        Local $receiver : LocalChild<T0>
+    val local6
+      Local child : LocalChild<T0>
+    val local7
+      CallableReference reference1 target=imported read captures=0 : () -> T0
+        ReferenceUpcast : Protected<T0>
+          Local $receiver : LocalChild<T0>
+    val local8
+      TupleLiteral : (T0, T0)
+        CallableCall function_type1 : T0
+          Local read : () -> T0
+        MethodCall LocalChild.chosen : T0
+          Local $receiver : LocalChild<T0>
+          Local $parameter.read : () -> T0
+    return
+      IntegerLiteral 42 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

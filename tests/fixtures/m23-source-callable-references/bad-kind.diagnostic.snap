@@ -1,0 +1,4 @@
+span=98..109
+expression=::valueOnly
+no applicable candidate for callable reference `::valueOnly` in dependency top-level candidate layer:
+  - fun valueOnly<T : value>(value: T): T — type argument `Plain` for `T` must satisfy `value`

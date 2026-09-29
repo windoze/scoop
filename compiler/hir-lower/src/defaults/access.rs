@@ -133,7 +133,8 @@ impl ReferenceCollector<'_> {
                     hir::CallableReferenceTarget::BoundExtension { callee, .. } => {
                         self.callable_domain(*callee)
                     }
-                    hir::CallableReferenceTarget::Local { .. } => hir::AccessDomain::universal(),
+                    hir::CallableReferenceTarget::Local { .. }
+                    | hir::CallableReferenceTarget::Imported(_) => hir::AccessDomain::universal(),
                 }
             }
             hir::ExportDefaultCallableTarget::LocalFunction(_)

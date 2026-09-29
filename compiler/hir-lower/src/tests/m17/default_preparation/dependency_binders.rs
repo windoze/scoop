@@ -32,6 +32,29 @@ fn expanded_default_local_descriptors_keep_callee_signatures_and_caller_values()
             .collect::<Vec<_>>();
         assert_eq!(parameters, signature.parameter_types);
     }
+    let mut local_references = 0;
+    for (id, reference) in module.callable_references.iter() {
+        if let hir::concrete::CallableReferenceTarget::Local {
+            callee: hir::concrete::Callable::Function(function),
+            ..
+        } = reference.target
+        {
+            let parameters = &module.functions[function].capture_parameters;
+            assert_eq!(reference.captures.len(), parameters.len());
+            for (index, parameter) in parameters.iter().enumerate() {
+                assert_eq!(
+                    module
+                        .local_value_identities
+                        .callable_reference_capture(id, index),
+                    module
+                        .local_value_identities
+                        .function_local(function, parameter.local)
+                );
+            }
+            local_references += 1;
+        }
+    }
+    assert!(local_references > 0);
     let mir = scoop_mir_lower::lower(module).unwrap();
     assert_eq!(
         (

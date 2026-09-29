@@ -123,6 +123,16 @@ impl Lowerer {
             ExprKind::CallableReference(reference) => {
                 let reference = &self.callable_references[*reference];
                 match &reference.target {
+                    hir::CallableReferenceTarget::Imported(target) => {
+                        if let Some(hir::ImportedCallableTarget::Application(application)) =
+                            target.callee()
+                        {
+                            out.push(self.imported_body_generic_call(application, expr.span));
+                        }
+                        if let Some(receiver) = target.receiver() {
+                            self.collect_generic_calls_in_expr(receiver, out);
+                        }
+                    }
                     hir::CallableReferenceTarget::Named(callee) => record(*callee),
                     hir::CallableReferenceTarget::Local { callee, .. } => record(*callee),
                     hir::CallableReferenceTarget::BoundMember { receiver, callee } => {

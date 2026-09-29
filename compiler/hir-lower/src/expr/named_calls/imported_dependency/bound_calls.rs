@@ -13,10 +13,34 @@ impl Lowerer {
         let Some(declaration) = declaration else {
             return Ok(None);
         };
+        let Some(callee) = self.imported_bound_member_callee(
+            declaration,
+            declared,
+            args[0].ty,
+            parameter_types,
+            result_type,
+        )?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(hir::ExprKind::ImportedMethodCall {
+            receiver: Box::new(args.remove(0)),
+            callee,
+            args: std::mem::take(args),
+        }))
+    }
+
+    pub(in crate::expr) fn imported_bound_member_callee(
+        &mut self,
+        declaration: &hir::CallableDeclarationRecordV1,
+        declared: hir::ImportedCallableTarget,
+        receiver_type: hir::TypeId,
+        parameter_types: &[hir::TypeId],
+        result_type: hir::TypeId,
+    ) -> Result<Option<hir::ImportedMethodCallee>, String> {
         let hir::PublicDeclarationOwnerV1::Nominal(owner) = declaration.owner() else {
             return Ok(None);
         };
-        let receiver_type = args[0].ty;
         let interface = self
             .imported_member_owner_type(receiver_type, owner)
             .ok_or("a selected bound member retains its declaring owner")?;
@@ -40,20 +64,15 @@ impl Lowerer {
         let hir::Type::Function(signature) = self.types[signature] else {
             unreachable!("an interned bound signature is a function type")
         };
-        let receiver = Box::new(args.remove(0));
-        Ok(Some(hir::ExprKind::ImportedMethodCall {
-            receiver,
-            callee: hir::ImportedMethodCallee::InterfaceBound(Box::new(
-                hir::ImportedInterfaceBoundCallable {
-                    receiver_type,
-                    interface,
-                    member,
-                    slot,
-                    declared,
-                    signature,
-                },
-            )),
-            args: std::mem::take(args),
-        }))
+        Ok(Some(hir::ImportedMethodCallee::InterfaceBound(Box::new(
+            hir::ImportedInterfaceBoundCallable {
+                receiver_type,
+                interface,
+                member,
+                slot,
+                declared,
+                signature,
+            },
+        ))))
     }
 }

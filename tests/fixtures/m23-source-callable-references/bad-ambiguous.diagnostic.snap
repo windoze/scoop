@@ -1,0 +1,5 @@
+span=99..109
+expression=::conflict
+callable reference `::conflict` is ambiguous in dependency top-level candidate layer:
+  - fun conflict<T>(left: Int, right: T): Int — matches the expected function type
+  - fun conflict<T>(left: T, right: Int): Int — matches the expected function type

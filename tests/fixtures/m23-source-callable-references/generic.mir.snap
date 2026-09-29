@@ -1,0 +1,89 @@
+Module
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=0
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn4 captures=0
+  closure cc2 $Closure$reference2 type=function_type0 invoke=@fn5 captures=0
+  generated_exact_type get0 location=closure1 nominal_id=d4f19a97ebfc0fa9c6d945274817b59cf280fd90e194a72a20c0f4a5ff8b676e exact_id=5157303a67e60571f617dd44c083a8b8a4169b89ef7ff9e9d671c04a8e942014
+  generated_exact_type get1 location=closure0 nominal_id=510b421a09ba8c03796d936bdb64397574fdc8d612d606171d38e6ecaed28d7a exact_id=a90b35aeaf485b7d3e2310c45afc00bbf06abab57b109102367dec9238aae048
+  generated_exact_type get2 location=closure2 nominal_id=890d43ed8bf54ff4101b33a59da1df0a54b46d74fff0ebf3f1b4f795ae22d0eb exact_id=b6866b943fbf4a6372bb684109071e6ae6719c8d4ee0e89d6d46f8e4f4949336
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val copy: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+      val copyAgain: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$reference1
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local copy
+        Type Int
+        Local value
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local copyAgain
+        Type Int
+        Local value
+      val values: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Int
+          Local $call.2
+      val number: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$reference2
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local number
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      return
+        Type Int
+        Local $call.3
+  fun identity @fn2(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $reference.0 @fn3($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn4($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn5($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- identity
+  output library

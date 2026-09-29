@@ -13,7 +13,43 @@ impl BodyProjection<'_, '_> {
         &mut self,
         reference: &crate::ImportedCallableReference,
     ) -> Result<DefaultCallableReferenceV1, super::super::DefaultBodyProjectionError> {
-        let target = match &reference.target {
+        let target = self.imported_reference_target(&reference.target)?;
+        let scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { path, .. } =
+            reference.definition.key()
+        else {
+            unreachable!("an imported reference retains its invoke definition");
+        };
+        DefaultCallableReferenceV1::try_new(
+            reference.definition.id(),
+            path.clone(),
+            target,
+            self.function_type(reference.function_type)?,
+            self.captures(&reference.captures)?,
+            owner_parameter_count(reference.owner_type_arguments.len())?,
+        )
+        .map_err(super::super::DefaultBodyProjectionError::CallableReference)
+    }
+
+    fn imported_reference_target(
+        &mut self,
+        target: &crate::ImportedCallableReferenceTarget,
+    ) -> Result<DefaultCallableReferenceTargetV1, super::super::DefaultBodyProjectionError> {
+        Ok(match target {
+            crate::ImportedCallableReferenceTarget::BoundIntrinsic {
+                receiver,
+                declaration,
+                ..
+            } => DefaultCallableReferenceTargetV1::BoundMember {
+                receiver: Box::new(self.expression(receiver)?),
+                callee: crate::DefaultMethodCalleeV1::Callable(
+                    crate::DefaultCallableRefV1::try_new(
+                        crate::DefaultCallableDeclarationV1::Function(*declaration),
+                        scoop_identity::OptionalSignatureType::Absent,
+                        Vec::new(),
+                    )
+                    .map_err(super::super::DefaultEntityProjectionError::Callable)?,
+                ),
+            },
             crate::ImportedCallableReferenceTarget::Named(callee) => {
                 DefaultCallableReferenceTargetV1::Named(self.imported_reference_callee(*callee)?)
             }
@@ -45,21 +81,7 @@ impl BodyProjection<'_, '_> {
                     callee: self.imported_reference_callee(*callee)?,
                 }
             }
-        };
-        let scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { path, .. } =
-            reference.definition.key()
-        else {
-            unreachable!("an imported reference retains its invoke definition");
-        };
-        DefaultCallableReferenceV1::try_new(
-            reference.definition.id(),
-            path.clone(),
-            target,
-            self.function_type(reference.function_type)?,
-            self.captures(&reference.captures)?,
-            owner_parameter_count(reference.owner_type_arguments.len())?,
-        )
-        .map_err(super::super::DefaultBodyProjectionError::CallableReference)
+        })
     }
 
     pub(super) fn imported_reference_callee(
@@ -208,6 +230,7 @@ impl BodyProjection<'_, '_> {
                 index: super::super::raw_index(id),
             })?;
         let target = match &reference.target {
+            CallableReferenceTarget::Imported(target) => self.imported_reference_target(target)?,
             CallableReferenceTarget::Named(callee) => DefaultCallableReferenceTargetV1::Named(
                 self.entities.callable(*callee, self.binders)?,
             ),

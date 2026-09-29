@@ -1,0 +1,17 @@
+package consumer.references
+
+import templates.references.*
+
+public fun <T> exercise(value: T): Int {
+    var triple = Triple(Plain(14), Plain(14), Plain(14))
+    val read = triple::sum
+    triple = Triple(Plain(0), Plain(0), Plain(0))
+    val empty = Empty()::read
+    val box = Cell<T>(value)
+    val valueRead = box::read
+    val values = (valueRead(), value)
+    if (triple.sum() != 0 || empty() != 42) { return 1 }
+    return read()
+}
+
+public fun result(): Int = exercise<Int>(0)

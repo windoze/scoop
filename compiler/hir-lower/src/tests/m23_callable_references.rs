@@ -218,6 +218,9 @@ fn selected_function(module: &hir::Module) -> hir::FunctionId {
         hir::CallableReferenceTarget::Local { .. } => {
             panic!("the selected declaration is not local")
         }
+        hir::CallableReferenceTarget::Imported(_) => {
+            panic!("the selected declaration does not belong to a dependency")
+        }
     }
 }
 

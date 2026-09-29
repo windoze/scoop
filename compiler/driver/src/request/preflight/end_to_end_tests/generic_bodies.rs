@@ -10,6 +10,7 @@ mod machine;
 mod members;
 mod nominals;
 mod publication;
+mod references;
 mod siblings;
 
 #[test]

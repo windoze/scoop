@@ -20,12 +20,16 @@
   closure cc5 $Closure$anonymous1 type=function_type1 invoke=@fn44 captures=1
   closure cc6 $Closure$reference0 type=function_type0 invoke=@fn51 captures=1
   closure cc7 $Closure$reference1 type=function_type1 invoke=@fn52 captures=1
+  closure cc8 $Closure$reference2 type=function_type0 invoke=@fn53 captures=1
+  closure cc9 $Closure$reference3 type=function_type0 invoke=@fn54 captures=1
+  closure cc10 $Closure$reference4 type=function_type1 invoke=@fn55 captures=1
+  closure cc11 $Closure$reference5 type=function_type1 invoke=@fn56 captures=1
   fun main @fn24() -> Unit
     bb0 entry
       assign $new.1
         Type LocalDependencyHost
         ClassAlloc LocalDependencyHost
-      call @fn61 direct
+      call @fn65 direct
         Type LocalDependencyHost
         Local $new.1
       val local: LocalDependencyHost
@@ -144,7 +148,7 @@
       assign $new.6
         Type DependencyCombinationHost
         ClassAlloc DependencyCombinationHost
-      call @fn62 direct
+      call @fn66 direct
         Type DependencyCombinationHost
         Local $new.6
       val combined: DependencyCombinationHost
@@ -369,7 +373,7 @@
     bb13 if.then.13
       assign $result.1
         Type () -> String
-        ClosureAlloc cc6 $Closure$reference0
+        ClosureAlloc cc8 $Closure$reference2
           CaptureInit field=0
             Type String
             Local $parameter.seed
@@ -401,7 +405,7 @@
     bb16 if.then.16
       assign $result.1
         Type () -> String
-        ClosureAlloc cc6 $Closure$reference0
+        ClosureAlloc cc9 $Closure$reference3
           CaptureInit field=0
             Type String
             Local $parameter.seed
@@ -466,7 +470,7 @@
     bb19 if.then.19
       assign $result.1
         Type () -> Int
-        ClosureAlloc cc7 $Closure$reference1
+        ClosureAlloc cc10 $Closure$reference4
           CaptureInit field=0
             Type Int
             Local $parameter.seed
@@ -498,7 +502,7 @@
     bb22 if.then.22
       assign $result.1
         Type () -> Int
-        ClosureAlloc cc7 $Closure$reference1
+        ClosureAlloc cc11 $Closure$reference5
           CaptureInit field=0
             Type Int
             Local $parameter.seed
@@ -701,10 +705,50 @@
       return
         Type Int
         Local $call.1
-  fun init.LocalDependencyHost.$c7 @fn61(this: LocalDependencyHost) -> Unit
+  fun $reference.2 @fn53($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn31 direct
+        Type String
+        ClosureCapture cc8 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.3 @fn54($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn31 direct
+        Type String
+        ClosureCapture cc9 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.4 @fn55($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn39 direct
+        Type Int
+        ClosureCapture cc10 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.5 @fn56($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn39 direct
+        Type Int
+        ClosureCapture cc11 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.LocalDependencyHost.$c7 @fn65(this: LocalDependencyHost) -> Unit
     bb0 entry
       return
-  fun init.DependencyCombinationHost.$c8 @fn62(this: DependencyCombinationHost) -> Unit
+  fun init.DependencyCombinationHost.$c8 @fn66(this: DependencyCombinationHost) -> Unit
     bb0 entry
       return
   coroutine_step cs0 CoroutineStep<LocalDependencyHost> result=LocalDependencyHost

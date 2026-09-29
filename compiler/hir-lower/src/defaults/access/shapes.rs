@@ -197,6 +197,9 @@ impl ReferenceCollector<'_> {
         );
         self.function_type_reference(reference.function_type, origin);
         match reference.target {
+            hir::CallableReferenceTarget::Imported(target) => {
+                self.imported_reference_target(&target, origin);
+            }
             hir::CallableReferenceTarget::Named(callable)
             | hir::CallableReferenceTarget::Local {
                 callee: callable, ..

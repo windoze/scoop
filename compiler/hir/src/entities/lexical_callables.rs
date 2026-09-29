@@ -93,6 +93,9 @@ pub struct CallableReference {
 #[derive(Debug, Clone)]
 pub enum CallableReferenceTarget {
     Named(Callable),
+    /// A dependency declaration selected by a reference written in this Cone.
+    /// The invoke identity still belongs to the local reference expression.
+    Imported(ImportedCallableReferenceTarget),
     Local {
         local_function: LocalFunctionId,
         callee: Callable,
@@ -111,6 +114,18 @@ pub enum CallableReferenceTarget {
         receiver: Box<Expr>,
         callee: Callable,
     },
+}
+
+impl CallableReferenceTarget {
+    pub fn receiver(&self) -> Option<&Expr> {
+        match self {
+            Self::BoundMember { receiver, .. } | Self::BoundExtension { receiver, .. } => {
+                Some(receiver)
+            }
+            Self::Imported(target) => target.receiver(),
+            Self::Named(_) | Self::Local { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

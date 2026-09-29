@@ -560,12 +560,25 @@
 
 本项完成上述具名泛型正文、成员和默认参数中的派生相等闭环。参数自由外来值的 helper 消费、显式派生 `equals` 调用与函数引用、词法生成正文中的 bound 组合仍继续推进，M23-7 尚未完成。
 
+## 2026-09-29：消费方源码函数引用与再次发布
+
+- 消费方源码中的普通／泛型 `::name`、绑定成员和绑定／未绑定扩展引用共同收集同层本地与依赖候选，以完整函数签名、宿主实参和期望类型推断，并在同一类型环境中比较最具体候选。只有选中候选提交导入模板；函数引用保留全部参数，默认参数不会缩短签名。unsafe、suspend、kind bound、不可推导实参、歧义、结果类型、访问域以及不允许的构造器／未绑定成员形式继续给出源码诊断。
+- 已选目标沿原 callable use 或完整 application 消费提供方实现，创建处只生成自己的 invoke。绑定接收者求值一次并保存其值，普通、泛型宿主、virtual/interface、protected 和类型参数 bound 的成员引用复用现有目标选择、捕获环境与派发。共有默认值的成员引用目录保留完整 owner type，支持下游解析实际 callable owner。
+- core 原语成员引用保存实际声明与正规化 intrinsic kind，MIR invoke 复用普通运算降低；整数除零继续构造并抛出 ArithmeticException，带符号最小值除以／取余负一、移位计数和转换沿原语义处理。共有模板仍使用原成员引用，消费时从已解析声明恢复运算，不发布不存在的 Strong 函数；无新增 wire 字段或 runtime ABI。
+- 默认值模板之间的代换保留原引用身份；展开到可执行正文时，invoke 使用创建点的词法 root、新路径和完整宿主实参。局部函数引用从实际目标函数的前置捕获参数解析原值身份，避免把 invoke 的上下文当作目标函数的捕获作用域。本地 lambda／匿名函数捕获读取保留首次引用的定义位置，求值位置使用创建点；共有 invoke key 与本地具体化共同选择最近词法 callable 父节点，嵌套函数再次发布后复用同一机器身份。
+- 新增 30 份源码、13 组真实产物正例、13 组反例和 52 份 golden。正例覆盖混合来源重载和查找层、宿主与 callable 两组 binder、默认参数多次展开、局部函数／lambda／匿名函数捕获、原语运算与异常、动态派发、接收者快照、ZST 和 24 字节含三个引用的大值。反例逐一检查引用处的真实位置、诊断与不产生目标产物。另有挂起签名和泛型正文直接全局读写两份 HIR 用例，仅验证前端与共有接口生产，其运行闭环仍属后续工作。
+- 提供方与消费方发布后移走源码，下游仅凭产物以自身引用类型再次实例化，并重复已有 Int application；13 组均完成链接、普通运行和移动 GC，重复 ODR 定义合并通过。复测同时覆盖原有 15 组 initializer 引用及默认值普通 reader。六份既有 golden 差异已逐项核对：两份 MIR 增加不同默认展开创建点的闭包与 invoke，四份嵌套引用 MIR/LIR 更新最近词法父节点对应的身份摘要；捕获 ABI、派发、布局和 GC 扫描保持实际程序语义。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和最新配套 `scoopc` 构建通过，无警告。关闭全部快照更新后运行 `cargo test --workspace --no-fail-fast`，5201 项通过、0 失败、0 忽略；HIR-lower 的 1278 项与 driver library 的 146 项全部通过，后者用时 379.88 秒。完整日志为 `/tmp/scoop-m23-7-source-references-workspace-verified.log`，受影响的三组产物复测日志为 `/tmp/scoop-m23-7-source-references-repaired-driver.log`。
+- 全仓通过后确认构建、测试与配套编译器进程结束、`target` 无打开文件，并通过 Cargo metadata 核对目录与标准缓存标记；执行 `cargo clean --target-dir target`，删除 2755 个构建文件，Cargo 报告总大小 6.0 GiB。
+
+本项完成上述消费方源码函数引用的候选选择、再次发布与运行闭环；M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound，以及具名泛型正文与默认参数的派生相等基础上，补齐 vararg、参数自由外来值和派生相等的显式调用/函数引用、词法正文中的 bound 组合，以及泛型正文和默认参数中的 lambda、匿名函数和 callable reference 捕获组合；接通消费方源码直接引用外来函数的候选选择。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等，以及消费方源码直接引用外来函数的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合，以及泛型正文直接全局读写的导入转换。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
-4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
+4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

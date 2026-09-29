@@ -11,17 +11,21 @@ impl Lowerer {
             let callable = reference.target.callee();
             let receiver = match &reference.target {
                 hir::CallableReferenceTarget::BoundMember { receiver, .. }
-                | hir::CallableReferenceTarget::BoundExtension { receiver, .. } => {
+                | hir::CallableReferenceTarget::BoundExtension { receiver, .. }
+                | hir::CallableReferenceTarget::BoundIntrinsic { receiver, .. } => {
                     Some(receiver.as_ref())
                 }
                 hir::CallableReferenceTarget::Named(_)
                 | hir::CallableReferenceTarget::Local { .. } => None,
             };
-            let target = self.lower_reference_callee(module, callable);
+            let target = callable.map(|callee| self.lower_reference_callee(module, callee));
             let call_kind = match &reference.target {
-                hir::CallableReferenceTarget::BoundMember { receiver, .. } => {
-                    self.bound_reference_call_kind(module, receiver.ty, callable)
-                }
+                hir::CallableReferenceTarget::BoundMember { receiver, .. } => self
+                    .bound_reference_call_kind(
+                        module,
+                        receiver.ty,
+                        callable.expect("a bound member has a callable target"),
+                    ),
                 _ => mir::CallKind::Direct,
             };
             let signature = self.shell.function_types[function_type].clone();
@@ -92,9 +96,14 @@ impl Lowerer {
             )
             .expect("LocalConcrete callable-reference fields have persistent identities");
             let capture_fields = order_closure_fields(&identity, semantic_fields);
-            let definition = ClosureDefinition::Reference {
-                callee: target,
-                kind: call_kind.clone(),
+            let definition = match reference.target {
+                hir::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. } => {
+                    ClosureDefinition::PrimitiveReference(intrinsic)
+                }
+                _ => ClosureDefinition::Reference {
+                    callee: target.expect("an ordinary reference has a callable target"),
+                    kind: call_kind.clone(),
+                },
             };
             if let Some(class) = definitions.lookup(
                 &self.closure_classes,
@@ -207,33 +216,62 @@ impl Lowerer {
                 debug_assert!(reference.captures.is_empty());
             }
             args.extend(source_args);
-            let call = smir::Expr::new(
-                signature.return_type.clone(),
-                smir::ExprKind::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: call_kind,
-                        callee: target,
-                    },
-                    args,
-                    return_ty: signature.return_type.clone(),
-                }),
-            );
+            let materialization = *reference.identity.materialization();
+            let (call, mut statements) =
+                if let hir::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. } =
+                    reference.target
+                {
+                    let mut lowerer = self.body_lowerer(
+                        module,
+                        function,
+                        materialization,
+                        mir::ImmortalObjectOwner::Callable(materialization),
+                    );
+                    lowerer.locals = locals;
+                    let call =
+                        lowerer.lower_primitive_member_values(intrinsic, args, reference.span);
+                    locals = lowerer.locals;
+                    let statements = lowerer
+                        .prelude
+                        .into_iter()
+                        .map(|kind| smir::Statement {
+                            kind,
+                            span: reference.span,
+                        })
+                        .collect::<Vec<_>>();
+                    (call, statements)
+                } else {
+                    (
+                        smir::Expr::new(
+                            signature.return_type.clone(),
+                            smir::ExprKind::Call(smir::Call {
+                                target: mir::CallTarget {
+                                    kind: call_kind,
+                                    callee: target
+                                        .expect("an ordinary reference has a callable target"),
+                                },
+                                args,
+                                return_ty: signature.return_type.clone(),
+                            }),
+                        ),
+                        Vec::new(),
+                    )
+                };
             let statement = if signature.return_type == mir::Type::Unit {
                 smir::StatementKind::Expr(call)
             } else {
                 smir::StatementKind::Return { value: Some(call) }
             };
-            let mut statements = vec![smir::Statement {
+            statements.push(smir::Statement {
                 kind: statement,
                 span: reference.span,
-            }];
+            });
             if signature.return_type == mir::Type::Unit {
                 statements.push(smir::Statement {
                     kind: smir::StatementKind::Return { value: None },
                     span: reference.span,
                 });
             }
-            let materialization = *reference.identity.materialization();
             self.local_values.record_generated_dispatch_parameters(
                 function,
                 materialization,

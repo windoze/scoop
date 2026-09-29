@@ -154,6 +154,7 @@ impl Lowerer {
         self.lower_local_parameter_interface(function, &decl.name.text);
 
         let capture_environment = self.capture_environment();
+        let declaration_origin = self.expression_origin(decl.span);
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
@@ -254,7 +255,7 @@ impl Lowerer {
                     Vec::new()
                 }
             };
-            let captures = self.finish_current_captures();
+            let captures = self.finish_current_captures(declaration_origin);
             patch_local_function_calls(&mut statements, local, &captures);
             let mut abi_params = Vec::with_capacity(captures.len() + params.len());
             for capture in &captures {

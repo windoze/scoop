@@ -19,7 +19,8 @@ impl LocalValueIdentityBuilder<'_> {
                     CallableReferenceLocalValue::Unbound
                 }
                 CallableReferenceTarget::BoundMember { .. }
-                | CallableReferenceTarget::BoundExtension { .. } => {
+                | CallableReferenceTarget::BoundExtension { .. }
+                | CallableReferenceTarget::BoundIntrinsic { .. } => {
                     let location = LocalValueLocation::CallableReferenceReceiver {
                         reference: raw_arena_index(reference_id),
                     };

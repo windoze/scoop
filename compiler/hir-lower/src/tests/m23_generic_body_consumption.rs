@@ -13,6 +13,7 @@ mod machine;
 mod members;
 mod metadata;
 mod nominals;
+mod references;
 
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

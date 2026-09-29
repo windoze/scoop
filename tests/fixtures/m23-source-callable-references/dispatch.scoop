@@ -1,0 +1,19 @@
+package consumer.references
+
+import templates.references.*
+
+public fun <T> exercise(value: T): Int {
+    val base: Base = Derived()
+    val virtual = base::read
+    val reader: Readable = Reader()
+    val interfaceRead: () -> Int = reader::read
+    val generic: VirtualBox<T> = VirtualChild<T>(value, value)
+    val genericRead = generic::read
+    val chooser: Chooser<T> = Choosing<T>()
+    val interfaceChoose: (T) -> T = chooser::choose
+    val values = (genericRead(), interfaceChoose(value))
+    if (virtual() != 42) { return 1 }
+    return interfaceRead()
+}
+
+public fun result(): Int = exercise<Int>(0)

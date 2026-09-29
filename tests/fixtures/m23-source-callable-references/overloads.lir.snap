@@ -1,0 +1,44 @@
+Module
+  fun @scoop$1$cb$882085371bdbea235e0d1c12b9c4d08cb55ad36fc7ba37ddf7e78a231a862403() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$b6ebfc2791da3602b038a33cae6067469c34e75b8179a5d4c9e5b41de86b9beb(i32) -> i32
+    local %0 selected: ptr<managed>
+    local %1 $call.1: i32
+    local %2 $sc.1: {i32, i32}
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    t1 = function_address @scoop$1$cb$f9283ee8ed8d5c56eff74ce365acfe5eecabcc40ec2f27c27f16a6edb676ac66 : ptr
+    heap_store t0 +16 t1
+    store t0 -> local0
+    t2 = aggregate (param0, integer<Int>(0x00000000)) : {i32, i32}
+    store t2 -> local2
+    call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32 dispatch[Closure:2] local0(local0, indirect local2)
+    store t3 -> local1
+    ret local1
+  fun @scoop$1$cb$1e6cec191146492ae369609924c7e6ed7681cd61a260b370debaf6af85e3bc18(indirect<{i32, i32} size=8 align=4 scan=none>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x0000002a)
+  fun @scoop$1$cb$f9283ee8ed8d5c56eff74ce365acfe5eecabcc40ec2f27c27f16a6edb676ac66(ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32
+    local %0 $call.1: i32
+    local %1 $sc.1: {i32, i32}
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param1 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<{i32, i32} size=8 align=4 scan=none>) -> i32 local-fn2(indirect local1)
+    store t0 -> local0
+    ret local0
+  td td0 g(r=00000001;i=dd764b65aa399abc19593a44a397c32ec02edb3659fbd54e054c5e8c3e516d33) @scoop$1$td$b9bfd1489ed7cd342e3104e7911092b6b5f5e7ef1d7ab22869d163819d140c82 type-id=17196405613038349800 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout $Closure$reference0 value size=8 align=8 refs=[0]
+  layout $Closure$reference0 size=24 align=8 refs=[]
+  output library

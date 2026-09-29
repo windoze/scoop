@@ -116,6 +116,10 @@ pub enum CallableReferenceTarget {
         receiver: Box<Expr>,
         callee: CallableTarget,
     },
+    BoundIntrinsic {
+        receiver: Box<Expr>,
+        intrinsic: crate::PrimitiveMemberIntrinsic,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,12 +129,13 @@ pub enum CallableTarget {
 }
 
 impl CallableReferenceTarget {
-    pub fn callee(&self) -> CallableTarget {
+    pub fn callee(&self) -> Option<CallableTarget> {
         match self {
             Self::Named(callee)
             | Self::BoundMember { callee, .. }
-            | Self::BoundExtension { callee, .. } => *callee,
-            Self::Local { callee, .. } => CallableTarget::Local(*callee),
+            | Self::BoundExtension { callee, .. } => Some(*callee),
+            Self::Local { callee, .. } => Some(CallableTarget::Local(*callee)),
+            Self::BoundIntrinsic { .. } => None,
         }
     }
 }

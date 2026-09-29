@@ -3,6 +3,7 @@ use super::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum ClosureDefinition {
     Body(hir::FunctionId),
+    PrimitiveReference(scoop_hir::PrimitiveMemberIntrinsic),
     Reference {
         callee: mir::Callee,
         kind: mir::CallKind,

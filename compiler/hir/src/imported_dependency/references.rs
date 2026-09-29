@@ -23,6 +23,11 @@ pub enum ImportedCallableReferenceTarget {
         receiver: Box<Expr>,
         callee: ImportedCallableTarget,
     },
+    BoundIntrinsic {
+        receiver: Box<Expr>,
+        declaration: scoop_identity::PersistentFunctionId,
+        intrinsic: crate::PrimitiveMemberIntrinsic,
+    },
 }
 
 impl ImportedCallableReferenceTarget {
@@ -31,23 +36,24 @@ impl ImportedCallableReferenceTarget {
             Self::Named(callee) | Self::BoundExtension { callee, .. } => Some(*callee),
             Self::BoundMember { callee, .. } => callee.declared_callable(),
             Self::Local(application) => Some(ImportedCallableTarget::Application(*application)),
+            Self::BoundIntrinsic { .. } => None,
         }
     }
 
     pub fn receiver(&self) -> Option<&Expr> {
         match self {
-            Self::BoundMember { receiver, .. } | Self::BoundExtension { receiver, .. } => {
-                Some(receiver)
-            }
+            Self::BoundMember { receiver, .. }
+            | Self::BoundExtension { receiver, .. }
+            | Self::BoundIntrinsic { receiver, .. } => Some(receiver),
             Self::Named(_) | Self::Local(_) => None,
         }
     }
 
     pub fn receiver_mut(&mut self) -> Option<&mut Expr> {
         match self {
-            Self::BoundMember { receiver, .. } | Self::BoundExtension { receiver, .. } => {
-                Some(receiver)
-            }
+            Self::BoundMember { receiver, .. }
+            | Self::BoundExtension { receiver, .. }
+            | Self::BoundIntrinsic { receiver, .. } => Some(receiver),
             Self::Named(_) | Self::Local(_) => None,
         }
     }

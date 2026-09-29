@@ -40,7 +40,8 @@ impl SourceRoots {
                     },
                     // The lifted declaration and its dependencies are attached
                     // to this default body, rather than a top-level record.
-                    CallableReferenceTarget::Local { .. } => Ok(()),
+                    CallableReferenceTarget::Local { .. }
+                    | CallableReferenceTarget::Imported(_) => Ok(()),
                 }
             }
             // Imported calls keep the actual provider; attached lexical bodies

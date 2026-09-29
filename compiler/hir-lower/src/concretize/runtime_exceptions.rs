@@ -97,6 +97,11 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
             concrete::ExprKind::IntegerOperation {
                 operation: concrete::IntegerOperation::Managed { .. }, ..
             } if !arithmetic_layout => "integer division exception constructor",
+            concrete::ExprKind::CallableReference(id) if !arithmetic_layout && matches!(
+                module.callable_references[id].target,
+                concrete::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. }
+                    if intrinsic.requires_arithmetic_exception()
+            ) => "integer reference exception constructor",
             _ => return Ok(()),
         };
         let evaluation = occurrence.expression.origin.evaluation;

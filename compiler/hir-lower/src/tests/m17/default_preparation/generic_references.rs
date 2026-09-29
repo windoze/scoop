@@ -3,7 +3,7 @@ use super::*;
 mod snapshots;
 
 #[test]
-fn generic_default_reference_preserves_its_definition_owner_arguments() {
+fn generic_default_reference_uses_its_creation_scope() {
     let output = lower_source(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m23-type-source-defaults/generic-reference-owner.scoop"
@@ -18,13 +18,27 @@ fn generic_default_reference_preserves_its_definition_owner_arguments() {
         .map(|(_, f)| f.materialization.context())
         .collect::<std::collections::HashSet<_>>();
     assert_eq!(contexts.len(), 4);
-    let references = output
+    let main = output
         .local
-        .callable_references
+        .functions
         .iter()
-        .map(|(_, r)| r.identity.materialization().context())
-        .collect::<std::collections::HashSet<_>>();
-    assert_eq!(references, contexts);
+        .find(|(_, f)| f.name == "main")
+        .unwrap()
+        .1;
+    let mut invokes = std::collections::HashSet::new();
+    for (_, reference) in output.local.callable_references.iter() {
+        assert_eq!(
+            reference.identity.materialization().context(),
+            main.materialization.context()
+        );
+        let scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { parent, .. } =
+            reference.identity.callable_record().key()
+        else {
+            panic!("a reference has an invoke key");
+        };
+        assert_eq!(parent.template(), main.materialization.template());
+        assert!(invokes.insert(reference.identity.callable_record().id()));
+    }
     let mir = scoop_mir_lower::lower(&output.local).unwrap();
     assert_eq!(mir.closure_classes.len(), 4);
 }
