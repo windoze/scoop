@@ -1,0 +1,114 @@
+Module
+  struct ValueReader<T> : Reader<T0>
+    field0 value: T0
+    property0 val value: T0 getter0=storage <stored struct0-field0>
+  class NumberReader() : Reader<Int>
+  interface Reader<T>
+    fun read(): T0
+    fun again(): T0 <default>
+      val local1
+        Local this : Reader<T0>
+      return
+        MethodCall Reader.read : T0
+          Local $receiver : Reader<T0>
+  fun result(): Int
+    val local0
+      ClassInit NumberReader : NumberReader
+    val local1
+      Local reader : NumberReader
+    val local2
+      IntegerLiteral 21 : Int
+    val local3
+      Local $argument.0 : Int
+    val local4
+      MethodCall NumberReader.read : Int
+        Local $receiver : NumberReader
+        Local $parameter.fallback : Int
+    val local5
+      IntegerLiteral 21 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local7
+        Local reader : NumberReader
+      val local8
+        MethodCall Reader.again : Int
+          ReferenceUpcast : Reader<Int>
+            Local $receiver : NumberReader
+      val local9
+        IntegerLiteral 42 : Int
+      val local10
+        Local $dependency.argument.0 : Int
+      val local11
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local11
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.0 : Boolean
+      val local12
+        Local reader : NumberReader
+      assign $result.1
+        MethodCall NumberReader.read : Int
+          Local $receiver : NumberReader
+    else
+      assign $result.1
+        IntegerLiteral 0 : Int
+    return
+      Local $result.1 : Int
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      Local value : T0
+    val local3
+      Local $argument.0 : T0
+    val local4
+      StructInit ValueReader : ValueReader<T0>
+        Local $parameter.value : T0
+    val local5
+      Box : Reader<T0>
+        Local reader : ValueReader<T0>
+    val local6
+      Local protocol : Reader<T0>
+    val local10
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        MethodCall Reader.again : T0
+          Local $receiver : Reader<T0>
+    val local7
+      Local reader : ValueReader<T0>
+    val local8
+      Local value : T0
+    val local9
+      Local $argument.0 : T0
+    val local11
+      Local $equality.lhs : Int
+    val local12
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        MethodCall ValueReader.read : T0
+          Local $receiver : ValueReader<T0>
+          Local $parameter.fallback : T0
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local14
+        Local reader : ValueReader<T0>
+      assign $result.2
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          MethodCall ValueReader.read : T0
+            Local $receiver : ValueReader<T0>
+    else
+      assign $result.2
+        IntegerLiteral 0 : Int
+    return
+      Local $result.2 : Int
+  output library

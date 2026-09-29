@@ -2,7 +2,7 @@ Module
   fun primary(): Counter
     val local0
       Box : Readable
-        ImportedVariantConstruct ReadChoice.Ready : ReadChoice
+        VariantConstruct ReadChoice.Ready : ReadChoice
     val local1
       Local value : Readable
     val local2

@@ -1,7 +1,7 @@
 Module
   fun @scoop$1$cb$e7a78263e1af7c9604783caab22d67ed791cffd5567df66446c17ada65bf6c13() -> ptr<managed>
-    local %0 $dependency.default.local.0: i64
-    local %1 $dependency.default.local.1: i64
+    local %0 $default.local.0: i64
+    local %1 $default.local.1: i64
     local %2 $dependency.parameter.value: ptr<managed>
     local %3 $dependency.receiver: ptr<managed>
     local %4 $dependency.parameter.extra: i64

@@ -1,0 +1,340 @@
+Module
+  enum Option<Long>
+    Some(_0: Long)
+    None()
+  enum Option<UInt>
+    Some(_0: UInt)
+    None()
+  enum Option<ULong>
+    Some(_0: ULong)
+    None()
+  class LongRange vtable=0 itables=1
+  class UIntRange vtable=0 itables=1
+  class ULongRange vtable=0 itables=1
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  fun result @fn0() -> Int
+    bb0 entry
+      val longStart: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val longEnd: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val uintStart: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val uintEnd: UInt
+        Type UInt
+        IntegerLiteral UInt value=7 bits=0x00000007
+      val ulongStart: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val ulongEnd: ULong
+        Type ULong
+        IntegerLiteral ULong value=7 bits=0x0000000000000007
+      var signed: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      var unsigned: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      var wideUnsigned: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.receiver: Long
+        Type Long
+        Local longStart
+      val $dependency.argument.0: Long
+        Type Long
+        Local longEnd
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $for.source.0: LongRange = external1 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local $for.source.0
+      call $for.iterator.result.1: Iterator<Long> = external0 direct
+        Type LongRange
+        Local $dependency.receiver
+      val $for.iterator.2: Iterator<Long>
+        Type Iterator<Long>
+        Local $for.iterator.result.1
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $for.next.3: Option<Long> = @fn1 interface Iterator<Long>[0]
+        Type Iterator<Long>
+        Local $for.iterator.2
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Long> v0
+          Type Option<Long>
+          Local $for.next.3
+    bb2 while.exit.2
+      val $dependency.receiver: UInt
+        Type UInt
+        Local uintStart
+      val $dependency.argument.0: UInt
+        Type UInt
+        Local uintEnd
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $for.source.5: UIntRange = external3 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: UIntRange
+        Type UIntRange
+        Local $for.source.5
+      call $for.iterator.result.6: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $for.iterator.7: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $for.iterator.result.6
+      goto bb4
+    bb3 while.body.3
+      val $for.element.4: Long
+        Type Long
+        VariantPayloadProject Option<Long> v0 f0
+          Type Option<Long>
+          Local $for.next.3
+      val value: Long
+        Type Long
+        Local $for.element.4
+      val $dependency.receiver: Int
+        Type Int
+        Local signed
+      val $dependency.receiver: Long
+        Type Long
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion Long -> Int
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign signed
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb1
+    bb4 while.cond.4 <loop-header-poll>
+      call $for.next.8: Option<UInt> = @fn2 interface Iterator<UInt>[0]
+        Type Iterator<UInt>
+        Local $for.iterator.7
+      branch bb6 bb5
+        Type Boolean
+        VariantTest Option<UInt> v0
+          Type Option<UInt>
+          Local $for.next.8
+    bb5 while.exit.5
+      val $dependency.receiver: ULong
+        Type ULong
+        Local ulongStart
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local ulongEnd
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $for.source.10: ULongRange = external5 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: ULongRange
+        Type ULongRange
+        Local $for.source.10
+      call $for.iterator.result.11: Iterator<ULong> = external4 direct
+        Type ULongRange
+        Local $dependency.receiver
+      val $for.iterator.12: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $for.iterator.result.11
+      goto bb7
+    bb6 while.body.6
+      val $for.element.9: UInt
+        Type UInt
+        VariantPayloadProject Option<UInt> v0 f0
+          Type Option<UInt>
+          Local $for.next.8
+      val value: UInt
+        Type UInt
+        Local $for.element.9
+      val $dependency.receiver: Int
+        Type Int
+        Local unsigned
+      val $dependency.receiver: UInt
+        Type UInt
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion UInt -> Int
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign unsigned
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb4
+    bb7 while.cond.7 <loop-header-poll>
+      call $for.next.13: Option<ULong> = @fn3 interface Iterator<ULong>[0]
+        Type Iterator<ULong>
+        Local $for.iterator.12
+      branch bb9 bb8
+        Type Boolean
+        VariantTest Option<ULong> v0
+          Type Option<ULong>
+          Local $for.next.13
+    bb8 while.exit.8
+      val $dependency.receiver: Int
+        Type Int
+        Local signed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb9 while.body.9
+      val $for.element.14: ULong
+        Type ULong
+        VariantPayloadProject Option<ULong> v0 f0
+          Type Option<ULong>
+          Local $for.next.13
+      val value: ULong
+        Type ULong
+        Local $for.element.14
+      val $dependency.receiver: Int
+        Type Int
+        Local wideUnsigned
+      val $dependency.receiver: ULong
+        Type ULong
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion ULong -> Int
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign wideUnsigned
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb7
+    bb10 if.then.10
+      val $dependency.receiver: Int
+        Type Int
+        Local unsigned
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.15
+    bb13 if.then.13
+      val $dependency.receiver: Int
+        Type Int
+        Local wideUnsigned
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $shortCircuit.16
+    bb16 if.then.16
+      assign $result.17
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb18
+    bb17 if.else.17
+      assign $result.17
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb18
+    bb18 if.merge.18
+      return
+        Type Int
+        Local $result.17
+  fun Iterator.next @fn1(this: Iterator<Long>) -> Option<Long>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun Iterator.next @fn2(this: Iterator<UInt>) -> Option<UInt>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun Iterator.next @fn3(this: Iterator<ULong>) -> Option<ULong>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  instance mi0 function=@fn1 <- Iterator.next
+  instance mi1 function=@fn2 <- Iterator.next
+  instance mi2 function=@fn3 <- Iterator.next
+  output library

@@ -156,3 +156,11 @@
 - 新增 `m23-shared-parents` 的 class、interface、组合三组正例与三个反例，覆盖本地／依赖的公开泛型父类、未覆写的继承方法、接口默认实现、super 调用、嵌套实参和私有表示依赖。源码发布后移走，再次发布、引用／Int／Unit 应用以及普通／移动 GC 运行均通过；新快照已关闭更新开关复验。
 - 全仓 fmt／clippy 通过，3202 项 HIR／HIR lowering／MIR／MIR lowering／slib 单元测试均已覆盖通过。36 项相关真实产物回归均已覆盖成功；关闭更新开关后的 core 22 项（含初始化 Link 组）和继承／受保护成员 4 项专项复验全部通过。旧快照已核对：新增范围与迭代器表示、普通宿主的必需支持、函数编号顺序、共同字段显示和完整限定名诊断；Link 对象、注册项与指纹反映实际新增物化。日志前缀 `/tmp/scoop-m23-6a-shared-parents-`。
 - 本批清理约 1.73 GiB 旧增量缓存，继续复用 `target/m23-6a`。共同 nominal 类型、候选原身份、普通／模板／初始化正文及其 wire 适配仍按阶段设计继续迁移；本批通过不代表 6a 已完成。
+
+## 接口槽选择与整数范围
+
+- 成员查询按完整接口 application 和原派发 slot 复用声明中已经选定的实现；当该实现作为可见成员进入同一候选层时，删除重复的接口声明入口。移除未替换 binder 的原签名比较，保留真正不同的重载及接口默认实现。primitive 查询直接读取原选择，不要求提前物化完整接口实现。
+- 新增 `m23-shared-ranges` 与 `m23-shared-interface-members`，覆盖四类整数范围、开闭区间、break／continue、普通 class 与泛型 struct 的接口成员、同名重载、默认方法及错误实参诊断。全部使用真实库发布、移走源码、再次发布、引用／Int／Unit 应用和普通／移动 GC 运行；新 HIR／MIR／LIR 及诊断快照已关闭更新开关复验。
+- 共 1309 项 HIR lowering 单元测试通过。接口候选查询与原槽选择查询分别保持在 250 行内及 73 行；没有增加 wire 字段、物化根或重复的 override 验证。
+- 全仓 fmt／clippy 与 21 项相关真实产物回归均已覆盖通过。更新两组既有测试中的七份旧快照：共同字段编号、enum 构造节点及默认局部值名称；两个完整测试组关闭更新开关复验通过。日志前缀 `/tmp/scoop-m23-6a-ranges-`，最终结果见 `unit-verified.log`、`final-artifacts.log` 加 `conformance-verify.log`／`values-verify.log`。
+- 无进行中的 cargo／rustc 时清理约 1.19 GiB 的旧增量缓存，继续复用 `target/m23-6a`。本批完成既定接口选择的候选复用，声明／类型及正文的剩余来源表示继续迁移。

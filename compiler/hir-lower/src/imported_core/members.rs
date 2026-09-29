@@ -3,6 +3,9 @@
 use super::*;
 use hir::ImportedCallableSource;
 
+mod selections;
+use selections::SelectedInterfaceSources;
+
 impl Lowerer {
     pub(crate) fn imported_member_owner_type(
         &mut self,
@@ -53,11 +56,13 @@ impl Lowerer {
         let mut pending = vec![receiver];
         let mut seen = std::collections::BTreeSet::new();
         let mut suppressed_slots = std::collections::BTreeSet::new();
-        let mut result = Vec::<(bool, hir::ImportedCallableDeclaration)>::new();
+        let mut selected_sources = SelectedInterfaceSources::new();
+        let mut result = Vec::<(hir::TypeId, hir::ImportedCallableDeclaration)>::new();
         while let Some(ty) = pending.pop() {
             if !seen.insert(ty) {
                 continue;
             }
+            self.record_selected_interface_sources(ty, &mut selected_sources);
             match &self.types[ty] {
                 hir::Type::Class(application) => {
                     let declaration = &self.classes[self.class_applications[*application].template];
@@ -157,7 +162,6 @@ impl Lowerer {
             let Some(owner) = self.imported_nominal_owner(ty) else {
                 continue;
             };
-            let non_interface = !matches!(self.types[ty], hir::Type::ImportedInterface(_));
             if let hir::Type::ImportedInterface(interface) = &self.types[ty] {
                 suppressed_slots.extend(
                     interface
@@ -178,7 +182,7 @@ impl Lowerer {
                 {
                     continue;
                 }
-                if result.iter().any(|(selected_nominal, selected)| {
+                if result.iter().any(|(_, selected)| {
                     let selected_declaration = selected.interface();
                     selected_declaration.declaration() == declaration.declaration()
                         || selected_declaration
@@ -186,52 +190,37 @@ impl Lowerer {
                             .values()
                             .iter()
                             .any(|slot| declaration.slot_relations().values().contains(slot))
-                        || (*selected_nominal
-                            && !non_interface
-                            && same_member_signature(selected, &candidate))
                 }) {
                     continue;
                 }
-                result.push((non_interface, candidate));
+                result.push((ty, candidate));
             }
         }
+        let available = result
+            .iter()
+            .map(|(_, candidate)| candidate.interface().declaration())
+            .collect::<std::collections::BTreeSet<_>>();
         Ok(result
             .into_iter()
-            .filter(|(_, candidate)| {
+            .filter(|(receiver, candidate)| {
+                let declaration = candidate.interface().declaration();
                 !candidate
                     .interface()
                     .slot_relations()
                     .values()
                     .iter()
-                    .any(|slot| suppressed_slots.contains(slot))
+                    .any(|slot| {
+                        suppressed_slots.contains(slot)
+                            || selected_sources
+                                .get(&(*receiver, *slot))
+                                .is_some_and(|target| {
+                                    *target != declaration && available.contains(target)
+                                })
+                    })
             })
             .map(|(_, candidate)| candidate)
             .collect())
     }
-}
-
-fn same_member_signature(
-    selected: &hir::ImportedCallableDeclaration,
-    candidate: &hir::ImportedCallableDeclaration,
-) -> bool {
-    let left = selected.interface();
-    let right = candidate.interface();
-    selected.name() == candidate.name()
-        && left.type_parameters() == right.type_parameters()
-        && left.result() == right.result()
-        && left.effects().execution() == right.effects().execution()
-        && left.effects().operator_role() == right.effects().operator_role()
-        && left.effects().infix() == right.effects().infix()
-        && left
-            .parameters()
-            .parameters()
-            .iter()
-            .map(|parameter| parameter.value_type())
-            .eq(right
-                .parameters()
-                .parameters()
-                .iter()
-                .map(|parameter| parameter.value_type()))
 }
 
 fn suppress_local_implementations(

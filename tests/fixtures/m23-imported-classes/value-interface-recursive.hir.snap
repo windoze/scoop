@@ -22,7 +22,7 @@ Module
     val local8
       Local $dependency.argument.0 : EchoValue
     return
-      FieldAccess dependency field 64c42b4bc6676202a6b317c4642f06c65a13053af5c3e20c5e8302d3e52b7f25 : Counter
+      FieldAccess field 0 : Counter
         ImportedDependencyCall #3 interface[0] : EchoValue
           Local $dependency.receiver : ValueEcho
           Local $dependency.parameter.value : EchoValue

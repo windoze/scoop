@@ -1,0 +1,7 @@
+package dependency.ranges
+
+public fun <T> ranged(value: T, read: (T) -> Int): Int {
+    var total = 0
+    for (index in 0..<7) { total = total + index }
+    return if (total == 21) { read(value) } else { 0 }
+}

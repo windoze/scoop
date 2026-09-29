@@ -1,0 +1,133 @@
+Module
+  fun direct(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      IntegerLiteral 0 : Int
+    val local2
+      IntegerLiteral 7 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    val local4
+      ImportedDependencyCall #1 : IntRange
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.endpoint : Int
+    val local5
+      Local $for.source.0 : IntRange
+    val local6
+      ImportedDependencyCall #0 : Iterator<Int>
+        Local $dependency.receiver : IntRange
+    val local7
+      Local $for.iterator.result.1 : Iterator<Int>
+    while
+      condition setup
+        val local8
+          ImportedGenericCall Iterator.next<Int> : Option<Int>
+            Local $for.iterator.2 : Iterator<Int>
+      IsSome : Boolean
+        Local $for.next.3 : Option<Int>
+      val local9
+        Unwrap trap=false : Int
+          Local $for.next.3 : Option<Int>
+      val local10
+        Local $for.element.4 : Int
+      val local11
+        Local total : Int
+      val local12
+        Local index : Int
+      val local13
+        Local $dependency.argument.0 : Int
+      assign total
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local total : Int
+  fun result(): Int
+    val local0
+      Call direct : Int
+    val local1
+      Call direct : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      IntegerLiteral 1 : Int
+    val local4
+      IntegerLiteral 3 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    val local6
+      ImportedDependencyCall #2 : IntRange
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.endpoint : Int
+    val local7
+      Local $for.source.5 : IntRange
+    val local8
+      ImportedDependencyCall #0 : Iterator<Int>
+        Local $dependency.receiver : IntRange
+    val local9
+      Local $for.iterator.result.6 : Iterator<Int>
+    while
+      condition setup
+        val local10
+          ImportedGenericCall Iterator.next<Int> : Option<Int>
+            Local $for.iterator.7 : Iterator<Int>
+      IsSome : Boolean
+        Local $for.next.8 : Option<Int>
+      val local11
+        Unwrap trap=false : Int
+          Local $for.next.8 : Option<Int>
+      val local12
+        Local $for.element.9 : Int
+      val local13
+        Local visits : Int
+      val local14
+        IntegerLiteral 1 : Int
+      val local15
+        Local $dependency.argument.0 : Int
+      assign visits
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    val local16
+      Local visits : Int
+    val local17
+      IntegerLiteral 3 : Int
+    val local18
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local19
+        Call result : Int
+      val local20
+        IntegerLiteral 42 : Int
+      val local21
+        Local $dependency.argument.0 : Int
+      val local22
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local22
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.10 : Boolean
+      assign $result.11
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+    else
+      assign $result.11
+        IntegerLiteral 0 : Int
+    return
+      Local $result.11 : Int
+  output library

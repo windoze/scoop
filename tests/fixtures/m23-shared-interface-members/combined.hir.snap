@@ -1,0 +1,102 @@
+Module
+  fun result(): Int
+    val local0
+      ImportedDependencyCall #1 : NumberReader
+    val local1
+      Local reader : NumberReader
+    val local2
+      IntegerLiteral 21 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    val local4
+      ImportedDependencyCall #2 : Int
+        Local $dependency.receiver : NumberReader
+        Local $dependency.parameter.fallback : Int
+    val local5
+      IntegerLiteral 21 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local7
+        ReferenceUpcast : Reader<Int>
+          Local reader : NumberReader
+      val local8
+        ImportedGenericCall again<Int> : Int
+          Local $dependency.receiver : Reader<Int>
+      val local9
+        IntegerLiteral 42 : Int
+      val local10
+        Local $dependency.argument.0 : Int
+      val local11
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local11
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.0 : Boolean
+      val local12
+        Local reader : NumberReader
+      assign $result.1
+        ImportedDependencyCall #0 : Int
+          Local $dependency.receiver : NumberReader
+    else
+      assign $result.1
+        IntegerLiteral 0 : Int
+    return
+      Local $result.1 : Int
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedConstructorInit ValueReader : ValueReader<T0>
+        Local $dependency.parameter.value : T0
+    val local5
+      Box : Reader<T0>
+        Local reader : ValueReader<T0>
+    val local6
+      Local protocol : Reader<T0>
+    val local10
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall again<T0> : T0
+          Local $dependency.receiver : Reader<T0>
+    val local7
+      Local reader : ValueReader<T0>
+    val local8
+      Local value : T0
+    val local9
+      Local $dependency.argument.0 : T0
+    val local11
+      Local $equality.lhs : Int
+    val local12
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall read<T0> : T0
+          Local $dependency.receiver : ValueReader<T0>
+          Local $dependency.parameter.fallback : T0
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local14
+        Local reader : ValueReader<T0>
+      assign $result.2
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          ImportedGenericCall read<T0> : T0
+            Local $dependency.receiver : ValueReader<T0>
+    else
+      assign $result.2
+        IntegerLiteral 0 : Int
+    return
+      Local $result.2 : Int
+  output library

@@ -6,15 +6,15 @@ Module
   generated_exact_type get0 location=class1 nominal_id=137fbb61b95eeca5cf307f8329cd7cdaaf67bc37460e8986e538acdcc0965ccc exact_id=139041762888b86ad8d540ea75aef5205e9f5fc5f0a9d9f5bfd876bd8d05c779
   fun primary @fn0() -> Counter
     bb0 entry
-      val $dependency.default.local.0: Long
+      val $default.local.0: Long
         Type Long
         IntegerLiteral Long value=20 bits=0x0000000000000014
-      val $dependency.default.local.1: Long
+      val $default.local.1: Long
         Type Long
-        Local $dependency.default.local.0
+        Local $default.local.0
       call $call.1: StructReader = external0 direct
         Type Long
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.value: Readable
         Type Readable
         Box
