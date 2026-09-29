@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{PersistentDispatchSlotId, PersistentTypeId};
+use scoop_identity::PersistentDispatchSlotId;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::wire;
@@ -29,7 +29,6 @@ pub use validation::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InheritanceSlotContractV1 {
     slot: PersistentDispatchSlotId,
-    declaration_owner: PersistentTypeId,
     declaration: InheritanceCallableDeclarationV1,
     signature: InheritanceCallableSignatureV1,
     implementation: InheritanceSlotImplementationV1,
@@ -38,7 +37,6 @@ pub struct InheritanceSlotContractV1 {
 impl InheritanceSlotContractV1 {
     pub fn try_new(
         slot: PersistentDispatchSlotId,
-        declaration_owner: PersistentTypeId,
         declaration: InheritanceCallableDeclarationV1,
         signature: InheritanceCallableSignatureV1,
         implementation: InheritanceSlotImplementationV1,
@@ -65,7 +63,6 @@ impl InheritanceSlotContractV1 {
         }
         Ok(Self {
             slot,
-            declaration_owner,
             declaration,
             signature,
             implementation,
@@ -74,9 +71,6 @@ impl InheritanceSlotContractV1 {
     }
     pub const fn slot(&self) -> PersistentDispatchSlotId {
         self.slot
-    }
-    pub const fn declaration_owner(&self) -> PersistentTypeId {
-        self.declaration_owner
     }
     pub const fn declaration(&self) -> InheritanceCallableDeclarationV1 {
         self.declaration
@@ -93,11 +87,9 @@ impl InheritanceSlotContractV1 {
 }
 impl WireEncode for InheritanceSlotContractV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.slot.encode(encoder)?;
-        encoder.field(2)?;
-        self.declaration_owner.encode(encoder)?;
         encoder.field(3)?;
         self.declaration.encode(encoder)?;
         encoder.field(4)?;

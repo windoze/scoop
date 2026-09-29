@@ -30,7 +30,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             .validate_slot_contract(owner, slot, authority)
             .map_err(Error::Slot)?;
         let source = authority
-            .inheritance_callable_source(slot.declaration())
+            .inheritance_callable_source(slot.declaration(), slot.signature().receiver())
             .map_err(Error::Foundation)?;
         compare(slot.signature(), source.signature)?;
         compare(slot.declaration_access(), source.declaration_access)?;
@@ -58,7 +58,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         }
         let target = slot.implementation().target();
         let source = authority
-            .inheritance_callable_source(target.declaration())
+            .inheritance_callable_source(target.declaration(), target.signature().receiver())
             .map_err(Error::Foundation)?;
         compare(target.signature(), source.signature)?;
         compare(target.declaration_access(), source.declaration_access)?;

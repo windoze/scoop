@@ -1,0 +1,360 @@
+Module
+  enum CoroutineStep<InheritedLocalChild>
+    Completed(value: InheritedLocalChild)
+    Suspended()
+  enum CoroutineSlot<InheritedLocalChild>
+    Empty()
+    Value(value: InheritedLocalChild)
+  enum CoroutineStep<LocalChild>
+    Completed(value: LocalChild)
+    Suspended()
+  enum CoroutineSlot<LocalChild>
+    Empty()
+    Value(value: LocalChild)
+  enum CoroutineStep<Child>
+    Completed(value: Child)
+    Suspended()
+  enum CoroutineSlot<Child>
+    Empty()
+    Value(value: Child)
+  class Child vtable=1 itables=0
+  class Base<Int> vtable=1 itables=0
+  class LocalChild vtable=1 itables=0
+  class LocalBase<Int> vtable=1 itables=0
+  class InheritedLocalChild vtable=1 itables=0
+  class PrivateChild vtable=1 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=3590fc25f64ddbf73ed8435bb19c76a5eaf174fe18fdd61adeacacfe8b376e8a exact_id=01e86ef9d307a0026b4ead341b851f1e42ab2ddf1e34635fbaef7e7000455afa
+  generated_exact_type get1 location=enum4 nominal_id=4f1d6134011e7f3e7bc65978d676439d98d7c7736f3673daab652d79167019f2 exact_id=160103701b6c66d06b3efa5ee94573fcb49974d5f5cbf5b3196b1a56a17e4eb4
+  generated_exact_type get2 location=enum2 nominal_id=02d8f031bd97f16fd6264ce55c9a0e3c2fa9fd18b75d79e009fa24d46d18efe5 exact_id=1f1b3a3b92ba981f75c72b30c46e1d004e4ad390b1db7c9101760f34dfa25c54
+  generated_exact_type get3 location=enum3 nominal_id=04b8443f35d84a70f03598410e0b7c52351954b49ba4edc84311114adf1df2e4 exact_id=863fc454a25aeb23495f476ee494a95c0cb8fdf60d4bcd4201f342c1e2056990
+  generated_exact_type get4 location=enum5 nominal_id=40a4483d41d9161892b6178ce64160d12196e49897e7b29896bfdacaf89c6cf1 exact_id=8e8312df4679d392c1134cfbac689d2ad4ebcbb55e0e2eb4bddb09fd34cc1738
+  generated_exact_type get5 location=enum1 nominal_id=073e0f3e896e25d0ece4b7a46fad05b36596fa1c8e8e55c982f01dbf078d255e exact_id=baefd068d6dd23463fb44062744bb616ad9fb8ff6914fbbbbcaf5c0c198ee04e
+  fun Child.read @fn0(this: Child) -> Int
+    bb0 entry
+      val $dependency.receiver: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local this
+      call $dependency.receiver: Int = @fn1 direct
+        Type Base<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun read @fn1(this: Base<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type Base<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun LocalChild.read @fn2(this: LocalChild) -> Int
+    bb0 entry
+      val $receiver: LocalBase<Int>
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild
+          Local this
+      call $dependency.receiver: Int = @fn3 direct
+        Type LocalBase<Int>
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun LocalBase.read @fn3(this: LocalBase<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type LocalBase<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun result @fn4() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type LocalChild
+        ClassAlloc LocalChild
+      call @fn8 direct
+        Type LocalChild
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val local: LocalBase<Int>
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild
+          Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Child
+        ClassAlloc Child
+      call @fn7 direct
+        Type Child
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val external: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local $new.2
+      val $receiver: LocalBase<Int>
+        Type LocalBase<Int>
+        Local local
+      call $dependency.receiver: Int = @fn3 virtual[0]
+        Type LocalBase<Int>
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Base<Int>
+        Type Base<Int>
+        Local external
+      call $dependency.receiver: Int = @fn1 virtual[0]
+        Type Base<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Child
+        ClassAlloc Child
+      call @fn7 direct
+        Type Child
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      call $dependency.receiver: Int = @fn5 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local $new.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type PrivateChild
+        ClassAlloc PrivateChild
+      call @fn10 direct
+        Type PrivateChild
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val $dependency.receiver: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type PrivateChild
+          Local $new.4
+      call $call.5: Int = @fn1 virtual[0]
+        Type Base<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.5
+  fun value @fn5(this: Base<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int>
+          Local this
+  fun LocalBase.$get$value @fn6(this: LocalBase<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalBase<Int>
+          Local this
+  fun init.Child.$c0 @fn7(this: Child, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun init.LocalChild.$c2 @fn8(this: LocalChild, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn12 direct
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.InheritedLocalChild.$c3 @fn9(this: InheritedLocalChild, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn12 direct
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type InheritedLocalChild
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.PrivateChild.$c4 @fn10(this: PrivateChild, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type PrivateChild
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun init.Base.$c0 @fn11(this: Base<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.LocalBase.$c1 @fn12(this: LocalBase<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalBase<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  coroutine_step cs0 CoroutineStep<InheritedLocalChild> result=InheritedLocalChild
+  coroutine_step cs1 CoroutineStep<LocalChild> result=LocalChild
+  coroutine_step cs2 CoroutineStep<Child> result=Child
+  coroutine_slot cl0 CoroutineSlot<InheritedLocalChild> value=InheritedLocalChild
+  coroutine_slot cl1 CoroutineSlot<LocalChild> value=LocalChild
+  coroutine_slot cl2 CoroutineSlot<Child> value=Child
+  instance mi0 function=@fn1 <- read
+  instance mi1 function=@fn3 <- LocalBase.read
+  instance mi2 function=@fn5 <- value
+  instance mi3 function=@fn6 <- LocalBase.$get$value
+  output library

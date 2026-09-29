@@ -74,7 +74,6 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
             slot,
-            support::nominal(owner),
             fixture.declaration(slot),
             root,
             InheritanceSlotImplementationV1::Concrete(target),

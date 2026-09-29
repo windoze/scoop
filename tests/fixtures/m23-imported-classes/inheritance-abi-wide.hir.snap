@@ -35,10 +35,10 @@ Module
         Local $dependency.parameter.input : WideValue
         Local $dependency.parameter.marker : Token
     val local13
-      FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
+      FieldAccess field 0 : Long
         Local result : WideValue
     val local14
-      FieldAccess dependency field a154bc246556a30baee37980783da76c9a3268cb6d1c4e7d505aefd389466a83 : Long
+      FieldAccess field 1 : Long
         Local result : WideValue
     val local15
       Local $dependency.argument.0 : Long
@@ -47,7 +47,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local17
-      FieldAccess dependency field b0ea35a45520359d37140037867dfe414a61b077e90b2afec6056a710f3ef1eb : Long
+      FieldAccess field 2 : Long
         Local result : WideValue
     val local18
       Local $dependency.argument.0 : Long

@@ -35,17 +35,31 @@ fn nominal_names(local: &concrete::Module) -> BTreeSet<&str> {
 }
 
 #[test]
-fn automatic_nominal_roots_materialize_closed_storage_and_defer_generic_inheritance() {
+fn automatic_nominal_roots_materialize_closed_storage_and_generic_parents() {
     let mut snapshot = String::new();
     for case in ["standalone", "combined", "shape-demand"] {
         with_hir_source(&fixture(case), |output, _| {
             let local = output.output().local.module();
             let names = nominal_names(local);
             let expected: &[&str] = match case {
-                "standalone" => &["ReadyValue"],
+                "standalone" => &["DeferredGeneric", "DeferredRoot", "ReadyValue"],
                 "combined" => &[
                     "DeferredBox",
                     "DeferredConstructor",
+                    "DeferredCycleA",
+                    "DeferredCycleB",
+                    "DeferredDerived",
+                    "DeferredGeneric",
+                    "DeferredHolder",
+                    "DeferredLeaf",
+                    "DeferredProtected.DeferredNested",
+                    "DeferredObject",
+                    "DeferredPrivate",
+                    "DeferredPrivateHolder",
+                    "DeferredProtected",
+                    "DeferredRoot",
+                    "DeferredSlot",
+                    "DeferredVirtual",
                     "ReadyCycleA",
                     "ReadyCycleB",
                     "ReadyDirect",
@@ -57,6 +71,7 @@ fn automatic_nominal_roots_materialize_closed_storage_and_defer_generic_inherita
                     "DeferredEnum",
                     "DeferredGeneric",
                     "DeferredGetter",
+                    "ReadyOuter.DeferredNested",
                     "DeferredSetter",
                     "DeferredStorage",
                     "ReadyDirect",
@@ -66,7 +81,10 @@ fn automatic_nominal_roots_materialize_closed_storage_and_defer_generic_inherita
                 _ => unreachable!(),
             };
             assert_eq!(names, expected.iter().copied().collect(), "{case}");
-            assert!(local.initialization_units.is_empty());
+            assert_eq!(
+                local.initialization_units.len(),
+                usize::from(case == "combined")
+            );
             let mut rows = names
                 .iter()
                 .map(|name| format!("  type {name}\n"))
@@ -86,9 +104,6 @@ fn automatic_nominal_roots_materialize_closed_storage_and_defer_generic_inherita
                 ));
             }
             for (_, function) in local.functions.iter() {
-                if case == "combined" {
-                    assert_ne!(function.name, "ReadyDirect.take");
-                }
                 rows.push(format!("  function {}\n", function.name));
             }
             rows.sort();
@@ -104,13 +119,13 @@ fn automatic_nominal_roots_materialize_closed_storage_and_defer_generic_inherita
 }
 
 #[test]
-fn actual_local_uses_request_complete_source_only_instances() {
+fn public_roots_and_actual_calls_request_complete_applications() {
     with_hir_source(&fixture("actual-demand"), |output, _| {
         let local = output.output().local.module();
         let names = nominal_names(local);
         assert!(names.contains("DeferredWrapper"));
         assert!(names.contains("DeferredBox"));
-        assert!(!names.contains("DeferredUnused"));
+        assert!(names.contains("DeferredUnused"));
         assert!(
             local
                 .classes
@@ -142,9 +157,14 @@ fn actual_local_uses_request_complete_source_only_instances() {
                 .any(|(_, function)| function.name == "DeferredAccessorBox.$get$value")
         );
         let roots = output.output().local.materialization().roots();
-        assert_eq!(roots.len(), 1);
-        assert!(matches!(roots[0].declaration().name(),
-            scoop_identity::DeclarationName::Named(name) if name.as_str() == "DeferredWrapper"));
+        let names = roots
+            .iter()
+            .map(|root| match root.declaration().name() {
+                scoop_identity::DeclarationName::Named(name) => name.as_str(),
+                _ => panic!("named source root"),
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(names, BTreeSet::from(["DeferredUnused", "DeferredWrapper"]));
     });
 }
 

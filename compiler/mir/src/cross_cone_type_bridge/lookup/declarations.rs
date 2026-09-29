@@ -15,6 +15,15 @@ pub fn dispatch_declaration_target(
     receiver: PersistentExactTypeId,
 ) -> Result<CallableDefinitionOwner, MirCallableBridgeError> {
     let exact = dispatch_declaration_receiver(identities, types, declaration, receiver)?;
+    dispatch_exact_declaration_target(identities, declaration, exact)
+}
+
+/// Uses an already resolved declaration receiver, retaining all owner arguments.
+pub fn dispatch_exact_declaration_target(
+    identities: &ValidatedIdentityGraph,
+    declaration: DispatchDeclarationOwner,
+    exact: PersistentExactTypeId,
+) -> Result<CallableDefinitionOwner, MirCallableBridgeError> {
     let key = identities.canonical_key::<_, ExactTypeKey>(exact)?;
     if matches!(key.as_ref(), ExactTypeKey::Nominal(_)) {
         return Ok(match declaration {

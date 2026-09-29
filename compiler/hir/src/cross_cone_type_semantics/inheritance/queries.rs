@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{ExactTypeKey, PersistentExactTypeId, SourceDeclarationKind};
+use scoop_identity::{PersistentExactTypeId, SourceDeclarationKind};
 use scoop_wire::WireError;
 
 use super::{CheckedNominalInheritanceGraphV1, DirectClassBaseV1};
@@ -48,21 +48,6 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             Err(InheritanceQueryError::NotClass(exact))
         }
     }
-
-    pub(in crate::cross_cone_type_semantics) fn source_exact(
-        &self,
-        source: SourceNominalId,
-    ) -> Result<PersistentExactTypeId, InheritanceQueryError> {
-        let SourceNominalId::Concrete(id) = source else {
-            return Err(InheritanceQueryError::NoConcreteSource(source));
-        };
-        let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(id))
-            .map_err(|_| InheritanceQueryError::NoConcreteSource(source))?;
-        self.nodes
-            .get(&exact)
-            .ok_or(InheritanceQueryError::UnknownExact(exact))?;
-        Ok(exact)
-    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -71,7 +56,6 @@ pub enum InheritanceQueryError {
     UnknownExact(PersistentExactTypeId),
     NotClass(PersistentExactTypeId),
     UnknownSource(SourceNominalId),
-    NoConcreteSource(SourceNominalId),
 }
 impl fmt::Display for InheritanceQueryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -85,10 +69,6 @@ impl fmt::Display for InheritanceQueryError {
             Self::UnknownSource(owner) => write!(
                 f,
                 "source nominal {owner:?} is outside the checked lexical closure"
-            ),
-            Self::NoConcreteSource(owner) => write!(
-                f,
-                "source nominal {owner:?} has no param-free inheritance node"
             ),
         }
     }

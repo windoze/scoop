@@ -1,18 +1,19 @@
 Module
   global0 $singleton$Saved: Saved managed initial=zeroed-for-runtime-unit
   global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 object-private:main.scoop:Saved singleton lazy global0 initializer=@fn5 ensure=@fn6 failure=1 deps=[]
+  init0 object-private:main.scoop:Saved singleton lazy global0 initializer=@fn4 ensure=@fn5 failure=1 deps=[]
   class Saved vtable=3 itables=0
   class ProtectedBox<Int> vtable=3 itables=0
-  fun result @fn0() -> Int
+  fun Saved.read @fn0(this: Saved) -> Int
     bb0 entry
-      call @fn6 direct
-      val $receiver: Saved
-        Type Saved
-        GlobalRead $singleton$Saved
-      call $call.1: Int = @fn4 direct
-        Type Saved
-        Local $receiver
+      val $dependency.receiver: ProtectedBox<Int>
+        Type ProtectedBox<Int>
+        Retype ProtectedBox<Int>
+          Type Saved
+          Local this
+      call $call.1: Int = @fn1 virtual[0]
+        Type ProtectedBox<Int>
+        Local $dependency.receiver
       return
         Type Int
         Local $call.1
@@ -38,20 +39,7 @@ Module
         Type Int
         Local next
       return
-  fun Saved.read @fn4(this: Saved) -> Int
-    bb0 entry
-      val $dependency.receiver: ProtectedBox<Int>
-        Type ProtectedBox<Int>
-        Retype ProtectedBox<Int>
-          Type Saved
-          Local this
-      call $call.1: Int = @fn1 virtual[0]
-        Type ProtectedBox<Int>
-        Local $dependency.receiver
-      return
-        Type Int
-        Local $call.1
-  fun $init$body$0 @fn5() -> Unit
+  fun $init$body$0 @fn4() -> Unit
     bb0 entry
       assign $new.1
         Type Saved
@@ -63,7 +51,7 @@ Module
         Type Saved
         Local $new.1
       return
-  fun $init$ensure$0 @fn6() -> Unit
+  fun $init$ensure$0 @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -108,7 +96,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn5 direct
+      call @fn4 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object-private:main.scoop:Saved
@@ -161,6 +149,18 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
+  fun result @fn6() -> Int
+    bb0 entry
+      call @fn5 direct
+      val $receiver: Saved
+        Type Saved
+        GlobalRead $singleton$Saved
+      call $call.1: Int = @fn0 direct
+        Type Saved
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
   fun init.Saved.$c0 @fn7(this: Saved) -> Unit
     bb0 entry
       val $dependency.argument.0: Int

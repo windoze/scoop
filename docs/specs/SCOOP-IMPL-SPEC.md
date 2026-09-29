@@ -128,7 +128,7 @@ M23-6 的实现范围以最新版 AGENTS.md 为准：完成类型布局、canoni
 
 所有可见性的 nominal、callable、property、参数、默认值和定义环境由共有源码接口完整保存。protected 成员仍以 typed 引用参与实际 MIR callable 选择，其可见性和签名读取同一声明；构造器使用共有 nominal 的 constructor 引用及对应 callable，不在 inheritance record 再保存一份 payload。generic 词法 owner 不因访问域查询而要求 machine exact type。名义类型的 lookup/inheritance/slot 三份派生域不再保存和重验。
 
-`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/10`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
+`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/11`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
 
 LIR 的全部外部 TypeDescriptor 使用同一个 `ExternalTypeDescriptor` 实体、typed id 和 arena，保存实际 provider、exact type、symbol 及 definition plan。String 也从 MIR 中实际声明的 source exact identity 经过共有 descriptor 查询、layout selection 和 physical import 取得引用；其运行时角色不再提供独立 bridge、definition 恢复或 selected 豁免。MIR 保留 LIR 必需的 typed String 声明引用，driver 不再额外提供 Local/External String 授权输入。Strong registration 和 immortal object 的外来 TD 统一从真实依赖定义目录解析，Link 统一处理 descriptor 与 type-registration relocation。普通 self-import、重复 exact type、local/external 重叠及 ABI/GC 检查保持，不再为 String 重复读取协议和 shape-support 表。String 的内存表示与 runtime C ABI 不变。
 
@@ -368,7 +368,7 @@ M23的导入成员复用共有持久 callable identity 与已有 template/applic
 
 导入 protected 访问按原类型化源码 nominal owner 检查，普通声明与 generic template 共用同一继承区域，不要求先有 machine exact type。声明类与词法访问类的关系沿实际声明和父类引用查询；显式 receiver 仍必须是提供该词法访问上下文的类或其子类。构造器、方法和 setter 使用同一规则，setter 保留自身可见性；protected override 的槽覆盖域继续锚定原声明，泛型实参的替换与不变性由正常类型检查处理，不把不同 application 的类型关系擦除为相等。
 
-访问域及 override coverage 在 HIR lowering 完成；产物保留原声明的 visibility、typed nominal owner、slot identity 和所选实现引用，不另存可从这些声明推导的 domain，也不在 reader 重放 protected receiver 或可见性集合包含检查。`InheritanceSlotContractV1` 的重复 domain field 5 退役且不复用，其余 field 1～4、6、7 保持原义；`hir/cross-cone-type-semantics` 升至 `/10`，required inventory、profile 和 fingerprint 同步，旧产物与缓存需重建。reader 继续检查声明归属、源引用、slot/signature/effect、abstract target modality 及实现继承路径；只有测试使用的 protected 访问证明 API 随重复 domain 通道删除，不建立替代证明表。
+访问域及 override coverage 在 HIR lowering 完成；产物保留原声明的 visibility、typed nominal owner、slot identity 和所选实现引用，不另存可从这些声明推导的 domain，也不在 reader 重放 protected receiver 或可见性集合包含检查。`InheritanceSlotContractV1` 的重复 domain field 5 与 owner field 2 退役且不复用，field 1、3、4、6、7 保持原义；`hir/cross-cone-type-semantics` 使用 `/11`，required inventory、profile 和 fingerprint 同步，旧产物与缓存需重建。reader 继续检查声明归属、源引用、slot/signature/effect、abstract target modality 及实现继承路径；只有测试使用的 protected 访问证明 API 随重复 domain 通道删除，不建立替代证明表。
 
 普通类继承泛型 application 时，其自身成员仍使用该普通声明的 exact receiver 和实际 Strong 定义。MIR callable 的 receiver 检查沿原 typed owner 与完整签名连接；已有共有声明和实际 MIR 类型保证实体存在，不能额外要求它出现在只负责非泛型继承闭包的旧 HIR inheritance 清单中。泛型父类的表示、继承边及 ODR 成员仍由实际 application 的既有 MIR/LIR 数据提供。
 
@@ -1005,7 +1005,7 @@ M23-6 将 `org.scoop-lang.hir/cross-cone-interface` 继续升级为 `/3`：共�
 
 protected callable 与 dispatch slot 的 source binding 直接使用 `CoreBuiltinNominal::Unit` 的语言内建 typed identity，不再为取得 Unit 接收整套 imported core 类型协议或保存第二份 Unit nominal。setter 返回与 slot 的 exact Unit key 仍按共有签名规则验证；该内建身份例外不能推广到整数、Boolean、String、Array 或其他源码 nominal。此输入清理不改变 wire、persistent identity、runtime ABI、可见性或 ODR gate。
 
-M23-6 的 HIR nominal type 导出先从同一次 Export/LocalConcrete HIR 计算表示与继承的必需集合。依赖包括全部自身字段、enum payload、class base、interface ancestry、公开或 protected 构造器参数，以及实际 virtual/interface slot 的参数、结果与 execution；generic application，或依赖泛型/挂起 ABI、native 定义的 slot，使该声明保留为 source-only，并沿本地 nominal 依赖传递。引用类型环按有限图求闭包，不能因遍历顺序误判，也不能通过截断继承、字段或 slot 消除依赖。完整源码根、kind、binder、modality、supertype、成员、构造器与默认值仍保留；只有闭合的参数自由根进入 representation、fact 和 exact inheritance 表。候选表与从声明计算的必需集合逐项覆盖，可物化根缺失或 source-only 根混入均拒绝。该计算不按 CORE 身份或 source 路径分支，不授予 callable body、独立 Structural ODR、native、shape-support 或实际跨 Cone use 能力；这些仍由完整机器闭包与对应阶段能力门检查。
+HIR nominal type 导出从同一次 Export/LocalConcrete HIR 计算实际表示与继承的必需集合，依赖包括自身字段、enum payload、完整 class base、interface ancestry、构造器参数，以及实际 virtual/interface slot 的参数、结果与 execution。依赖是否完整按实际 application 判断；普通宿主的 `Base<Int>` 或 `I<Int>` 父类型保留全部实参，不能因为原父声明带 binder 而把宿主排除。原普通声明继续对应定义方 Strong 表示，实际泛型父类型沿原 application/ODR 需求物化。共有继承、槽与接收者查询对完整 application 替换原声明 binder，复用已检查声明和 exact 类型事实；不把泛型父类型伪造为新的参数自由源码声明。引用类型环按有限图处理，继承与按值循环仍由负责的语言检查拒绝，不能通过截断字段、父类型或 slot 消除真实依赖。公开查找、语义支持和机器定义分别沿各自实际根闭合；MIR/LIR 继续检查完整表示、槽签名及定义关联，不以旧里程碑 gate 或来源资格替代这些关系。
 
 M23-6 的 exact fact 归属沿与 exact identity 相同的 typed nominal 输入计算。普通 struct、enum、class、interface 使用实际 source nominal key 的 origin；compiler 表示的整数、Boolean、String 在定义图中查询其真实 nominal owner，在导入图中使用对应 ImportedHirNominal 保存的 provider。Defined/Imported 只选择引用形式，不得据此把 source-defined 类型的归属固定为当前 Cone 或 CORE。Unit、Any 使用规范规定的内建 canonical declaration key 的 origin；tuple、function、Ptr、FunPtr 等结构类型不伪造 source nominal provider，继续按既有结构类型与 ODR 规则处理。local/dependency exact facts 的分类与缺失支持检查共用此查询，既不从 FQN 或显示名补身份，也不建立专用 core 事实入口；本次修正不改变 fact wire schema 或 runtime ABI。
 
@@ -1162,7 +1162,9 @@ HIR 根据实际调用、构造、成员、类型操作和委托访问建立实�
 
 参数自由外部类型用途表只选择实际由依赖提供的 Strong 表示。泛型名义 application 的模板引用继续由完整 HIR 声明引用与 type-site 关系检查，其本次表示由消费方的 ODR 物化记录覆盖；遍历签名和 type site 时仍递归保留实参中的外来参数自由类型用途，不能把原泛型声明当作一个缺失的 provider Strong 实例。字段与 payload 中的类型参数参与现有 GC-free 条件和 pointee 检查，不能把尚含 binder 的导入值类型预先固定为 GC-free 或非 GC-free。
 
-自身不含 binder 的声明，不因字段或 callable 签名引用已具体化的泛型 application 而成为 source-only。共有表示闭包与自动物化根按完整实参判断是否具体，原参数自由名义类型及其普通构造器仍由定义 Cone 提供 Strong 定义，其所需泛型表示通过同一队列生成 ODR 定义。已有 exact fact 和签名检查直接替换原声明 binder，不另建泛型语义验证器；未求值默认值及未调用模板仍不成为发射根。该规则取代 M23-6 对含任意泛型 application 的普通声明所施加的阶段限制。
+自身不含 binder 的声明，不因字段、父类型或 callable 签名引用已具体化的泛型 application 而成为 source-only。共有表示闭包与自动物化根按完整实参判断是否具体，原参数自由名义类型及其普通构造器仍由定义 Cone 提供 Strong 定义，其所需泛型表示通过同一队列生成 ODR 定义。已有 exact fact、继承关系和签名检查直接替换原声明 binder，不另建泛型语义验证器；未求值默认值及未调用模板仍不成为发射根。该规则取代 M23-6 对含任意泛型 application 的普通声明所施加的阶段限制。
+
+普通宿主的封闭泛型父类型沿同一声明查询取得父边、槽顺序和已经选定的实现，查询以完整 receiver application 替换原宿主 binder。继承图按完整 exact type 区分节点；同一泛型声明的不同实参不合并，泛型父节点来自已有声明的实际应用，不补造参数自由源码身份。槽根与目标的签名各自保存完整 receiver，直接由该 receiver 取得声明宿主及实参；`InheritanceSlotContractV1` 与 `InheritanceSlotTargetV1` 的重复 owner field 2 退役且不复用，其他字段保持编号。对应 HIR `cross-cone-type-semantics` 升至 `/11`，required inventory、profile 与 fingerprint 同步，旧产物和缓存重建。MIR 的普通宿主与泛型 application 共用实际派发表和 Strong/ODR 目标关联，继承的泛型方法保持原 callable application，不改造成普通 Strong 定义。该调整不改变语言继承规则或 runtime ABI。
 
 `hir/cross-cone-interface/34` 为字段 type site 增加必需的所属类型 exact identity。tag 6=FieldStorage 与 tag 7=EnumVariantFieldStorage 使用四字段 product：field 0 为 tag，field 1 为原 typed field ID，field 2 为实际字段 exact type，field 3 为所属名义类型 exact type。位置键为所属 exact type 与原 field ID，同一模板的不同 application 不再互相冲突；同一位置仍只能有一个字段类型。原字段必须属于该 exact nominal 的原声明；object 使用源对象的 exact type，字段则属于由该对象派生的 `ObjectBackingClass`。泛型 application 可引用可达 provider 的原字段定义位置。消费方物化的外来泛型表示同样记录自己的字段用途，普通外来 Strong 表示仍由 provider 记录。reader 检查这些 typed 引用与 owner 关系，不重跑字段类型推断。旧 `/33` 字段位置缺少实例信息，需要重建产物和缓存。
 

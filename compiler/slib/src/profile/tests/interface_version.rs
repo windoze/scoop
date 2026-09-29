@@ -13,10 +13,10 @@ fn source_interface_v41_preserves_original_capture_bindings() {
 }
 
 #[test]
-fn type_semantics_v10_retires_duplicate_slot_domains() {
+fn type_semantics_v11_uses_complete_slot_receivers() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        10,
+        11,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }

@@ -3,9 +3,9 @@
     Item(value: Int)
   class PrepBase vtable=1 itables=0
   class PrepChild vtable=1 itables=0
-  class PrepSecondary vtable=0 itables=0
   class PrepGenericChild vtable=1 itables=0
   class PrepGeneric<Int> vtable=1 itables=0
+  class PrepSecondary vtable=0 itables=0
   fun PrepBase.choose @fn23(this: PrepBase, value: Int) -> Int
     bb0 entry
       return
@@ -16,57 +16,67 @@
       return
         Type Int
         Local value
-  fun prepForward @fn26(value: Int) -> Int
+  fun PrepGenericChild.choose @fn25(this: PrepGenericChild, seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun prepVariant @fn27(value: PrepChoice) -> PrepChoice
+  fun PrepGeneric.choose @fn26(this: PrepGeneric<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepForward @fn28(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepVariant @fn29(value: PrepChoice) -> PrepChoice
     bb0 entry
       return
         Type PrepChoice
         Local value
-  fun prepExplicit @fn28(value: Int) -> Int
+  fun prepExplicit @fn30(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun prepPositions @fn29(first: Int, second: Int) -> Int
+  fun prepPositions @fn31(first: Int, second: Int) -> Int
     bb0 entry
       return
         Type Int
         Local second
-  fun prepInherited @fn30(value: Int) -> Int
+  fun prepInherited @fn32(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun prepGeneric @fn31(value: Int) -> Int
+  fun prepGeneric @fn33(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun prepSecondary @fn32(value: PrepSecondary) -> PrepSecondary
+  fun prepSecondary @fn34(value: PrepSecondary) -> PrepSecondary
     bb0 entry
       return
         Type PrepSecondary
         Local value
-  fun prepVararg @fn33(values: Array<Int>) -> Array<Int>
+  fun prepVararg @fn35(values: Array<Int>) -> Array<Int>
     bb0 entry
       return
         Type Array<Int>
         Local values
-  fun prepVarargUse @fn34(values: Array<Int>) -> Array<Int>
+  fun prepVarargUse @fn36(values: Array<Int>) -> Array<Int>
     bb0 entry
       return
         Type Array<Int>
         Local values
-  fun prepLater @fn35(value: Int) -> Int
+  fun prepLater @fn37(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun prepLexical @fn36(seed: Int) -> Int
+  fun prepLexical @fn38(seed: Int) -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -77,7 +87,7 @@
       val $parameter.second: Int
         Type Int
         Local seed
-      call $parameter.first: Int = @fn38 direct
+      call $parameter.first: Int = @fn40 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -85,7 +95,7 @@
       val $parameter.second: Int
         Type Int
         Local seed
-      call $call.1: Int = @fn38 direct
+      call $call.1: Int = @fn40 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -93,12 +103,12 @@
       return
         Type Int
         Local $call.1
-  fun main @fn37() -> Unit
+  fun main @fn39() -> Unit
     bb0 entry
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $parameter.value: Int = @fn35 direct
+      call $parameter.value: Int = @fn37 direct
         Type Int
         Local $parameter.value
       call $call.1: PrepValue = @fn58 direct
@@ -109,13 +119,13 @@
         FieldAccess 0
           Type PrepValue
           Local $call.1
-      call $call.2: Int = @fn26 direct
+      call $call.2: Int = @fn28 direct
         Type Int
         Local $parameter.value
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $parameter.value: Int = @fn35 direct
+      call $parameter.value: Int = @fn37 direct
         Type Int
         Local $parameter.value
       val $parameter.value: PrepChoice
@@ -123,7 +133,7 @@
         VariantConstruct PrepChoice v0
           Type Int
           Local $parameter.value
-      call $call.3: PrepChoice = @fn27 direct
+      call $call.3: PrepChoice = @fn29 direct
         Type PrepChoice
         Local $parameter.value
       val $argument.0: Int
@@ -132,10 +142,10 @@
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $parameter.value: Int = @fn28 direct
+      call $parameter.value: Int = @fn30 direct
         Type Int
         Local $parameter.value
-      call $call.4: Int = @fn28 direct
+      call $call.4: Int = @fn30 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -147,10 +157,10 @@
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $parameter.second: Int = @fn35 direct
+      call $parameter.second: Int = @fn37 direct
         Type Int
         Local $parameter.value
-      call $parameter.first: Int = @fn29 direct
+      call $parameter.first: Int = @fn31 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -158,10 +168,10 @@
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $parameter.second: Int = @fn35 direct
+      call $parameter.second: Int = @fn37 direct
         Type Int
         Local $parameter.value
-      call $call.5: Int = @fn29 direct
+      call $call.5: Int = @fn31 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -178,7 +188,7 @@
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $parameter.value: Int = @fn35 direct
+      call $parameter.value: Int = @fn37 direct
         Type Int
         Local $parameter.value
       call $parameter.value: Int = @fn24 direct
@@ -186,13 +196,13 @@
         Local $receiver
         Type Int
         Local $parameter.value
-      call $call.7: Int = @fn30 direct
+      call $call.7: Int = @fn32 direct
         Type Int
         Local $parameter.value
       assign $new.8
         Type PrepGenericChild
         ClassAlloc PrepGenericChild
-      call @fn55 direct
+      call @fn53 direct
         Type PrepGenericChild
         Local $new.8
       val $receiver: PrepGenericChild
@@ -207,14 +217,14 @@
       val $parameter.value: Int
         Type Int
         Local $parameter.seed
-      call $parameter.value: Int = @fn39 direct
+      call $parameter.value: Int = @fn25 direct
         Type PrepGenericChild
         Local $receiver
         Type Int
         Local $parameter.seed
         Type Int
         Local $parameter.value
-      call $call.9: Int = @fn31 direct
+      call $call.9: Int = @fn33 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -226,13 +236,13 @@
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $parameter.value: Int = @fn35 direct
+      call $parameter.value: Int = @fn37 direct
         Type Int
         Local $parameter.value
       assign $new.10
         Type PrepSecondary
         ClassAlloc PrepSecondary
-      call @fn54 direct
+      call @fn55 direct
         Type PrepSecondary
         Local $new.10
         Type String
@@ -242,13 +252,13 @@
       val $parameter.value: PrepSecondary
         Type PrepSecondary
         Local $new.10
-      call $call.11: PrepSecondary = @fn32 direct
+      call $call.11: PrepSecondary = @fn34 direct
         Type PrepSecondary
         Local $parameter.value
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $call.12: Int = @fn35 direct
+      call $call.12: Int = @fn37 direct
         Type Int
         Local $parameter.value
       val $parameter.values: Array<Int>
@@ -256,10 +266,10 @@
         ArrayLiteral Array<Int>
           Type Int
           Local $call.12
-      call $parameter.values: Array<Int> = @fn33 direct
+      call $parameter.values: Array<Int> = @fn35 direct
         Type Array<Int>
         Local $parameter.values
-      call $call.13: Array<Int> = @fn34 direct
+      call $call.13: Array<Int> = @fn36 direct
         Type Array<Int>
         Local $parameter.values
       val $argument.0: Int
@@ -268,20 +278,10 @@
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call $call.14: Int = @fn36 direct
+      call $call.14: Int = @fn38 direct
         Type Int
         Local $parameter.seed
       return
-  fun PrepGenericChild.choose @fn39(this: PrepGenericChild, seed: Int, value: Int) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local value
-  fun PrepGeneric.choose @fn40(this: PrepGeneric<Int>, seed: Int, value: Int) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local value
   fun init.PrepBase.$c7 @fn51(this: PrepBase) -> Unit
     bb0 entry
       return
@@ -293,7 +293,15 @@
           Type PrepChild
           Local this
       return
-  fun init.PrepSecondary.$c11 @fn53(this: PrepSecondary, value: Int) -> Unit
+  fun init.PrepGenericChild.$c10 @fn53(this: PrepGenericChild) -> Unit
+    bb0 entry
+      call @fn56 direct
+        Type PrepGeneric<Int>
+        Retype PrepGeneric<Int>
+          Type PrepGenericChild
+          Local this
+      return
+  fun init.PrepSecondary.$c11 @fn54(this: PrepSecondary, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type PrepSecondary
@@ -301,7 +309,7 @@
         Type Int
         Local value
       return
-  fun init.PrepSecondary.$c12 @fn54(this: PrepSecondary, marker: String, value: Int) -> Unit
+  fun init.PrepSecondary.$c12 @fn55(this: PrepSecondary, marker: String, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -309,19 +317,11 @@
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn53 direct
+      call @fn54 direct
         Type PrepSecondary
         Local this
         Type Int
         Local $parameter.value
-      return
-  fun init.PrepGenericChild.$c10 @fn55(this: PrepGenericChild) -> Unit
-    bb0 entry
-      call @fn56 direct
-        Type PrepGeneric<Int>
-        Retype PrepGeneric<Int>
-          Type PrepGenericChild
-          Local this
       return
   fun init.PrepGeneric.$c9 @fn56(this: PrepGeneric<Int>) -> Unit
     bb0 entry
@@ -333,4 +333,4 @@
         StructInit PrepValue
           Type Int
           Local value
-  instance mi0 function=@fn40 <- PrepGeneric.choose
+  instance mi0 function=@fn26 <- PrepGeneric.choose

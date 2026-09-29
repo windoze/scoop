@@ -1,7 +1,8 @@
 use super::*;
+use scoop_hir as hir;
 
 #[test]
-fn formal_publication_keeps_unrequested_nominals_as_complete_source_interfaces() {
+fn formal_publication_retains_open_templates_beside_concrete_roots() {
     let target = resolved_target().expect("source-only publication requires the supported target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -36,18 +37,52 @@ fn formal_publication_keeps_unrequested_nominals_as_complete_source_interfaces()
         )
         .unwrap();
         let production = closure.current_compile().production();
-        assert!(
-            production
-                .hir_interface()
-                .nominal_interfaces()
-                .records()
-                .len()
-                > production
-                    .lir_strong()
-                    .shape_support_plan()
-                    .closures()
-                    .len()
-        );
+        let nominals = production.hir_interface().nominal_interfaces();
+        assert!(nominals.records().iter().any(|declaration| {
+            matches!(
+                declaration.declaration(),
+                hir::SourceNominalId::GenericTemplate(_)
+            ) && !declaration.type_parameters().binders().is_empty()
+        }));
+        let roots = production
+            .lir_strong()
+            .shape_support_plan()
+            .closures()
+            .iter()
+            .map(|root| *root.roles().source_nominal().available().unwrap())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert!(!roots.is_empty());
+        for root in &roots {
+            assert!(
+                nominals
+                    .declaration(hir::SourceNominalId::Concrete(*root))
+                    .is_some()
+            );
+        }
+        let mut closed_parents = 0;
+        for declaration in nominals.records() {
+            let hir::SourceNominalId::Concrete(owner) = declaration.declaration() else {
+                continue;
+            };
+            if declaration
+                .exact_supertypes()
+                .values()
+                .iter()
+                .any(|parent| {
+                    matches!(
+                        parent,
+                        scoop_identity::SignatureTypeKey::NominalApplication { .. }
+                    )
+                })
+            {
+                assert!(
+                    roots.contains(&owner),
+                    "{case}: missing closed parent root {owner}"
+                );
+                closed_parents += 1;
+            }
+        }
+        assert!(closed_parents >= usize::from(case != "shape-demand"));
     }
 }
 

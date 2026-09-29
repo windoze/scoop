@@ -33,7 +33,7 @@ fn ordinary_library_exports_members_with_available_machine_signatures() {
                 .map(|target| assertions::callable_name(input, target))
                 .collect::<Vec<_>>();
             assert!(names.contains(&"Published.ready"));
-            assert!(!names.contains(&"Published.deferred"));
+            assert!(names.contains(&"Published.deferred"));
             let dump = assertions::dump(input, &result);
             let snapshot = fixtures.join("ordinary.snap");
             if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {

@@ -147,3 +147,12 @@
 - 删除完成声明树后递归重建身份的 builder、访问集合和重复 owner 解析；完成声明收集后只整理已建立的记录，原有字段、variant、导出及具体化查询继续复用同一身份。该调整不改变 wire payload 或身份算法，`Type::Imported*` 及 application 的剩余存储迁移继续推进。
 - 身份模块由 435 行降至 208 行。原声明收集按 struct／enum／class／interface 拆为 116～184 行模块，共同名称检查保留在 72 行主模块；object 收集与其查询／解析分开为 254、266 行。
 - 全仓 fmt／clippy、1305 项 HIR lowering 单元测试及 8 项真实产物回归全部通过；限定名、嵌套 re-export、原函数请求、默认值、bound 和共同 MSC 的现有快照均无需更新。日志前缀 `/tmp/scoop-m23-6a-nominal-identities-`，结果见 `unit.log` 和 `artifacts.log`。
+
+## 普通宿主的封闭泛型父类型
+
+- 普通宿主的基类与接口沿原 nominal 声明和完整 receiver application 查询父边、槽顺序及已经选定的实现。删除“父类型含泛型 application”导致整个普通宿主不可物化的门；公开根、私有表示依赖及 core 的四类整数范围继续使用既有实际需求闭包。不同实参的继承节点按完整 exact type 区分，不补造普通声明身份。
+- 槽根和目标从完整签名 receiver 取得原宿主与实参，删除重复 owner field 2；原 domain field 5 继续退役。type-semantics 升至 `/11`，同步三份规范、Stage 6／7 格式说明、required inventory 与 profile 固定向量，保留旧 major 和旧 slot payload 的明确拒绝测试。HIR interface 仍为 `/41`，runtime ABI 未改变。
+- producer、reader 与 MIR 复用实际应用的签名和 Strong／ODR 目标连接；接口应用槽展开与既有槽验证共用原父顺序／override 展开。删除两份共 219 行的源码 callable 投影，以及 MIR 的重复 Strong-only 分支。本批修改的 Rust 文件均在 500 行内。
+- 新增 `m23-shared-parents` 的 class、interface、组合三组正例与三个反例，覆盖本地／依赖的公开泛型父类、未覆写的继承方法、接口默认实现、super 调用、嵌套实参和私有表示依赖。源码发布后移走，再次发布、引用／Int／Unit 应用以及普通／移动 GC 运行均通过；新快照已关闭更新开关复验。
+- 全仓 fmt／clippy 通过，3202 项 HIR／HIR lowering／MIR／MIR lowering／slib 单元测试均已覆盖通过。36 项相关真实产物回归均已覆盖成功；关闭更新开关后的 core 22 项（含初始化 Link 组）和继承／受保护成员 4 项专项复验全部通过。旧快照已核对：新增范围与迭代器表示、普通宿主的必需支持、函数编号顺序、共同字段显示和完整限定名诊断；Link 对象、注册项与指纹反映实际新增物化。日志前缀 `/tmp/scoop-m23-6a-shared-parents-`。
+- 本批清理约 1.73 GiB 旧增量缓存，继续复用 `target/m23-6a`。共同 nominal 类型、候选原身份、普通／模板／初始化正文及其 wire 适配仍按阶段设计继续迁移；本批通过不代表 6a 已完成。

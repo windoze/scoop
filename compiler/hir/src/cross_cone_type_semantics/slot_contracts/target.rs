@@ -1,4 +1,3 @@
-use scoop_identity::PersistentTypeId;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{InheritanceCallableDeclarationV1, InheritanceCallableSignatureV1, wire};
@@ -7,7 +6,6 @@ use crate::{CallableModalityV1, DeclarationAccessSourceV1};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InheritanceSlotTargetV1 {
     pub(super) declaration: InheritanceCallableDeclarationV1,
-    pub(super) owner: PersistentTypeId,
     pub(super) signature: InheritanceCallableSignatureV1,
     pub(super) modality: CallableModalityV1,
     pub(super) declaration_access: DeclarationAccessSourceV1,
@@ -15,14 +13,12 @@ pub struct InheritanceSlotTargetV1 {
 impl InheritanceSlotTargetV1 {
     pub const fn new(
         declaration: InheritanceCallableDeclarationV1,
-        owner: PersistentTypeId,
         signature: InheritanceCallableSignatureV1,
         modality: CallableModalityV1,
         declaration_access: DeclarationAccessSourceV1,
     ) -> Self {
         Self {
             declaration,
-            owner,
             signature,
             modality,
             declaration_access,
@@ -30,9 +26,6 @@ impl InheritanceSlotTargetV1 {
     }
     pub const fn declaration(&self) -> InheritanceCallableDeclarationV1 {
         self.declaration
-    }
-    pub const fn owner(&self) -> PersistentTypeId {
-        self.owner
     }
     pub const fn signature(&self) -> &InheritanceCallableSignatureV1 {
         &self.signature
@@ -46,11 +39,9 @@ impl InheritanceSlotTargetV1 {
 }
 impl WireEncode for InheritanceSlotTargetV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
-        encoder.field(2)?;
-        self.owner.encode(encoder)?;
         encoder.field(3)?;
         self.signature.encode(encoder)?;
         encoder.field(4)?;

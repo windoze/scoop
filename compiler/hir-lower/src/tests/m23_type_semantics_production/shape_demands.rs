@@ -28,7 +28,7 @@ fn shape_demands_select_the_actual_exporter_in_aggregated_source_graphs() {
 }
 
 #[test]
-fn source_only_shape_demands_replay_shared_declarations_before_and_after_concretization() {
+fn closed_parent_shape_demands_agree_before_and_after_concretization() {
     for source in [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -98,9 +98,10 @@ fn source_only_shape_demands_replay_shared_declarations_before_and_after_concret
                 assert!(
                     names
                         .iter()
-                        .all(|name| name.starts_with("Ready") || name == "DeferredConstructor"),
+                        .all(|name| name != "DeferredGeneric" && name != "DeferredBox"),
                     "{names:?}"
                 );
+                assert!(names.iter().any(|name| name == "DeferredRoot"));
             }
         });
     }

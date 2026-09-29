@@ -19,6 +19,7 @@ pub(super) fn validate_exact_identity<A: NominalInheritanceSemanticAuthority<E>,
 pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
     source: &[SignatureTypeKey],
     exact: &[PersistentExactTypeId],
+    arguments: &[PersistentExactTypeId],
     authority: &A,
 ) -> Result<(), Error<E>> {
     if source.len() != exact.len() {
@@ -38,6 +39,8 @@ pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
         validate_exact_identity(exact, authority)?;
         let key = authority.exact_type_key(exact).map_err(Error::Foundation)?;
         match (source, key) {
+            (SignatureTypeKey::Binder { depth: 0, index }, _)
+                if arguments.get(*index as usize) == Some(&exact) => {}
             (SignatureTypeKey::Nominal(left), ExactTypeKey::Nominal(right)) if left == right => {}
             (
                 SignatureTypeKey::NominalApplication {

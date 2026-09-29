@@ -1262,9 +1262,9 @@ class StringBuilder {
 
 所有可见性的 nominal、callable、property、参数、默认值和定义环境由共有源码接口完整保存。protected 成员仍以 typed 引用参与实际 MIR callable 选择，其可见性和签名读取同一声明；构造器使用共有 nominal 的 constructor 引用及对应 callable，不在 inheritance record 再保存一份 payload。generic 词法 owner 不因访问域查询而要求 machine exact type。名义类型的 lookup/inheritance/slot 三份派生域不再保存和重验。
 
-`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/10`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
+`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/11`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
 
-M23-7 将访问域计算保留在 HIR lowering；产物保存原声明 visibility、typed nominal owner、slot identity 与实际实现引用，不重复持久化访问域或在 reader 重放 protected/override 的可见性语义。`InheritanceSlotContractV1` 的 domain field 5 退役且不复用，保留 field 1～4、6、7；HIR `cross-cone-type-semantics/10` 与 required inventory、profile、fingerprint 同步，旧产物和缓存需重建。必要的声明归属、引用、签名、effect、abstract target modality 和实际继承路径检查继续保留；不改变 runtime C ABI。
+M23-7 将访问域计算保留在 HIR lowering；产物保存原声明 visibility、typed nominal owner、slot identity 与实际实现引用，不重复持久化访问域或在 reader 重放 protected/override 的可见性语义。`InheritanceSlotContractV1` 的重复 domain field 5 与 owner field 2 退役且不复用，保留 field 1、3、4、6、7；`InheritanceSlotTargetV1` 的重复 owner field 2 同样退役，保留 field 1、3、4、5。普通宿主的封闭泛型父类型使用原声明与完整 receiver application 查询继承和槽，签名 receiver 直接提供宿主及完整实参；HIR `cross-cone-type-semantics/11` 与 required inventory、profile、fingerprint 同步，旧产物和缓存需重建。必要的声明归属、引用、签名、effect、abstract target modality 和实际继承路径检查继续保留；不改变 runtime C ABI。
 
 M23-7 的实际泛型存储将该 section 升至 `/9`，把已具体化 application 的类型事实接入原表；MIR 类型表示与 LIR 布局分别使用 `cross-cone-type-bridge/2` 和 `cross-cone-layout-abi/4`。普通字段与异常字段可以持有同一实际泛型表示，外部 initializer 的完整物理签名进入 MIR 类型登记；格式与阶段职责见实现规范 2.13，runtime C ABI 保持。
 

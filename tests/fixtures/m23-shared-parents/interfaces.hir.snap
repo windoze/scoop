@@ -1,0 +1,112 @@
+Module
+  class NumberReader(number: Int) : IntReader
+    field0 property0: Int
+    property0 val number: Int getter0=body(NumberReader.$get$number) <stored field0 init=parameter0>
+  class LocalNumberReader(number: Int) : LocalIntReader
+    field1 property1: Int
+    property1 val number: Int getter1=body(LocalNumberReader.$get$number) <stored field1 init=parameter1>
+  interface IntReader : Reader<Int>
+  interface LocalReader<T>
+    fun read(): T0
+    fun again(): T0 <default>
+      val local1
+        Local this : LocalReader<T0>
+      return
+        MethodCall LocalReader.read : T0
+          Local $receiver : LocalReader<T0>
+  interface LocalIntReader : LocalReader<Int>
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local seed : T0
+    val local3
+      Local $argument.0 : Int
+    val local4
+      ReferenceUpcast : IntReader
+        ClassInit NumberReader : NumberReader
+          Local $parameter.number : Int
+    val local5
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local seed : T0
+    val local6
+      Local $argument.0 : Int
+    val local7
+      ReferenceUpcast : LocalIntReader
+        ClassInit LocalNumberReader : LocalNumberReader
+          Local $parameter.number : Int
+    val local8
+      Local local : LocalIntReader
+    val local10
+      MethodCall LocalReader.again : Int
+        ReferenceUpcast : LocalReader<Int>
+          Local $receiver : LocalIntReader
+    val local9
+      ReferenceUpcast : Reader<Int>
+        Local reader : IntReader
+    val local11
+      Local $equality.lhs : Int
+    val local12
+      ImportedGenericCall again<Int> : Int
+        Local $dependency.receiver : Reader<Int>
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local14
+        ReferenceUpcast : Reader<Int>
+          Local reader : IntReader
+      assign $result.0
+        ImportedGenericCall again<Int> : Int
+          Local $dependency.receiver : Reader<Int>
+    else
+      assign $result.0
+        IntegerLiteral 1 : Int
+    return
+      Local $result.0 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ReferenceUpcast : LocalIntReader
+        ClassInit LocalNumberReader : LocalNumberReader
+          Local $parameter.number : Int
+    val local3
+      IntegerLiteral 42 : Int
+    val local4
+      Local $argument.0 : Int
+    val local5
+      ReferenceUpcast : IntReader
+        ClassInit NumberReader : NumberReader
+          Local $parameter.number : Int
+    val local6
+      Local local : LocalIntReader
+    val local7
+      MethodCall LocalReader.again : Int
+        ReferenceUpcast : LocalReader<Int>
+          Local $receiver : LocalIntReader
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local10
+        ReferenceUpcast : Reader<Int>
+          Local external : IntReader
+      assign $result.1
+        ImportedGenericCall again<Int> : Int
+          Local $dependency.receiver : Reader<Int>
+    else
+      assign $result.1
+        IntegerLiteral 1 : Int
+    return
+      Local $result.1 : Int
+  output library

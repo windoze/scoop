@@ -8,7 +8,7 @@ pub(super) fn collect<'a>(
 ) -> Result<(), Error> {
     let metadata = provider.metadata;
     for source in metadata.public.callable_interfaces().all_declarations() {
-        let Some(SourceNominalId::Concrete(owner)) = source.owner().nominal_owner() else {
+        let Some(_) = source.owner().nominal_owner() else {
             continue;
         };
         if source.declared_visibility() == DeclaredVisibilityV1::Private
@@ -20,28 +20,13 @@ pub(super) fn collect<'a>(
         {
             continue;
         }
-        let key = ExactTypeKey::Nominal(owner);
-
-        let owner = PersistentExactTypeId::from_key(&key).map_err(|e| Error::Key(e.to_string()))?;
-
-        if !schemas.orders.contains_key(&owner) {
-            continue;
-        }
         let declaration = identity(schemas, metadata, source.declaration())?;
         let access = contracts::callable_access(metadata, source)?;
 
         data.origins.insert(access.definition_origin().clone());
         if data
             .members
-            .insert(
-                declaration,
-                Member {
-                    owner,
-                    metadata,
-                    source,
-                    access,
-                },
-            )
+            .insert(declaration, Member { source, access })
             .is_some()
         {
             return Err(Error::SlotCallable(declaration));

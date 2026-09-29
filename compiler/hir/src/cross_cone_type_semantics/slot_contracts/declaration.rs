@@ -12,6 +12,17 @@ pub enum InheritanceCallableDeclarationV1 {
     Setter(PersistentPropertyAccessorId),
 }
 
+impl InheritanceCallableDeclarationV1 {
+    pub const fn origin(self) -> scoop_identity::CallableTemplateOrigin {
+        match self {
+            Self::Function(id) => scoop_identity::CallableTemplateOrigin::Function(id),
+            Self::Getter(id) | Self::Setter(id) => {
+                scoop_identity::CallableTemplateOrigin::Accessor(id)
+            }
+        }
+    }
+}
+
 impl WireEncode for InheritanceCallableDeclarationV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let (tag, id): (u64, &dyn WireEncode) = match self {

@@ -39,6 +39,7 @@ pub trait InheritanceSlotSourceSemanticAuthority<E>:
     fn inheritance_callable_source(
         &self,
         declaration: InheritanceCallableDeclarationV1,
+        receiver: PersistentExactTypeId,
     ) -> Result<InheritanceSourceCallableFactsV1<'_>, E>;
     fn inheritance_slot_selection(
         &self,

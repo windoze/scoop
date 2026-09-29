@@ -47,6 +47,13 @@ impl InheritanceCallableSignatureV1 {
         self.effects
     }
 
+    pub fn receiver(&self) -> PersistentExactTypeId {
+        self.exact_signature
+            .receiver()
+            .into_option()
+            .expect("inheritance signatures are constructed with a receiver")
+    }
+
     pub fn matches_slot(&self, slot: &Self) -> bool {
         self.exact_signature.parameters() == slot.exact_signature.parameters()
             && self.exact_signature.result() == slot.exact_signature.result()

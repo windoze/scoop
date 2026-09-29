@@ -111,4 +111,5 @@ impl<E: std::error::Error + 'static> std::error::Error for InheritanceSlotContra
 struct Declaration<'s> {
     key: &'s SourceDeclarationKey,
     exact_owner: PersistentExactTypeId,
+    source: crate::SourceNominalId,
 }

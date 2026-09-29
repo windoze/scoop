@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     CheckedNominalInheritanceGraphV1, InheritanceQueryError, InheritanceSlotContractV1,
-    InheritanceSlotImplementationV1, NominalInheritanceModalityV1, SourceNominalId,
+    InheritanceSlotImplementationV1, NominalInheritanceModalityV1,
 };
 
 pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
@@ -33,14 +33,11 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
     let root = declarations::validate(
         graph,
         record.declaration(),
-        record.declaration_owner(),
         record.signature(),
         record.declaration_access(),
         authority,
     )?;
-    let source = graph
-        .source(SourceNominalId::Concrete(record.declaration_owner()))
-        .ok_or(Error::SlotIdentity)?;
+    let source = graph.source(root.source).ok_or(Error::SlotIdentity)?;
     let expected = declarations::root_key(record.declaration(), source.key.declaration_kind())
         .ok_or(Error::SlotIdentity)?;
     if authority
@@ -66,7 +63,6 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
     let target = record.implementation().target();
     let target_data;
     let implementation = if target.declaration() == record.declaration()
-        && target.owner() == record.declaration_owner()
         && target.signature() == record.signature()
         && target.declaration_access() == record.declaration_access()
     {
@@ -75,7 +71,6 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
         target_data = declarations::validate(
             graph,
             target.declaration(),
-            target.owner(),
             target.signature(),
             target.declaration_access(),
             authority,
@@ -86,7 +81,7 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
         return Err(Error::TargetName);
     }
     let source = graph
-        .source(SourceNominalId::Concrete(target.owner()))
+        .source(implementation.source)
         .ok_or(Error::TargetOwner)?;
     let is_interface = source.key.declaration_kind() == SourceDeclarationKind::Interface;
     if !is_abstract

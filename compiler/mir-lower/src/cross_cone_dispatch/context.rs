@@ -84,17 +84,3 @@ impl<'a> Context<'a> {
             .map_err(Error::Schema)
     }
 }
-
-pub(super) fn source_target(
-    declaration: hir::InheritanceCallableDeclarationV1,
-) -> CallableDefinitionOwner {
-    match declaration {
-        hir::InheritanceCallableDeclarationV1::Function(id) => {
-            StrongCallableDefinitionOwner::Function(id).into()
-        }
-        hir::InheritanceCallableDeclarationV1::Getter(id)
-        | hir::InheritanceCallableDeclarationV1::Setter(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(id).into()
-        }
-    }
-}

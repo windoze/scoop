@@ -9,6 +9,7 @@ use crate::{
     CrossConeTypeSemanticsSectionV1, NominalMaterializationClosure,
 };
 
+mod applications;
 mod equality_applications;
 mod errors;
 mod facts;

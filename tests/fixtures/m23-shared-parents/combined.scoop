@@ -1,0 +1,31 @@
+package consumer.parents
+
+import dependency.parents.Base
+import dependency.parents.Reader
+import dependency.parents.ReadingBase
+
+public interface ClosedReader: Reader<Int> {}
+
+public class Combined public constructor(value: Int): ReadingBase<Int>(value), ClosedReader {
+    public override fun read(): Int = super.read() + 1
+}
+
+public struct Payload<T>(val value: T)
+
+public class Nested public constructor(value: Int): Base<Payload<Int>>(Payload<Int>(value))
+
+private class Hidden(public val number: Int)
+private class HiddenChild(value: Hidden): Base<Hidden>(value)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val reader: Reader<Int> = Combined(read(seed) - 1)
+    return reader.again()
+}
+
+public fun result(): Int {
+    val nested: Base<Payload<Int>> = Nested(42)
+    if (nested.read().value != 42) { return 1 }
+    val reader: ClosedReader = Combined(41)
+    if (reader.again() != 42) { return 2 }
+    return HiddenChild(Hidden(42)).read().number
+}

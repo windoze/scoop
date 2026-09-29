@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{
-    DispatchDeclarationOwner, DispatchRole, ExactTypeKey, PersistentDispatchSlotId,
-    PersistentTypeId,
+    DispatchDeclarationOwner, DispatchRole, DispatchSlotKey, PersistentDispatchSlotId,
 };
 
 use super::source_errors::invalid;
@@ -10,51 +9,36 @@ use super::*;
 
 type Declaration = InheritanceCallableDeclarationV1;
 
-/// Joins resolved source members and implementation choices without changing
-/// slot identity, root visibility, or the schema's declaration order.
+/// Projects the checked declaration with each actual receiver application.
 pub(in crate::production::type_semantics) struct SlotContracts<'a> {
-    sources: BTreeMap<Declaration, DispatchSource>,
+    metadata: SharedTypeMetadataV1<'a>,
+    dependencies: Vec<SharedTypeMetadataV1<'a>>,
     selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
     roots: BTreeMap<PersistentDispatchSlotId, Declaration>,
 }
 
-struct DispatchSource {
-    owner: PersistentTypeId,
-    callable: InheritanceSourceCallableV1,
-}
-
 impl<'a> SlotContracts<'a> {
     pub(in crate::production::type_semantics) fn new(
-        export: &ExportHir,
-        dependencies: &[SharedTypeMetadataV1<'_>],
+        metadata: SharedTypeMetadataV1<'a>,
+        dependencies: &[SharedTypeMetadataV1<'a>],
         inventory: &CanonicalSourceInheritanceInventoriesV1,
         selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
     ) -> Result<Self, Error> {
-        let required_slots = inventory
+        let mut roots = BTreeMap::new();
+        for slot in inventory
             .records()
             .iter()
             .flat_map(|record| record.slot_schemas().records())
             .flat_map(|schema| schema.slots())
-            .copied()
-            .collect::<std::collections::BTreeSet<_>>();
-        let mut roots = BTreeMap::new();
-        let records = export.dispatch_slot_identities.records().chain(
-            export
-                .types
-                .iter()
-                .filter_map(|(_, ty)| match ty {
-                    Type::ImportedInterface(interface) => {
-                        Some(interface.methods.iter().map(|method| &method.slot))
-                    }
-                    _ => None,
-                })
-                .flatten(),
-        );
-        for record in records {
-            if !required_slots.contains(&record.id()) {
+        {
+            if roots.contains_key(slot) {
                 continue;
             }
-            let declaration = match (record.key().owner(), record.key().role()) {
+            let key = metadata
+                .identities
+                .canonical_key::<_, DispatchSlotKey>(*slot)
+                .map_err(invalid)?;
+            let declaration = match (key.owner(), key.role()) {
                 (
                     DispatchDeclarationOwner::Function(id),
                     DispatchRole::VirtualMethod | DispatchRole::InterfaceMethod,
@@ -67,66 +51,11 @@ impl<'a> SlotContracts<'a> {
                 }
                 _ => return Err(invalid("dispatch slot role does not match its declaration")),
             };
-            roots.insert(record.id(), declaration);
-        }
-        let mut required = std::collections::BTreeSet::new();
-        for slot in &required_slots {
-            required.insert(
-                *roots
-                    .get(slot)
-                    .ok_or_else(|| invalid("dispatch slot has no declaration"))?,
-            );
-        }
-        for selection in selections.records() {
-            required.insert(selection.selection().declaration());
-        }
-        let mut sources = BTreeMap::new();
-        for (id, function) in export.functions.iter() {
-            let Some(declaration) = source_callables::identity(export, id) else {
-                continue;
-            };
-            if !required.remove(&declaration) {
-                continue;
-            }
-            let method = function.method.expect("dispatch targets are methods");
-            let identity = export.type_identities[method.owner].exact().ok_or(
-                Error::MissingExactIdentity {
-                    context: "dispatch receiver",
-                },
-            )?;
-            let ExactTypeKey::Nominal(owner) = identity.key() else {
-                return Err(Error::GenericOdrRequired(identity.id()));
-            };
-            sources.insert(
-                declaration,
-                DispatchSource {
-                    owner: *owner,
-                    callable: source_callables::local(export, id, declaration)?,
-                },
-            );
-        }
-        for declaration in required {
-            let origin = match declaration {
-                Declaration::Function(id) => scoop_identity::CallableTemplateOrigin::Function(id),
-                Declaration::Getter(id) | Declaration::Setter(id) => {
-                    scoop_identity::CallableTemplateOrigin::Accessor(id)
-                }
-            };
-            let metadata = dependencies
-                .iter()
-                .find(|metadata| {
-                    metadata
-                        .public
-                        .callable_interfaces()
-                        .declaration(origin)
-                        .is_some()
-                })
-                .ok_or_else(|| invalid("dispatch target has no dependency declaration"))?;
-            let (callable, owner) = source_callables::imported(*metadata, declaration)?;
-            sources.insert(declaration, DispatchSource { owner, callable });
+            roots.insert(*slot, declaration);
         }
         Ok(Self {
-            sources,
+            metadata,
+            dependencies: dependencies.to_vec(),
             selections,
             roots,
         })
@@ -143,65 +72,74 @@ impl<'a> SlotContracts<'a> {
                 if contracts.contains_key(slot) {
                     continue;
                 }
-
                 let declaration = *self
                     .roots
                     .get(slot)
                     .ok_or_else(|| invalid("dispatch slot has no source root declaration"))?;
-                let source = self.source(declaration)?;
-
+                let source = self.target(owner, declaration)?;
                 let selection = self.selections.get(owner, *slot).ok_or_else(|| {
                     invalid("dispatch slot has no resolved implementation selection")
                 })?;
                 let implementation = match selection {
                     InheritanceSourceSlotSelectionV1::Abstract(target) => {
-                        InheritanceSlotImplementationV1::Abstract(self.target(target)?)
+                        InheritanceSlotImplementationV1::Abstract(self.target(owner, target)?)
                     }
                     InheritanceSourceSlotSelectionV1::Concrete(target) => {
-                        InheritanceSlotImplementationV1::Concrete(self.target(target)?)
+                        InheritanceSlotImplementationV1::Concrete(self.target(owner, target)?)
                     }
                     InheritanceSourceSlotSelectionV1::InterfaceDefault(target) => {
-                        InheritanceSlotImplementationV1::InterfaceDefault(self.target(target)?)
+                        InheritanceSlotImplementationV1::InterfaceDefault(
+                            self.target(owner, target)?,
+                        )
                     }
                 };
                 let contract = InheritanceSlotContractV1::try_new(
                     *slot,
-                    source.owner,
                     declaration,
-                    source.callable.signature().clone(),
+                    source.signature().clone(),
                     implementation,
-                    source.callable.declaration_access().clone(),
+                    source.declaration_access().clone(),
                 )
                 .map_err(invalid)?;
-                insert(&mut contracts, *slot, contract)?;
+                contracts.insert(*slot, contract);
             }
         }
-
         CanonicalInheritanceSlotContractsV1::try_new(contracts.into_values().collect())
             .map_err(invalid)
     }
 
-    fn source(&self, declaration: Declaration) -> Result<&DispatchSource, Error> {
-        self.sources
-            .get(&declaration)
-            .ok_or_else(|| invalid("dispatch declaration has no callable contract"))
-    }
-
-    fn target(&self, declaration: Declaration) -> Result<InheritanceSlotTargetV1, Error> {
-        let source = self.source(declaration)?;
+    fn target(
+        &self,
+        root: PersistentExactTypeId,
+        declaration: Declaration,
+    ) -> Result<InheritanceSlotTargetV1, Error> {
+        let (metadata, source) = std::iter::once(self.metadata)
+            .chain(self.dependencies.iter().copied())
+            .find_map(|metadata| {
+                metadata
+                    .public
+                    .callable_interfaces()
+                    .declaration(declaration.origin())
+                    .map(|source| (metadata, source))
+            })
+            .ok_or_else(|| invalid("dispatch declaration has no callable contract"))?;
+        let owner = source
+            .owner()
+            .nominal_owner()
+            .ok_or_else(|| invalid("dispatch declaration has no nominal owner"))?;
+        let receiver = self
+            .metadata
+            .applied_member_receiver(root, owner, &self.dependencies)
+            .map_err(invalid)?;
         Ok(InheritanceSlotTargetV1::new(
             declaration,
-            source.owner,
-            source.callable.signature().clone(),
-            source.callable.modality(),
-            source.callable.declaration_access().clone(),
+            self.metadata
+                .applied_member_signature(receiver, source)
+                .map_err(invalid)?,
+            source.modality(),
+            metadata
+                .callable_declaration_access(source)
+                .map_err(invalid)?,
         ))
     }
-}
-
-fn insert<K: Ord, V>(map: &mut BTreeMap<K, V>, key: K, value: V) -> Result<(), Error> {
-    if map.insert(key, value).is_some() {
-        return Err(invalid("duplicate dispatch projection identity"));
-    }
-    Ok(())
 }

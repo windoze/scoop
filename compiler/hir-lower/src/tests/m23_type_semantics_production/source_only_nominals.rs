@@ -14,7 +14,7 @@ const COMBINED: &str = include_str!(concat!(
 ));
 
 #[test]
-fn source_only_nominals_preserve_complete_declarations_and_close_machine_dependencies() {
+fn closed_parent_nominals_preserve_declarations_and_close_machine_dependencies() {
     for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
         with_hir_source(source, |output, _| {
             let public = public_interface(output);
@@ -45,8 +45,7 @@ fn source_only_nominals_preserve_complete_declarations_and_close_machine_depende
                     hir::SourceNominalId::Concrete(owner) => {
                         let exact =
                             PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner)).unwrap();
-                        let ready = name.as_str().starts_with("Ready")
-                            || name.as_str() == "DeferredConstructor";
+                        let ready = true;
                         assert_eq!(
                             section.representation_support().get(owner).is_some(),
                             ready,

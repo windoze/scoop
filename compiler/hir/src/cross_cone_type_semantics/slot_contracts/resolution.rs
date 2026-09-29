@@ -40,9 +40,6 @@ impl DecodedInheritanceSlotTargetV1 {
             .declaration
             .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Identity)?;
-        let owner = resolver
-            .resolve(self.owner)
-            .map_err(InheritanceSlotResolutionError::Identity)?;
         let signature = self
             .signature
             .resolve(resolver)
@@ -53,7 +50,6 @@ impl DecodedInheritanceSlotTargetV1 {
             .map_err(InheritanceSlotResolutionError::Source)?;
         Ok(InheritanceSlotTargetV1::new(
             declaration,
-            owner,
             signature,
             self.modality,
             access,
@@ -86,9 +82,6 @@ impl DecodedInheritanceSlotContractV1 {
         let slot = resolver
             .resolve(self.slot)
             .map_err(InheritanceSlotResolutionError::Identity)?;
-        let owner = resolver
-            .resolve(self.declaration_owner)
-            .map_err(InheritanceSlotResolutionError::Identity)?;
         let declaration = self
             .declaration
             .resolve(resolver)
@@ -102,15 +95,8 @@ impl DecodedInheritanceSlotContractV1 {
             .declaration_access
             .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Source)?;
-        InheritanceSlotContractV1::try_new(
-            slot,
-            owner,
-            declaration,
-            signature,
-            implementation,
-            access,
-        )
-        .map_err(InheritanceSlotResolutionError::Contract)
+        InheritanceSlotContractV1::try_new(slot, declaration, signature, implementation, access)
+            .map_err(InheritanceSlotResolutionError::Contract)
     }
 }
 

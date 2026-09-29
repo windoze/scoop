@@ -1,17 +1,9 @@
 use super::*;
-use scoop_identity::{DeclarationName, PersistentTypeId, PropertyAccessorKey, PropertyOwner};
+use scoop_identity::{DeclarationName, PersistentExactTypeId, PropertyAccessorKey, PropertyOwner};
 
 pub(super) fn render(checked: CheckedSharedTypeFoundationV1<'_>) -> String {
     let mut lines = Vec::new();
     for nominal in checked.section().inheritance().records() {
-        let key = checked
-            .metadata()
-            .identities
-            .canonical_key::<_, scoop_identity::ExactTypeKey>(nominal.owner())
-            .unwrap();
-        let scoop_identity::ExactTypeKey::Nominal(owner) = key.as_ref() else {
-            panic!("source nominal required");
-        };
         for slot in nominal.slots().records() {
             let implementation = match slot.implementation() {
                 Implementation::Abstract(target)
@@ -24,15 +16,15 @@ pub(super) fn render(checked: CheckedSharedTypeFoundationV1<'_>) -> String {
                             Implementation::Concrete(_) => "concrete",
                             Implementation::InterfaceDefault(_) => "default",
                         },
-                        nominal_name(checked, target.owner()),
+                        nominal_name(checked, target.signature().receiver()),
                         callable_name(checked, target.declaration()),
                     )
                 }
             };
             lines.push(format!(
                 "{} {}.{} -> {implementation}\n",
-                nominal_name(checked, *owner),
-                nominal_name(checked, slot.declaration_owner()),
+                nominal_name(checked, nominal.owner()),
+                nominal_name(checked, slot.signature().receiver()),
                 callable_name(checked, slot.declaration())
             ));
         }
@@ -41,14 +33,36 @@ pub(super) fn render(checked: CheckedSharedTypeFoundationV1<'_>) -> String {
     lines.concat()
 }
 
-fn nominal_name(checked: CheckedSharedTypeFoundationV1<'_>, owner: PersistentTypeId) -> String {
-    name(
-        &checked
-            .metadata()
-            .identities
-            .canonical_key::<_, SourceDeclarationKey>(owner)
-            .unwrap(),
-    )
+fn nominal_name(
+    checked: CheckedSharedTypeFoundationV1<'_>,
+    exact: PersistentExactTypeId,
+) -> String {
+    let identities = checked.metadata().identities;
+    let key = identities
+        .canonical_key::<_, scoop_identity::ExactTypeKey>(exact)
+        .unwrap();
+    match key.as_ref() {
+        scoop_identity::ExactTypeKey::Nominal(owner) => name(
+            &identities
+                .canonical_key::<_, SourceDeclarationKey>(*owner)
+                .unwrap(),
+        ),
+        scoop_identity::ExactTypeKey::NominalApplication { origin, arguments } => format!(
+            "{}<{}>",
+            name(
+                &identities
+                    .canonical_key::<_, SourceDeclarationKey>(*origin)
+                    .unwrap()
+            ),
+            arguments
+                .as_slice()
+                .iter()
+                .map(|argument| nominal_name(checked, *argument))
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+        _ => panic!("nominal type required"),
+    }
 }
 
 fn callable_name(checked: CheckedSharedTypeFoundationV1<'_>, declaration: Declaration) -> String {

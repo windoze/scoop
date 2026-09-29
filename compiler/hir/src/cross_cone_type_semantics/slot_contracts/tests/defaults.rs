@@ -76,7 +76,6 @@ fn interface_default_targets_keep_provider_identity_and_conformance() {
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
             record.slot,
-            record.declaration_owner,
             record.declaration,
             record.signature.clone(),
             InheritanceSlotImplementationV1::Concrete(target),
@@ -101,7 +100,6 @@ fn targets_match_implementation_modality_and_callable_roles() {
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
             record.slot,
-            record.declaration_owner,
             record.declaration,
             record.signature.clone(),
             InheritanceSlotImplementationV1::Concrete(target),
@@ -114,7 +112,6 @@ fn targets_match_implementation_modality_and_callable_roles() {
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
             slot,
-            support::nominal(owner),
             fixture.declaration(slot),
             fixture.signature(owner, vec![]),
             InheritanceSlotImplementationV1::Concrete(target),

@@ -35,6 +35,11 @@ impl Graph<'_> {
         owner: PersistentTypeId,
         parent: &SignatureTypeKey,
     ) -> Result<(), Error> {
+        if matches!(parent, SignatureTypeKey::NominalApplication { .. }) {
+            // The applied parent is an ODR representation. Only its ordinary
+            // argument types contribute dependencies on source definitions.
+            return self.signature(parent, Kind::Representation);
+        }
         let SignatureTypeKey::Nominal(parent) = parent else {
             return Err(Error::NonConcreteSignature);
         };

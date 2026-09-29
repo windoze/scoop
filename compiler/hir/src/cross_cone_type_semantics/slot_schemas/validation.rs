@@ -5,7 +5,6 @@ use scoop_identity::{
     PersistentPropertyAccessorId, PersistentPropertyId, PropertyAccessorKey, SourceDeclarationKey,
     SourceDeclarationKind,
 };
-use scoop_wire::WirePath;
 
 use super::{CanonicalInheritanceSlotSchemasV1, InheritanceSlotSchemaRoleV1 as Role};
 use crate::{CheckedNominalInheritanceGraphV1, DirectClassBaseV1, InheritanceQueryError};
@@ -90,7 +89,7 @@ struct Validation<'a, 'g, 'w, A> {
 
     complete: BTreeMap<PersistentExactTypeId, &'a CanonicalInheritanceSlotSchemasV1>,
     conformances: BTreeMap<PersistentExactTypeId, BTreeSet<PersistentExactTypeId>>,
-    interface_expansions: BTreeMap<PersistentExactTypeId, interfaces::Expansion>,
+    interface_expansions: BTreeMap<PersistentExactTypeId, crate::InterfaceSlotExpansion>,
 }
 impl<A> Validation<'_, '_, '_, A> {
     fn visit<E>(
@@ -218,14 +217,14 @@ impl<A> Validation<'_, '_, '_, A> {
         }
         for slot in &slots[prefix.len()..] {
             let root = identity::source_owner(self.graph, *slot, self.authority)?;
-            if root != owner {
+            if self.graph.get(owner).map(|node| node.source()) != Some(root) {
                 return Err(InheritanceSlotSchemaSemanticError::NewSlotOwner {
                     owner,
                     slot: *slot,
                 });
             }
             self.graph
-                .require_class(root)
+                .require_class(owner)
                 .map_err(InheritanceSlotSchemaSemanticError::Inheritance)?;
         }
         Ok(())

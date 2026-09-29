@@ -38,7 +38,7 @@ fn names(output: &hir::LocalConcreteHirOutput) -> BTreeSet<String> {
 }
 
 #[test]
-fn materialized_types_exclude_primitive_arena_and_source_only_defaults() {
+fn materialized_types_include_parents_and_exclude_unevaluated_defaults() {
     with_hir_source(&fixture("standalone"), |output, _| {
         let local = &output.output().local;
         assert!(
@@ -53,7 +53,12 @@ fn materialized_types_exclude_primitive_arena_and_source_only_defaults() {
                 .iter()
                 .any(|(_, ty)| matches!(ty.kind, TypeKind::Integer(_)))
         );
-        assert_eq!(names(local), BTreeSet::from(["Boolean".to_owned()]));
+        assert_eq!(
+            names(local),
+            BTreeSet::from(
+                ["Boolean", "Deferred", "Long", "SourceOnly", "Unit"].map(str::to_owned)
+            )
+        );
         snapshot("standalone", local);
     });
 }

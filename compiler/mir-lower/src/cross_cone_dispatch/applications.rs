@@ -200,7 +200,7 @@ fn virtual_contract(
     ))
 }
 
-fn entry(
+pub(super) fn entry(
     context: &Context<'_>,
     owner: PersistentExactTypeId,
     contract: mir::MirDispatchSlotV1,

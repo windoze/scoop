@@ -2,6 +2,7 @@ DeferredBase
 DeferredDerived
 DeferredEnum
 DeferredGetter
+DeferredNested
 DeferredSetter
 DeferredStorage
 ReadyDirect

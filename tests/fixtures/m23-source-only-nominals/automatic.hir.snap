@@ -1,14 +1,50 @@
 standalone
+  class-constructor DeferredRoot arity=0
   struct-constructor ReadyValue arity=1
+  type DeferredGeneric
+  type DeferredRoot
   type ReadyValue
 combined
   class-constructor DeferredConstructor arity=1
+  class-constructor DeferredCycleA arity=1
+  class-constructor DeferredCycleB arity=1
+  class-constructor DeferredDerived arity=0
+  class-constructor DeferredHolder arity=1
+  class-constructor DeferredLeaf arity=1
+  class-constructor DeferredObject arity=0
+  class-constructor DeferredPrivate arity=0
+  class-constructor DeferredPrivateHolder arity=0
+  class-constructor DeferredProtected arity=0
+  class-constructor DeferredProtected.DeferredNested arity=1
+  class-constructor DeferredRoot arity=0
+  class-constructor DeferredVirtual arity=0
   class-constructor ReadyCycleA arity=1
   class-constructor ReadyCycleB arity=1
   class-constructor ReadyDirect arity=0
+  function $init$body$0
+  function $init$ensure$0
+  function DeferredObject.take
+  function DeferredProtected.read
+  function DeferredSlot.take
+  function DeferredVirtual.take
+  function ReadyDirect.take
   struct-constructor ReadyEmpty arity=0
   type DeferredBox
   type DeferredConstructor
+  type DeferredCycleA
+  type DeferredCycleB
+  type DeferredDerived
+  type DeferredGeneric
+  type DeferredHolder
+  type DeferredLeaf
+  type DeferredObject
+  type DeferredPrivate
+  type DeferredPrivateHolder
+  type DeferredProtected
+  type DeferredProtected.DeferredNested
+  type DeferredRoot
+  type DeferredSlot
+  type DeferredVirtual
   type ReadyCycleA
   type ReadyCycleB
   type ReadyDirect
@@ -19,6 +55,7 @@ shape-demand
   class-constructor DeferredStorage arity=1
   class-constructor ReadyDirect arity=0
   class-constructor ReadyOuter arity=0
+  class-constructor ReadyOuter.DeferredNested arity=0
   class-constructor ReadyPrivateConstructor arity=1
   function DeferredBase.$get$value
   function DeferredBase.$set$value
@@ -35,4 +72,5 @@ shape-demand
   type DeferredStorage
   type ReadyDirect
   type ReadyOuter
+  type ReadyOuter.DeferredNested
   type ReadyPrivateConstructor

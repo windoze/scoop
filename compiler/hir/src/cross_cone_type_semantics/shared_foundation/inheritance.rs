@@ -50,8 +50,9 @@ impl CheckedSharedTypeFoundationV1<'_> {
             source::collect(&mut context, provider)?;
             edges::collect(&mut context, provider, dependencies)?;
         }
+        edges::close_applications(&mut context, types)?;
         let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
-            context.edges.iter(),
+            context.edges.values(),
             context.sources.keys().copied(),
             &context,
         )
@@ -84,7 +85,7 @@ struct Context<'a> {
     exacts: BTreeMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
     generated: BTreeMap<PersistentTypeId, Arc<GeneratedNominalKey>>,
     objects: BTreeMap<PersistentTypeId, &'a NominalRepresentationSupportV1>,
-    edges: Vec<NominalInheritanceEdgesV1>,
+    edges: BTreeMap<PersistentExactTypeId, NominalInheritanceEdgesV1>,
 }
 
 struct Source {

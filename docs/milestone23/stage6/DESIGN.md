@@ -2,7 +2,7 @@
 
 状态：已完成并验收（2026-09-27）。实际源码、完整产物、跨 Cone Compile/Link 消费与单 image 运行的结果见 [验收记录](ACCEPTANCE.md)；七项清理与功能变更已按职责提交。
 
-后续格式修订见 [M23-7 设计](../stage7/DESIGN.md)：当前 HIR `cross-cone-type-semantics/10` 已退役 `InheritanceSlotContractV1` 的重复 domain field 5。原声明 visibility 与 typed nominal owner 继续保存，访问域及 protected/override 检查由 HIR lowering 负责，reader 不再重放可见性集合或生成访问证明。本文各项历史格式升级不要求恢复该重复通道；实际 slot、签名、实现引用与 ABI 检查继续保留。
+后续格式修订见 [M23-7 设计](../stage7/DESIGN.md)：当前 HIR `cross-cone-type-semantics/11` 已退役 `InheritanceSlotContractV1` 的重复 domain field 5，以及槽根／目标的重复 owner field 2；完整 receiver application 直接提供声明宿主和实参。原声明 visibility 与 typed nominal owner 继续保存，访问域及 protected/override 检查由 HIR lowering 负责，reader 不再重放可见性集合或生成访问证明。本文各项历史格式升级不要求恢复该重复通道；实际 slot、签名、实现引用与 ABI 检查继续保留。
 
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式升级为 /11、/12，旧 /9、/10 产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 

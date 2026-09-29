@@ -74,16 +74,21 @@ pub(super) fn check(
         names.is_empty(),
         "unexpected source-only descriptors: {names:?}"
     );
-    assert_eq!(
-        local_only,
-        match name {
-            "shared-callables-combined" => vec!["SharedCallableImpl"],
-            "shared-equality-standalone" => vec!["SharedEqualityHidden"],
-            "shared-units-combined" => vec!["SharedUnitHidden"],
-            "shared-production-combined" => vec!["SharedProductionPrivate"],
-            _ => vec![],
-        }
-    );
+    let mut expected_local = vec![
+        "IntRangeIterator",
+        "LongRangeIterator",
+        "UIntRangeIterator",
+        "ULongRangeIterator",
+    ];
+    expected_local.extend(match name {
+        "shared-callables-combined" => Some("SharedCallableImpl"),
+        "shared-equality-standalone" => Some("SharedEqualityHidden"),
+        "shared-units-combined" => Some("SharedUnitHidden"),
+        "shared-production-combined" => Some("SharedProductionPrivate"),
+        _ => None,
+    });
+    expected_local.sort();
+    assert_eq!(local_only, expected_local);
     for name in names {
         dump.push_str(&format!("source-only descriptor {name}\n"));
     }

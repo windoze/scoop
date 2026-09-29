@@ -2,8 +2,9 @@
 
 use scoop_hir as hir;
 use scoop_identity::{
-    DispatchDeclarationOwner, GeneratedCallableKey, PersistentDispatchSlotId,
-    PersistentExactTypeId, PersistentGeneratedCallableId, StrongCallableDefinitionOwner,
+    CallableDefinitionOwner, DispatchDeclarationOwner, GeneratedCallableKey,
+    PersistentDispatchSlotId, PersistentExactTypeId, PersistentGeneratedCallableId,
+    StrongCallableDefinitionOwner,
 };
 use scoop_mir as mir;
 use scoop_wire::WirePath;
@@ -35,6 +36,7 @@ pub fn validate_shared_mir_dispatch(
     let index = mir::MirTypeBridgeCallableIndexV1::try_new(&tables, direct_callables)?;
     let mut replay = Replay {
         callables: &index,
+        identities: source.metadata().identities,
         adjustments: BTreeSet::new(),
     };
     inventory::validate(source, dispatch, &mut replay)?;
@@ -55,18 +57,21 @@ pub fn validate_shared_mir_dispatch(
 
 struct Replay<'c> {
     callables: &'c dyn mir::MirTypeBridgeCallableLookupV1,
+    identities: &'c scoop_identity::ValidatedIdentityGraph,
     adjustments: BTreeSet<PersistentGeneratedCallableId>,
 }
 
-fn target(declaration: hir::InheritanceCallableDeclarationV1) -> StrongCallableDefinitionOwner {
-    match declaration {
-        hir::InheritanceCallableDeclarationV1::Function(id) => {
-            StrongCallableDefinitionOwner::Function(id)
-        }
-        hir::InheritanceCallableDeclarationV1::Getter(id)
-        | hir::InheritanceCallableDeclarationV1::Setter(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(id)
-        }
+impl Replay<'_> {
+    fn target(
+        &self,
+        source: &hir::InheritanceSlotTargetV1,
+    ) -> Result<CallableDefinitionOwner, Error> {
+        mir::dispatch_exact_declaration_target(
+            self.identities,
+            declaration(source.declaration()),
+            source.signature().receiver(),
+        )
+        .map_err(Error::Callable)
     }
 }
 

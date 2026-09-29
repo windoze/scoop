@@ -216,7 +216,7 @@ generic host 的普通方法和 accessor 具有 exact owner；generic method 另
 
 泛型扩展属性的 getter 与 setter 保留原 `PersistentPropertyAccessorId`，按 property binder 的声明顺序建立各自的 callable application。消费方使用 getter 的完整签名和现有约束求解器，仅从 receiver 静态类型选择逻辑属性并确定类型实参；该选择供读取、赋值、复合赋值和自增共用，setter 右值与 expected result 不参与重新推断。只写属性时不因借用 getter 签名而物化 getter 正文；实际使用的访问器进入原泛型正文队列，定义处绑定、独立可见性、effect 和 receiver 求值顺序保持。再次发布保存实际访问器声明及类型实参，不把扩展访问器改造成普通泛型函数或名义类型方法；此项复用已有 HIR interface 格式。
 
-protected 访问区域使用普通或泛型声明的原 typed nominal owner；词法类和声明类的继承关系不依赖 machine exact type。显式 receiver 的静态类仍须是提供访问上下文的类或其子类，构造器、方法、属性 setter 与 protected override 共用原可见性和槽覆盖规则。泛型 application 的实参替换及不变性继续由类型检查负责，访问检查不制造擦除后的类型或额外访问证明。产物以原声明 visibility 和 owner 表达访问规则，`InheritanceSlotContractV1` 不再重复保存 domain field 5；reader 保留身份、签名和实现引用检查，不重放已完成的访问域语义。
+protected 访问区域使用普通或泛型声明的原 typed nominal owner；词法类和声明类的继承关系不依赖 machine exact type。显式 receiver 的静态类仍须是提供访问上下文的类或其子类，构造器、方法、属性 setter 与 protected override 共用原可见性和槽覆盖规则。泛型 application 的实参替换及不变性继续由类型检查负责，访问检查不制造擦除后的类型或额外访问证明。产物以原声明 visibility 和 owner 表达访问规则，`InheritanceSlotContractV1` 不再重复保存 domain field 5，槽根和目标的 owner field 2 也退役；完整 receiver application 提供原宿主和实际参数。reader 保留身份、签名和实现引用检查，不重放已完成的访问域语义。
 
 泛型抽象成员只有共有声明，没有共享执行正文。消费方从已验证声明取得实际 owner、宿主 binder、完整 receiver/参数/结果、effect 和原 definition origin，建立与本地抽象方法相同的参数局部值，进入既有 abstract trap lowering；不能为通过正文导入而制造空的共有 body record。抽象 setter 的隐式参数使用原 accessor 声明位置，普通参数继续保留自己的源码位置。默认实现继续消费真实模板正文，接口继承和抽象 override 保留实际所选声明。同一具体方法同时被调用根和接口表引用时，MIR 复用一个函数与实例记录。导入 struct/enum 在存储和父接口完成后，沿与 class 相同的 source dispatch selection 建立完整接口实现；实际装箱和 adjust thunk 使用该完整 conformance，不从方法名重建选择。
 
@@ -502,7 +502,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
 | `org.scoop-lang.hir/cross-cone-interface` | `/41` | 捕获 field 4 分离读取值来源与原绑定；for 在 Export 前展开，撤销专用 For 与 portable binding-plan 编码； 公开绑定引用不要求终点 provider 是 direct；AliasTarget 只保存实际 typed 引用；原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
-| `org.scoop-lang.hir/cross-cone-type-semantics` | `/10`（6a 迁移前） | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5，复用声明 visibility 和 typed owner |
+| `org.scoop-lang.hir/cross-cone-type-semantics` | `/11` | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5 与槽根／目标 owner field 2，以原声明和完整 receiver 查询泛型父类型 |
 | `org.scoop-lang.mir/cross-cone-type-bridge` | `/4` | 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
 | `org.scoop-lang.lir/cross-cone-layout-abi` | `/5` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用；完整 callable ABI 保留实际 callable member |

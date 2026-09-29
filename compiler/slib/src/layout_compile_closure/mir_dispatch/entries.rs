@@ -30,7 +30,7 @@ impl Replay<'_> {
         )?;
         let expected = match contract.implementation() {
             hir::InheritanceSlotImplementationV1::Abstract(selected) => {
-                let target = target(selected.declaration());
+                let target = self.target(selected)?;
                 let expected = bindings::signature(
                     selected.signature(),
                     selected
@@ -52,7 +52,7 @@ impl Replay<'_> {
                 )?;
                 Implementation::AbstractObligation {
                     declaration: declaration(selected.declaration()),
-                    trap_target: scoop_identity::CallableDefinitionOwner::Strong(target),
+                    trap_target: target,
                     receiver: adaptation(&signature, &expected),
                 }
             }
@@ -66,14 +66,12 @@ impl Replay<'_> {
                             slot: contract.slot(),
                         });
                     };
-                    Implementation::AdjustThunkTarget(
-                        scoop_identity::CallableDefinitionOwner::Strong(self.adjustment(
-                            owner,
-                            contract.slot(),
-                            interface_exact,
-                            source,
-                        )?),
-                    )
+                    Implementation::AdjustThunkTarget(self.adjustment(
+                        owner,
+                        contract.slot(),
+                        interface_exact,
+                        source,
+                    )?)
                 } else {
                     let expected = bindings::signature(
                         source.signature(),
@@ -83,22 +81,16 @@ impl Replay<'_> {
                             .receiver()
                             .into_option(),
                     )?;
-                    let target = target(source.declaration());
+                    let target = self.target(source)?;
                     self.source_binding(owner, contract.slot(), target, &expected)?;
                     let receiver = adaptation(&signature, &expected);
                     if matches!(
                         contract.implementation(),
                         hir::InheritanceSlotImplementationV1::InterfaceDefault(_)
                     ) {
-                        Implementation::InterfaceDefaultTarget {
-                            target: scoop_identity::CallableDefinitionOwner::Strong(target),
-                            receiver,
-                        }
+                        Implementation::InterfaceDefaultTarget { target, receiver }
                     } else {
-                        Implementation::DirectStrongTarget {
-                            target: scoop_identity::CallableDefinitionOwner::Strong(target),
-                            receiver,
-                        }
+                        Implementation::DirectStrongTarget { target, receiver }
                     }
                 }
             }

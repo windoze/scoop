@@ -142,7 +142,6 @@ impl Fixture {
     pub fn concrete(&self, owner: Node, slot: PersistentDispatchSlotId) -> InheritanceSlotTargetV1 {
         InheritanceSlotTargetV1::new(
             self.declaration(slot),
-            nominal(owner),
             self.signature(owner, vec![]),
             CallableModalityV1::Open,
             self.access(owner, DeclaredVisibilityV1::Public),
@@ -165,7 +164,6 @@ impl Fixture {
     ) -> InheritanceSlotContractV1 {
         InheritanceSlotContractV1::try_new(
             slot,
-            nominal(owner),
             self.declaration(slot),
             self.signature(owner, vec![]),
             implementation,

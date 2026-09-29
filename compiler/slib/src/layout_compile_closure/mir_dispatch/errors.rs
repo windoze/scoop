@@ -20,11 +20,12 @@ pub enum SharedMirDispatchValidationError {
     Resource(WireError),
     Shared(Box<hir::SharedTypeMetadataError>),
     Lookup(mir::MirTypeBridgeLookupError),
+    Callable(mir::MirCallableBridgeError),
     Key(scoop_identity::GeneratedCallableIdentityError),
     Missing(PersistentExactTypeId),
     Unexpected(PersistentExactTypeId),
     MissingFact(PersistentExactTypeId),
-    MissingCallable(StrongCallableDefinitionOwner),
+    MissingCallable(CallableDefinitionOwner),
     UnexpectedAdjustment(PersistentGeneratedCallableId),
     SourceSlot {
         owner: PersistentExactTypeId,

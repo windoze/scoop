@@ -17,7 +17,6 @@ pub(super) fn check(
             {
                 let ancestor = InheritanceSlotTargetV1::new(
                     slot.declaration(),
-                    slot.declaration_owner(),
                     slot.signature().clone(),
                     source.modality(),
                     slot.declaration_access().clone(),
@@ -41,7 +40,6 @@ pub(super) fn check(
                 };
                 let changed = InheritanceSlotTargetV1::new(
                     target.declaration(),
-                    target.owner(),
                     target.signature().clone(),
                     modality,
                     target.declaration_access().clone(),
@@ -57,7 +55,7 @@ pub(super) fn check(
             {
                 assert!(matches!(
                     reject(checked, core, nominal.owner(), replace(slot, Implementation::Abstract(InheritanceSlotTargetV1::new(
-                        target.declaration(), target.owner(), target.signature().clone(),
+                        target.declaration(), target.signature().clone(),
                         CallableModalityV1::Abstract, target.declaration_access().clone(),
                     )))),
                     Error::SlotContracts(error) if matches!(error.as_ref(), ContractError::Slot(hir::InheritanceSlotContractSemanticError::AbstractObligation))
@@ -105,14 +103,12 @@ fn signature(checked: CheckedSharedTypeFoundationV1<'_>, core: CheckedSharedType
     };
     let target = InheritanceSlotTargetV1::new(
         target.declaration(),
-        target.owner(),
         changed(target.signature()),
         target.modality(),
         target.declaration_access().clone(),
     );
     let replacement = InheritanceSlotContractV1::try_new(
         slot.slot(),
-        slot.declaration_owner(),
         slot.declaration(),
         changed(slot.signature()),
         Implementation::Concrete(target),

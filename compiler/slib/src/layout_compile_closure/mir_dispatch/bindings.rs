@@ -38,10 +38,10 @@ fn exact_signature(
 impl Replay<'_> {
     pub(super) fn binding(
         &self,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
     ) -> Result<mir::MirCallableRecordRefV1<'_>, Error> {
         self.callables
-            .get(scoop_identity::CallableDefinitionOwner::Strong(target))
+            .get(target)
             .ok_or(Error::MissingCallable(target))
     }
 
@@ -49,7 +49,7 @@ impl Replay<'_> {
         &self,
         owner: PersistentExactTypeId,
         slot: PersistentDispatchSlotId,
-        target: StrongCallableDefinitionOwner,
+        target: CallableDefinitionOwner,
         signature: &mir::MirBridgeCallableSignatureV1,
     ) -> Result<(), Error> {
         let binding = self.binding(target)?;
@@ -68,7 +68,7 @@ impl Replay<'_> {
         slot: PersistentDispatchSlotId,
         interface: PersistentExactTypeId,
         source: &hir::InheritanceSlotTargetV1,
-    ) -> Result<StrongCallableDefinitionOwner, Error> {
+    ) -> Result<CallableDefinitionOwner, Error> {
         let key = GeneratedCallableKey::BoxingAdjust {
             slot,
             payload: owner,
@@ -76,7 +76,7 @@ impl Replay<'_> {
         };
 
         let callable = PersistentGeneratedCallableId::from_key(&key).map_err(Error::Key)?;
-        let target = target(source.declaration());
+        let target = self.target(source)?;
         let semantic = signature(
             source.signature(),
             source
@@ -90,7 +90,7 @@ impl Replay<'_> {
             exact_signature(source.signature(), Some(interface))?,
             mir::GcEffect::Managed,
         );
-        let implementation = StrongCallableDefinitionOwner::GeneratedCallable(callable);
+        let implementation = StrongCallableDefinitionOwner::GeneratedCallable(callable).into();
         let binding = self.binding(implementation)?;
 
         Error::entry(
@@ -113,10 +113,7 @@ impl Replay<'_> {
             owner,
             slot,
             Component::CallableRole,
-            binding.lowering_role()
-                == &mir::MirCallableLoweringRoleV1::BoxingAdjust {
-                    target: scoop_identity::CallableDefinitionOwner::Strong(target),
-                },
+            binding.lowering_role() == &mir::MirCallableLoweringRoleV1::BoxingAdjust { target },
         )?;
         insert(&mut self.adjustments, callable)?;
         Ok(implementation)

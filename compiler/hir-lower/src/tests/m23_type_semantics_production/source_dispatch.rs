@@ -141,7 +141,7 @@ fn roundtrip(
 }
 
 #[test]
-fn source_dispatch_preserves_generic_interfaces_without_machine_inventory() {
+fn source_dispatch_materializes_a_closed_generic_parent() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
@@ -149,7 +149,17 @@ fn source_dispatch_preserves_generic_interfaces_without_machine_inventory() {
                 .unwrap()
                 .inheritance()
                 .clone();
-            assert!(inventory.records().is_empty());
+            assert_eq!(inventory.records().len(), 1);
+            let parent = inventory.records()[0].edges().direct_interfaces();
+            assert_eq!(parent.len(), 1);
+            let identities = super::source_inventory::identity_closure(output);
+            assert!(matches!(
+                identities
+                    .canonical_key::<_, scoop_identity::ExactTypeKey>(parent[0])
+                    .unwrap()
+                    .as_ref(),
+                scoop_identity::ExactTypeKey::NominalApplication { .. }
+            ));
             assert_eq!(
                 public_interface(output)
                     .nominal_interfaces()

@@ -11,7 +11,7 @@ pub(super) fn source_owner<A: InheritanceSlotSchemaSemanticAuthority<E>, E>(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     slot: PersistentDispatchSlotId,
     authority: &A,
-) -> Result<scoop_identity::PersistentExactTypeId, InheritanceSlotSchemaSemanticError<E>> {
+) -> Result<SourceNominalId, InheritanceSlotSchemaSemanticError<E>> {
     let key = authority
         .dispatch_slot_key(slot)
         .map_err(InheritanceSlotSchemaSemanticError::Foundation)?;
@@ -63,13 +63,16 @@ pub(super) fn source_owner<A: InheritanceSlotSchemaSemanticAuthority<E>, E>(
     {
         return Err(InheritanceSlotSchemaSemanticError::SlotIdentity(slot));
     }
-    let Some((DefinitionOwnerAtom::Type(owner), outer)) =
-        declaration.owners().owners().split_last()
-    else {
+    let Some((owner, outer)) = declaration.owners().owners().split_last() else {
         return Err(InheritanceSlotSchemaSemanticError::SlotIdentity(slot));
     };
+    let owner = match owner {
+        DefinitionOwnerAtom::Type(owner) => SourceNominalId::Concrete(*owner),
+        DefinitionOwnerAtom::GenericType(owner) => SourceNominalId::GenericTemplate(*owner),
+        _ => return Err(InheritanceSlotSchemaSemanticError::SlotIdentity(slot)),
+    };
     let source = graph
-        .source(SourceNominalId::Concrete(*owner))
+        .source(owner)
         .ok_or(InheritanceSlotSchemaSemanticError::SlotIdentity(slot))?;
     if source.key.origin() != declaration.origin()
         || source.key.package() != declaration.package()
@@ -89,7 +92,5 @@ pub(super) fn source_owner<A: InheritanceSlotSchemaSemanticAuthority<E>, E>(
     if !matches {
         return Err(InheritanceSlotSchemaSemanticError::SlotIdentity(slot));
     }
-    graph
-        .source_exact(SourceNominalId::Concrete(*owner))
-        .map_err(InheritanceSlotSchemaSemanticError::Inheritance)
+    Ok(owner)
 }

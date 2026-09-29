@@ -1,32 +1,15 @@
 Module
+  enum CoroutineStep<Derived>
+    Completed(value: Derived)
+    Suspended()
+  enum CoroutineSlot<Derived>
+    Empty()
+    Value(value: Derived)
   class Derived vtable=3 itables=0
   class ProtectedBox<Int> vtable=3 itables=0
-  fun result @fn0() -> Int
-    bb0 entry
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=41 bits=0x00000029
-      val $parameter.value: Int
-        Type Int
-        Local $argument.0
-      assign $new.1
-        Type Derived
-        ClassAlloc Derived
-      call @fn6 direct
-        Type Derived
-        Local $new.1
-        Type Int
-        Local $parameter.value
-      val $receiver: Derived
-        Type Derived
-        Local $new.1
-      call $call.2: Int = @fn5 direct
-        Type Derived
-        Local $receiver
-      return
-        Type Int
-        Local $call.2
-  fun Derived.secret @fn1(this: Derived) -> Int
+  generated_exact_type get0 location=enum0 nominal_id=6f86407477d2696895294b14659bfe1327c431d4c91c762e342583b2f10aedbc exact_id=08c0ee66634978fe4e92f1d0310633572a40171951782ccd5beb7cc7ddfb0c2d
+  generated_exact_type get1 location=enum1 nominal_id=5ace2c12bfb5538498c09b07d43b37c8a45db59f630d5546745fc339dc77d3e6 exact_id=f6ac1675b7b8f8214f6d6be5f927a80b36425c51a931beb6c083239ff7853be1
+  fun Derived.secret @fn0(this: Derived) -> Int
     bb0 entry
       val $dependency.receiver: ProtectedBox<Int>
         Type ProtectedBox<Int>
@@ -49,6 +32,17 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
+  fun Derived.read @fn1(this: Derived) -> Int
+    bb0 entry
+      val $receiver: Derived
+        Type Derived
+        Local this
+      call $call.1: Int = @fn0 direct
+        Type Derived
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
   fun secret @fn2(this: ProtectedBox<Int>) -> Int
     bb0 entry
       return
@@ -71,17 +65,31 @@ Module
         Type Int
         Local next
       return
-  fun Derived.read @fn5(this: Derived) -> Int
+  fun result @fn5() -> Int
     bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn6 direct
+        Type Derived
+        Local $new.1
+        Type Int
+        Local $parameter.value
       val $receiver: Derived
         Type Derived
-        Local this
-      call $call.1: Int = @fn1 direct
+        Local $new.1
+      call $call.2: Int = @fn1 direct
         Type Derived
         Local $receiver
       return
         Type Int
-        Local $call.1
+        Local $call.2
   fun init.Derived.$c0 @fn6(this: Derived, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -116,6 +124,8 @@ Module
         Type Int
         Local stored
       return
+  coroutine_step cs0 CoroutineStep<Derived> result=Derived
+  coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
   instance mi0 function=@fn2 <- secret
   instance mi1 function=@fn3 <- state
   instance mi2 function=@fn4 <- state

@@ -1,7 +1,7 @@
 use scoop_identity::{
-    AccessorRole, DefinitionOwnerAtom, DispatchSlotKey, DuplicateSignatureKey,
-    PersistentFunctionId, PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId,
-    PropertyOwner, SourceDeclarationKind,
+    AccessorRole, DefinitionOwnerAtom, DispatchSlotKey, DuplicateSignatureKey, ExactTypeKey,
+    PersistentFunctionId, PersistentPropertyAccessorId, PersistentPropertyId, PropertyOwner,
+    SourceDeclarationKind,
 };
 
 use super::{
@@ -16,7 +16,6 @@ use crate::{
 pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     declaration: Decl,
-    owner: PersistentTypeId,
     signature: &InheritanceCallableSignatureV1,
     access: &DeclarationAccessSourceV1,
     authority: &'s A,
@@ -53,14 +52,20 @@ pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
             key
         }
     };
+    let exact_owner = signature.receiver();
+    let source = graph.get(exact_owner).ok_or(Error::ReceiverOwner)?.source();
+    let owner = match source {
+        SourceNominalId::Concrete(owner) => DefinitionOwnerAtom::Type(owner),
+        SourceNominalId::GenericTemplate(owner) => DefinitionOwnerAtom::GenericType(owner),
+    };
     if key.duplicate_signature().type_parameter_count() != 0
         || key.duplicate_signature().receiver_is_present()
-        || key.owners().owners().last() != Some(&DefinitionOwnerAtom::Type(owner))
+        || key.owners().owners().last() != Some(&owner)
     {
         return Err(Error::DeclarationIdentity(declaration));
     }
     let owner_source = graph
-        .source(SourceNominalId::Concrete(owner))
+        .source(source)
         .ok_or(Error::DeclarationIdentity(declaration))?;
     if key.origin() != owner_source.key.origin()
         || key.package() != owner_source.key.package()
@@ -69,17 +74,19 @@ pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
     {
         return Err(Error::DeclarationIdentity(declaration));
     }
-    let exact_owner = graph
-        .source_exact(SourceNominalId::Concrete(owner))
-        .map_err(Error::Inheritance)?;
-    if signature.exact_signature().receiver().into_option() != Some(exact_owner) {
-        return Err(Error::ReceiverOwner);
-    }
+    let arguments = match authority
+        .exact_type_key(exact_owner)
+        .map_err(Error::Foundation)?
+    {
+        ExactTypeKey::NominalApplication { arguments, .. } => arguments.as_slice(),
+        _ => &[],
+    };
     match (declaration, key.duplicate_signature()) {
         (Decl::Function(_), DuplicateSignatureKey::Function { parameters, .. }) => {
             types::match_parameters(
                 parameters,
                 signature.exact_signature().parameters(),
+                arguments,
                 authority,
             )?;
         }
@@ -105,7 +112,11 @@ pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
     graph
         .check_declaration_source(access, key, authority)
         .map_err(Error::Source)?;
-    Ok(Declaration { key, exact_owner })
+    Ok(Declaration {
+        key,
+        exact_owner,
+        source,
+    })
 }
 
 pub(super) fn root_key(declaration: Decl, kind: SourceDeclarationKind) -> Option<DispatchSlotKey> {

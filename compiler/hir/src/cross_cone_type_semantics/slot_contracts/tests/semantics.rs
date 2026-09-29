@@ -123,7 +123,7 @@ fn parameters_accessors_and_receiver_owners_are_replayed_from_foundation() {
     record.signature = fixture.signature(value, vec![value.exact]);
     assert!(matches!(
         graph.validate_slot_contract(owner.exact, &record, &fixture),
-        Err(InheritanceSlotContractSemanticError::ReceiverOwner)
+        Err(InheritanceSlotContractSemanticError::DeclarationIdentity(declaration)) if declaration == record.declaration()
     ));
 
     let getter = fixture.accessor(owner, "property", AccessorRole::Getter);

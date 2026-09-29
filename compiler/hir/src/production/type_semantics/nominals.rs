@@ -68,7 +68,7 @@ pub(super) fn produce(
     let inheritance_inventory = inheritance::source_inventory(export, &concrete)?;
     let slot_selections = inheritance::slot_selections(export, &concrete)?;
     let slots = inheritance::SlotContracts::new(
-        export,
+        metadata,
         dependencies,
         &inheritance_inventory,
         &slot_selections,

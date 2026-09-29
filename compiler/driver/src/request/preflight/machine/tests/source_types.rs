@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::{DeclarationName, ExactTypeKey, PersistentExactTypeId, SourceDeclarationKey};
 
 #[test]
-fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
+fn actual_core_type_surface_materializes_closed_generic_inheritance() {
     let sources = sources::core_sources_with(&[]);
     let world =
         scoop_hir::ImportedSemanticWorld::from_dependencies(sources.cone(), Vec::new(), Vec::new())
@@ -58,13 +58,9 @@ fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
             panic!("expected a non-generic declaration");
         };
         let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner)).unwrap();
-        let machine = name.as_str() != "IntRange";
-        assert_eq!(
-            production.representation_support().get(owner).is_some(),
-            machine
-        );
-        assert_eq!(production.inheritance().get(exact).is_some(), machine);
-        if !machine {
+        assert!(production.representation_support().get(owner).is_some());
+        assert!(production.inheritance().get(exact).is_some());
+        if name.as_str() == "IntRange" {
             assert!(
                 declaration
                     .exact_supertypes()

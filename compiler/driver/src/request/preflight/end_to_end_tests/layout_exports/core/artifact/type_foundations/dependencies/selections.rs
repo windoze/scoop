@@ -65,7 +65,6 @@ fn replace(
 ) -> InheritanceSlotContractV1 {
     InheritanceSlotContractV1::try_new(
         original.slot(),
-        original.declaration_owner(),
         original.declaration(),
         original.signature().clone(),
         implementation,

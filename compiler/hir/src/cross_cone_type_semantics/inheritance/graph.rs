@@ -71,18 +71,24 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
             let key = authority
                 .exact_type_key(exact)
                 .map_err(InheritanceGraphError::Foundation)?;
-            let ExactTypeKey::Nominal(id) = key else {
-                return Err(InheritanceGraphError::NonParamFreeSource(exact));
+            let source = match key {
+                ExactTypeKey::Nominal(id) => SourceNominalId::Concrete(*id),
+                ExactTypeKey::NominalApplication { origin, .. } => {
+                    SourceNominalId::GenericTemplate(*origin)
+                }
+                _ => return Err(InheritanceGraphError::NonNominalSource(exact)),
             };
             if PersistentExactTypeId::from_key(key).ok() != Some(exact) {
                 return Err(InheritanceGraphError::ExactIdentity(exact));
             }
-            let source = SourceNominalId::Concrete(*id);
             graph.validate_source(source, authority)?;
             let kind = graph.sources[&source].key.declaration_kind();
             validate_kind(record, kind)?;
             if kind == SourceDeclarationKind::Object {
-                graph.validate_object(exact, *id, authority)?;
+                let SourceNominalId::Concrete(id) = source else {
+                    return Err(InheritanceGraphError::ObjectBacking(exact));
+                };
+                graph.validate_object(exact, id, authority)?;
             }
             if graph
                 .nodes
@@ -219,7 +225,7 @@ pub enum InheritanceGraphError<E> {
     SourceIdentity(SourceNominalId),
     SourceOrigin(SourceNominalId),
     ExactIdentity(PersistentExactTypeId),
-    NonParamFreeSource(PersistentExactTypeId),
+    NonNominalSource(PersistentExactTypeId),
     DuplicateNode(PersistentExactTypeId),
     MissingNode(PersistentExactTypeId),
     KindModality(PersistentExactTypeId),
@@ -257,10 +263,9 @@ impl<E: fmt::Display> fmt::Display for InheritanceGraphError<E> {
             Self::ExactIdentity(exact) => {
                 write!(f, "exact key does not derive inheritance owner {exact}")
             }
-            Self::NonParamFreeSource(exact) => write!(
-                f,
-                "inheritance owner {exact} is not a param-free source nominal"
-            ),
+            Self::NonNominalSource(exact) => {
+                write!(f, "inheritance owner {exact} is not a nominal application")
+            }
             Self::DuplicateNode(exact) => write!(f, "duplicate inheritance owner {exact}"),
             Self::MissingNode(exact) => write!(f, "missing inheritance closure node {exact}"),
             Self::KindModality(exact) => write!(

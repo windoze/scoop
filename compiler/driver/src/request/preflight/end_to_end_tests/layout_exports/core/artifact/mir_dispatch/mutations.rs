@@ -216,6 +216,6 @@ fn boxing_target(replay: &Replay<'_>) {
     )
     .unwrap();
     assert!(
-        matches!(replay.validate(replay.section.dispatch(), &missing), Err(Error::MissingCallable(target)) if scoop_identity::CallableDefinitionOwner::Strong(target) == original.implementation())
+        matches!(replay.validate(replay.section.dispatch(), &missing), Err(Error::MissingCallable(target)) if target == original.implementation())
     );
 }

@@ -9,7 +9,9 @@ use scoop_identity::{
     DispatchSlotKey, PersistentDispatchSlotId, PersistentFunctionId, PersistentPropertyAccessorId,
     PersistentPropertyId, PropertyAccessorKey,
 };
+use std::borrow::Cow;
 
+mod applications;
 mod classes;
 mod declarations;
 mod keys;
@@ -25,6 +27,8 @@ pub(super) fn validate(
     for provider in std::iter::once(current).chain(dependencies.iter().copied()) {
         declarations::collect(&mut context, provider, dependencies, graph)?;
     }
+    declarations::collect_applications(&mut context, current, dependencies, sources)?;
+    applications::complete(&mut context, graph)?;
     for (owner, order) in &context.orders {
         classes::validate(*owner, order, &context, graph)?;
         graph
@@ -37,7 +41,7 @@ pub(super) fn validate(
 #[derive(Default)]
 struct SchemaDeclarations<'a> {
     selections: BTreeMap<PersistentExactTypeId, &'a crate::CanonicalNominalDispatchSelectionsV1>,
-    schemas: BTreeMap<PersistentExactTypeId, &'a CanonicalInheritanceSlotSchemasV1>,
+    schemas: BTreeMap<PersistentExactTypeId, Cow<'a, CanonicalInheritanceSlotSchemasV1>>,
     orders: BTreeMap<PersistentExactTypeId, &'a NominalDispatchOrderV1>,
     interface_parents: BTreeMap<PersistentExactTypeId, Vec<PersistentExactTypeId>>,
     slots: BTreeMap<PersistentDispatchSlotId, Arc<DispatchSlotKey>>,
@@ -71,7 +75,7 @@ impl InheritanceSlotSchemaSemanticAuthority<Error> for SchemaDeclarations<'_> {
     ) -> Result<&CanonicalInheritanceSlotSchemasV1, Error> {
         self.schemas
             .get(&owner)
-            .copied()
+            .map(Cow::as_ref)
             .ok_or(Error::SlotOrder(owner))
     }
     fn dispatch_slot_key(&self, slot: PersistentDispatchSlotId) -> Result<&DispatchSlotKey, Error> {

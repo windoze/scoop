@@ -12,6 +12,7 @@ impl InheritanceSlotSourceSemanticAuthority<Error> for Replay<'_, '_, '_> {
     fn inheritance_callable_source(
         &self,
         declaration: Declaration,
+        receiver: PersistentExactTypeId,
     ) -> Result<InheritanceSourceCallableFactsV1<'_>, Error> {
         let member = self
             .data
@@ -21,7 +22,7 @@ impl InheritanceSlotSourceSemanticAuthority<Error> for Replay<'_, '_, '_> {
         let signature = self
             .data
             .signatures
-            .get(&declaration)
+            .get(&(declaration, receiver))
             .ok_or(Error::SlotCallable(declaration))?;
         Ok(InheritanceSourceCallableFactsV1 {
             signature,

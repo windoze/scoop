@@ -133,13 +133,15 @@ fn validate_base(
 ) -> Result<(), Error> {
     let mut expected = None;
     for parent in declaration.exact_supertypes().values() {
-        let SignatureTypeKey::Nominal(parent_owner) = parent else {
-            return Err(Error::NonConcreteSignature);
-        };
-        let kind = if *parent_owner == CoreBuiltinNominal::Any.identity_record().id() {
+        let kind = if matches!(parent, SignatureTypeKey::Nominal(owner)
+            if *owner == CoreBuiltinNominal::Any.identity_record().id())
+        {
             PublicNominalKindV1::Class
         } else {
-            types.nominal(*parent_owner)?.kind()
+            types
+                .applied_nominal(types.exact(parent)?)?
+                .declaration
+                .kind()
         };
         match kind {
             PublicNominalKindV1::Class => {

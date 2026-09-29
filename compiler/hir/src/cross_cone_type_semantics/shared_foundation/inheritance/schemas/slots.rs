@@ -6,7 +6,7 @@ use crate::{
     InheritanceCallableDeclarationV1 as Declaration, InheritanceCallableSignatureV1,
     InheritanceSlotSourceSemanticAuthority, InheritanceSourceSlotSelectionV1 as Selection,
 };
-use scoop_identity::{CallableTemplateOrigin, ExactCallableSignature};
+use scoop_identity::CallableTemplateOrigin;
 
 mod authority;
 mod declarations;
@@ -20,6 +20,10 @@ pub(super) fn validate<'a>(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
 ) -> Result<(), Error> {
     let mut data = Data::default();
+    let metadata_dependencies = dependencies
+        .iter()
+        .map(|dependency| dependency.metadata)
+        .collect::<Vec<_>>();
     for provider in std::iter::once(current).chain(dependencies.iter().copied()) {
         declarations::collect(&mut data, schemas, provider)?;
     }
@@ -41,9 +45,23 @@ pub(super) fn validate<'a>(
                 return Err(Error::SlotSelectionInventory(nominal.owner()));
             }
             for slot in slots {
-                signatures::project(&mut data, slot.declaration(), dependencies)?;
+                signatures::project(
+                    &mut data,
+                    current.metadata,
+                    &metadata_dependencies,
+                    nominal.owner(),
+                    slot.declaration(),
+                    slot.signature().receiver(),
+                )?;
                 let target = slot.implementation().target();
-                signatures::project(&mut data, target.declaration(), dependencies)?;
+                signatures::project(
+                    &mut data,
+                    current.metadata,
+                    &metadata_dependencies,
+                    nominal.owner(),
+                    target.declaration(),
+                    target.signature().receiver(),
+                )?;
             }
         }
     }
@@ -78,13 +96,11 @@ pub(super) fn validate<'a>(
 struct Data<'a> {
     members: BTreeMap<Declaration, Member<'a>>,
     origins: BTreeSet<ExportDefinitionSourceV1>,
-    signatures: BTreeMap<Declaration, InheritanceCallableSignatureV1>,
+    signatures: BTreeMap<(Declaration, PersistentExactTypeId), InheritanceCallableSignatureV1>,
     exacts: BTreeMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
 }
 
 struct Member<'a> {
-    owner: PersistentExactTypeId,
-    metadata: SharedTypeMetadataV1<'a>,
     source: &'a CallableDeclarationRecordV1,
     access: DeclarationAccessSourceV1,
 }

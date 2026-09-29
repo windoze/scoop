@@ -17,15 +17,7 @@ impl Graph {
             Requirement::EnumVariantField { field, .. } => {
                 self.require(owner, field.value_type())?
             }
-            Requirement::Inheritance { parent, .. } => {
-                // The ordinary inheritance section describes unapplied parents.
-                // Generic storage does not require a parent dispatch schema.
-                if matches!(parent, SignatureTypeKey::NominalApplication { .. }) {
-                    self.block(owner)?;
-                } else {
-                    self.require(owner, parent)?;
-                }
-            }
+            Requirement::Inheritance { parent, .. } => self.require(owner, parent)?,
             Requirement::Constructor { callable, .. } | Requirement::Slot { callable, .. } => {
                 if !callable.type_parameters().is_empty()
                     || callable.effects().execution() == Effect::Suspend
