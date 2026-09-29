@@ -37,6 +37,10 @@ pub struct DirectPackageIndex {
 }
 
 impl DirectPackageIndex {
+    pub fn paths(&self) -> impl ExactSizeIterator<Item = &PackagePath> {
+        self.entries.keys()
+    }
+
     pub fn package_count(&self) -> usize {
         self.entries.len()
     }

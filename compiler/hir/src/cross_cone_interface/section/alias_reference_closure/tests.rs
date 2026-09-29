@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, fmt};
 
+use scoop_identity::ExportBindingKey;
 use scoop_identity::{
-    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity,
-    DeclarationScope, DefinitionOrigin, DefinitionOwnerChain, ExportBindingKey,
-    NominalDeclarationOwner, NonEmptyVec, NormalizedSourcePath, PackagePath,
-    PersistentExportBindingId, PersistentTypeAliasId, PersistentTypeId, SignatureTypeKey,
-    SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
-    SourceNominalKind, SourceSpan,
+    BindingTarget, CanonicalIdentifier, ConeCoordinate, ConeIdentity, DeclarationScope,
+    DefinitionOrigin, DefinitionOwnerChain, NominalDeclarationOwner, NonEmptyVec,
+    NormalizedSourcePath, PackagePath, PersistentExportBindingId, PersistentTypeAliasId,
+    PersistentTypeId, SignatureTypeKey, SourceContextKey, SourceDeclarationKey,
+    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
 use scoop_wire::WirePath;
 
@@ -17,10 +17,10 @@ use crate::{
     CanonicalExportDefaultTemplatesV1, CanonicalExportDefinitionSourcesV1,
     CanonicalExternalHirReferenceRolesV1, CanonicalExternalHirReferencesV1,
     CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, CanonicalPublicExportBindingsV1,
-    CanonicalTypeAliasInterfacesV1, DependencyBindingWitnessV1, ExportDefinitionSourceV1,
-    ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1,
-    ExternalHirTargetV1, PublicExportBindingClosureAuthority, PublicLookupAccessV1,
-    ReexportRouteHopV1, ReexportRouteV1, TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
+    CanonicalTypeAliasInterfacesV1, ExportDefinitionSourceV1, ExternalHirReferenceRoleV1,
+    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1, ExternalHirTargetV1,
+    PublicExportBindingClosureAuthority, PublicLookupAccessV1, TypeAliasInterfaceRecordV1,
+    TypeAliasTargetV1,
 };
 
 #[test]
@@ -74,7 +74,6 @@ fn rejects_missing_role_and_wrong_origin_at_the_exact_alias_use() {
         case.target,
         fixture.provider,
         ExternalHirReferenceRoleV1::SignatureDependency,
-        None,
     );
     let record_index = reference_index(&missing_role, case.target);
     assert_eq!(
@@ -90,7 +89,6 @@ fn rejects_missing_role_and_wrong_origin_at_the_exact_alias_use() {
         case.target,
         fixture.alternate,
         ExternalHirReferenceRoleV1::AliasTarget,
-        Some(case.route.clone()),
     );
     let record_index = reference_index(&wrong_origin, case.target);
     assert_eq!(
@@ -108,7 +106,7 @@ fn rejects_missing_role_and_wrong_origin_at_the_exact_alias_use() {
 #[test]
 fn rejects_unobserved_alias_roles_and_missing_origin_authority() {
     let fixture = Fixture::new();
-    let (extra_alias, extra_binding) = type_alias_identity(fixture.provider, "Extra");
+    let extra_alias = type_alias_identity(fixture.provider, "Extra");
     let extra_target = ExternalHirTargetV1::TypeAlias(extra_alias);
     let extra = section(
         CanonicalTypeAliasInterfacesV1::try_new(Vec::new()).unwrap(),
@@ -116,7 +114,6 @@ fn rejects_unobserved_alias_roles_and_missing_origin_authority() {
             fixture.provider,
             extra_target,
             ExternalHirReferenceRoleV1::AliasTarget,
-            Some(route(fixture.provider, extra_binding)),
         )])
         .unwrap(),
     );
@@ -144,7 +141,6 @@ fn rejects_unobserved_alias_roles_and_missing_origin_authority() {
 struct Case {
     target: ExternalHirTargetV1,
     site: ExternalHirAliasUseSiteV1,
-    route: ReexportRouteV1,
 }
 
 struct Fixture {
@@ -160,10 +156,10 @@ impl Fixture {
         let current = cone("current");
         let provider = cone("provider");
         let alternate = cone("alternate");
-        let (foreign_alias, foreign_alias_binding) = type_alias_identity(provider, "ForeignAlias");
-        let (foreign_nominal, foreign_nominal_binding) = nominal_identity(provider, "ForeignType");
-        let (local_alias, _) = type_alias_identity(current, "LocalAlias");
-        let (local_nominal, _) = nominal_identity(current, "LocalType");
+        let foreign_alias = type_alias_identity(provider, "ForeignAlias");
+        let foreign_nominal = nominal_identity(provider, "ForeignType");
+        let local_alias = type_alias_identity(current, "LocalAlias");
+        let local_nominal = nominal_identity(current, "LocalType");
 
         let (direct_declaration, direct_record) = alias_record(
             current,
@@ -202,20 +198,16 @@ impl Fixture {
 
         let foreign_alias_target = ExternalHirTargetV1::TypeAlias(foreign_alias);
         let foreign_nominal_target = ExternalHirTargetV1::from(foreign_nominal);
-        let alias_route = route(provider, foreign_alias_binding);
-        let nominal_route = route(provider, foreign_nominal_binding);
         let references = CanonicalExternalHirReferencesV1::try_new(vec![
             reference(
                 provider,
                 foreign_alias_target,
                 ExternalHirReferenceRoleV1::AliasTarget,
-                Some(alias_route.clone()),
             ),
             reference(
                 provider,
                 foreign_nominal_target,
                 ExternalHirReferenceRoleV1::AliasTarget,
-                Some(nominal_route.clone()),
             ),
         ])
         .unwrap();
@@ -239,14 +231,12 @@ impl Fixture {
                     site: ExternalHirAliasUseSiteV1::DirectAlias {
                         record_index: direct_index,
                     },
-                    route: alias_route,
                 },
                 Case {
                     target: foreign_nominal_target,
                     site: ExternalHirAliasUseSiteV1::ExpandedSignature {
                         record_index: signature_index,
                     },
-                    route: nominal_route,
                 },
             ],
             authority,
@@ -268,7 +258,6 @@ impl Fixture {
         target: ExternalHirTargetV1,
         origin: ConeIdentity,
         role: ExternalHirReferenceRoleV1,
-        route: Option<ReexportRouteV1>,
     ) -> CrossConeHirInterfaceSectionV1 {
         let mut records: Vec<_> = self
             .section
@@ -278,7 +267,7 @@ impl Fixture {
             .filter(|record| record.target() != target)
             .cloned()
             .collect();
-        records.push(reference(origin, target, role, route));
+        records.push(reference(origin, target, role));
         self.with_references(records)
     }
 
@@ -358,17 +347,12 @@ fn reference(
     origin: ConeIdentity,
     target: ExternalHirTargetV1,
     role: ExternalHirReferenceRoleV1,
-    route: Option<ReexportRouteV1>,
 ) -> ExternalHirReferenceV1 {
-    let witnesses = route
-        .into_iter()
-        .map(DependencyBindingWitnessV1::new)
-        .collect();
     ExternalHirReferenceV1::try_new(
         origin,
         target,
         CanonicalExternalHirReferenceRolesV1::try_new(vec![role]).unwrap(),
-        CanonicalDependencyBindingWitnessesV1::try_new(witnesses).unwrap(),
+        CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
         Default::default(),
         Default::default(),
     )
@@ -384,42 +368,17 @@ fn signature(target: NominalDeclarationOwner) -> SignatureTypeKey {
     }
 }
 
-fn type_alias_identity(
-    origin: ConeIdentity,
-    name: &str,
-) -> (PersistentTypeAliasId, PersistentExportBindingId) {
+fn type_alias_identity(origin: ConeIdentity, name: &str) -> PersistentTypeAliasId {
     let declaration = SourceDeclarationKey::type_alias(site(origin), identifier(name));
-    let alias = PersistentTypeAliasId::from_source_declaration(&declaration).unwrap();
-    let target = BindingTarget::type_alias(&declaration).unwrap();
-    (alias, binding(origin, name, target))
+    PersistentTypeAliasId::from_source_declaration(&declaration).unwrap()
 }
 
-fn nominal_identity(
-    origin: ConeIdentity,
-    name: &str,
-) -> (NominalDeclarationOwner, PersistentExportBindingId) {
+fn nominal_identity(origin: ConeIdentity, name: &str) -> NominalDeclarationOwner {
     let declaration =
         SourceDeclarationKey::nominal(site(origin), identifier(name), SourceNominalKind::Class, 0);
-    let nominal = NominalDeclarationOwner::Concrete(
+    NominalDeclarationOwner::Concrete(
         PersistentTypeId::from_source_declaration(&declaration).unwrap(),
-    );
-    let target = BindingTarget::type_name(&declaration).unwrap();
-    (nominal, binding(origin, name, target))
-}
-
-fn binding(origin: ConeIdentity, name: &str, target: BindingTarget) -> PersistentExportBindingId {
-    CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
-        origin,
-        PackagePath::root(),
-        identifier(name),
-        target,
-    ))
-    .unwrap()
-    .id()
-}
-
-fn route(provider: ConeIdentity, binding: PersistentExportBindingId) -> ReexportRouteV1 {
-    ReexportRouteV1::try_new(provider, vec![ReexportRouteHopV1::new(provider, binding)]).unwrap()
+    )
 }
 
 fn cone(name: &str) -> ConeIdentity {

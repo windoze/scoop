@@ -1,0 +1,80 @@
+Module
+  typealias NestedAlias = Nested
+  typealias GenericNestedAlias = Generic<Int>
+  typealias FixedNestedAlias = Nested
+  typealias LocalOuter = GenericOuter<Int>
+  typealias LocalNestedAlias = Nested
+  typealias DeepAlias = Deep
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 40 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      ImportedDependencyCall #0 : Nested
+        Local $dependency.parameter.number : Int
+    val local4
+      Local value : T0
+    val local5
+      Local $dependency.argument.0 : T0
+    val local6
+      ImportedConstructorInit Generic : Generic<T0>
+        Local $dependency.parameter.value : T0
+    val local7
+      FieldAccess dependency field ef6d3e0080497b193bba36bda1ffff98c31f68381329fa0ace046267ad63b970 : T0
+        Local box : Generic<T0>
+    val local8
+      IntegerLiteral 2 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    val local10
+      ImportedDependencyCall #1 : Nested
+        Local $dependency.parameter.number : Int
+    val local11
+      Local second : Nested
+    val local12
+      Local first : Nested
+    val local13
+      FieldAccess dependency field c74be91cd7f5d127322e045a4fa78aba796fa0b8dfb798d4345e550f1060b884 : Int
+        Local copy : Nested
+    val local14
+      Local $dependency.argument.0 : Int
+    val local15
+      ImportedConstructorInit Generic : Generic<Int>
+        Local $dependency.parameter.value : Int
+    val local16
+      Local fixed : Nested
+    val local17
+      Local fixedAlias : Nested
+    val local18
+      FieldAccess dependency field ef6d3e0080497b193bba36bda1ffff98c31f68381329fa0ace046267ad63b970 : Int
+        Local generic : Generic<Int>
+    val local19
+      Local $dependency.argument.0 : Int
+    val local20
+      ImportedDependencyCall #2 : Deep
+        Local $dependency.parameter.number : Int
+    val local21
+      Local deep : Deep
+    val local22
+      FieldAccess dependency field 2d49aa054a4ffa8f489258dc15ab42a2a8d8514735b363f237c6c73a05a14c8f : Int
+        Local deepAlias : Deep
+    val local23
+      FieldAccess dependency field 8e75ca73b5068a39c696b6c5280d3cee2a174b25f7c1e7c6e86aa77e00d2943d : Int
+        Local localAlias : Nested
+    val local24
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

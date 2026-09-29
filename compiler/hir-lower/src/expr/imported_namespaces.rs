@@ -40,11 +40,10 @@ impl Lowerer {
 
     fn imported_static_bindings(
         &self,
-        owner: ImportedNominalQualifier,
+        owner: hir::SourceNominalId,
         namespace: BindingNamespace,
         name: &str,
     ) -> Vec<hir::DirectImportedTargetBinding> {
-        let owner = self.imported_qualifier_owner(owner);
         self.dependencies
             .as_ref()
             .map_or_else(Vec::new, |dependencies| {
@@ -56,9 +55,9 @@ impl Lowerer {
 
     fn resolve_imported_nested_type(
         &mut self,
-        owner: ImportedNominalQualifier,
+        owner: hir::SourceNominalId,
         name: &ast::Ident,
-        supplied_type_arguments: bool,
+        arguments: &[ast::TypeRef],
     ) -> Result<Option<TypeId>, ()> {
         let bindings = self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
         match bindings.as_slice() {
@@ -66,42 +65,88 @@ impl Lowerer {
                 let declaration = self
                     .dependencies
                     .as_ref()
-                    .and_then(|dependencies| {
-                        dependencies
-                            .nested_nominal(self.imported_qualifier_owner(owner), &name.text)
-                    })
+                    .and_then(|dependencies| dependencies.nested_nominal(owner, &name.text))
                     .cloned();
                 let Some(declaration) = declaration else {
                     return Ok(None);
                 };
-                if supplied_type_arguments {
-                    self.error(name.span, format!("type `{}` is not generic", name.text));
-                    return Err(());
-                }
-                let ty = self
-                    .imported_nominal_application(declaration.owner(), Vec::new())
-                    .map_err(|error| {
-                        self.error(
-                            name.span,
-                            format!("invalid dependency nested type: {error:?}"),
-                        )
-                    })?;
-                if !self.nominal_is_accessible(ty) {
+                if !self.access_domain_allows(&self.imported_nominal_access_domain(&declaration)) {
                     self.error(
                         name.span,
                         format!(
                             "type `{}` is not accessible from this source location",
-                            self.type_name(ty)
+                            name.text
                         ),
                     );
                     return Err(());
                 }
-                Ok(Some(ty))
+                self.resolve_imported_nominal_owner_arguments(declaration.owner(), name, arguments)
+                    .map(Some)
+                    .ok_or(())
             }
-            [binding] => self
-                .resolve_imported_dependency_type_target(binding, name, supplied_type_arguments)
-                .map(Some)
-                .ok_or(()),
+            [binding] => {
+                let ty = if arguments.is_empty() {
+                    self.resolve_imported_dependency_type_target(binding, name, false)
+                } else {
+                    self.resolve_imported_generic_type_target(binding, name, arguments)
+                };
+                ty.map(Some).ok_or(())
+            }
+            _ => {
+                self.error(name.span, format!("ambiguous nested type `{}`", name.text));
+                Err(())
+            }
+        }
+    }
+
+    fn resolve_imported_nested_namespace(
+        &mut self,
+        owner: hir::SourceNominalId,
+        name: &ast::Ident,
+    ) -> Result<Option<hir::SourceNominalId>, ()> {
+        let bindings = self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
+        match bindings.as_slice() {
+            [binding] => {
+                let qualifier = self
+                    .resolve_namespace_type_binding(
+                        crate::imports::lookup::TypeLookupTarget::Dependency(binding.clone()),
+                        name,
+                    )
+                    .ok_or(())?;
+                match qualifier {
+                    crate::types::TypeQualifier::Imported(owner) => Ok(Some(owner)),
+                    crate::types::TypeQualifier::Current(_) => {
+                        self.error(
+                            name.span,
+                            format!(
+                                "type `{}` does not name a dependency type qualifier",
+                                name.text
+                            ),
+                        );
+                        Err(())
+                    }
+                }
+            }
+            [] => {
+                let declaration = self
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.nested_nominal(owner, &name.text));
+                let Some(declaration) = declaration else {
+                    return Ok(None);
+                };
+                if !self.access_domain_allows(&self.imported_nominal_access_domain(declaration)) {
+                    self.error(
+                        name.span,
+                        format!(
+                            "type `{}` is not accessible from this source location",
+                            name.text
+                        ),
+                    );
+                    return Err(());
+                }
+                Ok(Some(declaration.owner()))
+            }
             _ => {
                 self.error(name.span, format!("ambiguous nested type `{}`", name.text));
                 Err(())
@@ -111,32 +156,43 @@ impl Lowerer {
 
     pub(crate) fn resolve_imported_qualified_type(
         &mut self,
-        mut owner: TypeId,
+        mut owner: hir::SourceNominalId,
         path: &[ast::Ident],
         arguments: &[ast::TypeRef],
     ) -> Option<TypeId> {
-        for (index, name) in path.iter().enumerate() {
-            let Some(nested) = self
-                .resolve_imported_nested_type(
-                    ImportedNominalQualifier::Applied(owner),
-                    name,
-                    index + 1 == path.len() && !arguments.is_empty(),
-                )
-                .ok()?
-            else {
-                self.error(
-                    name.span,
-                    format!(
-                        "type `{}` has no accessible nested type `{}`",
-                        self.type_name(owner),
-                        name.text
-                    ),
-                );
+        let (last, parents) = path
+            .split_last()
+            .expect("a qualified dependency path has a final type name");
+        for name in parents {
+            let Some(next) = self.resolve_imported_nested_namespace(owner, name).ok()? else {
+                self.imported_missing_nested_type(owner, name);
                 return None;
             };
-            owner = nested;
+            owner = next;
         }
-        Some(owner)
+        let ty = self
+            .resolve_imported_nested_type(owner, last, arguments)
+            .ok()?;
+        if ty.is_none() {
+            self.imported_missing_nested_type(owner, last);
+        }
+        ty
+    }
+
+    fn imported_missing_nested_type(&mut self, owner: hir::SourceNominalId, name: &ast::Ident) {
+        let declaration = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.nominal_declaration(owner))
+            .expect("a resolved qualifier retains its actual nominal declaration");
+        self.error(
+            name.span,
+            format!(
+                "type `{}` has no accessible nested type `{}`",
+                declaration.name(),
+                name.text
+            ),
+        );
     }
 
     pub(in crate::expr) fn resolve_imported_nominal_qualifier(
@@ -190,15 +246,18 @@ impl Lowerer {
                 let Some(owner) = self.resolve_imported_nominal_qualifier(&access.receiver)? else {
                     return Ok(None);
                 };
-                let bindings =
-                    self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
+                let bindings = self.imported_static_bindings(
+                    self.imported_qualifier_owner(owner),
+                    BindingNamespace::Type,
+                    &name.text,
+                );
                 if let [binding] = bindings.as_slice()
                     && let hir::ImportedTarget::GenericType(owner) = binding.target()
                 {
                     return Ok(Some(ImportedNominalQualifier::Generic(owner.persistent())));
                 }
                 return self
-                    .resolve_imported_nested_type(owner, name, false)
+                    .resolve_imported_nested_type(self.imported_qualifier_owner(owner), name, &[])
                     .map(|ty| ty.map(ImportedNominalQualifier::Applied));
             }
             _ => return Ok(None),
@@ -226,7 +285,11 @@ impl Lowerer {
         {
             return self.lower_imported_unit_variant(ty, index, name);
         }
-        let bindings = self.imported_static_bindings(owner, BindingNamespace::Value, &name.text);
+        let bindings = self.imported_static_bindings(
+            self.imported_qualifier_owner(owner),
+            BindingNamespace::Value,
+            &name.text,
+        );
         match bindings.as_slice() {
             [binding] => match binding.target() {
                 hir::ImportedTarget::ObjectValue(value) => {
@@ -251,7 +314,9 @@ impl Lowerer {
                 return None;
             }
         }
-        if let Some(nested) = self.resolve_imported_nested_type(owner, name, false).ok()?
+        if let Some(nested) = self
+            .resolve_imported_nested_type(self.imported_qualifier_owner(owner), name, &[])
+            .ok()?
             && let Some(value) = self
                 .imported_nominal_declaration(nested)
                 .and_then(|owner| self.imported_object_value(owner))
@@ -283,7 +348,11 @@ impl Lowerer {
         let Some(owner) = self.resolve_imported_nominal_qualifier(receiver)? else {
             return Ok(None);
         };
-        let bindings = self.imported_static_bindings(owner, BindingNamespace::Value, &name.text);
+        let bindings = self.imported_static_bindings(
+            self.imported_qualifier_owner(owner),
+            BindingNamespace::Value,
+            &name.text,
+        );
         match bindings.as_slice() {
             [binding] if matches!(binding.target(), hir::ImportedTarget::Property(_)) => {
                 Ok(Some(binding.clone()))
@@ -305,9 +374,15 @@ impl Lowerer {
         {
             return self.lower_imported_variant_construct(ty, index, name, call, sink, Some(ty));
         }
-        let mut bindings = self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
+        let mut bindings = self.imported_static_bindings(
+            self.imported_qualifier_owner(owner),
+            BindingNamespace::Type,
+            &name.text,
+        );
         if bindings.is_empty()
-            && let Some(nested) = self.resolve_imported_nested_type(owner, name, false).ok()?
+            && let Some(nested) = self
+                .resolve_imported_nested_type(self.imported_qualifier_owner(owner), name, &[])
+                .ok()?
         {
             let declaration = self
                 .imported_nominal_declaration(nested)
@@ -330,7 +405,11 @@ impl Lowerer {
                 RequiredCallableModifiers::default(),
             );
         }
-        bindings.extend(self.imported_static_bindings(owner, BindingNamespace::Value, &name.text));
+        bindings.extend(self.imported_static_bindings(
+            self.imported_qualifier_owner(owner),
+            BindingNamespace::Value,
+            &name.text,
+        ));
         if bindings.is_empty() {
             self.imported_static_member_error(owner, name);
             return None;

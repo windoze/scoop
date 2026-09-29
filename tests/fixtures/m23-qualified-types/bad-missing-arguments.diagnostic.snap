@@ -1,0 +1,3 @@
+span=43..46
+expression=Box
+type `Box` takes 1 type argument(s), but 0 were supplied

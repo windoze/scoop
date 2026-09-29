@@ -1,0 +1,4 @@
+package consumer.paths
+
+public class Reference()
+public fun rejected(value: dependency.paths.Outer.ValueOnly<Reference>): Int = 0

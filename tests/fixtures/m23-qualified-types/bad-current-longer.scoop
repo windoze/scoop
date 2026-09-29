@@ -1,0 +1,2 @@
+package dependency.paths.Point
+public fun consume(value: dependency.paths.Point): Int = 42

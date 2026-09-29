@@ -1,0 +1,21 @@
+package consumer.paths
+
+import dependency.paths.IntBox
+import dependency.paths.IntPointer
+
+public typealias Again = dependency.paths.IntPointer
+public typealias BoxAlias = dependency.paths.IntBox
+
+public fun <T> exercise(value: T): Int {
+    var number = 40
+    val box: dependency.paths.IntBox = IntBox(2)
+    @Unsafe {
+        val raw = addressOf(number).toULong()
+        val first: dependency.paths.IntPointer = IntPointer(raw)
+        val second = Again(raw)
+        first.store(second.load() + box.value)
+    }
+    return number
+}
+
+public fun result(): Int = exercise<Int>(0)

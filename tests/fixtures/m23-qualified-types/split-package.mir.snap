@@ -1,0 +1,78 @@
+Module
+  struct Local (number: Int)
+  struct Point (number: Int)
+  enum CoroutineStep<Local>
+    Completed(value: Local)
+    Suspended()
+  enum CoroutineSlot<Local>
+    Empty()
+    Value(value: Local)
+  class box<Local> vtable=0 itables=0
+  generated_exact_type get0 location=class0 nominal_id=3d633abb569b0a5807408855a3ecfb8279d9b0549cb2a252ae7db63d24862b04 exact_id=3223205200cb589a56dc914fe4be737a44b39ed39b442dbe0d18c0108ab55075
+  generated_exact_type get1 location=enum0 nominal_id=8a87a3e9b360484fb8be6cd1d7b06bb86be7f39c3848b51168d34943bf37a8e8 exact_id=4fae9cc9ea8b31205409e32bba3e6230f985714c72abdefc6419dbba5f6fef02
+  generated_exact_type get2 location=enum1 nominal_id=5556c6e3e3c5d1067072a245567596a220be470a25c5fed5ce315b8fe4125f9a exact_id=d4b0324e2c39a47f6e8afbd28eb339091e139c1e37d1060221f4176d0bed132b
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call own: Local = @fn2 direct
+        Type Int
+        Local $parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call foreign: Point = external0 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Local
+          Local own
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local foreign
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun ctor.Local.$c0 @fn2(number: Int) -> Local <no-gc>
+    bb0 entry
+      return
+        Type Local
+        StructInit Local
+          Type Int
+          Local number
+  coroutine_step cs0 CoroutineStep<Local> result=Local
+  coroutine_slot cl0 CoroutineSlot<Local> value=Local
+  instance mi0 function=@fn1 <- exercise
+  output library

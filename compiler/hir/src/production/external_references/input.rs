@@ -58,7 +58,6 @@ impl<'a> ExternalHirReferenceProductionInput<'a> {
 /// 1 through 8 and therefore must be retained by lowering.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ExternalHirBindingWitnessRole {
-    AliasTarget,
     DefaultDependency,
     ConcreteSelectedUse,
 }
@@ -66,15 +65,14 @@ pub enum ExternalHirBindingWitnessRole {
 impl ExternalHirBindingWitnessRole {
     pub const fn reference_role(self) -> ExternalHirReferenceRoleV1 {
         match self {
-            Self::AliasTarget => ExternalHirReferenceRoleV1::AliasTarget,
             Self::DefaultDependency => ExternalHirReferenceRoleV1::DefaultDependency,
             Self::ConcreteSelectedUse => ExternalHirReferenceRoleV1::ConcreteSelectedUse,
         }
     }
 }
 
-/// One actual source-name authorization selected while lowering an alias,
-/// default expression, or concrete foreign use.
+/// One source-name lookup selected while lowering a default expression or
+/// concrete foreign use.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExternalHirBindingWitnessUse {
     target: ExternalHirTargetV1,

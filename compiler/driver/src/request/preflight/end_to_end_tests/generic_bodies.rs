@@ -14,6 +14,7 @@ mod options;
 mod pointer_construction;
 mod pointers;
 mod publication;
+mod qualified_types;
 mod references;
 mod siblings;
 

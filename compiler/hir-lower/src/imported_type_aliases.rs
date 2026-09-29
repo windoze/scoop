@@ -1,4 +1,4 @@
-//! Transparent ordinary-dependency type aliases and their route witnesses.
+//! Transparent ordinary-dependency type aliases and typed target selection.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -27,12 +27,6 @@ impl Lowerer {
                         self.error(name.span, format!("type `{}` is not generic", name.text));
                         return None;
                     }
-                    self.retain_imported_alias_target_bindings(
-                        binding,
-                        hir::ExternalHirTargetV1::Nominal(
-                            scoop_identity::NominalDeclarationOwner::Concrete(declaration),
-                        ),
-                    );
                     return Some(ty);
                 }
                 self.error(
@@ -105,8 +99,6 @@ impl Lowerer {
                 return None;
             }
         };
-        let witness_target = hir::ExternalHirTargetV1::TypeAlias(candidate.interface().alias());
-        let alias_binding = candidate.binding().clone();
         if let Err(error) = self
             .dependencies
             .as_mut()
@@ -119,26 +111,6 @@ impl Lowerer {
             );
             return None;
         }
-        self.retain_imported_alias_target_bindings(&alias_binding, witness_target);
         Some(ty)
-    }
-
-    pub(crate) fn retain_imported_alias_target_bindings(
-        &mut self,
-        binding: &hir::DirectImportedTargetBinding,
-        target: hir::ExternalHirTargetV1,
-    ) {
-        for alias in self.type_alias_resolution_stack.iter().copied() {
-            self.type_alias_binding_witnesses
-                .entry(alias)
-                .or_default()
-                .extend(binding.sources().map(|source| {
-                    hir::ExternalHirBindingWitnessUse::new(
-                        target,
-                        hir::ExternalHirBindingWitnessRole::AliasTarget,
-                        source.clone(),
-                    )
-                }));
-        }
     }
 }

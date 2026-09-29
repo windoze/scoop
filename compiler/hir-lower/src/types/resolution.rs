@@ -170,7 +170,7 @@ impl Lowerer {
         }
     }
 
-    fn resolve_nested_nominal_application(
+    pub(super) fn resolve_nested_nominal_application(
         &mut self,
         target: NominalTarget,
         arguments: &[ast::TypeRef],
@@ -226,189 +226,6 @@ impl Lowerer {
         })
     }
 
-    fn resolve_qualified_nominal(
-        &mut self,
-        path: &[ast::Ident],
-        arguments: &[ast::TypeRef],
-        span: ast::Span,
-    ) -> Option<TypeId> {
-        let first = path.first().expect("a qualified type path is non-empty");
-        let (package, package_length) = self.top_level_namespaces.longest_package_prefix(path);
-        let (mut target, owner_start) = if package_length != 0 {
-            let package_name = self
-                .top_level_namespaces
-                .package_segments(package)
-                .join(".");
-            let Some(binding_name) = path.get(package_length) else {
-                self.error(
-                    path.last().expect("the path is non-empty").span,
-                    format!("`{package_name}` names a package, not a type"),
-                );
-                return None;
-            };
-            let result = self.lookup_package_type(package, &binding_name.text);
-            let Some(binding) = self.commit_type_lookup(binding_name, result).ok()? else {
-                self.error(
-                    binding_name.span,
-                    format!(
-                        "package `{package_name}` has no accessible type `{}`",
-                        binding_name.text
-                    ),
-                );
-                return None;
-            };
-            let target = match binding {
-                crate::imports::lookup::TypeLookupTarget::Current(
-                    crate::namespace::TopLevelTypeTarget::Nominal(target),
-                ) => target,
-                crate::imports::lookup::TypeLookupTarget::Current(
-                    crate::namespace::TopLevelTypeTarget::Alias(alias),
-                ) => {
-                    let final_segment = package_length + 1 == path.len();
-                    let ty = self.resolve_type_alias_id_reference(
-                        alias,
-                        binding_name,
-                        final_segment && !arguments.is_empty(),
-                    )?;
-                    if final_segment {
-                        return Some(ty);
-                    }
-                    if self.imported_nominal_declaration(ty).is_some() {
-                        return self.resolve_imported_qualified_type(
-                            ty,
-                            &path[package_length + 1..],
-                            arguments,
-                        );
-                    }
-                    let Some(target) = self.nominal_target_for_type(ty) else {
-                        self.error(
-                            binding_name.span,
-                            format!(
-                                "typealias `{}` does not name a type qualifier",
-                                binding_name.text
-                            ),
-                        );
-                        return None;
-                    };
-                    target
-                }
-                crate::imports::lookup::TypeLookupTarget::Dependency(binding) => {
-                    let final_segment = package_length + 1 == path.len();
-                    let ty = if final_segment && !arguments.is_empty() {
-                        self.resolve_imported_generic_type_target(
-                            &binding,
-                            binding_name,
-                            arguments,
-                        )?
-                    } else {
-                        self.resolve_imported_dependency_type_target(&binding, binding_name, false)?
-                    };
-                    if final_segment {
-                        return Some(ty);
-                    }
-                    if self.imported_nominal_declaration(ty).is_some() {
-                        return self.resolve_imported_qualified_type(
-                            ty,
-                            &path[package_length + 1..],
-                            arguments,
-                        );
-                    }
-                    let Some(target) = self.nominal_target_for_type(ty) else {
-                        self.error(
-                            binding_name.span,
-                            format!(
-                                "typealias `{}` does not name a type qualifier",
-                                binding_name.text
-                            ),
-                        );
-                        return None;
-                    };
-                    target
-                }
-            };
-            (target, package_length + 1)
-        } else {
-            let target = if let Some(target) = self.lexical_nested_nominal_target(&first.text) {
-                target
-            } else {
-                match self.resolve_type_lookup(first).ok()? {
-                    Some(crate::imports::lookup::TypeLookupTarget::Current(
-                        crate::namespace::TopLevelTypeTarget::Nominal(target),
-                    )) => target,
-                    Some(crate::imports::lookup::TypeLookupTarget::Current(
-                        crate::namespace::TopLevelTypeTarget::Alias(alias),
-                    )) => {
-                        let ty = self.resolve_type_alias_id_reference(alias, first, false)?;
-                        if self.imported_nominal_declaration(ty).is_some() {
-                            return self.resolve_imported_qualified_type(ty, &path[1..], arguments);
-                        }
-                        let Some(target) = self.nominal_target_for_type(ty) else {
-                            self.error(
-                                first.span,
-                                format!(
-                                    "typealias `{}` does not name a type qualifier",
-                                    first.text
-                                ),
-                            );
-                            return None;
-                        };
-                        target
-                    }
-                    Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
-                        let ty =
-                            self.resolve_imported_dependency_type_target(&binding, first, false)?;
-                        if self.imported_nominal_declaration(ty).is_some() {
-                            return self.resolve_imported_qualified_type(ty, &path[1..], arguments);
-                        }
-                        let Some(target) = self.nominal_target_for_type(ty) else {
-                            self.error(
-                                first.span,
-                                format!(
-                                    "typealias `{}` does not name a type qualifier",
-                                    first.text
-                                ),
-                            );
-                            return None;
-                        };
-                        target
-                    }
-                    None => {
-                        self.error(first.span, format!("unknown type `{}`", first.text));
-                        return None;
-                    }
-                }
-            };
-            (target, 1)
-        };
-        for segment in &path[owner_start..] {
-            let owner = target.owner();
-            let Some(nested) = self
-                .nested_nominals_by_owner
-                .get(&(owner, segment.text.clone()))
-                .copied()
-            else {
-                let owner_name = path
-                    .iter()
-                    .take_while(|candidate| candidate.span.end <= segment.span.start)
-                    .map(|candidate| candidate.text.as_str())
-                    .collect::<Vec<_>>()
-                    .join(".");
-                self.error(
-                    segment.span,
-                    format!("type `{owner_name}` has no nested type `{}`", segment.text),
-                );
-                return None;
-            };
-            target = nested;
-        }
-        let display_name = path
-            .iter()
-            .map(|segment| segment.text.as_str())
-            .collect::<Vec<_>>()
-            .join(".");
-        self.resolve_nested_nominal_application(target, arguments, span, &display_name)
-    }
-
     pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         let ty = self.resolve_type_ref_unchecked(ty_ref)?;
         if !self.nominal_is_accessible(ty) {
@@ -429,14 +246,7 @@ impl Lowerer {
     /// is empty everywhere else).
     fn resolve_type_ref_unchecked(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         match &ty_ref.kind {
-            ast::TypeRefKind::Unit => {
-                if let Some(declaration) = self.imported_nominal_declaration(self.unit)
-                    && !self.retain_builtin_alias_target_binding("Unit", declaration, ty_ref.span)
-                {
-                    return None;
-                }
-                Some(self.unit)
-            }
+            ast::TypeRefKind::Unit => Some(self.unit),
             ast::TypeRefKind::Generic(name, args) => {
                 // `Name<T1, ...>`: generic type application. M4: only
                 // generic enums. M5: the built-in `Array<T>` /
@@ -721,7 +531,7 @@ impl Lowerer {
                     }
                     None => {}
                 }
-                let resolved = match name.text.as_str() {
+                match name.text.as_str() {
                     _ if matches!(self.core, crate::CoreLoweringAuthority::Imported(_))
                         && !matches!(name.text.as_str(), "Unit" | "Any") =>
                     {
@@ -746,14 +556,7 @@ impl Lowerer {
                         self.error(name.span, format!("unknown type `{}`", name.text));
                         None
                     }
-                };
-                if let Some(ty) = resolved
-                    && let Some(declaration) = self.imported_nominal_declaration(ty)
-                    && !self.retain_builtin_alias_target_binding(&name.text, declaration, name.span)
-                {
-                    return None;
                 }
-                resolved
             }
             ast::TypeRefKind::Tuple(elements) => {
                 let mut resolved = Vec::with_capacity(elements.len());

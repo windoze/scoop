@@ -1,6 +1,6 @@
 use super::*;
 use crate::SourceNominalId;
-use scoop_identity::{DefinitionOwnerAtom, PersistentConstructorId, SourceDeclarationKey};
+use scoop_identity::{PersistentConstructorId, SourceDeclarationKey};
 
 /// Borrows the complete source constructors required by materialized owners.
 /// Object initialization and enum construction have separate typed protocols.
@@ -18,14 +18,7 @@ pub fn select_param_free_source_constructors<'a>(
 
         let key = identities.canonical_key::<_, SourceDeclarationKey>(owner)?;
 
-        if key.origin() != provider
-            || key
-                .owners()
-                .owners()
-                .iter()
-                .any(|owner| matches!(owner, DefinitionOwnerAtom::GenericType(_)))
-            || !signatures.owner(Some(nominal.declaration()))
-        {
+        if key.origin() != provider || !signatures.owner(Some(nominal.declaration())) {
             continue;
         }
         for &id in nominal.declaration_details().constructors().values() {

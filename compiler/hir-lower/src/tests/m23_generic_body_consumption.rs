@@ -16,6 +16,7 @@ mod nominals;
 mod options;
 mod pointer_construction;
 mod pointers;
+mod qualified_types;
 mod references;
 
 const PROVIDER: &str = include_str!(concat!(

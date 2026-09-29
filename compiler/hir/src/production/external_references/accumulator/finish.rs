@@ -7,7 +7,6 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
         let mut records = Vec::with_capacity(self.references.len());
         for (target, pending) in self.references {
             for role in [
-                ExternalHirReferenceRoleV1::AliasTarget,
                 ExternalHirReferenceRoleV1::DefaultDependency,
                 ExternalHirReferenceRoleV1::ConcreteSelectedUse,
             ] {

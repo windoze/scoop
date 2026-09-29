@@ -177,6 +177,7 @@ impl Lowerer {
             objects,
         } = declarations;
         let mut surface = CurrentUnitImports::default();
+        surface.collect_direct_package_types(world);
         if let Some(world) = world
             && let Some(core) = world.direct_provider(scoop_identity::ConeIdentity::CORE)
             && let Some(package) = world.direct_package(&scoop_identity::PackagePath::root())

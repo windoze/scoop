@@ -17,6 +17,15 @@ impl Lowerer {
             );
         };
         let owner = hir::SourceNominalId::GenericTemplate(identity.persistent());
+        self.resolve_imported_nominal_owner_arguments(owner, name, arguments)
+    }
+
+    pub(crate) fn resolve_imported_nominal_owner_arguments(
+        &mut self,
+        owner: hir::SourceNominalId,
+        name: &scoop_ast::Ident,
+        arguments: &[scoop_ast::TypeRef],
+    ) -> Option<hir::TypeId> {
         let declaration = self
             .dependencies
             .as_ref()?
@@ -115,10 +124,6 @@ impl Lowerer {
                 return None;
             }
         };
-        self.retain_imported_alias_target_bindings(
-            binding,
-            hir::ExternalHirTargetV1::Nominal(owner),
-        );
         Some(ty)
     }
 }

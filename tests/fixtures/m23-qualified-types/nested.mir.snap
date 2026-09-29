@@ -1,0 +1,119 @@
+Module
+  struct Nested (number: Int)
+  struct Generic<Int> (value: Int)
+  struct Nested (number: Int)
+  struct Deep (number: Int)
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call first: Nested = external0 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call box: Generic<Int> = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val kept: Int
+        Type Int
+        FieldAccess 0
+          Type Generic<Int>
+          Local box
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call second: Nested = external1 direct
+        Type Int
+        Local $dependency.parameter.number
+      val fixed: Nested
+        Type Nested
+        Local second
+      val copy: Nested
+        Type Nested
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Nested
+          Local copy
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call generic: Generic<Int> = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val fixedAlias: Nested
+        Type Nested
+        Local fixed
+      val localAlias: Nested
+        Type Nested
+        Local fixedAlias
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Generic<Int>
+          Local generic
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call deep: Deep = external2 direct
+        Type Int
+        Local $dependency.parameter.number
+      val deepAlias: Deep
+        Type Deep
+        Local deep
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Deep
+          Local deepAlias
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Nested
+          Local localAlias
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun ctor.Generic.$c0 @fn2(value: Int) -> Generic<Int> <no-gc>
+    bb0 entry
+      return
+        Type Generic<Int>
+        StructInit Generic<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- exercise
+  output library

@@ -558,11 +558,6 @@ pub(crate) struct Lowerer {
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
     pub(crate) imported_generic_delegate_templates: Arena<hir::ImportedGenericDelegateTemplate>,
     pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
-    /// Exact source-name routes selected while resolving public type-alias
-    /// targets. Entries remain attached to their source alias until public
-    /// surface publication, so private aliases cannot leak witness records.
-    pub(crate) type_alias_binding_witnesses:
-        HashMap<aliases::SourceTypeAliasId, Vec<hir::ExternalHirBindingWitnessUse>>,
     pub(crate) retained_binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,

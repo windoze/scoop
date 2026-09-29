@@ -63,7 +63,7 @@ impl Fixture {
         ExternalHirReferenceV1::try_new(
             self.provider,
             ExternalHirTargetV1::TypeAlias(alias),
-            roles(&[ExternalHirReferenceRoleV1::AliasTarget]),
+            roles(&[ExternalHirReferenceRoleV1::ReexportTarget]),
             witnesses(vec![route]),
             Default::default(),
             Default::default(),

@@ -53,7 +53,7 @@ pub(crate) enum ExpressionQualifierLookup {
 impl ImportLookupLayer {
     pub(crate) fn call_rank(self) -> usize {
         match self {
-            Self::Exact => 0,
+            Self::Exact | Self::QualifiedPackage => 0,
             Self::CurrentPackage(_) => 1,
             Self::Star => 2,
             Self::CorePrelude => 3,
@@ -64,6 +64,7 @@ impl ImportLookupLayer {
         match self {
             Self::Exact => "exact import",
             Self::CurrentPackage(_) => "current package",
+            Self::QualifiedPackage => "qualified package",
             Self::Star => "star import",
             Self::CorePrelude => "core prelude",
         }

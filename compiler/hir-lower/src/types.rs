@@ -69,9 +69,12 @@ mod interning;
 mod invariance;
 mod kinds;
 mod layout_cycles;
+mod qualified;
 mod relations;
 mod resolution;
 mod substitution;
+
+pub(crate) use qualified::TypeQualifier;
 
 fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
     match (&types[a], &types[b]) {

@@ -107,7 +107,7 @@ fn signature_collection_deduplicates_foreign_nominal_leaves() {
 }
 
 #[test]
-fn source_name_roles_require_an_actual_selected_witness() {
+fn alias_targets_retain_the_typed_reference_without_a_name_witness() {
     let current = cone("consumer");
     let provider = cone("provider");
     let alias =
@@ -120,13 +120,17 @@ fn source_name_roles_require_an_actual_selected_witness() {
         .observe(target, ExternalHirReferenceRoleV1::AliasTarget)
         .unwrap();
 
-    assert!(matches!(
-        accumulator.finish::<AuthorityError>(),
-        Err(ExternalHirReferenceProductionError::MissingWitnessUse {
-            target: actual,
-            role: ExternalHirReferenceRoleV1::AliasTarget,
-        }) if actual == target
-    ));
+    let references = accumulator.finish::<AuthorityError>().unwrap();
+    let [reference] = references.records() else {
+        panic!("one alias target produces one typed external reference");
+    };
+    assert_eq!(reference.target(), target);
+    assert_eq!(reference.origin(), provider);
+    assert_eq!(
+        reference.roles().roles(),
+        &[ExternalHirReferenceRoleV1::AliasTarget]
+    );
+    assert!(reference.witnesses().is_empty());
 }
 
 struct EmptyParts {

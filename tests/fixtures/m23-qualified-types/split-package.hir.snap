@@ -1,0 +1,41 @@
+Module
+  struct Local
+    field0 number: Int
+    property0 val number: Int getter0=storage <stored struct0-field0>
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 40 : Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      StructInit Local : Local
+        Local $parameter.number : Int
+    val local4
+      IntegerLiteral 2 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    val local6
+      ImportedDependencyCall #0 : Point
+        Local $dependency.parameter.number : Int
+    val local7
+      FieldAccess field 0 : Int
+        Local own : Local
+    val local8
+      FieldAccess dependency field 34dd8886871a4147b3e0ee9bad58950d2e083e24d64d6ff9945a0b85f67059ad : Int
+        Local foreign : Point
+    val local9
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

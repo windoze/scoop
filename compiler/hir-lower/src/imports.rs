@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 mod bindings;
 mod collect;
 pub(crate) mod lookup;
+mod packages;
 mod reexports;
 mod resolve;
 mod selector;
@@ -21,6 +22,7 @@ pub(crate) use reexports::*;
 pub(crate) enum ImportLookupLayer {
     Exact,
     CurrentPackage(PackageId),
+    QualifiedPackage,
     Star,
     CorePrelude,
 }
@@ -111,6 +113,7 @@ pub(crate) struct CurrentUnitImports {
     pub(crate) bindings: Vec<CurrentUnitBinding>,
     namespaces: HashMap<ResolvedNamespace, BTreeMap<String, Vec<CurrentUnitBindingId>>>,
     static_targets: HashMap<CurrentUnitBindingId, StaticNamespace>,
+    direct_package_types: std::sync::Arc<packages::DirectPackageTypeIndex>,
     source_property_count: usize,
     source_extension_properties: std::collections::HashSet<SourcePropertyId>,
     global_property_sources: Vec<PropertyImportSource>,

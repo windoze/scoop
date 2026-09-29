@@ -41,7 +41,7 @@ fn source_name_roles_require_witnesses() {
         ExternalHirReferenceV1::try_new(
             fixture.provider,
             ExternalHirTargetV1::TypeAlias(fixture.first_alias),
-            roles(&[ExternalHirReferenceRoleV1::AliasTarget]),
+            roles(&[ExternalHirReferenceRoleV1::ReexportTarget]),
             empty,
             Default::default(),
             Default::default(),
@@ -88,7 +88,7 @@ fn decoded_record_rechecks_role_witness_shape() {
     let malformed = RawReference {
         origin: fixture.provider,
         target: ExternalHirTargetV1::TypeAlias(fixture.first_alias),
-        roles: roles(&[ExternalHirReferenceRoleV1::AliasTarget]),
+        roles: roles(&[ExternalHirReferenceRoleV1::ReexportTarget]),
         witnesses: CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
     };
     let decoded: DecodedExternalHirReferenceV1 =
@@ -131,18 +131,23 @@ impl WireEncode for RawReference {
 }
 
 #[test]
-fn default_dependencies_round_trip_as_resolved_declarations() {
+fn aliases_and_defaults_round_trip_as_resolved_declarations() {
     let fixture = Fixture::new();
-    let record = ExternalHirReferenceV1::try_new(
-        fixture.provider,
-        ExternalHirTargetV1::TypeAlias(fixture.first_alias),
-        roles(&[ExternalHirReferenceRoleV1::DefaultDependency]),
-        witnesses(Vec::new()),
-        Default::default(),
-        Default::default(),
-    )
-    .unwrap();
-    let decoded: DecodedExternalHirReferenceV1 =
-        decode_canonical(&encode(&record).unwrap()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture.authority()).unwrap(), record);
+    for role in [
+        ExternalHirReferenceRoleV1::AliasTarget,
+        ExternalHirReferenceRoleV1::DefaultDependency,
+    ] {
+        let record = ExternalHirReferenceV1::try_new(
+            fixture.provider,
+            ExternalHirTargetV1::TypeAlias(fixture.first_alias),
+            roles(&[role]),
+            witnesses(Vec::new()),
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap();
+        let decoded: DecodedExternalHirReferenceV1 =
+            decode_canonical(&encode(&record).unwrap()).unwrap();
+        assert_eq!(decoded.resolve(&mut fixture.authority()).unwrap(), record);
+    }
 }

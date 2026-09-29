@@ -1,0 +1,30 @@
+package consumer.paths
+
+import dependency.paths.Outer.Nested
+import dependency.paths.Outer.Generic
+import dependency.paths.Outer.Middle.Deep
+import dependency.paths.GenericOuter.Nested as Other
+
+public typealias NestedAlias = dependency.paths.Outer.Nested
+public typealias GenericNestedAlias = dependency.paths.Outer.Generic<Int>
+public typealias FixedNestedAlias = dependency.paths.IntOuter.Nested
+public typealias LocalOuter = dependency.paths.IntOuter
+public typealias LocalNestedAlias = LocalOuter.Nested
+public typealias DeepAlias = dependency.paths.Outer.Middle.Deep
+
+public fun <T> exercise(value: T): Int {
+    val first: dependency.paths.Outer.Nested = Nested(40)
+    val box: dependency.paths.Outer.Generic<T> = Generic<T>(value)
+    val kept: T = box.value
+    val second: dependency.paths.GenericOuter.Nested = Other(2)
+    val fixed: dependency.paths.IntOuter.Nested = second
+    val copy: NestedAlias = first
+    val generic: GenericNestedAlias = Generic<Int>(copy.number)
+    val fixedAlias: FixedNestedAlias = fixed
+    val localAlias: LocalNestedAlias = fixedAlias
+    val deep: dependency.paths.Outer.Middle.Deep = Deep(generic.value)
+    val deepAlias: DeepAlias = deep
+    return deepAlias.number + localAlias.number
+}
+
+public fun result(): Int = exercise<Int>(0)

@@ -285,24 +285,39 @@ impl Lowerer {
 
     pub(crate) fn lookup_package_type(
         &self,
-        package: PackageId,
+        package: &super::packages::QualifiedPackagePrefix,
         name: &str,
     ) -> LookupResult<TypeLookupCandidate> {
         if !self.source_is_current_cone(self.current_file) {
             return LookupResult::Missing;
         }
-        let bindings = self
-            .imports
-            .namespaces
-            .get(&ResolvedNamespace::Package(package))
+        let bindings = package
+            .current
+            .and_then(|package| {
+                self.imports
+                    .namespaces
+                    .get(&ResolvedNamespace::Package(package))
+            })
             .and_then(|members| members.get(name))
             .into_iter()
             .flatten()
             .copied();
+        let mut candidates = self.imported_type_candidates(self.imports.canonicalize(bindings));
+        candidates.extend(
+            self.dependency_type_candidates(
+                self.imports
+                    .direct_package_types
+                    .get(&package.path)
+                    .and_then(|members| members.get(name))
+                    .into_iter()
+                    .flatten()
+                    .cloned(),
+            ),
+        );
         self.select_type_layer(vec![LookupLayer {
-            kind: ImportLookupLayer::CurrentPackage(package),
+            kind: ImportLookupLayer::QualifiedPackage,
             suppressed_callables: Vec::new(),
-            candidates: self.imported_type_candidates(self.imports.canonicalize(bindings)),
+            candidates,
         }])
     }
 
@@ -376,6 +391,7 @@ impl Lowerer {
                 let layer = match layer {
                     ImportLookupLayer::Exact => "exact import",
                     ImportLookupLayer::CurrentPackage(_) => "current package",
+                    ImportLookupLayer::QualifiedPackage => "qualified package",
                     ImportLookupLayer::Star => "star import",
                     ImportLookupLayer::CorePrelude => "core prelude",
                 };

@@ -1,5 +1,7 @@
 # Scoop 实现大纲
 
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。共有 HIR 格式更新为 `hir/cross-cone-interface/38`，旧 `/37` 及更早产物与缓存重建；不改变 runtime C ABI、对象布局或 GC 契约。
+
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 
 普通 catch 的绑定必须可以像其他引用值一样离开 handler：匹配 native payload 后，在绑定变量前物化一次 managed 异常对象，后续返回、存储和捕获使用该对象；native unwind record 仍按既有 cleanup 规则释放。初始化 catch 复用这次物化，不再次复制。每次 throw 仍创建独立 native payload，runtime C ABI 不变。
@@ -186,11 +188,17 @@ M24起class body member sum增加独立`ReleaseBlock`。`release`只在class mem
 
 ### 2.2 HIR
 
+限定类型路径与普通 import 共用已解析的 direct dependency 公开绑定和最长包前缀规则。导入收集保留一次不可变的依赖包类型索引，包含仅导出 value 的包占位以保持前缀语义；后续候选探测复用该索引，不重新扫描产物或按 FQN 猜实体。当前与依赖的同包候选统一做普通可见性和歧义选择，随后沿 typed nominal owner 查找嵌套类型，并复用既有类型实参和 alias 展开入口。索引只属于本次 lowering，不进入共有 HIR 或机器表示，也不增加来源资格或独立语义验证层。
+
+非末段名义类型只提供静态 namespace owner；泛型外层无需实例化或补造类型实参。固定泛型 application 的 alias 也由实际 nominal owner 继续遍历，末段类型实参才进入普通 arity／bound 检查。alias 用作 namespace 时不额外产生 alias 目标引用；公开 typealias 的 `AliasTarget` 仍仅由最终类型签名或直接 alias 边中的实际目标构成。目标引用由最终公开声明直接收集；namespace 解析不增设来源记录或暂停 alias 解析栈，循环引用仍使用完整栈诊断。
+
+静态嵌套类型不捕获外层类型参数。参数自由的嵌套类型及其构造器按自身实际 owner 与签名参与既有机器绑定生产，不能仅因词法 owner 链含有泛型外层而省略普通构造器导出；泛型嵌套类型仍按自身 application 单态化。
+
 M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、owner binder、方法 binder 和 effects，参与既有候选推断后正规化到 `AddressOf`、`SizeOf`、`AlignOf` 及指针操作节点。它们不需要共有执行正文或机器 callable。`addressOf` 的原始 local/raw-global place 必须在普通实参临时复制之前确定；泛型 GC-free 条件复用 `Ptr<T>` 的现有传播。布局查询只要求值类型，具体化代换被查询类型后交给后续布局阶段求值（语言规范 13.10）。默认值与泛型正文直接消费既有 typed 节点与 selector，不增加格式分支或重复完整语义验证。
 
 显式 `Ptr<T>(raw)` 从已解析的实际 `core_ptr` 名义声明进入特殊构造候选，与同层普通 callable 共用重载选择。当前声明和依赖声明共用 pointee 推断、参数与常量非零检查，并产生已有 `PtrFromNonZeroULong` 节点；固定 application 的 typealias 作为非参数化候选。依赖路径使用原 typed nominal identity 及其 binder，不补造本地 struct、普通 constructor identity、共有正文或机器函数。unsafe 和常量非零错误不改变候选适用性；仅在选中后提交诊断并结束该错误表达式的 lowering，避免回退到其他候选或产生级联的语句形态错误。合法调用保留唯一一次原实参求值。默认值及泛型正文沿现有节点代换和条件约束路径消费。
 
-`Ptr`／`FunPtr` 别名按既有结构化指针签名发布，`AliasTarget` 引用由该签名实际包含的 pointee／函数参数与结果中的名义类型构成；指针类型源码绑定不额外变成签名中不存在的泛型名义目标。直接指向外来 typealias 的别名仍保留原 alias 边及正常名称绑定，构造时再从已解析类型取得实际 core owner。
+`Ptr`／`FunPtr` 别名按既有结构化指针签名发布，`AliasTarget` 引用由该签名实际包含的 pointee／函数参数与结果中的名义类型构成；指针类型源码绑定不额外变成签名中不存在的泛型名义目标。直接指向外来 typealias 的别名仍保留原 typed alias 边；名称绑定仅参与普通源码查找，构造时从已解析类型取得实际 core owner。
 
 负责 desugaring、type check 和 overload resolution；综合上游 Cone 的 HIR export representation；解析每个表达式/子表达式的 type，解析每个 callable 的 target。输出不是一个同时容纳parameterized与concrete节点的`Module`，而是按消费者严格隔离的两个IR：
 

@@ -104,6 +104,7 @@ impl Lowerer {
                 let layer = match layer {
                     ImportLookupLayer::Exact => "exact import",
                     ImportLookupLayer::CurrentPackage(_) => "current package",
+                    ImportLookupLayer::QualifiedPackage => "qualified package",
                     ImportLookupLayer::Star => "star import",
                     ImportLookupLayer::CorePrelude => "core prelude",
                 };
@@ -171,6 +172,7 @@ impl Lowerer {
             let layer = match layer {
                 ImportLookupLayer::Exact => "exact import",
                 ImportLookupLayer::CurrentPackage(_) => "current package",
+                ImportLookupLayer::QualifiedPackage => "qualified package",
                 ImportLookupLayer::Star => "star import",
                 ImportLookupLayer::CorePrelude => "core prelude",
             };

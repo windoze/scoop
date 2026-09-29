@@ -622,12 +622,28 @@
 - 关闭 snapshot 更新，使用实际配套 `scoopc` 完成 `cargo test --workspace --no-fail-fast`：37 个测试组全部完成，**5216 passed、0 failed、0 ignored**，包含上述用例以及既有 core、属性初始化、继承／接口、函数引用、普通状态、Option 和指针调用回归。完整日志为 `/tmp/scoop-m23-7-pointer-construction-workspace.log`。
 - 全部测试结束后，通过 Cargo metadata 核对实际 `target`，确认目录非符号链接、无打开文件且只含构建／编辑器缓存；恢复缺失的标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 2731 个文件，Cargo 报告 **5.5 GiB**，清理后 `target` 不存在。
 
-复核还发现一般性的依赖 package 限定类型名缺口：`dependency.construction.IntPointer` 在类型位置报 `unknown type dependency`，通过普通 import 引入的 `IntPointer` 可用。`types/resolution.rs` 的限定类型入口目前只选当前 Cone 的 package 前缀，`imports/selector.rs` 已有当前与 direct package 合并的最长前缀逻辑；该一般名称查找问题列入下一项独立变更。原始复现保存在 `/tmp/scoop-m23-7-qualified-pointer-alias.scoop`，使用本组 provider 即可复现。
+原始指针构造验证中发现的依赖 package 限定类型名缺口已由下一节修复；通过普通 import 使用的短名与限定类型路径现在进入相同的类型解析规则。
+
+## 依赖包限定类型路径
+
+- 当前 Cone 与 direct dependency 的公开包共同选择最长前缀；同包类型按实际 typed target 合并和去重，冲突在同一查找层诊断。仅含 value 的包仍占用其前缀，support provider 不增加源码可见包。导入收集生成一次不可变包类型索引，后续 lowering 和候选探测共享该索引，不按 FQN 扫描产物或补造实体。
+- 路径选定包后沿实际静态 nominal owner 遍历。末段使用普通类型参数、kind／nominal bound、可见性和 alias 展开入口；泛型外层仅提供命名空间，不实例化缺失实参。固定泛型别名、本地转接别名、多层泛型外层和末段泛型均保留真实身份；alias 循环继续使用完整解析栈诊断。
+- 修复静态嵌套类型的构造器导出遗漏：参数自由的 nested owner 按自身签名参与原机器绑定生产，不因词法外层含泛型类型而被过滤。既有组合 fixture 的 `Nested()` 导出由 false 改为 true，普通构造器选择由 16 增至 17；泛型嵌套类型仍走原 application／ODR 路径。
+- 公开 alias 的目标由最终签名或直接 typed alias 边产生 `AliasTarget` 引用。移除别名专用的名称来源证明、解析栈中的来源传播，以及 core／普通类型解析中的重复来源收集；公开别名的类型、访问、目标归属、引用闭合和循环检查保留。经可见外层类型取得的嵌套目标无需补造直接包查找路径即可再次发布。共有 HIR 格式升至 **`/38`**，旧 `/37` 及更早产物与缓存重建；两份 profile 固定向量仅改变对应版本字节，SHA-256 指纹按既有规则同步更新，runtime ABI 与 GC 契约不变。
+- 新增 `m23-qualified-types` 的 **28 份源码、34 份 golden**，覆盖 6 组运行正例和 16 组反例：普通与泛型类型、固定／指针别名、嵌套类型、泛型外层、约束、当前与依赖共包、两路同源转导出去重、不同直接依赖的重名、仅含 value 的最长包前缀及 support 包不可见。反例核对具体源码位置、诊断和不产生目标产物。
+- 5 组 provider／consumer 在发布后移走源码，下游以自身 class 和重复 Int application 再次消费和发布；另以两份转导出产物访问同一个原始 provider，核对普通／泛型 alias 与嵌套类型的真实引用。6 组均通过 HIR/MIR/LIR 快照、正式产物读取、链接、普通运行、移动 GC 以及重叠 ODR 定义和 ABI 比较。
+- `cargo fmt --all` 与 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，无警告。HIR、HIR lowering 和 slib 的完整单元测试 **2745 passed、0 failed、0 ignored**；重建实际配套 `scoopc` 后，3 项集成测试全部通过，用时 32.23 秒。日志为 `/tmp/scoop-m23-7-qualified-types-unit.log` 和 `/tmp/scoop-m23-7-qualified-types-driver.log`。
+- 关闭快照更新，使用实际配套 `scoopc` 执行 `cargo test --workspace --no-fail-fast`，37 个测试组全部结束：**5200 passed、21 failed、0 ignored**。21 处失败均是 core 布局产物快照仍保存 `/37` 的产物指纹；逐一比较断言内容，代码指纹、runtime 指纹及其余字段完全相同。上述新用例与其他回归全部通过，完整日志为 `/tmp/scoop-m23-7-qualified-types-workspace.log`。
+- 同步 core 布局及形状依赖的 **43 份产物快照**，与提交前版本逐一比较，均仅改变第一行产物指纹。嵌套构造器修复另更新 4 份 HIR／MIR／LIR 快照：`Nested()` 进入导出表，callable 数量从 50 增至 51；实际对象、布局、描述符和注册表数量保持一致。
+- 仅快照变更后，清除全部 `SCOOP_UPDATE_*` 与 `INSTA_UPDATE` 环境变量，复测受影响的 `layout_exports::core` 全组，**22 passed、0 failed、0 ignored**，耗时 283.52 秒，完整 core 产物链和属性初始化组合均通过。最终日志为 `/tmp/scoop-m23-7-qualified-types-layout-verified.log`；未重复运行代码未变化的其他测试组。
+- 验证结束后，通过 Cargo metadata 确认实际 `target`，核对无编译／测试进程、无打开文件且目录仅含构建与编辑器检查缓存；恢复标准 `CACHEDIR.TAG` 并执行 `cargo clean --target-dir target`，删除 **2881 个文件、6.2 GiB**。清理后 `target` 不存在，日志为 `/tmp/scoop-m23-7-qualified-types-clean.log`。
+
+另保留一项独立的显式导入问题：当 `Outer` 经 facade 转导出且原 provider 仅作 support 时，`import facade.paths.Outer.Nested` 仍在 import selector 报目标不可用。当前类型位置的 `facade.paths.Outer.Nested`、普通 receiver 构造 `Outer.Nested(...)` 及该目标的公开 alias 已通过上述真实产物测试。显式 import 的原始复现在 `/tmp/scoop-m23-7-reexport-nested-import.scoop`，可使用本组 provider 与 reexport-provider 构建依赖；该路径列入下一项独立修复，M23-7 仍未完成。
 
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造的基础上，补齐依赖 package 限定类型路径的普通查找、vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径的基础上，继续修复经转导出类型的显式嵌套 import，并补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

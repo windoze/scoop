@@ -1,0 +1,29 @@
+package dependency.paths
+
+public struct Point(val number: Int)
+public struct Box<T>(val value: T)
+public typealias IntBox = Box<Int>
+public typealias IntPointer = Ptr<Int>
+
+public class Outer {
+    public struct Nested(val number: Int)
+    public struct Generic<T>(val value: T)
+    public struct ValueOnly<V: value>(val value: V)
+    public class Middle<T> {
+        public struct Deep(val number: Int)
+    }
+    private struct Hidden(val number: Int)
+}
+
+public class GenericOuter<T> {
+    public struct Nested(val number: Int)
+}
+
+public typealias IntOuter = GenericOuter<Int>
+
+public interface Read {
+    public fun read(): Int
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)
+private struct Hidden(val number: Int)

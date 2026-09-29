@@ -92,11 +92,6 @@ impl Lowerer {
             target: target.expanded,
             declaration,
         };
-        if self.source_type_aliases[id].access.declared == hir::DeclaredVisibility::Public
-            && let Some(witnesses) = self.type_alias_binding_witnesses.remove(&id)
-        {
-            self.retained_binding_witness_uses.extend(witnesses);
-        }
     }
 
     fn validate_type_alias_target_tree(

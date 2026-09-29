@@ -8,9 +8,7 @@ mod pointers;
 
 use scoop_ast::Span;
 use scoop_hir as hir;
-use scoop_identity::{
-    BindingNamespace, NominalDeclarationOwner, PersistentTypeId, SignatureTypeKey,
-};
+use scoop_identity::{PersistentTypeId, SignatureTypeKey};
 
 use crate::{CoreLoweringAuthority, Lowerer};
 
@@ -23,38 +21,6 @@ pub(crate) enum ImportedSignatureTypeError {
 pub(crate) type ImportedTypeBindings = std::collections::BTreeMap<SignatureTypeKey, hir::TypeId>;
 
 impl Lowerer {
-    /// Retains the shared public route for a built-in spelling in an alias.
-    pub(crate) fn retain_builtin_alias_target_binding(
-        &mut self,
-        name: &str,
-        declaration: PersistentTypeId,
-        span: Span,
-    ) -> bool {
-        if self.type_alias_resolution_stack.is_empty()
-            || matches!(self.core, CoreLoweringAuthority::Defined)
-        {
-            return true;
-        }
-        let binding = self
-            .imports
-            .prelude_bindings(BindingNamespace::Type, name)
-            .iter()
-            .find(|binding| matches!(binding.target(), hir::ImportedTarget::Type(id) if id.persistent() == declaration))
-            .cloned();
-        let Some(binding) = binding else {
-            self.error(
-                span,
-                format!("core prelude does not expose type binding `{name}`"),
-            );
-            return false;
-        };
-        self.retain_imported_alias_target_bindings(
-            &binding,
-            hir::ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(declaration)),
-        );
-        true
-    }
-
     pub(crate) fn imported_nominal_owner(&self, ty: hir::TypeId) -> Option<hir::SourceNominalId> {
         if matches!(self.types[ty], hir::Type::Ptr(_))
             && let CoreLoweringAuthority::Imported(core) = &self.core

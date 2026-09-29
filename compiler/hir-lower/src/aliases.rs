@@ -137,11 +137,7 @@ impl Lowerer {
             );
             return None;
         }
-        let target = self.resolve_type_alias(id, name.span);
-        if target.is_some() {
-            self.propagate_type_alias_binding_witnesses(id);
-        }
-        target
+        self.resolve_type_alias(id, name.span)
     }
 
     fn resolve_type_alias(
@@ -212,20 +208,6 @@ impl Lowerer {
         }
     }
 
-    fn propagate_type_alias_binding_witnesses(&mut self, source: SourceTypeAliasId) {
-        let Some(witnesses) = self.type_alias_binding_witnesses.get(&source).cloned() else {
-            return;
-        };
-        for alias in self.type_alias_resolution_stack.iter().copied() {
-            if alias != source {
-                self.type_alias_binding_witnesses
-                    .entry(alias)
-                    .or_default()
-                    .extend(witnesses.iter().cloned());
-            }
-        }
-    }
-
     /// Classifies only the source target's outermost type reference. Nested
     /// alias uses remain represented by the fully expanded HIR `TypeId`.
     fn resolve_type_alias_source(&self, target: &ast::TypeRef) -> ResolvedTypeAliasSource {
@@ -239,13 +221,11 @@ impl Lowerer {
                 | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
             },
             ast::TypeRefKind::Qualified { path, arguments } if arguments.is_empty() => {
-                let (package, package_length) =
-                    self.top_level_namespaces.longest_package_prefix(path);
-                if package_length == 0 || package_length + 1 != path.len() {
-                    None
-                } else {
-                    let binding = &path[package_length];
-                    match self.lookup_package_type(package, &binding.text) {
+                if let Some(package) = self.qualified_package_prefix(path)
+                    && package.consumed() + 1 == path.len()
+                {
+                    let binding = &path[package.consumed()];
+                    match self.lookup_package_type(&package, &binding.text) {
                         crate::imports::lookup::LookupResult::Unique(candidate) => {
                             Self::classify_type_alias_source_target(candidate.target)
                         }
@@ -253,6 +233,8 @@ impl Lowerer {
                         | crate::imports::lookup::LookupResult::Ambiguous { .. }
                         | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
                     }
+                } else {
+                    None
                 }
             }
             ast::TypeRefKind::Generic(_, _)

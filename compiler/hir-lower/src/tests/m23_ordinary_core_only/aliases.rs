@@ -29,17 +29,7 @@ fn imported_core_aliases_use_shared_type_selection_and_separate_value_names() {
         let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input).unwrap();
         assert_eq!(output.imported_dependencies().type_alias_count(), 2);
         assert_eq!(output.imported_dependencies().callable_count(), 1);
-        let [alias_witness] = output.binding_witness_uses() else {
-            panic!("the public facade alias retains one imported alias route")
-        };
-        assert!(matches!(
-            alias_witness.target(),
-            hir::ExternalHirTargetV1::TypeAlias(_)
-        ));
-        assert_eq!(
-            alias_witness.witness().route().immediate_provider(),
-            ConeIdentity::CORE
-        );
+        assert!(output.binding_witness_uses().is_empty());
         assert_eq!(
             hir::dump(&output.output().export),
             include_str!(concat!(

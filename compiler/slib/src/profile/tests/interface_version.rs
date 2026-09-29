@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v37_preserves_substituted_bound_receivers() {
+fn source_interface_v38_uses_typed_alias_targets_without_name_proofs() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        37,
+        38,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,

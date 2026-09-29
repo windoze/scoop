@@ -88,6 +88,10 @@ abstract slot、intrinsic 声明和 source extern 继续使用各自已有 imple
 
 模板可引用 direct 或 support provider 的声明。只保存原 typed target 和实际 provider；re-export 不复制正文、不改 origin。一次 reader 得到的不可变模板和声明供后续查询复用。模板内已经绑定的引用不制造消费方 public lookup observation，也不重新枚举 hidden 名称；只有消费方实际源码 lookup 才进入原候选记录。
 
+消费方源码中的限定类型路径从当前与 direct dependency 的同一公开包集合选择最长前缀，再沿实际 typed owner 解析。普通类型、泛型 application 和 alias 共用短名入口；同包冲突、最长前缀遮蔽及仅供支持使用的依赖边界遵守普通 lookup 规则。导入收集产生的不可变包类型索引供后续 lowering 复用，模板仍只保存已绑定的 typed 类型，不保存源码包路径或另加 wire 字段。
+
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。共有 HIR 格式更新为 `hir/cross-cone-interface/38`，旧 `/37` 及更早产物与缓存重建；不改变 runtime C ABI、对象布局或 GC 契约。
+
 当前 Cone 在 Export HIR 完成后、LocalConcrete HIR 生成前，从公开声明、默认值与泛型正文收集共有声明和模板正文闭包，供具体化选择自动 shape roots。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 及实际导出的泛型成员的 receiver、参数和结果类型沿表示依赖，把当前 Cone 所需的源码名义声明补入同一支持集合，并闭合其字段、成员和模板引用；普通函数正文中用于泛型 payload 或共有成员 ABI 的私有类型也必须有完整表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，最终不可变结果由 HIR 类型语义、MIR/LIR 布局和正式共有 section 复用。支持声明保留原 typed identity 和可见性，不生成 public binding；所有本地私有物理声明、未调用模板、未求值默认值和整个类型 arena 仍不构成共有机器根。该结果是当前编译的数据投影，不新增产物字段或来源资格。
 
 ### 3.2 默认值与泛型正文共用节点
@@ -483,7 +487,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
-| `org.scoop-lang.hir/cross-cone-interface` | `/37` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
+| `org.scoop-lang.hir/cross-cone-interface` | `/38` | AliasTarget 只保存实际 typed 引用；原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/10` | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5，复用声明 visibility 和 typed owner |
 | `org.scoop-lang.mir/cross-cone-type-bridge` | `/4` | 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
@@ -504,7 +508,7 @@ field 13 的每条委托模板是四字段 product：`{1=extension property id, 
 
 external references 中的实际类型位置增加 tag 10：`{0=10, 1=initialization application id, 2=effective delegate exact type id}`。其位置按 application 区分，不能只用源 property 作为键而覆盖不同实参的存储类型。位置引用既有 application unit，其声明位置从原 extension-property unit 取得；类型依赖继续沿已有 nominal 遍历收集。该节点随 interface `/36` 一同迁移，不另建类型或存储目录。
 
-生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 为共享表达式增加必需的求值位置，`/36` 增加必需 field 13，`/37` 将 bound callable 的 receiver 改为完整类型 key；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression 是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`；同一位置同时是定义和求值位置时也显式保存。expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
+生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 为共享表达式增加必需的求值位置，`/36` 增加必需 field 13，`/37` 将 bound callable 的 receiver 改为完整类型 key，`/38` 移除 AliasTarget 的来源证明要求；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression 是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`；同一位置同时是定义和求值位置时也显式保存。expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
 
 构造初始化生产与读取从 `/33` 启用，字段实例位置从 `/34` 启用；委托模板生产与读取启用 `/36` 后，interface 是必需 field 1～13 的十三字段 product。field 12 中每个 nominal record 为 `{1=generic type owner, 2=common steps, 3=constructors}`；constructor 数组非空并按原 typed constructor reference 严格递增，nominal records 按 owner 严格递增。constructor 是六字段 product：declaration、inputs、effects、predicates、definition origin、kind。kind 1 为 struct primary；kind 2 为 struct secondary（delegation、body）；kind 3 为 class primary（base、primary stores）；kind 4 为 class secondary this（delegation、body）；kind 5 为 class terminal secondary（base、body）。base 用长度为 0 或 1 的数组区分根类和实际基类委托。delegation 保存目标和实参片段；primary store 保存原 field reference 和参数 selector。common field step 保存原 field reference 和单结果片段，common body step 保存无结果片段。所有片段统一使用 `{1=locals, 2=statements, 3=results}`，复用既有 typed 节点、局部值索引和引用解析；不重复声明表的 shape，也不为 abstract/intrinsic 构造产生执行记录。源码生产先排序，reader 保留 wire 顺序并在记录构造边界完成一次格式与引用形状检查。field 13 按上述四字段委托模板格式生产与读取。
 

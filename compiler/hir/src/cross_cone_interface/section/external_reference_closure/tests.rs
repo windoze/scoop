@@ -172,7 +172,6 @@ impl Fixture {
         let witnesses = if matches!(
             role,
             ExternalHirReferenceRoleV1::ReexportTarget
-                | ExternalHirReferenceRoleV1::AliasTarget
                 | ExternalHirReferenceRoleV1::DefaultDependency
                 | ExternalHirReferenceRoleV1::ConcreteSelectedUse
         ) {

@@ -22,8 +22,9 @@ impl ExternalHirReferenceRoleV1 {
     /// Defaults already retain their resolved declaration and definition scope.
     pub(crate) fn requires_source_name_witness(self) -> bool {
         match self {
-            Self::ReexportTarget | Self::AliasTarget | Self::ConcreteSelectedUse => true,
+            Self::ReexportTarget | Self::ConcreteSelectedUse => true,
             Self::SignatureDependency
+            | Self::AliasTarget
             | Self::ConstType
             | Self::InheritanceDependency
             | Self::ExecutableTypeDependency

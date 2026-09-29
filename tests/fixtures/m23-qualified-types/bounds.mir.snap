@@ -1,0 +1,89 @@
+Module
+  enum CoroutineStep<Reader>
+    Completed(value: Reader)
+    Suspended()
+  enum CoroutineSlot<Reader>
+    Empty()
+    Value(value: Reader)
+  class Reader vtable=0 itables=1
+  interface Read
+  generated_exact_type get0 location=enum1 nominal_id=e5f15c99f5ffcc2ba29ea0c21cc9f0e74f85a4885a335bcd143345b305e6d4a3 exact_id=9d71b8d3058b6c64ae5c654cccef60e8ab1acb0de438cc7a2ff8c2cc4550fe41
+  generated_exact_type get1 location=enum0 nominal_id=d09603b8a90d6ff6c008b9f7a23c18b0b737b0a071b5252a4a946d6caeff3f2c exact_id=b87cfc5a2a94fffb8a26cfc518a5330b7cffe951fa340b3dc791e2a857b8148e
+  fun Reader.read @fn0(this: Reader) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Reader
+          Local this
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Reader
+        ClassAlloc Reader
+      call @fn4 direct
+        Type Reader
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val reader: Read
+        Type Read
+        Retype Read
+          Type Reader
+          Local $new.1
+      val $argument.0: Read
+        Type Read
+        Local reader
+      val $parameter.value: Read
+        Type Read
+        Local $argument.0
+      call $call.2: Int = @fn3 direct
+        Type Read
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.2
+  fun read @fn3(value: Read) -> Int
+    bb0 entry
+      val $dependency.receiver: Read
+        Type Read
+        Local value
+      call $call.1: Int = external0 interface Read[0]
+        Type Read
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun init.Reader.$c0 @fn4(this: Reader, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Reader
+        Local this
+        Type Int
+        Local number
+      return
+  coroutine_step cs0 CoroutineStep<Reader> result=Reader
+  coroutine_slot cl0 CoroutineSlot<Reader> value=Reader
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- read
+  output library

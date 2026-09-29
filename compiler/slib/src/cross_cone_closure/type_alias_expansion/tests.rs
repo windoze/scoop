@@ -4,12 +4,9 @@ use scoop_hir::{
     CanonicalExportDefaultTemplatesV1, CanonicalExportDefinitionSourcesV1,
     CanonicalExternalHirReferenceRolesV1, CanonicalExternalHirReferencesV1,
     CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, CanonicalPublicExportBindingsV1,
-    CanonicalTypeAliasInterfacesV1, CrossConeHirExternalReferenceValidationError,
-    CrossConeHirInterfaceSectionV1, DependencyBindingWitnessSemanticValidationError,
-    DependencyBindingWitnessV1, ExportBindingSourceV1, ExportDefinitionSourceV1,
-    ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticValidationError,
-    ExternalHirReferenceSetSemanticValidationError, ExternalHirReferenceV1, ExternalHirTargetV1,
-    PublicExportBindingRecordV1, PublicLookupAccessV1, ReexportRouteHopV1, ReexportRouteV1,
+    CanonicalTypeAliasInterfacesV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
+    ExportDefinitionSourceV1, ExternalHirReferenceRoleV1, ExternalHirReferenceV1,
+    ExternalHirTargetV1, PublicExportBindingRecordV1, PublicLookupAccessV1,
     TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
 };
 use scoop_identity::{
@@ -27,7 +24,7 @@ use crate::cross_cone_closure::route_validation::{
 };
 
 #[test]
-fn expands_a_foreign_alias_after_checking_its_direct_import() {
+fn expands_a_foreign_alias_from_its_resolved_typed_target() {
     let fixture = foreign_alias_fixture();
     let providers = [RouteProviderView {
         identity: fixture.provider,
@@ -73,7 +70,7 @@ fn expands_a_foreign_alias_after_checking_its_direct_import() {
 }
 
 #[test]
-fn rejects_a_foreign_alias_witness_that_does_not_start_at_a_direct_provider() {
+fn a_resolved_alias_target_can_come_from_a_support_provider() {
     let fixture = foreign_alias_fixture();
     let providers = [RouteProviderView {
         identity: fixture.provider,
@@ -89,24 +86,16 @@ fn rejects_a_foreign_alias_witness_that_does_not_start_at_a_direct_provider() {
     )
     .unwrap();
 
-    assert!(matches!(
-        fixture.current_interface.validate_external_reference_closure(
-            &mut route_authority,
-
-            &WirePath::root(),
-        ),
-        Err(CrossConeHirExternalReferenceValidationError::Records(
-            ExternalHirReferenceSetSemanticValidationError::Record { error, .. }
-        )) if matches!(
-            error.as_ref(),
-            ExternalHirReferenceSemanticValidationError::Witness {
-                error: DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
-                    provider,
-                },
-                ..
-            } if *provider == fixture.provider
-        )
-    ));
+    fixture
+        .current_interface
+        .validate_external_reference_closure(&mut route_authority, &WirePath::root())
+        .unwrap();
+    validate_alias_targets(
+        fixture.current,
+        &fixture.current_interface,
+        &fixture.identities,
+    )
+    .unwrap();
 }
 
 #[test]
@@ -157,12 +146,6 @@ fn foreign_alias_fixture() -> ForeignAliasFixture {
     let foreign_alias = alias_identity(provider, "ForeignAlias");
     let current_binding = binding(current, "CurrentAlias", current_alias.key());
     let foreign_binding = binding(provider, "ForeignAlias", foreign_alias.key());
-    let witness_route = ReexportRouteV1::try_new(
-        provider,
-        vec![ReexportRouteHopV1::new(provider, foreign_binding.id())],
-    )
-    .unwrap();
-
     let current_interface = interface(
         vec![PublicExportBindingRecordV1::new(
             current_binding.id(),
@@ -184,10 +167,7 @@ fn foreign_alias_fixture() -> ForeignAliasFixture {
                     ExternalHirReferenceRoleV1::AliasTarget,
                 ])
                 .unwrap(),
-                CanonicalDependencyBindingWitnessesV1::try_new(vec![
-                    DependencyBindingWitnessV1::new(witness_route),
-                ])
-                .unwrap(),
+                CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
                 Default::default(),
                 Default::default(),
             )

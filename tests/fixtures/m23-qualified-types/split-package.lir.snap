@@ -1,0 +1,57 @@
+Module
+  enum CoroutineStep<Local> tagged size=16 align=8 variants=(struct0)@8+4 ()@8+0
+  enum CoroutineSlot<Local> tagged size=16 align=8 variants=()@8+0 (struct0)@8+4
+  fun @scoop$1$cb$8d35f7edfe1f3ec3afd105560a0893d5937bb83bb45d4c41668aae624908b061() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$2f8585af0a15a46fc74250116a6af63b7670b2dbfa8914ccc936f8633ed81352(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.number: i32
+    local %2 own: struct0
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.number: i32
+    local %5 foreign: struct1
+    local %6 $dependency.receiver: i32
+    local %7 $dependency.argument.0: i32
+    local %8 $dependency.parameter.other: i32
+    local %9 $sc.1: struct0
+    local %10 $sc.2: struct1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000028) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn2(local1)
+    store local9 -> local2
+    store integer<Int>(0x00000002) -> local3
+    store local3 -> local4
+    call no-gc-indirect-target1 local10 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) external-fn0(local4)
+    store local10 -> local5
+    t0 = extract local2, 0 : i32
+    store t0 -> local6
+    t1 = extract local5, 0 : i32
+    store t1 -> local7
+    store local7 -> local8
+    t2 = integer_Add<Int> local6, local8 : i32
+    ret t2
+  fun @scoop$1$cb$1bbeb84259878bc99273fc60e295e7d42ec8e593feb3a341615fbd562b0cf964(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  td td0 g(r=00000006;i=3d633abb569b0a5807408855a3ecfb8279d9b0549cb2a252ae7db63d24862b04) @scoop$1$td$3223205200cb589a56dc914fe4be737a44b39ed39b442dbe0d18c0108ab55075 type-id=4808053947137543141 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=dev.example%3Ageneric-member-split-package%3A0.1.0;p=dependency.paths;o=-;k=S;x=Local) @scoop$1$td$99c3dcacd3833d79246898c942ab601432f619233b2431478053f92f3eabf98c type-id=11212791654702905752 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000005;i=8a87a3e9b360484fb8be6cd1d7b06bb86be7f39c3848b51168d34943bf37a8e8) @scoop$1$td$4fae9cc9ea8b31205409e32bba3e6230f985714c72abdefc6419dbba5f6fef02 type-id=1480375445840562292 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000007;i=5556c6e3e3c5d1067072a245567596a220be470a25c5fed5ce315b8fe4125f9a) @scoop$1$td$d4b0324e2c39a47f6e8afbd28eb339091e139c1e37d1060221f4176d0bed132b type-id=15412896582656577242 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Local size=4 align=4 refs=[]
+  layout CoroutineStep<Local> size=16 align=8 enum-scan=none
+  layout CoroutineSlot<Local> size=16 align=8 enum-scan=none
+  layout box<Local> value size=8 align=8 refs=[0]
+  layout box<Local> size=24 align=8 refs=[]
+  output library

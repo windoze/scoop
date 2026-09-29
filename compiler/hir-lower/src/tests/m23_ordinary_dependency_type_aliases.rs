@@ -121,7 +121,7 @@ fn lower_alias_fixture(
 }
 
 #[test]
-fn renamed_dependency_alias_is_transparent_and_retains_both_witness_roles() {
+fn renamed_dependency_alias_retains_its_typed_edge_without_an_alias_proof() {
     let provider = dependency_source(vec![public_type_alias("Number", ty_named("Int"))]);
     let consumer = consumer_source("Number", "Renamed");
 
@@ -136,26 +136,18 @@ fn renamed_dependency_alias_is_transparent_and_retains_both_witness_roles() {
             output.provider_alias
         ))
     );
-    let [alias_witness] = output.alias_target_witnesses.as_slice() else {
-        panic!("the public facade alias must retain one exact source-name route")
-    };
-    assert_eq!(
-        alias_witness.target(),
-        scoop_hir::ExternalHirTargetV1::TypeAlias(output.provider_alias)
-    );
-    assert_eq!(
-        alias_witness.role(),
-        scoop_hir::ExternalHirBindingWitnessRole::AliasTarget
-    );
+    assert!(output.alias_target_witnesses.is_empty());
     let [concrete_witness] = output.concrete_witnesses.as_slice() else {
         panic!("the selected dependency alias must retain one concrete-use route")
     };
-    assert_eq!(concrete_witness.target(), alias_witness.target());
+    assert_eq!(
+        concrete_witness.target(),
+        scoop_hir::ExternalHirTargetV1::TypeAlias(output.provider_alias)
+    );
     assert_eq!(
         concrete_witness.role(),
         scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse
     );
-    assert_eq!(concrete_witness.witness(), alias_witness.witness());
 }
 
 #[test]

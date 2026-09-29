@@ -1,0 +1,37 @@
+Module
+  class Reader(number: Int) : Read
+    field0 property0: Int
+    property0 val number: Int getter0=storage <stored field0 init=parameter0>
+  fun read<R : Read>(value: T0): Int
+    val local1
+      Local value : T0
+    return
+      ImportedMethodCall InterfaceBound(ImportedInterfaceBoundCallable { receiver_type: Idx::<Type>(14), interface: Idx::<Type>(13), member: Function(PersistentFunctionId([169, 171, 168, 72, 20, 129, 198, 49, 18, 161, 9, 121, 242, 50, 110, 68, 195, 147, 99, 205, 118, 146, 106, 149, 136, 173, 79, 255, 244, 167, 159, 124])), slot: PersistentDispatchSlotId([118, 162, 49, 121, 248, 191, 79, 252, 152, 149, 127, 182, 91, 5, 87, 255, 120, 153, 133, 53, 1, 132, 159, 79, 227, 190, 202, 214, 211, 98, 164, 160]), declared: Dependency(Idx::<ImportedDependencyCallableUse>(0)), signature: Idx::<FunctionType>(0) }) : Int
+        Local $dependency.receiver : T0
+  fun exercise<T>(value: T0): Int
+    val local1
+      IntegerLiteral 42 : Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      ReferenceUpcast : Read
+        ClassInit Reader : Reader
+          Local $parameter.number : Int
+    val local4
+      Local reader : Read
+    val local5
+      Local $argument.0 : Read
+    return
+      Call read<Read> : Int
+        Local $parameter.value : Read
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance read<Read>
+  instance exercise<Int>

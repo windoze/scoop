@@ -46,7 +46,7 @@ fn rejects_missing_target_role_and_origin() {
 
     let missing_role = fixture.references(
         &[ExternalHirReferenceRoleV1::AliasTarget],
-        vec![fixture.direct_route.clone()],
+        Vec::new(),
         fixture.provider,
     );
     assert!(matches!(

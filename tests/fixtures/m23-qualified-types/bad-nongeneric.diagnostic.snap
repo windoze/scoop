@@ -1,0 +1,3 @@
+span=43..48
+expression=Point
+type `Point` is not generic

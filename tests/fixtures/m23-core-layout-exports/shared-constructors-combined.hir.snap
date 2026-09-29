@@ -1,4 +1,4 @@
-Nested(): Public Managed exported=false
+Nested(): Public Managed exported=true
 SharedConstructorBase(): Public Managed exported=true
 SharedConstructorBase(Boolean): Private Managed exported=true
 SharedConstructorBase(Int): Internal Managed exported=true
