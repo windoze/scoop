@@ -1,0 +1,38 @@
+package consumer.options
+
+import dependency.options.absent
+import dependency.options.force
+
+private var events: Int = 0
+private fun mark(value: Int): Int { events = events * 10 + value; return value }
+private class Cell(public val number: Int) {
+    public fun read(value: Int = mark(3)): Int = number + value
+    public fun maybe(): Int? = Some(number)
+}
+private fun receiver(present: Boolean): Cell? {
+    mark(1)
+    return if (present) { Some(Cell(40)) } else { None }
+}
+
+public fun <T> exercise(value: T): Int {
+    events = 0
+    val missing = receiver(false)?.read(mark(2))
+    if (events != 1 || (missing ?: mark(4)) != 4 || events != 14) { return 1 }
+    events = 0
+    val present = receiver(true)?.read(mark(2))
+    if (events != 12 || (present ?: 0) != 42) { return 2 }
+    events = 0
+    val defaulted = receiver(true)?.read()
+    if (events != 13 || (defaulted ?: 0) != 43) { return 3 }
+    val nested: Int?? = receiver(true)?.maybe()
+    if ((receiver(true)?.number ?: 0) != 40) { return 4 }
+    val checked = force(Some(value))
+    var caught: Int = 0
+    try { force(absent<Int>()) } catch (error: UnwrapException) { caught = 2 }
+    return when (nested) {
+        Some(Some(number)) -> number + caught
+        else -> 5
+    }
+}
+
+public fun result(): Int = exercise<Int>(1)

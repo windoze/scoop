@@ -1,0 +1,151 @@
+Module
+  enum Option<T>
+    Other(_1: T0)
+  enum LocalOption
+    Some(_1: Int, _2: Int)
+    None()
+  enum ReverseShape
+    Some()
+    None(_1: Int)
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedVariantConstruct Option.Some : Option<T0>
+        Local $dependency.parameter._1 : T0
+    val local4
+      Local value : T0
+    val local5
+      Local $dependency.argument.0 : T0
+    val local6
+      ImportedVariantConstruct Option.Some : Option<T0>
+        Local $dependency.parameter._1 : T0
+    val local7
+      Local value : T0
+    val local8
+      Local $argument.0 : T0
+    val local9
+      VariantConstruct Option.Other<T0> : Option<T0>
+        Local $parameter._1 : T0
+    val local10
+      IntegerLiteral 20 : Int
+    val local11
+      IntegerLiteral 22 : Int
+    val local12
+      Local $argument.0 : Int
+    val local13
+      Local $argument.1 : Int
+    val local14
+      VariantConstruct LocalOption.Some : LocalOption
+        Local $parameter._1 : Int
+        Local $parameter._2 : Int
+    val local15
+      VariantConstruct LocalOption.None : LocalOption
+    val local16
+      VariantConstruct ReverseShape.Some : ReverseShape
+    val local17
+      IntegerLiteral 42 : Int
+    val local18
+      Local $argument.0 : Int
+    val local19
+      VariantConstruct ReverseShape.None : ReverseShape
+        Local $parameter._1 : Int
+    val local20
+      Local inferred : Option<T0>
+    val local21
+      Local $dependency.argument.0 : Option<T0>
+    val local22
+      ImportedGenericCall force<T0> : T0
+        Local $dependency.parameter.value : Option<T0>
+    when
+      Local saved : Option<T0>
+      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local23)
+        assign $result.0
+          BoolLiteral false : Boolean
+      arm dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38()
+        assign $result.0
+          BoolLiteral true : Boolean
+      impossible <pattern matrix for Option<T0>>
+    if
+      Local $result.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    when
+      Local missing : LocalOption
+      arm variant0(0: local25, 1: local26)
+        assign $result.1
+          BoolLiteral true : Boolean
+      arm variant1()
+        assign $result.1
+          BoolLiteral false : Boolean
+      impossible <enum pattern matrix for LocalOption>
+    if
+      Local $result.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    when
+      Local unit : ReverseShape
+      arm variant0()
+        assign $result.2
+          BoolLiteral false : Boolean
+      arm variant1(0: local28)
+        assign $result.2
+          BoolLiteral true : Boolean
+      impossible <enum pattern matrix for ReverseShape>
+    if
+      Local $result.2 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    when
+      Local reversed : ReverseShape
+      arm variant0()
+        assign $result.3
+          BoolLiteral true : Boolean
+      arm variant1(0: local30)
+        val local31
+          Local number : Int
+        val local32
+          IntegerLiteral 42 : Int
+        val local33
+          Local $dependency.argument.0 : Int
+        assign $result.3
+          Unary Not : Boolean
+            IntegerOperation int.equals <no-gc> : Boolean
+              Local $dependency.receiver : Int
+              Local $dependency.parameter.other : Int
+      impossible <enum pattern matrix for ReverseShape>
+    if
+      Local $result.3 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    when
+      Local pair : LocalOption
+      arm variant0(0: local35, 1: local36)
+        val local37
+          Local a : Int
+        val local38
+          Local b : Int
+        val local39
+          Local $dependency.argument.0 : Int
+        assign $result.4
+          IntegerOperation int.add <no-gc> : Int
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+      arm variant1()
+        assign $result.4
+          IntegerLiteral 5 : Int
+      impossible <enum pattern matrix for LocalOption>
+    return
+      Local $result.4 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

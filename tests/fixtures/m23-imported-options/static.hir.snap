@@ -1,0 +1,260 @@
+Module
+  class Cell(number: Int)
+    field0 property0: Int
+    property0 val number: Int getter0=storage <stored field0 init=parameter0>
+  property1 var stored: Option<Int> getter1=body($get$stored) setter0=body($set$stored) <stored global0 image>
+  property2 var referenced: Option<Cell> getter2=body($get$referenced) setter1=body($set$referenced) <stored global1 image>
+  property3 val qualified: Option<Int> getter3=body($get$qualified) <stored global2 image>
+  var stored: Option<Int> <global0 managed>
+  var referenced: Option<Cell> <global1 managed>
+  val qualified: Option<Int> <global2 managed>
+  fun leaf(): Int <no-gc cdecl>
+    val local0
+      IntegerLiteral 40 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    Call $set$stored : Unit
+      ImportedVariantConstruct Option.Some : Option<Int>
+        Local $dependency.parameter._1 : Int
+    val local2
+      Call $get$stored : Option<Int>
+    if
+      IsSome : Boolean
+        Local $opt.0 : Option<Int>
+      val local3
+        Unwrap trap=false : Int
+          Local $opt.0 : Option<Int>
+    else
+      val local3
+        IntegerLiteral 0 : Int
+    return
+      Local $res.1 : Int
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedGenericCall wrap<T0> : Option<T0>
+        Local $dependency.parameter.value : T0
+    Call $set$stored : Unit
+      ImportedVariantConstruct Option.None : Option<Int>
+    Call $set$referenced : Unit
+      ImportedVariantConstruct Option.None : Option<Cell>
+    val local4
+      Call $get$qualified : Option<Int>
+    if
+      IsSome : Boolean
+        Local $opt.2 : Option<Int>
+      val local5
+        Unwrap trap=false : Int
+          Local $opt.2 : Option<Int>
+    else
+      val local5
+        IntegerLiteral 2 : Int
+    val local6
+      Local $res.3 : Int
+    val local7
+      IntegerLiteral 2 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local16
+        BoolLiteral true : Boolean
+    else
+      val local9
+        Call $get$referenced : Option<Cell>
+      if
+        IsSome : Boolean
+          Local $opt.4 : Option<Cell>
+        val local10
+          SomeWrap : Option<Int>
+            FieldAccess class field number : Int
+              Unwrap trap=false : Cell
+                Local $opt.4 : Option<Cell>
+      else
+        val local10
+          NoneLiteral : Option<Int>
+      val local11
+        Local $res.5 : Option<Int>
+      if
+        IsSome : Boolean
+          Local $opt.6 : Option<Int>
+        val local12
+          Unwrap trap=false : Int
+            Local $opt.6 : Option<Int>
+      else
+        val local12
+          IntegerLiteral 0 : Int
+      val local13
+        Local $res.7 : Int
+      val local14
+        IntegerLiteral 0 : Int
+      val local15
+        Local $dependency.argument.0 : Int
+      val local16
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.8 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local17
+      Call leaf : Int
+    val local18
+      IntegerLiteral 2 : Int
+    val local19
+      Local $argument.0 : Int
+    val local20
+      ClassInit Cell : Cell
+        Local $parameter.number : Int
+    val local21
+      Local $dependency.argument.0 : Cell
+    Call $set$referenced : Unit
+      ImportedVariantConstruct Option.Some : Option<Cell>
+        Local $dependency.parameter._1 : Cell
+    val local22
+      IntegerLiteral 0 : Int
+    val local23
+      Local $argument.0 : Int
+    val local24
+      ClassInit Cell : Cell
+        Local $parameter.number : Int
+    val local29
+      Local first : Int
+    val local25
+      Call $get$referenced : Option<Cell>
+    if
+      IsSome : Boolean
+        Local $opt.9 : Option<Cell>
+      val local26
+        SomeWrap : Option<Int>
+          FieldAccess class field number : Int
+            Unwrap trap=false : Cell
+              Local $opt.9 : Option<Cell>
+    else
+      val local26
+        NoneLiteral : Option<Int>
+    val local27
+      Local $res.10 : Option<Int>
+    if
+      IsSome : Boolean
+        Local $opt.11 : Option<Int>
+      val local28
+        Unwrap trap=false : Int
+          Local $opt.11 : Option<Int>
+    else
+      val local28
+        IntegerLiteral 0 : Int
+    val local30
+      Local $res.12 : Int
+    val local31
+      Local $dependency.argument.0 : Int
+    val local32
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local33
+      FieldAccess class field number : Int
+        Local allocated : Cell
+    val local34
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun result(): Int
+    val local0
+      Call $get$stored : Option<Int>
+    if
+      IsSome : Boolean
+        Local $opt.13 : Option<Int>
+      val local1
+        Unwrap trap=false : Int
+          Local $opt.13 : Option<Int>
+    else
+      val local1
+        IntegerLiteral 0 : Int
+    val local2
+      Local $res.14 : Int
+    val local3
+      IntegerLiteral 0 : Int
+    val local4
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local12
+        BoolLiteral true : Boolean
+    else
+      val local5
+        Call $get$referenced : Option<Cell>
+      if
+        IsSome : Boolean
+          Local $opt.15 : Option<Cell>
+        val local6
+          SomeWrap : Option<Int>
+            FieldAccess class field number : Int
+              Unwrap trap=false : Cell
+                Local $opt.15 : Option<Cell>
+      else
+        val local6
+          NoneLiteral : Option<Int>
+      val local7
+        Local $res.16 : Option<Int>
+      if
+        IsSome : Boolean
+          Local $opt.17 : Option<Int>
+        val local8
+          Unwrap trap=false : Int
+            Local $opt.17 : Option<Int>
+      else
+        val local8
+          IntegerLiteral 0 : Int
+      val local9
+        Local $res.18 : Int
+      val local10
+        IntegerLiteral 0 : Int
+      val local11
+        Local $dependency.argument.0 : Int
+      val local12
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.19 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local13
+      IntegerLiteral 1 : Int
+    val local14
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  fun $get$stored(): Option<Int> <no-gc cdecl>
+    return
+      GlobalRead stored : Option<Int>
+  fun $set$stored(value: Option<Int>): Unit <no-gc cdecl>
+    assign global stored
+      Local value : Option<Int>
+  fun $get$referenced(): Option<Cell>
+    return
+      GlobalRead referenced : Option<Cell>
+  fun $set$referenced(value: Option<Cell>): Unit
+    assign global referenced
+      Local value : Option<Cell>
+  fun $get$qualified(): Option<Int> <no-gc cdecl>
+    return
+      GlobalRead qualified : Option<Int>
+  output library
+  instance exercise<Int>

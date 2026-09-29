@@ -1,0 +1,3 @@
+span=71..75
+expression=None
+cannot infer the enum type arguments for variant `None`; provide an expected enum type

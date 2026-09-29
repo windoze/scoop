@@ -206,6 +206,8 @@ protected 访问区域使用普通或泛型声明的原 typed nominal owner；�
 
 value/ref、GC-free、enum variant facts、ZST 和 `Option` niche 在 concrete 输出中必须完备。别名先展开为原 exact target，不产生新实例；不同 nominal arguments 即使 ABI 相同也保留不同 exact identity、TD 和 ODR member。
 
+core 的 `Option` 语法使用既有 imported protocol 的 typed owner/variant/payload 角色，具体 application 与用户 enum 共用声明解析和具体化。外来泛型 variant 的源码构造共用普通候选约束求解，直接生成实际 variant 值，不为其补造模板函数正文。泛型类型名在 `E.V` 中表示声明命名空间；unit variant 与 `None` 的静态初值沿原常量 image 路径保留。验收同时覆盖限定／导入／contextual 构造、`T??`、安全调用顺序、Elvis／unwrap／cast、可变 Option 属性和下游本地 payload 类型。
+
 ### 4.3 终止性
 
 沿用已有 generic callable/constructor 调用图及 SCC 规则，检查环上的完整参数替换为 identity；普通直接和互递归复用已登记实例，非递归边允许变换实参。外来模板保留执行该检查所需的原 typed call edges，消费方只补实际替换及新形成的关系，不发明递归深度或实例数量限额。

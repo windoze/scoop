@@ -1,0 +1,287 @@
+Module
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Packet<Int>
+    Empty()
+    Item(_0: Int)
+    Named(value: Int, amount: Int)
+  enum ValuePacket<Int>
+    Value(_0: Int)
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val empty: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val present: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val inferred: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val packet: Packet<Int>
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val picked: Packet<Int>
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Option<Int>
+        Type Option<Int>
+        Local inferred
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Option<Int>
+        Type Option<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Option<Int>
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.fallback
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.amount: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val named: Packet<Int>
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v2
+          Type Int
+          Local $dependency.parameter.value
+          Type Int
+          Local $dependency.parameter.amount
+      val absent: Packet<Int>
+        Type Packet<Int>
+        VariantConstruct Packet<Int> v0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val bounded: ValuePacket<Int>
+        Type ValuePacket<Int>
+        VariantConstruct ValuePacket<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $when.1: ValuePacket<Int>
+        Type ValuePacket<Int>
+        Local bounded
+      val $pattern.subject.2: ValuePacket<Int>
+        Type ValuePacket<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest ValuePacket<Int> v0
+          Type ValuePacket<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val number: Int
+        Type Int
+        VariantPayloadProject ValuePacket<Int> v0 f0
+          Type ValuePacket<Int>
+          Local $pattern.subject.2
+      val $dependency.receiver: Int
+        Type Int
+        Local number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.0
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $result.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb5 if.merge.5
+      val $when.3: Packet<Int>
+        Type Packet<Int>
+        Local packet
+      val $pattern.subject.4: Packet<Int>
+        Type Packet<Int>
+        Local $when.3
+      branch bb6 bb7
+        Type Boolean
+        VariantTest Packet<Int> v1
+          Type Packet<Int>
+          Local $pattern.subject.4
+    bb6 pattern.pass.6
+      val item: Int
+        Type Int
+        VariantPayloadProject Packet<Int> v1 f0
+          Type Packet<Int>
+          Local $pattern.subject.4
+      val $when.5: Packet<Int>
+        Type Packet<Int>
+        Local named
+      val $pattern.subject.6: Packet<Int>
+        Type Packet<Int>
+        Local $when.5
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Packet<Int> v2
+          Type Packet<Int>
+          Local $pattern.subject.6
+    bb7 pattern.else.7
+      assign $result.2
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb8
+    bb8 pattern.merge.8
+      return
+        Type Int
+        Local $result.2
+    bb9 pattern.pass.9
+      val n: Int
+        Type Int
+        VariantPayloadProject Packet<Int> v2 f0
+          Type Packet<Int>
+          Local $pattern.subject.6
+      val amount: Int
+        Type Int
+        VariantPayloadProject Packet<Int> v2 f1
+          Type Packet<Int>
+          Local $pattern.subject.6
+      val $dependency.receiver: Int
+        Type Int
+        Local n
+      val $dependency.argument.0: Int
+        Type Int
+        Local amount
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb11
+    bb10 pattern.else.10
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb11
+    bb11 pattern.merge.11
+      assign $result.2
+        Type Int
+        Local $result.1
+      goto bb8
+  fun restore @fn2(value: Option<Int>, fallback: Int) -> Int
+    bb0 entry
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.2: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.2
+      assign $dependency.local.3
+        Type Int
+        Local $dependency.local.2
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.3
+    bb4 pattern.pass.4
+      assign $dependency.local.3
+        Type Int
+        Local fallback
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- restore
+  output library

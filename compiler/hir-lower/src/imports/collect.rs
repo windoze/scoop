@@ -181,7 +181,18 @@ impl Lowerer {
             && let Some(core) = world.direct_provider(scoop_identity::ConeIdentity::CORE)
             && let Some(package) = world.direct_package(&scoop_identity::PackagePath::root())
         {
-            for group in package.snapshot_filtered(|provider| provider == core.id()) {
+            let mut groups = package.snapshot_filtered(|provider| provider == core.id());
+            if let crate::CoreLoweringAuthority::Imported(protocols) = &self.core {
+                let owner =
+                    hir::SourceNominalId::GenericTemplate(protocols.option().option().persistent());
+                groups.extend(
+                    world
+                        .imported_static_namespace(owner)
+                        .expect("the checked Option protocol has its public namespace")
+                        .snapshot(),
+                );
+            }
+            for group in groups {
                 let targets = group
                     .targets()
                     .iter()
@@ -195,6 +206,7 @@ impl Lowerer {
                                 | hir::ImportedTarget::GenericFunction(_)
                                 | hir::ImportedTarget::Property(_)
                                 | hir::ImportedTarget::ExtensionProperty(_)
+                                | hir::ImportedTarget::EnumVariant(_)
                         )
                     })
                     .cloned()
@@ -204,7 +216,9 @@ impl Lowerer {
                         .prelude_dependencies
                         .entry(group.namespace())
                         .or_default()
-                        .insert(group.name().as_str().to_owned(), targets);
+                        .entry(group.name().as_str().to_owned())
+                        .or_default()
+                        .extend(targets);
                 }
             }
         }

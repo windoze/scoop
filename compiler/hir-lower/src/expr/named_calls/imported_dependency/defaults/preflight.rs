@@ -83,10 +83,14 @@ impl Lowerer {
                 ))
             }
             Kind::Capture(index) => Err(ImportedDefaultPlanError::UnboundCapture(*index)),
-            Kind::ReferenceUpcast(operand) | Kind::Box(operand) | Kind::Unbox(operand) => self
-                .preflight_imported_default_expression(
-                    owner, template, operand, locals, bindings, callables,
-                ),
+            Kind::ReferenceUpcast(operand)
+            | Kind::Box(operand)
+            | Kind::Unbox(operand)
+            | Kind::SomeWrap(operand)
+            | Kind::IsSome(operand)
+            | Kind::Unwrap { operand, .. } => self.preflight_imported_default_expression(
+                owner, template, operand, locals, bindings, callables,
+            ),
             Kind::IsInstance {
                 operand,
                 checked_type,
@@ -108,6 +112,7 @@ impl Lowerer {
             | Kind::IntegerLiteral(_)
             | Kind::BooleanLiteral(_)
             | Kind::SingletonValue(_)
+            | Kind::NoneLiteral
             | Kind::UnitLiteral => Ok(()),
             Kind::StringLiteral {
                 owner: hir::DefaultStringOwnerV1::Property(_),
@@ -312,11 +317,7 @@ impl Lowerer {
             | Kind::Index { .. }
             | Kind::ArraySet { .. }
             | Kind::ArrayLen(_)
-            | Kind::ArrayClone(_)
-            | Kind::SomeWrap(_)
-            | Kind::NoneLiteral
-            | Kind::IsSome(_)
-            | Kind::Unwrap { .. } => Err(ImportedDefaultPlanError::Requires {
+            | Kind::ArrayClone(_) => Err(ImportedDefaultPlanError::Requires {
                 requirement: ImportedCapabilityRequirement::Layout,
                 operation: "dependency default value layout",
             }),

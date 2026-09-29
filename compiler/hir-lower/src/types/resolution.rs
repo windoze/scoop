@@ -775,9 +775,9 @@ impl Lowerer {
             // `Option<Option<T>>` and deliberately does not collapse.
             ast::TypeRefKind::Nullable(inner) => {
                 let inner = self.resolve_type_ref(inner)?;
-                match self.option_enumeration() {
-                    Some(_) => Some(self.option_type(inner)),
-                    None => {
+                match self.has_option_protocol() {
+                    true => Some(self.option_type(inner)),
+                    false => {
                         self.error(
                             ty_ref.span,
                             "`T?` requires `Option<T>` from scoop.core, which is not defined"

@@ -587,10 +587,22 @@
 
 本项完成上述普通顶层状态的模板消费和再次发布路径。外来 core 的 `Option` 短写与变体构造、`addressOf` intrinsic 仍分别触发既有角色／能力缺口；本批的普通属性不可取址规则由独立前端反例验收，不把能力诊断算作该语言规则通过。其余主线继续推进，M23-7 尚未完成。
 
+## 2026-09-29：外来 Option 与泛型 enum 变体
+
+- `T?`、`T??` 和空安全运算通过既有 imported core protocol 查询实际 Option owner、variant 与 payload。默认导入从该 owner 的公共命名空间取得变体，裸 `Some`／`None` 与普通导入共用名称解析；保留查找层，使不适用的 prelude 变体可以进入既有 contextual 回退，词法值仍按原规则遮蔽。用户同名 Option 不改变语法角色，外来声明留在原 Cone。
+- 泛型 enum 变体复用普通候选实参映射、约束求解、kind bound 和默认参数；从实际 enum 声明准备签名，推导后直接构造 variant，不为值构造补造函数正文。`E.V` 的泛型宿主作为声明命名空间，已应用的 typealias 保留原实参；嵌套构造的期望类型保留已解析的外层 binder，只排除当前候选尚未解决的变量。
+- 导入默认值中的 Option 构造、分支和解包沿已有共享表达式展开；`!!` 按需选择依赖中真实的 UnwrapException 构造器。可变 Option 属性省略初值、显式及限定的 unit variant 初值保留常量 image；纯静态 GC-free 属性仍可由 NoGc 函数访问。修正 MIR 可选 String 转换的引用分支，成功时保留引用，值类型转换继续从 box 提取 payload；未修改 runtime ABI 或产物格式。
+- 新增 23 份源码、9 组真实产物正例、11 组反例和 38 份 golden。正例覆盖限定／别名／star import 构造、嵌套 Option、安全调用的接收者与实参／默认值顺序、Elvis、解包异常、String／class／值类型转换、静态属性、闭包及局部函数、同名遮蔽、ZST、tuple 和 24 字节含引用值。提供方与消费方发布后移走源码，下游用自身引用类型及重复 Int application 再次实例化；9 组均完成正式产物读写、链接、普通运行与移动 GC。另将 core 的 Some／None 声明顺序调换并增加泛型 helper，重建且移走 core 源码后完成相同闭环；LIR niche 的 payload variant 随真实声明由 0 变为 1。
+- 11 组反例核对源码位置、诊断和不产生目标产物，涵盖 None 缺少期望类型、unit 调用、位置／命名参数形态、类型实参数量、alias 固定实参、kind bound、不变性、嵌套 Option、词法遮蔽和不可变属性省略初值。定向产物测试 2 项通过，日志为 `/tmp/scoop-m23-7-options-driver.log`；三阶段 golden 已核对实际 variant、分支、异常调用、静态存储及 GC 表示。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和最新配套 `scoopc` 构建通过，无警告。关闭快照更新后运行 `cargo test --workspace --no-fail-fast`，初轮 5207 项通过、0 忽略，唯一失败是一份旧 enum 诊断快照：限定构造保留实际 Choice 类型后，原返回 Other 的错误改由函数正文类型检查报告，错误位置及拒绝结果保持。仅更新这份诊断 golden 后，完整 enum 产物测试的 5 组正例和 18 组反例在关闭更新时复测通过，用时 40.34 秒；无后续代码修改。日志分别为 `/tmp/scoop-m23-7-options-workspace-verified.log` 和 `/tmp/scoop-m23-7-options-enum-verified.log`。
+- 测试结束后通过 Cargo metadata 核对实际构建目录，确认 `target` 无打开文件、内容为编译与编辑器检查缓存。恢复缺失的标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 2706 个构建文件，Cargo 报告总大小 5.0 GiB。
+
+本项完成上述外来 Option 与泛型 enum 变体的源码、产物消费和再次发布闭环；`addressOf`、数组／vararg、其余 adapter 与 coroutine 等主线继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数及普通顶层状态共享的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通外来 core 的 `Option` 短写／泛型变体、`addressOf` 等 intrinsic，以及显式 native storage 的泛型组合。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体的基础上，补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通 `addressOf` 等 intrinsic，以及显式 native storage 的泛型组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

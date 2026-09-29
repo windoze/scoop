@@ -1,11 +1,15 @@
 use super::*;
 
-#[derive(Clone, Copy)]
+mod variant;
+
+#[derive(Clone)]
 pub(in crate::expr) enum ImportedGenericTarget {
     Function(hir::ImportedGenericCallableTemplateId),
     Constructor(hir::ImportedConstructorTemplateId),
+    Variant(std::sync::Arc<variant::ImportedVariantSignature>),
 }
 
+#[derive(Clone)]
 pub(in crate::expr) struct ImportedInferenceSignature {
     pub owner_parameters: Vec<hir::TypeParamDecl>,
     pub type_parameters: Vec<hir::TypeParamDecl>,
@@ -21,35 +25,36 @@ impl ImportedGenericTarget {
         state: &mut Lowerer,
         declaration: hir::ImportedCallableDeclaration,
     ) -> Result<Self, String> {
-        if matches!(
-            declaration.interface().declaration(),
-            scoop_identity::CallableTemplateOrigin::Constructor(_)
-        ) {
-            state
+        match declaration.interface().declaration() {
+            scoop_identity::CallableTemplateOrigin::Constructor(_) => state
                 .request_imported_constructor_template(declaration)
-                .map(Self::Constructor)
-        } else {
-            state
+                .map(Self::Constructor),
+            scoop_identity::CallableTemplateOrigin::VariantConstructor(_) => {
+                variant::ImportedVariantSignature::prepare(state, declaration)
+                    .map(|signature| Self::Variant(std::sync::Arc::new(signature)))
+            }
+            _ => state
                 .request_imported_generic_template(declaration)
-                .map(Self::Function)
+                .map(Self::Function),
         }
     }
 
     pub(in crate::expr::named_calls::imported_dependency) fn declaration(
-        self,
+        &self,
         state: &Lowerer,
     ) -> hir::ImportedCallableDeclaration {
         match self {
-            Self::Function(id) => state.imported_generic_templates[id]
+            Self::Function(id) => state.imported_generic_templates[*id]
                 .source
                 .declaration()
                 .clone(),
-            Self::Constructor(id) => state.imported_constructor_templates[id].source.clone(),
+            Self::Constructor(id) => state.imported_constructor_templates[*id].source.clone(),
+            Self::Variant(signature) => signature.declaration.clone(),
         }
     }
 
     pub(in crate::expr) fn signature(
-        self,
+        &self,
         state: &Lowerer,
     ) -> (
         ImportedInferenceSignature,
@@ -57,7 +62,7 @@ impl ImportedGenericTarget {
     ) {
         match self {
             Self::Function(id) => {
-                let template = &state.imported_generic_templates[id];
+                let template = &state.imported_generic_templates[*id];
                 let owner_count = match template.declaration {
                     hir::ImportedCallableTemplateOrigin::Nominal {
                         owner_parameter_count,
@@ -87,7 +92,7 @@ impl ImportedGenericTarget {
                 )
             }
             Self::Constructor(id) => {
-                let template = &state.imported_constructor_templates[id];
+                let template = &state.imported_constructor_templates[*id];
                 let signature = &template.signature;
                 (
                     ImportedInferenceSignature {
@@ -106,6 +111,7 @@ impl ImportedGenericTarget {
                     template.bindings.clone(),
                 )
             }
+            Self::Variant(signature) => (signature.signature.clone(), signature.bindings.clone()),
         }
     }
 }

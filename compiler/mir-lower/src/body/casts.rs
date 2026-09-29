@@ -178,13 +178,15 @@ impl BodyLowerer<'_> {
                 *function_type,
                 span,
             ),
-            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => smir::Expr::new(
-                target.clone(),
-                smir::ExprKind::Retype {
-                    operand: Box::new(smir::Expr::local(slot, operand_ty.clone())),
-                    ty: Box::new(target.clone()),
-                },
-            ),
+            mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+                smir::Expr::new(
+                    target.clone(),
+                    smir::ExprKind::Retype {
+                        operand: Box::new(smir::Expr::local(slot, operand_ty.clone())),
+                        ty: Box::new(target.clone()),
+                    },
+                )
+            }
             // Only `as?` unwraps here: hir-lower wraps a value-typed
             // `as` in a hir-level `Unbox(Cast)` node, so the payload
             // extraction for `as` happens when that outer `Unbox` is

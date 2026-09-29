@@ -10,6 +10,7 @@ mod initialization;
 mod machine;
 mod members;
 mod nominals;
+mod options;
 mod publication;
 mod references;
 mod siblings;

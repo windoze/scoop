@@ -1,0 +1,9 @@
+// The reversed declaration order must not change the imported protocol roles.
+public enum Option<T> {
+    None,
+    Some(T)
+}
+
+public fun <T> reorderedWrap(value: T): T? = Some(value)
+public fun <T> reorderedForce(value: T?): T = value!!
+public fun <T> reorderedDefault(value: T, wrapped: T? = Some(value)): T = wrapped ?: value

@@ -140,7 +140,11 @@ impl Lowerer {
                 })
                 .collect::<Vec<_>>();
             let hint = self.instantiate_method_ty(*pattern, &bindings);
-            let hint = (!self.type_contains_param(hint)).then_some(hint);
+            // A resolved outer binder is a valid contextual type. Only this
+            // candidate's unresolved variables prevent an expected-type hint.
+            let hint =
+                (!crate::call_resolution::type_contains_session_parameter(&self, &session, hint))
+                    .then_some(hint);
             let mut sink = Vec::new();
             let Some(value) = call.arguments.lower(index, &mut self, &mut sink, hint) else {
                 return Err(Box::new(self));
@@ -225,10 +229,10 @@ impl Lowerer {
                 return Err(Box::new(self));
             }
         };
-        let arguments = match template {
+        let arguments = match &template {
             ImportedGenericTarget::Function(id)
                 if matches!(
-                    self.imported_generic_templates[id].declaration,
+                    self.imported_generic_templates[*id].declaration,
                     hir::ImportedCallableTemplateOrigin::Nominal { .. }
                 ) =>
             {

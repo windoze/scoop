@@ -16,6 +16,7 @@ pub(crate) mod named;
 pub(crate) mod constraints;
 #[allow(dead_code)]
 mod relations;
+pub(crate) use relations::type_contains_session_parameter;
 #[allow(dead_code)]
 pub(crate) mod solver;
 pub(crate) mod specificity;

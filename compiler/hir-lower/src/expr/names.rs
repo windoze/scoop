@@ -92,71 +92,39 @@ impl Lowerer {
                         return Some(property.read);
                     }
                     crate::properties::ImplicitValueResolution::Value { target, layer } => {
-                        Some((target, Some(layer)))
+                        Some((target, layer))
                     }
                     crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
                         implicit_failure = Some(failure);
                         None
                     }
                     crate::properties::ImplicitValueResolution::Failed => return None,
-                    crate::properties::ImplicitValueResolution::NoCandidate => self
-                        .resolve_value_name(name)
-                        .ok()?
-                        .map(|target| (target, None)),
+                    crate::properties::ImplicitValueResolution::NoCandidate => {
+                        self.resolve_value_name_with_layer(name).ok()?
+                    }
                 }
             } else {
-                self.resolve_value_name(name)
-                    .ok()?
-                    .map(|target| (target, None))
+                self.resolve_value_name_with_layer(name).ok()?
             };
             let mut prelude_failure = None;
             if let Some((target, selected_layer)) = selected_value {
-                let core_variant = matches!(
-                    target,
-                    ResolvedValueTarget::Materialized(ValueTarget::Variant(_))
-                ) && selected_layer
-                    .is_some_and(|layer| layer == crate::imports::ImportLookupLayer::CorePrelude);
-                let legacy_core_variant = selected_layer.is_none()
-                    && matches!(
-                        self.lookup_value_origin(&name.text),
-                        crate::imports::lookup::LookupResult::Unique(
-                            crate::imports::lookup::values::ValueOrigin::Core(
-                                ValueTarget::Variant(_)
-                            )
-                        )
-                    );
-                if core_variant || legacy_core_variant {
-                    let ResolvedValueTarget::Materialized(target) = target else {
-                        unreachable!("core-prelude values are materialized locally")
+                let core_variant = selected_layer == crate::imports::ImportLookupLayer::CorePrelude
+                    && match &target {
+                        ResolvedValueTarget::Materialized(ValueTarget::Variant(_)) => true,
+                        ResolvedValueTarget::Dependency(binding) => {
+                            matches!(binding.target(), hir::ImportedTarget::EnumVariant(_))
+                        }
+                        _ => false,
                     };
+                if core_variant {
                     match self.probe_expr_layer(|state, _| {
-                        state.lower_named_value_target(name, target, expected)
+                        state.lower_resolved_value_target(name, target, expected)
                     }) {
                         Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
                         Err(failure) => prelude_failure = Some(failure),
                     }
                 } else {
-                    return match target {
-                        ResolvedValueTarget::Materialized(target) => {
-                            self.lower_named_value_target(name, target, expected)
-                        }
-                        ResolvedValueTarget::Dependency(binding)
-                            if matches!(binding.target(), hir::ImportedTarget::ObjectValue(_)) =>
-                        {
-                            let hir::ImportedTarget::ObjectValue(value) = binding.target() else {
-                                unreachable!("a singleton value binding retains its typed target")
-                            };
-                            self.lower_imported_singleton(value.persistent(), name.span)
-                        }
-                        ResolvedValueTarget::Dependency(binding)
-                            if matches!(binding.target(), hir::ImportedTarget::EnumVariant(_)) =>
-                        {
-                            self.lower_imported_variant_binding(&binding, name)
-                        }
-                        ResolvedValueTarget::Dependency(binding) => self
-                            .lower_imported_dependency_property_read(&binding, None, name.span)
-                            .map(|property| property.expression),
-                    };
+                    return self.lower_resolved_value_target(name, target, expected);
                 }
             }
             if let Some((owner, index)) = self.contextual_imported_variant(&name.text, expected) {
@@ -316,6 +284,30 @@ impl Lowerer {
                 }
                 self.lower_unit_variant(name, target, expected)
             }
+        }
+    }
+
+    fn lower_resolved_value_target(
+        &mut self,
+        name: &ast::Ident,
+        target: ResolvedValueTarget,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        match target {
+            ResolvedValueTarget::Materialized(target) => {
+                self.lower_named_value_target(name, target, expected)
+            }
+            ResolvedValueTarget::Dependency(binding) => match binding.target() {
+                hir::ImportedTarget::ObjectValue(value) => {
+                    self.lower_imported_singleton(value.persistent(), name.span)
+                }
+                hir::ImportedTarget::EnumVariant(_) => {
+                    self.lower_imported_variant_binding(&binding, name, expected)
+                }
+                _ => self
+                    .lower_imported_dependency_property_read(&binding, None, name.span)
+                    .map(|property| property.expression),
+            },
         }
     }
 

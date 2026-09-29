@@ -1050,6 +1050,15 @@ impl Lowerer {
     }
 
     fn static_none_constant(&self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
+        if matches!(self.types[ty], hir::Type::ImportedEnum(_)) && self.as_option(ty).is_some() {
+            let crate::CoreLoweringAuthority::Imported(protocols) = &self.core else {
+                unreachable!("an imported Option has its imported protocol")
+            };
+            return Some(hir::HirConstantImage::ImportedEnumUnit {
+                ty,
+                variant: protocols.option().none().persistent(),
+            });
+        }
         let hir::Type::Enum(application) = self.types[ty] else {
             return None;
         };
@@ -1069,10 +1078,25 @@ impl Lowerer {
     }
 
     fn static_unit_variant_constant(
-        &self,
+        &mut self,
         expression: &ast::Expr,
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
+        if matches!(self.types[expected], hir::Type::ImportedEnum(_)) {
+            if !matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_)) {
+                return None;
+            }
+            let mut sink = Vec::new();
+            let value = self.lower_expr(expression, &mut sink, Some(expected))?;
+            let hir::ExprKind::ImportedVariantConstruct { variant, args, .. } = value.kind else {
+                return None;
+            };
+            return (args.is_empty() && sink.is_empty() && self.types_equal(value.ty, expected))
+                .then_some(hir::HirConstantImage::ImportedEnumUnit {
+                    ty: expected,
+                    variant,
+                });
+        }
         let ast::Expr::Var(name) = expression else {
             return None;
         };

@@ -33,10 +33,20 @@ impl Lowerer {
         &mut self,
         binding: &hir::DirectImportedTargetBinding,
         name: &ast::Ident,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let hir::ImportedTarget::EnumVariant(variant) = binding.target() else {
             unreachable!("a dependency variant binding retains its typed variant identity")
         };
+        if let Some(owner) = expected
+            && let Type::ImportedEnum(enumeration) = &self.types[owner]
+            && let Some(index) = enumeration
+                .variants
+                .iter()
+                .position(|value| value.identity == variant.persistent())
+        {
+            return self.lower_imported_unit_variant(owner, index, name);
+        }
         let candidate = match self
             .dependencies
             .as_ref()
@@ -55,8 +65,7 @@ impl Lowerer {
             Err(_) => {
                 self.error(
                     name.span,
-                    crate::imported_capabilities::ImportedCapabilityRequirement::Generic
-                        .diagnostic("dependency enum variant"),
+                    format!("cannot infer the enum type arguments for variant `{}`; provide an expected enum type", name.text),
                 );
                 return None;
             }

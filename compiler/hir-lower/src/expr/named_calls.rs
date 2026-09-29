@@ -193,6 +193,9 @@ impl Lowerer {
                                 matches!(
                                     binding.target,
                                     NamedCallTarget::Value(ValueTarget::Variant(_))
+                                        | NamedCallTarget::ImportedDependency(
+                                            hir::ImportedTarget::EnumVariant(_)
+                                        )
                                 )
                             })
                         {

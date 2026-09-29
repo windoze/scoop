@@ -1,0 +1,486 @@
+Module
+  global0 stored: Option<Int> managed initial=encoded(Option<Int>::v1)
+  global1 referenced: Option<Cell> managed initial=encoded(Option<Cell>::v1)
+  global2 qualified: Option<Int> managed initial=encoded(Option<Int>::v1)
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<Cell>
+    Some(_0: Cell)
+    None()
+  enum CoroutineStep<Cell>
+    Completed(value: Cell)
+    Suspended()
+  enum CoroutineSlot<Cell>
+    Empty()
+    Value(value: Cell)
+  class Cell vtable=0 itables=0
+  generated_exact_type get0 location=enum3 nominal_id=2ab62cfa7f07601eec47cbf21d6a09c14a79a68d8f4b87e979ee647acef840f8 exact_id=620e7e307ee1285f5674f972a9a185b99d1c1d5fe49870dc142a0ff7bbcc3af5
+  generated_exact_type get1 location=enum2 nominal_id=76793eda555f02b31c04e6c0abf7ea5e121961cc4f1068473e21540be9460b7c exact_id=895a23ac8d6893a29d4ed9d024132c465fe5dbb3f81d61d24afe80435af35525
+  fun leaf @fn0() -> Int <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      call $opt.0: Option<Int> = @fn2 direct
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.0
+    bb1 if.then.1
+      val $res.1: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.0
+      goto bb3
+    bb2 if.else.2
+      val $res.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $res.1
+  fun result @fn1() -> Int
+    bb0 entry
+      call $opt.13: Option<Int> = @fn2 direct
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.13
+    bb1 if.then.1
+      val $res.14: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.13
+      goto bb3
+    bb2 if.else.2
+      val $res.14: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.receiver: Int
+        Type Int
+        Local $res.14
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb4 if.then.4
+      val $shortCircuit.19: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      call $opt.15: Option<Cell> = @fn4 direct
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Cell> v0
+          Type Option<Cell>
+          Local $opt.15
+    bb6 if.merge.6
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.19
+    bb7 if.then.7
+      val $res.16: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          FieldAccess 0
+            Type Cell
+            VariantPayloadProject Option<Cell> v0 f0
+              Type Option<Cell>
+              Local $opt.15
+      goto bb9
+    bb8 if.else.8
+      val $res.16: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      goto bb9
+    bb9 if.merge.9
+      val $opt.17: Option<Int>
+        Type Option<Int>
+        Local $res.16
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.17
+    bb10 if.then.10
+      val $res.18: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.17
+      goto bb12
+    bb11 if.else.11
+      val $res.18: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb12
+    bb12 if.merge.12
+      val $dependency.receiver: Int
+        Type Int
+        Local $res.18
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.19: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb14 if.merge.14
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn7 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun $get$stored @fn2() -> Option<Int> <no-gc>
+    bb0 entry
+      return
+        Type Option<Int>
+        GlobalRead stored
+  fun $set$stored @fn3(value: Option<Int>) -> Unit <no-gc>
+    bb0 entry
+      global_assign stored
+        Type Option<Int>
+        Local value
+      return
+  fun $get$referenced @fn4() -> Option<Cell>
+    bb0 entry
+      return
+        Type Option<Cell>
+        GlobalRead referenced
+  fun $set$referenced @fn5(value: Option<Cell>) -> Unit
+    bb0 entry
+      global_assign referenced
+        Type Option<Cell>
+        Local value
+      return
+  fun $get$qualified @fn6() -> Option<Int> <no-gc>
+    bb0 entry
+      return
+        Type Option<Int>
+        GlobalRead qualified
+  fun exercise @fn7(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call held: Option<Int> = @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn3 direct
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      call @fn5 direct
+        Type Option<Cell>
+        VariantConstruct Option<Cell> v1
+      call $opt.2: Option<Int> = @fn6 direct
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.2
+    bb1 if.then.1
+      val $res.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.2
+      goto bb3
+    bb2 if.else.2
+      val $res.3: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.receiver: Int
+        Type Int
+        Local $res.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb4 if.then.4
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      call $opt.4: Option<Cell> = @fn4 direct
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Cell> v0
+          Type Option<Cell>
+          Local $opt.4
+    bb6 if.merge.6
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.8
+    bb7 if.then.7
+      val $res.5: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          FieldAccess 0
+            Type Cell
+            VariantPayloadProject Option<Cell> v0 f0
+              Type Option<Cell>
+              Local $opt.4
+      goto bb9
+    bb8 if.else.8
+      val $res.5: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      goto bb9
+    bb9 if.merge.9
+      val $opt.6: Option<Int>
+        Type Option<Int>
+        Local $res.5
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.6
+    bb10 if.then.10
+      val $res.7: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.6
+      goto bb12
+    bb11 if.else.11
+      val $res.7: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb12
+    bb12 if.merge.12
+      val $dependency.receiver: Int
+        Type Int
+        Local $res.7
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb14 if.merge.14
+      call first: Int = @fn0 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call @fn9 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val $dependency.argument.0: Cell
+        Type Cell
+        Local $new.1
+      val $dependency.parameter._1: Cell
+        Type Cell
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Option<Cell>
+        VariantConstruct Option<Cell> v0
+          Type Cell
+          Local $dependency.parameter._1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Cell
+        ClassAlloc Cell
+      call @fn9 direct
+        Type Cell
+        Local $new.2
+        Type Int
+        Local $parameter.number
+      val allocated: Cell
+        Type Cell
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      call $opt.9: Option<Cell> = @fn4 direct
+      branch bb15 bb16
+        Type Boolean
+        VariantTest Option<Cell> v0
+          Type Option<Cell>
+          Local $opt.9
+    bb15 if.then.15
+      val $res.10: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          FieldAccess 0
+            Type Cell
+            VariantPayloadProject Option<Cell> v0 f0
+              Type Option<Cell>
+              Local $opt.9
+      goto bb17
+    bb16 if.else.16
+      val $res.10: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      goto bb17
+    bb17 if.merge.17
+      val $opt.11: Option<Int>
+        Type Option<Int>
+        Local $res.10
+      branch bb18 bb19
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.11
+    bb18 if.then.18
+      val $res.12: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.11
+      goto bb20
+    bb19 if.else.19
+      val $res.12: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb20
+    bb20 if.merge.20
+      val $dependency.argument.0: Int
+        Type Int
+        Local $res.12
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local allocated
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun wrap @fn8(value: Int) -> Option<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.2
+  fun init.Cell.$c0 @fn9(this: Cell, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        Local number
+      return
+  coroutine_step cs0 CoroutineStep<Cell> result=Cell
+  coroutine_slot cl0 CoroutineSlot<Cell> value=Cell
+  instance mi0 function=@fn7 <- exercise
+  instance mi1 function=@fn8 <- wrap
+  output library

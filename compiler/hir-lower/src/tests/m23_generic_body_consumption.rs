@@ -2,7 +2,7 @@ use scoop_hir as hir;
 use scoop_identity::ConeCoordinate;
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core};
-use super::m23_ordinary_dependencies::support::{empty_alias_expansions, project_dependency_text};
+use super::m23_ordinary_dependencies::support::{alias_expansions, project_dependency_text};
 use crate::{CurrentConeSources, lower_current_cone};
 
 mod bounds;
@@ -13,6 +13,7 @@ mod machine;
 mod members;
 mod metadata;
 mod nominals;
+mod options;
 mod references;
 
 const PROVIDER: &str = include_str!(concat!(
@@ -61,7 +62,7 @@ fn with_provider_consumer<T>(
     let (foundation, interface) =
         project_dependency_text(&core, &coordinate, provider, &["Boolean"]);
     let imported = core.import_dependency_foundation(&coordinate, &foundation, 73);
-    let aliases = empty_alias_expansions();
+    let aliases = alias_expansions(interface.type_aliases());
     let consumer = parsed_ordinary_text(source);
     let world = hir::ImportedSemanticWorld::from_dependencies(
         consumer.cone(),

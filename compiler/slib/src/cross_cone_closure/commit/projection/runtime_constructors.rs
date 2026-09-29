@@ -17,8 +17,16 @@ impl ValidatedCrossConeSemanticClosure {
         };
         let mut cast_required = false;
         let mut arithmetic_required = false;
+        let mut unwrap_required = false;
         module
             .visit_executable_expressions(|occurrence| {
+                unwrap_required |= matches!(
+                    occurrence.expression.kind,
+                    concrete::ExprKind::Unwrap {
+                        trap_on_none: true,
+                        ..
+                    }
+                );
                 cast_required |= matches!(
                     occurrence.expression.kind,
                     concrete::ExprKind::Cast {
@@ -49,6 +57,10 @@ impl ValidatedCrossConeSemanticClosure {
                 concrete::ExecutableExpressionVisitError::Visitor(never) => match never {},
             })?;
         for (required, constructor) in [
+            (
+                unwrap_required,
+                protocols.exceptions().unwrap_exception_constructor(),
+            ),
             (
                 cast_required,
                 protocols.exceptions().class_cast_exception_constructor(),

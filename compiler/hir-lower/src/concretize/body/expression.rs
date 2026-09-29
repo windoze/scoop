@@ -681,10 +681,15 @@ impl Concretizer<'_> {
             export::ExprKind::Unwrap {
                 operand,
                 trap_on_none,
-            } => concrete::ExprKind::Unwrap {
-                operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                trap_on_none: *trap_on_none,
-            },
+            } => {
+                if *trap_on_none {
+                    self.lower_unwrap_exception_type();
+                }
+                concrete::ExprKind::Unwrap {
+                    operand: Box::new(self.lower_expr(operand, substitution, locals)),
+                    trap_on_none: *trap_on_none,
+                }
+            }
         };
         concrete::Expr {
             kind,

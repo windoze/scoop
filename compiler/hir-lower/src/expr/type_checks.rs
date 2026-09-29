@@ -74,7 +74,7 @@ impl Lowerer {
             );
             return None;
         }
-        if optional && self.option_enumeration().is_none() {
+        if optional && !self.has_option_protocol() {
             // The missing core `Option` was already diagnosed.
             return None;
         }

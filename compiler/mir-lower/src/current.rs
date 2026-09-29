@@ -184,6 +184,7 @@ fn lower_runtime_constructors(
     for constructor in [
         protocols.exceptions().class_cast_exception_constructor(),
         protocols.exceptions().arithmetic_exception_constructor(),
+        protocols.exceptions().unwrap_exception_constructor(),
     ] {
         let (provider, target) = runtime_constructor_target(constructor)?;
         if callables.iter().any(|(_, callable)| {

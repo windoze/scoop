@@ -147,6 +147,11 @@ impl Lowerer {
             .or(self.pending_option_enum)
     }
 
+    pub(crate) fn has_option_protocol(&self) -> bool {
+        matches!(self.core, crate::CoreLoweringAuthority::Imported(_))
+            || self.option_enumeration().is_some()
+    }
+
     /// Whether `ty` is `Option<T>`; returns `T`.
     pub(crate) fn as_option(&self, ty: TypeId) -> Option<TypeId> {
         match &self.types[ty] {
@@ -156,6 +161,19 @@ impl Lowerer {
                     && application.arguments.len() == 1)
                     .then_some(application.arguments[0])
             }
+            Type::ImportedEnum(enumeration) => {
+                let crate::CoreLoweringAuthority::Imported(protocols) = &self.core else {
+                    return None;
+                };
+                let [argument] = enumeration.arguments.as_slice() else {
+                    return None;
+                };
+                (enumeration.declaration.owner()
+                    == hir::SourceNominalId::GenericTemplate(
+                        protocols.option().option().persistent(),
+                    ))
+                .then_some(*argument)
+            }
             _ => None,
         }
     }
@@ -163,6 +181,15 @@ impl Lowerer {
     /// `Option<inner>` (interned). Only called when the core `Option`
     /// validated successfully.
     pub(crate) fn option_type(&mut self, inner: TypeId) -> TypeId {
+        if let crate::CoreLoweringAuthority::Imported(protocols) = &self.core {
+            let owner = protocols.option().option().persistent();
+            return self
+                .imported_nominal_application(
+                    hir::SourceNominalId::GenericTemplate(owner),
+                    vec![inner],
+                )
+                .expect("the checked Option protocol has a complete dependency declaration");
+        }
         let id = self
             .option_enumeration()
             .expect("Option types only exist after core validation");

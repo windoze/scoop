@@ -97,10 +97,7 @@ impl TrustedCoreFixture {
             )
             .unwrap();
         let (hir, _, _) = imported.into_parts();
-        scoop_hir::ImportedHirFoundation::from_odr_free(
-            scoop_hir::OdrFreeHirFoundation::try_new(foundation.clone()).unwrap(),
-            hir,
-        )
+        scoop_hir::ImportedHirFoundation::from_shared(std::rc::Rc::new(foundation.clone()), hir)
     }
 }
 

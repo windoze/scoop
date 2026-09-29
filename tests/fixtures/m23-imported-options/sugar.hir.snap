@@ -1,0 +1,417 @@
+Module
+  class Cell(number: Int)
+    field0 property0: Int
+    property0 val number: Int getter0=storage <stored field0 init=parameter0>
+  property1 var events: Int getter1=body($get$events) setter0=body($set$events) <stored global0 image>
+  var events: Int <global0 managed>
+  fun mark(value: Int): Int
+    val local1
+      Call $get$events : Int
+    val local2
+      IntegerLiteral 10 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    val local4
+      IntegerOperation int.mul <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local5
+      Local value : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    Call $set$events : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    return
+      Local value : Int
+  fun receiver(present: Boolean): Option<Cell>
+    val local1
+      IntegerLiteral 1 : Int
+    val local2
+      Local $argument.0 : Int
+    Call mark : Int
+      Local $parameter.value : Int
+    if
+      Local present : Boolean
+      val local3
+        IntegerLiteral 40 : Int
+      val local4
+        Local $argument.0 : Int
+      val local5
+        ClassInit Cell : Cell
+          Local $parameter.number : Int
+      val local6
+        Local $dependency.argument.0 : Cell
+      assign $result.0
+        ImportedVariantConstruct Option.Some : Option<Cell>
+          Local $dependency.parameter._1 : Cell
+    else
+      assign $result.0
+        ImportedVariantConstruct Option.None : Option<Cell>
+    return
+      Local $result.0 : Option<Cell>
+  fun exercise<T>(value: T0): Int
+    Call $set$events : Unit
+      IntegerLiteral 0 : Int
+    val local1
+      BoolLiteral false : Boolean
+    val local2
+      Local $argument.0 : Boolean
+    val local3
+      Call receiver : Option<Cell>
+        Local $parameter.present : Boolean
+    if
+      IsSome : Boolean
+        Local $opt.1 : Option<Cell>
+      val local6
+        Unwrap trap=false : Cell
+          Local $opt.1 : Option<Cell>
+      val local4
+        IntegerLiteral 2 : Int
+      val local5
+        Local $argument.0 : Int
+      val local7
+        Call mark : Int
+          Local $parameter.value : Int
+      val local8
+        Local $argument.0 : Int
+      val local9
+        SomeWrap : Option<Int>
+          MethodCall Cell.read : Int
+            Local $receiver : Cell
+            Local $parameter.value : Int
+    else
+      val local9
+        NoneLiteral : Option<Int>
+    val local10
+      Local $res.2 : Option<Int>
+    val local11
+      Call $get$events : Int
+    val local12
+      IntegerLiteral 1 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local21
+        BoolLiteral true : Boolean
+    else
+      val local16
+        Local missing : Option<Int>
+      if
+        IsSome : Boolean
+          Local $opt.3 : Option<Int>
+        val local17
+          Unwrap trap=false : Int
+            Local $opt.3 : Option<Int>
+      else
+        val local14
+          IntegerLiteral 4 : Int
+        val local15
+          Local $argument.0 : Int
+        val local17
+          Call mark : Int
+            Local $parameter.value : Int
+      val local18
+        Local $res.4 : Int
+      val local19
+        IntegerLiteral 4 : Int
+      val local20
+        Local $dependency.argument.0 : Int
+      val local21
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.5 : Boolean
+      val local25
+        BoolLiteral true : Boolean
+    else
+      val local22
+        Call $get$events : Int
+      val local23
+        IntegerLiteral 14 : Int
+      val local24
+        Local $dependency.argument.0 : Int
+      val local25
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.6 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    Call $set$events : Unit
+      IntegerLiteral 0 : Int
+    val local26
+      BoolLiteral true : Boolean
+    val local27
+      Local $argument.0 : Boolean
+    val local28
+      Call receiver : Option<Cell>
+        Local $parameter.present : Boolean
+    if
+      IsSome : Boolean
+        Local $opt.7 : Option<Cell>
+      val local31
+        Unwrap trap=false : Cell
+          Local $opt.7 : Option<Cell>
+      val local29
+        IntegerLiteral 2 : Int
+      val local30
+        Local $argument.0 : Int
+      val local32
+        Call mark : Int
+          Local $parameter.value : Int
+      val local33
+        Local $argument.0 : Int
+      val local34
+        SomeWrap : Option<Int>
+          MethodCall Cell.read : Int
+            Local $receiver : Cell
+            Local $parameter.value : Int
+    else
+      val local34
+        NoneLiteral : Option<Int>
+    val local35
+      Local $res.8 : Option<Int>
+    val local36
+      Call $get$events : Int
+    val local37
+      IntegerLiteral 12 : Int
+    val local38
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local44
+        BoolLiteral true : Boolean
+    else
+      val local39
+        Local present : Option<Int>
+      if
+        IsSome : Boolean
+          Local $opt.9 : Option<Int>
+        val local40
+          Unwrap trap=false : Int
+            Local $opt.9 : Option<Int>
+      else
+        val local40
+          IntegerLiteral 0 : Int
+      val local41
+        Local $res.10 : Int
+      val local42
+        IntegerLiteral 42 : Int
+      val local43
+        Local $dependency.argument.0 : Int
+      val local44
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.11 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    Call $set$events : Unit
+      IntegerLiteral 0 : Int
+    val local45
+      BoolLiteral true : Boolean
+    val local46
+      Local $argument.0 : Boolean
+    val local47
+      Call receiver : Option<Cell>
+        Local $parameter.present : Boolean
+    if
+      IsSome : Boolean
+        Local $opt.12 : Option<Cell>
+      val local48
+        Unwrap trap=false : Cell
+          Local $opt.12 : Option<Cell>
+      val local49
+        IntegerLiteral 3 : Int
+      val local50
+        Local $argument.0 : Int
+      val local51
+        Call mark : Int
+          Local $parameter.value : Int
+      val local52
+        SomeWrap : Option<Int>
+          MethodCall Cell.read : Int
+            Local $receiver : Cell
+            Local $parameter.value : Int
+    else
+      val local52
+        NoneLiteral : Option<Int>
+    val local53
+      Local $res.13 : Option<Int>
+    val local54
+      Call $get$events : Int
+    val local55
+      IntegerLiteral 13 : Int
+    val local56
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local62
+        BoolLiteral true : Boolean
+    else
+      val local57
+        Local defaulted : Option<Int>
+      if
+        IsSome : Boolean
+          Local $opt.14 : Option<Int>
+        val local58
+          Unwrap trap=false : Int
+            Local $opt.14 : Option<Int>
+      else
+        val local58
+          IntegerLiteral 0 : Int
+      val local59
+        Local $res.15 : Int
+      val local60
+        IntegerLiteral 43 : Int
+      val local61
+        Local $dependency.argument.0 : Int
+      val local62
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.16 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local63
+      BoolLiteral true : Boolean
+    val local64
+      Local $argument.0 : Boolean
+    val local65
+      Call receiver : Option<Cell>
+        Local $parameter.present : Boolean
+    if
+      IsSome : Boolean
+        Local $opt.17 : Option<Cell>
+      val local66
+        Unwrap trap=false : Cell
+          Local $opt.17 : Option<Cell>
+      val local67
+        SomeWrap : Option<Option<Int>>
+          MethodCall Cell.maybe : Option<Int>
+            Local $receiver : Cell
+    else
+      val local67
+        NoneLiteral : Option<Option<Int>>
+    val local68
+      Local $res.18 : Option<Option<Int>>
+    val local69
+      BoolLiteral true : Boolean
+    val local70
+      Local $argument.0 : Boolean
+    val local71
+      Call receiver : Option<Cell>
+        Local $parameter.present : Boolean
+    if
+      IsSome : Boolean
+        Local $opt.19 : Option<Cell>
+      val local72
+        SomeWrap : Option<Int>
+          FieldAccess class field number : Int
+            Unwrap trap=false : Cell
+              Local $opt.19 : Option<Cell>
+    else
+      val local72
+        NoneLiteral : Option<Int>
+    val local73
+      Local $res.20 : Option<Int>
+    if
+      IsSome : Boolean
+        Local $opt.21 : Option<Int>
+      val local74
+        Unwrap trap=false : Int
+          Local $opt.21 : Option<Int>
+    else
+      val local74
+        IntegerLiteral 0 : Int
+    val local75
+      Local $res.22 : Int
+    val local76
+      IntegerLiteral 40 : Int
+    val local77
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local78
+      Local value : T0
+    val local79
+      Local $dependency.argument.0 : T0
+    val local80
+      ImportedVariantConstruct Option.Some : Option<T0>
+        Local $dependency.parameter._1 : T0
+    val local81
+      Local $dependency.argument.0 : Option<T0>
+    val local82
+      ImportedGenericCall force<T0> : T0
+        Local $dependency.parameter.value : Option<T0>
+    val local83
+      IntegerLiteral 0 : Int
+    try
+      val local84
+        ImportedGenericCall absent<Int> : Option<Int>
+      val local85
+        Local $dependency.argument.0 : Option<Int>
+      ImportedGenericCall force<Int> : Int
+        Local $dependency.parameter.value : Option<Int>
+    catch error: UnwrapException
+      assign caught
+        IntegerLiteral 2 : Int
+    when
+      Local nested : Option<Option<Int>>
+      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local87))
+        val local88
+          Local number : Int
+        val local89
+          Local caught : Int
+        val local90
+          Local $dependency.argument.0 : Int
+        assign $result.23
+          IntegerOperation int.add <no-gc> : Int
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+      else
+        assign $result.23
+          IntegerLiteral 5 : Int
+    return
+      Local $result.23 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  fun $get$events(): Int <no-gc cdecl>
+    return
+      GlobalRead events : Int
+  fun $set$events(value: Int): Unit <no-gc cdecl>
+    assign global events
+      Local value : Int
+  output library
+  instance exercise<Int>

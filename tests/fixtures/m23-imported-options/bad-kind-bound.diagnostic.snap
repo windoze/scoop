@@ -1,0 +1,3 @@
+span=131..156
+expression=ValuePacket.Value(Cell())
+dependency function `Value`: type argument `Cell` for `T` must satisfy `value`

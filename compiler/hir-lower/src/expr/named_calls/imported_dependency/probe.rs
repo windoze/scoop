@@ -189,7 +189,8 @@ impl Lowerer {
         }
         let constructor_owner = match (interface.declaration(), interface.owner()) {
             (
-                scoop_identity::CallableTemplateOrigin::Constructor(_),
+                scoop_identity::CallableTemplateOrigin::Constructor(_)
+                | scoop_identity::CallableTemplateOrigin::VariantConstructor(_),
                 hir::PublicDeclarationOwnerV1::Nominal(
                     scoop_identity::NominalDeclarationOwner::GenericTemplate(owner),
                 ),
@@ -235,31 +236,31 @@ impl Lowerer {
         if let scoop_identity::CallableTemplateOrigin::VariantConstructor(variant) =
             interface.declaration()
         {
-            let Ok(owner) = state.imported_signature_type(interface.result()) else {
-                state.imported_dependency_capability_error(
-                    &candidate,
-                    false,
-                    "dependency enum variant",
-                    call.span,
-                );
-                return Err(Box::new(state));
+            let hir::PublicDeclarationOwnerV1::Nominal(owner) = interface.owner() else {
+                unreachable!("a dependency variant retains its enum owner")
             };
-            let hir::Type::ImportedEnum(enumeration) = &state.types[owner] else {
-                unreachable!("a dependency variant retains its actual enum result")
+            let enumeration = state
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                .expect("the variant owner is in the dependency catalog");
+            let hir::NominalSourceShapeV1::Enum(shape) = enumeration.interface.source_shape()
+            else {
+                unreachable!("a dependency variant retains its enum source shape")
             };
-            let variant = enumeration
-                .variants
+            let variant = shape
+                .variants()
                 .iter()
-                .find(|value| value.identity == variant)
+                .find(|value| value.variant() == variant)
                 .expect("the shared enum contains its declared variant");
-            if variant.style == hir::EnumSourceVariantStyleV1::Unit {
+            if variant.style() == hir::EnumSourceVariantStyleV1::Unit {
                 state.error(call.span, format!(
                     "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
-                    name.text, enumeration.declaration.name(), name.text,
+                    name.text, enumeration.name(), name.text,
                 ));
                 return Err(Box::new(state));
             }
-            if let Err(error) = call.arguments.check_variant_style(variant.style) {
+            if let Err(error) = call.arguments.check_variant_style(variant.style()) {
                 state.imported_dependency_shape_error(name, call, error, kind);
                 return Err(Box::new(state));
             }

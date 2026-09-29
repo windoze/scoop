@@ -8,6 +8,15 @@ use crate::imported_core::ImportedSignatureTypeError;
 use crate::{CoreLoweringAuthority, Lowerer};
 
 impl Lowerer {
+    pub(crate) fn prepare_unwrap_exception_type(
+        &mut self,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let CoreLoweringAuthority::Imported(imported) = &self.core else {
+            return Ok(());
+        };
+        self.prepare_runtime_exception_type(imported.exceptions().unwrap_exception().persistent())
+    }
+
     pub(crate) fn prepare_cast_exception_type(&mut self) -> Result<(), ImportedSignatureTypeError> {
         let CoreLoweringAuthority::Imported(imported) = &self.core else {
             return Ok(());
@@ -51,6 +60,13 @@ impl Lowerer {
 }
 
 impl Concretizer<'_> {
+    pub(super) fn lower_unwrap_exception_type(&mut self) {
+        let export::CoreProtocols::Imported(protocols) = self.core else {
+            return;
+        };
+        self.lower_runtime_exception_type(protocols.exceptions().unwrap_exception().persistent());
+    }
+
     pub(super) fn lower_cast_exception_type(&mut self) {
         let export::CoreProtocols::Imported(protocols) = self.core else {
             return;
@@ -88,11 +104,13 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
     };
     let cast_layout = has_layout(protocols.exceptions().class_cast_exception().persistent());
     let arithmetic_layout = has_layout(protocols.exceptions().arithmetic_exception().persistent());
-    if cast_layout && arithmetic_layout {
+    let unwrap_layout = has_layout(protocols.exceptions().unwrap_exception().persistent());
+    if cast_layout && arithmetic_layout && unwrap_layout {
         return Ok(());
     }
     module.visit_executable_expressions(|occurrence| {
         let operation = match occurrence.expression.kind {
+            concrete::ExprKind::Unwrap { trap_on_none: true, .. } if !unwrap_layout => "Option unwrap exception constructor",
             concrete::ExprKind::Cast { optional: false, .. } if !cast_layout => "runtime cast failure constructor",
             concrete::ExprKind::IntegerOperation {
                 operation: concrete::IntegerOperation::Managed { .. }, ..

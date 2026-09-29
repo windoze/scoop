@@ -72,12 +72,16 @@ impl BodyLowerer<'_> {
         let value = self.lower_expr(operand);
         let slot = self.new_hidden("opt", option_ty.clone(), false);
         let result = self.new_hidden("uw", payload_ty.clone(), false);
-        let throw = self.throw_builtin(
-            crate::defined_protocols(self.core_protocols)
-                .exceptions
-                .unwrap_exception,
-            span,
-        );
+        let throw = match self.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                self.throw_builtin(protocols.exceptions.unwrap_exception, span)
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => self.throw_imported_exception(
+                protocols.exceptions().unwrap_exception().persistent(),
+                protocols.exceptions().unwrap_exception_constructor(),
+                span,
+            ),
+        };
         self.prelude.push(smir::StatementKind::ValDecl {
             local: slot,
             init: value,

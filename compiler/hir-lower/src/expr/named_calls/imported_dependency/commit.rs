@@ -307,6 +307,9 @@ impl Lowerer {
                     );
                     hir::ExprKind::ImportedConstructorInit { application, args }
                 }
+                super::generic::ImportedGenericTarget::Variant(_) => {
+                    unreachable!("enum variants were constructed before callable dispatch")
+                }
             };
             return Some(hir::Expr {
                 kind,

@@ -49,6 +49,10 @@ pub enum HirConstantImage {
     EnumUnit {
         variant: AppliedEnumVariantRef,
     },
+    ImportedEnumUnit {
+        ty: TypeId,
+        variant: scoop_identity::PersistentEnumVariantId,
+    },
     Struct {
         application: StructApplicationId,
         fields: Vec<HirConstantImage>,

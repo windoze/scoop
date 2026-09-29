@@ -74,10 +74,10 @@ impl ImportedDependencySelectionPlan {
 
     pub fn nested_nominal(
         &self,
-        owner: PersistentTypeId,
+        owner: SourceNominalId,
         name: &str,
     ) -> Option<&Arc<ImportedNominalDeclaration>> {
-        self.nominal(owner)?
+        self.nominal_declaration(owner)?
             .interface
             .declaration_details()
             .children()

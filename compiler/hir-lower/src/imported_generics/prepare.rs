@@ -150,7 +150,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn prepare_imported_type_parameters(
+    pub(crate) fn prepare_imported_type_parameters(
         &mut self,
         binders: &[&hir::TypeParameterBinderV1],
         signatures: &[scoop_identity::SignatureTypeKey],

@@ -717,7 +717,7 @@ fn term_contains_session_parameter(
     }
 }
 
-pub(super) fn type_contains_session_parameter(
+pub(crate) fn type_contains_session_parameter(
     lowerer: &Lowerer,
     session: &InferenceSession,
     ty: hir::TypeId,

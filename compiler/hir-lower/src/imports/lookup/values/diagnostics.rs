@@ -52,13 +52,28 @@ impl Lowerer {
         &mut self,
         name: &ast::Ident,
     ) -> Result<Option<ResolvedValueTarget>, ()> {
-        self.resolve_value_origin(name).map(|origin| {
-            origin.map(|origin| match origin {
-                ValueOrigin::Dependency(binding) => ResolvedValueTarget::Dependency(binding),
-                origin => ResolvedValueTarget::Materialized(
-                    self.materialized_value_target(&origin)
-                        .expect("body lookup follows complete declaration materialization"),
-                ),
+        self.resolve_value_name_with_layer(name)
+            .map(|resolved| resolved.map(|(target, _)| target))
+    }
+
+    pub(crate) fn resolve_value_name_with_layer(
+        &mut self,
+        name: &ast::Ident,
+    ) -> Result<Option<(ResolvedValueTarget, ImportLookupLayer)>, ()> {
+        let (layer, lookup) = self.lookup_value_origin_with_layer(&name.text);
+        self.resolve_value_lookup(name, lookup).map(|origin| {
+            origin.map(|origin| {
+                let target = match origin {
+                    ValueOrigin::Dependency(binding) => ResolvedValueTarget::Dependency(binding),
+                    origin => ResolvedValueTarget::Materialized(
+                        self.materialized_value_target(&origin)
+                            .expect("body lookup follows complete declaration materialization"),
+                    ),
+                };
+                (
+                    target,
+                    layer.expect("a resolved value belongs to a lookup layer"),
+                )
             })
         })
     }
@@ -67,7 +82,15 @@ impl Lowerer {
         &mut self,
         name: &ast::Ident,
     ) -> Result<Option<ValueOrigin>, ()> {
-        let (message, candidates) = match self.lookup_value_origin(&name.text) {
+        self.resolve_value_lookup(name, self.lookup_value_origin(&name.text))
+    }
+
+    fn resolve_value_lookup(
+        &mut self,
+        name: &ast::Ident,
+        lookup: LookupResult<ValueOrigin>,
+    ) -> Result<Option<ValueOrigin>, ()> {
+        let (message, candidates) = match lookup {
             LookupResult::Missing => return Ok(None),
             LookupResult::Unique(ValueOrigin::RejectedFunction(_)) => return Err(()),
             LookupResult::Unique(origin) => match Self::non_value_origin(&origin) {

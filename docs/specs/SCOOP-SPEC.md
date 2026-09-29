@@ -258,7 +258,7 @@ enum E {
 - **variant及其字段不支持可见性修饰符，declared visibility固定为public**；effective domain仍与enum owner取交集（9.1.5）。
 - **enum 自身不支持构造函数、不支持 `init` 块、不支持成员属性**；body 中只允许声明成员函数与伴生对象（变体的构造函数式声明是变体定义的一部分，不在此限）。
 - 每个变体是一个构造器：`E.SimpleVariant`、`E.VariantWithValue(42)`、`E.VariantWithNamedField(f1 = 1, f2 = "x")`、`E.VariantWithDefaults(1)`、`E.VariantWithDefaults(f1 = 1)`。block 式命名字段变体只能以命名参数构造；构造函数式变体沿用 struct 主构造函数的参数规则，允许位置参数、命名参数及默认值。两者均不提供花括号构造形式（与 struct 字面量同样存在解析歧义）。
-- 跨 Cone 非泛型 enum 使用相同的变体构造、import/typealias、期望类型和默认参数规则；值构造按实际声明身份生成，不以 provider 来源授予额外资格。
+- 跨 Cone enum 使用相同的变体构造、import/typealias、期望类型和默认参数规则；泛型变体的宿主实参由显式实参、payload 与期望 enum application 按普通约束推导确定。`E.V` 中的裸泛型 `E` 是声明命名空间，不先构造缺失实参的类型。值构造按实际声明身份生成，不以 provider 来源授予额外资格。
 - **变体不是类型**：不能用作 `is` 的检查目标、变量类型或参数类型；判断与提取负载通过 `when` 模式（第 5 章）完成。
 - 与 Kotlin enum class 的 entries 类似，变体名可以通过`import some.package.E.*`引入后不写前缀直接使用；`scoop.core.Option.*`由core prelude的typed default import引入（见第7章），`Some`/`None`不具有短名称特判。
 - 表达式位的裸`V`/`V(...)`除普通可见候选外，还可由唯一的expected exact enum application `E<Args...>`引入：只在该enum内寻找同名variant。expected type仍未固定时，该构造与`None`、lambda、空数组一样进入8.6的candidate-local postponed检查；最终expected为`Any`/interface、多个enum或未解变量时，不扫描全程序猜测，必须写`E.V`或补type annotation。普通词法/import候选遵守既有分层并优先；contextual variant不能绕过遮蔽，也不能扩展为按返回类型选择普通函数。unit variant的contextual name只在普通value-name lookup没有找到实体时启用，词法value binding即使类型不适配也hard-shadow该回退；payload variant call继续服从8.6既有named-call与local-value shadow规则。
@@ -597,6 +597,8 @@ enum Option<T> {
 ```
 
 `Option<T>`是普通invariant enum，享有第4.2节与第5章的全部能力（解构、穷尽性检查等）。即使`S <: T`，`Option<S>`也不是`Option<T>`的子类型；需要改变payload类型时必须显式`map`/重建。构造处存在`Option<T>`期望类型时，`Some(value)`和`None`按4.2适用于所有enum的contextual variant规则绑定该exact application，因此常见返回与赋值不需要先产生另一个`Option<S>`。`scoop.core.Option.*`由core prelude的typed default import引入；这只增加普通可见候选，不构成Option专用resolver或短名称特判。
+
+导入 core 时，`T?`、安全调用、Elvis、`!!` 与 `as?` 使用产物中已解析的 Option 声明及 variant/payload 角色；其具体类型仍沿普通泛型 enum 路径产生。源码名称查找与这些语法角色分离，同名用户 enum 不改变 `T?` 的含义。省略初值的普通可变 Option 属性及可直接编码的 `None` 初值继续遵守9.1.3的静态初始化规则。
 
 ### 7.3 空安全运算符的语义
 

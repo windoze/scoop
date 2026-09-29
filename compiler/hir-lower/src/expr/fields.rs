@@ -417,6 +417,13 @@ impl Lowerer {
             );
             return None;
         };
+        if let Err(error) = self.prepare_unwrap_exception_type() {
+            self.error(
+                span,
+                format!("cannot resolve unwrap exception type: {error:?}"),
+            );
+            return None;
+        }
         Some(hir::Expr {
             kind: ExprKind::Unwrap {
                 operand: Box::new(operand),

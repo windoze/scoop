@@ -58,7 +58,7 @@ impl ImportedDependencyCallProbe {
     }
 
     pub(crate) fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
-        let (owner_parameters, callable_parameters, bindings) = match self.implementation {
+        let (owner_parameters, callable_parameters, bindings) = match &self.implementation {
             ImportedCallImplementation::Native => (Vec::new(), Vec::new(), Default::default()),
             ImportedCallImplementation::Generic { template, .. } => {
                 let declaration = template.declaration(&self.state);
@@ -96,7 +96,8 @@ impl ImportedDependencyCallProbe {
         matches!(
             self.implementation,
             ImportedCallImplementation::Generic {
-                template: generic::ImportedGenericTarget::Constructor(_),
+                template: generic::ImportedGenericTarget::Constructor(_)
+                    | generic::ImportedGenericTarget::Variant(_),
                 ..
             }
         ) || !self.candidate.interface().type_parameters().is_empty()
@@ -116,7 +117,7 @@ impl ImportedDependencyCallProbe {
 
     pub(crate) fn signature(&self, name: &str) -> String {
         let state = &self.state;
-        if let ImportedCallImplementation::Generic { template, .. } = self.implementation {
+        if let ImportedCallImplementation::Generic { template, .. } = &self.implementation {
             let (signature, _) = template.signature(state);
             let all_parameters = signature
                 .owner_parameters

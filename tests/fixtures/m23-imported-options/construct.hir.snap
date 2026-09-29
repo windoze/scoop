@@ -1,0 +1,116 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedVariantConstruct Option.Some : Option<T0>
+        Local $dependency.parameter._1 : T0
+    val local4
+      ImportedVariantConstruct Option.None : Option<T0>
+    val local5
+      Local missing : Option<T0>
+    val local6
+      Local $dependency.argument.0 : Option<T0>
+    val local7
+      ImportedVariantConstruct Option.Some : Option<Option<T0>>
+        Local $dependency.parameter._1 : Option<T0>
+    val local8
+      Local value : T0
+    val local9
+      Local $dependency.argument.0 : T0
+    val local10
+      ImportedGenericCall nest<T0> : Option<Option<T0>>
+        Local $dependency.parameter.value : T0
+    val local11
+      IntegerLiteral 20 : Int
+    val local12
+      Local $dependency.argument.0 : Int
+    val local13
+      ImportedVariantConstruct Option.Some : Option<Int>
+        Local $dependency.parameter._1 : Int
+    val local14
+      ImportedVariantConstruct Option.None : Option<String>
+    val local15
+      Local value : T0
+    val local16
+      Local $dependency.argument.0 : T0
+    val local17
+      ImportedGenericCall wrap<T0> : Option<T0>
+        Local $dependency.parameter.value : T0
+    val local18
+      Local value : T0
+    val local19
+      Local $dependency.argument.0 : Option<T0>
+    val local20
+      Local $dependency.argument.1 : T0
+    val local21
+      ImportedGenericCall restore<T0> : T0
+        Local $dependency.parameter.value : Option<T0>
+        Local $dependency.parameter.fallback : T0
+    when
+      Local present : Option<T0>
+      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local22)
+        when
+          Local deep : Option<Option<T0>>
+          arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38())
+            when
+              Local nested : Option<Option<T0>>
+              arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local23))
+                val local24
+                  Local intValue : Option<Int>
+                val local25
+                  IntegerLiteral 0 : Int
+                val local26
+                  Local $dependency.argument.0 : Option<Int>
+                val local27
+                  Local $dependency.argument.1 : Int
+                val local32
+                  ImportedGenericCall restore<Int> : Int
+                    Local $dependency.parameter.value : Option<Int>
+                    Local $dependency.parameter.fallback : Int
+                val local28
+                  ImportedGenericCall absent<Int> : Option<Int>
+                val local29
+                  IntegerLiteral 22 : Int
+                val local30
+                  Local $dependency.argument.0 : Option<Int>
+                val local31
+                  Local $dependency.argument.1 : Int
+                val local33
+                  ImportedGenericCall restore<Int> : Int
+                    Local $dependency.parameter.value : Option<Int>
+                    Local $dependency.parameter.fallback : Int
+                val local34
+                  Local $dependency.argument.0 : Int
+                assign $result.0
+                  IntegerOperation int.add <no-gc> : Int
+                    Local $dependency.receiver : Int
+                    Local $dependency.parameter.other : Int
+              else
+                assign $result.0
+                  IntegerLiteral 1 : Int
+            assign $result.1
+              Local $result.0 : Int
+          else
+            assign $result.1
+              IntegerLiteral 2 : Int
+        assign $result.2
+          Local $result.1 : Int
+      arm dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38()
+        assign $result.2
+          IntegerLiteral 3 : Int
+      impossible <pattern matrix for Option<T0>>
+    return
+      Local $result.2 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

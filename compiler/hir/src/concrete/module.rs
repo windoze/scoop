@@ -70,14 +70,39 @@ pub struct Module {
 
 impl Module {
     pub fn option_core(&self, enumeration: EnumId) -> Option<OptionCore> {
-        let ConcreteCoreProtocols::Defined(protocols) = &self.core_protocols else {
-            return None;
-        };
-        protocols
-            .option
-            .iter()
-            .copied()
-            .find(|option| option.enumeration() == enumeration)
+        match &self.core_protocols {
+            ConcreteCoreProtocols::Defined(protocols) => protocols
+                .option
+                .iter()
+                .copied()
+                .find(|option| option.enumeration() == enumeration),
+            ConcreteCoreProtocols::Imported(protocols) => {
+                let protocol = protocols.option();
+                let definition = &self.enums[enumeration];
+                if definition.origin.generic_type_id() != Some(protocol.option().persistent()) {
+                    return None;
+                }
+                let variant = |identity| {
+                    let index = definition
+                        .variants
+                        .iter()
+                        .position(|variant| variant.identity == identity)?;
+                    EnumVariantRef::checked(
+                        &self.enums,
+                        enumeration,
+                        VariantId::from_raw(index as u32),
+                    )
+                };
+                let some = variant(protocol.some().persistent())?;
+                let none = variant(protocol.none().persistent())?;
+                let field = definition.variants[some.variant().into_raw() as usize]
+                    .fields
+                    .iter()
+                    .position(|field| field.identity == protocol.some_payload().persistent())?;
+                let payload = EnumVariantFieldRef::checked(&self.enums, some, field as u32)?;
+                OptionCore::checked(&self.enums, payload, none)
+            }
+        }
     }
 }
 

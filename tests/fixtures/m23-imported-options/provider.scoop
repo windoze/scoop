@@ -1,0 +1,38 @@
+package dependency.options
+
+public fun <T> wrap(value: T): T? = Some(value)
+public fun <T> absent(): T? = None
+public fun <T> restore(value: T?, fallback: T): T = when (value) {
+    Some(item) -> item
+    None -> fallback
+}
+public fun <T> nest(value: T): T?? = Some(Some(value))
+public fun <T> force(value: T?): T = value!!
+public fun <T> optionalDefault(fallback: T, value: T? = Some(fallback)): T = value ?: fallback
+public fun <T> noneDefault(fallback: T, value: T? = None): T = value ?: fallback
+public fun <T> nestedDefault(value: T, wrapped: T?? = Some(Some(value))): T = when (wrapped) {
+    Some(Some(item)) -> item
+    else -> value
+}
+
+public class Holder<T> public constructor(public val value: T)
+public fun <T> safeDefault(fallback: T, holder: Holder<T>?, value: T? = holder?.value): T = value ?: fallback
+
+public fun <T> capture(value: T): () -> T? {
+    fun local(): T? = Option.Some(value)
+    return { local() }
+}
+
+public enum Packet<T> {
+    Empty,
+    Item(T),
+    Named(val value: T, val amount: Int = 2)
+}
+
+public typealias IntPacket = Packet<Int>
+
+public enum ValuePacket<T: value> { Value(T) }
+
+public fun <T> packet(value: T): Packet<T> = Item(value)
+
+public fun first(): Int = restore(wrap(42), 0)

@@ -181,6 +181,13 @@ impl Lowerer {
     }
 
     pub(crate) fn lookup_value_origin(&self, name: &str) -> LookupResult<ValueOrigin> {
+        self.lookup_value_origin_with_layer(name).1
+    }
+
+    pub(super) fn lookup_value_origin_with_layer(
+        &self,
+        name: &str,
+    ) -> (Option<ImportLookupLayer>, LookupResult<ValueOrigin>) {
         let core = || {
             let (_, suppressed_callables) = self.core_named_callable_partition(name);
             LookupLayer {
@@ -239,24 +246,31 @@ impl Lowerer {
             if has_value {
                 visible.retain(|origin| Self::non_value_origin(origin).is_none());
             } else if let Some(&function) = layer.suppressed_callables.first() {
-                return LookupResult::Unique(ValueOrigin::RejectedFunction(function));
+                return (
+                    Some(layer.kind),
+                    LookupResult::Unique(ValueOrigin::RejectedFunction(function)),
+                );
             }
             match visible.as_slice() {
                 [] => {}
-                [one] => return LookupResult::Unique(one.clone()),
+                [one] => return (Some(layer.kind), LookupResult::Unique(one.clone())),
                 [first, rest @ ..] => {
-                    return LookupResult::Ambiguous {
-                        layer: layer.kind,
-                        candidates: ast::NonEmptyVec::new(first.clone(), rest.to_vec()),
-                    };
+                    return (
+                        Some(layer.kind),
+                        LookupResult::Ambiguous {
+                            layer: layer.kind,
+                            candidates: ast::NonEmptyVec::new(first.clone(), rest.to_vec()),
+                        },
+                    );
                 }
             }
         }
-        match inaccessible.as_slice() {
+        let result = match inaccessible.as_slice() {
             [] => LookupResult::Missing,
             [first, rest @ ..] => {
                 LookupResult::Inaccessible(ast::NonEmptyVec::new(first.clone(), rest.to_vec()))
             }
-        }
+        };
+        (None, result)
     }
 }

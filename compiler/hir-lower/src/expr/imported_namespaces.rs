@@ -8,28 +8,55 @@ use crate::imports::lookup::calls::{
 };
 use scoop_identity::BindingNamespace;
 
+#[derive(Clone, Copy)]
+pub(in crate::expr) enum ImportedNominalQualifier {
+    Applied(TypeId),
+    Generic(scoop_identity::PersistentGenericTypeId),
+}
+
+impl ImportedNominalQualifier {
+    fn applied(self) -> Option<TypeId> {
+        match self {
+            Self::Applied(ty) => Some(ty),
+            Self::Generic(_) => None,
+        }
+    }
+}
+
 impl Lowerer {
+    fn imported_qualifier_owner(
+        &self,
+        qualifier: ImportedNominalQualifier,
+    ) -> hir::SourceNominalId {
+        match qualifier {
+            ImportedNominalQualifier::Applied(ty) => self
+                .imported_nominal_owner(ty)
+                .expect("a dependency qualifier retains its nominal declaration"),
+            ImportedNominalQualifier::Generic(owner) => {
+                hir::SourceNominalId::GenericTemplate(owner)
+            }
+        }
+    }
+
     fn imported_static_bindings(
         &self,
-        owner: TypeId,
+        owner: ImportedNominalQualifier,
         namespace: BindingNamespace,
         name: &str,
     ) -> Vec<hir::DirectImportedTargetBinding> {
-        let Some(owner) = self.imported_nominal_declaration(owner) else {
-            return Vec::new();
-        };
+        let owner = self.imported_qualifier_owner(owner);
         self.dependencies
             .as_ref()
             .map_or_else(Vec::new, |dependencies| {
                 dependencies
-                    .static_bindings(hir::SourceNominalId::Concrete(owner), namespace, name)
+                    .static_bindings(owner, namespace, name)
                     .to_vec()
             })
     }
 
     fn resolve_imported_nested_type(
         &mut self,
-        owner: TypeId,
+        owner: ImportedNominalQualifier,
         name: &ast::Ident,
         supplied_type_arguments: bool,
     ) -> Result<Option<TypeId>, ()> {
@@ -37,11 +64,11 @@ impl Lowerer {
         match bindings.as_slice() {
             [] => {
                 let declaration = self
-                    .imported_nominal_declaration(owner)
-                    .and_then(|owner| {
-                        self.dependencies
-                            .as_ref()?
-                            .nested_nominal(owner, &name.text)
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| {
+                        dependencies
+                            .nested_nominal(self.imported_qualifier_owner(owner), &name.text)
                     })
                     .cloned();
                 let Some(declaration) = declaration else {
@@ -91,7 +118,7 @@ impl Lowerer {
         for (index, name) in path.iter().enumerate() {
             let Some(nested) = self
                 .resolve_imported_nested_type(
-                    owner,
+                    ImportedNominalQualifier::Applied(owner),
                     name,
                     index + 1 == path.len() && !arguments.is_empty(),
                 )
@@ -115,7 +142,7 @@ impl Lowerer {
     pub(in crate::expr) fn resolve_imported_nominal_qualifier(
         &mut self,
         expression: &ast::Expr,
-    ) -> Result<Option<TypeId>, ()> {
+    ) -> Result<Option<ImportedNominalQualifier>, ()> {
         let owner = match expression {
             ast::Expr::Var(name) => {
                 if self.lexical_or_member_value_blocks_type_qualifier(&name.text)
@@ -124,6 +151,11 @@ impl Lowerer {
                     return Ok(None);
                 }
                 match self.lookup_expression_qualifier(name) {
+                    ExpressionQualifierLookup::Unique(
+                        ExpressionQualifierTarget::DependencyType(
+                            hir::ImportedTarget::GenericType(owner),
+                        ),
+                    ) => return Ok(Some(ImportedNominalQualifier::Generic(owner.persistent()))),
                     ExpressionQualifierLookup::Unique(
                         ExpressionQualifierTarget::DependencyType(_),
                     ) => self
@@ -158,16 +190,27 @@ impl Lowerer {
                 let Some(owner) = self.resolve_imported_nominal_qualifier(&access.receiver)? else {
                     return Ok(None);
                 };
-                return self.resolve_imported_nested_type(owner, name, false);
+                let bindings =
+                    self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
+                if let [binding] = bindings.as_slice()
+                    && let hir::ImportedTarget::GenericType(owner) = binding.target()
+                {
+                    return Ok(Some(ImportedNominalQualifier::Generic(owner.persistent())));
+                }
+                return self
+                    .resolve_imported_nested_type(owner, name, false)
+                    .map(|ty| ty.map(ImportedNominalQualifier::Applied));
             }
             _ => return Ok(None),
         };
-        Ok(self.imported_nominal_declaration(owner).map(|_| owner))
+        Ok(self
+            .imported_nominal_owner(owner)
+            .map(|_| ImportedNominalQualifier::Applied(owner)))
     }
 
     pub(in crate::expr) fn lower_imported_qualified_field(
         &mut self,
-        owner: TypeId,
+        owner: ImportedNominalQualifier,
         access: &ast::FieldAccess,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
@@ -178,6 +221,11 @@ impl Lowerer {
             );
             return None;
         };
+        if let Some(ty) = owner.applied()
+            && let Some(index) = self.find_imported_variant(ty, &name.text)
+        {
+            return self.lower_imported_unit_variant(ty, index, name);
+        }
         let bindings = self.imported_static_bindings(owner, BindingNamespace::Value, &name.text);
         match bindings.as_slice() {
             [binding] => match binding.target() {
@@ -190,7 +238,7 @@ impl Lowerer {
                         .map(|read| read.expression);
                 }
                 hir::ImportedTarget::EnumVariant(_) => {
-                    return self.lower_imported_variant_binding(binding, name);
+                    return self.lower_imported_variant_binding(binding, name, expected);
                 }
                 _ => {}
             },
@@ -203,9 +251,6 @@ impl Lowerer {
                 return None;
             }
         }
-        if let Some(index) = self.find_imported_variant(owner, &name.text) {
-            return self.lower_imported_unit_variant(owner, index, name);
-        }
         if let Some(nested) = self.resolve_imported_nested_type(owner, name, false).ok()?
             && let Some(value) = self
                 .imported_nominal_declaration(nested)
@@ -213,8 +258,9 @@ impl Lowerer {
         {
             return self.lower_imported_singleton(value, access.span);
         }
-        if let Some(value) = self
-            .imported_nominal_declaration(owner)
+        if let Some(value) = owner
+            .applied()
+            .and_then(|ty| self.imported_nominal_declaration(ty))
             .and_then(|owner| self.imported_object_value(owner))
         {
             let receiver = self.lower_imported_singleton(value, access.receiver.span())?;
@@ -248,14 +294,16 @@ impl Lowerer {
 
     pub(in crate::expr) fn lower_imported_qualified_call(
         &mut self,
-        owner: TypeId,
+        owner: ImportedNominalQualifier,
         name: &ast::Ident,
         call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if let Some(index) = self.find_imported_variant(owner, &name.text) {
-            return self.lower_imported_variant_construct(owner, index, name, call, sink, expected);
+        if let Some(ty) = owner.applied()
+            && let Some(index) = self.find_imported_variant(ty, &name.text)
+        {
+            return self.lower_imported_variant_construct(ty, index, name, call, sink, Some(ty));
         }
         let mut bindings = self.imported_static_bindings(owner, BindingNamespace::Type, &name.text);
         if bindings.is_empty()
@@ -267,8 +315,9 @@ impl Lowerer {
             return self.lower_imported_nominal_construct(declaration, name, call, sink, expected);
         }
         if bindings.is_empty()
-            && let Some(value) = self
-                .imported_nominal_declaration(owner)
+            && let Some(value) = owner
+                .applied()
+                .and_then(|ty| self.imported_nominal_declaration(ty))
                 .and_then(|owner| self.imported_object_value(owner))
         {
             let receiver = self.lower_imported_singleton(value, name.span)?;
@@ -309,18 +358,27 @@ impl Lowerer {
         .flatten()
     }
 
-    fn imported_static_member_error(&mut self, owner: TypeId, name: &ast::Ident) {
-        let message = if matches!(self.types[owner], Type::ImportedEnum(_)) {
-            format!(
-                "enum `{}` has no variant `{}`",
-                self.type_name(owner),
-                name.text
-            )
+    fn imported_static_member_error(&mut self, owner: ImportedNominalQualifier, name: &ast::Ident) {
+        let declaration = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| {
+                dependencies.nominal_declaration(self.imported_qualifier_owner(owner))
+            })
+            .expect("a static qualifier retains its dependency declaration");
+        let owner_name = owner
+            .applied()
+            .map(|ty| self.type_name(ty))
+            .unwrap_or_else(|| declaration.name().to_owned());
+        let message = if matches!(
+            declaration.interface.source_shape(),
+            hir::NominalSourceShapeV1::Enum(_)
+        ) {
+            format!("enum `{}` has no variant `{}`", owner_name, name.text)
         } else {
             format!(
                 "type `{}` has no accessible static member `{}`",
-                self.type_name(owner),
-                name.text
+                owner_name, name.text
             )
         };
         self.error(name.span, message);

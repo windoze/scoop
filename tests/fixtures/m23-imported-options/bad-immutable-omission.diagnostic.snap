@@ -1,0 +1,6 @@
+span=26..51
+expression=private val missing: Int?
+property `missing` without an initializer must be a mutable Option property
+span=80..87
+expression=missing
+unknown variable `missing`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

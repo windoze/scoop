@@ -1,0 +1,28 @@
+package consumer.options
+
+import dependency.options.Packet
+import dependency.options.IntPacket
+import dependency.options.Packet.Item as Pick
+import dependency.options.ValuePacket.*
+import dependency.options.restore
+
+public fun <T> exercise(value: T): Int {
+    val empty: T? = Option.None
+    val present = Option.Some<T>(value)
+    val inferred = Option.Some(40)
+    val packet: Packet<T> = Packet.Item(value)
+    val picked = Pick(value)
+    val named = IntPacket.Named(value = restore(inferred, 0))
+    val absent: Packet<T> = Packet.Empty
+    val bounded = Value(42)
+    if (when (bounded) { Value(number) -> number != 42 }) { return 3 }
+    return when (packet) {
+        Item(item) -> when (named) {
+            Named(n, amount) -> n + amount
+            else -> 1
+        }
+        else -> 2
+    }
+}
+
+public fun result(): Int = exercise<Int>(1)

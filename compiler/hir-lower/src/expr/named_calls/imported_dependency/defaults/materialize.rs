@@ -217,6 +217,32 @@ impl Lowerer {
                 self.materialize_imported_default_expression(operand, context)?,
             )),
             Kind::SingletonValue(value) => hir::ExprKind::ImportedSingletonValue(*value),
+            Kind::SomeWrap(value) => hir::ExprKind::SomeWrap(Box::new(
+                self.materialize_imported_default_expression(value, context)?,
+            )),
+            Kind::NoneLiteral => hir::ExprKind::NoneLiteral,
+            Kind::IsSome(value) => hir::ExprKind::IsSome(Box::new(
+                self.materialize_imported_default_expression(value, context)?,
+            )),
+            Kind::Unwrap {
+                operand,
+                trap_on_none,
+            } => {
+                let trap_on_none = bool::from(*trap_on_none);
+                if trap_on_none {
+                    self.prepare_unwrap_exception_type().map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(format!(
+                            "cannot resolve unwrap exception type: {error:?}"
+                        ))
+                    })?;
+                }
+                hir::ExprKind::Unwrap {
+                    operand: Box::new(
+                        self.materialize_imported_default_expression(operand, context)?,
+                    ),
+                    trap_on_none,
+                }
+            }
             Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
             )),
@@ -504,11 +530,7 @@ impl Lowerer {
             | Kind::Index { .. }
             | Kind::ArraySet { .. }
             | Kind::ArrayLen(_)
-            | Kind::ArrayClone(_)
-            | Kind::SomeWrap(_)
-            | Kind::NoneLiteral
-            | Kind::IsSome(_)
-            | Kind::Unwrap { .. } => {
+            | Kind::ArrayClone(_) => {
                 return Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default operation".to_owned(),
                 ));

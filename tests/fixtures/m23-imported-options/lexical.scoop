@@ -1,0 +1,29 @@
+package consumer.options
+
+import dependency.options.capture
+import dependency.options.force
+
+private class Cell(public val number: Int)
+
+public fun <T> exercise(value: T): Int {
+    val saved = capture(value)
+    fun local(): T? = Some(value)
+    val invoke: () -> T? = ::local
+    val callback: () -> Int? = { Some(42) }
+    val erased: Any = Cell(40)
+    val found = erased as? Cell
+    val missing = erased as? String
+    val text: Any = "present"
+    val present = text as? String
+    val boxed: Any = 2
+    val number = boxed as? Int
+    val missingNumber = text as? Int
+    val first = force(saved())
+    val second = force(invoke())
+    val allocated = Cell(0)
+    if ((found?.number ?: 0) != 40 || (missing ?: "absent") != "absent") { return 1 }
+    if ((present ?: "absent") != "present" || (number ?: 0) != 2 || (missingNumber ?: 3) != 3) { return 2 }
+    return force(callback()) + allocated.number
+}
+
+public fun result(): Int = exercise<Int>(1)
