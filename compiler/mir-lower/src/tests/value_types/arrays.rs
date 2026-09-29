@@ -228,9 +228,6 @@ fn array_assembly_preserves_typed_element_and_copy_parts() {
     let mut h = Harness::new();
     let int = h.int;
     let array_int = h.array(int);
-    let hir::Type::Class(array_application) = h.types[array_int] else {
-        unreachable!("Array<Int> has a class application")
-    };
     let mut locals = Arena::new();
     let source = locals.alloc(local("source", array_int));
     let assembled = locals.alloc(local("assembled", array_int));
@@ -252,7 +249,7 @@ fn array_assembly_preserves_typed_element_and_copy_parts() {
                                 hir::ArrayAssemblyPart::Element(int_lit(&h, 1)),
                                 hir::ArrayAssemblyPart::CopyArray(local_ref(source, array_int)),
                             ],
-                            result_type: array_application,
+                            result_type: array_int,
                         }),
                         array_int,
                     ),

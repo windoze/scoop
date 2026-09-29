@@ -62,13 +62,8 @@ struct FnEmitter<'a, 'ctx> {
     compiler_unwind_blocks: HashSet<scoop_lir::BlockId>,
     compiler_invoke_index: u32,
     allocation_index: u32,
-    /// Lazily-created shared bounds-check trap block of this function
-    /// (one per function, reused by every ArrayGet / ArraySet) and the
-    /// Cone-image-owned "array index out of bounds" support atom it references.
-    bounds_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
-    bounds_message: GlobalValue<'ctx>,
-    array_size_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
-    array_size_message: GlobalValue<'ctx>,
+    /// Checked array-size failures share one block per callable-owned message.
+    array_size_trap_blocks: HashMap<scoop_lir::GlobalId, inkwell::basic_block::BasicBlock<'ctx>>,
 }
 
 struct NativeTransition<'ctx> {
@@ -298,10 +293,7 @@ pub(super) fn emit_function<'ctx>(
         compiler_unwind_blocks,
         compiler_invoke_index: 0,
         allocation_index: 0,
-        bounds_trap_block: None,
-        bounds_message: module_ctx.bounds_message,
-        array_size_trap_block: None,
-        array_size_message: module_ctx.array_size_message,
+        array_size_trap_blocks: HashMap::new(),
     };
 
     // All locals are stack slots allocated at the top of the entry block;

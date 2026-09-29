@@ -130,17 +130,13 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     let ir = strong_shape_ir_of(&module);
     assert!(
         ir.contains(&format!(
-            "@\"{array_ref_scan}.element\" = private constant [2 x i64] [i64 1, i64 0]"
-        )) && ir.contains(&format!(
-            "@\"{array_ref_scan}\" = constant [5 x i64] [i64 -1, i64 16, i64 24, i64 8, i64 ptrtoint (ptr @\"{array_ref_scan}.element\" to i64)]"
+            "@\"{array_ref_scan}\" = constant [7 x i64] [i64 -1, i64 16, i64 24, i64 8, i64 ptrtoint (ptr getelementptr (i64, ptr @\"{array_ref_scan}\", i64 5) to i64), i64 1, i64 0]"
         )),
         "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
     );
     assert!(
         ir.contains(&format!(
-            "@\"{array_nested_scan}.element\" = private constant [3 x i64] [i64 2, i64 8, i64 16]"
-        )) && ir.contains(&format!(
-            "@\"{array_nested_scan}\" = constant [5 x i64] [i64 -1, i64 16, i64 24, i64 24, i64 ptrtoint (ptr @\"{array_nested_scan}.element\" to i64)]"
+            "@\"{array_nested_scan}\" = constant [8 x i64] [i64 -1, i64 16, i64 24, i64 24, i64 ptrtoint (ptr getelementptr (i64, ptr @\"{array_nested_scan}\", i64 5) to i64), i64 2, i64 8, i64 16]"
         )),
         "aggregate array TD must wrap the recursive element scan:\n{ir}"
     );

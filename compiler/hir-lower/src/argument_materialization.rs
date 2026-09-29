@@ -1,12 +1,12 @@
 use scoop_ast::Span;
 use scoop_hir as hir;
 
+use crate::Lowerer;
 use crate::call_resolution::arguments::{
     CandidateArgumentMap, ResolvedParameterInput, ResolvedVarargInput, VarargPartKind,
 };
 use crate::call_resolution::candidates::NominalConstructorView;
 use crate::defaults::SourceParameterCalling;
-use crate::{Lowerer, Type};
 
 pub(crate) struct CallableArgumentMaterialization<'a> {
     pub function: hir::FunctionId,
@@ -269,21 +269,18 @@ impl Lowerer {
         Some(materialized)
     }
 
-    fn array_assembly(
+    pub(crate) fn array_assembly(
         &self,
         element_type: hir::TypeId,
         array_type: hir::TypeId,
         parts: Vec<hir::ArrayAssemblyPart>,
         span: Span,
     ) -> hir::Expr {
-        let Type::Class(result_type) = self.types[array_type] else {
-            unreachable!("a vararg parameter has an exact Array application")
-        };
         hir::Expr {
             kind: hir::ExprKind::ArrayAssembly(hir::ArrayAssembly {
                 element_type,
                 parts,
-                result_type,
+                result_type: array_type,
             }),
             ty: array_type,
             span,

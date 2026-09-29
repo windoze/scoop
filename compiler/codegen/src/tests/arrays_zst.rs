@@ -3,6 +3,11 @@ use super::*;
 #[test]
 fn zst_arrays_keep_count_checks_without_payload_access() {
     let mut module = arrays::arrays_module();
+    let overflow_message = module
+        .globals
+        .iter()
+        .find_map(|(id, global)| matches!(global.init, GlobalInit::CString { .. }).then_some(id))
+        .expect("the array callable owns its overflow message");
     let zst = LirType::Aggregate(vec![]);
     let source = array_type(
         &mut module.meta,
@@ -47,6 +52,7 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
             },
             Instruction::ArrayAssembly {
                 out: assembled,
+                overflow_message,
                 parts: vec![
                     scoop_lir::ArrayAssemblyPart::CopyArray(Value::Temp(literal)),
                     scoop_lir::ArrayAssemblyPart::Element(Value::Temp(value)),
@@ -99,10 +105,11 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
     };
     let ir = ir_of(&module);
     assert!(
-        ir.contains("assembly_long_size_overflow") && ir.contains("out_of_bounds"),
-        "ZST retains logical counts and bounds:\n{ir}"
+        ir.contains("assembly_long_size_overflow"),
+        "ZST retains logical count checks:\n{ir}"
     );
     for forbidden in [
+        "out_of_bounds",
         "element_ptr",
         "assembly.copy.cond",
         "assembly_element_bytes",

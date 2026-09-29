@@ -1080,6 +1080,8 @@ Scoop 内置两个数组类型（引用类型，属于核心库）：
 
 它们是由core源码提供nominal identity、由`@Intrinsic`提供representation family的invariant generic class，使用与普通`class C<T>`相同的类型application、约束、成员解析和单态化规则。编译器可以为字面量、内联元素区、下标和转换保留typed专用操作，但不得再建立一个与core class声明平行的数组类型身份。
 
+跨 Cone 的数组字面量、`vararg`、默认值和泛型正文使用同一规则。隐式数组类型从实际 core 协议取得泛型声明，与显式 `Array<T>`／`MutableArray<T>` 解析为同一 application；成员仍先按实际声明完成选择，再正规化为数组操作。依赖调用必须保留每个位置元素、spread 和命名整数组的区别，并按 8.5.3 的顺序求值及物化。产物中的数组节点保存完整元素类型、结果类型与既有 typed 操作，下游替换 binder 后复用普通布局、复制、越界和 GC 路径。
+
 ### 10.1 值类型元素的内存保证
 
 当 `T` 是值类型（struct / enum / tuple / 基本类型）时，`Array<T>` 与 `MutableArray<T>` 保证：

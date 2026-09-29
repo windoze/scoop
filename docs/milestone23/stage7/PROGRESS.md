@@ -651,11 +651,24 @@
 - 清除全部 `SCOOP_UPDATE_*` 与 `INSTA_UPDATE` 环境变量，启用本次构建的实际配套 `scoopc` 执行 `cargo test --workspace --no-fail-fast`，完整回归 **5223 passed、0 failed、0 ignored**，无编译警告；driver 的 157 项测试全部通过，耗时 391.34 秒。新增静态嵌套 import、上一批限定类型路径、core 产物及属性初始化的快照均在关闭更新的条件下通过。日志为 `/tmp/scoop-m23-7-nested-imports-workspace.log`。
 - 全部测试结束后，通过 Cargo metadata 确认实际 `target`，核对无编译／测试进程、无打开文件且目录仅含构建与编辑器检查缓存；恢复标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 **2759 个文件、5.6 GiB**。清理后 `target` 不存在，日志为 `/tmp/scoop-m23-7-nested-imports-clean.log`。
 
+## 数组模板与函数 vararg 的跨 Cone 消费
+
+- 隐式数组从实际 core 声明取得 owner，与显式 `Array<T>`／`MutableArray<T>` 共用完整类型和普通 application；Export `ArrayAssembly` 保存完整 `TypeId`。共有泛型正文与默认值支持数组 literal／assembly、读写、长度和转换成员，不复制外来 nominal 到本地 arena，也不新增数组产物格式。
+- 导入函数的 vararg 映射保留每个位置元素、spread 的源码索引和命名整数组；接收者与显式实参先按源码顺序执行，再按形参序执行默认值和数组物化。命名 `values = array`／`values = *array` 保留原 identity，位置 spread 和省略空数组产生新 identity；后续默认值可以读取已经物化的 vararg。普通函数引用仍按一个完整数组参数调用。
+- 数组 intrinsic 经实际声明完成普通选择后正规化。越界沿实际 core 异常构造与既有 MIR throw／catch／finally 处理，删除 codegen 的重复 fatal bounds check。动态 assembly 的溢出消息复用 callable-owned CString，同文消息在函数内共享，随 Strong／ODR 函数发布；canonical instruction 新增 tag 57，旧 tag 47 退役，production section 的摘要记录格式与 runtime C ABI 保持。
+- 数组 instance layout 关联 `ManagedObject` scan，TD inline scan 保留独立 `ArrayElement` 身份；producer 和 reader 均使用真实数组 class application 的接口派发表。递归 shape scan 的根与子程序放入同一常量对象，原 primary atom 覆盖全部字节，移除无归属的私有 `.element`／`.part` 全局及无调用 helper；保留真实对象边界与 relocation 校验。
+- 新增 `m23-generic-arrays` 的 **16 份源码、24 份 golden**，覆盖 **5 组运行正例、9 组诊断反例**。provider 和 consumer 发布后移走源码，下游只凭产物再次实例化并发布，复用已有 ODR member／ABI 比较、真实链接、普通运行与移动 GC。组合覆盖求值顺序、默认参数、整数组／spread identity、复制独立性、含引用大 struct／enum／tuple、嵌套数组、自有引用类型、重复 Int application、Unit／ZST、越界异常与 finally、普通 iterator／next 派发、vararg 函数引用；反例锁定位置及消息，包含非数组／可变数组 spread、不变性、整数组类型、重复参数、下标类型、只读数组写入、空实参推断与函数值参数数量。
+- LLVM 22.1 下 `cargo fmt --all`、`cargo clippy --workspace --all-targets` 通过，无警告。重建实际配套 `scoopc` 后，专项集成测试通过，耗时 **46.13 秒**，日志为 `/tmp/scoop-m23-7-arrays-driver.log`。
+- 清除全部 `SCOOP_UPDATE_*` 与 `INSTA_UPDATE` 后执行 `cargo test --workspace --no-fail-fast`：**5225 passed、1 failed、0 ignored**；唯一失败是 codegen 仍要求独立私有数组扫描子程序的旧断言。将该断言改为核对同一对象内的完整扫描字节和子程序指针，生产代码保持不变，再次格式化、lint 并完整重跑 `scoop-codegen`，**302 passed、0 failed、0 ignored**，耗时 **3.22 秒**。全仓其余 **4924 项** 已通过，其中 driver 的 **158 项** 全部通过、耗时 **393.11 秒**，包含本批关闭更新的正反例。两轮覆盖的 **5226 项不同测试** 均完成验证，无编译警告；日志为 `/tmp/scoop-m23-7-arrays-workspace.log` 与 `/tmp/scoop-m23-7-arrays-codegen.log`。
+- 验证结束后通过 Cargo metadata 确认实际 `target`，检查无编译／测试进程、无打开文件且目录仅含构建和编辑器检查缓存；恢复标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 **2798 个文件、6.1 GiB**。清理后 `target` 不存在，日志为 `/tmp/scoop-m23-7-arrays-clean.log`。
+
+数组转换构造 `Array(m)`／`MutableArray(a)`、`pack(*[], 42)` 等需后续实参提供上下文的推断，以及 `for` 语句对外来迭代协议的消费继续作为后续功能推进。当前迭代正例通过普通 `iterator()`／`next()` 调用执行，不代表 `for` 入口已经接通；M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径、经转导出类型的静态嵌套 import 基础上，继续补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
-3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径、经转导出类型的静态嵌套 import 基础上，继续补齐数组转换构造、后续实参提供上下文的数组推断、外来 for 协议与其他 vararg 组合、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
+3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，在本批递归 shape scan 完整对象定义的基础上，继续覆盖其他成员与表示组合。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
 

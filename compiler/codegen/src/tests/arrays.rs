@@ -1,9 +1,30 @@
 use super::*;
 
 /// An M5-shaped module: ArrayAlloc with i64 and aggregate (Point)
-/// elements, ArrayLen, bounds-checked ArrayGet / ArraySet, and
+/// elements, ArrayLen, prechecked ArrayGet / ArraySet, and
 /// ArrayClone on both element shapes.
 pub(super) fn arrays_module() -> Module {
+    let callable_body = callable_body("scoop_main");
+    let mut globals = Arena::default();
+    let overflow_message = globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::CString {
+            identity: scoop_lir::CallableCStringIdentity::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                &callable_body,
+                scoop_identity::StructuralDefinitionPath::from_first(
+                    scoop_identity::StructuralPathSegment::new(
+                        scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                        0,
+                    ),
+                    [],
+                ),
+            )
+            .unwrap(),
+            value: "array size overflow".to_string(),
+        },
+    });
     let point = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
     let mut meta = string_metadata();
     let int_array = array_type(
@@ -168,6 +189,7 @@ pub(super) fn arrays_module() -> Module {
             },
             Instruction::ArrayAssembly {
                 out: t10,
+                overflow_message,
                 parts: vec![
                     scoop_lir::ArrayAssemblyPart::Element(signed64(9)),
                     scoop_lir::ArrayAssemblyPart::CopyArray(Value::Local(numbers)),
@@ -191,7 +213,7 @@ pub(super) fn arrays_module() -> Module {
 
     Module {
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
-        globals: Arena::default(),
+        globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
         enums: scoop_lir::EnumDefs::default(),
@@ -202,7 +224,7 @@ pub(super) fn arrays_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
-            callable_body: callable_body("scoop_main"),
+            callable_body,
             safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,
             signature: plain_scoop_signature(vec![], LirType::Void),
@@ -239,8 +261,8 @@ fn emits_m5_arrays() {
         "ArrayAssembly must check its dynamic size and copy spread elements:\n{ir}"
     );
     assert!(
-        !ir.contains("scoop.trap.bounds") && !ir.contains("scoop.trap.array_size"),
-        "array traps must use typed Cone image atoms instead of private magic globals:\n{ir}"
+        !ir.contains("out_of_bounds") && !ir.contains("bounds_trap"),
+        "array access must consume MIR's existing language bounds check:\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {

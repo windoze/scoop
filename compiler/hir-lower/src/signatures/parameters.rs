@@ -25,11 +25,7 @@ impl Lowerer {
                     expression: expression.clone(),
                 },
             ),
-            ast::ParameterSyntax::Vararg {
-                modifier_span,
-                default,
-            } => {
-                self.require_implicit_array_application(*modifier_span)?;
+            ast::ParameterSyntax::Vararg { default, .. } => {
                 let ty = self.array_type(ArrayKind::Immutable, declared_ty);
                 let omission = match default {
                     ast::VarargDefaultSyntax::EmptyWhenOmitted => FnVarargOmission::EmptyArray,

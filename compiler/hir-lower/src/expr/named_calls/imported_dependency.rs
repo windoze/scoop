@@ -35,13 +35,15 @@ enum ImportedCallImplementation {
     },
     Intrinsic {
         template: generic::ImportedGenericTarget,
-        operation: ImportedPointerCall,
+        operation: ImportedIntrinsicCall,
     },
 }
 
-enum ImportedPointerCall {
+enum ImportedIntrinsicCall {
     Expression(hir::Expr),
-    Member(hir::PointerIntrinsic),
+    PointerMember(hir::PointerIntrinsic),
+    ArrayConversion(hir::ArrayIntrinsic),
+    ArrayAccess(hir::ArrayAccessKind),
 }
 
 pub(crate) struct ImportedDependencyCallProbe {

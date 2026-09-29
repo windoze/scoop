@@ -63,7 +63,7 @@ fn validate_descriptors(
             || registration.layout_definition_plan() != layout_physical.definition()
             || registration.layout_primary_atom() != layout_physical.primary()
             || registration.layout_symbol() != layout_physical.symbol()
-            || !matches_inline_scan(registration, section.layouts())
+            || !matches_inline_scan(registration, production.canonical_definitions())
             || definition.semantic_id() != exact
             || definition.definition_plan() != physical.definition()
             || definition.symbol() != physical.symbol()
@@ -130,7 +130,7 @@ fn validate_dispatch(
 
 fn matches_inline_scan(
     registration: &crate::StrongTypeRegistrationPlanV2,
-    layouts: &crate::CanonicalExactLayoutExportsV1,
+    definitions: &crate::ObjectSymbolSurfaceV1,
 ) -> bool {
     match registration.inline_scan() {
         crate::StrongTypeDescriptorInlineScanPlanV1::Null => {
@@ -146,8 +146,9 @@ fn matches_inline_scan(
             matches!(
                 registration.semantic().inline_scan(),
                 crate::TypeDescriptorInlineScanV1::Defined(actual) if actual == scan
-            ) && layouts.records().iter().any(|record| {
-                record.scan() == scan && record.scan_definition().definition() == definition_plan
+            ) && definitions.plan(definition_plan).is_some_and(|definition| {
+                definition.primary_symbol().key()
+                    == scoop_identity::PersistentSymbolKey::ScanProgram(scan)
             })
         }
     }

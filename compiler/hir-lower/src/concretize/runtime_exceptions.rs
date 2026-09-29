@@ -35,6 +35,19 @@ impl Lowerer {
         self.prepare_runtime_exception_type(declaration)
     }
 
+    pub(crate) fn prepare_array_bounds_exception_type(
+        &mut self,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let CoreLoweringAuthority::Imported(imported) = &self.core else {
+            return Ok(());
+        };
+        let declaration = imported
+            .exceptions()
+            .index_out_of_bounds_exception()
+            .persistent();
+        self.prepare_runtime_exception_type(declaration)
+    }
+
     fn prepare_runtime_exception_type(
         &mut self,
         declaration: PersistentTypeId,
@@ -83,6 +96,17 @@ impl Concretizer<'_> {
         self.lower_runtime_exception_type(declaration);
     }
 
+    pub(super) fn lower_array_bounds_exception_type(&mut self) {
+        let export::CoreProtocols::Imported(protocols) = self.core else {
+            return;
+        };
+        let declaration = protocols
+            .exceptions()
+            .index_out_of_bounds_exception()
+            .persistent();
+        self.lower_runtime_exception_type(declaration);
+    }
+
     fn lower_runtime_exception_type(&mut self, declaration: PersistentTypeId) {
         if let Some((ty, _)) = self.source.types.iter().find(|(_, ty)| {
             matches!(ty, export::Type::ImportedClass(class) if class.declaration.owner() == export::SourceNominalId::Concrete(declaration))
@@ -105,13 +129,21 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
     let cast_layout = has_layout(protocols.exceptions().class_cast_exception().persistent());
     let arithmetic_layout = has_layout(protocols.exceptions().arithmetic_exception().persistent());
     let unwrap_layout = has_layout(protocols.exceptions().unwrap_exception().persistent());
-    if cast_layout && arithmetic_layout && unwrap_layout {
+    let bounds_layout = has_layout(
+        protocols
+            .exceptions()
+            .index_out_of_bounds_exception()
+            .persistent(),
+    );
+    if cast_layout && arithmetic_layout && unwrap_layout && bounds_layout {
         return Ok(());
     }
     module.visit_executable_expressions(|occurrence| {
         let operation = match occurrence.expression.kind {
             concrete::ExprKind::Unwrap { trap_on_none: true, .. } if !unwrap_layout => "Option unwrap exception constructor",
             concrete::ExprKind::Cast { optional: false, .. } if !cast_layout => "runtime cast failure constructor",
+            concrete::ExprKind::Index { .. } | concrete::ExprKind::ArraySet { .. }
+                if !bounds_layout => "array bounds exception constructor",
             concrete::ExprKind::IntegerOperation {
                 operation: concrete::IntegerOperation::Managed { .. }, ..
             } if !arithmetic_layout => "integer division exception constructor",

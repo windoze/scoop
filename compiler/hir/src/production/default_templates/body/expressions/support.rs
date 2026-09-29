@@ -91,15 +91,10 @@ impl BodyProjection<'_, '_> {
                 }
             });
         }
-        let result = super::super::super::arena_get(
-            &self.entities.export().class_applications,
-            assembly.result_type,
-        )
-        .ok_or_else(|| self.unknown("array result application", assembly.result_type))?;
         DefaultArrayAssemblyV1::try_new(
             self.type_key(assembly.element_type)?,
             parts,
-            self.type_key(result.canonical_type)?,
+            self.type_key(assembly.result_type)?,
         )
         .map_err(super::super::super::DefaultBodyProjectionError::ArrayAssembly)
     }

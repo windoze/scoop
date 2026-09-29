@@ -531,7 +531,7 @@ pub enum HirIntegerOperationArguments {
 pub struct ArrayAssembly {
     pub element_type: TypeId,
     pub parts: Vec<ArrayAssemblyPart>,
-    pub result_type: ClassApplicationId,
+    pub result_type: TypeId,
 }
 
 #[derive(Debug, Clone)]

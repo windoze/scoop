@@ -88,7 +88,7 @@ impl Lowerer {
         }
 
         if let super::ImportedCallImplementation::Intrinsic {
-            operation: super::ImportedPointerCall::Expression(expression),
+            operation: super::ImportedIntrinsicCall::Expression(expression),
             ..
         } = &implementation
         {
@@ -183,14 +183,25 @@ impl Lowerer {
                         }
                     }
                 }
-                ImportedParameterInput::Vararg => {
-                    self.imported_dependency_capability_error(
-                        &candidate,
-                        argument_map.has_vararg(),
-                        "dependency callable",
-                        call_span,
-                    );
-                    return None;
+                ImportedParameterInput::Vararg(parts) => {
+                    let element = self
+                        .array_element_ty(parameter)
+                        .expect("a resolved vararg parameter has an array element type");
+                    let parts = parts
+                        .iter()
+                        .map(|part| {
+                            let value = source_args[part.input.index()].clone();
+                            match part.kind {
+                                crate::call_resolution::arguments::VarargPartKind::Element => {
+                                    hir::ArrayAssemblyPart::Element(self.adapt_to(value, element))
+                                }
+                                crate::call_resolution::arguments::VarargPartKind::CopyArray => {
+                                    hir::ArrayAssemblyPart::CopyArray(value)
+                                }
+                            }
+                        })
+                        .collect();
+                    self.array_assembly(element, parameter, parts, call_span)
                 }
             };
             parameter_values.push(self.imported_call_argument(
@@ -257,18 +268,39 @@ impl Lowerer {
                 origin: self.expression_origin(call_span),
             });
         }
-        if let super::ImportedCallImplementation::Intrinsic {
-            operation: super::ImportedPointerCall::Member(intrinsic),
-            ..
-        } = implementation
-        {
-            return Some(self.normalize_pointer_intrinsic(
-                intrinsic,
-                receiver.expect("pointer member has a receiver"),
-                parameter_values,
-                result_type,
-                call_span,
-            ));
+        if let super::ImportedCallImplementation::Intrinsic { operation, .. } = implementation {
+            let receiver = receiver.expect("a resolved intrinsic member has a receiver");
+            return Some(match operation {
+                super::ImportedIntrinsicCall::PointerMember(intrinsic) => self
+                    .normalize_pointer_intrinsic(
+                        intrinsic,
+                        receiver,
+                        parameter_values,
+                        result_type,
+                        call_span,
+                    ),
+                super::ImportedIntrinsicCall::ArrayConversion(intrinsic) => self
+                    .normalize_array_intrinsic_call(
+                        hir::IntrinsicFunctionKind::Array(intrinsic),
+                        receiver,
+                        &parameter_values,
+                        result_type,
+                        call_span,
+                    )?,
+                super::ImportedIntrinsicCall::ArrayAccess(intrinsic) => self
+                    .normalize_array_intrinsic_call(
+                        hir::IntrinsicFunctionKind::ArrayAccess(intrinsic),
+                        receiver,
+                        &parameter_values,
+                        result_type,
+                        call_span,
+                    )?,
+                super::ImportedIntrinsicCall::Expression(_) => {
+                    unreachable!(
+                        "expression intrinsics were committed before argument materialization"
+                    )
+                }
+            });
         }
         let mut args = Vec::with_capacity(parameter_values.len() + usize::from(receiver.is_some()));
         args.extend(receiver);

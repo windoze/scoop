@@ -46,9 +46,11 @@ impl FunctionLowerer<'_> {
         let out_ty = self.value_type(ty);
         let out = self.new_temp(out_ty);
         let safepoint = self.new_safepoint(lir::SafepointSiteRole::ManagedCall);
+        let overflow_message = self.trap_message("array size overflow");
         self.push(lir::Instruction::ArrayAssembly {
             out,
             parts,
+            overflow_message,
             array_type: self.array_type_id(*array_type),
             safepoint,
             live: lir::StatepointLiveSet::default(),

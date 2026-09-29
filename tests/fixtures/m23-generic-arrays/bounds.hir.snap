@@ -1,0 +1,262 @@
+Module
+  property0 var events: Int getter0=body($get$events) setter0=body($set$events) <stored global0 image>
+  var events: Int <global0 managed>
+  fun badIndex(): Long
+    val local0
+      Call $get$events : Int
+    val local1
+      IntegerLiteral 10 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      IntegerOperation int.mul <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local4
+      IntegerLiteral 1 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    Call $set$events : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    return
+      IntegerLiteral 1 : Long
+  fun replacement(): Int
+    val local0
+      Call $get$events : Int
+    val local1
+      IntegerLiteral 10 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      IntegerOperation int.mul <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local4
+      IntegerLiteral 2 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    Call $set$events : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    return
+      IntegerLiteral 42 : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local read : (T0) -> Int
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      Local $dependency.argument.1 : (T0) -> Int
+    return
+      ImportedGenericCall exercise<T0> : Int
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.read : (T0) -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      IntegerLiteral 42 : Int
+    val local2
+      ArrayAssembly : Array<Int>
+        Element
+          Local $dependency.argument.0 : Int
+    val local3
+      ImportedGenericCall pack<Int> : Array<Int>
+        Local $dependency.parameter.values : Array<Int>
+    try
+      val local4
+        Local values : Array<Int>
+      val local5
+        IntegerLiteral -1 : Long
+      val local6
+        Local $dependency.argument.0 : Array<Int>
+      val local7
+        Local $dependency.argument.1 : Long
+      ImportedGenericCall first<Int> : Int
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.index : Long
+    catch error: IndexOutOfBoundsException
+      val local9
+        Local caught : Int
+      val local10
+        IntegerLiteral 1 : Int
+      val local11
+        Local $dependency.argument.0 : Int
+      assign caught
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    try
+      val local12
+        Local values : Array<Int>
+      val local13
+        ArrayLen : Long
+          Local values : Array<Int>
+      val local14
+        Local $dependency.argument.0 : Array<Int>
+      val local15
+        Local $dependency.argument.1 : Long
+      ImportedGenericCall first<Int> : Int
+        Local $dependency.parameter.values : Array<Int>
+        Local $dependency.parameter.index : Long
+    catch error: IndexOutOfBoundsException
+      val local17
+        Local caught : Int
+      val local18
+        IntegerLiteral 1 : Int
+      val local19
+        Local $dependency.argument.0 : Int
+      assign caught
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    val local20
+      Local values : Array<Int>
+    val local21
+      Local $dependency.argument.0 : Array<Int>
+    val local22
+      ImportedGenericCall copy<Int> : MutableArray<Int>
+        Local $dependency.parameter.values : Array<Int>
+    try
+      val local23
+        Local mutable : MutableArray<Int>
+      val local24
+        CallableReference reference0 target=badIndex captures=0 : () -> Long
+      val local25
+        CallableReference reference1 target=replacement captures=0 : () -> Int
+      val local26
+        Local $dependency.argument.0 : MutableArray<Int>
+      val local27
+        Local $dependency.argument.1 : () -> Long
+      val local28
+        Local $dependency.argument.2 : () -> Int
+      ImportedGenericCall mutateComputed<Int> : Int
+        Local $dependency.parameter.values : MutableArray<Int>
+        Local $dependency.parameter.index : () -> Long
+        Local $dependency.parameter.value : () -> Int
+    catch error: IndexOutOfBoundsException
+      val local30
+        Local caught : Int
+      val local31
+        IntegerLiteral 1 : Int
+      val local32
+        Local $dependency.argument.0 : Int
+      assign caught
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    finally
+      val local33
+        Call $get$events : Int
+      val local34
+        IntegerLiteral 10 : Int
+      val local35
+        Local $dependency.argument.0 : Int
+      val local36
+        IntegerOperation int.mul <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local37
+        IntegerLiteral 3 : Int
+      val local38
+        Local $dependency.argument.0 : Int
+      Call $set$events : Unit
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    try
+      val local39
+        ArrayAssembly : Array<Unit>
+      val local40
+        ImportedGenericCall pack<Unit> : Array<Unit>
+          Local $dependency.parameter.values : Array<Unit>
+      val local41
+        Local $dependency.argument.0 : Array<Unit>
+      val local42
+        IntegerLiteral 0 : Long
+      ImportedGenericCall first<Unit> : Unit
+        Local $dependency.parameter.values : Array<Unit>
+        Local $dependency.parameter.index : Long
+    catch error: IndexOutOfBoundsException
+      val local44
+        Local caught : Int
+      val local45
+        IntegerLiteral 1 : Int
+      val local46
+        Local $dependency.argument.0 : Int
+      assign caught
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    val local47
+      Local caught : Int
+    val local48
+      IntegerLiteral 4 : Int
+    val local49
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local50
+        Call $get$events : Int
+      val local51
+        IntegerLiteral 123 : Int
+      val local52
+        Local $dependency.argument.0 : Int
+      val local53
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local53
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.0 : Boolean
+      val local54
+        Local mutable : MutableArray<Int>
+      val local55
+        Local $dependency.argument.0 : MutableArray<Int>
+      val local56
+        ImportedGenericCall freeze<Int> : Array<Int>
+          Local $dependency.parameter.values : MutableArray<Int>
+      val local57
+        Local $dependency.argument.0 : Array<Int>
+      val local58
+        IntegerLiteral 0 : Long
+      val local59
+        ImportedGenericCall first<Int> : Int
+          Local $dependency.parameter.values : Array<Int>
+          Local $dependency.parameter.index : Long
+      val local60
+        IntegerLiteral 42 : Int
+      val local61
+        Local $dependency.argument.0 : Int
+      val local62
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local62
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.1 : Boolean
+      assign $result.2
+        IntegerLiteral 42 : Int
+    else
+      assign $result.2
+        IntegerLiteral 1 : Int
+    return
+      Local $result.2 : Int
+  fun $get$events(): Int <no-gc cdecl>
+    return
+      GlobalRead events : Int
+  fun $set$events(value: Int): Unit <no-gc cdecl>
+    assign global events
+      Local value : Int
+  output library

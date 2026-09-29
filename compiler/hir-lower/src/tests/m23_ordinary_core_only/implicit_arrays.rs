@@ -1,62 +1,64 @@
 use super::*;
 
-const MESSAGE: &str = "SCOOP_HIR_CROSS_CONE_GENERIC_REQUIRED: implicit array application requires generic/ODR capability from M23-7";
-
-fn fixture(name: &str) -> String {
-    std::fs::read_to_string(
+fn assert_lowers(name: &str) {
+    let source = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-implicit-array-capability")
             .join(name),
     )
-    .unwrap()
-}
-
-fn assert_errors(name: &str, expressions: &[&str]) {
-    let source = fixture(name);
+    .unwrap();
     constants::with_input(&source, |input| {
-        let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
-            .err()
-            .expect("implicit imported array applications need generic capability");
-        let expected = expressions
-            .iter()
-            .flat_map(|expression| {
-                source.match_indices(expression).map(move |(start, _)| {
-                    scoop_ast::Span::new(start as u32, (start + expression.len()) as u32)
-                })
-            })
-            .collect::<Vec<_>>();
-        assert!(!expected.is_empty(), "{name}");
-        let actual = errors
-            .iter()
-            .filter(|error| error.message == MESSAGE && error.file == 0)
-            .map(|error| error.span.unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(actual.len(), expected.len(), "{name}: {errors:#?}");
-        for span in expected {
-            assert!(actual.contains(&span), "{name}: {errors:#?}");
-        }
+        let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
+            .unwrap_or_else(|errors| panic!("{name}: {errors:#?}"));
+        let export = output.output().export.module();
+        assert!(
+            export.types.iter().any(|(_, ty)| {
+                matches!(ty, scoop_hir::Type::ImportedClass(class)
+                if matches!(class.declaration.interface.source_shape(),
+                    scoop_hir::NominalSourceShapeV1::Intrinsic(representation)
+                        if representation.family() == scoop_hir::IntrinsicTypeKind::Array))
+            }),
+            "{name} must retain the actual imported array declaration"
+        );
+        scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
     });
 }
 
 #[test]
-fn imported_array_parameters_report_the_vararg_modifier() {
+fn imported_array_parameters_use_the_core_application() {
     for name in ["function.scoop", "class.scoop", "struct.scoop"] {
-        assert_errors(name, &["vararg"]);
+        assert_lowers(name);
     }
 }
 
 #[test]
-fn imported_array_parameters_keep_the_gate_with_binders_defaults_and_variants() {
-    assert_errors("combined.scoop", &["vararg"]);
+fn imported_array_parameters_preserve_binders_defaults_and_variants() {
+    assert_lowers("combined.scoop");
 }
 
 #[test]
-fn imported_array_literals_report_the_complete_literal() {
-    assert_errors("literal.scoop", &["[1, 2, 3]"]);
-    assert_errors("empty.scoop", &["[]"]);
+fn imported_array_literals_use_the_core_application() {
+    assert_lowers("literal.scoop");
+    let source = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m23-implicit-array-capability/empty.scoop"
+    ));
+    constants::with_input(source, |input| {
+        let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
+            .err()
+            .unwrap();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].file, 0);
+        assert_eq!(
+            errors[0].message,
+            "cannot infer the element type of an empty array literal"
+        );
+        let span = errors[0].span.unwrap();
+        assert_eq!(&source[span.start as usize..span.end as usize], "[]");
+    });
 }
 
 #[test]
-fn imported_array_literals_keep_the_gate_inside_generic_defaults() {
-    assert_errors("default.scoop", &["[seed]"]);
+fn imported_array_literals_work_inside_generic_defaults() {
+    assert_lowers("default.scoop");
 }

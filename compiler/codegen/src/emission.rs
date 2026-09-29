@@ -536,8 +536,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         type_tds: &type_tds,
         external_type_tds: &external_type_tds,
         target_data: &target_data,
-        bounds_message,
-        array_size_message,
     };
     let runtime_scan_plans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(module)
         .map_err(|error| CodegenError(format!("callable runtime scan planning failed: {error}")))?;

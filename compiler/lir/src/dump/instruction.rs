@@ -471,6 +471,7 @@ pub(super) fn dump_instruction(
         Instruction::ArrayAssembly {
             out,
             parts,
+            overflow_message,
             array_type,
             safepoint,
             live,
@@ -487,10 +488,11 @@ pub(super) fn dump_instruction(
                 })
                 .collect::<Vec<_>>();
             buf.push_str(&format!(
-                "    t{} = array_assembly array{} ({}) sp{} live {} : {}\n",
+                "    t{} = array_assembly array{} ({}) overflow {} sp{} live {} : {}\n",
                 out.into_raw(),
                 array_type.into_raw(),
                 parts.join(", "),
+                value_name(Value::Global(*overflow_message)),
                 safepoint_name(function, *safepoint),
                 live_set_name(live),
                 function.temps[*out].ty.dump()

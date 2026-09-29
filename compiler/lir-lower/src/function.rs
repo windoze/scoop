@@ -218,6 +218,7 @@ pub(super) fn lower_function<'a>(
         returns_void,
         call_targets: lir::CallTargets::default(),
         trap_blocks: HashMap::new(),
+        trap_messages: HashMap::new(),
         current_sealed: false,
         exception_slots: None,
         caught_exception: None,
@@ -322,6 +323,7 @@ struct FunctionLowerer<'a> {
     /// The shared trap blocks of this function, one per message,
     /// created on first use.
     trap_blocks: HashMap<String, lir::BlockId>,
+    trap_messages: HashMap<String, lir::GlobalId>,
     /// Whether the current block was already sealed.
     current_sealed: bool,
     /// Function-local spill slots shared by all landing pads. They

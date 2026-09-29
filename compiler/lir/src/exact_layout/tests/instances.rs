@@ -84,11 +84,7 @@ fn box_array_bytes_and_abstract_records_rebuild_all_shape_fields() {
         arguments: NonEmptyVec::from_first(element.identity().exact(), []),
     })
     .unwrap();
-    let bound = Bound::new(
-        array,
-        RepresentationRole::ManagedObject,
-        ScanRole::ArrayElement,
-    );
+    let bound = Bound::instance(array);
     let array =
         ExactInstanceLayoutV1::inline_array(bound.identity, &element, &bound.foundation).unwrap();
     assert_eq!(array.shape().inline_stride(), 8);
@@ -104,7 +100,7 @@ fn box_array_bytes_and_abstract_records_rebuild_all_shape_fields() {
         record.scan(),
         PersistentScanId::from_key(&ScanKey::new(
             record.identity().layout(),
-            ScanRole::ArrayElement
+            ScanRole::ManagedObject
         ))
         .unwrap()
     );

@@ -442,6 +442,10 @@ impl Concretizer<'_> {
                     .collect(),
             ),
             export::ExprKind::ArrayAssembly(assembly) => {
+                let result = self.lower_type(assembly.result_type, substitution);
+                let concrete::TypeKind::Class(result_type) = self.types[result].kind else {
+                    unreachable!("an array assembly retains its exact class type")
+                };
                 concrete::ExprKind::ArrayAssembly(concrete::ArrayAssembly {
                     element_type: self.lower_type(assembly.element_type, substitution),
                     parts: assembly
@@ -464,29 +468,35 @@ impl Concretizer<'_> {
                             }
                         })
                         .collect(),
-                    result_type: self.lower_class_application(assembly.result_type, substitution),
+                    result_type,
                 })
             }
             export::ExprKind::Index {
                 access,
                 receiver,
                 index,
-            } => concrete::ExprKind::Index {
-                access: *access,
-                receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
-                index: Box::new(self.lower_expr(index, substitution, locals)),
-            },
+            } => {
+                self.lower_array_bounds_exception_type();
+                concrete::ExprKind::Index {
+                    access: *access,
+                    receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
+                    index: Box::new(self.lower_expr(index, substitution, locals)),
+                }
+            }
             export::ExprKind::ArraySet {
                 access,
                 receiver,
                 index,
                 value,
-            } => concrete::ExprKind::ArraySet {
-                access: *access,
-                receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
-                index: Box::new(self.lower_expr(index, substitution, locals)),
-                value: Box::new(self.lower_expr(value, substitution, locals)),
-            },
+            } => {
+                self.lower_array_bounds_exception_type();
+                concrete::ExprKind::ArraySet {
+                    access: *access,
+                    receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
+                    index: Box::new(self.lower_expr(index, substitution, locals)),
+                    value: Box::new(self.lower_expr(value, substitution, locals)),
+                }
+            }
             export::ExprKind::ArrayLen(array) => {
                 concrete::ExprKind::ArrayLen(Box::new(self.lower_expr(array, substitution, locals)))
             }

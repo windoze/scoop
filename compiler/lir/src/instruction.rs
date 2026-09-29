@@ -350,6 +350,8 @@ pub enum Instruction {
     ArrayAssembly {
         out: TempId,
         parts: Vec<ArrayAssemblyPart>,
+        /// A callable-owned C string for checked allocation-size overflow.
+        overflow_message: GlobalId,
         array_type: ArrayTypeId,
         safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
@@ -360,14 +362,14 @@ pub enum Instruction {
         operand: Value,
         array_type: ArrayTypeId,
     },
-    /// Bounds-checked element read (traps out of range).
+    /// Element read after MIR's language-level bounds check.
     ArrayGet {
         out: TempId,
         array: Value,
         index: Value,
         array_type: ArrayTypeId,
     },
-    /// Bounds-checked element write (traps out of range).
+    /// Element write after MIR's language-level bounds check.
     ArraySet {
         array: Value,
         index: Value,

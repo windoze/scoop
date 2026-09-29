@@ -89,7 +89,7 @@ impl ExactInstanceLayoutV1 {
                 element: element.value.clone(),
                 storage,
             },
-            ScanRole::ArrayElement,
+            ScanRole::ManagedObject,
             foundation,
         )
     }

@@ -1,4 +1,4 @@
-//! Array metadata, element addressing, and bounds checks.
+//! Array metadata, element addressing, and checked assembly sizes.
 
 use super::*;
 
@@ -53,12 +53,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(in crate::function) fn array_size_check(
         &mut self,
         overflow: inkwell::values::IntValue<'ctx>,
+        message: scoop_lir::GlobalId,
         continuation_name: &str,
     ) -> Result<(), CodegenError> {
         let continuation = self
             .context
             .append_basic_block(self.llvm_function, continuation_name);
-        let trap = self.array_size_trap_block()?;
+        let trap = self.array_size_trap_block(message)?;
         self.builder
             .build_conditional_branch(overflow, trap, continuation)
             .map_err(|error| {
@@ -71,110 +72,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(())
     }
 
-    /// Emit the array bounds check: trap when `(u64)index >= (u64)size`
-    /// (the unsigned comparison also rejects negative indexes, which
-    /// wrap above every in-range size). On return the builder is
-    /// positioned in the in-bounds continuation block; the rest of the
-    /// current LIR block (including its terminator) is emitted there.
-    pub(in crate::function) fn bounds_check(
-        &mut self,
-        array: PointerValue<'ctx>,
-        index: IntValue<'ctx>,
-    ) -> Result<(), CodegenError> {
-        let builder = self.builder;
-        let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
-        let size = builder
-            .build_load(self.context.i64_type(), size_ptr, "size")
-            .map_err(|e| {
-                CodegenError(format!(
-                    "bounds check @{symbol}: {e}",
-                    symbol = self.function.symbol()
-                ))
-            })?
-            .into_int_value();
-        let out_of_bounds = builder
-            .build_int_compare(IntPredicate::UGE, index, size, "out_of_bounds")
-            .map_err(|e| {
-                CodegenError(format!(
-                    "bounds check @{symbol}: {e}",
-                    symbol = self.function.symbol()
-                ))
-            })?;
-        let ok_block = self
-            .context
-            .append_basic_block(self.llvm_function, "in_bounds");
-        let trap_block = self.bounds_trap_block()?;
-        builder
-            .build_conditional_branch(out_of_bounds, trap_block, ok_block)
-            .map_err(|e| {
-                CodegenError(format!(
-                    "bounds check @{symbol}: {e}",
-                    symbol = self.function.symbol()
-                ))
-            })?;
-        builder.position_at_end(ok_block);
-        Ok(())
-    }
-
-    /// The shared bounds-check trap block of this function, created on
-    /// first use: `scoop_rt_trap("array index out of bounds")` followed
-    /// by `unreachable` (the typed runtime trap contract is `noreturn`).
-    pub(in crate::function) fn bounds_trap_block(
-        &mut self,
-    ) -> Result<inkwell::basic_block::BasicBlock<'ctx>, CodegenError> {
-        if let Some(block) = self.bounds_trap_block {
-            return Ok(block);
-        }
-        let builder = self.builder;
-        let current = builder
-            .get_insert_block()
-            .ok_or_else(|| CodegenError("builder has no insertion block".to_string()))?;
-
-        let message = self.bounds_message.as_pointer_value();
-
-        let trap = self.gc_leaf_fn(
-            scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
-                scoop_lir::NoGcRuntimeFunction::Trap,
-            ))
-            .logical_symbol(),
-            self.context
-                .void_type()
-                .fn_type(&[ptr_ty(self.context).into()], false),
-        );
-        let block = self
-            .context
-            .append_basic_block(self.llvm_function, "bounds_trap");
-        builder.position_at_end(block);
-        builder
-            .build_call(trap, &[message.into()], "trap")
-            .map_err(|e| {
-                CodegenError(format!(
-                    "bounds trap @{symbol}: {e}",
-                    symbol = self.function.symbol()
-                ))
-            })?;
-        builder.build_unreachable().map_err(|e| {
-            CodegenError(format!(
-                "bounds trap @{symbol}: {e}",
-                symbol = self.function.symbol()
-            ))
-        })?;
-        builder.position_at_end(current);
-        self.bounds_trap_block = Some(block);
-        Ok(block)
-    }
-
     pub(in crate::function) fn array_size_trap_block(
         &mut self,
+        message: scoop_lir::GlobalId,
     ) -> Result<inkwell::basic_block::BasicBlock<'ctx>, CodegenError> {
-        if let Some(block) = self.array_size_trap_block {
+        if let Some(&block) = self.array_size_trap_blocks.get(&message) {
             return Ok(block);
         }
         let builder = self.builder;
         let current = builder
             .get_insert_block()
             .ok_or_else(|| CodegenError("builder has no insertion block".to_string()))?;
-        let message = self.array_size_message.as_pointer_value();
+        let message_pointer = self.value(Value::Global(message))?.into_pointer_value();
         let trap = self.gc_leaf_fn(
             scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
                 scoop_lir::NoGcRuntimeFunction::Trap,
@@ -189,7 +98,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .append_basic_block(self.llvm_function, "array_size_trap");
         builder.position_at_end(block);
         builder
-            .build_call(trap, &[message.into()], "trap")
+            .build_call(trap, &[message_pointer.into()], "trap")
             .map_err(|error| {
                 CodegenError(format!(
                     "array size trap @{symbol}: {error}",
@@ -203,7 +112,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             ))
         })?;
         builder.position_at_end(current);
-        self.array_size_trap_block = Some(block);
+        self.array_size_trap_blocks.insert(message, block);
         Ok(block)
     }
 }

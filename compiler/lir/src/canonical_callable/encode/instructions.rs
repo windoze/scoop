@@ -256,11 +256,13 @@ impl Writer<'_, '_> {
             Instruction::ArrayAssembly {
                 out,
                 parts,
+                overflow_message,
                 array_type,
                 safepoint,
                 live,
             } => {
-                record!(self, 47; self.temp(*out), self.array_parts(parts), self.array_type(*array_type), self.safepoint(*safepoint), self.live(live))
+                // Tag 47 omitted the callable-owned overflow message.
+                record!(self, 57; self.temp(*out), self.array_parts(parts), self.array_type(*array_type), self.safepoint(*safepoint), self.live(live), self.global(*overflow_message))
             }
             Instruction::ArrayLen {
                 out,

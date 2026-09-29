@@ -190,6 +190,8 @@ M24起class body member sum增加独立`ReleaseBlock`。`release`只在class mem
 
 ### 2.2 HIR
 
+数组的隐式 application 从当前 core 声明或已导入 core 协议取得同一 typed owner，不复制外来声明到本地 class arena。Export HIR 的数组 assembly 保存完整 `TypeId` 作为结果类型，允许本地与外来数组 application；LocalConcrete HIR 再统一解析为具体 class。依赖调用的实参映射保留每个元素／spread 的源码索引，命名整数组直接使用显式值，省略时按实际协议选择默认模板或新空数组；所有显式表达式先求值，再按形参序物化参数。共有模板消费直接重建已有数组节点与实际成员调用，复用普通具体化、数组表示和运行时操作，不增加数组专用产物格式、来源资格或第二套布局验证。
+
 import selector 从最长可见包前缀进入已选静态 owner 后，exact 与 star 的终点均使用 owner 实际 provider 的公开 binding，support provider 只参与这种 typed owner 查询。结果继续保留实际 binding target、conflict key 与终点 binding 的现有转导出引用；嵌套 namespace 不追加外层名称路径，不建立第二套 lookup 或授权记录。public import 直接发布该已解析结果，后续 consumer 按相同实体与普通类型规则消费。
 
 限定类型路径与普通 import 共用已解析的 direct dependency 公开绑定和最长包前缀规则。导入收集保留一次不可变的依赖包类型索引，包含仅导出 value 的包占位以保持前缀语义；后续候选探测复用该索引，不重新扫描产物或按 FQN 猜实体。当前与依赖的同包候选统一做普通可见性和歧义选择，随后沿 typed nominal owner 查找嵌套类型，并复用既有类型实参和 alias 展开入口。索引只属于本次 lowering，不进入共有 HIR 或机器表示，也不增加来源资格或独立语义验证层。
@@ -463,6 +465,12 @@ abstract trap 的 C 字符串沿既有 `CallableCStringIdentity` 作为当前 bo
 LocalConcrete → MIR 的 source exact relation 同时保留完整物化归属：非泛型 nominal 携带实际声明的 provider，nominal application 携带匹配的 specialization record，结构类型采用独立分支。导入 nominal 的 provider 从已验证 HIR 声明取得；compiler protocol 的 nominal 引用也保存同一真实 provider，不能把协议发布方或当前 Cone 当作定义方。Strong 计划只选 provider 等于当前 Cone 的 nominal 根；外部 nominal 可参与签名及物理计算，但不得在 consumer 取得同身份的本地布局或 descriptor 定义。Unit/Any 的 provider 来自其语言内建声明 key；object 使用已有源码 object 与 backing 的 typed 关系。归属分支必须与 exact key 相符，不能用缺省 ConeOwned 或可缺失的 specialization 补齐。String descriptor 的依赖引用还须与该 source exact 保存的实际 provider 一致，不能只比较 exact id 或排除当前 Cone。
 
 ### 2.4 LIR
+
+数组的共有 instance layout 与其他 managed object 一样关联 `ManagedObject` scan；该程序从对象起点读取长度并扫描元素区。TD 的非空 inline scan 则关联同一 layout 下已有的 `ArrayElement` scan，只扫描一个元素。两种 scan 保留各自的 typed identity 与实际程序，不能因共享 layout 而混用；GC-free／ZST 元素的 inline scan 仍为空。数组的 vtable／itable 使用实际 class application 的普通 dispatch schema，保留 core 源码声明的 `Iterable<T>` 等接口关系。
+
+数组下标读写的语言越界检查由 MIR 生成，失败沿普通异常路径抛出 `IndexOutOfBoundsException`；LIR `ArrayGet`／`ArraySet` 消费已检查的下标，codegen 不再重复生成 fatal trap。动态数组 assembly 保留长度求和、`Long` 上限及分配大小溢出检查，其必需的报错常量引用由 LIR lowering 生成，复用 `GlobalInit::CString` 的 callable owner、稳定路径与附属 atom。相同函数中的同文报错常量复用，Strong／ODR 分片随实际函数定义发射，不引用其他对象的私有 Cone-image boundary。canonical LIR 使用新增 instruction tag 57 编码 assembly 的完整常量引用，旧 tag 47 退役；已有 production section 仍保存同一格式的内容摘要，正文与常量变化自然改变该摘要，不增加产物字段或 runtime ABI。
+
+shape scan 的 `Sequence`／`Array` 子程序与根程序一起存入同一对齐的常量对象，primary atom 覆盖整棵已确定的扫描树；根位于对象起点，子程序指针是同一对象内的实际偏移。这样完整保留现有扫描指令与 runtime ABI，并使引用元素数组和递归组合的所有机器字节均属于实际 scan 定义，不生成无归属的私有 `.element`／`.part` 全局，也不另建扫描身份或发布格式。
 
 layout profile 的 LIR 生产入口在封存输出前，从已验证 HIR/MIR identity graph 与实际 Cone coordinate 生成每个已发射 descriptor 的 canonical exact type diagnostic name。该名称直接进入实际 LIR、registration、object bytes 与 layout export；导出阶段重放并逐字比较，不修改已封存输出，也不从 arena 的显示名称接受候选值。缺失声明、生成关系或 coordinate 时整体失败。
 

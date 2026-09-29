@@ -160,6 +160,8 @@ public default 仍只能直接引用覆盖其完整调用域的实体；generic 
 
 显式实参、默认参数、`vararg` 和前置参数引用继续按 8.5 求值。默认值中嵌套泛型调用的 binder 随外层模板替换；实际省略参数时才展开默认值。定义位置和求值位置分别保留，实例化失败报告消费方使用点，并附 provider 中的约束/声明位置。
 
+数组字面量与 `vararg` 的隐式 application 使用实际 core 协议 owner，与显式数组类型共用普通泛型表示。依赖调用映射保留元素、spread 的源码索引与命名整数组的完整值；显式求值和形参物化沿既有顺序进行。数组 literal／assembly、下标、写入、长度和转换节点在共有模板中直接替换完整类型与操作数，Export assembly 不依赖仅容纳本地声明的 class application id。成员选择、转换、循环、异常及移动 GC 均复用正常管线，真实产物覆盖空数组、复制 identity、ZST、大值和含引用元素。 动态 assembly 的溢出常量归实际 callable，递归 shape scan 的子程序合入原 primary atom；完整引用与对象边界使用已有物理定义检查，具体职责见实现规范 2.4。
+
 共享可移植表达式直接保存原 `EvaluationOrigin`，使已经在泛型函数或构造委托内展开的默认值保留该正文中的实际求值位置。消费泛型正文时恢复这条记录；消费默认参数模板时仍按本次省略参数的使用点替换求值位置。两者使用同一表达式转换，不从定义位置或模板声明位置猜测求值位置。
 
 generic body 自身的 `current_source_location` 使用该正文中的语义求值位置，不因某个 consumer 首先实例化而变成调用点。实例化诊断链只用于诊断，不进入 body、常量、symbol 或 ODR fingerprint。

@@ -340,8 +340,7 @@ impl ReferenceCollector<'_> {
             | hir::ExprKind::PrimitiveUnary { operand, .. }
             | hir::ExprKind::Unwrap { operand, .. } => self.expression(operand),
             hir::ExprKind::ArrayAssembly(assembly) => {
-                let result_type =
-                    self.lowerer.class_applications[assembly.result_type].canonical_type;
+                let result_type = assembly.result_type;
                 self.type_reference(assembly.element_type, origin);
                 for part in &assembly.parts {
                     match part {

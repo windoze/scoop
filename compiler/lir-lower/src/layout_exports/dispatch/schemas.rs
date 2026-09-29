@@ -29,7 +29,6 @@ pub(super) fn for_owner<'a>(
     match ty.representation() {
         mir::MirTypeRepresentationV1::Struct { .. }
         | mir::MirTypeRepresentationV1::Enum { .. }
-        | mir::MirTypeRepresentationV1::InlineArray { .. }
         | mir::MirTypeRepresentationV1::CoroutineStep { .. }
         | mir::MirTypeRepresentationV1::CoroutineSlot { .. } => Ok(Schema::Empty),
         mir::MirTypeRepresentationV1::Intrinsic(intrinsic)

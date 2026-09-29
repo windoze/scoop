@@ -12,6 +12,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::ArrayAssembly {
                 out,
                 parts,
+                overflow_message,
                 array_type,
                 safepoint,
                 live,
@@ -115,7 +116,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 symbol = function.symbol()
                             ))
                         })?;
-                    self.array_size_check(overflow, &format!("assembly.size.sum.ok.{part_index}"))?;
+                    self.array_size_check(
+                        overflow,
+                        *overflow_message,
+                        &format!("assembly.size.sum.ok.{part_index}"),
+                    )?;
                     let exceeds_long_max = builder
                         .build_int_compare(
                             IntPredicate::UGT,
@@ -131,6 +136,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         })?;
                     self.array_size_check(
                         exceeds_long_max,
+                        *overflow_message,
                         &format!("assembly.size.long.ok.{part_index}"),
                     )?;
                     total = next_total;
@@ -146,7 +152,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|error| {
                         CodegenError(format!("array allocation size check: {error}"))
                     })?;
-                self.array_size_check(exceeds_layout, "assembly.size.bytes.ok")?;
+                self.array_size_check(exceeds_layout, *overflow_message, "assembly.size.bytes.ok")?;
                 let total_bytes = match layout.storage().kind() {
                     scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. } => {
                         i64_ty.const_int(layout.instance().minimum_size(), false)

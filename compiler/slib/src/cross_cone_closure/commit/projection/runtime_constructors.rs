@@ -18,6 +18,7 @@ impl ValidatedCrossConeSemanticClosure {
         let mut cast_required = false;
         let mut arithmetic_required = false;
         let mut unwrap_required = false;
+        let mut bounds_required = false;
         module
             .visit_executable_expressions(|occurrence| {
                 unwrap_required |= matches!(
@@ -40,6 +41,10 @@ impl ValidatedCrossConeSemanticClosure {
                         operation: concrete::IntegerOperation::Managed { .. },
                         ..
                     }
+                );
+                bounds_required |= matches!(
+                    occurrence.expression.kind,
+                    concrete::ExprKind::Index { .. } | concrete::ExprKind::ArraySet { .. }
                 );
                 if let concrete::ExprKind::CallableReference(id) = occurrence.expression.kind {
                     arithmetic_required |= matches!(
@@ -68,6 +73,12 @@ impl ValidatedCrossConeSemanticClosure {
             (
                 arithmetic_required,
                 protocols.exceptions().arithmetic_exception_constructor(),
+            ),
+            (
+                bounds_required,
+                protocols
+                    .exceptions()
+                    .index_out_of_bounds_exception_constructor(),
             ),
         ] {
             if required {

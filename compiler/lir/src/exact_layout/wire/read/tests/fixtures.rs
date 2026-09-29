@@ -115,11 +115,7 @@ pub(super) fn array(zst: bool) -> ExactLayoutExportV1 {
         arguments: NonEmptyVec::from_first(element.identity().exact(), []),
     })
     .unwrap();
-    let bound = Bound::new(
-        key,
-        RepresentationRole::ManagedObject,
-        ScanRole::ArrayElement,
-    );
+    let bound = Bound::instance(key);
     ExactInstanceLayoutV1::inline_array(bound.identity, &element, &bound.foundation)
         .unwrap()
         .into()

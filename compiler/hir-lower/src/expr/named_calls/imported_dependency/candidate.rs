@@ -86,10 +86,23 @@ impl ImportedCallableCandidate {
         }
     }
 
+    pub(super) fn array_intrinsic(&self) -> Option<super::ImportedIntrinsicCall> {
+        match self.interface().effects().implementation() {
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Array(kind)) => {
+                Some(super::ImportedIntrinsicCall::ArrayConversion(kind))
+            }
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::ArrayAccess(
+                kind,
+            )) => Some(super::ImportedIntrinsicCall::ArrayAccess(kind)),
+            _ => None,
+        }
+    }
+
     pub(super) fn executable(&self) -> bool {
         self.capability().is_some()
             || self.normalized_intrinsic().is_some()
             || self.pointer_intrinsic().is_some()
+            || self.array_intrinsic().is_some()
             || matches!(
                 self.interface().declaration(),
                 scoop_identity::CallableTemplateOrigin::VariantConstructor(_)

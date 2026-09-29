@@ -23,6 +23,7 @@ pub(crate) struct TrustedCoreFixture {
     aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
     pub(crate) interface: scoop_hir::CoreCompilerProtocolSurfaceV1,
 
+    identities: scoop_identity::ValidatedIdentityGraph,
     session: SemanticIdentitySession,
 }
 
@@ -82,6 +83,9 @@ impl TrustedCoreFixture {
                 .unwrap();
         }
         decoded.register_identities(&mut pending).unwrap();
+        pending
+            .register_external_graph_authorities(&self.identities)
+            .unwrap();
         decoded.resolve_identities(&mut pending).unwrap();
         let identities = pending.finish().unwrap();
         let imported = self
@@ -181,6 +185,7 @@ pub(crate) fn trusted_core_from_source(
         source_foundation,
         interface,
 
+        identities,
         session,
     }
 }

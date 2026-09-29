@@ -114,14 +114,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
                     (ExactLayoutBodyKindV1::Instance(instance), ScanRole::ManagedObject) => {
                         instance.shape().object_scan()
                     }
-                    (ExactLayoutBodyKindV1::Instance(instance), ScanRole::ArrayElement)
-                        if matches!(
-                            instance.representation().kind(),
-                            InstanceRepresentationKindV1::InlineArray { .. }
-                        ) =>
-                    {
-                        instance.shape().inline_scan()
-                    }
                     _ => return Err(ShapeLinkError::DefinitionRelation(subject)),
                 };
                 ShapeLinkContractV1::Scan {

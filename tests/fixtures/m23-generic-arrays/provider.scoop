@@ -1,0 +1,79 @@
+package upstream.arrays
+
+public fun <T> pack(vararg values: T): Array<T> = values
+
+public fun <T> defaultPack(seed: T, vararg values: T = [seed]): Array<T> = values
+
+public fun <T> first(values: Array<T>, index: Long = 0L): T = values[index]
+
+public fun <T> relay(seed: T): Array<T> = pack<T>(seed, *[seed], seed)
+
+public fun <T> mutate(values: MutableArray<T>, index: Long, value: T): T {
+    values[index] = value
+    return values[index]
+}
+
+public fun <T> copy(values: Array<T>): MutableArray<T> = values.toMutableArray()
+
+public fun <T> freeze(values: MutableArray<T>): Array<T> = values.toArray()
+
+public fun <T> defaultFirst(vararg values: T, value: T = values[0L]): T = value
+
+public fun <T> mutateComputed(values: MutableArray<T>, index: () -> Long, value: () -> T): T {
+    values[index()] = value()
+    return values[0L]
+}
+
+public fun <T> total(values: Iterable<T>, read: (T) -> Int): Int {
+    var result = 0
+    val iterator = values.iterator()
+    var done = false
+    while (!done) {
+        when (iterator.next()) {
+            Some(value) -> { result = result + read(value) }
+            None -> { done = true }
+        }
+    }
+    return result
+}
+
+public var trace: Int = 0
+
+public fun mark(digit: Int): Int {
+    trace = trace * 10 + digit
+    return 42
+}
+
+public fun markedArray(digit: Int): Array<Int> = [mark(digit)]
+
+public fun Int.frame(
+    seed: Int = mark(4),
+    vararg values: Int = [seed],
+    after: Int = mark(5),
+    copied: Array<Int> = values
+): Array<Int> {
+    mark(6)
+    return if (this == 42 && seed == 42 && after == 42 && copied === values) {
+        values
+    } else {
+        []
+    }
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val values = relay<T>(seed)
+    val mutable = copy<T>(values)
+    val copied = freeze<T>(mutable)
+    val whole = pack<T>(values = values)
+    val spread = pack<T>(*values)
+    val defaulted = defaultPack<T>(seed)
+    val empty = pack<T>()
+    return if (values.size == 3L && mutable.size == 3L && copied.size == 3L &&
+        whole === values && spread !== values && empty.size == 0L &&
+        defaulted.size == 1L && read(first<T>(values)) == 42 &&
+        read(mutate<T>(mutable, 1L, seed)) == 42 && read(first<T>(copied, 2L)) == 42) {
+        42
+    } else {
+        0
+    }
+}

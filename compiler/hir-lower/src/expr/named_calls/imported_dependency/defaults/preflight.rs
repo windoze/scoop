@@ -84,6 +84,8 @@ impl Lowerer {
             }
             Kind::Capture(index) => Err(ImportedDefaultPlanError::UnboundCapture(*index)),
             Kind::ReferenceUpcast(operand)
+            | Kind::ArrayLen(operand)
+            | Kind::ArrayClone(operand)
             | Kind::PtrFromNonZeroULong(operand)
             | Kind::PtrToULong(operand)
             | Kind::PtrCast(operand)
@@ -165,9 +167,40 @@ impl Lowerer {
                     owner, template, offset, locals, bindings, callables,
                 )
             }
-            Kind::TupleLiteral(elements) => self.preflight_imported_default_expressions(
-                owner, template, elements, locals, bindings, callables,
-            ),
+            Kind::TupleLiteral(elements) | Kind::ArrayLiteral(elements) => self
+                .preflight_imported_default_expressions(
+                    owner, template, elements, locals, bindings, callables,
+                ),
+            Kind::ArrayAssembly(assembly) => {
+                self.imported_default_type_with_bindings(assembly.element_type(), bindings)?;
+                for part in assembly.parts() {
+                    let (hir::DefaultArrayAssemblyPartV1::Element(value)
+                    | hir::DefaultArrayAssemblyPartV1::CopyArray(value)) = part;
+                    self.preflight_imported_default_expression(
+                        owner, template, value, locals, bindings, callables,
+                    )?;
+                }
+                Ok(())
+            }
+            Kind::Index {
+                receiver, index, ..
+            }
+            | Kind::ArraySet {
+                receiver, index, ..
+            } => {
+                self.preflight_imported_default_expression(
+                    owner, template, receiver, locals, bindings, callables,
+                )?;
+                self.preflight_imported_default_expression(
+                    owner, template, index, locals, bindings, callables,
+                )?;
+                if let Kind::ArraySet { value, .. } = expression.kind() {
+                    self.preflight_imported_default_expression(
+                        owner, template, value, locals, bindings, callables,
+                    )?;
+                }
+                Ok(())
+            }
             Kind::VariantConstruct { variant, arguments } => {
                 self.imported_default_type_with_bindings(variant.owner_type(), bindings)?;
                 self.preflight_imported_default_expressions(
@@ -345,13 +378,7 @@ impl Lowerer {
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
-            | Kind::FieldAccess { .. }
-            | Kind::ArrayLiteral(_)
-            | Kind::ArrayAssembly(_)
-            | Kind::Index { .. }
-            | Kind::ArraySet { .. }
-            | Kind::ArrayLen(_)
-            | Kind::ArrayClone(_) => Err(ImportedDefaultPlanError::Requires {
+            | Kind::FieldAccess { .. } => Err(ImportedDefaultPlanError::Requires {
                 requirement: ImportedCapabilityRequirement::Layout,
                 operation: "dependency default value layout",
             }),

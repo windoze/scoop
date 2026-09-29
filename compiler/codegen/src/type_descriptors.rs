@@ -250,19 +250,6 @@ fn emit_type_descriptor<'ctx>(
     Ok(())
 }
 
-/// A private constant global holding `value`; returns its address.
-pub(super) fn private_const_global<'ctx>(
-    llvm: &LlvmModule<'ctx>,
-    name: &str,
-    value: BasicValueEnum<'ctx>,
-) -> PointerValue<'ctx> {
-    let global = llvm.add_global(value.get_type(), None, name);
-    global.set_constant(true);
-    global.set_linkage(inkwell::module::Linkage::Private);
-    global.set_initializer(&value);
-    global.as_pointer_value()
-}
-
 fn dispatch_values<'ctx>(
     llvm: &LlvmModule<'ctx>,
     slots: &[DispatchEntry],

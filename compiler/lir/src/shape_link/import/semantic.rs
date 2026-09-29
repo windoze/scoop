@@ -3,7 +3,6 @@ use crate::{CanonicalExactCallableAbiExportsV1, CanonicalExactLayoutExportsV1};
 #[cfg(test)]
 use crate::{
     CanonicalExactDescriptorExportsV1, CanonicalExactDispatchExportsV1, ExactLayoutBodyKindV1,
-    InstanceRepresentationKindV1,
 };
 #[cfg(test)]
 use scoop_identity::ScanRole;
@@ -70,12 +69,7 @@ impl ExternalShapeLinkImportV1 {
                         ),
                     ),
                     ExactLayoutBodyKindV1::Instance(instance) => {
-                        match instance.representation().kind() {
-                            InstanceRepresentationKindV1::InlineArray { .. } => {
-                                (ScanRole::ArrayElement, instance.shape().inline_scan())
-                            }
-                            _ => (ScanRole::ManagedObject, instance.shape().object_scan()),
-                        }
+                        (ScanRole::ManagedObject, instance.shape().object_scan())
                     }
                 };
                 ShapeLinkContractV1::Scan {

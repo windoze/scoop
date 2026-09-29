@@ -7,6 +7,29 @@ use scoop_lir::{ObjectSymbolSurfaceV1, StrongDefinitionRole};
 use super::*;
 
 #[test]
+fn reference_array_scan_children_belong_to_their_primary_atom() {
+    let mut module = super::objects::classes_module();
+    array_type(
+        &mut module.meta,
+        "Array<Reference>",
+        scoop_lir::ArrayKind::Immutable,
+        MANAGED_PTR,
+        8,
+        8,
+        RefScan::References(vec![0]),
+    );
+    let ir = ir_of(&module);
+    assert!(!ir.contains(".element"), "{ir}");
+    assert!(!ir.contains(".part."), "{ir}");
+    let output = std::env::temp_dir().join(format!(
+        "scoop_codegen_array_scan_atoms_{}.o",
+        std::process::id()
+    ));
+    write_verified_test_object(&module, &output);
+    std::fs::remove_file(output).unwrap();
+}
+
+#[test]
 fn emits_every_canonical_global_shape_atom_and_boundary() {
     let module = super::objects::classes_module();
     let foundation = scoop_lir::ConeLirFoundation::from_module(&module)

@@ -4,7 +4,9 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 use scoop_identity::SignatureTypeKey;
 
-use crate::call_resolution::arguments::ArgumentShapeFailure;
+use crate::call_resolution::arguments::{
+    ArgumentShapeFailure, SourceInputId, VarargPart, VarargPartKind,
+};
 
 #[derive(Clone, Debug)]
 pub(in crate::expr) struct ImportedArgumentMap {
@@ -18,7 +20,7 @@ pub(in crate::expr) struct ImportedArgumentMap {
 pub(super) enum ImportedParameterInput {
     Explicit(usize),
     Default(hir::ExportDefaultTemplateKeyV1),
-    Vararg,
+    Vararg(Vec<VarargPart>),
 }
 
 #[derive(Clone, Copy)]
@@ -103,7 +105,25 @@ impl ImportedArgumentMap {
                         }
                         hir::CallableParameterCallingV1::VarargEmpty { element_type }
                         | hir::CallableParameterCallingV1::VarargDefault { element_type, .. } => {
-                            mapped[next] = Some(ImportedParameterInput::Vararg);
+                            let part = VarargPart {
+                                input: SourceInputId::from_index(source_index),
+                                kind: if argument.spread {
+                                    VarargPartKind::CopyArray
+                                } else {
+                                    VarargPartKind::Element
+                                },
+                            };
+                            match &mut mapped[next] {
+                                None => {
+                                    mapped[next] = Some(ImportedParameterInput::Vararg(vec![part]))
+                                }
+                                Some(ImportedParameterInput::Vararg(parts)) => parts.push(part),
+                                Some(_) => {
+                                    return Err(ArgumentShapeFailure::MixedVarargInputs {
+                                        name: parameter.name().as_str().to_owned(),
+                                    });
+                                }
+                            }
                             source_parameters[source_index] = Some(match argument.spread {
                                 false => element_type.clone(),
                                 true => parameter.value_type().clone(),
@@ -139,7 +159,7 @@ impl ImportedArgumentMap {
                         }
                         hir::CallableParameterCallingV1::VarargEmpty { .. }
                         | hir::CallableParameterCallingV1::VarargDefault { .. } => {
-                            mapped[index] = Some(ImportedParameterInput::Vararg);
+                            mapped[index] = Some(ImportedParameterInput::Explicit(source_index));
                             source_parameters[source_index] = Some(parameter.value_type().clone());
                             named_only = true;
                         }
@@ -164,7 +184,13 @@ impl ImportedArgumentMap {
         }
 
         let mut defaults = 0;
-        let mut vararg = false;
+        let vararg = parameters.iter().any(|parameter| {
+            matches!(
+                parameter.calling(),
+                hir::CallableParameterCallingV1::VarargEmpty { .. }
+                    | hir::CallableParameterCallingV1::VarargDefault { .. }
+            )
+        });
         let mut resolved = Vec::with_capacity(parameters.len());
         for (parameter, input) in parameters.iter().zip(mapped) {
             let input = match input {
@@ -180,17 +206,14 @@ impl ImportedArgumentMap {
                         ImportedParameterInput::Default(*template)
                     }
                     hir::CallableParameterCallingV1::VarargEmpty { .. } => {
-                        vararg = true;
-                        ImportedParameterInput::Vararg
+                        ImportedParameterInput::Vararg(Vec::new())
                     }
-                    hir::CallableParameterCallingV1::VarargDefault { .. } => {
+                    hir::CallableParameterCallingV1::VarargDefault { template, .. } => {
                         defaults += 1;
-                        vararg = true;
-                        ImportedParameterInput::Vararg
+                        ImportedParameterInput::Default(*template)
                     }
                 },
             };
-            vararg |= matches!(input, ImportedParameterInput::Vararg);
             resolved.push(input);
         }
 

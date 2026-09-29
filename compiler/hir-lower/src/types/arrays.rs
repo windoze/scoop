@@ -1,24 +1,6 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn require_implicit_array_application(
-        &mut self,
-        span: scoop_ast::Span,
-    ) -> Option<()> {
-        if self
-            .intrinsic_type_owners
-            .contains_key(&hir::IntrinsicTypeKind::Array)
-        {
-            return Some(());
-        }
-        self.error(
-            span,
-            crate::imported_capabilities::ImportedCapabilityRequirement::Generic
-                .diagnostic("implicit array application"),
-        );
-        None
-    }
-
     pub(crate) fn array_class(&self, kind: ArrayKind) -> hir::ClassId {
         let intrinsic = match kind {
             ArrayKind::Immutable => hir::IntrinsicTypeKind::Array,
@@ -54,6 +36,19 @@ impl Lowerer {
     }
 
     pub(crate) fn array_type(&mut self, kind: ArrayKind, element: TypeId) -> TypeId {
+        if let crate::CoreLoweringAuthority::Imported(protocols) = &self.core {
+            let fundamental = protocols.fundamental_types();
+            let owner = match kind {
+                ArrayKind::Immutable => fundamental.array(),
+                ArrayKind::Mutable => fundamental.mutable_array(),
+            };
+            return self
+                .imported_nominal_application(
+                    hir::SourceNominalId::GenericTemplate(owner.persistent()),
+                    vec![element],
+                )
+                .expect("the checked array protocol has a complete dependency declaration");
+        }
         let template = self.array_class(kind);
         self.class_application(template, vec![element])
     }
@@ -61,6 +56,25 @@ impl Lowerer {
     /// Return the exact array family application carried by a class type.
     /// Ordinary classes and fixed intrinsic classes return `None`.
     pub(crate) fn array_type_info(&self, ty: TypeId) -> Option<ArrayType> {
+        if let Type::ImportedClass(class) = &self.types[ty] {
+            let hir::NominalSourceShapeV1::Intrinsic(representation) =
+                class.declaration.interface.source_shape()
+            else {
+                return None;
+            };
+            let kind = match representation.family() {
+                hir::IntrinsicTypeKind::Array => ArrayKind::Immutable,
+                hir::IntrinsicTypeKind::MutableArray => ArrayKind::Mutable,
+                _ => return None,
+            };
+            let [element] = class.arguments.as_slice() else {
+                unreachable!("a checked array application has one element type")
+            };
+            return Some(ArrayType {
+                kind,
+                element: *element,
+            });
+        }
         let Type::Class(application) = self.types[ty] else {
             return None;
         };

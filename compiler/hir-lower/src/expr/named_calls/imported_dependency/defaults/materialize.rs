@@ -10,6 +10,7 @@ use crate::Lowerer;
 use crate::expr::MemberCallKind;
 use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
+mod arrays;
 mod callable;
 mod closures;
 mod constructors;
@@ -172,6 +173,17 @@ impl Lowerer {
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
 
         use hir::DefaultExpressionKindV1 as Kind;
+        if matches!(
+            expression.kind(),
+            Kind::Index { .. } | Kind::ArraySet { .. }
+        ) {
+            self.prepare_array_bounds_exception_type()
+                .map_err(|error| {
+                    ImportedDefaultMaterializationError::Plan(
+                        error.diagnostic("array bounds exception type"),
+                    )
+                })?;
+        }
         let kind = match expression.kind() {
             Kind::GenericDelegateStorageRead(reference) => {
                 hir::ExprKind::GenericDelegateStorageRead(
@@ -312,6 +324,42 @@ impl Lowerer {
             Kind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
                 self.materialize_imported_default_expressions(elements, context)?,
             ),
+            Kind::ArrayLiteral(elements) => hir::ExprKind::ArrayLiteral(
+                self.materialize_imported_default_expressions(elements, context)?,
+            ),
+            Kind::ArrayAssembly(assembly) => hir::ExprKind::ArrayAssembly(
+                self.materialize_imported_array_assembly(assembly, ty, context)?,
+            ),
+            Kind::Index {
+                access,
+                receiver,
+                index,
+            } => hir::ExprKind::Index {
+                access: (*access).into(),
+                receiver: Box::new(
+                    self.materialize_imported_default_expression(receiver, context)?,
+                ),
+                index: Box::new(self.materialize_imported_default_expression(index, context)?),
+            },
+            Kind::ArraySet {
+                access,
+                receiver,
+                index,
+                value,
+            } => hir::ExprKind::ArraySet {
+                access: (*access).into(),
+                receiver: Box::new(
+                    self.materialize_imported_default_expression(receiver, context)?,
+                ),
+                index: Box::new(self.materialize_imported_default_expression(index, context)?),
+                value: Box::new(self.materialize_imported_default_expression(value, context)?),
+            },
+            Kind::ArrayLen(array) => hir::ExprKind::ArrayLen(Box::new(
+                self.materialize_imported_default_expression(array, context)?,
+            )),
+            Kind::ArrayClone(array) => hir::ExprKind::ArrayClone(Box::new(
+                self.materialize_imported_default_expression(array, context)?,
+            )),
             Kind::VariantConstruct { variant, arguments } => {
                 hir::ExprKind::ImportedVariantConstruct {
                     owner: self
@@ -521,13 +569,7 @@ impl Lowerer {
             | Kind::FunctionAddress(_)
             | Kind::ForeignCallbackRegister { .. }
             | Kind::ForeignCallbackOperation { .. }
-            | Kind::DirectSuperMethodCall { .. }
-            | Kind::ArrayLiteral(_)
-            | Kind::ArrayAssembly(_)
-            | Kind::Index { .. }
-            | Kind::ArraySet { .. }
-            | Kind::ArrayLen(_)
-            | Kind::ArrayClone(_) => {
+            | Kind::DirectSuperMethodCall { .. } => {
                 return Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default operation".to_owned(),
                 ));

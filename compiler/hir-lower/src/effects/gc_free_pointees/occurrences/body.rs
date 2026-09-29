@@ -703,11 +703,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         }
         ExprKind::ArrayAssembly(assembly) => {
             push_type_at_expression(assembly.element_type, expression, out);
-            push_type_at_expression(
-                lowerer.class_applications[assembly.result_type].canonical_type,
-                expression,
-                out,
-            );
+            push_type_at_expression(assembly.result_type, expression, out);
             for part in &assembly.parts {
                 match part {
                     hir::ArrayAssemblyPart::Element(value)

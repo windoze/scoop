@@ -311,7 +311,7 @@ pub(in super::super) fn collect_expr_types(
         }
         ExprKind::ArrayAssembly(assembly) => {
             out.push(assembly.element_type);
-            out.push(lowerer.class_applications[assembly.result_type].canonical_type);
+            out.push(assembly.result_type);
             for part in &assembly.parts {
                 match part {
                     hir::ArrayAssemblyPart::Element(value)

@@ -1,13 +1,9 @@
 use super::*;
 
 impl FunctionLowerer<'_> {
-    /// The shared trap block for `message` in this function (one per
-    /// message, created on first use): calls the runtime trap —
-    /// `void scoop_rt_trap(ptr)`, noreturn — with the message global
-    /// and ends `unreachable`.
-    pub(super) fn trap_block(&mut self, message: &str) -> StorageResult<lir::BlockId> {
-        if let Some(&block) = self.trap_blocks.get(message) {
-            return Ok(block);
+    pub(super) fn trap_message(&mut self, message: &str) -> lir::GlobalId {
+        if let Some(&global) = self.trap_messages.get(message) {
+            return global;
         }
         let path = scoop_identity::StructuralDefinitionPath::from_first(
             scoop_identity::StructuralPathSegment::new(
@@ -30,6 +26,19 @@ impl FunctionLowerer<'_> {
                 value: message.to_string(),
             },
         });
+        self.trap_messages.insert(message.to_string(), global);
+        global
+    }
+
+    /// The shared trap block for `message` in this function (one per
+    /// message, created on first use): calls the runtime trap —
+    /// `void scoop_rt_trap(ptr)`, noreturn — with the message global
+    /// and ends `unreachable`.
+    pub(super) fn trap_block(&mut self, message: &str) -> StorageResult<lir::BlockId> {
+        if let Some(&block) = self.trap_blocks.get(message) {
+            return Ok(block);
+        }
+        let global = self.trap_message(message);
         let block = self.new_block("unwrap.trap");
         // Fill the trap block out of line; the caller seals the
         // suspended current block with the branch.

@@ -230,12 +230,21 @@ impl BodyLowerer<'_> {
                 ),
             ),
         );
-        let throw = self.throw_builtin(
-            crate::defined_protocols(self.core_protocols)
-                .exceptions
-                .index_out_of_bounds_exception,
-            span,
-        );
+        let throw = match self.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                self.throw_builtin(protocols.exceptions.index_out_of_bounds_exception, span)
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => self.throw_imported_exception(
+                protocols
+                    .exceptions()
+                    .index_out_of_bounds_exception()
+                    .persistent(),
+                protocols
+                    .exceptions()
+                    .index_out_of_bounds_exception_constructor(),
+                span,
+            ),
+        };
         self.prelude.push(smir::StatementKind::If {
             cond: out_of_bounds,
             then_body: vec![throw],

@@ -285,6 +285,7 @@ impl Lowerer {
         )?;
         if constructor_owner.is_some()
             || candidate.pointer_intrinsic().is_some()
+            || candidate.array_intrinsic().is_some()
             || (interface.modality() == hir::CallableModalityV1::Abstract
                 && matches!(
                     interface.owner(),

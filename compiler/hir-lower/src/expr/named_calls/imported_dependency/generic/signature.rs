@@ -29,7 +29,11 @@ impl ImportedGenericTarget {
     ) -> Result<Self, String> {
         if matches!(
             declaration.interface().effects().implementation(),
-            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Pointer(_))
+            hir::CallableImplementationV1::Intrinsic(
+                hir::IntrinsicFunctionKind::Pointer(_)
+                    | hir::IntrinsicFunctionKind::Array(_)
+                    | hir::IntrinsicFunctionKind::ArrayAccess(_)
+            )
         ) {
             return intrinsic::ImportedIntrinsicSignature::prepare(state, declaration)
                 .map(|signature| Self::Intrinsic(std::sync::Arc::new(signature)));

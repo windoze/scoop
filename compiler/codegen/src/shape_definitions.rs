@@ -3,10 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use inkwell::context::Context;
-use inkwell::module::{Linkage, Module as LlvmModule};
+use inkwell::module::Module as LlvmModule;
 use inkwell::targets::TargetData;
-use inkwell::types::AnyType;
-use inkwell::values::{AnyValue, BasicValueEnum, GlobalValue, PointerValue, UnnamedAddress};
+use inkwell::values::{GlobalValue, PointerValue};
 use scoop_lir::{
     DefinitionAtomRole, LayoutKind, ObjectDefinitionAtomId, ObjectSymbolSurfaceV1,
     PersistentDispatchTableId, PersistentLayoutId, PersistentScanId, RefScan,
@@ -14,8 +13,9 @@ use scoop_lir::{
 };
 
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
-use crate::type_descriptors::private_const_global;
-use crate::{CodegenError, Module, SCAN_ARRAY, SCAN_SEQUENCE};
+use crate::{CodegenError, Module};
+
+mod scans;
 
 #[derive(Clone, Copy)]
 pub(super) struct EmittedScanDefinitionV1<'ctx> {
@@ -114,8 +114,12 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
             StrongDefinitionEntity::scan(scan),
             StrongDefinitionRole::ScanProgram,
         )?;
-        let (global, newly_defined) =
-            emit_or_reuse_scan_definition(context, llvm, definition.primary_symbol(), &payload)?;
+        let (global, newly_defined) = scans::emit_or_reuse_scan_definition(
+            context,
+            llvm,
+            definition.primary_symbol(),
+            &payload,
+        )?;
         if newly_defined {
             emitted.record_atom(definition.primary_atom(), global);
         }
@@ -321,139 +325,6 @@ fn validate_shape_plan_coverage(
         )));
     }
     Ok(())
-}
-
-fn emit_or_reuse_scan_definition<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    request: scoop_lir::PersistentSymbolRequest,
-    scan: &RefScan,
-) -> Result<(GlobalValue<'ctx>, bool), CodegenError> {
-    let symbol = request.symbol();
-    let symbol = symbol.as_str();
-    if llvm.get_function(symbol).is_some() {
-        return Err(CodegenError(format!(
-            "scan definition `{symbol}` collides with an LLVM function"
-        )));
-    }
-    if let Some(global) = llvm.get_global(symbol) {
-        validate_existing_scan(context, global, request, scan)?;
-        return Ok((global, false));
-    }
-    let words = scan_words(context, llvm, symbol, scan)?;
-    let value = context.i64_type().const_array(&words);
-    let global = llvm.add_global(value.get_type(), None, symbol);
-    global.set_constant(true);
-    global.set_alignment(8);
-    global.set_initializer(&value);
-    crate::emission::apply_persistent_linkage(&global, request, true)?;
-    Ok((global, true))
-}
-
-fn validate_existing_scan(
-    context: &Context,
-    global: GlobalValue<'_>,
-    request: scoop_lir::PersistentSymbolRequest,
-    scan: &RefScan,
-) -> Result<(), CodegenError> {
-    let symbol = request.symbol();
-    let expected_words = match scan {
-        RefScan::None => vec![context.i64_type().const_zero()],
-        RefScan::References(offsets) => {
-            std::iter::once(context.i64_type().const_int(offsets.len() as u64, false))
-                .chain(
-                    offsets
-                        .iter()
-                        .map(|offset| context.i64_type().const_int(*offset, false)),
-                )
-                .collect()
-        }
-        RefScan::Sequence(_) | RefScan::Array { .. } => {
-            return Err(CodegenError(format!(
-                "recursive scan definition `{symbol}` was defined before canonical shape emission"
-            )));
-        }
-    };
-    let expected = context.i64_type().const_array(&expected_words);
-    let initializer = global.get_initializer();
-    if global.get_value_type() != expected.get_type().as_any_type_enum()
-        || global.get_linkage()
-            != match request.linkage() {
-                scoop_lir::LinkageClass::OdrWeak => Linkage::WeakODR,
-                _ => Linkage::External,
-            }
-        || global.get_unnamed_address() != UnnamedAddress::None
-        || !global.is_constant()
-        || global.get_alignment() != 8
-        || initializer.map(|value| value.print_to_string()).as_ref()
-            != Some(&expected.print_to_string())
-    {
-        return Err(CodegenError(format!(
-            "predefined scan `{symbol}` does not match its canonical definition"
-        )));
-    }
-    Ok(())
-}
-
-fn scan_words<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    name: &str,
-    scan: &RefScan,
-) -> Result<Vec<inkwell::values::IntValue<'ctx>>, CodegenError> {
-    let i64 = context.i64_type();
-    Ok(match scan {
-        RefScan::None => vec![i64.const_zero()],
-        RefScan::References(offsets) => std::iter::once(i64.const_int(offsets.len() as u64, false))
-            .chain(offsets.iter().map(|offset| i64.const_int(*offset, false)))
-            .collect(),
-        RefScan::Sequence(parts) => {
-            let mut children = Vec::with_capacity(parts.len());
-            for (index, part) in parts.iter().enumerate() {
-                children.push(emit_private_scan(
-                    context,
-                    llvm,
-                    &format!("{name}.part.{index}"),
-                    part,
-                )?);
-            }
-            std::iter::once(i64.const_int(SCAN_SEQUENCE, false))
-                .chain(std::iter::once(i64.const_int(children.len() as u64, false)))
-                .chain(children.into_iter().map(|child| child.const_to_int(i64)))
-                .collect()
-        }
-        RefScan::Array {
-            length_offset,
-            first_element_offset,
-            stride,
-            element,
-        } => {
-            let child = emit_private_scan(
-                context,
-                llvm,
-                &format!("{name}.element"),
-                element.as_ref_scan(),
-            )?;
-            vec![
-                i64.const_int(SCAN_ARRAY, false),
-                i64.const_int(*length_offset, false),
-                i64.const_int(*first_element_offset, false),
-                i64.const_int(stride.get(), false),
-                child.const_to_int(i64),
-            ]
-        }
-    })
-}
-
-fn emit_private_scan<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    name: &str,
-    scan: &RefScan,
-) -> Result<PointerValue<'ctx>, CodegenError> {
-    let words = scan_words(context, llvm, name, scan)?;
-    let value: BasicValueEnum<'ctx> = context.i64_type().const_array(&words).into();
-    Ok(private_const_global(llvm, name, value))
 }
 
 fn require_definition(

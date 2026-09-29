@@ -27,11 +27,18 @@ pub(crate) fn expected_inline_scan(
         InstanceRepresentationKindV1::BoxedPayload(value) => {
             inline_scan(value.layout(), instance.shape(), layouts)?
         }
-        InstanceRepresentationKindV1::InlineArray { .. } => instance
-            .shape()
-            .inline_scan()
-            .contains_reference()
-            .then_some(instance_record.scan()),
+        InstanceRepresentationKindV1::InlineArray { .. } => {
+            if instance.shape().inline_scan().contains_reference() {
+                Some(scoop_identity::PersistentScanId::from_key(
+                    &scoop_identity::ScanKey::new(
+                        instance_record.identity().layout(),
+                        scoop_identity::ScanRole::ArrayElement,
+                    ),
+                )?)
+            } else {
+                None
+            }
+        }
         InstanceRepresentationKindV1::ClassObject(_)
         | InstanceRepresentationKindV1::InlineBytes
         | InstanceRepresentationKindV1::AbstractReference => None,

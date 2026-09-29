@@ -256,7 +256,12 @@ impl Lowerer {
                 return Err(Box::new(self));
             }
         };
-        let implementation = if let Some(intrinsic) = candidate.pointer_intrinsic() {
+        let implementation = if let Some(operation) = candidate.array_intrinsic() {
+            ImportedCallImplementation::Intrinsic {
+                template,
+                operation,
+            }
+        } else if let Some(intrinsic) = candidate.pointer_intrinsic() {
             if intrinsic == hir::PointerIntrinsic::Cast {
                 self.pointer_type_uses
                     .push((result_type, self.current_file, call.span));
@@ -282,10 +287,10 @@ impl Lowerer {
                 hir::PointerIntrinsic::AddressOf
                 | hir::PointerIntrinsic::SizeOf
                 | hir::PointerIntrinsic::AlignOf => match expression {
-                    Some(expression) => ImportedPointerCall::Expression(expression),
+                    Some(expression) => ImportedIntrinsicCall::Expression(expression),
                     None => return Err(Box::new(self)),
                 },
-                _ => ImportedPointerCall::Member(intrinsic),
+                _ => ImportedIntrinsicCall::PointerMember(intrinsic),
             };
             ImportedCallImplementation::Intrinsic {
                 template,

@@ -1,0 +1,33 @@
+package consumer.arrays
+
+import upstream.arrays.*
+import upstream.arrays.exercise as providerExercise
+
+private class Reference(public val value: Int)
+private struct Large(val first: Reference, val second: Reference, val third: Reference)
+private enum Payload<T> { Data(val value: T), Empty }
+
+private fun readLarge(value: Large): Int = value.first.value + value.second.value + value.third.value
+private fun readTuple(value: (Reference, Reference)): Int = value._1.value + value._2.value
+private fun readPayload(value: Payload<Large>): Int = when (value) {
+    Data(inner) -> readLarge(inner)
+    Empty -> 0
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val large = Large(Reference(10), Reference(12), Reference(20))
+    if (exercise<Large>(large, ::readLarge) != 42) { return 1 }
+    if (exercise<(Reference, Reference)>((Reference(20), Reference(22)), ::readTuple) != 42) { return 2 }
+    if (exercise<Payload<Large>>(Payload.Data(large), ::readPayload) != 42) { return 3 }
+    val original = pack(large, *[large])
+    val mutable = copy(original)
+    val frozen = freeze(mutable)
+    mutate(mutable, 0L, Large(Reference(1), Reference(2), Reference(3)))
+    if (readLarge(first(original)) != 42 || readLarge(first(frozen)) != 42) { return 4 }
+    if (readLarge(first(freeze(mutable))) != 6 || frozen === original) { return 5 }
+    val nested = pack(original, *[frozen])
+    val allocation = Reference(0)
+    return readLarge(first(first(nested, 1L))) + allocation.value
+}

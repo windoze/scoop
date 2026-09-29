@@ -276,7 +276,7 @@ impl Lowerer {
                         })
                         .collect(),
                     result_type: self
-                        .instantiate_default_class_application(assembly.result_type, context),
+                        .instantiate_method_ty(assembly.result_type, &context.bindings),
                 })
             }
             hir::ExprKind::Index {
