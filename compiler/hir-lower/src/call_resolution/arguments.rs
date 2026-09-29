@@ -582,7 +582,6 @@ mod tests {
             ],
             argument_mode: ArgumentMode::Mixed,
             result_type: hir::TypeId::from_raw(0_u32.into()),
-            declaration_span: Span::new(0, 0),
         };
 
         let args = [argument(None, false), argument(None, false)];

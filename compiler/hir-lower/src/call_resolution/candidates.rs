@@ -1,4 +1,4 @@
-//! Typed, read-only views over callable declarations.
+//! Typed declaration views consumed by call resolution.
 
 use scoop_ast::Span;
 use scoop_hir as hir;
@@ -7,6 +7,8 @@ use crate::{
     CallableCandidate, CallableCandidateOwner, CallableCandidateSource, Lowerer,
     defaults::{SourceParameterCalling, SourceParameterOwner},
 };
+
+mod arrays;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CallableSource {
@@ -52,6 +54,7 @@ pub(crate) enum NominalConstructorSource {
     Struct(hir::StructConstructorId),
     Class(hir::ClassConstructorId),
     IntrinsicClass(hir::ClassId),
+    ImportedArray(hir::SourceNominalId),
     Variant(hir::EnumVariantRef),
 }
 
@@ -65,7 +68,6 @@ pub(crate) struct NominalConstructorView {
     pub(crate) value_parameters: Vec<ValueParameter>,
     pub(crate) argument_mode: ArgumentMode,
     pub(crate) result_type: hir::TypeId,
-    pub(crate) declaration_span: Span,
 }
 
 /// Complete declaration-side information consumed by call resolution. It is
@@ -156,8 +158,9 @@ impl Lowerer {
     }
 
     pub(crate) fn nominal_constructor_view(
-        &self,
+        &mut self,
         target: NominalConstructorSource,
+        span: Span,
     ) -> NominalConstructorView {
         match target {
             NominalConstructorSource::Struct(constructor_id) => {
@@ -192,7 +195,6 @@ impl Lowerer {
                     argument_mode: ArgumentMode::Mixed,
                     result_type: self.struct_applications[declaration.self_application]
                         .canonical_type,
-                    declaration_span: declaration.span,
                 }
             }
             NominalConstructorSource::Class(constructor_id) => {
@@ -227,20 +229,18 @@ impl Lowerer {
                     argument_mode: ArgumentMode::Mixed,
                     result_type: self.class_applications[declaration.self_application]
                         .canonical_type,
-                    declaration_span: declaration.span,
                 }
             }
             NominalConstructorSource::IntrinsicClass(class) => {
                 let declaration = &self.classes[class];
-                NominalConstructorView {
+                self.array_constructor_view(
                     target,
-                    owner_parameters: declaration.type_params.clone(),
-                    value_parameters: Vec::new(),
-                    argument_mode: ArgumentMode::Mixed,
-                    result_type: self.class_applications[declaration.self_application]
-                        .canonical_type,
-                    declaration_span: declaration.span,
-                }
+                    declaration.type_params.clone(),
+                    self.class_applications[declaration.self_application].canonical_type,
+                )
+            }
+            NominalConstructorSource::ImportedArray(owner) => {
+                self.imported_array_constructor_view(owner, span)
             }
             NominalConstructorSource::Variant(variant) => {
                 let enumeration = variant.enumeration();
@@ -277,7 +277,6 @@ impl Lowerer {
                     argument_mode,
                     result_type: self.enum_applications[declaration.self_application]
                         .canonical_type,
-                    declaration_span: declaration.span,
                 }
             }
         }

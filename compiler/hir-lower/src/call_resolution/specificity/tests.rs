@@ -50,7 +50,6 @@ fn constructor(
         value_parameters: values,
         argument_mode: ArgumentMode::Mixed,
         result_type: result,
-        declaration_span: ast::Span::new(0, 0),
     }
 }
 

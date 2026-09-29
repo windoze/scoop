@@ -62,7 +62,7 @@ impl Lowerer {
                 inaccessible = true;
                 continue;
             }
-            let view = self.nominal_constructor_view(source);
+            let view = self.nominal_constructor_view(source, span);
             match self.probe_named_nominal(
                 view.clone(),
                 NominalConstructorCall {

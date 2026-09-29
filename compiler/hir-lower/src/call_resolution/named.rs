@@ -60,7 +60,7 @@ impl NamedIntrinsicStructOrigin {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum DeclarationDiagnosticOrder {
+pub(crate) enum DeclarationDiagnosticOrder {
     Source(usize, u32, u32),
     ImportedIntrinsic(hir::SourceNominalId),
 }
@@ -141,7 +141,7 @@ impl NamedFunctionLikeProbe {
             Self::Callable(probe) => probe.declaration_location(state),
             Self::ImportedDependency(probe) => probe.declaration_location(),
             Self::ImportedDependencyProperty(probe) => probe.declaration_location(),
-            Self::Nominal(probe) => probe.declaration_location(state),
+            Self::Nominal(probe) => return probe.diagnostic_order(state),
             Self::IntrinsicStruct(probe) => match probe.origin {
                 NamedIntrinsicStructOrigin::Current(structure) => (
                     state.struct_files[&structure],

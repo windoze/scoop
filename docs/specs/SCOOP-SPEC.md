@@ -1138,6 +1138,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 - `Array<T>` 与 `MutableArray<T>` 之间**没有父子类型关系**，互转必须显式进行：
   - `m.toArray(): Array<T>`、`a.toMutableArray(): MutableArray<T>`；
   - 或以对方为参数的构造函数：`Array(m)`、`MutableArray(a)`。
+- 转换构造的唯一必需参数名为 `source`，类型分别为 `MutableArray<T>` 和 `Array<T>`。显式类型实参、`_`、期望结果类型及固定 application 的 typealias 按普通构造规则确定 `T`；转换不改变元素类型，也不接受相同数组种类作为来源。普通名称查找取得实际数组声明后，转换候选与同层普通函数一起进行 8.6 的重载选择；导入别名及跨 Cone 使用保持同一规则。
 - 互转总是分配新对象并复制logical `size`，结果是与原数组相互独立的快照：之后对原数组的修改不影响转换结果，反之亦然。非ZST `Inline`元素复制完整inline payload（实现可用`memcpy`）；`ZeroSized`元素没有payload，不调用`memcpy`，但这不允许复用原对象或丢失size。
   - 不能像 Rust 那样转交（move）内存块：Scoop 没有 move 语义，转交意味着清空原 `MutableArray`，与引用语义冲突。
   - 也不能仅改写对象头复用原存储：在 LLVM + GC 的实现中，每个引用类型对象的头中带有 TypeDescriptor（类似 vpointer），就地改写它会破坏 GC 的状态，因此转换必须分配新对象并复制数据。

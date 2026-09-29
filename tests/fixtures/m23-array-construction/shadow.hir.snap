@@ -1,0 +1,47 @@
+Module
+  class Array(number: Int)
+    field0 property0: Int
+    property0 val number: Int getter0=storage <stored field0 init=parameter0>
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local read : (T0) -> Int
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      Local $dependency.argument.1 : (T0) -> Int
+    return
+      ImportedGenericCall exercise<T0> : Int
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.read : (T0) -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
+      ClassInit Array : Array
+        Local $parameter.number : Int
+    val local3
+      ArrayLiteral : MutableArray<Int>
+        FieldAccess class field number : Int
+          Local ordinary : Array
+    val local4
+      Local mutable : MutableArray<Int>
+    val local5
+      Local $argument.0 : MutableArray<Int>
+    val local6
+      ArrayClone : Array<Int>
+        Local $parameter.source : MutableArray<Int>
+    val local7
+      Local converted : Array<Int>
+    val local8
+      IntegerLiteral 0 : Long
+    val local9
+      Local $dependency.argument.0 : Long
+    return
+      Index ImmutableGet : Int
+        Local $dependency.receiver : Array<Int>
+        Local $dependency.parameter.index : Long
+  output library

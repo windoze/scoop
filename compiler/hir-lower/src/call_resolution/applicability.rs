@@ -342,42 +342,6 @@ impl Lowerer {
                 .is_none_or(|arguments| arguments.len() == view.owner_parameters.len())
         );
         debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
-        let (declaration_span, result_type) = match view.target {
-            NominalConstructorSource::Struct(constructor) => {
-                let structure = self.struct_constructors[constructor].owner;
-                let declaration = &self.structs[structure];
-                (
-                    declaration.span,
-                    self.struct_applications[declaration.self_application].canonical_type,
-                )
-            }
-            NominalConstructorSource::Class(constructor) => {
-                let class = self.class_constructors[constructor].owner;
-                let declaration = &self.classes[class];
-                (
-                    declaration.span,
-                    self.class_applications[declaration.self_application].canonical_type,
-                )
-            }
-            NominalConstructorSource::IntrinsicClass(class) => {
-                let declaration = &self.classes[class];
-                (
-                    declaration.span,
-                    self.class_applications[declaration.self_application].canonical_type,
-                )
-            }
-            NominalConstructorSource::Variant(variant) => {
-                let enumeration = variant.enumeration();
-                let declaration = &self.enums[enumeration];
-                (
-                    declaration.span,
-                    self.enum_applications[declaration.self_application].canonical_type,
-                )
-            }
-        };
-        debug_assert_eq!(view.declaration_span, declaration_span);
-        debug_assert_eq!(view.result_type, result_type);
-
         let mut session = InferenceSession::new();
         let environment = session.add_environment(&view.owner_parameters, &[]);
         let owner_variables = session.owner_variables(environment).to_vec();
@@ -458,6 +422,9 @@ impl Lowerer {
             ),
             NominalConstructorSource::IntrinsicClass(class) => {
                 NominalApplication::Class(class, application_arguments)
+            }
+            NominalConstructorSource::ImportedArray(owner) => {
+                NominalApplication::Imported(owner, application_arguments)
             }
             NominalConstructorSource::Variant(variant) => {
                 NominalApplication::Enum(variant.enumeration(), application_arguments)

@@ -46,18 +46,32 @@ impl NamedNominalProbe {
         nominal_source_signature(state, &self.candidate.view)
     }
 
-    pub(crate) fn declaration_location(&self, state: &Lowerer) -> (usize, scoop_ast::Span) {
-        let file = match self.candidate.view.target {
+    pub(crate) fn diagnostic_order(
+        &self,
+        state: &Lowerer,
+    ) -> crate::call_resolution::named::DeclarationDiagnosticOrder {
+        use crate::call_resolution::named::DeclarationDiagnosticOrder;
+        let (file, span) = match self.candidate.view.target {
             NominalConstructorSource::Struct(constructor) => {
-                state.struct_files[&state.struct_constructors[constructor].owner]
+                let owner = state.struct_constructors[constructor].owner;
+                (state.struct_files[&owner], state.structs[owner].span)
             }
             NominalConstructorSource::Class(constructor) => {
-                state.class_files[&state.class_constructors[constructor].owner]
+                let owner = state.class_constructors[constructor].owner;
+                (state.class_files[&owner], state.classes[owner].span)
             }
-            NominalConstructorSource::IntrinsicClass(class) => state.class_files[&class],
-            NominalConstructorSource::Variant(variant) => state.enum_files[&variant.enumeration()],
+            NominalConstructorSource::IntrinsicClass(class) => {
+                (state.class_files[&class], state.classes[class].span)
+            }
+            NominalConstructorSource::ImportedArray(owner) => {
+                return DeclarationDiagnosticOrder::ImportedIntrinsic(owner);
+            }
+            NominalConstructorSource::Variant(variant) => {
+                let owner = variant.enumeration();
+                (state.enum_files[&owner], state.enums[owner].span)
+            }
         };
-        (file, self.candidate.view.declaration_span)
+        DeclarationDiagnosticOrder::Source(file, span.start, span.end)
     }
 
     pub(crate) fn fix_forwarding_parameters(&mut self, state: &mut Lowerer, arguments: &[TypeId]) {

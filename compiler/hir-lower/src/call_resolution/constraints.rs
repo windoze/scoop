@@ -141,6 +141,7 @@ pub(crate) enum NominalApplication {
     Struct(hir::StructId, Vec<TypeTerm>),
     Class(hir::ClassId, Vec<TypeTerm>),
     Enum(hir::EnumId, Vec<TypeTerm>),
+    Imported(hir::SourceNominalId, Vec<TypeTerm>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -12,7 +12,7 @@ struct NominalPlan {
 }
 
 enum PreparedNominalPlans {
-    Local(
+    Nominal(
         Vec<NominalPlan>,
         Option<(hir::StructId, Option<TypeId>, bool)>,
     ),
@@ -40,7 +40,7 @@ impl Lowerer {
         for binding in targets {
             let mut preparation = self.clone();
             match preparation.named_nominal_plans(binding, call, expected) {
-                Ok(PreparedNominalPlans::Local(mut prepared, intrinsic)) => {
+                Ok(PreparedNominalPlans::Nominal(mut prepared, intrinsic)) => {
                     *self = preparation;
                     plans.append(&mut prepared);
                     if let Some(intrinsic) = intrinsic {

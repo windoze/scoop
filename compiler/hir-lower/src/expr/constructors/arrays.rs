@@ -12,25 +12,12 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         debug_assert_eq!(self.array_class_kind(target_class), Some(target_kind));
-        let source_kind = match target_kind {
-            ArrayKind::Immutable => ArrayKind::Mutable,
-            ArrayKind::Mutable => ArrayKind::Immutable,
-        };
-        let mut view = self.nominal_constructor_view(
+        let view = self.nominal_constructor_view(
             crate::call_resolution::candidates::NominalConstructorSource::IntrinsicClass(
                 target_class,
             ),
+            call.span,
         );
-        let [owner_parameter] = view.owner_parameters.as_slice() else {
-            unreachable!("the intrinsic array contract declares one type parameter")
-        };
-        let parameter_ty = self.intern_type(Type::Param(owner_parameter.id));
-        let source_ty = self.class_application(self.array_class(source_kind), vec![parameter_ty]);
-        view.value_parameters = vec![crate::call_resolution::candidates::ValueParameter {
-            name: "source".to_string(),
-            calling: crate::defaults::SourceParameterCalling::Required,
-            ty: source_ty,
-        }];
 
         let argument_map =
             match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
@@ -77,11 +64,6 @@ impl Lowerer {
         let [element_ty] = type_args.as_slice() else {
             unreachable!("the solved array conversion has one concrete type argument")
         };
-        let [arg] = args.as_slice() else {
-            unreachable!("the solved array conversion has one typed source argument")
-        };
-        let expected_source = self.array_type(source_kind, *element_ty);
-        debug_assert!(self.types_equal(arg.ty, expected_source));
         let ty = self.array_type(target_kind, *element_ty);
         let mut args = self.materialize_nominal_arguments(
             crate::argument_materialization::NominalArgumentMaterialization {

@@ -1,0 +1,4 @@
+span=85..124
+expression=Array(source = source, source = source)
+no applicable candidate for constructor `Array` in nominal constructor candidate layer:
+  - class Array<T>(source: MutableArray<T>) — parameter `source` is supplied more than once

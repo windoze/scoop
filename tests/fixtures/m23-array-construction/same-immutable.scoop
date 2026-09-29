@@ -1,0 +1,5 @@
+public fun result(): Int {
+    val source: Array<Int> = [42]
+    val copied = Array(source)
+    return 42
+}

@@ -108,10 +108,10 @@ impl Lowerer {
         }
 
         let class = self.class_constructors[source].owner;
-        let view = self.nominal_constructor_view(NominalConstructorSource::Class(source));
+        let span = self.class_constructors[source].span;
+        let view = self.nominal_constructor_view(NominalConstructorSource::Class(source), span);
         let argument_map = CandidateArgumentMap::source_nominal(&view, &[])
             .expect("a validated zero-source-argument constructor is callable without inputs");
-        let span = self.class_constructors[source].span;
         let lowered = self
             .with_constructor_expression_context(
                 source,

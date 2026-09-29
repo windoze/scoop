@@ -1400,8 +1400,10 @@ impl Lowerer {
                     return None;
                 }
                 let constructor = self.struct_primary_constructor(struct_id)?;
-                let view =
-                    self.nominal_constructor_view(NominalConstructorSource::Struct(constructor));
+                let view = self.nominal_constructor_view(
+                    NominalConstructorSource::Struct(constructor),
+                    call.span,
+                );
                 let (values, _) =
                     self.global_nominal_constant(&view, call, &application_value.arguments)?;
                 Some(hir::HirConstantImage::Struct {

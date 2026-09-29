@@ -1,0 +1,8 @@
+import dependency.arrayconstruction.IntSnapshot as Make
+import dependency.arrayconstruction.selected as Make
+
+public fun result(): Int {
+    val source: MutableArray<Int> = [42]
+    val copied = Make(source)
+    return 42
+}

@@ -23,6 +23,7 @@ impl Lowerer {
         });
         let view = self.nominal_constructor_view(
             crate::call_resolution::candidates::NominalConstructorSource::Variant(target),
+            name.span,
         );
         let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
             0,
@@ -97,6 +98,7 @@ impl Lowerer {
         } = call;
         let view = self.nominal_constructor_view(
             crate::call_resolution::candidates::NominalConstructorSource::Variant(target),
+            span,
         );
         let argument_map =
             match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(

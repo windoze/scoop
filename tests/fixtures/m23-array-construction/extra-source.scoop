@@ -1,0 +1,5 @@
+public fun result(): Int {
+    val source: MutableArray<Int> = [42]
+    val copied = Array(source, source)
+    return 42
+}

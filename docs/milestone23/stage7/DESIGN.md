@@ -154,6 +154,8 @@ bound callable 的 receiver 使用完整 `SignatureTypeKey`，可以是定义处
 
 类型别名固定泛型宿主实参时，构造推断使用别名的完整 application；普通构造继续使用调用上下文的期望类型，不以被调用类型自身覆盖该约束。
 
+数组转换构造从实际 core 数组 owner 取得 binder，提供 `Array<T>(source: MutableArray<T>)` 或 `MutableArray<T>(source: Array<T>)` 候选，并与普通同名函数进行同层 MSC。声明准备及固定 alias 类型位于共同候选环境，候选各自求解和提交；显式实参、`_`、期望结果、导入别名和本地／外来 typealias 均复用普通构造规则。最终表达式直接使用现有 `ArrayClone` 和完整目标 application，保留新对象 identity、logical size 及元素快照；默认值、泛型正文和下游再次发布不增加格式分支。
+
 ### 3.3 默认参数的边界
 
 public default 仍只能直接引用覆盖其完整调用域的实体；generic body 可以引用定义处合法的 narrower 实现。二者共享节点不共享访问规则。private generic helper 自己的默认值按该 helper 的实际调用域检查，不能把正文依赖资格传播给 public default。

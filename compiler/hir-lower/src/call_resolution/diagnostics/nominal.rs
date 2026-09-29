@@ -47,6 +47,14 @@ pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstruc
                 lowerer.classes[class].name
             )
         }
+        NominalConstructorSource::ImportedArray(owner) => {
+            let declaration = lowerer
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                .expect("a resolved array retains its dependency declaration");
+            format!("class {}{parameters}({fields})", declaration.name())
+        }
         NominalConstructorSource::Variant(variant) => format!(
             "variant {}{parameters}.{}({fields})",
             lowerer.enums[variant.enumeration()].name,

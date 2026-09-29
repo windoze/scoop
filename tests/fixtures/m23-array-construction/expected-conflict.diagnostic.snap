@@ -1,0 +1,4 @@
+span=98..111
+expression=Array(source)
+no applicable candidate for constructor `Array` in nominal constructor candidate layer:
+  - class Array<T>(source: MutableArray<T>) — conflicting types for `T`: Long and Int

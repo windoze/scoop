@@ -308,6 +308,15 @@ impl Lowerer {
                 &self.class_constructors[constructor].access.lookup.0
             }
             NominalConstructorSource::IntrinsicClass(class) => &self.classes[class].access.lookup.0,
+            NominalConstructorSource::ImportedArray(owner) => {
+                let declaration = self
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.nominal_declaration(owner))
+                    .expect("a resolved array retains its dependency declaration");
+                return self
+                    .access_domain_allows(&self.imported_nominal_access_domain(declaration));
+            }
             NominalConstructorSource::Variant(variant) => {
                 &self.enums[variant.enumeration()].access.lookup.0
             }

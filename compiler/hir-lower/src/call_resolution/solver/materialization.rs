@@ -236,7 +236,8 @@ impl Lowerer {
         let terms = match application {
             NominalApplication::Struct(_, terms)
             | NominalApplication::Class(_, terms)
-            | NominalApplication::Enum(_, terms) => terms,
+            | NominalApplication::Enum(_, terms)
+            | NominalApplication::Imported(_, terms) => terms,
         };
         let mut arguments = Vec::with_capacity(terms.len());
         for &term in terms {
@@ -278,6 +279,12 @@ impl Lowerer {
             }
             NominalApplication::Class(template, _) => self.class_application(*template, arguments),
             NominalApplication::Enum(template, _) => self.enum_application(*template, arguments),
+            NominalApplication::Imported(owner, _) => self
+                .imported_nominal_application(*owner, arguments)
+                .map_err(|_| ConstraintFailure {
+                    origin,
+                    kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
+                })?,
         })
     }
 }

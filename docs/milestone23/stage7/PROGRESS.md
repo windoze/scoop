@@ -662,12 +662,24 @@
 - 清除全部 `SCOOP_UPDATE_*` 与 `INSTA_UPDATE` 后执行 `cargo test --workspace --no-fail-fast`：**5225 passed、1 failed、0 ignored**；唯一失败是 codegen 仍要求独立私有数组扫描子程序的旧断言。将该断言改为核对同一对象内的完整扫描字节和子程序指针，生产代码保持不变，再次格式化、lint 并完整重跑 `scoop-codegen`，**302 passed、0 failed、0 ignored**，耗时 **3.22 秒**。全仓其余 **4924 项** 已通过，其中 driver 的 **158 项** 全部通过、耗时 **393.11 秒**，包含本批关闭更新的正反例。两轮覆盖的 **5226 项不同测试** 均完成验证，无编译警告；日志为 `/tmp/scoop-m23-7-arrays-workspace.log` 与 `/tmp/scoop-m23-7-arrays-codegen.log`。
 - 验证结束后通过 Cargo metadata 确认实际 `target`，检查无编译／测试进程、无打开文件且目录仅含构建和编辑器检查缓存；恢复标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 **2798 个文件、6.1 GiB**。清理后 `target` 不存在，日志为 `/tmp/scoop-m23-7-arrays-clean.log`。
 
-数组转换构造 `Array(m)`／`MutableArray(a)`、`pack(*[], 42)` 等需后续实参提供上下文的推断，以及 `for` 语句对外来迭代协议的消费继续作为后续功能推进。当前迭代正例通过普通 `iterator()`／`next()` 调用执行，不代表 `for` 入口已经接通；M23-7 尚未完成。
+数组转换构造 `Array(m)`／`MutableArray(a)` 的后续实现见下一节。`pack(*[], 42)` 等需后续实参提供上下文的推断，以及 `for` 语句对外来迭代协议的消费仍须推进。当前迭代正例通过普通 `iterator()`／`next()` 调用执行，不代表 `for` 入口已经接通；M23-7 尚未完成。
+
+## 数组转换构造
+
+- 当前与导入数组从实际 nominal owner 建立完整转换候选，唯一必需参数 `source` 使用另一数组种类的相同元素 application。共享参数映射、宿主实参推断、期望类型和 MSC，支持显式实参、`_`、命名参数、空数组上下文、导入别名及本地／外来固定 typealias。固定 alias 的完整类型与声明参数在共同候选环境准备，避免候选私有 arena 的类型进入其他候选的比较。
+- 转换与普通同名函数共同选择：具体普通函数胜过泛型构造，数组形状胜过宽泛参数，固定 alias 胜过等形状泛型函数；仍相同的泛型／固定签名正常诊断歧义。声明诊断按真实本地位置或外来 typed owner 排序，不以 FQN 重新识别数组，也不补造本地 class、源码 constructor 或机器 callable。
+- 本地数组 view 直接包含完整 `source` 参数，去掉先留空再由调用方补齐的步骤及重复的结果／来源类型断言。共有 nominal 求解器沿实际导入 owner 物化 application，选中后生成已有 `ArrayClone`，复用泛型正文、默认值、布局、复制与 GC 路径；产物格式和 runtime C ABI 保持。
+- 新增 `m23-array-construction` 的 **23 份源码、31 份 golden**，包含 **5 组运行正例、16 组诊断反例**。provider／consumer 发布后移走源码，下游用自有引用类型、重复 Int application 及 Unit 再次实例化和发布，复用真实链接、ODR member／ABI 比较、普通运行与移动 GC。正例还覆盖大 struct、带引用泛型 enum、嵌套数组、零大小元素、源表达式求值一次、默认值、局部函数与 lambda 捕获、快照独立性及普通同名 class；反例核对相同数组种类、非数组、元素冲突、引用元素不变性、参数名／数量／重复／spread、类型实参数量、固定 alias、空数组推断、期望类型冲突及歧义的具体位置与消息。
+- LLVM 22.1 下 `cargo fmt --all`、`cargo clippy --workspace --all-targets` 通过，无 lint 警告；重建实际配套 `scoopc` 后专项测试通过，耗时 **52.48 秒**。日志为 `/tmp/scoop-m23-7-array-construction-clippy.log`、`/tmp/scoop-m23-7-array-construction-build.log` 与 `/tmp/scoop-m23-7-array-construction-driver.log`。
+- 清除全部 `SCOOP_UPDATE_*` 与 `INSTA_UPDATE`，使用实际配套 `scoopc` 完成 `cargo test --workspace --no-fail-fast`，37 个测试组全部结束：**5227 passed、0 failed、0 ignored**，无编译警告。其中 HIR lowering 的 **1288 项**、driver 的 **159 项** 全部通过，driver 耗时 **394.70 秒**；本批正反例、既有数组／vararg、函数引用、普通构造、别名和 core 产物回归均在关闭更新的条件下通过。完整日志为 `/tmp/scoop-m23-7-array-construction-workspace.log`。
+- 全部验证结束后，通过 Cargo metadata 确认实际 `target`，核对无编译／测试进程、无打开文件、目录非符号链接且仅含构建／编辑器检查缓存；恢复标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 **2536 个文件、4.8 GiB**。清理后 `target` 不存在，日志为 `/tmp/scoop-m23-7-array-construction-clean.log`。
+
+本项接通上述数组转换构造。后续实参提供上下文的推断、外来 `for` 协议和以下主线继续推进，M23-7 尚未完成。
 
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径、经转导出类型的静态嵌套 import 基础上，继续补齐数组转换构造、后续实参提供上下文的数组推断、外来 for 协议与其他 vararg 组合、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径、经转导出类型的静态嵌套 import、数组模板／vararg 及转换构造基础上，继续补齐后续实参提供上下文的数组推断、外来 for 协议与其他 vararg 组合、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，在本批递归 shape scan 完整对象定义的基础上，继续覆盖其他成员与表示组合。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

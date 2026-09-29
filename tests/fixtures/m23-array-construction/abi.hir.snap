@@ -1,0 +1,422 @@
+Module
+  struct Large
+    field0 first: Reference
+    field1 second: Reference
+    field2 third: Reference
+    property0 val first: Reference getter0=storage <stored struct0-field0>
+    property1 val second: Reference getter1=storage <stored struct0-field1>
+    property2 val third: Reference getter2=storage <stored struct0-field2>
+  enum Payload<T>
+    Data(value: T0)
+    Empty()
+  class Reference(number: Int)
+    field0 property3: Int
+    property3 val number: Int getter3=storage <stored field0 init=parameter3>
+  fun readLarge(value: Large): Int
+    val local1
+      FieldAccess class field number : Int
+        FieldAccess field 0 : Reference
+          Local value : Large
+    val local2
+      FieldAccess class field number : Int
+        FieldAccess field 1 : Reference
+          Local value : Large
+    val local3
+      Local $dependency.argument.0 : Int
+    val local4
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local5
+      FieldAccess class field number : Int
+        FieldAccess field 2 : Reference
+          Local value : Large
+    val local6
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun readPayload(value: Payload<Large>): Int
+    when
+      Local value : Payload<Large>
+      arm variant0(0: local1)
+        val local2
+          Local inner : Large
+        val local3
+          Local $argument.0 : Large
+        assign $result.0
+          Call readLarge : Int
+            Local $parameter.value : Large
+      arm variant1()
+        assign $result.0
+          IntegerLiteral 0 : Int
+      impossible <enum pattern matrix for Payload<Large>>
+    return
+      Local $result.0 : Int
+  fun readUnit(value: Unit): Int
+    return
+      IntegerLiteral 42 : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local read : (T0) -> Int
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      Local $dependency.argument.1 : (T0) -> Int
+    return
+      ImportedGenericCall exercise<T0> : Int
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.read : (T0) -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 10 : Int
+    val local1
+      Local $argument.0 : Int
+    val local6
+      ClassInit Reference : Reference
+        Local $parameter.number : Int
+    val local2
+      IntegerLiteral 12 : Int
+    val local3
+      Local $argument.0 : Int
+    val local7
+      ClassInit Reference : Reference
+        Local $parameter.number : Int
+    val local4
+      IntegerLiteral 20 : Int
+    val local5
+      Local $argument.0 : Int
+    val local8
+      ClassInit Reference : Reference
+        Local $parameter.number : Int
+    val local9
+      Local $argument.0 : Reference
+    val local10
+      Local $argument.1 : Reference
+    val local11
+      Local $argument.2 : Reference
+    val local12
+      StructInit Large : Large
+        Local $parameter.first : Reference
+        Local $parameter.second : Reference
+        Local $parameter.third : Reference
+    val local13
+      Local large : Large
+    val local14
+      CallableReference reference0 target=readLarge captures=0 : (Large) -> Int
+    val local15
+      Local $argument.0 : Large
+    val local16
+      Local $argument.1 : (Large) -> Int
+    val local17
+      Call exercise<Large> : Int
+        Local $parameter.seed : Large
+        Local $parameter.read : (Large) -> Int
+    val local18
+      IntegerLiteral 42 : Int
+    val local19
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local20
+      Local large : Large
+    val local21
+      Local $argument.0 : Large
+    val local22
+      VariantConstruct Payload.Data<Large> : Payload<Large>
+        Local $parameter.value : Large
+    val local23
+      CallableReference reference1 target=readPayload captures=0 : (Payload<Large>) -> Int
+    val local24
+      Local $argument.0 : Payload<Large>
+    val local25
+      Local $argument.1 : (Payload<Large>) -> Int
+    val local26
+      Call exercise<Payload<Large>> : Int
+        Local $parameter.seed : Payload<Large>
+        Local $parameter.read : (Payload<Large>) -> Int
+    val local27
+      IntegerLiteral 42 : Int
+    val local28
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local29
+      UnitLiteral : Unit
+    val local30
+      CallableReference reference2 target=readUnit captures=0 : (Unit) -> Int
+    val local31
+      Local $argument.0 : Unit
+    val local32
+      Local $argument.1 : (Unit) -> Int
+    val local33
+      Call exercise<Unit> : Int
+        Local $parameter.seed : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local34
+      IntegerLiteral 42 : Int
+    val local35
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local36
+      ArrayLiteral : MutableArray<Large>
+        Local large : Large
+    val local37
+      Local source : MutableArray<Large>
+    val local38
+      Local $argument.0 : MutableArray<Large>
+    val local39
+      ArrayClone : Array<Large>
+        Local $parameter.source : MutableArray<Large>
+    val local40
+      Local source : MutableArray<Large>
+    val local41
+      Local $argument.0 : MutableArray<Large>
+    val local42
+      ArrayClone : Array<Large>
+        Local $parameter.source : MutableArray<Large>
+    val local55
+      Local source : MutableArray<Large>
+    val local56
+      IntegerLiteral 0 : Long
+    val local43
+      IntegerLiteral 1 : Int
+    val local44
+      Local $argument.0 : Int
+    val local49
+      ClassInit Reference : Reference
+        Local $parameter.number : Int
+    val local45
+      IntegerLiteral 2 : Int
+    val local46
+      Local $argument.0 : Int
+    val local50
+      ClassInit Reference : Reference
+        Local $parameter.number : Int
+    val local47
+      IntegerLiteral 3 : Int
+    val local48
+      Local $argument.0 : Int
+    val local51
+      ClassInit Reference : Reference
+        Local $parameter.number : Int
+    val local52
+      Local $argument.0 : Reference
+    val local53
+      Local $argument.1 : Reference
+    val local54
+      Local $argument.2 : Reference
+    val local57
+      StructInit Large : Large
+        Local $parameter.first : Reference
+        Local $parameter.second : Reference
+        Local $parameter.third : Reference
+    val local58
+      Local $dependency.argument.0 : Long
+    val local59
+      Local $dependency.argument.1 : Large
+    ArraySet MutableSet : Unit
+      Local $dependency.receiver : MutableArray<Large>
+      Local $dependency.parameter.index : Long
+      Local $dependency.parameter.value : Large
+    val local60
+      Local copied : Array<Large>
+    val local61
+      IntegerLiteral 0 : Long
+    val local62
+      Local $dependency.argument.0 : Long
+    val local63
+      Index ImmutableGet : Large
+        Local $dependency.receiver : Array<Large>
+        Local $dependency.parameter.index : Long
+    val local64
+      Local $argument.0 : Large
+    val local65
+      Call readLarge : Int
+        Local $parameter.value : Large
+    val local66
+      IntegerLiteral 42 : Int
+    val local67
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local76
+        BoolLiteral true : Boolean
+    else
+      val local68
+        Local original : Array<Large>
+      val local69
+        IntegerLiteral 0 : Long
+      val local70
+        Local $dependency.argument.0 : Long
+      val local71
+        Index ImmutableGet : Large
+          Local $dependency.receiver : Array<Large>
+          Local $dependency.parameter.index : Long
+      val local72
+        Local $argument.0 : Large
+      val local73
+        Call readLarge : Int
+          Local $parameter.value : Large
+      val local74
+        IntegerLiteral 42 : Int
+      val local75
+        Local $dependency.argument.0 : Int
+      val local76
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    val local77
+      Local source : MutableArray<Large>
+    val local78
+      IntegerLiteral 0 : Long
+    val local79
+      Local $dependency.argument.0 : Long
+    val local80
+      Index MutableGet : Large
+        Local $dependency.receiver : MutableArray<Large>
+        Local $dependency.parameter.index : Long
+    val local81
+      Local $argument.0 : Large
+    val local82
+      Call readLarge : Int
+        Local $parameter.value : Large
+    val local83
+      IntegerLiteral 6 : Int
+    val local84
+      Local $dependency.argument.0 : Int
+    if
+      Binary Or : Boolean
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+        Binary RefEq : Boolean
+          Local copied : Array<Large>
+          Local original : Array<Large>
+      return
+        IntegerLiteral 5 : Int
+    val local85
+      ArrayLiteral : MutableArray<Unit>
+        UnitLiteral : Unit
+        UnitLiteral : Unit
+    val local86
+      Local units : MutableArray<Unit>
+    val local87
+      Local $argument.0 : MutableArray<Unit>
+    val local88
+      ArrayClone : Array<Unit>
+        Local $parameter.source : MutableArray<Unit>
+    val local89
+      Local units : MutableArray<Unit>
+    val local90
+      Local $argument.0 : MutableArray<Unit>
+    val local91
+      ArrayClone : Array<Unit>
+        Local $parameter.source : MutableArray<Unit>
+    val local92
+      ArrayLen : Long
+        Local emptyPayload : Array<Unit>
+    val local93
+      IntegerLiteral 2 : Long
+    val local94
+      Local $dependency.argument.0 : Long
+    if
+      Binary Or : Boolean
+        Unary Not : Boolean
+          IntegerOperation long.equals <no-gc> : Boolean
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+        Binary RefEq : Boolean
+          Local emptyPayload : Array<Unit>
+          Local another : Array<Unit>
+      return
+        IntegerLiteral 6 : Int
+    val local95
+      ArrayLiteral : Array<Array<Large>>
+        Local copied : Array<Large>
+        Local original : Array<Large>
+    val local96
+      Local nested : Array<Array<Large>>
+    val local97
+      Local $argument.0 : Array<Array<Large>>
+    val local98
+      ArrayClone : MutableArray<Array<Large>>
+        Local $parameter.source : Array<Array<Large>>
+    val local99
+      Local mutableNested : MutableArray<Array<Large>>
+    val local100
+      Local $argument.0 : MutableArray<Array<Large>>
+    val local101
+      ArrayClone : Array<Array<Large>>
+        Local $parameter.source : MutableArray<Array<Large>>
+    val local102
+      IntegerLiteral 0 : Int
+    val local103
+      Local $argument.0 : Int
+    val local104
+      ClassInit Reference : Reference
+        Local $parameter.number : Int
+    val local105
+      Local copyNested : Array<Array<Large>>
+    val local106
+      IntegerLiteral 1 : Long
+    val local107
+      Local $dependency.argument.0 : Long
+    val local108
+      Index ImmutableGet : Array<Large>
+        Local $dependency.receiver : Array<Array<Large>>
+        Local $dependency.parameter.index : Long
+    val local109
+      IntegerLiteral 0 : Long
+    val local110
+      Local $dependency.argument.0 : Long
+    val local111
+      Index ImmutableGet : Large
+        Local $dependency.receiver : Array<Large>
+        Local $dependency.parameter.index : Long
+    val local112
+      Local $argument.0 : Large
+    val local113
+      Call readLarge : Int
+        Local $parameter.value : Large
+    val local114
+      FieldAccess class field number : Int
+        Local allocation : Reference
+    val local115
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  output library
+  instance exercise<Large>
+  instance exercise<Payload<Large>>
+  instance exercise<Unit>

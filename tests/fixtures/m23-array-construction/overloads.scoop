@@ -1,0 +1,24 @@
+package consumer.arrayconstruction
+
+import Array as Choose
+import dependency.arrayconstruction.selected as Choose
+import Array as Narrow
+import dependency.arrayconstruction.broad as Narrow
+import dependency.arrayconstruction.IntSnapshot as Fixed
+import dependency.arrayconstruction.genericCopy as Fixed
+import dependency.arrayconstruction.exercise as providerExercise
+import dependency.arrayconstruction.trace
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val source: MutableArray<Int> = [42]
+    if (Choose(source)[0L] != 43) { return 1 }
+    if (Choose<Int>(source)[0L] != 42) { return 2 }
+    if (Narrow(source)[0L] != 42) { return 3 }
+    trace = 0
+    val fixed = Fixed(source)
+    if (trace != 0 || fixed[0L] != 42) { return 4 }
+    source[0L] = 7
+    return fixed[0L]
+}

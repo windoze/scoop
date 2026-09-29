@@ -1,5 +1,4 @@
 use super::*;
-use crate::call_resolution::candidates::ValueParameter;
 use crate::constructor_resolution::ResolvedNominalConstructor;
 
 impl Lowerer {
@@ -23,7 +22,7 @@ impl Lowerer {
                     );
                     return Err(());
                 }
-                return Ok(PreparedNominalPlans::Local(Vec::new(), None));
+                return Ok(PreparedNominalPlans::Nominal(Vec::new(), None));
             }
             NamedCallTarget::Type(TopLevelTypeTarget::Nominal(nominal)) => {
                 (nominal, expected, false)
@@ -34,14 +33,15 @@ impl Lowerer {
                     .ok_or(())?;
                 let Some(nominal) = self.nominal_target_for_type(ty) else {
                     if let Some(owner) = self.imported_nominal_owner(ty) {
-                        return Ok(PreparedNominalPlans::Imported {
+                        return Ok(self.imported_nominal_plans(
                             owner,
-                            expected: match owner {
+                            call,
+                            match owner {
                                 hir::SourceNominalId::Concrete(_) => expected,
                                 hir::SourceNominalId::GenericTemplate(_) => Some(ty),
                             },
-                            fixed_alias: true,
-                        });
+                            true,
+                        ));
                     }
                     self.error(
                         call.span,
@@ -55,11 +55,12 @@ impl Lowerer {
                 (nominal, Some(ty), true)
             }
             NamedCallTarget::ImportedDependency(hir::ImportedTarget::GenericType(owner)) => {
-                return Ok(PreparedNominalPlans::Imported {
-                    owner: hir::SourceNominalId::GenericTemplate(owner.persistent()),
+                return Ok(self.imported_nominal_plans(
+                    hir::SourceNominalId::GenericTemplate(owner.persistent()),
+                    call,
                     expected,
-                    fixed_alias: false,
-                });
+                    false,
+                ));
             }
             NamedCallTarget::ImportedDependency(
                 hir::ImportedTarget::Type(_) | hir::ImportedTarget::TypeAlias(_),
@@ -84,31 +85,34 @@ impl Lowerer {
                     );
                     return Err(());
                 };
-                return Ok(PreparedNominalPlans::Imported {
+                return Ok(self.imported_nominal_plans(
                     owner,
-                    expected: match owner {
+                    call,
+                    match owner {
                         hir::SourceNominalId::Concrete(_) => expected,
                         hir::SourceNominalId::GenericTemplate(_) => Some(ty),
                     },
-                    fixed_alias: true,
-                });
+                    true,
+                ));
             }
             NamedCallTarget::Value(ValueTarget::Variant(target)) => {
                 if self.resolved_variant_style(target) == VariantStyle::Unit {
                     self.error(call.span, format!("unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses", call.callee.text, self.enums[target.enumeration()].name, call.callee.text));
                     return Err(());
                 }
-                return Ok(PreparedNominalPlans::Local(
+                return Ok(PreparedNominalPlans::Nominal(
                     vec![NominalPlan {
-                        view: self
-                            .nominal_constructor_view(NominalConstructorSource::Variant(target)),
+                        view: self.nominal_constructor_view(
+                            NominalConstructorSource::Variant(target),
+                            call.span,
+                        ),
                         expected,
                         fixed_alias: false,
                     }],
                     None,
                 ));
             }
-            _ => return Ok(PreparedNominalPlans::Local(Vec::new(), None)),
+            _ => return Ok(PreparedNominalPlans::Nominal(Vec::new(), None)),
         };
         let sources = match nominal {
             crate::NominalTarget::Struct(id) => {
@@ -128,7 +132,7 @@ impl Lowerer {
                     return Err(());
                 }
                 if Some(id) == self.ffi_ptr {
-                    return Ok(PreparedNominalPlans::Local(
+                    return Ok(PreparedNominalPlans::Nominal(
                         Vec::new(),
                         Some((id, expected, fixed_alias)),
                     ));
@@ -154,21 +158,12 @@ impl Lowerer {
                     .collect::<Vec<_>>()
             }
             crate::NominalTarget::Class(id) => {
-                if let Some(kind) = self.array_class_kind(id) {
-                    let mut view =
-                        self.nominal_constructor_view(NominalConstructorSource::IntrinsicClass(id));
-                    let element = self.intern_type(Type::Param(view.owner_parameters[0].id));
-                    let opposite = match kind {
-                        ArrayKind::Immutable => ArrayKind::Mutable,
-                        ArrayKind::Mutable => ArrayKind::Immutable,
-                    };
-                    let ty = self.array_type(opposite, element);
-                    view.value_parameters = vec![ValueParameter {
-                        name: "source".into(),
-                        calling: crate::defaults::SourceParameterCalling::Required,
-                        ty,
-                    }];
-                    return Ok(PreparedNominalPlans::Local(
+                if self.array_class_kind(id).is_some() {
+                    let view = self.nominal_constructor_view(
+                        NominalConstructorSource::IntrinsicClass(id),
+                        call.span,
+                    );
+                    return Ok(PreparedNominalPlans::Nominal(
                         vec![NominalPlan {
                             view,
                             expected,
@@ -222,7 +217,7 @@ impl Lowerer {
         for source in sources {
             if self.constructor_is_accessible(source) {
                 plans.push(NominalPlan {
-                    view: self.nominal_constructor_view(source),
+                    view: self.nominal_constructor_view(source, call.span),
                     expected,
                     fixed_alias,
                 });
@@ -238,7 +233,45 @@ impl Lowerer {
             );
             return Err(());
         }
-        Ok(PreparedNominalPlans::Local(plans, None))
+        Ok(PreparedNominalPlans::Nominal(plans, None))
+    }
+
+    fn imported_nominal_plans(
+        &mut self,
+        owner: hir::SourceNominalId,
+        call: &ast::CallExpr,
+        expected: Option<TypeId>,
+        fixed_alias: bool,
+    ) -> PreparedNominalPlans {
+        let declaration = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.nominal_declaration(owner))
+            .expect("a resolved dependency type retains its declaration");
+        if matches!(
+            declaration.interface.source_shape(),
+            hir::NominalSourceShapeV1::Intrinsic(representation)
+                if matches!(representation.family(),
+                    hir::IntrinsicTypeKind::Array | hir::IntrinsicTypeKind::MutableArray)
+        ) {
+            let view = self.nominal_constructor_view(
+                NominalConstructorSource::ImportedArray(owner),
+                call.span,
+            );
+            return PreparedNominalPlans::Nominal(
+                vec![NominalPlan {
+                    view,
+                    expected,
+                    fixed_alias,
+                }],
+                None,
+            );
+        }
+        PreparedNominalPlans::Imported {
+            owner,
+            expected,
+            fixed_alias,
+        }
     }
 
     pub(super) fn named_nominal_expected_arguments(
@@ -262,6 +295,11 @@ impl Lowerer {
                 if self.enum_applications[*a].template == self.enum_applications[*b].template =>
             {
                 Some(self.enum_applications[*b].arguments.clone())
+            }
+            (Type::ImportedClass(a), Type::ImportedClass(b))
+                if a.declaration.owner() == b.declaration.owner() =>
+            {
+                Some(b.arguments.clone())
             }
             _ => None,
         }
@@ -317,6 +355,16 @@ impl Lowerer {
             }
             NominalConstructorSource::IntrinsicClass(class) => {
                 let ty = self.class_application(class, resolved.type_args);
+                let [argument]: [hir::Expr; 1] = resolved
+                    .args
+                    .try_into()
+                    .expect("array conversion has one materialized argument");
+                (ExprKind::ArrayClone(Box::new(argument)), ty)
+            }
+            NominalConstructorSource::ImportedArray(owner) => {
+                let ty = self
+                    .imported_nominal_application(owner, resolved.type_args)
+                    .expect("an applicable array conversion has a complete result type");
                 let [argument]: [hir::Expr; 1] = resolved
                     .args
                     .try_into()
