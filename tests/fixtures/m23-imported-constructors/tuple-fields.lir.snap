@@ -82,13 +82,13 @@ Module
     store local14 -> local10
     ret local10
   fun @scoop$1$cb$ee23c2f1b060c84d999e33450251f6a26b6e9e0670d5d3420ce8153c5f4a581c() -> i64 <no-gc>
-    local %0 $dependency.default.local.0: i64
-    local %1 $dependency.default.local.1: i64
-    local %2 $dependency.default.local.2: i64
-    local %3 $dependency.default.local.3: i64
-    local %4 $dependency.default.local.4: i64
-    local %5 $dependency.default.local.5: i64
-    local %6 $dependency.default.local.6: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %0 $default.local.0: i64
+    local %1 $default.local.1: i64
+    local %2 $default.local.2: i64
+    local %3 $default.local.3: i64
+    local %4 $default.local.4: i64
+    local %5 $default.local.5: i64
+    local %6 $default.local.6: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
     local %7 $dependency.parameter.value: struct2
     local %8 $call.1: i64
     local %9 $sc.1: struct2

@@ -73,34 +73,34 @@ Module
         Local $call.3
   fun defaults @fn3() -> Long <no-gc>
     bb0 entry
-      val $dependency.default.local.0: Long
+      val $default.local.0: Long
         Type Long
         IntegerLiteral Long value=3 bits=0x0000000000000003
-      val $dependency.default.local.1: Long
+      val $default.local.1: Long
         Type Long
         IntegerLiteral Long value=4 bits=0x0000000000000004
-      val $dependency.default.local.2: Long
+      val $default.local.2: Long
         Type Long
         IntegerLiteral Long value=5 bits=0x0000000000000005
-      val $dependency.default.local.3: Long
+      val $default.local.3: Long
         Type Long
-        Local $dependency.default.local.0
-      val $dependency.default.local.4: Long
+        Local $default.local.0
+      val $default.local.4: Long
         Type Long
-        Local $dependency.default.local.1
-      val $dependency.default.local.5: Long
+        Local $default.local.1
+      val $default.local.5: Long
         Type Long
-        Local $dependency.default.local.2
-      call $dependency.default.local.6: Token = external0 direct
+        Local $default.local.2
+      call $default.local.6: Token = external0 direct
       call $dependency.parameter.value: Wide = external1 direct
         Type Long
-        Local $dependency.default.local.3
+        Local $default.local.3
         Type Long
-        Local $dependency.default.local.4
+        Local $default.local.4
         Type Long
-        Local $dependency.default.local.5
+        Local $default.local.5
         Type Token
-        Local $dependency.default.local.6
+        Local $default.local.6
       call $call.1: Long = external3 direct
         Type Wide
         Local $dependency.parameter.value

@@ -40,7 +40,7 @@ impl Lowerer {
             let ty = self.resolve_type_ref(&parameter.ty)?;
             if let Some((_, signature)) = &expected_signature {
                 let expected = signature.parameter_types[index];
-                if !self.types_equal(ty, expected) {
+                if !self.is_subtype(expected, ty) {
                     let found = self.type_name(ty);
                     let expected = self.type_name(expected);
                     self.error(
@@ -62,7 +62,7 @@ impl Lowerer {
             .as_ref()
             .map(|(_, signature)| signature.return_type);
         if let (Some(explicit), Some(expected)) = (explicit_return, expected_return)
-            && !self.types_equal(explicit, expected)
+            && !self.is_subtype(explicit, expected)
         {
             let found = self.type_name(explicit);
             let expected = self.type_name(expected);

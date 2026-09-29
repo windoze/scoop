@@ -127,16 +127,7 @@ impl Lowerer {
             } else {
                 None
             };
-        let expressions = match call.arguments {
-            ImportedCallArguments::Source(arguments) => arguments
-                .iter()
-                .map(|argument| ArgumentExpression::Source(&argument.expression))
-                .collect::<Vec<_>>(),
-            ImportedCallArguments::Lowered(arguments) => arguments
-                .iter()
-                .map(ArgumentExpression::Lowered)
-                .collect::<Vec<_>>(),
-        };
+        let expressions = call.arguments.expressions();
         let expressions = if let Some((place, ty)) = address_place {
             vec![ArgumentExpression::Addressable {
                 place,

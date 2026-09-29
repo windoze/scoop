@@ -134,7 +134,7 @@ impl Lowerer {
                 };
                 let parameter_ty = match (explicit_ty, expected_ty) {
                     (Some(explicit), Some(expected)) => {
-                        if !self.types_equal(explicit, expected) {
+                        if !self.is_subtype(expected, explicit) {
                             let found = self.type_name(explicit);
                             let expected = self.type_name(expected);
                             let at = parameter

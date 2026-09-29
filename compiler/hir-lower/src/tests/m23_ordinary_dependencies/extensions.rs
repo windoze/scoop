@@ -237,7 +237,7 @@ fn inapplicable_exact_dependency_extension_falls_through_to_current_package() {
 }
 
 #[test]
-fn unsupported_exact_dependency_extension_falls_through_to_current_package() {
+fn exact_dependency_extension_result_does_not_select_a_lower_scope() {
     let provider = extension_provider(
         "layout-extension-provider",
         extension_expr(
@@ -273,10 +273,15 @@ fn unsupported_exact_dependency_extension_falls_through_to_current_package() {
         .push(exact_import(&["dependency", "api", "choose"]));
 
     inspect_extensions(vec![provider], consumer, |output| {
-        let output = output.expect("an unsupported exact extension must permit lower fallback");
-        assert!(output.imported_dependencies().is_empty());
-        let dump = scoop_hir::dump(&output.output().export);
-        assert!(!dump.contains("ImportedDependencyCall"), "{dump}");
+        let errors = output
+            .err()
+            .expect("the selected exact-import candidate retains its result type");
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert_eq!(
+            errors[0].message,
+            "body of `consumer` must be of type Int, found (Int, Int)"
+        );
+        assert_eq!(errors[0].span, Some(sp()));
     });
 }
 

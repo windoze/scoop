@@ -1,0 +1,23 @@
+package consumer.nativecalls
+
+import dependency.nativecalls.*
+
+private fun localApply(action: (Int) -> Int): Int = action(42)
+private fun localWiden(action: (Int) -> Any): Int = action(42) as Int
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val external = apply({ value: Any -> read(seed) })
+    val local = localApply({ value: Any -> read(seed) })
+    return if (external == local) { external } else { 1 }
+}
+
+public fun result(): Int {
+    if (localApply({ value: Any -> 42 }) != 42) { return 2 }
+    if (apply({ value: Any -> 42 }) != 42) { return 3 }
+    if (localWiden(fun(value: Any): Int { return 42 }) != 42) { return 4 }
+    if (widen(fun(value: Any): Int { return 42 }) != 42) { return 5 }
+    val action: (Any) -> Int = { value: Any -> 42 }
+    if (localWiden(action) != 42 || widen(action) != 42) { return 6 }
+    val host = FixedHost()
+    return host.apply({ value: Any -> 42 })
+}

@@ -1,6 +1,6 @@
 use super::ImportedArgumentMap;
-use crate::Lowerer;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
+use crate::call_resolution::contextual::ArgumentExpression;
 use crate::expr::CallSite;
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -72,13 +72,6 @@ impl<'a> ImportedCallArguments<'a> {
         }
     }
 
-    pub(super) fn len(self) -> usize {
-        match self {
-            Self::Source(arguments) => arguments.len(),
-            Self::Lowered(arguments) => arguments.len(),
-        }
-    }
-
     pub(super) fn map(
         self,
         parameters: &[hir::CallableSourceParameterV1],
@@ -93,18 +86,13 @@ impl<'a> ImportedCallArguments<'a> {
         }
     }
 
-    pub(super) fn lower(
-        self,
-        index: usize,
-        state: &mut Lowerer,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<hir::TypeId>,
-    ) -> Option<hir::Expr> {
+    pub(super) fn expressions(self) -> Vec<ArgumentExpression<'a>> {
         match self {
-            Self::Source(arguments) => {
-                state.lower_expr(&arguments[index].expression, sink, expected)
-            }
-            Self::Lowered(arguments) => Some(arguments[index].clone()),
+            Self::Source(arguments) => arguments
+                .iter()
+                .map(|argument| ArgumentExpression::Source(&argument.expression))
+                .collect(),
+            Self::Lowered(arguments) => arguments.iter().map(ArgumentExpression::Lowered).collect(),
         }
     }
 

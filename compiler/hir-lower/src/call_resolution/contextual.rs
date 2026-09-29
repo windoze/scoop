@@ -98,15 +98,27 @@ impl Lowerer {
         let mut sinks = (0..expressions.len())
             .map(|_| Vec::new())
             .collect::<Vec<_>>();
+        let initial = self
+            .solve_constraints_partially(session, environment)
+            .map_err(|failure| {
+                Box::new(ArgumentInferenceFailure {
+                    arguments: values.clone(),
+                    kind: ArgumentInferenceFailureKind::Constraint(failure),
+                })
+            })?;
+        let initial_hints = hint_bindings(parameters, &initial);
+        let mut previous = Some(initial);
         for (index, expression) in expressions.iter().enumerate() {
             if forced_hint.is_some_and(|(source, _)| source == index)
                 || expression.requires_context(self)
             {
                 continue;
             }
-            match expression.lower(self, index, None) {
+            let expected = self.try_substitute(patterns[index].ty, &initial_hints);
+            match expression.lower(self, index, expected) {
                 Ok((value, sink)) => {
                     patterns[index].constrain(session, index, value.ty);
+                    previous = None;
                     values[index] = Some(value);
                     sinks[index] = sink;
                 }
@@ -120,20 +132,23 @@ impl Lowerer {
         }
 
         loop {
-            let partial = self
-                .solve_constraints_partially(session, environment)
-                .map_err(|failure| {
-                    Box::new(ArgumentInferenceFailure {
-                        arguments: values.clone(),
-                        kind: ArgumentInferenceFailureKind::Constraint(failure),
-                    })
-                })?;
+            let partial = match previous.take() {
+                Some(partial) => partial,
+                None => self
+                    .solve_constraints_partially(session, environment)
+                    .map_err(|failure| {
+                        Box::new(ArgumentInferenceFailure {
+                            arguments: values.clone(),
+                            kind: ArgumentInferenceFailureKind::Constraint(failure),
+                        })
+                    })?,
+            };
             let complete = partial
                 .owner
                 .iter()
                 .chain(&partial.callable)
                 .all(Option::is_some);
-            let hints = hint_bindings(parameters, partial);
+            let hints = hint_bindings(parameters, &partial);
             let mut progress = false;
             for (index, expression) in expressions.iter().enumerate() {
                 if values[index].is_some() {
@@ -232,7 +247,7 @@ impl Lowerer {
 
 fn hint_bindings(
     parameters: &[hir::TypeParamId],
-    partial: PartialInferenceArguments,
+    partial: &PartialInferenceArguments,
 ) -> Vec<Option<hir::TypeId>> {
     let length = parameters
         .iter()
@@ -242,9 +257,9 @@ fn hint_bindings(
     let mut bindings = vec![None; length];
     for (parameter, value) in parameters
         .iter()
-        .zip(partial.owner.into_iter().chain(partial.callable))
+        .zip(partial.owner.iter().chain(&partial.callable))
     {
-        bindings[parameter.into_raw() as usize] = value;
+        bindings[parameter.into_raw() as usize] = *value;
     }
     bindings
 }

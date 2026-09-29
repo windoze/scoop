@@ -1,3 +1,3 @@
-span=207..214
-expression=Other()
-dependency constructor `Other` returns Other, which is not compatible with expected Token
+span=186..215
+expression=(Token(), (1, 2, 3), Other())
+dependency constructor argument must be of type (Token, (Long, Long, Long), Token), found (Token, (Long, Long, Long), Other)

@@ -109,9 +109,9 @@ Module
     local %7 $dependency.parameter.other: i64
     local %8 $dependency.argument.0: {i64, struct0, i64}
     local %9 $dependency.parameter.value: {i64, struct0, i64}
-    local %10 $dependency.default.local.1: i64
-    local %11 $dependency.default.local.2: i64
-    local %12 $dependency.default.local.3: i64
+    local %10 $default.local.1: i64
+    local %11 $default.local.2: i64
+    local %12 $default.local.3: i64
     local %13 $dependency.parameter.selected: i64
     local %14 $dependency.receiver: i64
     local %15 $dependency.argument.0: i64

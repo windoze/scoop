@@ -14,6 +14,7 @@ mod equality;
 mod machine;
 mod members;
 mod metadata;
+mod native_calls;
 mod nominals;
 mod options;
 mod pointer_construction;

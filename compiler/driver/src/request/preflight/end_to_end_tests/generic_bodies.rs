@@ -13,6 +13,7 @@ mod initialization;
 mod iteration;
 mod machine;
 mod members;
+mod native_calls;
 mod nominals;
 mod options;
 mod pointer_construction;

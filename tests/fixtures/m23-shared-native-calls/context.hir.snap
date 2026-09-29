@@ -1,0 +1,511 @@
+Module
+  fun localApply(action: (Int) -> Int, value: Int): Int
+    return
+      CallableCall function_type0 : Int
+        Local action : (Int) -> Int
+        Local value : Int
+  fun localNarrow(value: Int8): Int
+    val local1
+      Local value : Int8
+    return
+      IntegerConversion Int8 -> Int <no-gc> : Int
+        Local $dependency.receiver : Int8
+  fun localNarrowAction(action: (Int) -> Int8): Int
+    val local1
+      CallableCall function_type1 : Int8
+        Local action : (Int) -> Int8
+        IntegerLiteral 0 : Int
+    return
+      IntegerConversion Int8 -> Int <no-gc> : Int
+        Local $dependency.receiver : Int8
+  fun localArrayFirst(values: Array<Int>): Int
+    val local1
+      ArrayLen : Long
+        Local values : Array<Int>
+    val local2
+      IntegerLiteral 0 : Long
+    val local3
+      Local $dependency.argument.0 : Long
+    if
+      IntegerOperation long.equals <no-gc> : Boolean
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+      assign $result.0
+        IntegerLiteral 42 : Int
+    else
+      val local4
+        Local values : Array<Int>
+      val local5
+        IntegerLiteral 0 : Long
+      val local6
+        Local $dependency.argument.0 : Long
+      assign $result.0
+        Index ImmutableGet : Int
+          Local $dependency.receiver : Array<Int>
+          Local $dependency.parameter.index : Long
+    return
+      Local $result.0 : Int
+  fun localPack(values: Array<Int>): Array<Int>
+    return
+      Local values : Array<Int>
+  fun identity(value: Int): Int
+    return
+      Local value : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Lambda lambda0 invoke=$lambda.0 captures=2 : (Int) -> Int
+        capture read binding23 : (T0) -> Int
+        capture seed binding22 : T0
+    val local3
+      IntegerLiteral 0 : Int
+    val local4
+      Local $dependency.argument.0 : (Int) -> Int
+    val local5
+      Local $dependency.argument.1 : Int
+    val local6
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.action : (Int) -> Int
+        Local $dependency.parameter.value : Int
+    val local7
+      Lambda lambda1 invoke=$lambda.1 captures=2 : (Int) -> Int
+        capture read binding23 : (T0) -> Int
+        capture seed binding22 : T0
+    val local8
+      IntegerLiteral 0 : Int
+    val local9
+      Local $argument.0 : (Int) -> Int
+    val local10
+      Local $argument.1 : Int
+    val local11
+      Call localApply : Int
+        Local $parameter.action : (Int) -> Int
+        Local $parameter.value : Int
+    val local12
+      Local external : Int
+    val local13
+      Local local : Int
+    val local14
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      assign $result.1
+        Local external : Int
+    else
+      assign $result.1
+        IntegerLiteral 1 : Int
+    return
+      Local $result.1 : Int
+  fun result(): Int
+    val local0
+      BoolLiteral true : Boolean
+    if
+      Local flag : Boolean
+      assign $result.2
+        IntegerLiteral 42 : Int8
+    else
+      assign $result.2
+        IntegerLiteral 0 : Int8
+    val local2
+      Local $result.2 : Int8
+    val local3
+      Local $argument.0 : Int8
+    val local4
+      Call localNarrow : Int
+        Local $parameter.value : Int8
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    if
+      Local flag : Boolean
+      assign $result.3
+        IntegerLiteral 42 : Int8
+    else
+      assign $result.3
+        IntegerLiteral 0 : Int8
+    val local8
+      Local $result.3 : Int8
+    val local9
+      Local $dependency.argument.0 : Int8
+    val local10
+      ImportedDependencyCall #1 : Int
+        Local $dependency.parameter.value : Int8
+    val local11
+      IntegerLiteral 42 : Int
+    val local12
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local13
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int8
+    val local14
+      Local $argument.0 : (Int) -> Int8
+    val local15
+      Call localNarrowAction : Int
+        Local $parameter.action : (Int) -> Int8
+    val local16
+      IntegerLiteral 42 : Int
+    val local17
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local18
+      Lambda lambda3 invoke=$lambda.3 captures=0 : (Int) -> Int8
+    val local19
+      Local $dependency.argument.0 : (Int) -> Int8
+    val local20
+      ImportedDependencyCall #2 : Int
+        Local $dependency.parameter.action : (Int) -> Int8
+    val local21
+      IntegerLiteral 42 : Int
+    val local22
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 5 : Int
+    val local23
+      AnonymousFunction anonymous0 invoke=$anonymous.0 captures=0 : (Int) -> Int8
+    val local24
+      Local $argument.0 : (Int) -> Int8
+    val local25
+      Call localNarrowAction : Int
+        Local $parameter.action : (Int) -> Int8
+    val local26
+      IntegerLiteral 42 : Int
+    val local27
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 6 : Int
+    val local28
+      AnonymousFunction anonymous1 invoke=$anonymous.1 captures=0 : (Int) -> Int8
+    val local29
+      Local $dependency.argument.0 : (Int) -> Int8
+    val local30
+      ImportedDependencyCall #2 : Int
+        Local $dependency.parameter.action : (Int) -> Int8
+    val local31
+      IntegerLiteral 42 : Int
+    val local32
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 7 : Int
+    val local33
+      ArrayLiteral : Array<Int>
+    val local34
+      Local $argument.0 : Array<Int>
+    val local35
+      Call localArrayFirst : Int
+        Local $parameter.values : Array<Int>
+    val local36
+      IntegerLiteral 42 : Int
+    val local37
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local43
+        BoolLiteral true : Boolean
+    else
+      val local38
+        ArrayLiteral : Array<Int>
+      val local39
+        Local $dependency.argument.0 : Array<Int>
+      val local40
+        ImportedDependencyCall #3 : Int
+          Local $dependency.parameter.values : Array<Int>
+      val local41
+        IntegerLiteral 42 : Int
+      val local42
+        Local $dependency.argument.0 : Int
+      val local43
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.4 : Boolean
+      return
+        IntegerLiteral 8 : Int
+    val local44
+      CallableReference reference0 target=identity captures=0 : (Int) -> Int
+    val local45
+      Local $argument.0 : (Int) -> Int
+    val local46
+      IntegerLiteral 42 : Int
+    val local47
+      Call localApply : Int
+        Local $parameter.action : (Int) -> Int
+        Local $parameter.value : Int
+    val local48
+      IntegerLiteral 42 : Int
+    val local49
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local56
+        BoolLiteral true : Boolean
+    else
+      val local50
+        CallableReference reference1 target=identity captures=0 : (Int) -> Int
+      val local51
+        Local $dependency.argument.0 : (Int) -> Int
+      val local52
+        IntegerLiteral 42 : Int
+      val local53
+        ImportedDependencyCall #0 : Int
+          Local $dependency.parameter.action : (Int) -> Int
+          Local $dependency.parameter.value : Int
+      val local54
+        IntegerLiteral 42 : Int
+      val local55
+        Local $dependency.argument.0 : Int
+      val local56
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.5 : Boolean
+      return
+        IntegerLiteral 9 : Int
+    val local57
+      IntegerLiteral 41 : Int
+    val local58
+      Lambda lambda4 invoke=$lambda.4 captures=0 : (Int) -> Int
+    val local59
+      Local $argument.1 : (Int) -> Int
+    val local60
+      Local $argument.0 : Int
+    val local61
+      Call localApply : Int
+        Local $parameter.action : (Int) -> Int
+        Local $parameter.value : Int
+    val local62
+      IntegerLiteral 42 : Int
+    val local63
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 10 : Int
+    val local64
+      IntegerLiteral 41 : Int
+    val local65
+      Lambda lambda5 invoke=$lambda.5 captures=0 : (Int) -> Int
+    val local66
+      Local $dependency.argument.1 : (Int) -> Int
+    val local67
+      Local $dependency.argument.0 : Int
+    val local68
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.action : (Int) -> Int
+        Local $dependency.parameter.value : Int
+    val local69
+      IntegerLiteral 42 : Int
+    val local70
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 11 : Int
+    val local71
+      ArrayLiteral : Array<Int>
+        IntegerLiteral 42 : Int
+    val local72
+      Local values : Array<Int>
+    val local73
+      Local $argument.0 : Array<Int>
+    if
+      Binary RefNe : Boolean
+        Call localPack : Array<Int>
+          Local $parameter.values : Array<Int>
+        Local values : Array<Int>
+      val local76
+        BoolLiteral true : Boolean
+    else
+      val local74
+        Local values : Array<Int>
+      val local75
+        Local $dependency.argument.0 : Array<Int>
+      val local76
+        Binary RefNe : Boolean
+          ImportedDependencyCall #4 : Array<Int>
+            Local $dependency.parameter.values : Array<Int>
+          Local values : Array<Int>
+    if
+      Local $shortCircuit.6 : Boolean
+      return
+        IntegerLiteral 12 : Int
+    val local77
+      Local values : Array<Int>
+    val local78
+      IntegerLiteral 0 : Int
+    val local79
+      ArrayAssembly : Array<Int>
+        CopyArray
+          Local $argument.0 : Array<Int>
+        Element
+          Local $argument.1 : Int
+    val local80
+      ArrayLen : Long
+        Call localPack : Array<Int>
+          Local $parameter.values : Array<Int>
+    val local81
+      IntegerLiteral 2 : Long
+    val local82
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      val local89
+        BoolLiteral true : Boolean
+    else
+      val local83
+        Local values : Array<Int>
+      val local84
+        IntegerLiteral 0 : Int
+      val local85
+        ArrayAssembly : Array<Int>
+          CopyArray
+            Local $dependency.argument.0 : Array<Int>
+          Element
+            Local $dependency.argument.1 : Int
+      val local86
+        ArrayLen : Long
+          ImportedDependencyCall #4 : Array<Int>
+            Local $dependency.parameter.values : Array<Int>
+      val local87
+        IntegerLiteral 2 : Long
+      val local88
+        Local $dependency.argument.0 : Long
+      val local89
+        Unary Not : Boolean
+          IntegerOperation long.equals <no-gc> : Boolean
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+    if
+      Local $shortCircuit.7 : Boolean
+      return
+        IntegerLiteral 13 : Int
+    val local90
+      ArrayAssembly : Array<Int>
+    val local91
+      ArrayLen : Long
+        Call localPack : Array<Int>
+          Local $parameter.values : Array<Int>
+    val local92
+      IntegerLiteral 0 : Long
+    val local93
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      val local98
+        BoolLiteral true : Boolean
+    else
+      val local94
+        ArrayAssembly : Array<Int>
+      val local95
+        ArrayLen : Long
+          ImportedDependencyCall #4 : Array<Int>
+            Local $dependency.parameter.values : Array<Int>
+      val local96
+        IntegerLiteral 0 : Long
+      val local97
+        Local $dependency.argument.0 : Long
+      val local98
+        Unary Not : Boolean
+          IntegerOperation long.equals <no-gc> : Boolean
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+    if
+      Local $shortCircuit.8 : Boolean
+      return
+        IntegerLiteral 14 : Int
+    val local99
+      ImportedDependencyCall #5 : FixedHost
+    val local100
+      Local host : FixedHost
+    val local101
+      IntegerLiteral 42 : Int
+    val local102
+      Local $dependency.argument.0 : Int
+    val local103
+      ImportedDependencyCall #6 : Int
+        Local $dependency.receiver : FixedHost
+        Local $dependency.parameter.value : Int
+    val local104
+      IntegerLiteral 42 : Int
+    val local105
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local106
+        Local host : FixedHost
+      val local107
+        Lambda lambda6 invoke=$lambda.6 captures=0 : (Int) -> Int
+      val local108
+        Local $dependency.argument.0 : (Int) -> Int
+      val local109
+        IntegerLiteral 42 : Int
+      assign $result.9
+        ImportedDependencyCall #7 : Int
+          Local $dependency.receiver : FixedHost
+          Local $dependency.parameter.action : (Int) -> Int
+          Local $dependency.parameter.value : Int
+    else
+      assign $result.9
+        IntegerLiteral 15 : Int
+    return
+      Local $result.9 : Int
+  output library

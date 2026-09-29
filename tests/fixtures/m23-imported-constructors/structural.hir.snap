@@ -27,7 +27,7 @@ Module
     val local4
       Local $dependency.argument.0 : (Token, (Long, Long, Long), Token)
     val local5
-      FieldAccess dependency field a5a337a3787e64fad65eebf966d3c8f736fa86898cd89f25fb29c7ce2c29f9bc : (Token, (Long, Long, Long), Token)
+      FieldAccess field 0 : (Token, (Long, Long, Long), Token)
         ImportedDependencyCall #2 : TupleBox
           Local $dependency.parameter.elements : (Token, (Long, Long, Long), Token)
     val local6
@@ -43,7 +43,7 @@ Module
     val local1
       Local $dependency.argument.0 : (Token, Token)
     val local2
-      FieldAccess dependency field bac60a302b74944c0412c9e9097b0809d1b85b387daee6a4847844811ee122a3 : (Token, Token)
+      FieldAccess field 0 : (Token, Token)
         ImportedDependencyCall #4 : TupleMarker
           Local $dependency.parameter.elements : (Token, Token)
     val local3
@@ -113,11 +113,11 @@ Module
       FieldAccess _3 : Long
         Local $dependency.parameter.value : (Long, Token, Long)
     val local12
-      Local $dependency.default.local.2 : Long
+      Local $default.local.2 : Long
     val local13
       IntegerOperation long.add <no-gc> : Long
-        Local $dependency.default.local.1 : Long
-        Local $dependency.default.local.3 : Long
+        Local $default.local.1 : Long
+        Local $default.local.3 : Long
     val local15
       ImportedDependencyCall #10 : Long
         Local $dependency.parameter.value : (Long, Token, Long)

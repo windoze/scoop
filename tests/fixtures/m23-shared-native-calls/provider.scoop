@@ -1,0 +1,17 @@
+package dependency.nativecalls
+
+public fun choose(value: Int): Int = value
+public fun choose(value: Any): String = "broad"
+public fun apply(action: (Int) -> Int, value: Int = 42): Int = action(value)
+public fun widen(action: (Int) -> Any): Int = action(42) as Int
+public fun narrow(value: Int8): Int = value.toInt32()
+public fun narrowAction(action: (Int) -> Int8): Int = action(0).toInt32()
+public fun arrayFirst(values: Array<Int>): Int = if (values.size == 0L) { 42 } else { values[0L] }
+public fun pack(vararg values: Int): Array<Int> = values
+public fun Int.chooseExtension(): (Int, Int) = (this, this)
+
+public class FixedHost public constructor() {
+    public fun choose(value: Int): Int = value
+    public fun choose(value: Any): String = "broad"
+    public fun apply(action: (Int) -> Int, value: Int = 42): Int = action(value)
+}

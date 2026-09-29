@@ -33,7 +33,7 @@ Module
     val local2
       IntegerLiteral 2 : Long
     val local3
-      FieldAccess dependency field c6d271843a3c67c8fce78131a7e0a379c1ec7598db414e971dcb452642910562 : Long
+      FieldAccess field 0 : Long
         ImportedDependencyCall #0 : Wide
           Local $dependency.parameter.seed : Long
           Local $dependency.parameter.step : Long

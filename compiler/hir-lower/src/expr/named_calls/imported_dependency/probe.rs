@@ -10,6 +10,7 @@ use crate::Lowerer;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
 use crate::expr::CallSite;
 
+mod native;
 mod receiver;
 
 enum ImportedDependencyCallReceiver {
@@ -307,131 +308,7 @@ impl Lowerer {
                 argument_map,
             );
         }
-        if candidate.executable() || matches!(candidate, ImportedCallableCandidate::Declaration(_))
-        {
-            for signature in interface
-                .parameters()
-                .parameters()
-                .iter()
-                .map(|parameter| parameter.value_type())
-                .chain(std::iter::once(interface.result()))
-            {
-                if state.imported_signature_type(signature).is_err() {
-                    state.imported_dependency_capability_error(
-                        &candidate,
-                        argument_map.has_vararg(),
-                        "dependency member signature",
-                        call.span,
-                    );
-                    return Err(Box::new(state));
-                }
-            }
-        }
-        let parameter_types = interface
-            .parameters()
-            .parameters()
-            .iter()
-            .map(|parameter| {
-                state
-                    .imported_signature_type(parameter.value_type())
-                    .unwrap_or(state.any)
-            })
-            .collect::<Vec<_>>();
-        let result_type = state
-            .imported_signature_type(interface.result())
-            .unwrap_or(state.any);
-        if candidate.executable()
-            && let Some(expected) = expected
-            && !state.is_subtype(result_type, expected)
-        {
-            state.error(
-                call.span,
-                format!(
-                    "dependency {kind} `{}` returns {}, which is not compatible with expected {}",
-                    name.text,
-                    state.type_name(result_type),
-                    state.type_name(expected)
-                ),
-            );
-            return Err(Box::new(state));
-        }
-
-        let mut source_args = Vec::with_capacity(call.arguments.len());
-        let mut argument_sinks = Vec::with_capacity(call.arguments.len());
-        let mut integer_arguments = Vec::with_capacity(call.arguments.len());
-        for (index, signature) in argument_map.source_parameters().iter().enumerate() {
-            let parameter = state.imported_signature_type(signature).ok();
-            let mut argument_sink = Vec::new();
-            let Some(value) =
-                call.arguments
-                    .lower(index, &mut state, &mut argument_sink, parameter)
-            else {
-                return Err(Box::new(state));
-            };
-            if let Some(parameter) = parameter
-                && !state.is_subtype(value.ty, parameter)
-            {
-                state.error(
-                    call.arguments.span(index),
-                    format!(
-                        "dependency {kind} argument must be of type {}, found {}",
-                        state.type_name(parameter),
-                        state.type_name(value.ty)
-                    ),
-                );
-                return Err(Box::new(state));
-            }
-            integer_arguments.push(match state.types[value.ty] {
-                hir::Type::Integer(kind) => Some(kind),
-                _ => None,
-            });
-            source_args.push(match parameter {
-                Some(parameter) => state.adapt_to(value, parameter),
-                None => value,
-            });
-            argument_sinks.push(argument_sink);
-        }
-        if !candidate.executable()
-            || (matches!(
-                receiver,
-                super::ImportedCallReceiver::Member {
-                    value: ImportedMemberReceiver::LiteralSubject(_),
-                    ..
-                }
-            ) && candidate.integer_equality_kind().is_none())
-        {
-            state.imported_dependency_capability_error(
-                &candidate,
-                argument_map.has_vararg(),
-                "dependency callable",
-                call.span,
-            );
-            return Err(Box::new(state));
-        }
-        let default_plan = match state.prepare_imported_defaults(&candidate, &argument_map) {
-            Ok(plan) => plan,
-            Err(error) => {
-                state.error(call.span, error.to_string());
-                return Err(Box::new(state));
-            }
-        };
-
-        Ok(ImportedDependencyCallProbe {
-            implementation: super::ImportedCallImplementation::Native,
-            declaration_file: state.current_file,
-            declaration_span: name.span,
-            state: Box::new(state),
-            candidate,
-            receiver,
-            source_args,
-            argument_sinks,
-            argument_map,
-            default_plan,
-            parameter_types,
-            result_type,
-            integer_arguments,
-            call_span: call.span,
-        })
+        Box::new(state).probe_imported_native(candidate, name, call, receiver, argument_map)
     }
 
     fn imported_dependency_shape_error(
