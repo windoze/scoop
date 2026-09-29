@@ -1,8 +1,8 @@
 # Scoop 语言规范
 
-`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
+`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 
-经直接依赖选中的名义类型，其 public 静态嵌套类型、object、companion 与可导入成员按实际 typed owner 继续查找，包括原声明 provider 仅作为 support 的情况。exact、star 和 public import 使用同一规则；support provider 的包仍不加入源码可见包集合。产物只保存实际终点公开绑定及其既有转导出引用，reader 不重复要求终点 provider 是 direct，也不补造外层命名空间的来源证明。共有 HIR 格式更新为 `hir/cross-cone-interface/39`，旧 `/38` 及更早产物与缓存重建；runtime ABI 与 GC 契约不变。
+经直接依赖选中的名义类型，其 public 静态嵌套类型、object、companion 与可导入成员按实际 typed owner 继续查找，包括原声明 provider 仅作为 support 的情况。exact、star 和 public import 使用同一规则；support provider 的包仍不加入源码可见包集合。产物只保存实际终点公开绑定及其既有转导出引用，reader 不重复要求终点 provider 是 direct，也不补造外层命名空间的来源证明。该规则自 `hir/cross-cone-interface/39` 起启用；runtime ABI 与 GC 契约不变。
 
 公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/40`，旧 `/39` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
@@ -134,6 +134,8 @@ Scoop 的类型分为两大类：
 - `Nothing`：所有类型的子类型，无实例。值类型可以向下转型到 `Nothing`（实际上不可达，仅类型系统规则）。`Nothing`作为源码可命名类型以及一般jump expression的完整落地属于后续语言子集；M22的`break`/`continue`不会仅为表达这一底层语义而构造`Nothing`类型的表达式。
 
 ### 3.2 泛型
+
+声明来自当前 Cone、普通依赖或 core 产物，不改变类型 application、bound、调用推断、默认值、成员或模式的语言规则；源码名称可达性与可见性仍按 12.4、9.1.5 检查。泛型正文在定义处绑定名称、重载和成员契约，实际类型替换不能重新选择定义处未选中的重载。普通声明中的封闭 application（如 `Box<Int>`、`I<Int>`）是完整类型，不因其原定义为泛型而成为不可物化的 source-only 声明。实现边界及共同 HIR 见实现规范 2.2 与 [M23-6a](../milestone23/stage6a/DESIGN.md)。
 
 - 泛型在编译期**单态化**实例化：每个具体类型实参生成一份专门的代码。
 - function、class、struct、enum与interface都可以声明类型参数。generic class/struct/enum的constructor或variant、base/interface application、字段与成员都可以使用宿主类型参数，generic interface的父interface与成员也可以使用宿主类型参数。每个fully specialized nominal application生成独立的concrete identity和成员实现；class还生成对象布局、TypeDescriptor与分派表，struct/enum生成完整value layout与GC-free/扫描信息，interface生成独立TypeDescriptor与itable key identity。
@@ -1596,6 +1598,8 @@ ArtifactFingerprint = SHA-256(
 `ArtifactManifestInputV1`是与完整bootstrap manifest除`artifact_fingerprint`外字段完全相同、但结构上不存在该字段的独立closed product，不是把required field删除或清零后送入普通decoder。member fingerprint按directory的`SlibMemberId`顺序，每个固定32-byte digest仍按统一framing套`ByteSpan`；它们都不含派生物理archive name。writer最后增加fingerprint并重新执行`WireCborV1`编码，reader投影成上述input重算。manifest不记录自身member hash，archive header也不进入该fingerprint，从而不存在自引用。该fingerprint描述完整artifact envelope的一致性，不是发行者签名；optional blob变化会改变它，但不进入HIR/MIR/LIR semantic fingerprint、code fingerprint或最终link key，因此不得使下游重编译或重链接。code fingerprint必须覆盖按`SlibMemberId`排序的全部`LinkObject`、已知Link-required handler的canonical native-library requirement、defined/undefined/native requirement contract，且不使用物理archive name或ordinal作为语义输入。
 
 required schema、language/runtime ABI、identity schema、完整`ManglingSchemaIdentity`以及`ValidatedLirTargetSelection`中的target/backend typed id与fingerprint必须exact compatible。所有view先限制archive/member资源并验证manifest、typed directory、每个payload完整性与hash；Graph随后只验证graph envelope，Compile才执行HIR/MIR/LIR wire decode、structural validation、typed remap、跨层bridge与semantic-world commit，Link才解码LIR verification surface并验证member-local definition/relocation、capability、全部object联合的image-owner唯一性。任何当前view所需步骤失败都丢弃整个artifact；损坏或不兼容artifact不能以名称、扩展名、host默认值或部分可读member继续执行，也不能把较弱view冒充较强view。
+
+M23-6a 起，Export HIR 是已检查语义 HIR 的导出投影：源码产生与产物解码使用同一声明、类型和正文结构及原 typed identity。普通、默认、泛型、构造初始化与词法 callable 的正文共用节点，导出范围仍只包含下游需要的接口和支持闭包。消费者不重新解释 provider 源码，也不把外来声明复制成本地声明；普通外部实现保留定义方身份，实际 generic application 通过同一具体化进入独立的 LocalConcrete HIR。已发生的 wire major 记录只描述相应版本，后续实际变更按同一版本与缓存规则迁移，不能为保持旧格式而保留平行语义实现。
 
 Export HIR metadata逻辑上区分：
 

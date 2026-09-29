@@ -1,8 +1,8 @@
 # Scoop Runtime 规范
 
-`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
+`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 
-静态嵌套 import 与 re-export 保留原 provider 的 typed 实体及机器定义；support provider 的合法公开成员可通过已选 owner 消费，不重新发射其 Strong 定义。共有 HIR 格式随终点绑定引用规则更新为 `hir/cross-cone-interface/39`，旧 `/38` 及更早产物与缓存重建；本项不改变 runtime C ABI、对象布局、初始化或 GC 契约。
+静态嵌套 import 与 re-export 保留原 provider 的 typed 实体及机器定义；support provider 的合法公开成员可通过已选 owner 消费，不重新发射其 Strong 定义。该规则自 `hir/cross-cone-interface/39` 起启用；本项不改变 runtime C ABI、对象布局、初始化或 GC 契约。
 
 公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/40`，旧 `/39` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
@@ -137,6 +137,8 @@ M23-6的class instance以完整base instance作为prefix：继承字段offset不
 
 ### 2.2 TypeDescriptor
 
+M23-6a 的共同 HIR 按原声明与完整 application 产生类型事实，MIR/LIR 保留对应 exact identity、实际 provider、Strong/ODR 归属及布局。源码与依赖产物的类型表示统一不改变对象布局、TypeDescriptor、GC 或初始化契约；runtime 消费实际生成的记录，不因声明来自另一 Cone 重新判定语言类型或复制定义方状态。新实例的必要 facts 由编译阶段完成，运行时继续检查动态对象范围、状态和 GC 要求。
+
 每个**runtime-materialized concrete exact type**有且只有一份编译器生成的`TypeDescriptor`。materialized精确定义为该exact type进入某Cone的LIR layout/type closure或param-free exported LIR bridge；只存在于尚未替换的Export HIR template/binder中的type不提前产生descriptor。它包括每个单态化exact nominal实例，也包括进入LIR的tuple、managed function、raw/native pointer等结构exact type；后者即使layout相同也按各自`PersistentExactTypeId`区分。descriptor至少包含：
 
 - 类型标识（`is` / `as` 检查用）；
@@ -220,6 +222,8 @@ initializer抛异常时，singleton不发布，top-level storage不被视为可�
 generic delegated extension specialization 是 lazy unit，其 storage、cell、failure root、initializer/ensure、descriptor 和 registration 按既有角色属于同一 ODR group，每次物化必须完整。多个 image 对同一 registration member 的引用须经 linker 指向同一记录；registry 以 semantic id、group/member、该 member 的 definition fingerprint 和全部关键地址判等后只登记一次。相同 id 地址不同必须 fatal，不能运行两次或扫描两份 storage 掩盖错误。同组独立 helper 可以出现在不同 image，表集合不同本身不是错误。`by` 与 provide 不接收某次访问的 receiver；get/set 先按普通调用求值参数，再经 ensure 取得 effective delegate，失败与等待沿用本节状态机。
 
 ### 2.8 M23 program与Cone image descriptor
+
+M23-8/9 继承 M23-6a 的共同 HIR 和 M23-7 的完整机器定义闭包。登记与启动不接收 AST、模板或待推断类型，不补造缺失 callable、scan、TD 或初始化服务；这些缺口在编译／产物消费边界报告。六类 registration、普通与 ODR 定义的去重和动态 GC 检查沿本节实际数据执行，不另建来源专用路径。
 
 M23-6 的产物已包含每 Cone 的 image 与完整 registration 数据，当前运行验收使用既有单镜像 C 启动、类型表示和 GC 接口。多 image 启动和 program-link 分别属于 M23-8/9；后续接入实际入口、依赖及 roots 时复用已验证的记录，不重复进行完整语言语义或来源证明。
 

@@ -119,11 +119,11 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 - reserved core Cone `scoop:scoop.core:0.1.0`从用户编译单元中移出，作为sysroot中由`scoop`解析、由 `scoopc` 按共有产物规则读取的独立 library Cone预编译/缓存。普通Cone对它具有隐式direct dependency；core prelude来自其typed export metadata，不再由user/core file index或`Option`短名特判模拟；
 - M23包含M22**非generic**typealias的跨Coneimport、re-export与展开；generic/nested typealias、interface method自身type parameter、动态image与跨版本ABI承诺继续留在后续。
 
-### 0.1 子里程碑与契约冻结点
+### 0.1 子里程碑与阶段交接
 
-本文中未带后缀的“M23”表示M23-1…M23-11全部完成后的最终基线；`.slib v1`、`PersistentV1`等名称中的`v1`是协议版本，不是子里程碑编号。各子里程碑的详细完成门见第10章：
+本文中未带后缀的“M23”表示 M23-1…M23-11（包括插入的 M23-6a）全部完成后的最终基线；`.slib v1`、`PersistentV1`等名称中的`v1`是协议版本，不是子里程碑编号。M23-6a 修正共同 HIR，后续顺序为 M23-6 → M23-6a → M23-7 → M23-8…M23-11。各子里程碑的详细完成门见第10章：
 
-| 里程碑 | 主要范围 | 首次冻结的边界 |
+| 里程碑 | 主要范围 | 交付边界 |
 | --- | --- | --- |
 | M23-1 | source `package`/`import`/`public import`/alias/star语法、parser与当前编译单元lookup（[详细设计](stage1/DESIGN.md)） | AST表面、当前单元名称语义与诊断 |
 | M23-2 | persistent typed identity与`.slib` wire基础（[详细设计](stage2/DESIGN.md)） | identity（含callable application与ODR group/member key）、mangler、container/member envelope与schema演进规则 |
@@ -131,13 +131,14 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 | M23-4 | resolved build graph与调度（[详细设计](stage4/DESIGN.md)） | locator、DAG、artifact cache与child orchestration |
 | M23-5 | 多Cone名称语义（[详细设计](stage5/DESIGN.md)） | cross-Cone semantic world、import/re-export与access provenance |
 | M23-6 | 跨Cone layout、typed ABI与ZST（[详细设计](stage6/DESIGN.md)） | layout/scan/ABI section与运行时表示 |
-| M23-7 | 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](stage7/DESIGN.md)） | 实际模板消费、完整定义与引用、逐 member ODR 一致性、真实链接运行 |
-| M23-8 | runtime multi-image registry与启动 | program descriptor ABI、image消费契约、登记/初始化顺序与stackmap |
+| M23-6a | 统一 HIR 语义模型、产物消费与具体化（[详细设计](stage6a/DESIGN.md)） | 同结构声明／正文、统一查询与调用决议、导出投影、共同具体化和实际物化需求 |
+| M23-7 | 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](stage7/DESIGN.md)） | 消费 6a 的共同 HIR，闭合机器定义与引用、逐 member ODR、委托存储和真实运行 |
+| M23-8 | runtime multi-image registry与启动 | 实际 image/registration 消费、登记／初始化顺序与 stackmap |
 | M23-9 | 基础artifact-only program-link | fixed target/runtime闭包、runtime-build、program object与真实链接 |
 | M23-10 | general native requirement闭包与link evidence hardening | extern/archive/provider解析、snapshot、完整evidence与final verifier |
 | M23-11 | umbrella CLI、单文件模式与总验收 | 正式工具边界、fixture迁移与旧路径删除 |
 
-M23-2结束后不再为后续实现便利修改persistent identity、mangler、`.slib` container/member envelope或section versioning规则；它冻结generic需要的application/ODR **identity**，但不假装已经完成layout、generic hidden payload、ODR definition proof、runtime或final-link能力。per-Cone image、cross-Cone semantics、layout、完整generic/runtime及link相关section在负责它们的M23-3、M23-5…M23-10分别冻结版本，M23-10结束时封闭`.slib v1`的最终内建capability集合与Link view。M23-6结束后不再修改layout/typed ABI。后续只能填充已经预留且语义完整的typed variant，或提升对应section/schema版本显式演进。每个中间里程碑都必须是封闭、可验证的子集：尚未开放的capability稳定拒绝，不保留unchecked、`TODO`或暗中回退到旧ABI的分支。
+persistent identity、mangler、container 和 section 使用显式版本管理；任何必要的合同修正先改 spec，再升级实际改变的 section/schema 和缓存，不以既有冻结条款保留错误分层。M23-6 的布局与 ABI 算法继续复用，M23-6a 统一语义表示与输入；实际机器适配若需要格式变化，按相同规则迁移。M23-7 及后续不得恢复 param-free/source-only 语义 gate、来源专用 HIR 或导入正文重建器。每个中间里程碑输出必须结构完备，未完成状态不能混入成功 IR 或通过旧管线回退。
 
 ## 1. Cone identity、manifest与构建图
 
@@ -1456,7 +1457,9 @@ reader 检查归档和成员的实际输入范围、长度运算溢出、目录�
 
 ### 4.3 Export HIR wire closure
 
-不能直接序列化当前`ExportHir = Module`别名。packager从typed root建立封闭图，并在wire上标出互斥角色：
+M23-6a 起，Export HIR 是当前 `SemanticHir` 的导出投影；源码产生与 wire 解码得到同一套声明、类型 application 和正文节点。公开接口、继承、默认值和模板支持决定导出范围，不改变实体身份或创建 imported 专用语义。普通函数、泛型正文、构造初始化、默认值和词法 callable 共用正文与替换操作；不同根保留各自 owner、参数环境和访问规则。编解码仅承担机械的索引／持久引用转换与必要边界验证，不能再次执行名称、重载或访问域选择。完整合同及旧路径删除要求见 [M23-6a](stage6a/DESIGN.md)。
+
+完整 `SemanticHir` 不直接整体打包。HIR 导出根据真实 typed roots 选择闭包，packager 编码这些已选记录；wire 区分下列用途，同一实体按用途集合保留一份定义：
 
 1. `PublicLookupSurface`：源码显式public且effective lookup domain允许跨Cone的声明、public alias，以及resolved re-export binding；
 2. `InheritanceSurface`：公开可继承owner需要的protected constructor/member、slot/default/override contract 和实际 typed 声明及继承引用；
@@ -1467,7 +1470,7 @@ reader 检查归档和成员的实际输入范围、长度运算溢出、目录�
 
 同一实体可被多个闭包引用，但wire definition只有一份并携带用途集合。hidden support/inheritance-only实体没有普通binding index entry，reader API也不能枚举其短名。无关private/internal non-generic body、当前Cone调用产生的LocalConcrete instance、solver scratch、import文本和失败候选不写入。
 
-generic hidden closure允许引用narrower实体，但每条edge仍有origin typed id与linkage requirement。param-free hidden dependency在consumer中必须成为external target而不是新的LocalConcrete body；只有依赖consumer type arguments的template节点才在consumer产生ODR实体。default template没有hidden closure能力；两者在wire type上必须不同。
+generic hidden closure允许引用narrower实体，但每条edge仍有origin typed id与linkage requirement。param-free hidden dependency在consumer中必须成为external target而不是新的LocalConcrete body；只有依赖consumer type arguments的template节点才在consumer产生ODR实体。default template 没有 hidden closure 能力；二者根记录及访问规则不同，正文节点与编解码保持共同结构。
 
 每个param-free exported source exact subject还必须携带有限、可闭合的shape-support边：其source nominal definition、exact ancestry/field/variant shape、必要的layout/scan/dispatch与native-boundary witness都由M23-6 required capability按typed id给出，使下游能验证并引用已物化定义。该闭包不复制param-free private body，也不允许consumer按FQN、相同layout或当前唯一候选补猜；缺少任一shape edge时Compile proof失败，而不是由codegen临时生成第二个TypeDescriptor。
 
@@ -1618,7 +1621,7 @@ LIR section提供：
 
 consumer新建的generic specialization由本次LocalConcrete HIR逐层生成本地MIR/LIR；只有引用既有上游param-free/materialized实体时才消费external meta。LIR lower不能因找到上游layout就跳过specialization key验证，也不能为同一个persistent type建立第二个non-ODR TypeDescriptor。
 
-三层reader分别返回`ImportedHirSet`、`ImportedMirSet`、`ImportedLirSet`；不存在返回无类型map的通用`read_metadata`，也不存在Export template id到Concrete id、HIR callable到link symbol的unchecked cast。
+三层 reader 分别返回 `DependencyHirSet`、`ImportedMirSet`、`ImportedLirSet`；其中 HIR 集合直接持有同结构 ExportHir，不存在返回无类型map的通用`read_metadata`，也不存在Export template id到Concrete id、HIR callable到link symbol的unchecked cast。
 
 ### 4.5 decode 与消费边界
 
@@ -1680,15 +1683,17 @@ ImportSyntax = Exact { exposure: Local | PublicReexport, path, alias }
 
 ### 5.2 HIR semantic world与resolver
 
-`scoopc`把当前Cone所有AST、manifest semantic projection、direct dependency 的共有 HIR 输入、显式 transitive support artifact map 及已解析的 typed 语言角色引用交给 hir-lower，不附带独立 trusted core capability。HIR先建立只读`SemanticWorld`：
+`scoopc`把当前 Cone 所有 AST、manifest semantic projection、direct/support 依赖的同结构 Export HIR 及已解析的 typed 语言角色引用交给 hir-lower，不附带独立 trusted core capability。M23-6a 将当前声明与全部可达依赖接入同一 `SemanticWorld` 查询；当前签名和递归声明在 builder 中构建，成功后作为完整语义记录供查询消费：
 
 - provider 直接使用实际 `ConeIdentity`；查询和候选选择不另建立会话品牌或来源资格；
 - public binding只从direct surfaces导入，hidden support只可沿已绑定template edge访问；
 - current package、exact/star/prelude scope预先解析为typed binding groups；
 - 同一origin经钻石路径只intern一次；
-- 当前Cone声明和imported声明都投影成同一种`CallableView`/nominal/property view，来源不改变applicability。
+- 当前 Cone 声明和解码声明使用同一种 nominal/application、callable、property、field 与正文结构；来源不成为类型或操作分支。
+- 候选通过原 kind-specific ID 取得共同 `CallableView`，完整实参映射、上下文推断、MSC、提交和默认值物化使用一个过程，不仅共享底层 solver。
+- 具体化按原定义与完整 application 从共同查询取得正文，不重建 imported template，不复制外来声明到当前 arena。
 
-输出仍严格为当前Cone的`ExportHir`与`LocalConcreteHir`。此外产生结构化`CrossConeUseSet`：`LookupObservationSet`保存HIR实际观察的完整候选/binding surface及负查询，`SelectedExternalSet`保存后续stage实际使用的external semantic id、materialized specialization和link requirement。M23 v1 compile key仍保守消费全部direct dependency HIR Merkle fingerprint；MIR/LIR只按selected set投影，不扫描所有dependency meta猜哪些需要导入。
+内部先形成当前 Cone 已检查的 `SemanticHir`；导出投影保留相同语义节点与身份，具体化生成独立 ID 家族的 `LocalConcreteHir`，二者分别供下游 HIR 和当前 MIR 消费。源码查找、语义支持和机器物化分别按真实需求决定；普通声明包含封闭泛型字段、父类型或默认参数不能触发旧 source-only gate。另产生结构化 `CrossConeUseSet`：`LookupObservationSet` 保存实际候选／binding 与负查询，`SelectedExternalSet` 保存后续实际使用的外部实体、实例和 link requirement。依赖查询完整性不由 selected machine 集合裁剪；MIR/LIR 的选择只投影实际使用，不重新推断语言语义。M23 v1 compile key 仍保守消费全部 direct dependency HIR Merkle fingerprint。
 
 所有**源码语义错误**必须在parser/HIR结束；locator/DAG/cache由`scoop`、当前manifest与dependency-input集合由`scoopc`、wire/member/capability损坏或不兼容由slib reader、ODR/final artifact冲突由独立link stage报告。MIR以后不补源码名称、visibility、generic inference或import错误。
 
@@ -1698,7 +1703,8 @@ ImportSyntax = Exact { exposure: Local | PublicReexport, path, alias }
 slib-read:  ExplicitSlibPaths + ArtifactPurpose<P> + DiagnosticsPolicy
             -> ValidatedArtifactClosure<P>
 parser:    IdentifiedSourceInput -> IdentifiedParsedSource
-hir-lower: CurrentConeParsedSources + ImportedHirSet -> ExportHir + LocalConcreteHir + CrossConeUseSet
+hir-lower: CurrentConeParsedSources + DependencyHirSet
+            -> ExportHir + LocalConcreteHir + CrossConeUseSet
 mir-lower: LocalConcreteHir + SelectedImportedMir -> Mir + MirMeta
 driver:     TargetSelectionRequest -> ResolvedTargetProfile
 lir-lower: Mir + SelectedImportedLir + ResolvedTargetProfile.lir_target
@@ -1956,6 +1962,8 @@ linker dead-strip不能丢失未被普通call graph引用但需要登记的image
 最终artifact verifier至少检查：一个v1 program descriptor、一个no-throw root entry gateway、每个expected image恰好一次且与其artifact的`image_owner_member`一致、无unexpected Scoop image、每个受控object/static contribution及dynamic provider都有且只有一个`FinalLinkInput` origin并与plan/evidence逐项对应、非link blob没有进入最终link、全部linker-visible definition由唯一`FinalLinkSymbolOwner`解释、每个undefined symbol具有唯一`FinalUndefinedSymbolRequirement`并精确解析为受控owner或validated dynamic binding、无unexpected dynamic import、ODR winner唯一、TypeDescriptor双向地址identity唯一、runtime type/safepoint/body id到full key为一对一（同key重复已coalesce）、每个LIR `RegisteredCallableBody`恰有一个entry且不存在不同body id的共址、全部Cone link object贡献并串接的stackmap blob覆盖去重后的site全集，以及M25 EH依赖门禁仍成立。
 
 ## 6. Runtime多image登记与启动
+
+本章 M23-8 的输入来自 M23-6a 的共同 HIR 与 M23-7 的完整机器定义／registration。runtime 只消费已生成的类型、ABI、扫描、初始化和对象记录；缺失模板、未替换类型或不完整 helper 是编译／产物错误，不能在登记或启动时回调前端补齐。跨 Cone 与 core 的来源不增加另一套 runtime 类型规则。
 
 ### 6.1 descriptor ABI
 
@@ -2388,6 +2396,8 @@ M15的platform API继续保留span list，为未来dylib准备，但M23不登记
 
 ## 7. Generic delegated extension property
 
+本章的声明、binder、默认来源、正文与 receiver application 使用 M23-6a 的共同 HIR。M23-7 在此基础上完成每个 application 的真实存储、初始化 unit、getter/setter、失败根和 ODR 定义；不另建委托专用模板语言或 imported 具体化器。
+
 M23开放M21延期的形态：
 
 ```kotlin
@@ -2614,13 +2624,23 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 完成门：第 9.5 节的 compiler/layout/object 矩阵通过，包括 ZST 参数/返回、box、static 初值/token、array length/index/scan 和 C ABI negative；provider/consumer 对同一 exact type 使用一致的布局、scan、TD 身份和内容 fingerprint。实际源码产出完整 artifact，由下游跨 Cone 消费，并在单个最终镜像中链接实际对象与 runtime，覆盖普通及移动 GC。该验收不提前实现 M23-8 的多镜像启动或 M23-9 的 artifact-only program-link。
 
+### M23-6a：统一 HIR 语义模型、产物消费与具体化
+
+状态：实现中（2026-09-29 开始）。依赖 M23-6 的实际产物基线，详细设计与当前缺口见 [M23-6a](stage6a/DESIGN.md)，实际验证见 [进度记录](stage6a/PROGRESS.md)。已有 M23-7 实现和 fixture 作为迁移基线保留；6a 不要求先完成 Stage 7 的新增物理定义或完整 ODR 合并。
+
+统一当前／依赖声明的类型化身份、nominal application、字段／成员／conformance 查询和正文；源码与解码形成同结构 HIR，Export HIR 是语义图的导出投影。完整调用决议、默认值替换和具体化共用实际生产入口，删除 Imported 类型／操作、导入专用推断、transport→imported template 和本地 arena 假设。按完整 application 和真实需求闭合物化，修复封闭泛型父类型、整数范围 iterator 去重、外来类型解构及函数值默认参数等已确认缺口。
+
+完成门：共同查询和正文进入实际生产；同一导出图的内存／wire 消费等价；合法声明移到依赖后保持语言行为；模板与实参来自不同 Cone 的组合、真实再次发布和适用的链接／移动 GC 回归通过。被替代的语义分支、执行器、gate 和 fallback 删除，MIR 输入结构完备。格式实际改变时同步升级 section/profile fingerprint 与缓存，不用未修改的旧格式声明阻止修正。
+
 ### M23-7：跨Cone generic、ODR与generic delegated extension
 
-依赖 M23-6，详细设计见 [M23-7](stage7/DESIGN.md)。在共有 HIR 接口保存实际 generic body、constructor/common initialization 和 delegate template，由消费方 HIR 完成全部替换及既有条件检查；参数自由 helper 使用定义方的实际 Strong/hidden 定义。沿用四种 specialization 和现有 root，扩展当前 MIR/LIR、对象集合、六类 registration、reader 与原子发布路径，逐 member 比较 ABI、canonical LIR、对象和关联 EH/stackmap，兼容独立成员取并集。泛型委托使用完整的 LazyAccess unit；不建立第二套语义、来源凭证或生产工厂。
+依赖 M23-6a 完成门，详细设计见 [M23-7](stage7/DESIGN.md)。直接消费共同 HIR、模板和具体化结果，完成机器定义／引用闭包、生成 helper 与泛型委托的实际存储和运行；参数自由 helper 使用定义方 Strong/hidden 定义。沿用四种 specialization 和现有 root，扩展当前 MIR/LIR、对象集合、六类 registration、reader 与发布路径，逐 member 比较 ABI、canonical LIR、对象和 EH/stackmap，兼容独立成员取并集。调用、默认值、解构、bound 和类型来源问题由 6a 的共同实现解决，本阶段不恢复逐语法 imported 支持路线。
 
 完成门：真实 provider 源码产生新 profile 产物，移走源码后下游可以使用本地类型实例化并再次发布；sibling 的重复 member 定义完全一致，同组不同 adapter/helper 的合法并集通过，冲突及缺失必要引用由共有 artifact/object 合并器拒绝。复用 M23-6 的单 image 验收入口实际链接运行，覆盖 TD/storage/cell 合并、generic delegate 初始化与失败共享、ZST/大值/引用 ABI 和移动 GC。生产多 image startup、artifact-only program-link 与一般 native provider 仍按 M23-8/9/10 实施。
 
 ### M23-8：runtime multi-image registry与启动
+
+继承 6a 的语义／物化边界与 Stage 7 的完整机器产物。输入仅为实际 image、六类 registration 及 runtime 所需记录；登记不重新检查 HIR 语言规则，也不根据来源补发类型、helper 或初始化服务。验收包含由共同 HIR 产生的跨 Cone 泛型、closure/coroutine 和共享状态组合。
 
 依赖M23-7。在真实产物上接入第 6 章六类 registration、初始化顺序、native → managed no-throw gateway、stackmap 与终止行为；启动数据的 C 表示按实际调用需要确定，复用现有 per-Cone image。验收使用实际编译产物及相应链接运行，不另建 synthetic program descriptor 工厂或重复 image/graph 证明。
 
@@ -2628,17 +2648,23 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 ### M23-9：基础artifact-only program-link
 
+Link view 不需要模板语义图、AST 或 `hir-lower`。沿 Stage 7 的真实定义／引用及 ODR 结果链接，缺失符号、ABI 或对象记录按生产／输入错误报告；program-link 不重新具体化模板，也不退回源码拼接修补。验收须由全新进程在 provider 源码不可用时完成。
+
 依赖M23-8。实现 `compiler/linker` 的实际产物链接、普通 runtime 对象构建、启动对象和必要的最终产物检查。为了能够真正调用system linker，本阶段同时闭合**固定target/runtime slice**：target profile非可选地枚举runtime所需的startup/support object、默认system dynamic provider、完整symbol contract、provider/content identity、ordered action和target-synthetic输入；这些输入在基础plan/evidence中逐项出现并使用同一snapshot或platform pinning，禁止依赖linker隐式default、autolink或未追踪输入。program-link只接受`ValidatedArtifactClosure<Link>`、typed runtime/target/profile与输出路径，不读源码、locator、cache或compiler内存状态；源码产生的用户native-library requirement、任意search-root解析或尚未登记的Link-required capability仍稳定拒绝，留给M23-10。
 
 完成门：全新进程只凭无用户native requirement的`.slib`闭包与trusted runtime profile成功链接、验证并运行真实多Cone程序；固定startup/support/system-provider/target-synthetic输入全部在plan/evidence中有typed origin，关闭任一linker default后结果不依赖隐式补全。任意数量的内建`LinkObject`按typed directory各提取一次，opaque blob不进入linker；真实地址coalesce、multi-object stackmap、初始化、moving GC与exception gateway通过。不得以读取source或允许raw额外object来绕过尚未落地的general native闭包。
 
 ### M23-10：general native requirement闭包与link evidence hardening
 
+本地调用、默认值、泛型实例和依赖调用均从 6a 共同 HIR 继承已选 native contract、effects 和完整类型，MIR/LIR 生成实际 ABI 与 requirement。本阶段只解析已有 requirement 对应的 native 输入，不能重跑 HIR 类型／重载选择或另建 generic native 前端。正负例复用共同 HIR 的直接／模板调用组合。
+
 依赖M23-9。把M23-9只接受固定target/runtime slice的plan/evidence推广到第3.7节完整用户native extern contract closure，实现direct object/static archive/general dynamic provider解析、known Link-required blob handler、content snapshot/TOCTOU hardening、完整`ResolvedLinkPlan`/`FinalLinkEvidence`、link trace核对、cache revalidation与最终artifact verifier；在本阶段封闭`.slib v1`的内建Link capability集合。CLI或fixture只能用`--library-path`为已经存在于artifact中的逻辑requirement提供解析候选，不能注入没有typed origin的raw `.o`、archive、linker option或script。
 
 完成门：archive零/多member抽取、dynamic binding、native contract冲突、全部final-input origin、target synthetic、snapshot替换攻击、trace/evidence与可选final-link cache重验矩阵通过；第9.4/9.6节除公开CLI/历史fixture迁移外的完整link闭包得到验证。Cone内未来C/C++ producer仍须新增自己的versioned verifier capability，但不会改变typed member directory或引入单object假设。
 
 ### M23-11：umbrella CLI、single-file mode与总验收
+
+CLI 只编排同一编译管线。总验收继承 6a 的源码／wire 等价、声明位置变化和双向泛型组合矩阵，并覆盖 Stage 7–10 的实际产物与运行；历史 fixture 不能通过旧本地/core 拼接入口掩盖依赖消费差异。
 
 依赖M23-10。正式启用`compiler/scoop` bin、配套`scoopc` child protocol、artifact cache发布、`scoop build`、`scoop run`和`scoop link`；实现第1.3/5.5节的manifest/single-file root分流、默认输出物化与执行语义。final-link cache仍是可选优化，不是完成门。M1–M22及M25全部历史fixture在本阶段一次性切到正式`scoop build <file>` orchestration，保留stage dump/warning/diagnostic与运行结果覆盖；FFI companion native code由runner显式构建为满足已有`@Extern` requirement的library，并仅通过显式`--library-path`参与解析。切换与删除旧driver为同一批变更，不留两条生产路径。
 
