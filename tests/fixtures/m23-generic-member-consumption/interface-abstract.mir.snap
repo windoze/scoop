@@ -33,9 +33,9 @@ Module
       return
         Type Int
         Local $call.2
-  fun choose @fn1(this: RequiredChooser<Int>, value: Int) -> Int
+  fun RequiredChooser.choose @fn1(this: RequiredChooser<Int>, value: Int) -> Int
     bb0 entry
-      trap "call to abstract method `choose`"
+      trap "call to abstract method `RequiredChooser.choose`"
   fun choose @fn2(this: InterfaceChooser<Int>, value: Int) -> Int
     bb0 entry
       return
@@ -57,7 +57,7 @@ Module
   fun init.AbstractChooser.$c1 @fn5(this: AbstractChooser<Int>) -> Unit
     bb0 entry
       return
-  instance mi0 function=@fn1 <- choose
+  instance mi0 function=@fn1 <- RequiredChooser.choose
   instance mi1 function=@fn2 <- choose
   instance mi2 function=@fn3 <- choose
   output library

@@ -218,6 +218,10 @@ M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、own
 
 不可失败的 `val`／`var`、lambda 参数与 `for` 绑定在同一事务中直接生成普通声明、字段投影和已选 component 调用。字段访问、绑定及 `when` 模式从同一完整 struct application 查询声明顺序、字段身份与替换后的类型；class component 使用普通 operator 决议。成功输出不另存一份仅供互相校验的绑定形状和执行计划，不在展开时重演已完成的 callable 选择、字段范围或叶子调度。失败仍原子撤销局部值、候选状态和诊断副作用，命名模式按源码顺序求值，`..` 和 `_` 保持语言规定的跳过与调用行为。
 
+子类型、泛型约束、继承接口闭包与 Iterator application 查询复用同一已代换的直接父类型关系。查询保留完整 application 和定义域 binder；菱形路径按相同完整类型去重，不能把同一声明的不同实参合并。core 的整数、Boolean、String 表示从其真实声明取得父接口，不在查询中内置额外 conformance。继承环和按值环仍由对应的声明检查处理。
+
+抽象成员的 trap stub 从原声明保留 owner 与成员名称；同一完整 application 在定义方与消费方生成的诊断常量一致，不能因导入时缩短显示名称而产生不同机器正文或 ODR definition。
+
 对外输出按消费者严格隔离为两个 IR：
 
 - **`ExportHir`**：只供下游 Cone 的 HIR 阶段消费，是 `SemanticHir` 中完整声明与必需正文的导出投影，并在结构上区分普通public/re-export lookup surface、公开owner跨Cone继承所需的protected inheritance/slot surface、以及exported generic template的hidden support closure；后两者不能枚举为普通import binding。它还包含非generic concrete声明的签名/成员/属性、导出的`const val`、non-generic typealias及作为callable接口在调用处展开的hygienic typed default template。default template节点保存已解析的kind-specific typed declaration reference及定义位置，public default不携带private/internal hidden dependency closure；前端完成可见性检查后，产物不再附加逐引用调用域覆盖证明。它不包含本Cone局部产生的concrete实例体。

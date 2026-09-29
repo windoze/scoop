@@ -1,7 +1,7 @@
 Module
-  global @scoop$1$bs$89ac2cd218fa0c0e9512b2c605745d55de67a430bfa0bd8ec8c9d3be856601b3 = c"call to abstract method `next`"
-  global @scoop$1$bs$10e537a914ccdaea34df5a67608d2a9a0baabb5e74ab2601bc1380911ce7ad17 = c"call to abstract method `next`"
-  global @scoop$1$bs$7c4523c4c0125e9aad3120bf5578863ae93c905becd1bcdb5b9ba3fc2c908f82 = c"call to abstract method `next`"
+  global @scoop$1$bs$89ac2cd218fa0c0e9512b2c605745d55de67a430bfa0bd8ec8c9d3be856601b3 = c"call to abstract method `Iterator.next`"
+  global @scoop$1$bs$10e537a914ccdaea34df5a67608d2a9a0baabb5e74ab2601bc1380911ce7ad17 = c"call to abstract method `Iterator.next`"
+  global @scoop$1$bs$7c4523c4c0125e9aad3120bf5578863ae93c905becd1bcdb5b9ba3fc2c908f82 = c"call to abstract method `Iterator.next`"
   enum Option niche(kind=managed,payload_variant=0)
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=32 align=8 variants=(struct0)@8+24:refs ()@8+0

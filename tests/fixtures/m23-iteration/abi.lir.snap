@@ -1,16 +1,16 @@
 Module
-  global @scoop$1$bs$e25fcc9d04b590f55adaa1da151eee477c674b91cc2030f3c55a28afa7ccc58f = c"call to abstract method `next`"
+  global @scoop$1$bs$e25fcc9d04b590f55adaa1da151eee477c674b91cc2030f3c55a28afa7ccc58f = c"call to abstract method `Iterator.next`"
   global @scoop$1$bs$db10ac02631c3f1d7d089df53877d1ddb1d7ec8c4cd5f2dc42a20acc95eed809 = c"array size overflow"
   global @scoop$1$bs$036eac96d90bc2a68a506e224d6c6b304a3aaf5b182e9993a749874d678ebc40 = c"array size overflow"
   global @scoop$1$bs$ea3f6fd1d29984b7a64b47070a4a86de3471895e2f76decb2638cd3a1b5bab39 = c"array size overflow"
   global @scoop$1$bs$9980229aade6459f13693bc8e3bc26b444c08ad3d4888a247db8e871852cb5b0 = c"array size overflow"
-  global @scoop$1$bs$429b1292ee029661099ffa89718db5527480b5e226f4d430718eefed748fd285 = c"call to abstract method `iterator`"
-  global @scoop$1$bs$524bda8c1a867ab2ed218da43a4dcf666dfe958c2e92f57ddf1d46bb8445b268 = c"call to abstract method `iterator`"
-  global @scoop$1$bs$4e18acc39ca05a5481b4c3d6bfe73f6e2668e41149929b64ee8888691aa754ed = c"call to abstract method `next`"
-  global @scoop$1$bs$dfdc1216410ebc00ae8136b8dc96785f53aa987ea51b5ab521789c0548208813 = c"call to abstract method `iterator`"
-  global @scoop$1$bs$f5dcbf32b79d1c71dcec35a8e3648354ccedd50f5dc13f06ea43112835a8b683 = c"call to abstract method `next`"
-  global @scoop$1$bs$83a024752b9b28ab488f1a774d09eb491da3c66ddf90eebe2d5df5ac1db17667 = c"call to abstract method `iterator`"
-  global @scoop$1$bs$ea3f7af4cf40411e97cd44c5dca381589fadd0a8b08fbf3bef695db7789a65ba = c"call to abstract method `next`"
+  global @scoop$1$bs$429b1292ee029661099ffa89718db5527480b5e226f4d430718eefed748fd285 = c"call to abstract method `Iterable.iterator`"
+  global @scoop$1$bs$524bda8c1a867ab2ed218da43a4dcf666dfe958c2e92f57ddf1d46bb8445b268 = c"call to abstract method `Iterable.iterator`"
+  global @scoop$1$bs$4e18acc39ca05a5481b4c3d6bfe73f6e2668e41149929b64ee8888691aa754ed = c"call to abstract method `Iterator.next`"
+  global @scoop$1$bs$dfdc1216410ebc00ae8136b8dc96785f53aa987ea51b5ab521789c0548208813 = c"call to abstract method `Iterable.iterator`"
+  global @scoop$1$bs$f5dcbf32b79d1c71dcec35a8e3648354ccedd50f5dc13f06ea43112835a8b683 = c"call to abstract method `Iterator.next`"
+  global @scoop$1$bs$83a024752b9b28ab488f1a774d09eb491da3c66ddf90eebe2d5df5ac1db17667 = c"call to abstract method `Iterable.iterator`"
+  global @scoop$1$bs$ea3f7af4cf40411e97cd44c5dca381589fadd0a8b08fbf3bef695db7789a65ba = c"call to abstract method `Iterator.next`"
   enum Payload tagged size=32 align=8 variants=(struct0)@8+24:refs ()@8+0
   enum EnumCursor tagged size=16 align=8 variants=(ptr<managed>)@8+8:refs
   enum EnumCursor tagged size=16 align=8 variants=(ptr<managed>)@8+8:refs

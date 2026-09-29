@@ -740,9 +740,9 @@ Module
         FieldAccess 0
           Type Direct<Diamond<Int>>
           Local this
-  fun next @fn9(this: Iterator<Int>) -> Option<Int>
+  fun Iterator.next @fn9(this: Iterator<Int>) -> Option<Int>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun LocalSource.iterator @fn10(this: LocalSource<Int>) -> Derived<Int>
     bb0 entry
       val $argument.0: Array<Int>
@@ -1847,9 +1847,9 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun iterator @fn29(this: Iterable<Int>) -> Iterator<Int>
+  fun Iterable.iterator @fn29(this: Iterable<Int>) -> Iterator<Int>
     bb0 entry
-      trap "call to abstract method `iterator`"
+      trap "call to abstract method `Iterable.iterator`"
   fun values @fn30(this: Sequence<Int>) -> Array<Int>
     bb0 entry
       return
@@ -2075,7 +2075,7 @@ Module
   instance mi4 function=@fn6 <- boundTotal
   instance mi5 function=@fn7 <- next
   instance mi6 function=@fn8 <- iterator
-  instance mi7 function=@fn9 <- next
+  instance mi7 function=@fn9 <- Iterator.next
   instance mi8 function=@fn10 <- LocalSource.iterator
   instance mi9 function=@fn11 <- exercise
   instance mi10 function=@fn12 <- next
@@ -2095,7 +2095,7 @@ Module
   instance mi24 function=@fn26 <- boundTotal
   instance mi25 function=@fn27 <- boundTotal
   instance mi26 function=@fn28 <- diamondTotal
-  instance mi27 function=@fn29 <- iterator
+  instance mi27 function=@fn29 <- Iterable.iterator
   instance mi28 function=@fn30 <- values
   instance mi29 function=@fn31 <- iterator
   instance mi30 function=@fn32 <- iterator

@@ -39,7 +39,7 @@ Module
     while
       condition setup
         val local7
-          ImportedGenericCall next<Int> : Option<Int>
+          ImportedGenericCall Iterator.next<Int> : Option<Int>
             Local $for.iterator.2 : Iterator<Int>
       IsSome : Boolean
         Local $for.next.3 : Option<Int>
@@ -144,7 +144,7 @@ Module
     while
       condition setup
         val local36
-          ImportedGenericCall next<Int> : Option<Int>
+          ImportedGenericCall Iterator.next<Int> : Option<Int>
             Local $for.iterator.10 : Iterator<Int>
       IsSome : Boolean
         Local $for.next.11 : Option<Int>
@@ -295,7 +295,7 @@ Module
       while
         condition setup
           val local77
-            ImportedGenericCall next<Int> : Option<Int>
+            ImportedGenericCall Iterator.next<Int> : Option<Int>
               Local $for.iterator.19 : Iterator<Int>
         IsSome : Boolean
           Local $for.next.20 : Option<Int>
@@ -352,7 +352,7 @@ Module
       while
         condition setup
           val local95
-            ImportedGenericCall next<Int> : Option<Int>
+            ImportedGenericCall Iterator.next<Int> : Option<Int>
               Local $for.iterator.24 : Iterator<Int>
         IsSome : Boolean
           Local $for.next.25 : Option<Int>
@@ -390,7 +390,7 @@ Module
     while
       condition setup
         val local107
-          ImportedGenericCall next<Int> : Option<Int>
+          ImportedGenericCall Iterator.next<Int> : Option<Int>
             Local $for.iterator.29 : Iterator<Int>
       IsSome : Boolean
         Local $for.next.30 : Option<Int>
@@ -414,7 +414,7 @@ Module
       while
         condition setup
           val local114
-            ImportedGenericCall next<Int> : Option<Int>
+            ImportedGenericCall Iterator.next<Int> : Option<Int>
               Local $for.iterator.34 : Iterator<Int>
         IsSome : Boolean
           Local $for.next.35 : Option<Int>

@@ -1,6 +1,6 @@
 Module
-  global @scoop$1$bs$d48edb8b5e648f7bc3bee058737023bdc6c9e77ec02f4c494752808618d3035f = c"call to abstract method `get`"
-  global @scoop$1$bs$53ddd5946da8e3af13ad29950f499477a924ad04430d9dd3b7bb52c36323fbc9 = c"call to abstract method `get`"
+  global @scoop$1$bs$d48edb8b5e648f7bc3bee058737023bdc6c9e77ec02f4c494752808618d3035f = c"call to abstract method `AbstractReader.get`"
+  global @scoop$1$bs$53ddd5946da8e3af13ad29950f499477a924ad04430d9dd3b7bb52c36323fbc9 = c"call to abstract method `Readable.get`"
   fun @scoop$1$cb$238e5eb10376f03142cf51789d7ee5d8677ac40abda55e8704683df2a333bbb3() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32

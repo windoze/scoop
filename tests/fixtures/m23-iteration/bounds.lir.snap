@@ -1,7 +1,7 @@
 Module
-  global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `next`"
+  global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `Iterator.next`"
   global @scoop$1$bs$8fc22173f77c6d00a51376158a7f14e29f6e50f40eb45a600ff37a40530b7032 = c"array size overflow"
-  global @scoop$1$bs$172f85d23429521986c929998f6a247aab689f244999e58c74c5cff781f3a0d0 = c"call to abstract method `iterator`"
+  global @scoop$1$bs$172f85d23429521986c929998f6a247aab689f244999e58c74c5cff781f3a0d0 = c"call to abstract method `Iterable.iterator`"
   enum EnumCursor tagged size=16 align=8 variants=(ptr<managed>)@8+8:refs
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0

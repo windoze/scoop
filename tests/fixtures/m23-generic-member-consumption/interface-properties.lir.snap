@@ -1,6 +1,6 @@
 Module
-  global @scoop$1$bs$05051659206843e58c7696cb36a5d9d6bfe973ac79701a4fd11265c911bfc147 = c"call to abstract method `value`"
-  global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `value`"
+  global @scoop$1$bs$05051659206843e58c7696cb36a5d9d6bfe973ac79701a4fd11265c911bfc147 = c"call to abstract method `MutableProperty.value`"
+  global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `ReadOnlyProperty.value`"
   fun @scoop$1$cb$7619b7ff8f39d990737356c72cfc5b32b7227fe73f981230ebb8c88cfc166a98() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32

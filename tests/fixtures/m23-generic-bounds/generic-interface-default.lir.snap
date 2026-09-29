@@ -1,5 +1,5 @@
 Module
-  global @scoop$1$bs$1797a24ebd3637e0c0f614bbe011099099f1b9fc05c9698d7d3b704c9750f8f0 = c"call to abstract method `stored`"
+  global @scoop$1$bs$1797a24ebd3637e0c0f614bbe011099099f1b9fc05c9698d7d3b704c9750f8f0 = c"call to abstract method `DefaultHolder.stored`"
   fun @scoop$1$cb$4bf65fed69a91fd6238c898b44283ea6c4a155e5731c6b588bb40edf3b310a8d() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.payload: i32

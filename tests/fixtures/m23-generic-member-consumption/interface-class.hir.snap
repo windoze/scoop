@@ -26,6 +26,6 @@ Module
       ReferenceUpcast : Readable<T0>
         Local reader : Reader<T0>
     return
-      ImportedGenericCall get<T0> : T0
+      ImportedGenericCall Readable.get<T0> : T0
         Local $dependency.receiver : Readable<T0>
   output library

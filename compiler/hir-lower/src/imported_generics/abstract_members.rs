@@ -97,7 +97,7 @@ impl Lowerer {
         Ok(PreparedImportedGeneric {
             signature: hir::ImportedGenericCallableSignature {
                 declaration: identity,
-                name: declaration.name().to_owned(),
+                name: format!("{}.{}", nominal.name(), declaration.name()),
                 type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
                 no_gc_type_params: Vec::new(),
                 gc_free_pointee_requirements: Vec::new(),

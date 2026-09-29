@@ -749,9 +749,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun next @fn11(this: Iterator<Large>) -> Option<Large>
+  fun Iterator.next @fn11(this: Iterator<Large>) -> Option<Large>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun next @fn12(this: ArrayIterator<Large>) -> Option<Large>
     bb0 entry
       val $dependency.local.2: Long
@@ -5209,9 +5209,9 @@ Module
         FieldAccess 0
           Type DiamondCursor<Large>
           Local this
-  fun iterator @fn74(this: Iterable<Large>) -> Iterator<Large>
+  fun Iterable.iterator @fn74(this: Iterable<Large>) -> Iterator<Large>
     bb0 entry
-      trap "call to abstract method `iterator`"
+      trap "call to abstract method `Iterable.iterator`"
   fun values @fn75(this: Sequence<Large>) -> Array<Large>
     bb0 entry
       return
@@ -5389,12 +5389,12 @@ Module
         FieldAccess 0
           Type DiamondCursor<Payload<Large>>
           Local this
-  fun iterator @fn83(this: Iterable<Payload<Large>>) -> Iterator<Payload<Large>>
+  fun Iterable.iterator @fn83(this: Iterable<Payload<Large>>) -> Iterator<Payload<Large>>
     bb0 entry
-      trap "call to abstract method `iterator`"
-  fun next @fn84(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn84(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun values @fn85(this: Sequence<Payload<Large>>) -> Array<Payload<Large>>
     bb0 entry
       return
@@ -5572,12 +5572,12 @@ Module
         FieldAccess 0
           Type DiamondCursor<(Reference, Reference)>
           Local this
-  fun iterator @fn93(this: Iterable<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
+  fun Iterable.iterator @fn93(this: Iterable<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
     bb0 entry
-      trap "call to abstract method `iterator`"
-  fun next @fn94(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn94(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun values @fn95(this: Sequence<(Reference, Reference)>) -> Array<(Reference, Reference)>
     bb0 entry
       return
@@ -5755,12 +5755,12 @@ Module
         FieldAccess 0
           Type DiamondCursor<Unit>
           Local this
-  fun iterator @fn103(this: Iterable<Unit>) -> Iterator<Unit>
+  fun Iterable.iterator @fn103(this: Iterable<Unit>) -> Iterator<Unit>
     bb0 entry
-      trap "call to abstract method `iterator`"
-  fun next @fn104(this: Iterator<Unit>) -> Option<Unit>
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn104(this: Iterator<Unit>) -> Option<Unit>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun values @fn105(this: Sequence<Unit>) -> Array<Unit>
     bb0 entry
       return
@@ -6244,7 +6244,7 @@ Module
   instance mi2 function=@fn8 <- exercise
   instance mi3 function=@fn9 <- exercise
   instance mi4 function=@fn10 <- exercise
-  instance mi5 function=@fn11 <- next
+  instance mi5 function=@fn11 <- Iterator.next
   instance mi6 function=@fn12 <- next
   instance mi7 function=@fn13 <- exercise
   instance mi8 function=@fn14 <- exercise
@@ -6307,7 +6307,7 @@ Module
   instance mi65 function=@fn71 <- diamondTotal
   instance mi66 function=@fn72 <- values
   instance mi67 function=@fn73 <- inner
-  instance mi68 function=@fn74 <- iterator
+  instance mi68 function=@fn74 <- Iterable.iterator
   instance mi69 function=@fn75 <- values
   instance mi70 function=@fn76 <- iterator
   instance mi71 function=@fn77 <- iterator
@@ -6316,8 +6316,8 @@ Module
   instance mi74 function=@fn80 <- next
   instance mi75 function=@fn81 <- values
   instance mi76 function=@fn82 <- inner
-  instance mi77 function=@fn83 <- iterator
-  instance mi78 function=@fn84 <- next
+  instance mi77 function=@fn83 <- Iterable.iterator
+  instance mi78 function=@fn84 <- Iterator.next
   instance mi79 function=@fn85 <- values
   instance mi80 function=@fn86 <- iterator
   instance mi81 function=@fn87 <- iterator
@@ -6326,8 +6326,8 @@ Module
   instance mi84 function=@fn90 <- next
   instance mi85 function=@fn91 <- values
   instance mi86 function=@fn92 <- inner
-  instance mi87 function=@fn93 <- iterator
-  instance mi88 function=@fn94 <- next
+  instance mi87 function=@fn93 <- Iterable.iterator
+  instance mi88 function=@fn94 <- Iterator.next
   instance mi89 function=@fn95 <- values
   instance mi90 function=@fn96 <- iterator
   instance mi91 function=@fn97 <- iterator
@@ -6336,8 +6336,8 @@ Module
   instance mi94 function=@fn100 <- next
   instance mi95 function=@fn101 <- values
   instance mi96 function=@fn102 <- inner
-  instance mi97 function=@fn103 <- iterator
-  instance mi98 function=@fn104 <- next
+  instance mi97 function=@fn103 <- Iterable.iterator
+  instance mi98 function=@fn104 <- Iterator.next
   instance mi99 function=@fn105 <- values
   instance mi100 function=@fn106 <- iterator
   instance mi101 function=@fn107 <- iterator

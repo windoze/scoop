@@ -531,9 +531,9 @@ Module
         Retype Iterator<Int>
           Type Cursor<Int>
           Local $new.1
-  fun next @fn5(this: Iterator<Int>) -> Option<Int>
+  fun Iterator.next @fn5(this: Iterator<Int>) -> Option<Int>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun $extension.iterator @fn6(this: ValueItems<Int>) -> ValueCursor<Int>
     bb0 entry
       call $dependency.local.1: Int = external1 direct
@@ -782,7 +782,7 @@ Module
   instance mi1 function=@fn2 <- next
   instance mi2 function=@fn3 <- next
   instance mi3 function=@fn4 <- $extension.iterator
-  instance mi4 function=@fn5 <- next
+  instance mi4 function=@fn5 <- Iterator.next
   instance mi5 function=@fn6 <- $extension.iterator
   instance mi6 function=@fn7 <- next
   instance mi7 function=@fn8 <- values

@@ -85,9 +85,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun get @fn4(this: AbstractReader<Int>) -> Int
+  fun AbstractReader.get @fn4(this: AbstractReader<Int>) -> Int
     bb0 entry
-      trap "call to abstract method `get`"
+      trap "call to abstract method `AbstractReader.get`"
   fun LocalReader.readBase @fn5(this: LocalReader<Int>) -> Int
     bb0 entry
       val $dependency.receiver: Reader<Int>
@@ -108,9 +108,9 @@ Module
         FieldAccess 0
           Type LocalReader<Int>
           Local this
-  fun get @fn7(this: Readable<Int>) -> Int
+  fun Readable.get @fn7(this: Readable<Int>) -> Int
     bb0 entry
-      trap "call to abstract method `get`"
+      trap "call to abstract method `Readable.get`"
   fun LocalItem.$get$value @fn8(this: LocalItem<Int>) -> Int
     bb0 entry
       return
@@ -145,9 +145,9 @@ Module
   instance mi0 function=@fn1 <- LocalReader.get
   instance mi1 function=@fn2 <- read
   instance mi2 function=@fn3 <- LocalItem.get
-  instance mi3 function=@fn4 <- get
+  instance mi3 function=@fn4 <- AbstractReader.get
   instance mi4 function=@fn5 <- LocalReader.readBase
   instance mi5 function=@fn6 <- LocalReader.$get$value
-  instance mi6 function=@fn7 <- get
+  instance mi6 function=@fn7 <- Readable.get
   instance mi7 function=@fn8 <- LocalItem.$get$value
   output library

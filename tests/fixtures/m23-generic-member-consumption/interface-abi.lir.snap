@@ -1,6 +1,6 @@
 Module
-  global @scoop$1$bs$62d840be79bcee3c84e3936fbd42030b076350f42fde69501d8700c6bb275f7b = c"call to abstract method `get`"
-  global @scoop$1$bs$15717f0393c5c57bf46dc6aed1ffb8d070bb3330e67ec2399b4396ca0b6844f4 = c"call to abstract method `get`"
+  global @scoop$1$bs$62d840be79bcee3c84e3936fbd42030b076350f42fde69501d8700c6bb275f7b = c"call to abstract method `Readable.get`"
+  global @scoop$1$bs$15717f0393c5c57bf46dc6aed1ffb8d070bb3330e67ec2399b4396ca0b6844f4 = c"call to abstract method `Readable.get`"
   enum CoroutineStep<Large> tagged size=32 align=8 variants=(struct0)@8+24:refs ()@8+0
   enum CoroutineSlot<Large> tagged size=32 align=8 variants=()@8+0 (struct0)@8+24:refs
   enum CoroutineStep<Reference> niche(kind=managed,payload_variant=0)

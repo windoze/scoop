@@ -186,7 +186,7 @@ Module
     while
       condition setup
         val local52
-          ImportedGenericCall next<() -> Reference> : Option<() -> Reference>
+          ImportedGenericCall Iterator.next<() -> Reference> : Option<() -> Reference>
             Local $for.iterator.3 : Iterator<() -> Reference>
       IsSome : Boolean
         Local $for.next.4 : Option<() -> Reference>

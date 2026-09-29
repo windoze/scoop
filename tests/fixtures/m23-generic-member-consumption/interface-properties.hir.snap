@@ -17,7 +17,7 @@ Module
           Local item : MutableProperty<Int>
     val local4
       Local item : MutableProperty<Int>
-    ImportedGenericCall value<Int> : Unit
+    ImportedGenericCall MutableProperty.value<Int> : Unit
       Local $place.0 : MutableProperty<Int>
       IntegerLiteral 22 : Int
     val local5
@@ -30,7 +30,7 @@ Module
           Local $parameter.value : Int
     val local8
       Local local : MutableProperty<Int>
-    ImportedGenericCall value<Int> : Unit
+    ImportedGenericCall MutableProperty.value<Int> : Unit
       Local $place.1 : MutableProperty<Int>
       ImportedGenericCall read<Int> : Int
         ReferenceUpcast : ReadOnlyProperty<Int>
@@ -68,7 +68,7 @@ Module
           Local $parameter.value : T0
     val local7
       Local local : MutableProperty<T0>
-    ImportedGenericCall value<T0> : Unit
+    ImportedGenericCall MutableProperty.value<T0> : Unit
       Local $place.2 : MutableProperty<T0>
       Local value : T0
     return

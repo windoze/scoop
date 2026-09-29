@@ -824,9 +824,9 @@ Module
           Type Int
           Local $dependency.local.20
       goto bb1
-  fun next @fn10(this: Iterator<() -> Reference>) -> Option<() -> Reference>
+  fun Iterator.next @fn10(this: Iterator<() -> Reference>) -> Option<() -> Reference>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun next @fn11(this: MutableArrayIterator<() -> Reference>) -> Option<() -> Reference>
     bb0 entry
       val $dependency.local.2: Long
@@ -1211,9 +1211,9 @@ Module
         VariantConstruct Option<Components<Reference>> v0
           Type Components<Reference>
           Local $dependency.local.12
-  fun next @fn14(this: Iterator<Entry<Reference>>) -> Option<Entry<Reference>>
+  fun Iterator.next @fn14(this: Iterator<Entry<Reference>>) -> Option<Entry<Reference>>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun $lambda @fn15($argument.0: () -> Reference) -> Reference
     bb0 entry
       return
@@ -1221,9 +1221,9 @@ Module
         ClosureCapture cc2 0
           Type () -> Reference
           Local $argument.0
-  fun next @fn16(this: Iterator<Components<Reference>>) -> Option<Components<Reference>>
+  fun Iterator.next @fn16(this: Iterator<Components<Reference>>) -> Option<Components<Reference>>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun component1 @fn17(this: Components<Reference>) -> Reference
     bb0 entry
       call $call.1: Reference = @fn19 direct
@@ -1338,13 +1338,13 @@ Module
   instance mi2 function=@fn5 <- iterator
   instance mi3 function=@fn8 <- installReaders
   instance mi4 function=@fn9 <- componentTotal
-  instance mi5 function=@fn10 <- next
+  instance mi5 function=@fn10 <- Iterator.next
   instance mi6 function=@fn11 <- next
   instance mi7 function=@fn12 <- next
   instance mi8 function=@fn13 <- next
-  instance mi9 function=@fn14 <- next
+  instance mi9 function=@fn14 <- Iterator.next
   instance mi10 function=@fn15 <- $lambda
-  instance mi11 function=@fn16 <- next
+  instance mi11 function=@fn16 <- Iterator.next
   instance mi12 function=@fn17 <- component1
   instance mi13 function=@fn18 <- component2
   instance mi14 function=@fn19 <- value

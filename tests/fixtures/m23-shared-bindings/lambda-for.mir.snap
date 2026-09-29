@@ -712,9 +712,9 @@ Module
         ClosureCapture cc3 0
           Type () -> Int
           Local $closure
-  fun next @fn9(this: Iterator<Pair<Int>>) -> Option<Pair<Int>>
+  fun Iterator.next @fn9(this: Iterator<Pair<Int>>) -> Option<Pair<Int>>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun $lambda.3 @fn10($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -729,9 +729,9 @@ Module
         ClosureCapture cc5 0
           Type () -> Int
           Local $closure
-  fun next @fn12(this: Iterator<Pieces<Int>>) -> Option<Pieces<Int>>
+  fun Iterator.next @fn12(this: Iterator<Pieces<Int>>) -> Option<Pieces<Int>>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun component1 @fn13(this: Pieces<Int>) -> Int
     bb0 entry
       call $dependency.local.1: Int = external0 direct
@@ -1268,10 +1268,10 @@ Module
   instance mi4 function=@fn6 <- $lambda.0
   instance mi5 function=@fn7 <- $lambda.1
   instance mi6 function=@fn8 <- $lambda.2
-  instance mi7 function=@fn9 <- next
+  instance mi7 function=@fn9 <- Iterator.next
   instance mi8 function=@fn10 <- $lambda.3
   instance mi9 function=@fn11 <- $lambda.4
-  instance mi10 function=@fn12 <- next
+  instance mi10 function=@fn12 <- Iterator.next
   instance mi11 function=@fn13 <- component1
   instance mi12 function=@fn14 <- component2
   instance mi13 function=@fn15 <- next

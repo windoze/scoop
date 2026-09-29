@@ -1,11 +1,11 @@
 Module
   global @scoop$1$bs$33cdfd1661baf1dd498c1c09c832db20c461981ab6f65c92a72e7c91ef4b2f11 = c"array size overflow"
-  global @scoop$1$bs$172f85d23429521986c929998f6a247aab689f244999e58c74c5cff781f3a0d0 = c"call to abstract method `iterator`"
-  global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `next`"
-  global @scoop$1$bs$7537f9445e9cf0c78677f95542da31403b46f4fa14d310ef6eacba43134dfd94 = c"call to abstract method `iterator`"
-  global @scoop$1$bs$fe3f2f0e9d437e2eed56bdd4d068de12158be2f5b08a5aa0e04ec5cfede33f7f = c"call to abstract method `next`"
-  global @scoop$1$bs$83a024752b9b28ab488f1a774d09eb491da3c66ddf90eebe2d5df5ac1db17667 = c"call to abstract method `iterator`"
-  global @scoop$1$bs$ea3f7af4cf40411e97cd44c5dca381589fadd0a8b08fbf3bef695db7789a65ba = c"call to abstract method `next`"
+  global @scoop$1$bs$172f85d23429521986c929998f6a247aab689f244999e58c74c5cff781f3a0d0 = c"call to abstract method `Iterable.iterator`"
+  global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `Iterator.next`"
+  global @scoop$1$bs$7537f9445e9cf0c78677f95542da31403b46f4fa14d310ef6eacba43134dfd94 = c"call to abstract method `Iterable.iterator`"
+  global @scoop$1$bs$fe3f2f0e9d437e2eed56bdd4d068de12158be2f5b08a5aa0e04ec5cfede33f7f = c"call to abstract method `Iterator.next`"
+  global @scoop$1$bs$83a024752b9b28ab488f1a774d09eb491da3c66ddf90eebe2d5df5ac1db17667 = c"call to abstract method `Iterable.iterator`"
+  global @scoop$1$bs$ea3f7af4cf40411e97cd44c5dca381589fadd0a8b08fbf3bef695db7789a65ba = c"call to abstract method `Iterator.next`"
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)

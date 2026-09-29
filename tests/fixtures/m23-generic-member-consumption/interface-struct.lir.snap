@@ -1,5 +1,5 @@
 Module
-  global @scoop$1$bs$53ddd5946da8e3af13ad29950f499477a924ad04430d9dd3b7bb52c36323fbc9 = c"call to abstract method `get`"
+  global @scoop$1$bs$53ddd5946da8e3af13ad29950f499477a924ad04430d9dd3b7bb52c36323fbc9 = c"call to abstract method `Readable.get`"
   fun @scoop$1$cb$1fc0465ed1857d1fd235a52183027a53d49c95c326cb8c8b9f6acc84b94052fd() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32

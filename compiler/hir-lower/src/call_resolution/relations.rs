@@ -523,56 +523,16 @@ impl RelationReducer<'_> {
         ty: hir::TypeId,
         target: hir::InterfaceId,
     ) -> Option<Vec<hir::TypeId>> {
-        let direct = match self.lowerer.types[ty].clone() {
-            Type::Interface(_) => vec![ty],
-            Type::Integer(kind) => self
-                .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)),
-            Type::Boolean => self
-                .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
-            Type::String => self
-                .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::Class(application) => self.lowerer.class_interfaces_for_application(application),
-            Type::Struct(application) => {
-                let application = self.lowerer.struct_applications[application].clone();
-                self.lowerer.structs[application.template]
-                    .interfaces
-                    .clone()
-                    .into_iter()
-                    .map(|interface| {
-                        self.lowerer
-                            .instantiate_ty(interface, &application.arguments)
-                    })
-                    .collect()
-            }
-            Type::Enum(application) => {
-                let application = self.lowerer.enum_applications[application].clone();
-                self.lowerer.enums[application.template]
-                    .interfaces
-                    .clone()
-                    .into_iter()
-                    .map(|interface| {
-                        self.lowerer
-                            .instantiate_ty(interface, &application.arguments)
-                    })
-                    .collect()
-            }
-            _ => Vec::new(),
-        };
-        let mut closure = Vec::new();
-        for interface in direct {
-            self.lowerer
-                .append_interface_closure(interface, &mut closure);
-        }
-        closure.into_iter().find_map(|interface| {
-            let Type::Interface(application) = self.lowerer.types[interface] else {
-                return None;
-            };
-            let application = &self.lowerer.interface_applications[application];
-            (application.template == target).then(|| application.arguments.clone())
-        })
+        self.lowerer
+            .type_interfaces(ty)
+            .into_iter()
+            .find_map(|interface| {
+                let Type::Interface(application) = self.lowerer.types[interface] else {
+                    return None;
+                };
+                let application = &self.lowerer.interface_applications[application];
+                (application.template == target).then(|| application.arguments.clone())
+            })
     }
 
     fn callable_shape(

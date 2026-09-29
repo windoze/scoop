@@ -416,12 +416,12 @@ Module
       return
         Type Large
         Local $call.1
-  fun value @fn13(this: ReadOnlyProperty<Unit>) -> Unit
+  fun ReadOnlyProperty.value @fn13(this: ReadOnlyProperty<Unit>) -> Unit
     bb0 entry
-      trap "call to abstract method `value`"
-  fun value @fn14(this: ReadOnlyProperty<Large>) -> Large
+      trap "call to abstract method `ReadOnlyProperty.value`"
+  fun ReadOnlyProperty.value @fn14(this: ReadOnlyProperty<Large>) -> Large
     bb0 entry
-      trap "call to abstract method `value`"
+      trap "call to abstract method `ReadOnlyProperty.value`"
   fun value @fn15(this: Box<Unit>) -> Unit
     bb0 entry
       Type Unit
@@ -508,8 +508,8 @@ Module
   instance mi9 function=@fn10 <- $extension.extensionState
   instance mi10 function=@fn11 <- $extension.extensionState
   instance mi11 function=@fn12 <- $extension.extensionValue
-  instance mi12 function=@fn13 <- value
-  instance mi13 function=@fn14 <- value
+  instance mi12 function=@fn13 <- ReadOnlyProperty.value
+  instance mi13 function=@fn14 <- ReadOnlyProperty.value
   instance mi14 function=@fn15 <- value
   instance mi15 function=@fn16 <- value
   instance mi16 function=@fn17 <- extensionIdentity

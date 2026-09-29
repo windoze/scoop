@@ -247,7 +247,7 @@ Module
     while
       condition setup
         val local53
-          ImportedGenericCall next<Large> : Option<Large>
+          ImportedGenericCall Iterator.next<Large> : Option<Large>
             Local $for.iterator.3 : Iterator<Large>
       IsSome : Boolean
         Local $for.next.4 : Option<Large>

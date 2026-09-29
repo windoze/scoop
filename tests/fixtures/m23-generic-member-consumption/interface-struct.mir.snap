@@ -52,9 +52,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun get @fn3(this: Readable<Int>) -> Int
+  fun Readable.get @fn3(this: Readable<Int>) -> Int
     bb0 entry
-      trap "call to abstract method `get`"
+      trap "call to abstract method `Readable.get`"
   fun ctor.InterfaceCell.$c0 @fn4(value: Int) -> InterfaceCell<Int> <no-gc>
     bb0 entry
       return
@@ -94,5 +94,5 @@ Module
         Local $call.1
   instance mi0 function=@fn1 <- get
   instance mi1 function=@fn2 <- read
-  instance mi2 function=@fn3 <- get
+  instance mi2 function=@fn3 <- Readable.get
   output library

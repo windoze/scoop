@@ -1,5 +1,5 @@
 Module
-  global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `next`"
+  global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `Iterator.next`"
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)

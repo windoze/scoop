@@ -70,7 +70,7 @@ Module
     while
       condition setup
         val local24
-          ImportedGenericCall next<Pair<T0>> : Option<Pair<T0>>
+          ImportedGenericCall Iterator.next<Pair<T0>> : Option<Pair<T0>>
             Local $for.iterator.4 : Iterator<Pair<T0>>
       IsSome : Boolean
         Local $for.next.5 : Option<Pair<T0>>
@@ -177,7 +177,7 @@ Module
     while
       condition setup
         val local58
-          ImportedGenericCall next<Pieces<T0>> : Option<Pieces<T0>>
+          ImportedGenericCall Iterator.next<Pieces<T0>> : Option<Pieces<T0>>
             Local $for.iterator.11 : Iterator<Pieces<T0>>
       IsSome : Boolean
         Local $for.next.12 : Option<Pieces<T0>>

@@ -1394,9 +1394,9 @@ Module
       return
         Type Sequence<Int>
         Local $new.1
-  fun next @fn8(this: Iterator<Int>) -> Option<Int>
+  fun Iterator.next @fn8(this: Iterator<Int>) -> Option<Int>
     bb0 entry
-      trap "call to abstract method `next`"
+      trap "call to abstract method `Iterator.next`"
   fun next @fn9(this: ArrayIterator<Int>) -> Option<Int>
     bb0 entry
       val $dependency.local.2: Long
@@ -1722,7 +1722,7 @@ Module
   instance mi2 function=@fn5 <- iterator
   instance mi3 function=@fn6 <- iterator
   instance mi4 function=@fn7 <- marked
-  instance mi5 function=@fn8 <- next
+  instance mi5 function=@fn8 <- Iterator.next
   instance mi6 function=@fn9 <- next
   instance mi7 function=@fn10 <- values
   instance mi8 function=@fn11 <- next

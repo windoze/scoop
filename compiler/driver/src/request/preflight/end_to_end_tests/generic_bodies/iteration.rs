@@ -5,6 +5,7 @@ fn imported_iteration_republishes_and_executes_from_artifacts() {
         &[
             "basic",
             "bounds",
+            "inference",
             "defaults",
             "capture",
             "abi",

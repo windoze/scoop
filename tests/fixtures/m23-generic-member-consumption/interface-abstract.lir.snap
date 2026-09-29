@@ -1,5 +1,5 @@
 Module
-  global @scoop$1$bs$07e55da25eff17bcdf6f3a15c4da3e3018c2c5849f6e4df2588ec7dcd2220fbe = c"call to abstract method `choose`"
+  global @scoop$1$bs$07e55da25eff17bcdf6f3a15c4da3e3018c2c5849f6e4df2588ec7dcd2220fbe = c"call to abstract method `RequiredChooser.choose`"
   fun @scoop$1$cb$51d3a6900412ebd738b2938e87161124344f12e76d54b73aa1e311d4b8ae0713() -> i32
     local %0 chooser: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
