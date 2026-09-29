@@ -216,7 +216,6 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
             .values()
             .iter()
             .filter_map(|binding| provider.binding_by_id(*binding))
-            .filter(|binding| !binding.lookup_sources().is_empty())
     }
 
     pub fn binding_group(

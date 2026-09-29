@@ -12,7 +12,6 @@ use crate::cross_cone_closure::route_validation::{
 impl HirInterfaceValidationInput<'_> {
     pub(crate) fn references(
         self,
-        direct: &[ConeIdentity],
         dependencies: &[ValidatedNominalProviderView<'_>],
     ) -> Result<(), CrossConeHirReferenceSurfaceError> {
         let path = WirePath::root();
@@ -28,7 +27,6 @@ impl HirInterfaceValidationInput<'_> {
             self.current,
             self.identities,
             self.interface,
-            direct,
             &providers,
             &path,
         )

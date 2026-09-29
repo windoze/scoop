@@ -14,7 +14,6 @@ impl<'a> CanonicalCrossConeRouteAuthority<'a> {
         current: ConeIdentity,
         identities: &'a ValidatedIdentityGraph,
         interface: &CrossConeHirInterfaceSectionV1,
-        direct: &'a [ConeIdentity],
         providers: &'a [RouteProviderView<'a>],
 
         path: &WirePath,
@@ -27,7 +26,6 @@ impl<'a> CanonicalCrossConeRouteAuthority<'a> {
         Ok(Self {
             current,
             identities,
-            direct,
             providers,
             closure_node_count,
             binding_keys,
@@ -38,15 +36,6 @@ impl<'a> CanonicalCrossConeRouteAuthority<'a> {
 impl PublicExportBindingClosureAuthority for CanonicalCrossConeRouteAuthority<'_> {
     fn closure_node_count(&self) -> usize {
         self.closure_node_count
-    }
-
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
-        for candidate in self.direct {
-            if *candidate == provider {
-                return true;
-            }
-        }
-        false
     }
 
     fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {

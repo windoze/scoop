@@ -9,10 +9,11 @@ mod semantics;
 
 pub use semantics::DependencyBindingWitnessSemanticValidationError;
 
-/// A consumer-side source-name authorization proof.
+/// References to the public bindings selected by source-name lookup.
 ///
 /// This is semantically distinct from the route stored on a re-export
 /// declaration even though v1 deliberately reuses that route's exact wire.
+/// The first binding can belong to a support provider after static-owner lookup.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DependencyBindingWitnessV1 {
     route: ReexportRouteV1,

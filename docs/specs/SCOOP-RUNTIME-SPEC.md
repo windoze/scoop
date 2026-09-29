@@ -1,6 +1,8 @@
 # Scoop Runtime 规范
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。共有 HIR 格式更新为 `hir/cross-cone-interface/38`，旧 `/37` 及更早产物与缓存重建；不改变 runtime C ABI、对象布局或 GC 契约。
+静态嵌套 import 与 re-export 保留原 provider 的 typed 实体及机器定义；support provider 的合法公开成员可通过已选 owner 消费，不重新发射其 Strong 定义。共有 HIR 格式随终点绑定引用规则更新为 `hir/cross-cone-interface/39`，旧 `/38` 及更早产物与缓存重建；本项不改变 runtime C ABI、对象布局、初始化或 GC 契约。
+
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/39`，旧 `/38` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 旧 identity-only 产物 profile、平行来源 reader 和发布/Link 凭证策略退役；三个完整生产 profile 升为 `/3`，descriptor 只保留实际必需 section 清单，旧产物与缓存重建。此调整不改变 runtime C ABI、String 表示、初始化或 GC 语义；类型、对象范围和实际引用检查仍在对应消费边界完成。具体格式见实现规范 2.6 与 M23-2 设计 8.3。
 

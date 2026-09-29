@@ -16,13 +16,6 @@ impl DependencyBindingWitnessV1 {
         A: PublicExportBindingClosureAuthority,
     {
         let route = self.route();
-        if !authority.is_direct_dependency(route.immediate_provider()) {
-            return Err(
-                DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
-                    provider: route.immediate_provider(),
-                },
-            );
-        }
         if route.hops().len() > authority.closure_node_count() {
             return Err(
                 DependencyBindingWitnessSemanticValidationError::RouteExceedsClosure {

@@ -1,4 +1,4 @@
-use scoop_identity::{BindingTarget, ConeIdentity, SemanticIdentitySession};
+use scoop_identity::{BindingTarget, SemanticIdentitySession};
 
 use super::super::*;
 use super::fixture::{
@@ -74,9 +74,6 @@ fn production_authority_resolves_current_and_imported_targets_by_typed_identity(
         );
     }
 
-    assert!(authority.is_direct_dependency(ConeIdentity::CORE));
-    assert!(authority.is_direct_dependency(direct.identity()));
-    assert!(!authority.is_direct_dependency(support.identity()));
     assert_eq!(authority.closure_node_count(), 4);
 }
 

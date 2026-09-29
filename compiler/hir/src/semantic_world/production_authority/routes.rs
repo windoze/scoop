@@ -8,15 +8,6 @@ impl PublicExportBindingClosureAuthority for CrossConeHirProductionAuthority<'_,
         self.world.provider_count().saturating_add(1)
     }
 
-    fn is_direct_dependency(&self, identity: ConeIdentity) -> bool {
-        for provider in &self.world.providers {
-            if provider.identity() == identity {
-                return provider.is_direct();
-            }
-        }
-        false
-    }
-
     fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
         // Foundation binding records retain declaration order.
 

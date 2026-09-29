@@ -60,7 +60,6 @@ fn binding_index_collects_external_witness_hops_before_role_closure_validation()
         &fixture.identities,
         &interface,
         &[],
-        &[],
         &WirePath::root(),
     )
     .unwrap();

@@ -1,0 +1,56 @@
+Module
+  typealias DeepAlias = Deep
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 42 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    val local4
+      ImportedDependencyCall #0 : Deep
+        Local $dependency.parameter.number : Int
+    val local5
+      Local value : T0
+    val local6
+      Local $dependency.argument.0 : T0
+    val local7
+      ImportedConstructorInit Box : Box<T0>
+        Local $dependency.parameter.value : T0
+    val local8
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        FieldAccess dependency field 5d1d8adbaa6f038492a899d6e0bc3ba90331798826e2a22264b4e5288f73e371 : T0
+          Local box : Box<T0>
+    val local9
+      IntegerLiteral 42 : Int
+    val local10
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      assign $result.0
+        FieldAccess dependency field b9443c2925e1379515054b40bd8535b5f808fda35545f38123befea1b2a8f450 : Int
+          Local deep : Deep
+    else
+      assign $result.0
+        IntegerLiteral 0 : Int
+    return
+      Local $result.0 : Int
+  fun readInt(value: Int): Int
+    return
+      Local value : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      CallableReference reference0 target=readInt captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

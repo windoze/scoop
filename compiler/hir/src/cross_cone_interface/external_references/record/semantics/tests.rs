@@ -79,8 +79,9 @@ fn witness_root_and_route_failures_keep_their_record_context() {
         record.validate_semantics(&mut authority),
         Err(ExternalHirReferenceSemanticValidationError::Witness {
             index: 0,
-            error: DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
-                provider: fixture.provider,
+            error: DependencyBindingWitnessSemanticValidationError::RouteExceedsClosure {
+                hops: fixture.first_route.hops().len(),
+                closure_nodes: 0,
             },
         })
     );

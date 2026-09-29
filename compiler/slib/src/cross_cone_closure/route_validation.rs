@@ -23,7 +23,7 @@ pub(crate) use authority_inputs::{RouteProviderView, reserve_route_slots};
 pub use external_target::CrossConeHirReferenceAuthorityError;
 
 /// A closure whose public binding routes have been checked against each
-/// provider's exact direct and transitive dependency graph.
+/// provider's actual transitive dependency graph.
 pub struct PublicRouteValidatedCrossConeHirClosure<'input> {
     surfaces: ConstValidatedCrossConeHirClosure<'input>,
 }
@@ -72,8 +72,7 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
 }
 
 impl<'input> ConstValidatedCrossConeHirClosure<'input> {
-    /// Validates every provider route against its own direct and transitive
-    /// dependencies.
+    /// Validates every public binding reference against its actual dependencies.
     pub fn validate_public_binding_routes(
         mut self,
     ) -> Result<PublicRouteValidatedCrossConeHirClosure<'input>, CrossConeClosurePublicRouteError>
@@ -91,18 +90,12 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
                 dependency_positions,
             )
             .map_err(resource)?;
-            let inputs = RouteAuthorityInputs::try_new(
-                previous,
-                &dependency_positions[position],
-                &reachable,
-                &path,
-            )
-            .map_err(resource)?;
+            let inputs =
+                RouteAuthorityInputs::try_new(previous, &reachable, &path).map_err(resource)?;
             let authority = CanonicalCrossConeRouteAuthority::try_new(
                 identity,
                 identities,
                 interface,
-                inputs.direct(),
                 inputs.providers(),
                 &path,
             )
@@ -122,7 +115,6 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
 pub(crate) struct CanonicalCrossConeRouteAuthority<'a> {
     current: ConeIdentity,
     identities: &'a ValidatedIdentityGraph,
-    direct: &'a [ConeIdentity],
     providers: &'a [RouteProviderView<'a>],
     closure_node_count: usize,
     binding_keys: Vec<(PersistentExportBindingId, Arc<ExportBindingKey>)>,

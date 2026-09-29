@@ -147,10 +147,6 @@ impl hir::PublicExportBindingClosureAuthority for CurrentConeAuthority {
         1
     }
 
-    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
-        false
-    }
-
     fn binding_key(&self, _binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
         None
     }

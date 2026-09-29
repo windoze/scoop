@@ -638,12 +638,23 @@
 - 仅快照变更后，清除全部 `SCOOP_UPDATE_*` 与 `INSTA_UPDATE` 环境变量，复测受影响的 `layout_exports::core` 全组，**22 passed、0 failed、0 ignored**，耗时 283.52 秒，完整 core 产物链和属性初始化组合均通过。最终日志为 `/tmp/scoop-m23-7-qualified-types-layout-verified.log`；未重复运行代码未变化的其他测试组。
 - 验证结束后，通过 Cargo metadata 确认实际 `target`，核对无编译／测试进程、无打开文件且目录仅含构建与编辑器检查缓存；恢复标准 `CACHEDIR.TAG` 并执行 `cargo clean --target-dir target`，删除 **2881 个文件、6.2 GiB**。清理后 `target` 不存在，日志为 `/tmp/scoop-m23-7-qualified-types-clean.log`。
 
-另保留一项独立的显式导入问题：当 `Outer` 经 facade 转导出且原 provider 仅作 support 时，`import facade.paths.Outer.Nested` 仍在 import selector 报目标不可用。当前类型位置的 `facade.paths.Outer.Nested`、普通 receiver 构造 `Outer.Nested(...)` 及该目标的公开 alias 已通过上述真实产物测试。显式 import 的原始复现在 `/tmp/scoop-m23-7-reexport-nested-import.scoop`，可使用本组 provider 与 reexport-provider 构建依赖；该路径列入下一项独立修复，M23-7 仍未完成。
+上述验证中发现的显式嵌套 import 缺口由下一节修复：当外层类型经 facade 转导出且原 provider 仅作 support 时，类型位置、普通 receiver 构造与显式 import 均可沿真实静态 owner 解析。M23-7 的其余主线仍需继续完成。
+
+## 经转导出类型的静态嵌套 import
+
+- direct package index 继续决定源码可见包；选中实际 nominal owner 后，exact、star 和 public import 共用其真实 public 静态 namespace，不再把 support provider 的嵌套绑定过滤掉。终点保留原 provider、typed target、conflict key 及公开 binding 的既有转导出引用；同源 owner 经两路 facade 到达时合并为一个目标，嵌套终点不复制外层查找路径。
+- 移除公开绑定及外部名称引用 reader 中重复的 direct-provider 资格检查，删除对应 trait 方法、错误分支及仅供该检查使用的 direct 输入表。保留实际 provider 与 binding 的存在、实体归属、typed target、namespace／role、引用闭合、转导出连续性及普通源码可见性检查。共有 HIR 格式升级为 **`/39`**，旧 `/38` 及更早产物与缓存重建；两份 profile 固定向量只改变版本字节，指纹按既有 SHA-256 规则更新，runtime ABI 与 GC 契约不变。
+- 新增 `m23-reexported-namespaces` 的 **28 份源码、37 份 golden**，覆盖 8 组运行正例和 13 组诊断反例。正例包括 exact／star、导入改名、多层泛型外层、object、companion 转发、generic enum 变体，以及 exact／star 再次转导出。反例检查 support 包不可直接导入、private／internal／protected 及 instance 成员不可静态导入、private 成员不进入 star 或再次转导出、泛型实参数量、不同 origin 的 owner 歧义和最长包前缀遮蔽。
+- provider、两份同源 facade 和 consumer 发布后移走源码；下游只凭产物，以自有引用类型、重复 Int application 和 Unit 再次消费与发布。泛型正文通过传入的读取函数实际使用值，验证泛型嵌套存储、函数值参数、ZST 和移动 GC；public import 的下游直接使用再次公开的嵌套类型。8 组均完成 HIR／MIR／LIR 快照、完整产物读取、链接、普通运行和移动 GC，复用既有 ODR 成员与 ABI 比较。
+- `cargo fmt --all` 与 LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 通过，无警告；HIR、HIR lowering 和 slib 的完整单元测试 **2746 passed、0 failed、0 ignored**。重建实际配套 `scoopc` 后，专项集成测试覆盖上述全部正反例并通过，耗时 65.38 秒。日志为 `/tmp/scoop-m23-7-nested-imports-unit.log` 与 `/tmp/scoop-m23-7-nested-imports-driver.log`。
+- 同步格式版本引起的 core 与 shape-dependency 产物快照，`layout_exports::core` 全组 **22 passed、0 failed、0 ignored**，耗时 277.49 秒。核对 43 份既有 `.artifact.snap` 均只改变首行产物指纹，后续正文记录完全相同，其余既有 golden 没有变化；日志为 `/tmp/scoop-m23-7-nested-imports-core-snapshots.log`。
+- 清除全部 `SCOOP_UPDATE_*` 与 `INSTA_UPDATE` 环境变量，启用本次构建的实际配套 `scoopc` 执行 `cargo test --workspace --no-fail-fast`，完整回归 **5223 passed、0 failed、0 ignored**，无编译警告；driver 的 157 项测试全部通过，耗时 391.34 秒。新增静态嵌套 import、上一批限定类型路径、core 产物及属性初始化的快照均在关闭更新的条件下通过。日志为 `/tmp/scoop-m23-7-nested-imports-workspace.log`。
+- 全部测试结束后，通过 Cargo metadata 确认实际 `target`，核对无编译／测试进程、无打开文件且目录仅含构建与编辑器检查缓存；恢复标准 `CACHEDIR.TAG` 后执行 `cargo clean --target-dir target`，删除 **2759 个文件、5.6 GiB**。清理后 `target` 不存在，日志为 `/tmp/scoop-m23-7-nested-imports-clean.log`。
 
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径的基础上，继续修复经转导出类型的显式嵌套 import，并补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径、经转导出类型的静态嵌套 import 基础上，继续补齐 vararg／数组、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

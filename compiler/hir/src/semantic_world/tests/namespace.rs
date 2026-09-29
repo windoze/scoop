@@ -87,6 +87,94 @@ fn package_lookup_uses_static_edges_and_excludes_nested_bindings_from_package_sc
 }
 
 #[test]
+fn reexported_owners_expose_nested_bindings_from_support_providers() {
+    let origin = ProviderFixture::with_nominals(
+        coordinate("nested-origin"),
+        package(&["original", "api"]),
+        "Outer",
+        Some("Nested"),
+    );
+    let facades = ["nested-first", "nested-second"].map(|name| {
+        ProviderFixture::reexporting_type(
+            coordinate(name),
+            package(&["facade", "api"]),
+            "Outer",
+            origin.outer_key.clone().unwrap(),
+            origin.identity(),
+            origin.outer_binding.unwrap(),
+        )
+    });
+    let mut session = SemanticIdentitySession::new();
+    let origin_foundation = import_foundation(&mut session, &origin, 11);
+    let facade_foundations = facades
+        .iter()
+        .enumerate()
+        .map(|(index, facade)| import_foundation(&mut session, facade, 12 + index as u8))
+        .collect::<Vec<_>>();
+    let aliases = empty_alias_expansions();
+    let world = ImportedSemanticWorld::from_dependencies(
+        coordinate("nested-consumer").identity().unwrap(),
+        facades
+            .iter()
+            .zip(&facade_foundations)
+            .map(|(facade, foundation)| ImportedProviderInput {
+                foundation,
+                interface: &facade.interface,
+                alias_expansions: &aliases,
+            })
+            .collect(),
+        vec![ImportedProviderInput {
+            foundation: &origin_foundation,
+            interface: &origin.interface,
+            alias_expansions: &aliases,
+        }],
+    )
+    .unwrap();
+
+    assert!(
+        world
+            .direct_package(&package(&["original", "api"]))
+            .is_none()
+    );
+    assert!(matches!(
+        world.resolve_direct_exact(
+            &identifiers(&["original", "api", "Outer", "Nested"]),
+            BindingNamespace::Type,
+        ),
+        Err(DirectNamespaceLookupError::NoVisiblePackage)
+    ));
+    let group = world
+        .resolve_direct_exact(
+            &identifiers(&["facade", "api", "Outer", "Nested"]),
+            BindingNamespace::Type,
+        )
+        .unwrap();
+    assert_eq!(group.len(), 1);
+    let target = group.targets().next().unwrap();
+    assert_eq!(
+        target.target().persistent(),
+        scoop_identity::BindableEntity::Type(origin.nested.unwrap())
+    );
+    assert_eq!(target.source_count(), 1);
+    assert_eq!(
+        target
+            .sources()
+            .next()
+            .unwrap()
+            .route()
+            .immediate_provider(),
+        origin.identity()
+    );
+    let namespace = world
+        .resolve_direct_namespace(&identifiers(&["facade", "api", "Outer"]))
+        .unwrap();
+    let snapshot = namespace.snapshot();
+    assert_eq!(snapshot.len(), 1);
+    assert_eq!(snapshot[0].name().as_str(), "Nested");
+    assert_eq!(snapshot[0].targets()[0].target(), target.target());
+}
+
+#[test]
 fn longest_package_prefix_never_falls_back_to_a_shorter_static_path() {
     let core = ProviderFixture::empty(ConeCoordinate::reserved_core());
     let outer = ProviderFixture::with_nominals(

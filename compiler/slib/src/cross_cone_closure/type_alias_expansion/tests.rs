@@ -30,12 +30,10 @@ fn expands_a_foreign_alias_from_its_resolved_typed_target() {
         identity: fixture.provider,
         bindings: fixture.provider_interface.public_bindings(),
     }];
-    let direct = [fixture.provider];
     let mut route_authority = CanonicalCrossConeRouteAuthority::try_new(
         fixture.current,
         &fixture.identities,
         &fixture.current_interface,
-        &direct,
         &providers,
         &scoop_wire::WirePath::root(),
     )
@@ -80,7 +78,6 @@ fn a_resolved_alias_target_can_come_from_a_support_provider() {
         fixture.current,
         &fixture.identities,
         &fixture.current_interface,
-        &[],
         &providers,
         &scoop_wire::WirePath::root(),
     )

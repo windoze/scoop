@@ -30,12 +30,10 @@ fn adapter_validates_a_route_through_the_exact_provider_closure() {
             bindings: fixture.terminal_interface.public_bindings(),
         },
     ];
-    let direct = [fixture.direct];
     let authority = CanonicalCrossConeRouteAuthority::try_new(
         fixture.current,
         &fixture.identities,
         &fixture.current_interface,
-        &direct,
         &providers,
         &scoop_wire::WirePath::root(),
     )
@@ -55,12 +53,10 @@ fn adapter_does_not_treat_a_loaded_non_dependency_as_route_authority() {
         identity: fixture.direct,
         bindings: fixture.direct_interface.public_bindings(),
     }];
-    let direct = [fixture.direct];
     let authority = CanonicalCrossConeRouteAuthority::try_new(
         fixture.current,
         &fixture.identities,
         &fixture.current_interface,
-        &direct,
         &providers,
         &scoop_wire::WirePath::root(),
     )
@@ -80,38 +76,41 @@ fn adapter_does_not_treat_a_loaded_non_dependency_as_route_authority() {
 }
 
 #[test]
-fn adapter_uses_the_artifact_local_direct_dependency_set() {
+fn adapter_resolves_reexports_from_the_selected_terminal_binding() {
     let fixture = route_fixture();
-    let providers = [
-        RouteProviderView {
-            identity: fixture.direct,
-            bindings: fixture.direct_interface.public_bindings(),
+    let providers = [RouteProviderView {
+        identity: fixture.terminal,
+        bindings: fixture.terminal_interface.public_bindings(),
+    }];
+    let current = interface(vec![PublicExportBindingRecordV1::new(
+        fixture.current_interface.public_bindings().records()[0].binding(),
+        ExportBindingSourceV1::Reexport {
+            routes: CanonicalReexportRoutesV1::try_new(vec![
+                ReexportRouteV1::try_new(
+                    fixture.terminal,
+                    vec![ReexportRouteHopV1::new(
+                        fixture.terminal,
+                        fixture.terminal_interface.public_bindings().records()[0].binding(),
+                    )],
+                )
+                .unwrap(),
+            ])
+            .unwrap(),
         },
-        RouteProviderView {
-            identity: fixture.terminal,
-            bindings: fixture.terminal_interface.public_bindings(),
-        },
-    ];
+    )]);
     let authority = CanonicalCrossConeRouteAuthority::try_new(
         fixture.current,
         &fixture.identities,
-        &fixture.current_interface,
-        &[],
+        &current,
         &providers,
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
 
-    assert!(matches!(
-        fixture
-            .current_interface
-            .public_bindings()
-            .validate_route_closure(fixture.current, &authority),
-        Err(PublicExportBindingClosureValidationError::ImmediateProviderNotDirect {
-            provider,
-            ..
-        }) if provider == fixture.direct
-    ));
+    current
+        .public_bindings()
+        .validate_route_closure(fixture.current, &authority)
+        .unwrap();
 }
 
 struct RouteFixture {

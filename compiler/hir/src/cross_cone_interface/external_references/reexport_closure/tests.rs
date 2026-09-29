@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use scoop_identity::{
     BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity,
@@ -230,7 +230,6 @@ impl Fixture {
             target,
             target_origin: provider,
             root,
-            direct: BTreeSet::from([provider, alternate]),
             keys: BTreeMap::from([
                 (provider_binding.id(), provider_binding.key().clone()),
                 (alternate_binding.id(), alternate_binding.key().clone()),
@@ -303,7 +302,6 @@ struct Authority {
     target: ExternalHirTargetV1,
     target_origin: ConeIdentity,
     root: BindingTarget,
-    direct: BTreeSet<ConeIdentity>,
     keys: BTreeMap<PersistentExportBindingId, ExportBindingKey>,
 }
 
@@ -345,10 +343,6 @@ impl ExternalHirReferenceSemanticAuthority<AuthorityError> for Authority {
 impl PublicExportBindingClosureAuthority for Authority {
     fn closure_node_count(&self) -> usize {
         3
-    }
-
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
-        self.direct.contains(&provider)
     }
 
     fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {

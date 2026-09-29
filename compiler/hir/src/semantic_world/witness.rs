@@ -35,7 +35,8 @@ pub(super) fn import_binding_routes(
         .collect())
 }
 
-/// One typed target together with the direct import routes used to find it.
+/// One typed target with references to its selected public bindings.
+/// Static-owner lookup may select a binding from a support provider.
 /// The private source vector is always non-empty and canonical.
 #[derive(Clone, Debug)]
 pub struct DirectImportedTargetBinding {
@@ -91,7 +92,7 @@ impl DirectImportedTargetBinding {
     ) -> Self {
         assert!(
             !sources.is_empty(),
-            "an imported target binding has at least one direct source"
+            "an imported target binding has at least one public binding source"
         );
         sources.sort_unstable_by(|left, right| left.route().cmp(right.route()));
         sources.dedup();

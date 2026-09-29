@@ -1,6 +1,8 @@
 # Scoop 语言规范
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。共有 HIR 格式更新为 `hir/cross-cone-interface/38`，旧 `/37` 及更早产物与缓存重建；不改变 runtime C ABI、对象布局或 GC 契约。
+经直接依赖选中的名义类型，其 public 静态嵌套类型、object、companion 与可导入成员按实际 typed owner 继续查找，包括原声明 provider 仅作为 support 的情况。exact、star 和 public import 使用同一规则；support provider 的包仍不加入源码可见包集合。产物只保存实际终点公开绑定及其既有转导出引用，reader 不重复要求终点 provider 是 direct，也不补造外层命名空间的来源证明。共有 HIR 格式更新为 `hir/cross-cone-interface/39`，旧 `/38` 及更早产物与缓存重建；runtime ABI 与 GC 契约不变。
+
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/39`，旧 `/38` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 
@@ -1504,12 +1506,14 @@ ImportSelector = QualifiedName | QualifiedName . *
 3. 该direct dependency已经解析并公开的re-export binding；
 4. trusted core direct dependency的public/prelude binding。
 
-每个成功解析的import target都非可选地保存最终typed实体origin及一个非空、canonical排序去重的来源集合：`CurrentCone`表示从当前Cone声明解析，`DirectDependency { provider ConeIdentity, export binding persistent id, witness hops }`表示由某一direct dependency的已验证公开表面赋予访问权；implicit core也使用后一分支。链式re-export只延长`DirectDependency` witness，不改变target的`ConeIdentity`或entity identity。同一origin经钻石图到达时合并target并保留全部合法source witness，不能按首次加载路径任选一个；source按provider coordinate/identity、export binding id及逐跳persistent witness排序，session-local id、路径长度与artifact加载顺序不参与判等。transitive `.slib`虽可作为template/layout/link support加载，但未由direct dependency re-export的public binding不会自动成为源码候选。
+每个成功解析的 import target 都保存最终 typed 实体 origin，并区分当前 Cone 声明和依赖声明。依赖 target 保存非空、canonical 排序去重的实际终点公开 binding 及其既有 re-export 引用；同一 origin 合并为一个 target，保留实际 binding 的引用集合，不按首次加载路径任选一个。引用按 provider identity、export binding id 及既有 re-export 关系排序，session-local id、路径长度与 artifact 加载顺序不参与判等。
 
-- `public import`的每个最终target都必须至少有一个source且全部source都是`DirectDependency`；`CurrentCone` target不能用于public import/re-export。同一origin可以由多个direct dependency surface共同授权并把全部witness写入snapshot。它也不能导出internal、private或protected target。target本身可以是该dependency的re-export，因此re-export可以成链；
+源码 selector 只能从当前 Cone 或 direct dependency 的可见包开始；选中实际名义 owner 后，其 public 静态嵌套 namespace（含 object、companion）继续按 owner edge 查询。原 owner 位于 support provider 时同样适用，终点直接保留该 provider 的真实公开 binding；不把外层类型的名称路径改写成嵌套 target 的路径，也不生成额外访问证明。transitive `.slib` 的包不会因此自动成为源码候选。产物 reader 检查这些公开 binding 的归属、typed target、namespace、role、引用存在及既有 re-export 连续性，复用前端已经完成的源码查找，不再要求终点 binding 的 provider 必须是 direct。
+
+- `public import` 的每个最终 target 必须是依赖中的公开 binding；当前 Cone 声明不能用于 public import/re-export，也不能导出 internal、private 或 protected target。终点可以来自依赖的 re-export，或由已选名义 owner 到达的公开静态 namespace；snapshot 保存实际绑定引用，re-export 可以成链；
 - re-export只建立destination package/name到origin typed实体的公开binding，不生成wrapper、forwarder、第二个TypeDescriptor、第二个typealias target、generic body或storage，也不扩大target member的visibility；
 - public star在编译当前Cone时展开为逐项、已经解析的API snapshot；下游不重新执行上游的文本glob。target集合变化会改变当前Cone的re-export metadata/fingerprint；
-- 同一typed origin经重复import、多个star或钻石re-export路径到达同一层时合并为一个target并union其排序后的source witness集合；删除一条路径会确定性改变snapshot/fingerprint，但只要另一合法路径保留就仍可访问。不同origin即使package/name/signature文本相同也不合并：非overloadable实体产生歧义；function/extension可进入同一overload层，但展开后签名相同仍是冲突；
+- 同一 typed origin 经重复 import、多个 star 或钻石 re-export 到达同一层时合并为一个 target，并合并排序后的实际 binding 引用。终点相同的静态 owner 遍历不复制外层路径；实际绑定集合或依赖变化按既有规则影响 metadata／fingerprint。不同 origin 即使 package/name/signature 文本相同也不合并：非 overloadable 实体产生歧义；function/extension 可进入同一 overload 层，但展开后签名相同仍是冲突；
 - split package合法，但不授予跨Cone可见性。exact selector命中多个不同origin的非overloadable实体时报告包含Cone coordinate的歧义；`as`只作用于已经唯一解析的exact selector，不能靠alias从一个本身歧义的selector中任选；
 - 两个local public declaration/re-export在同一destination namespace形成不可重载冲突时，当前Cone本身即为定义错误，不能发布带歧义的`.slib`；
 - public API签名通过typed dependency closure引用但未re-export的外部public type仍可供下游类型检查、推导、layout与member检查使用，却不会自动获得可书写的短名。希望只依赖当前Cone的用户直接写出该名称时，API作者应显式`public import`。

@@ -114,11 +114,6 @@ fn validate_provider(
             .iter()
             .map(|position| previous[*position].nominal_provider_view()),
     )?;
-    let direct = collect_views(
-        dependency_positions[position]
-            .iter()
-            .map(|position| previous[*position].identity()),
-    )?;
     let definition_sources =
         collect_views(
             dependencies
@@ -159,9 +154,7 @@ fn validate_provider(
     input
         .constants(copy_dependencies(&dependencies)?)
         .map_err(Error::Constants)?;
-    input
-        .references(&direct, &dependencies)
-        .map_err(Error::References)
+    input.references(&dependencies).map_err(Error::References)
 }
 
 fn copy_dependencies<'a>(

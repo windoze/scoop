@@ -1,6 +1,8 @@
 # Scoop 实现大纲
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。共有 HIR 格式更新为 `hir/cross-cone-interface/38`，旧 `/37` 及更早产物与缓存重建；不改变 runtime C ABI、对象布局或 GC 契约。
+静态 namespace 查询只依赖已选 nominal owner 和其实际 public binding 表，不以 provider 的 direct/support 角色过滤嵌套成员。direct package index 仍只包含直接依赖；exact、star、public import 与普通 receiver 查询共用实际终点绑定。公开绑定和外部名称引用的 reader 检查归属、typed target、namespace、role、闭合及既有转导出连续性，删除重复的 direct-provider 资格检查和仅服务该检查的输入表。共有 HIR 格式更新为 `hir/cross-cone-interface/39`；旧 `/38` 及更早产物与缓存重建，runtime ABI 与 GC 契约不变。
+
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/39`，旧 `/38` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 
@@ -187,6 +189,8 @@ M23-1先以经验证、不可序列化的request-local `Stage1SourceHandle`在AS
 M24起class body member sum增加独立`ReleaseBlock`。`release`只在class member起始位置且后接block时作为contextual keyword；`fun release()`继续按普通method解析。AST节点完整保存body与span，但不伪装成无参数method，也不接受annotation、visibility、modality、参数或返回类型。重复block与非法owner的语义诊断由HIR完成；语法恢复仍以当前type body item为边界。
 
 ### 2.2 HIR
+
+import selector 从最长可见包前缀进入已选静态 owner 后，exact 与 star 的终点均使用 owner 实际 provider 的公开 binding，support provider 只参与这种 typed owner 查询。结果继续保留实际 binding target、conflict key 与终点 binding 的现有转导出引用；嵌套 namespace 不追加外层名称路径，不建立第二套 lookup 或授权记录。public import 直接发布该已解析结果，后续 consumer 按相同实体与普通类型规则消费。
 
 限定类型路径与普通 import 共用已解析的 direct dependency 公开绑定和最长包前缀规则。导入收集保留一次不可变的依赖包类型索引，包含仅导出 value 的包占位以保持前缀语义；后续候选探测复用该索引，不重新扫描产物或按 FQN 猜实体。当前与依赖的同包候选统一做普通可见性和歧义选择，随后沿 typed nominal owner 查找嵌套类型，并复用既有类型实参和 alias 展开入口。索引只属于本次 lowering，不进入共有 HIR 或机器表示，也不增加来源资格或独立语义验证层。
 

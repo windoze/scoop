@@ -33,7 +33,6 @@ fn resolves_every_source_backed_external_target_to_its_canonical_public_root() {
         &fixture.identities,
         &fixture.interface,
         &[],
-        &[],
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
@@ -60,7 +59,6 @@ fn rejects_a_generated_callable_without_a_lexical_source_root() {
         fixture.current,
         &fixture.identities,
         &fixture.interface,
-        &[],
         &[],
         &scoop_wire::WirePath::root(),
     )

@@ -32,10 +32,10 @@ M23-6 版本衔接：core 与普通依赖共用实际 provider 和 typed target 
 
 M23-5 第一次让普通 dependency 成为**语言名称来源**，但 artifact 在内存中存在不等于其全部内容都可枚举。完成本阶段后：
 
-1. `scoopc` 在解析当前源码前，把 M23-4 已经验证的 direct/support `ValidatedArtifactClosure<Compile>` 重新收窄成一个原子、只读的 `ValidatedCrossConeSemanticClosure`。只有 manifest direct dependency（含 implicit trusted core）的 public binding 可进入普通 lookup；transitive support artifact 只供 typed reference、re-export route、default、alias与后续stage精确取回，永不因已加载而成为候选；
+1. `scoopc` 在解析当前源码前，把 M23-4 已经验证的 direct/support `ValidatedArtifactClosure<Compile>` 重新收窄成一个原子、只读的 `ValidatedCrossConeSemanticClosure`。只有 manifest direct dependency（含 implicit trusted core）的包可进入源码 lookup；选中实际名义 owner 后可继续查询其 public 静态 namespace，原 provider 仅作 support 时也适用。transitive support artifact 不因已加载而增加源码包候选；
 2. `SemanticWorld` 的 provider 直接使用实际 `ConeIdentity`，所有外部实体按 kind-specific persistent id intern；候选与选择集合使用真实类型化声明 ID，不另建 world/projection/selection 品牌或局部编号映射。FQN、package、link symbol、artifact 枚举顺序或 arena index 都不能补猜 identity；
 3. exact/star/`as` import沿 M23-1 冻结的候选层接入 direct dependency surface。split package只合并namespace视图，不合并实体；同一typed origin经重复import或diamond route到达时合并target并union全部canonical source witness，不同origin保持不同候选；
-4. `public import` 同时建立当前文件import与当前Cone re-export binding。每个target必须至少有一个source且全部source都是validated direct-dependency route；current-Cone、internal、private、protected或仅support可达target都不能被提升。re-export保留最终origin identity，不生成wrapper、storage、TypeDescriptor、body或第二个alias target；
+4. `public import` 同时建立当前文件import与当前Cone re-export binding。每个 target 必须来自已解析的依赖公开 binding，包括经已选静态 owner 到达的 support provider 成员；current-Cone、internal、private、protected target 不能被提升。re-export保留最终origin identity，不生成wrapper、storage、TypeDescriptor、body或第二个alias target；
 5. public star在当前Cone编译时展开为逐binding snapshot。下游只读取已解析snapshot，不重新执行上游glob。任一target非法时整条`public import ...*`失败，不发布部分snapshot；
 6. foreign public declaration和current declaration投影成同一种typed view，M16/M18仍逐候选执行shape filter、applicability与MSC。`.slib`来源、route长度、dependency顺序与“本地优先”都不是新的tie-break；
 7. 跨 Cone 名称查找按声明可见性和实际依赖关系进行。import 路径记录解析事实；它不授予额外机器调用资格。private/internal 支持声明可因实现需要保存在产物中，公开查找仍遵守语言规则，protected 访问按 M23-6 的接收者和继承上下文检查；
@@ -397,7 +397,7 @@ ReexportRouteHopV1 {
 
 - binding必须恰好存在于当前artifact HIR foundation field 16，key的exporter等于当前Cone；
 - `DeclaredCurrent` target必须与binding key target相等、origin为当前Cone、对应声明显式public且owner effective domain为public；该集合逐byte等于`core-bootstrap-interface/4.direct_public_surface`，无论当前Cone是否core；
-- `Reexport` binding不进入旧direct surface。每条route的`immediate_provider`必须是当前Cone direct dependency，`hops[0].exporter`与之相等；
+- `Reexport` binding不进入旧direct surface。每条 route 的 `immediate_provider` 是实际终点 binding 的 provider，`hops[0].exporter` 与之相等；经静态 owner 到达的终点可位于 support provider，reader 不重复检查源码 direct 入口；
 - 每个hop的binding key exporter等于hop exporter，target/namespace/role在整条route上相同，package/name允许因alias/re-export变化；
 - terminal hop必须是其exporter的`DeclaredCurrent` binding；中间hop必须在对应provider的`Reexport.routes`中存在完全相同的suffix。reader不能只检查“id存在”而忽略route连续性；
 - route不能重复Cone或binding，长度不超过closure node count，因此cycle与unbounded chain均拒绝；
@@ -1486,11 +1486,11 @@ role封闭为上述六个unsigned tag，不接受0、未知tag或native boolean�
 
 `ExternalHirTargetV1`的每个variant都编码为`{0: tag, 1: payload}`，并保持persistent id种类；不能把不同kind的相同raw bytes合并。`Callable`沿用source callable的封闭sum，因此同时覆盖ordinary/generic function、constructor、property accessor与enum variant constructor；generated callable保持独立variant，不能冒充source callable。signature、default applied owner等结构中的tuple/function/pointer/binder本身不是外部实体；闭包只收集其nominal leaf。re-export route使用的export binding属于`DependencyBindingWitnessV1`，不伪装成semantic target。callback registration、initialization unit与body-local identity由当前artifact的template拥有，不进入foreign target集合。
 
-`DependencyBindingWitnessV1` 与 `ReexportRouteV1` 保留不同的 Rust 语义类型，wire 共用两字段 map：`1=immediate_provider, 2=non-empty hops`。它记录当前 artifact 从直接依赖沿公开转导出路径找到声明的实际查找过程；reader 检查非空路径、首个 exporter、无重复 Cone/binding、路径连续性及最终 typed target。`witnesses` 按完整路径结构序严格递增且不重复；producer 规范化，reader 拒绝非规范输入。`ReexportTarget` 以及采用 `SourceBinding` 的 `ConcreteSelectedUse` 要求相应路径。M23-7 起，`AliasTarget` 与签名引用使用相同的 typed 目标检查，不要求或保存别名专用查找路径；来源于静态嵌套类型的合法目标不受额外路径条件限制。M23-6 的 `SourceDeclaration` 调用直接使用已解析的真实声明，不伪造 namespace 查找；`DefaultDependency` 同样保留定义处的 typed target 与作用域，可以附带定义时实际发生的查找路径，但不强制消费方取得或补造一条路径。Unit、Any 及其他声明遵循同一规则。`SignatureDependency` 与 `ConstType` 单独出现时没有名称查找路径。
+`DependencyBindingWitnessV1` 与 `ReexportRouteV1` 保留不同的 Rust 语义类型，wire 共用两字段 map：`1=immediate_provider, 2=non-empty hops`。它记录已解析终点的公开 binding 及该 binding 的既有转导出关系；终点可由实际静态 owner 指向 support provider，不追加外层 namespace 路径。reader 检查非空路径、首个 exporter、无重复 Cone/binding、路径连续性及最终 typed target，不再要求终点 provider 是 direct。`witnesses` 按完整路径结构序严格递增且不重复；producer 规范化，reader 拒绝非规范输入。`ReexportTarget` 以及采用 `SourceBinding` 的 `ConcreteSelectedUse` 要求相应路径。M23-7 起，`AliasTarget` 与签名引用使用相同的 typed 目标检查，不要求或保存别名专用查找路径；来源于静态嵌套类型的合法目标不受额外路径条件限制。M23-6 的 `SourceDeclaration` 调用直接使用已解析的真实声明，不伪造 namespace 查找；`DefaultDependency` 同样保留定义处的 typed target 与作用域，可以附带定义时实际发生的查找路径，但不强制消费方取得或补造一条路径。Unit、Any 及其他声明遵循同一规则。`SignatureDependency` 与 `ConstType` 单独出现时没有名称查找路径。
 
 producer 将同一 target 实际使用的查找路径合并到 `witnesses`，不保存另一份全依赖路径表。reader 从 re-export 字段检查其实际路径已包含在内，再逐条核对其他已记录路径；不根据 target、同名或别名枚举路径，也不以路径存在授予调用资格。未发生相关查找的记录不能附加无关路径；实际成员选择、默认参数实例化、类型及可见性继续由对应的语言规则决定。
 
-witness terminal按target canonical key推导出的唯一`BindingTarget`公开根比较，而不是把不同typed id按raw bytes比较：source nominal、ordinary/generic function、property、object value、typealias与enum variant constructor分别映射到自身公开binding；constructor映射到所属nominal，property accessor映射到所属property，source field映射到所属nominal，enum variant field映射到所属variant，lexical generated callable递归映射到最近的source callable/constructor/accessor/variant constructor公开根。没有唯一public source root的generated identity或field不能携带dependency witness。该根同时冻结`namespace + target + role`，route每个hop都必须与三者逐项相等；第一跳必须属于当前Cone direct dependency，terminal必须是定义方`DeclaredCurrent`，每个中间hop必须在对应provider surface中发布完全相同的剩余suffix，route长度不得超过closure node count。
+witness terminal按target canonical key推导出的唯一`BindingTarget`公开根比较，而不是把不同typed id按raw bytes比较：source nominal、ordinary/generic function、property、object value、typealias与enum variant constructor分别映射到自身公开binding；constructor映射到所属nominal，property accessor映射到所属property，source field映射到所属nominal，enum variant field映射到所属variant，lexical generated callable递归映射到最近的source callable/constructor/accessor/variant constructor公开根。没有唯一public source root的generated identity或field不能携带dependency witness。该根同时冻结`namespace + target + role`，route每个hop都必须与三者逐项相等；第一跳引用依赖闭包中的实际公开 binding，terminal 必须是定义方 `DeclaredCurrent`，每个中间hop必须在对应provider surface中发布完全相同的剩余suffix，route长度不得超过closure node count。
 
 external reference table以`ExternalHirTargetV1`的`(variant tag, typed payload canonical bytes)`为唯一主键严格递增；同一target的全部role与witness必须在单个record中完成union，不能用不同origin或拆分role制造两条记录。producer排序后拒绝重复target，reader拒绝重复与非规范顺序。结构构造阶段即执行role/witness的空/非空约束；`origin`必须不同于当前artifact Cone，且target canonical key所属Cone必须逐项等于`origin`；每条witness terminal binding必须指向同一target。route完整性、fields 1～8可重建role的精确闭包、field 1可重建witness的包含/无额外约束，以及显式`ConcreteSelectedUse`到后续selected bridge的关系，由closure semantic pass在完整artifact authority上分别验证。
 

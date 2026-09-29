@@ -8,9 +8,6 @@ use scoop_wire::WireError;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DependencyBindingWitnessSemanticValidationError {
     Resource(WireError),
-    ImmediateProviderNotDirect {
-        provider: ConeIdentity,
-    },
     RouteExceedsClosure {
         hops: usize,
         closure_nodes: usize,
@@ -76,10 +73,6 @@ impl fmt::Display for DependencyBindingWitnessSemanticValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Resource(error) => error.fmt(formatter),
-            Self::ImmediateProviderNotDirect { provider } => write!(
-                formatter,
-                "dependency binding witness begins at non-direct provider Cone {provider}"
-            ),
             Self::RouteExceedsClosure {
                 hops,
                 closure_nodes,

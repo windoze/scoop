@@ -90,17 +90,13 @@ impl<'input> ImportedProvider<'input> {
                 target,
                 conflict: conflict.clone(),
                 source: record.source(),
-                lookup_sources: if self.is_direct() {
-                    import_binding_routes(provider, binding, record.source()).map_err(|error| {
-                        ImportedSemanticWorldBuildError::InvalidLookupRoute {
-                            provider,
-                            binding,
-                            error: Box::new(error),
-                        }
-                    })?
-                } else {
-                    Vec::new()
-                },
+                lookup_sources: import_binding_routes(provider, binding, record.source()).map_err(
+                    |error| ImportedSemanticWorldBuildError::InvalidLookupRoute {
+                        provider,
+                        binding,
+                        error: Box::new(error),
+                    },
+                )?,
             });
         }
         if let Some(binding) = self

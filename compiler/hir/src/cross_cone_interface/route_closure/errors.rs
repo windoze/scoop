@@ -20,11 +20,6 @@ pub enum PublicExportBindingClosureValidationError {
         expected: BindableEntity,
         actual: Box<BindableEntity>,
     },
-    ImmediateProviderNotDirect {
-        binding: PersistentExportBindingId,
-        route: usize,
-        provider: ConeIdentity,
-    },
     RouteExceedsClosure {
         binding: PersistentExportBindingId,
         route: usize,
@@ -124,14 +119,6 @@ impl fmt::Display for PublicExportBindingClosureValidationError {
             } => write!(
                 formatter,
                 "declared binding {binding} from Cone {exporter} targets {expected:?}, but its source names {actual:?}"
-            ),
-            Self::ImmediateProviderNotDirect {
-                binding,
-                route,
-                provider,
-            } => write!(
-                formatter,
-                "route {route} of binding {binding} begins at non-direct provider Cone {provider}"
             ),
             Self::RouteExceedsClosure {
                 binding,

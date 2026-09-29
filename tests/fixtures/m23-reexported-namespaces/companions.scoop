@@ -1,0 +1,13 @@
+package consumer.nesting
+
+import facade.nesting.Outer.companionAdd
+import facade.nesting.Outer.Companion.*
+import facade.nesting.Outer.Tools.keep
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val leaf = CompanionLeaf(companionAdd(companionBase))
+    return if (read(keep<T>(value)) == 42) { leaf.number } else { 0 }
+}
+
+private fun readInt(value: Int): Int = value
+public fun result(): Int = exercise<Int>(42, ::readInt)

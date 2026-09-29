@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 mod resources;
 
@@ -36,21 +36,7 @@ fn validates_a_complete_reexport_chain_and_supports_binding_lookup() {
 }
 
 #[test]
-fn rejects_non_direct_provider_and_routes_longer_than_the_closure() {
-    let mut fixture = chain();
-    fixture.authority.direct.clear();
-
-    assert!(matches!(
-        fixture
-            .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority),
-        Err(PublicExportBindingClosureValidationError::ImmediateProviderNotDirect {
-            binding,
-            route: 0,
-            provider,
-        }) if binding == fixture.current_binding && provider == fixture.direct
-    ));
-
+fn rejects_routes_longer_than_the_closure() {
     let mut fixture = chain();
     fixture.authority.closure_nodes = 1;
     assert!(matches!(
@@ -297,7 +283,6 @@ fn chain() -> ChainFixture {
 
     let authority = TestAuthority {
         closure_nodes: 3,
-        direct: BTreeSet::from([direct]),
         keys: BTreeMap::from([
             (current_binding.id(), current_binding.key().clone()),
             (direct_binding.id(), direct_binding.key().clone()),
@@ -351,7 +336,6 @@ fn route(
 #[derive(Default)]
 struct TestAuthority {
     closure_nodes: usize,
-    direct: BTreeSet<ConeIdentity>,
     keys: BTreeMap<PersistentExportBindingId, ExportBindingKey>,
     surfaces: BTreeMap<ConeIdentity, CanonicalPublicExportBindingsV1>,
 }
@@ -359,10 +343,6 @@ struct TestAuthority {
 impl PublicExportBindingClosureAuthority for TestAuthority {
     fn closure_node_count(&self) -> usize {
         self.closure_nodes
-    }
-
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
-        self.direct.contains(&provider)
     }
 
     fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {

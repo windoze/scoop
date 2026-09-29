@@ -11,15 +11,13 @@ use crate::CanonicalReexportRoutesV1;
 pub trait PublicExportBindingClosureAuthority {
     fn closure_node_count(&self) -> usize;
 
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool;
-
     fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey>;
 
     fn public_bindings(&self, exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1>;
 }
 
 impl CanonicalPublicExportBindingsV1 {
-    /// Checks direct providers, typed binding relations, terminal declarations,
+    /// Checks actual providers, typed binding relations, terminal declarations,
     /// and exact suffix continuity against the complete artifact closure.
     pub fn validate_route_closure<A: PublicExportBindingClosureAuthority>(
         &self,
@@ -60,15 +58,6 @@ fn validate_routes<A: PublicExportBindingClosureAuthority>(
     authority: &A,
 ) -> Result<(), PublicExportBindingClosureValidationError> {
     for (route_index, route) in routes.routes().iter().enumerate() {
-        if !authority.is_direct_dependency(route.immediate_provider()) {
-            return Err(
-                PublicExportBindingClosureValidationError::ImmediateProviderNotDirect {
-                    binding,
-                    route: route_index,
-                    provider: route.immediate_provider(),
-                },
-            );
-        }
         if route.hops().len() > authority.closure_node_count() {
             return Err(
                 PublicExportBindingClosureValidationError::RouteExceedsClosure {

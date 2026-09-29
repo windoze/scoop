@@ -1,0 +1,15 @@
+package consumer.nesting
+
+import facade.nesting.Choice
+import facade.nesting.Choice.*
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val tagged: Choice<T> = Present<T>(value)
+    return when (tagged) {
+        Present(item) -> if (read(item) == 42) { 42 } else { 0 }
+        Missing -> 0
+    }
+}
+
+private fun readInt(value: Int): Int = value
+public fun result(): Int = exercise<Int>(42, ::readInt)

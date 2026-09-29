@@ -11,7 +11,6 @@ fn object_backing_fields_follow_their_typed_source_object() {
         &fixture.identities,
         &interface,
         &[],
-        &[],
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
@@ -34,7 +33,6 @@ fn object_backing_fields_reject_a_different_property_owner_or_provider() {
             cone("consumer"),
             &fixture.identities,
             &interface,
-            &[],
             &[],
             &scoop_wire::WirePath::root(),
         )
@@ -61,7 +59,6 @@ fn object_backing_fields_require_an_object_source_declaration() {
         cone("consumer"),
         &fixture.identities,
         &interface,
-        &[],
         &[],
         &scoop_wire::WirePath::root(),
     )

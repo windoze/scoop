@@ -274,10 +274,6 @@ impl PublicExportBindingClosureAuthority for Authority {
         self.surfaces.len()
     }
 
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
-        provider == self.provider
-    }
-
     fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
         self.keys.get(&binding)
     }

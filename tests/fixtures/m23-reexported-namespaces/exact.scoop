@@ -1,0 +1,13 @@
+package consumer.nesting
+
+import facade.nesting.Outer.Leaf
+import facade.nesting.Outer.Box as ImportedBox
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val box = ImportedBox<T>(value)
+    val leaf = Leaf(if (read(box.value) == 42) { 42 } else { 0 })
+    return leaf.number
+}
+
+private fun readInt(value: Int): Int = value
+public fun result(): Int = exercise<Int>(42, ::readInt)

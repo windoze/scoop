@@ -60,10 +60,6 @@ impl<'world, 'input> DirectPublicBindingGroup<'world, 'input> {
 pub(super) fn non_empty_group<'world, 'input>(
     bindings: Vec<&'world ImportedPublicBinding<'input>>,
 ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
-    let bindings = bindings
-        .into_iter()
-        .filter(|binding| !binding.lookup_sources().is_empty())
-        .collect::<Vec<_>>();
     if bindings.is_empty() {
         return None;
     }
@@ -80,12 +76,10 @@ where
 {
     let mut groups = BTreeMap::<(BindingNamespace, CanonicalIdentifier), Vec<_>>::new();
     for binding in bindings {
-        if !binding.lookup_sources().is_empty() {
-            groups
-                .entry((binding.key().namespace(), binding.key().name().clone()))
-                .or_default()
-                .push(binding);
-        }
+        groups
+            .entry((binding.key().namespace(), binding.key().name().clone()))
+            .or_default()
+            .push(binding);
     }
     groups
         .into_iter()

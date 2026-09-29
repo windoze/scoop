@@ -15,6 +15,7 @@ mod pointer_construction;
 mod pointers;
 mod publication;
 mod qualified_types;
+mod reexported_namespaces;
 mod references;
 mod siblings;
 

@@ -1,4 +1,4 @@
-//! Canonical route witnesses for public cross-Cone re-exports.
+//! Canonical public binding references for cross-Cone re-exports.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -44,7 +44,7 @@ impl WireEncode for ReexportRouteHopV1 {
     }
 }
 
-/// A non-empty, acyclic route beginning at one direct dependency.
+/// A non-empty, acyclic sequence beginning at one selected public binding.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ReexportRouteV1 {
     immediate_provider: ConeIdentity,
@@ -113,7 +113,7 @@ impl WireEncode for ReexportRouteV1 {
     }
 }
 
-/// A non-empty, canonical set of all routes authorizing one re-export.
+/// A non-empty, canonical set of public binding references for one re-export.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalReexportRoutesV1 {
     routes: Vec<ReexportRouteV1>,

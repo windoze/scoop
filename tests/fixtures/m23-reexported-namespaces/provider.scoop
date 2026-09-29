@@ -1,0 +1,30 @@
+package origin.nesting
+
+public class Outer<T> {
+    public struct Leaf(val number: Int)
+    public struct Box<U>(val value: U)
+    public class Middle<V> {
+        public struct Deep(val number: Int)
+    }
+    public object Tools {
+        public val base: Int get() = 40
+        public fun add(value: Int, delta: Int = 2): Int = value + delta
+        public fun <U> keep(value: U): U = value
+        private fun hidden(): Int = 0
+    }
+    public companion object {
+        public val companionBase: Int get() = 40
+        public fun companionAdd(value: Int): Int = value + 2
+        public struct CompanionLeaf(val number: Int)
+        private struct SecretCompanion(val number: Int)
+    }
+    public fun instance(): Int = 1
+    private struct Hidden(val number: Int)
+    internal struct InternalLeaf(val number: Int)
+    protected class Guarded()
+}
+
+public enum Choice<T> {
+    Missing,
+    Present(val value: T)
+}

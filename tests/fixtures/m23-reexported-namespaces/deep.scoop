@@ -1,0 +1,15 @@
+package consumer.nesting
+
+import facade.nesting.Outer.Middle.Deep
+import facade.nesting.Outer.Box
+
+public typealias DeepAlias = facade.nesting.Outer.Middle.Deep
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val deep: DeepAlias = Deep(42)
+    val box = Box<T>(value)
+    return if (read(box.value) == 42) { deep.number } else { 0 }
+}
+
+private fun readInt(value: Int): Int = value
+public fun result(): Int = exercise<Int>(42, ::readInt)

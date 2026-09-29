@@ -94,18 +94,12 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                     dependency_positions,
                 )
                 .map_err(resource)?;
-                let route_inputs = RouteAuthorityInputs::try_new(
-                    previous,
-                    &dependency_positions[position],
-                    &reachable,
-                    &path,
-                )
-                .map_err(resource)?;
+                let route_inputs =
+                    RouteAuthorityInputs::try_new(previous, &reachable, &path).map_err(resource)?;
                 let mut authority = CanonicalCrossConeRouteAuthority::try_new(
                     identity,
                     identities,
                     interface,
-                    route_inputs.direct(),
                     route_inputs.providers(),
                     &path,
                 )

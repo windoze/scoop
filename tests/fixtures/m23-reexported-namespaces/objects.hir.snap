@@ -1,0 +1,61 @@
+Module
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
+    val local3
+      Local value : T0
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      ImportedGenericCall keep<T0> : T0
+        Local $dependency.receiver : Tools
+        Local $dependency.parameter.value : T0
+    val local6
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local copy : T0
+    val local7
+      IntegerLiteral 42 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local9
+        ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
+      val local10
+        ImportedDependencyCall #0 : Int
+          ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
+      val local11
+        Local $dependency.argument.0 : Int
+      val local12
+        IntegerLiteral 2 : Int
+      assign $result.0
+        ImportedDependencyCall #1 : Int
+          Local $dependency.receiver : Tools
+          Local $dependency.parameter.value : Int
+          Local $dependency.parameter.delta : Int
+    else
+      assign $result.0
+        IntegerLiteral 0 : Int
+    return
+      Local $result.0 : Int
+  fun readInt(value: Int): Int
+    return
+      Local value : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      CallableReference reference0 target=readInt captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

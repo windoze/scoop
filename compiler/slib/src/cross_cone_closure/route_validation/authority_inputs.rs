@@ -13,27 +13,16 @@ pub(crate) struct RouteProviderView<'a> {
 }
 
 pub(in crate::cross_cone_closure) struct RouteAuthorityInputs<'a> {
-    direct: Vec<ConeIdentity>,
     providers: Vec<RouteProviderView<'a>>,
 }
 
 impl<'a> RouteAuthorityInputs<'a> {
     pub(in crate::cross_cone_closure) fn try_new(
         previous: &'a [ConstValidatedCrossConeHirFrontSections<'_>],
-        direct_positions: &[usize],
         reachable_positions: &[usize],
 
         path: &WirePath,
     ) -> Result<Self, WireError> {
-        let mut direct = Vec::new();
-        reserve_route_slots(&mut direct, direct_positions.len(), path)?;
-
-        direct.extend(
-            direct_positions
-                .iter()
-                .map(|position| previous[*position].identity()),
-        );
-
         let mut providers = Vec::new();
         reserve_route_slots(&mut providers, reachable_positions.len(), path)?;
 
@@ -46,11 +35,7 @@ impl<'a> RouteAuthorityInputs<'a> {
                 }),
         );
 
-        Ok(Self { direct, providers })
-    }
-
-    pub(in crate::cross_cone_closure) fn direct(&self) -> &[ConeIdentity] {
-        &self.direct
+        Ok(Self { providers })
     }
 
     pub(in crate::cross_cone_closure) fn providers(&self) -> &[RouteProviderView<'a>] {
