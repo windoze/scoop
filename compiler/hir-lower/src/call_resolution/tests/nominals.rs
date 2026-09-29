@@ -1,7 +1,9 @@
 use scoop_ast::Span;
 use scoop_hir as hir;
 
-use crate::{IntrinsicDeclarationPolicy, Lowerer, SourceKind, SourceProvider, Type};
+use crate::persistent_nominals::NominalIdentityInput;
+use crate::{IntrinsicDeclarationPolicy, Lowerer, Owner, SourceKind, SourceProvider, Type};
+use scoop_identity::SourceNominalKind;
 
 pub(super) fn lowerer() -> Lowerer {
     let files = [crate::tests::file(Vec::new())];
@@ -32,7 +34,11 @@ pub(super) fn add_interface(
             .expect("test interface count fits u32")
             .into(),
     );
-    let application = lowerer.interface_application_id(interface, Vec::new());
+    let application = hir::InterfaceApplicationId::from_raw(
+        u32::try_from(lowerer.interface_applications.len())
+            .unwrap()
+            .into(),
+    );
     let allocated = lowerer.interfaces.alloc(hir::InterfaceDecl {
         owner: None,
         name: name.to_string(),
@@ -48,7 +54,23 @@ pub(super) fn add_interface(
     });
     assert_eq!(allocated, interface);
     lowerer.interface_files.insert(interface, 0);
+    let identity = lowerer
+        .prepare_nominal_identity(NominalIdentityInput {
+            name,
+            parent: None,
+            access: hir::DeclaredVisibility::Public,
+            type_parameter_count: 0,
+            kind: SourceNominalKind::Interface,
+            file: 0,
+            span: Span::new(0, 0),
+        })
+        .unwrap();
+    lowerer.register_nominal_identity(Owner::Interface(interface), identity);
     lowerer.establish_nominal_identities().unwrap();
+    assert_eq!(
+        lowerer.interface_application_id(interface, Vec::new()),
+        application
+    );
     lowerer.interface_applications[application].canonical_type
 }
 
@@ -87,6 +109,18 @@ pub(super) fn add_generic_struct(
     });
     assert_eq!(allocated, structure);
     lowerer.struct_files.insert(structure, 0);
+    let identity = lowerer
+        .prepare_nominal_identity(NominalIdentityInput {
+            name,
+            parent: None,
+            access: hir::DeclaredVisibility::Public,
+            type_parameter_count: 1,
+            kind: SourceNominalKind::Struct,
+            file: 0,
+            span: Span::new(0, 0),
+        })
+        .unwrap();
+    lowerer.register_nominal_identity(Owner::Struct(structure), identity);
     lowerer.establish_nominal_identities().unwrap();
     let actual_application = lowerer.struct_application_id(structure, vec![parameter_ty]);
     assert_eq!(actual_application, self_application);

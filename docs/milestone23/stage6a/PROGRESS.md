@@ -140,3 +140,10 @@
 - 真实组合发现并修复私有派生接收者的发布缺口：实际普通依赖调用的静态 receiver 与其他物化类型在同次遍历收集，沿已有共享声明闭包保留其原继承和表示依赖。私有声明保留原身份及可见性，不产生 public binding，不把整个私有类型 arena 作为发布根。
 - 共同筛选切换后全仓 fmt／clippy、1305 项 HIR lowering 测试及 6 项相关真实产物回归通过；接收者修复后再次 fmt／clippy，856 项 HIR 测试、125 项相关 lowering 测试和 2 项继承产物回归全部通过。新增 fixture 经过真实发布、移走源码、再次发布、引用／Int／Unit 应用及普通／移动 GC 运行，关闭快照更新后复验通过。日志前缀 `/tmp/scoop-m23-6a-selection-` 与 `/tmp/scoop-m23-6a-selection-receivers-`。
 - 无进行中的构建时清理约 243 MiB 的旧增量缓存。本批完成共同 MSC 集合筛选；候选原身份、整数字面量偏好调度、nominal 类型及正文的来源分支仍需继续删除。
+
+## application 之前的原声明身份
+
+- nominal 收集在建立 self application 之前生成原声明身份，词法父声明直接复用已有记录；object 和 generated backing class 分别保留自身身份。四类 application 缓存改用原 `SourceNominalId` 与完整实参，不再以当前声明 arena 索引作为缓存键。
+- 删除完成声明树后递归重建身份的 builder、访问集合和重复 owner 解析；完成声明收集后只整理已建立的记录，原有字段、variant、导出及具体化查询继续复用同一身份。该调整不改变 wire payload 或身份算法，`Type::Imported*` 及 application 的剩余存储迁移继续推进。
+- 身份模块由 435 行降至 208 行。原声明收集按 struct／enum／class／interface 拆为 116～184 行模块，共同名称检查保留在 72 行主模块；object 收集与其查询／解析分开为 254、266 行。
+- 全仓 fmt／clippy、1305 项 HIR lowering 单元测试及 8 项真实产物回归全部通过；限定名、嵌套 re-export、原函数请求、默认值、bound 和共同 MSC 的现有快照均无需更新。日志前缀 `/tmp/scoop-m23-6a-nominal-identities-`，结果见 `unit.log` 和 `artifacts.log`。

@@ -528,7 +528,9 @@ pub(crate) struct Lowerer {
     /// Published once after every source callable signature is resolved.
     /// Rejected ids remain diagnostic-only and never enter body resolution.
     pub(crate) declaration_surface: declaration_surface::DeclarationSurface,
-    /// Established after declaration collection, before semantic queries.
+    /// Original identities established before each declaration's application.
+    pub(crate) nominal_declaration_identities: HashMap<Owner, hir::HirNominalIdentity>,
+    /// The arena-aligned projection completed after declaration collection.
     pub(crate) nominal_identities: Option<hir::HirNominalIdentities>,
     pub(crate) enum_member_identities: Option<hir::HirEnumMemberIdentities>,
     pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
@@ -598,12 +600,13 @@ pub(crate) struct Lowerer {
     >,
     pub(crate) struct_applications: Arena<hir::StructApplication>,
     pub(crate) struct_application_by_key:
-        HashMap<(StructId, Vec<TypeId>), hir::StructApplicationId>,
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::StructApplicationId>,
     pub(crate) enums: Arena<EnumDecl>,
     pub(crate) enum_variant_spans: HashMap<hir::EnumVariantRef, Span>,
     pub(crate) enum_variant_field_spans: HashMap<hir::EnumVariantFieldRef, Span>,
     pub(crate) enum_applications: Arena<hir::EnumApplication>,
-    pub(crate) enum_application_by_key: HashMap<(EnumId, Vec<TypeId>), hir::EnumApplicationId>,
+    pub(crate) enum_application_by_key:
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Arena<ClassDecl>,
     pub(crate) class_fields: Arena<hir::ClassField>,
     pub(crate) class_constructors: Arena<hir::ClassConstructor>,
@@ -613,11 +616,12 @@ pub(crate) struct Lowerer {
         hir::ClassConstructorApplicationId,
     >,
     pub(crate) class_applications: Arena<hir::ClassApplication>,
-    pub(crate) class_application_by_key: HashMap<(ClassId, Vec<TypeId>), hir::ClassApplicationId>,
+    pub(crate) class_application_by_key:
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::ClassApplicationId>,
     pub(crate) interfaces: Arena<InterfaceDecl>,
     pub(crate) interface_applications: Arena<hir::InterfaceApplication>,
     pub(crate) interface_application_by_key:
-        HashMap<(InterfaceId, Vec<TypeId>), hir::InterfaceApplicationId>,
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::InterfaceApplicationId>,
     pub(crate) functions: Arena<Function>,
     /// Typed source-declaration provenance. Display names cannot substitute
     /// for this relation because member and lifted-local names are decorated.

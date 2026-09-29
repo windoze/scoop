@@ -69,7 +69,11 @@ impl Lowerer {
         template: StructId,
         arguments: Vec<TypeId>,
     ) -> hir::StructApplicationId {
-        let key = (template, arguments.clone());
+        let key = (
+            self.nominal_identity(crate::Owner::Struct(template))
+                .declaration_id(),
+            arguments.clone(),
+        );
         if let Some(&application) = self.struct_application_by_key.get(&key) {
             return application;
         }
@@ -145,7 +149,11 @@ impl Lowerer {
         template: hir::EnumId,
         arguments: Vec<TypeId>,
     ) -> hir::EnumApplicationId {
-        let key = (template, arguments.clone());
+        let key = (
+            self.nominal_identity(crate::Owner::Enum(template))
+                .declaration_id(),
+            arguments.clone(),
+        );
         if let Some(&application) = self.enum_application_by_key.get(&key) {
             return application;
         }
@@ -175,7 +183,11 @@ impl Lowerer {
         template: hir::ClassId,
         arguments: Vec<TypeId>,
     ) -> hir::ClassApplicationId {
-        let key = (template, arguments.clone());
+        let key = (
+            self.nominal_identity(crate::Owner::Class(template))
+                .declaration_id(),
+            arguments.clone(),
+        );
         if let Some(&application) = self.class_application_by_key.get(&key) {
             return application;
         }
@@ -278,7 +290,11 @@ impl Lowerer {
         template: hir::InterfaceId,
         arguments: Vec<TypeId>,
     ) -> hir::InterfaceApplicationId {
-        let key = (template, arguments.clone());
+        let key = (
+            self.nominal_identity(crate::Owner::Interface(template))
+                .declaration_id(),
+            arguments.clone(),
+        );
         if let Some(&application) = self.interface_application_by_key.get(&key) {
             return application;
         }

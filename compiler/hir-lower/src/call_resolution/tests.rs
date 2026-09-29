@@ -345,10 +345,14 @@ fn concrete_application_materializes_every_argument() {
     lowerer
         .solve_constraints(&session)
         .expect("the complete Box<Int> application materializes");
-    assert!(lowerer.struct_application_by_key.contains_key(&(
-        structure,
-        vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
-    )));
+    assert!(
+        lowerer.struct_application_by_key.contains_key(&(
+            lowerer
+                .nominal_identity(crate::Owner::Struct(structure))
+                .declaration_id(),
+            vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
+        ))
+    );
 }
 
 #[test]
@@ -385,10 +389,14 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
             .any(|(_, ty)| matches!(ty, Type::Ptr(pointee)
                 if *pointee == lowerer.integer_type(hir::IntegerKind::SIGNED_32)))
     );
-    assert!(!lowerer.struct_application_by_key.contains_key(&(
-        pointer,
-        vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
-    )));
+    assert!(
+        !lowerer.struct_application_by_key.contains_key(&(
+            lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
+        ))
+    );
 }
 
 #[test]
