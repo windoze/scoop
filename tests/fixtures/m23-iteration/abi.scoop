@@ -1,0 +1,33 @@
+package consumer.iteration
+
+import upstream.iteration.*
+import upstream.iteration.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+private fun readInt(value: Int): Int = value
+
+private class Reference(public val value: Int)
+private struct Large(val first: Reference, val second: Reference, val third: Reference)
+private enum Payload<T> { Data(T), Empty }
+private fun readLarge(value: Large): Int = value.first.value + value.second.value + value.third.value
+private fun readTuple(value: (Reference, Reference)): Int = value._1.value + value._2.value
+private fun readUnit(value: Unit): Int = 42
+private fun readPayload(value: Payload<Large>): Int = when (value) {
+    Data(inner) -> readLarge(inner)
+    Empty -> 0
+}
+
+public fun result(): Int {
+    val large = Large(Reference(10), Reference(12), Reference(20))
+    if (exercise<Large>(large, ::readLarge) != 42) { return 1 }
+    if (exercise<Payload<Large>>(Payload.Data(large), ::readPayload) != 42) { return 2 }
+    if (exercise<(Reference, Reference)>((Reference(20), Reference(22)), ::readTuple) != 42) { return 3 }
+    if (exercise<Unit>(Unit, ::readUnit) != 42) { return 4 }
+    val entries: Array<Large> = [large]
+    var sum = 0
+    for (value in entries) {
+        val allocation = Reference(0)
+        sum = sum + readLarge(value) + allocation.value
+    }
+    return sum
+}

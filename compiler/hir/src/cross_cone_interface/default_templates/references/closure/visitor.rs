@@ -3,9 +3,8 @@ use scoop_wire::{WireError, WirePath};
 
 use super::ExportDefaultReferenceOccurrenceSiteV1;
 use crate::{
-    CanonicalTemplateLocalTableV1, DefaultAssignTargetV1, DefaultBindingActionV1,
-    DefaultBindingPlanV1, DefaultCaptureV1, DefaultCatchV1, DefaultExpressionV1,
-    DefaultForIterationPlanV1, DefaultLocalFunctionV1, DefaultPatternV1, DefaultStatementV1,
+    CanonicalTemplateLocalTableV1, DefaultAssignTargetV1, DefaultCaptureV1, DefaultCatchV1,
+    DefaultExpressionV1, DefaultLocalFunctionV1, DefaultPatternV1, DefaultStatementV1,
     DefaultWhenArmV1, ExportDefaultBodyV1, ExportDefinitionSourceV1, ExportGenericCallableBodyV1,
     TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
@@ -32,8 +31,8 @@ pub enum DefaultBodyReferenceTargetV1<'a> {
     Field(DefaultFieldReferenceTargetViewV1<'a>),
 }
 
-/// The typed node that owns non-expression metadata. Iterator and binding plans
-/// retain the source temporaries needed to replay receiver checks.
+/// The typed node that owns non-expression references, including declarations,
+/// captures, and control flow.
 #[derive(Clone, Copy, Debug)]
 pub enum DefaultBodyReferenceMetadataV1<'a> {
     TemplateLocal {
@@ -49,9 +48,6 @@ pub enum DefaultBodyReferenceMetadataV1<'a> {
     Assignment(&'a DefaultAssignTargetV1),
     WhenArm(&'a DefaultWhenArmV1),
     Catch(&'a DefaultCatchV1),
-    Iterator(&'a DefaultForIterationPlanV1),
-    BindingPlan(&'a DefaultBindingPlanV1),
-    BindingAction(&'a DefaultBindingActionV1),
     Capture(&'a DefaultCaptureV1),
     LocalFunction(&'a DefaultLocalFunctionV1),
 }

@@ -27,7 +27,7 @@ pub use const_value::*;
 pub use default_contracts::{
     CrossConeHirDefaultProviderContractError, DefaultMetadataNominalError,
 };
-pub use default_data_flow::{CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError};
+pub use default_data_flow::CrossConeHirDefaultDataFlowError;
 pub use default_nested_identities::CrossConeHirDefaultNestedIdentityError;
 pub use default_origins::CrossConeHirDefaultRootOriginError;
 pub use definition_source::*;

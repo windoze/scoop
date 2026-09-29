@@ -1,5 +1,4 @@
 mod assign_target;
-mod binding_plan;
 mod control_flow;
 mod tree;
 
@@ -7,17 +6,7 @@ pub use assign_target::{
     DecodedDefaultAssignTargetV1, DefaultAssignTargetIndexError,
     DefaultAssignTargetResolutionError, DefaultAssignTargetV1, IndexedDefaultAssignTargetV1,
 };
-pub use binding_plan::{
-    DecodedDefaultAppliedOptionV1, DecodedDefaultBindingActionV1, DecodedDefaultBindingPlanV1,
-    DecodedDefaultForIterationPlanV1, DecodedDefaultIteratorConformanceV1,
-    DecodedDefaultIteratorNextV1, DefaultAppliedOptionV1, DefaultBindingActionBuildError,
-    DefaultBindingActionV1, DefaultBindingActionViewV1, DefaultBindingPlanBuildError,
-    DefaultBindingPlanV1, DefaultForIterationPlanBuildError, DefaultForIterationPlanIndexError,
-    DefaultForIterationPlanResolutionError, DefaultForIterationPlanV1,
-    DefaultIteratorConformanceV1, DefaultIteratorNextV1, IndexedDefaultAppliedOptionV1,
-    IndexedDefaultBindingActionV1, IndexedDefaultBindingPlanV1, IndexedDefaultForIterationPlanV1,
-    IndexedDefaultIteratorConformanceV1, IndexedDefaultIteratorNextV1,
-};
+
 pub use control_flow::{
     DecodedDefaultCatchV1, DecodedDefaultTryV1, DecodedDefaultWhenArmV1,
     DecodedDefaultWhenFallbackV1, DecodedDefaultWhenGuardV1, DecodedDefaultWhenV1,

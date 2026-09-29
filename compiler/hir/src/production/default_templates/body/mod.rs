@@ -7,7 +7,6 @@ use crate::{
     DefaultExpressionV1, DefaultStatementV1, ExportDefaultBodyV1, HirSignatureBinder, Span, TypeId,
 };
 
-mod bindings;
 mod expressions;
 mod generic_delegate;
 mod initialization;

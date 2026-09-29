@@ -24,11 +24,13 @@ fn borrowed_type_index_keeps_canonical_tables_separate() {
 }
 
 #[test]
-fn borrowed_index_rejects_duplicate_authority_even_with_identical_records() {
+fn borrowed_index_rejects_duplicate_strong_types_and_generated_helpers() {
     let fixture = Fixture::new();
-    let table = CanonicalParamFreeMirTypeExportsV1::try_new(vec![fixture.empty_export()]).unwrap();
-    assert!(matches!(
-        MirTypeBridgeTypeIndexV1::try_new(&[&table, &table]),
-        Err(MirTypeBridgeLookupError::DuplicateType { .. })
-    ));
+    for record in [fixture.empty_export(), fixture.boxed_export()] {
+        let table = CanonicalParamFreeMirTypeExportsV1::try_new(vec![record]).unwrap();
+        assert!(matches!(
+            MirTypeBridgeTypeIndexV1::try_new(&[&table, &table]),
+            Err(MirTypeBridgeLookupError::DuplicateType { .. })
+        ));
+    }
 }

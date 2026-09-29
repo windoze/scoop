@@ -6,7 +6,6 @@ use crate::{
     OptionalDefaultStatementListViewV1,
 };
 
-mod bindings;
 mod control_flow;
 
 impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
@@ -64,9 +63,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 self.push_statements(pending, body)?;
                 self.push_child(pending, BodyNode::Expression(condition))?;
                 self.push_statements(pending, condition_setup)
-            }
-            DefaultStatementKindV1::For(plan) => {
-                self.push_child(pending, BodyNode::For { plan, origin })
             }
             DefaultStatementKindV1::When(value) => {
                 self.push_child(pending, BodyNode::When { value, origin })

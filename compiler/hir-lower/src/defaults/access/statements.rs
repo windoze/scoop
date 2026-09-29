@@ -50,7 +50,6 @@ impl ReferenceCollector<'_> {
                 self.expression(cond);
                 self.statements(body);
             }
-            hir::StatementKind::For(plan) => self.for_plan(plan, origin),
             hir::StatementKind::When(value) => self.when(value, origin),
             hir::StatementKind::Try(value) => self.try_(value),
         }

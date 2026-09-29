@@ -178,11 +178,15 @@ impl Lowerer {
         &mut self,
         application: hir::ClassApplicationId,
     ) -> Vec<TypeId> {
-        let mut result = Vec::new();
-        let mut pending = vec![(
+        self.class_interfaces_for_type(
             self.class_applications[application].canonical_type,
             Type::Class(application),
-        )];
+        )
+    }
+
+    fn class_interfaces_for_type(&mut self, ty: TypeId, class_type: Type) -> Vec<TypeId> {
+        let mut result = Vec::new();
+        let mut pending = vec![(ty, class_type)];
         let mut seen = Vec::new();
         while let Some((ty, class_type)) = pending.pop() {
             if seen.contains(&ty) {
@@ -248,23 +252,17 @@ impl Lowerer {
         }
     }
 
-    /// Collect every distinct exact application of `target` reachable from a
-    /// type's complete class/interface/bound closure. Unlike ordinary
+    /// Collect every distinct exact core Iterator application reachable from
+    /// a type's complete class/interface/bound closure. Unlike ordinary
     /// subtyping queries this deliberately retains multiple applications with
     /// different arguments so source iteration can diagnose an ambiguous
     /// element type.
-    pub(crate) fn exact_interface_applications(
-        &mut self,
-        ty: TypeId,
-        target: hir::InterfaceId,
-    ) -> Vec<hir::InterfaceApplicationId> {
+    pub(crate) fn iteration_interface_applications(&mut self, ty: TypeId) -> Vec<TypeId> {
         let mut roots = Vec::new();
         match self.types[ty].clone() {
-            Type::Interface(application) => {
-                roots.push(self.interface_applications[application].canonical_type)
-            }
-            Type::Class(application) => {
-                roots.extend(self.class_interfaces_for_application(application));
+            Type::Interface(_) | Type::ImportedInterface(_) => roots.push(ty),
+            Type::Class(_) | Type::ImportedClass(_) => {
+                roots.extend(self.class_interfaces_for_type(ty, self.types[ty].clone()));
             }
             Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
@@ -278,6 +276,8 @@ impl Lowerer {
                     roots.push(self.instantiate_ty(interface, &application.arguments));
                 }
             }
+            Type::ImportedStruct(application) => roots.extend(&application.interfaces),
+            Type::ImportedEnum(application) => roots.extend(&application.interfaces),
             Type::Integer(kind) => {
                 roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)));
             }
@@ -296,10 +296,15 @@ impl Lowerer {
                     .clone();
                 for bound in declaration.nominal_bounds_in_source_order() {
                     match bound {
-                        // This query returns applications of a current-Cone interface;
-                        // a dependency bound cannot mention that later declaration.
-                        hir::NominalBoundRef::ImportedClass(_)
-                        | hir::NominalBoundRef::ImportedInterface(_) => continue,
+                        hir::NominalBoundRef::ImportedClass(bound) => {
+                            roots.extend(
+                                self.class_interfaces_for_type(
+                                    bound.ty,
+                                    self.types[bound.ty].clone(),
+                                ),
+                            );
+                        }
+                        hir::NominalBoundRef::ImportedInterface(bound) => roots.push(bound.ty),
                         hir::NominalBoundRef::Class(bound) => {
                             roots.extend(self.class_interfaces_for_application(bound.application));
                         }
@@ -308,11 +313,7 @@ impl Lowerer {
                     }
                 }
             }
-            Type::ImportedStruct(_)
-            | Type::ImportedEnum(_)
-            | Type::ImportedClass(_)
-            | Type::ImportedInterface(_)
-            | Type::Unit
+            Type::Unit
             | Type::Any
             | Type::Tuple(_)
             | Type::Function(_)
@@ -324,18 +325,28 @@ impl Lowerer {
         for root in roots {
             self.append_interface_closure(root, &mut closure);
         }
-        let mut applications = Vec::new();
-        for interface in closure {
-            let Type::Interface(application) = self.types[interface] else {
-                unreachable!("interface closure contains only interface types")
-            };
-            if self.interface_applications[application].template == target
-                && !applications.contains(&application)
-            {
-                applications.push(application);
-            }
-        }
-        applications
+        closure
+            .into_iter()
+            .filter(|&interface| match (&self.core, &self.types[interface]) {
+                (crate::CoreLoweringAuthority::Defined, Type::Interface(application)) => {
+                    self.interface_applications[*application].template
+                        == self
+                            .iteration_core
+                            .expect("the defining core was checked")
+                            .iterator()
+                }
+                (
+                    crate::CoreLoweringAuthority::Imported(core),
+                    Type::ImportedInterface(application),
+                ) => {
+                    application.declaration.owner()
+                        == hir::SourceNominalId::GenericTemplate(
+                            core.iteration().iterator().persistent(),
+                        )
+                }
+                _ => false,
+            })
+            .collect()
     }
 
     /// Whether a value of static type `a` could ever hold a `b` at run

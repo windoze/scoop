@@ -6,6 +6,7 @@ use super::*;
 pub struct ParamFreeMirTypeExportV1 {
     exact: PersistentExactTypeId,
     origin: MirTypeOriginV1,
+    odr: bool,
     facts: MirTypeFactsV1,
     representation: MirTypeRepresentationV1,
     base_and_interfaces: MirBaseAndInterfacesV1,
@@ -21,6 +22,7 @@ impl ParamFreeMirTypeExportV1 {
     ) -> Result<Self, MirTypeBridgeError> {
         let record = Self {
             exact,
+            odr: is_odr_origin(&origin, authority.identities)?,
             origin,
             facts,
             representation,
@@ -35,6 +37,9 @@ impl ParamFreeMirTypeExportV1 {
     pub const fn origin(&self) -> &MirTypeOriginV1 {
         &self.origin
     }
+    pub(in crate::cross_cone_type_bridge) const fn is_odr(&self) -> bool {
+        self.odr
+    }
     pub const fn facts(&self) -> MirTypeFactsV1 {
         self.facts
     }
@@ -43,6 +48,30 @@ impl ParamFreeMirTypeExportV1 {
     }
     pub const fn base_and_interfaces(&self) -> &MirBaseAndInterfacesV1 {
         &self.base_and_interfaces
+    }
+}
+
+fn is_odr_origin(
+    origin: &MirTypeOriginV1,
+    identities: &ValidatedIdentityGraph,
+) -> Result<bool, MirTypeBridgeError> {
+    match origin {
+        MirTypeOriginV1::SourceNominal(_) => Ok(false),
+        MirTypeOriginV1::NominalApplication(_) => Ok(true),
+        MirTypeOriginV1::GeneratedNominal { role, .. } => {
+            let payload = match role {
+                GeneratedNominalKey::BoxedValue { payload } => *payload,
+                GeneratedNominalKey::CoroutineStep { result } => *result,
+                GeneratedNominalKey::CoroutineSlot { value } => *value,
+                GeneratedNominalKey::ObjectBackingClass { .. }
+                | GeneratedNominalKey::ClosureEnvironment { .. }
+                | GeneratedNominalKey::CallableAdapterEnvironment { .. }
+                | GeneratedNominalKey::CoroutineFrame { .. }
+                | GeneratedNominalKey::ContinuationAdapterEnvironment { .. } => return Ok(false),
+            };
+            let key = identities.canonical_key::<_, ExactTypeKey>(payload)?;
+            Ok(!matches!(key.as_ref(), ExactTypeKey::Nominal(_)))
+        }
     }
 }
 

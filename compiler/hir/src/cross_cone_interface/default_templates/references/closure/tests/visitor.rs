@@ -16,8 +16,6 @@ struct Recorder {
         ExportDefinitionSourceV1,
     )>,
     local_indices: Vec<usize>,
-    iterator_receivers: Vec<SignatureTypeKey>,
-    binding_receivers: Vec<SignatureTypeKey>,
 }
 
 impl<'body> Visitor<'body> for Recorder {
@@ -55,23 +53,6 @@ impl<'body> Visitor<'body> for Recorder {
             Attachment::Expression { index, .. } => Some(index),
             Attachment::Metadata(Metadata::TemplateLocal { index, .. }) => {
                 self.local_indices.push(index);
-                None
-            }
-            Attachment::Metadata(Metadata::Iterator(plan)) => {
-                if matches!(occurrence.target, Target::Callable(_)) {
-                    self.iterator_receivers
-                        .push(plan.conformance().iterator().value_type().clone());
-                }
-                None
-            }
-            Attachment::Metadata(Metadata::BindingAction(action)) => {
-                if matches!(occurrence.target, Target::Field(_)) {
-                    let crate::DefaultBindingActionViewV1::Project { source, .. } = action.view()
-                    else {
-                        panic!("field projection must retain its source action");
-                    };
-                    self.binding_receivers.push(source.value_type().clone());
-                }
                 None
             }
             Attachment::Metadata(_) => None,

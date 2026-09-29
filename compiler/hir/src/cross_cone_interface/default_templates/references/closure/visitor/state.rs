@@ -31,11 +31,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             }
             BodyNode::WhenArm(arm) => Attachment::Metadata(Metadata::WhenArm(arm)),
             BodyNode::Catch(catch) => Attachment::Metadata(Metadata::Catch(catch)),
-            BodyNode::For { plan, .. } => Attachment::Metadata(Metadata::Iterator(plan)),
-            BodyNode::BindingPlan { plan, .. } => Attachment::Metadata(Metadata::BindingPlan(plan)),
-            BodyNode::BindingAction(action) => {
-                Attachment::Metadata(Metadata::BindingAction(action))
-            }
             BodyNode::Capture(capture) => Attachment::Metadata(Metadata::Capture(capture)),
             BodyNode::LocalFunction { function, .. } => {
                 Attachment::Metadata(Metadata::LocalFunction(function))
@@ -45,13 +40,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | BodyNode::WhenGuard(_)
             | BodyNode::WhenFallback { .. }
             | BodyNode::Try(_)
-            | BodyNode::BindingShape { .. }
-            | BodyNode::BindingProjection { .. }
-            | BodyNode::BindingTemporary { .. }
-            | BodyNode::BindingLeaf { .. }
-            | BodyNode::IteratorConformance(_)
-            | BodyNode::IteratorNext(_)
-            | BodyNode::AppliedOption { .. }
             | BodyNode::Lambda { .. }
             | BodyNode::Anonymous { .. }
             | BodyNode::CallableReference { .. }

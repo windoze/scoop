@@ -60,10 +60,8 @@ borrowed_index!(
     exact,
     DuplicateType,
     exact,
-    |left: &ParamFreeMirTypeExportV1, right: &ParamFreeMirTypeExportV1| matches!(
-        left.origin(),
-        MirTypeOriginV1::NominalApplication(_)
-    ) && left == right
+    |left: &ParamFreeMirTypeExportV1, right: &ParamFreeMirTypeExportV1| left.is_odr()
+        && left == right
 );
 borrowed_index!(
     MirTypeBridgeSchemaIndexV1,
@@ -75,7 +73,6 @@ borrowed_index!(
     owner,
     DuplicateSchema,
     owner,
-    |left: &ParamFreeMirDispatchSchemaV1, right: &ParamFreeMirDispatchSchemaV1| left
-        .is_application()
+    |left: &ParamFreeMirDispatchSchemaV1, right: &ParamFreeMirDispatchSchemaV1| left.is_odr()
         && left == right
 );

@@ -2,28 +2,19 @@ use super::*;
 use crate::expr::{CallSite, RequiredCallableModifiers};
 
 impl Lowerer {
-    pub(super) fn lower_for(&mut self, source: &ast::For) -> Option<hir::ForIterationPlan> {
+    pub(super) fn lower_for(&mut self, source: &ast::For) -> Option<Vec<hir::Statement>> {
         self.with_pattern_transaction(|state| state.lower_for_inner(source))
     }
 
-    fn lower_for_inner(&mut self, source: &ast::For) -> Option<hir::ForIterationPlan> {
-        let core = self
-            .iteration_core
-            .expect("source iteration is lowered only after core validation");
-        let mut source_setup = Vec::new();
-        let source_init = self.lower_expr(&source.iterable, &mut source_setup, None)?;
-        let source_temporary = hir::BindingTemporary {
-            local: self.alloc_desugared_iterator_hidden("for.source", source_init.ty),
-            ty: source_init.ty,
-        };
-        let source_receiver = hir::Expr {
-            kind: hir::ExprKind::Local(source_temporary.local),
-            ty: source_temporary.ty,
-            span: source.iterable.span(),
-            origin: self.expression_origin(source.iterable.span()),
-        };
-
-        let mut iterator_setup = Vec::new();
+    fn lower_for_inner(&mut self, source: &ast::For) -> Option<Vec<hir::Statement>> {
+        let mut statements = Vec::new();
+        let source_init = self.lower_expr(&source.iterable, &mut statements, None)?;
+        let source_receiver = self.save_iteration_value(
+            "for.source",
+            source_init,
+            source.iterable.span(),
+            &mut statements,
+        );
         let iterator_call = self.lower_named_call_on_receiver(
             source_receiver,
             &ast::Ident {
@@ -35,7 +26,7 @@ impl Lowerer {
                 args: &[],
                 span: source.iterable.span(),
             },
-            &mut iterator_setup,
+            &mut statements,
             None,
             RequiredCallableModifiers {
                 operator: Some(hir::OperatorKind::Iterator),
@@ -43,8 +34,8 @@ impl Lowerer {
             },
         )?;
 
-        let applications = self.exact_interface_applications(iterator_call.ty, core.iterator());
-        let application = match applications.as_slice() {
+        let applications = self.iteration_interface_applications(iterator_call.ty);
+        let iterator_type = match applications.as_slice() {
             [application] => *application,
             [] => {
                 let found = self.type_name(iterator_call.ty);
@@ -67,115 +58,108 @@ impl Lowerer {
                 return None;
             }
         };
-        let iterator_application = self.interface_applications[application].clone();
-        let [element_type] = iterator_application.arguments.as_slice() else {
+        let arguments = match &self.types[iterator_type] {
+            Type::Interface(application) => &self.interface_applications[*application].arguments,
+            Type::ImportedInterface(application) => &application.arguments,
+            _ => unreachable!("iteration conformance names an exact interface application"),
+        };
+        let [element_type] = arguments.as_slice() else {
             unreachable!("the checked Iterator core has one type parameter")
         };
         let element_type = *element_type;
-
-        let iterator_result = hir::BindingTemporary {
-            local: self.alloc_desugared_iterator_hidden("for.iterator.result", iterator_call.ty),
-            ty: iterator_call.ty,
-        };
-        let iterator_type = iterator_application.canonical_type;
-        let iterator = hir::BindingTemporary {
-            local: self.alloc_desugared_iterator_hidden("for.iterator", iterator_type),
-            ty: iterator_type,
-        };
-        let option_type = self.option_type(element_type);
-        let Type::Enum(option_application) = self.types[option_type] else {
-            unreachable!("Option<E> is an enum application")
-        };
-        let option = self
-            .option_core
-            .expect("source iteration is lowered only after Option validation");
-        let some = hir::AppliedEnumVariantRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            option_application,
-            option.some(),
-        )
-        .expect("the specialized Option application owns canonical Some");
-        let some_payload = hir::AppliedEnumVariantFieldRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            some,
-            option.some_payload().local_index(),
-        )
-        .expect("the specialized Some variant owns its canonical payload");
-        let none = hir::AppliedEnumVariantRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            option_application,
-            option.none(),
-        )
-        .expect("the specialized Option application owns canonical None");
-        let applied_option = hir::AppliedOptionCore::checked(
-            &self.enums,
-            &self.enum_applications,
-            &self.types,
-            option,
-            element_type,
-            some_payload,
-            none,
-        )
-        .expect("the specialized Option application has the canonical Some/None relation");
-        let next_function = self.interface_method_entities[core.next()].function;
-        let next_callable = self.record_method_application(
-            next_function,
-            hir::MethodOwnerApplication::Interface(application),
+        let raw_iterator = self.save_iteration_value(
+            "for.iterator.result",
+            iterator_call,
+            source.span,
+            &mut statements,
         );
-        let next_result = hir::BindingTemporary {
-            local: self.alloc_desugared_iterator_hidden("for.next", option_type),
-            ty: option_type,
+        let adapted = self.adapt_to(raw_iterator, iterator_type);
+        let iterator =
+            self.save_iteration_value("for.iterator", adapted, source.span, &mut statements);
+        let option_type = self.option_type(element_type);
+        let next_call = self.lower_iteration_next(iterator, option_type)?;
+        let mut condition_setup = Vec::new();
+        let next_result =
+            self.save_iteration_value("for.next", next_call, source.span, &mut condition_setup);
+        let origin = self.expression_origin(source.span);
+        let cond = hir::Expr {
+            kind: hir::ExprKind::IsSome(Box::new(next_result.clone())),
+            ty: self.boolean,
+            span: source.span,
+            origin,
         };
-        let element = hir::BindingTemporary {
-            local: self.alloc_desugared_iterator_hidden("for.element", element_type),
+        let element_init = hir::Expr {
+            kind: hir::ExprKind::Unwrap {
+                operand: Box::new(next_result),
+                trap_on_none: false,
+            },
             ty: element_type,
+            span: source.span,
+            origin,
+        };
+        let mut body = Vec::new();
+        let element =
+            self.save_iteration_value("for.element", element_init, source.span, &mut body);
+        let hir::ExprKind::Local(local) = element.kind else {
+            unreachable!("a saved iteration value is a local")
         };
         let target = self.fresh_loop();
-        let origin = self.expression_origin(source.span);
-
         self.push_scope();
         let planned = (|| {
             let binding = self
-                .lower_irrefutable_binding_plan_from_subject(&source.pattern, element, false)?
-                .into_plan();
+                .lower_irrefutable_binding_plan_from_subject(
+                    &source.pattern,
+                    hir::BindingTemporary {
+                        local,
+                        ty: element_type,
+                    },
+                    false,
+                )?
+                .into_statements();
+            body.extend(binding);
             self.loop_targets.push(target);
-            let mut body = Vec::new();
             for statement in &source.body.statements {
                 self.lower_statement(statement, &mut body);
             }
             assert_eq!(self.loop_targets.pop(), Some(target));
-            Some((binding, body))
+            Some(())
         })();
         self.pop_scope();
-        let (binding, body) = planned?;
+        planned?;
 
-        Some(hir::ForIterationPlan::new(
-            target,
-            source_setup,
-            source_temporary,
-            source_init,
-            iterator_setup,
-            iterator_call,
-            hir::IteratorConformanceWitness::new(
-                iterator_result,
-                iterator,
-                application,
-                source.span,
-                origin,
-            ),
-            hir::IteratorNextPlan::new(
-                next_callable,
-                next_result,
-                applied_option,
-                element,
-                source.span,
-                origin,
-            ),
-            binding,
-            body,
-        ))
+        statements.push(hir::Statement {
+            kind: hir::StatementKind::While {
+                target,
+                condition_setup,
+                cond,
+                body,
+            },
+            span: source.span,
+        });
+        Some(statements)
+    }
+
+    fn save_iteration_value(
+        &mut self,
+        name: &str,
+        init: hir::Expr,
+        span: Span,
+        statements: &mut Vec<hir::Statement>,
+    ) -> hir::Expr {
+        let ty = init.ty;
+        let local = self.alloc_desugared_iterator_hidden(name, ty);
+        statements.push(hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local },
+                init,
+            },
+            span,
+        });
+        hir::Expr {
+            kind: hir::ExprKind::Local(local),
+            ty,
+            span,
+            origin: self.expression_origin(span),
+        }
     }
 }

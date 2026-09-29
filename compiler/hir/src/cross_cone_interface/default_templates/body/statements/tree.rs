@@ -3,8 +3,8 @@ use std::fmt;
 use scoop_identity::{PersistentIdResolver, PersistentInitializationUnitId};
 
 use super::{
-    DefaultAssignTargetV1, DefaultForIterationPlanV1, DefaultTryV1, DefaultWhenV1,
-    OptionalDefaultStatementListV1, OptionalDefaultStatementListViewV1,
+    DefaultAssignTargetV1, DefaultTryV1, DefaultWhenV1, OptionalDefaultStatementListV1,
+    OptionalDefaultStatementListViewV1,
 };
 use crate::{
     DefaultExpressionReferenceResolver, DefaultExpressionV1, DefaultLocalFunctionV1,
@@ -70,7 +70,6 @@ pub enum DefaultStatementKindV1 {
         condition: Box<DefaultExpressionV1>,
         body: Vec<DefaultStatementV1>,
     },
-    For(Box<DefaultForIterationPlanV1>),
     Break,
     Continue,
     When(Box<DefaultWhenV1>),
@@ -135,7 +134,6 @@ fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBu
         | DefaultStatementKindV1::Return(_)
         | DefaultStatementKindV1::ValDecl { .. }
         | DefaultStatementKindV1::Assign { .. }
-        | DefaultStatementKindV1::For(_)
         | DefaultStatementKindV1::Break
         | DefaultStatementKindV1::Continue
         | DefaultStatementKindV1::When(_)

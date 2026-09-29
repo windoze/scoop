@@ -43,37 +43,6 @@ pub(in super::super) enum BodyNode<'a> {
         definition_origin: &'a ExportDefinitionSourceV1,
     },
     Catch(&'a DefaultCatchV1),
-    For {
-        plan: &'a DefaultForIterationPlanV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingPlan {
-        plan: &'a DefaultBindingPlanV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingAction(&'a DefaultBindingActionV1),
-    BindingShape {
-        shape: &'a DefaultBindingShapeV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingTemporary {
-        temporary: &'a DefaultBindingTemporaryV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingLeaf {
-        leaf: &'a DefaultBindingLeafV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingProjection {
-        projection: &'a DefaultBindingProjectionV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    IteratorConformance(&'a DefaultIteratorConformanceV1),
-    IteratorNext(&'a DefaultIteratorNextV1),
-    AppliedOption {
-        option: &'a DefaultAppliedOptionV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
     LocalFunction {
         function: &'a DefaultLocalFunctionV1,
         definition_origin: &'a ExportDefinitionSourceV1,

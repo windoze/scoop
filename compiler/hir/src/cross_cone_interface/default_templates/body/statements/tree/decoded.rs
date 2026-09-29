@@ -15,9 +15,8 @@ use crate::{
 };
 
 use super::super::{
-    DecodedDefaultForIterationPlanV1, DecodedDefaultTryV1, DecodedDefaultWhenV1,
-    DecodedOptionalDefaultStatementListV1, DefaultControlFlowResolutionError,
-    DefaultForIterationPlanResolutionError, DefaultStatementReferenceResolver,
+    DecodedDefaultTryV1, DecodedDefaultWhenV1, DecodedOptionalDefaultStatementListV1,
+    DefaultControlFlowResolutionError, DefaultStatementReferenceResolver,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -51,7 +50,6 @@ enum DecodedDefaultStatementKindV1 {
         condition: Box<DecodedDefaultExpressionV1>,
         body: Vec<DecodedDefaultStatementV1>,
     },
-    For(Box<DecodedDefaultForIterationPlanV1>),
     Break,
     Continue,
     When(Box<DecodedDefaultWhenV1>),
@@ -145,10 +143,6 @@ impl DecodedDefaultStatementV1 {
                     body: resolve_statements(body, resolver, locals, 8, 3)?,
                 }
             }
-            DecodedDefaultStatementKindV1::For(plan) => DefaultStatementKindV1::For(Box::new(
-                plan.resolve(resolver, locals)
-                    .map_err(DefaultStatementResolutionError::For)?,
-            )),
             DecodedDefaultStatementKindV1::Break => DefaultStatementKindV1::Break,
             DecodedDefaultStatementKindV1::Continue => DefaultStatementKindV1::Continue,
             DecodedDefaultStatementKindV1::When(value) => {
@@ -222,7 +216,6 @@ impl WireEncode for DecodedDefaultStatementKindV1 {
                 condition,
                 body,
             } => encode_while(encoder, condition_setup, condition.as_ref(), body),
-            Self::For(plan) => encode_one(encoder, 9, plan.as_ref()),
             Self::Break => encode_empty(encoder, 10),
             Self::Continue => encode_empty(encoder, 11),
             Self::When(value) => encode_one(encoder, 12, value.as_ref()),
@@ -297,13 +290,6 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
                     body: decoder.field(3, decode_statements)?,
                 })
             }
-            9 => {
-                expect_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, DecodedDefaultForIterationPlanV1::decode)
-                    .map(Box::new)
-                    .map(Self::For)
-            }
             10 => {
                 expect_sum_length(decoder, fields, 1)?;
                 Ok(Self::Break)
@@ -356,7 +342,6 @@ pub enum DefaultStatementResolutionError<E, L> {
         variant_tag: u64,
         error: DefaultControlFlowResolutionError<E, L>,
     },
-    For(DefaultForIterationPlanResolutionError<E, L>),
     DefinitionOrigin(SourceOriginResolutionError<E>),
     Record(DefaultStatementBuildError),
 }
@@ -400,7 +385,6 @@ impl<E: fmt::Display, L: fmt::Display> fmt::Display for DefaultStatementResoluti
                 formatter,
                 "invalid default control-flow statement tag {variant_tag}: {error}"
             ),
-            Self::For(error) => write!(formatter, "invalid default for statement: {error}"),
             Self::DefinitionOrigin(error) => {
                 write!(
                     formatter,

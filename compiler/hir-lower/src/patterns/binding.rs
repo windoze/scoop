@@ -1,9 +1,8 @@
 //! Transactional planning for irrefutable binding patterns.
 //!
 //! The HIR-owned plan keeps declaration-order shape separate from
-//! source-order runtime actions. `val` / `var` and lambda owners consume and
-//! expand it before Export HIR is published; source `for` will retain the same
-//! typed model until LocalConcrete HIR expansion.
+//! source-order runtime actions. `val` / `var`, lambda and `for` owners expand
+//! it into ordinary statements before Export HIR is published.
 
 use std::collections::{HashMap, HashSet};
 
@@ -11,7 +10,7 @@ use super::*;
 
 /// A completed `val` / `var` plan plus its owner-specific initializer. The
 /// shared HIR plan itself starts from an existing typed subject temporary so a
-/// lambda parameter or future `for` payload can use it without a fake init.
+/// lambda parameter or `for` payload can use it without a fake initializer.
 pub(crate) struct LoweredIrrefutableBindingPlan {
     subject: BindingSubject,
     plan: hir::IrrefutableBindingPlan,
@@ -34,23 +33,11 @@ impl LoweredIrrefutableBindingPlan {
         statements.extend(expand_irrefutable_binding_plan(self.plan));
         statements
     }
-
-    /// Retain the completed plan for an Export-HIR owner such as source
-    /// iteration. Only an existing subject can cross that boundary; an
-    /// owner-specific initializer must be emitted by its owner.
-    pub(crate) fn into_plan(self) -> hir::IrrefutableBindingPlan {
-        assert!(matches!(self.subject, BindingSubject::Existing));
-        validate_leaf_schedule(&self.plan);
-        self.plan
-    }
 }
 
 /// Expand one already validated plan into ordinary typed Export-HIR
-/// statements. Concretization uses this after substituting the enclosing
-/// iteration protocol; no name or overload lookup is repeated here.
-pub(crate) fn expand_irrefutable_binding_plan(
-    plan: hir::IrrefutableBindingPlan,
-) -> Vec<hir::Statement> {
+/// statements. Name, shape and component selection is complete at this point.
+fn expand_irrefutable_binding_plan(plan: hir::IrrefutableBindingPlan) -> Vec<hir::Statement> {
     validate_leaf_schedule(&plan);
     let hir::IrrefutableBindingPlan {
         subject: _,

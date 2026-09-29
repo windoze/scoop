@@ -9,6 +9,7 @@ mod equality;
 mod globals;
 mod helpers;
 mod initialization;
+mod iteration;
 mod machine;
 mod members;
 mod nominals;

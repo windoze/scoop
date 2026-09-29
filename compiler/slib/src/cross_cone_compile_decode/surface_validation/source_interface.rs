@@ -7,10 +7,9 @@ use crate::cross_cone_hir_authority::{
     CrossConeHirCallableSourceAuthorityError, ValidatedNominalProviderView,
 };
 pub use crate::cross_cone_hir_authority::{
-    CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError,
-    CrossConeHirDefaultNestedIdentityError, CrossConeHirDefaultProviderContractError,
-    CrossConeHirDefaultRootOriginError, CrossConeHirSourceInventoryError,
-    DefaultMetadataNominalError, SourceInventoryDeclaration,
+    CrossConeHirDefaultDataFlowError, CrossConeHirDefaultNestedIdentityError,
+    CrossConeHirDefaultProviderContractError, CrossConeHirDefaultRootOriginError,
+    CrossConeHirSourceInventoryError, DefaultMetadataNominalError, SourceInventoryDeclaration,
 };
 
 /// One provider whose callable source-order parameter protocol is exact and

@@ -156,10 +156,6 @@ impl Lowerer {
                 requirement: ImportedCapabilityRequirement::Generic,
                 operation: "dependency default local function",
             }),
-            Kind::For(_) => Err(ImportedDefaultPlanError::Requires {
-                requirement: ImportedCapabilityRequirement::Generic,
-                operation: "dependency default iteration protocol",
-            }),
             Kind::Try(value) => {
                 self.preflight_imported_default_statements(
                     owner,

@@ -1,7 +1,5 @@
 //! Statement and structured-control-flow projection.
 
-mod iteration;
-
 use crate::{
     DefaultAssignTargetV1, DefaultCatchV1, DefaultStatementKindV1, DefaultStatementV1,
     DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
@@ -90,9 +88,6 @@ impl BodyProjection<'_, '_> {
                 );
                 self.loops.pop();
                 projected?
-            }
-            StatementKind::For(plan) => {
-                DefaultStatementKindV1::For(Box::new(self.for_iteration(plan)?))
             }
             StatementKind::Break { target } => {
                 self.require_innermost_loop("break", *target)?;

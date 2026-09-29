@@ -115,36 +115,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             }
             BodyNode::Try(value) => self.process_try(value, pending),
             BodyNode::Catch(catch) => self.process_catch(catch, pending),
-            BodyNode::For { plan, origin } => self.process_for(plan, origin, pending),
-            BodyNode::BindingPlan { plan, origin } => {
-                self.process_binding_plan(plan, origin, pending)
-            }
-            BodyNode::BindingAction(action) => self.process_binding_action(action, pending),
-            BodyNode::BindingShape { shape, origin } => {
-                self.process_binding_shape(shape, origin, pending)
-            }
-            BodyNode::BindingProjection { projection, origin } => {
-                self.process_binding_projection(projection, origin, pending)
-            }
-            BodyNode::BindingTemporary { value_type, origin } => self.push_type(
-                pending,
-                value_type,
-                origin,
-                crate::DefaultBodyProviderTypeSiteV1::BindingTemporaryValue,
-            ),
-            BodyNode::BindingLeaf { value_type, origin } => self.push_type(
-                pending,
-                value_type,
-                origin,
-                crate::DefaultBodyProviderTypeSiteV1::BindingLeafValue,
-            ),
-            BodyNode::IteratorConformance(conformance) => {
-                self.process_iterator_conformance(conformance, pending)
-            }
-            BodyNode::IteratorNext(next) => self.process_iterator_next(next, pending),
-            BodyNode::AppliedOption { option, origin } => {
-                self.process_applied_option(option, origin, pending)
-            }
             BodyNode::LocalFunction { function, origin } => {
                 self.process_local_function(function, origin, pending)
             }

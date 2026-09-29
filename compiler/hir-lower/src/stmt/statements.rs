@@ -215,10 +215,10 @@ impl Lowerer {
                 }
             }
             ast::StatementKind::For(for_) => {
-                let Some(plan) = self.lower_for(for_) else {
-                    return;
-                };
-                hir::StatementKind::For(Box::new(plan))
+                if let Some(statements) = self.lower_for(for_) {
+                    out.extend(statements);
+                }
+                return;
             }
             ast::StatementKind::Break => {
                 let Some(&target) = self.loop_targets.last() else {

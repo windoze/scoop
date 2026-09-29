@@ -1,0 +1,28 @@
+package consumer.iteration
+
+import upstream.iteration.*
+import upstream.iteration.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+private fun readInt(value: Int): Int = value
+
+private class Derived<T> public constructor(values: Array<T>): Cursor<T>(values)
+private class LocalSource<T> public constructor(public val values: Array<T>) {
+    public operator fun iterator(): Derived<T> = Derived<T>(this.values)
+}
+private struct LocalValue<T>(val cursor: Cursor<T>): Iterator<T> {
+    public override fun next(): Option<T> = this.cursor.next()
+}
+
+public fun result(): Int {
+    if (classTotal<Int, Derived<Int>>(Derived<Int>([20, 22]), ::readInt) != 42) { return 1 }
+    if (boundTotal<Int, LocalValue<Int>>(LocalValue<Int>(Cursor<Int>([20, 22])), ::readInt) != 42) { return 2 }
+    val diamond: Diamond<Int> = DiamondCursor<Int>(Cursor<Int>([20, 22]))
+    var sum = 0
+    for (value in Direct<Diamond<Int>>(diamond)) { sum = sum + value }
+    if (sum != 42) { return 3 }
+    var local = 0
+    for (value in LocalSource<Int>([20, 22])) { local = local + value }
+    if (local != 42) { return 4 }
+    return exercise<Int>(42, ::readInt)
+}

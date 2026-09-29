@@ -70,6 +70,7 @@ mod imported_namespaces;
 pub(crate) mod imported_origins;
 mod imported_properties;
 mod imported_singletons;
+mod iteration;
 mod named_calls;
 pub(crate) use imported_properties::{
     ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,

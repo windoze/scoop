@@ -103,7 +103,7 @@ impl Lowerer {
             Kind::Throw(value) => hir::StatementKind::Throw(
                 self.materialize_imported_default_expression(value, context)?,
             ),
-            Kind::InitializationEnsure(_) | Kind::For(_) => {
+            Kind::InitializationEnsure(_) => {
                 return Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default statement".to_owned(),
                 ));

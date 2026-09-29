@@ -12,8 +12,7 @@ use crate::{
 };
 
 use super::super::{
-    DefaultControlFlowIndexError, DefaultForIterationPlanIndexError,
-    IndexedDefaultForIterationPlanV1, IndexedDefaultTryV1, IndexedDefaultWhenV1,
+    DefaultControlFlowIndexError, IndexedDefaultTryV1, IndexedDefaultWhenV1,
     IndexedOptionalDefaultStatementListV1,
 };
 
@@ -48,7 +47,6 @@ enum IndexedDefaultStatementKindV1<'a> {
         condition: IndexedDefaultExpressionV1<'a>,
         body: Vec<IndexedDefaultStatementV1<'a>>,
     },
-    For(Box<IndexedDefaultForIterationPlanV1<'a>>),
     Break,
     Continue,
     When(IndexedDefaultWhenV1<'a>),
@@ -129,10 +127,6 @@ impl DefaultStatementV1 {
                 condition: index_expression(condition, resolver, 8, 2)?,
                 body: index_statements(body, resolver, 8, 3)?,
             },
-            DefaultStatementKindV1::For(plan) => IndexedDefaultStatementKindV1::For(Box::new(
-                plan.index_locals(resolver)
-                    .map_err(DefaultStatementIndexError::For)?,
-            )),
             DefaultStatementKindV1::Break => IndexedDefaultStatementKindV1::Break,
             DefaultStatementKindV1::Continue => IndexedDefaultStatementKindV1::Continue,
             DefaultStatementKindV1::When(value) => {
@@ -192,7 +186,6 @@ impl WireEncode for IndexedDefaultStatementKindV1<'_> {
                 condition,
                 body,
             } => encode_while(encoder, condition_setup, condition, body),
-            Self::For(plan) => encode_one(encoder, 9, plan.as_ref()),
             Self::Break => encode_empty(encoder, 10),
             Self::Continue => encode_empty(encoder, 11),
             Self::When(value) => encode_one(encoder, 12, value),
@@ -231,7 +224,6 @@ pub enum DefaultStatementIndexError<E> {
         variant_tag: u64,
         error: DefaultControlFlowIndexError<E>,
     },
-    For(DefaultForIterationPlanIndexError<E>),
 }
 
 impl<E: fmt::Display> fmt::Display for DefaultStatementIndexError<E> {
@@ -273,7 +265,6 @@ impl<E: fmt::Display> fmt::Display for DefaultStatementIndexError<E> {
                 formatter,
                 "cannot index default control-flow statement tag {variant_tag}: {error}"
             ),
-            Self::For(error) => write!(formatter, "cannot index default for statement: {error}"),
         }
     }
 }

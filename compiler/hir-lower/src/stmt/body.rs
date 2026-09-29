@@ -47,30 +47,6 @@ impl Lowerer {
                         body: self.adapt_inferred_returns(body, target),
                     };
                 }
-                hir::StatementKind::For(plan) => {
-                    let mut parts = (*plan).into_parts();
-                    parts.source_setup = self.adapt_inferred_returns(parts.source_setup, target);
-                    parts.iterator_setup =
-                        self.adapt_inferred_returns(parts.iterator_setup, target);
-                    for action in &mut parts.binding.actions {
-                        if let hir::IrrefutableBindingAction::Component { setup, .. } = action {
-                            *setup = self.adapt_inferred_returns(std::mem::take(setup), target);
-                        }
-                    }
-                    parts.body = self.adapt_inferred_returns(parts.body, target);
-                    statement.kind = hir::StatementKind::For(Box::new(hir::ForIterationPlan::new(
-                        parts.target,
-                        parts.source_setup,
-                        parts.source,
-                        parts.source_init,
-                        parts.iterator_setup,
-                        parts.iterator_call,
-                        parts.conformance,
-                        parts.next,
-                        parts.binding,
-                        parts.body,
-                    )));
-                }
                 hir::StatementKind::When(mut when) => {
                     for arm in &mut when.arms {
                         arm.body =

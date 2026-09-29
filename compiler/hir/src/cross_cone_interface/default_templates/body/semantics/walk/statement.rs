@@ -6,7 +6,6 @@ use crate::{
 use super::{BodyNode, BodyWalkMode, Validator, WorkItem};
 use crate::{DefaultBodyOriginSiteV1, DefaultBodyProviderTypeSiteV1};
 
-mod bindings;
 mod control_flow;
 
 impl<M> Validator<'_, M>
@@ -96,13 +95,6 @@ where
                 self.push_child(pending, BodyNode::Expression(condition))?;
                 self.push_statements(pending, condition_setup)
             }
-            DefaultStatementKindV1::For(plan) => self.push_child(
-                pending,
-                BodyNode::For {
-                    plan,
-                    definition_origin,
-                },
-            ),
             DefaultStatementKindV1::When(value) => self.push_child(
                 pending,
                 BodyNode::When {

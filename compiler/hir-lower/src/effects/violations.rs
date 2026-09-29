@@ -78,66 +78,6 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(cond, out, requirements);
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }
-                hir::StatementKind::For(plan) => {
-                    self.collect_no_gc_statement_violations(plan.source_setup(), out, requirements);
-                    self.collect_no_gc_expr_violations(plan.source_init(), out, requirements);
-                    self.collect_no_gc_statement_violations(
-                        plan.iterator_setup(),
-                        out,
-                        requirements,
-                    );
-                    self.collect_no_gc_expr_violations(plan.iterator_call(), out, requirements);
-                    let conformance = plan.conformance();
-                    self.collect_no_gc_type_violations(
-                        conformance.iterator().ty,
-                        conformance.span(),
-                        out,
-                        requirements,
-                    );
-                    let next = plan.next();
-                    self.check_no_gc_callee(
-                        hir::Callable::Method(next.callable()),
-                        next.span(),
-                        out,
-                    );
-                    self.collect_no_gc_type_violations(
-                        next.result().ty,
-                        next.span(),
-                        out,
-                        requirements,
-                    );
-                    self.collect_no_gc_type_violations(
-                        next.element().ty,
-                        next.span(),
-                        out,
-                        requirements,
-                    );
-                    for action in &plan.binding().actions {
-                        match action {
-                            hir::IrrefutableBindingAction::Project { result, span, .. } => {
-                                self.collect_no_gc_type_violations(
-                                    result.ty,
-                                    *span,
-                                    out,
-                                    requirements,
-                                );
-                            }
-                            hir::IrrefutableBindingAction::Component { setup, call, .. } => {
-                                self.collect_no_gc_statement_violations(setup, out, requirements);
-                                self.collect_no_gc_expr_violations(call, out, requirements);
-                            }
-                            hir::IrrefutableBindingAction::Bind { target, span, .. } => {
-                                self.collect_no_gc_type_violations(
-                                    target.ty,
-                                    *span,
-                                    out,
-                                    requirements,
-                                );
-                            }
-                        }
-                    }
-                    self.collect_no_gc_statement_violations(plan.body(), out, requirements);
-                }
                 hir::StatementKind::When(when) => {
                     self.collect_no_gc_expr_violations(&when.subject, out, requirements);
                     for arm in &when.arms {

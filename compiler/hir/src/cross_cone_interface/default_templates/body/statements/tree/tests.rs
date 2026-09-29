@@ -1,21 +1,14 @@
-use std::num::NonZeroU32;
-
 use scoop_identity::{CallableTemplateOrigin, LocalValueSelector};
 use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::super::super::expressions::test_support::{Fixture, LocalError, definition_path};
 use super::*;
 use crate::{
-    CanonicalBooleanV1, DecodedDefaultBindingActionV1, DecodedDefaultWhenFallbackV1,
-    DecodedOptionalDefaultStatementListV1, DecodedOptionalDefaultWhenGuardV1,
-    DefaultAppliedOptionV1, DefaultAssignTargetV1, DefaultBindingActionV1, DefaultBindingLeafV1,
-    DefaultBindingPlanV1, DefaultBindingProjectionV1, DefaultBindingShapeV1,
-    DefaultBindingTemporaryV1, DefaultCatchV1, DefaultEnumVariantFieldRefV1,
-    DefaultEnumVariantRefV1, DefaultExpressionKindV1, DefaultExpressionV1,
-    DefaultForIterationPlanV1, DefaultIteratorConformanceV1, DefaultIteratorNextV1,
-    DefaultLocalFunctionV1, DefaultPatternV1, DefaultTryV1, DefaultWhenArmV1,
-    DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1, OptionalDefaultExpressionV1,
-    OptionalDefaultStatementListV1, OptionalDefaultWhenGuardV1,
+    DecodedDefaultWhenFallbackV1, DecodedOptionalDefaultStatementListV1,
+    DecodedOptionalDefaultWhenGuardV1, DefaultAssignTargetV1, DefaultCatchV1,
+    DefaultExpressionKindV1, DefaultExpressionV1, DefaultLocalFunctionV1, DefaultPatternV1,
+    DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
+    OptionalDefaultExpressionV1, OptionalDefaultStatementListV1, OptionalDefaultWhenGuardV1,
 };
 
 #[test]
@@ -82,10 +75,6 @@ fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
             },
             &fixture,
         ),
-        statement(
-            DefaultStatementKindV1::For(Box::new(for_plan(&fixture))),
-            &fixture,
-        ),
         break_statement(&fixture),
         continue_statement(&fixture),
         statement(
@@ -102,8 +91,8 @@ fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
         ),
     ];
 
-    assert_eq!(cases.len(), 14);
-    for (expected_tag, expected) in (1_u64..=14).zip(cases) {
+    assert_eq!(cases.len(), 13);
+    for (expected_tag, expected) in (1_u64..=14).filter(|tag| *tag != 9).zip(cases) {
         let bytes = encode(&expected.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(statement_tag(&bytes), expected_tag);
         let decoded: DecodedDefaultStatementV1 = decode_canonical(&bytes).unwrap();
@@ -174,46 +163,6 @@ fn every_when_fallback_variant_keeps_its_frozen_wire_tag() {
 }
 
 #[test]
-fn every_binding_action_variant_keeps_its_frozen_wire_tag() {
-    let fixture = Fixture::new();
-    let source = temporary(&fixture);
-    let result = temporary(&fixture);
-    let actions = vec![
-        DefaultBindingActionV1::project(
-            source.clone(),
-            result.clone(),
-            DefaultBindingProjectionV1::tuple_index(0),
-            fixture.origin(),
-        ),
-        DefaultBindingActionV1::try_component(
-            source.clone(),
-            NonZeroU32::new(1).unwrap(),
-            result.clone(),
-            vec![break_statement(&fixture)],
-            unit(&fixture),
-            fixture.origin(),
-        )
-        .unwrap(),
-        DefaultBindingActionV1::bind(
-            source,
-            DefaultBindingLeafV1::new(
-                fixture.local(),
-                fixture.value_type(),
-                CanonicalBooleanV1::False,
-            ),
-            fixture.origin(),
-        ),
-    ];
-
-    for (expected_tag, action) in (1_u8..=3).zip(actions) {
-        let bytes = encode(&action.index_locals(&mut fixture.locals()).unwrap()).unwrap();
-        assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultBindingActionV1 = decode_canonical(&bytes).unwrap();
-        assert_eq!(encode(&decoded).unwrap(), bytes);
-    }
-}
-
-#[test]
 fn nested_statement_index_errors_keep_the_full_path() {
     let fixture = Fixture::new();
     let missing_local = DefaultExpressionV1::try_new(
@@ -263,10 +212,17 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
     )
     .unwrap();
 
-    let mut unknown = bytes.clone();
-    unknown[4] = 16;
-    let error = decode_canonical::<DecodedDefaultStatementV1>(&unknown).unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 16 });
+    for tag in [9, 16] {
+        let mut unknown = bytes.clone();
+        unknown[4] = tag;
+        let error = decode_canonical::<DecodedDefaultStatementV1>(&unknown).unwrap_err();
+        assert_eq!(
+            error.kind(),
+            &WireErrorKind::UnknownTag {
+                tag: u64::from(tag)
+            }
+        );
+    }
 
     let mut non_exact = bytes;
     non_exact[2] = 0xa2;
@@ -283,71 +239,6 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
     let error =
         decode_canonical::<DecodedOptionalDefaultStatementListV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
-}
-
-fn for_plan(fixture: &Fixture) -> DefaultForIterationPlanV1 {
-    let source = temporary(fixture);
-    let iterator = temporary(fixture);
-    let result = temporary(fixture);
-    let element = temporary(fixture);
-    let actions = vec![
-        DefaultBindingActionV1::project(
-            source.clone(),
-            result.clone(),
-            DefaultBindingProjectionV1::tuple_index(0),
-            fixture.origin(),
-        ),
-        DefaultBindingActionV1::try_component(
-            source.clone(),
-            NonZeroU32::new(1).unwrap(),
-            result.clone(),
-            vec![expression_statement(fixture)],
-            unit(fixture),
-            fixture.origin(),
-        )
-        .unwrap(),
-        DefaultBindingActionV1::bind(
-            result,
-            DefaultBindingLeafV1::new(
-                fixture.local(),
-                fixture.value_type(),
-                CanonicalBooleanV1::False,
-            ),
-            fixture.origin(),
-        ),
-    ];
-    let binding =
-        DefaultBindingPlanV1::try_new(source.clone(), DefaultBindingShapeV1::wildcard(), actions)
-            .unwrap();
-    let conformance = DefaultIteratorConformanceV1::new(
-        source.clone(),
-        iterator,
-        fixture.value_type(),
-        fixture.origin(),
-    );
-    let option = DefaultAppliedOptionV1::new(
-        DefaultEnumVariantFieldRefV1::new(fixture.variant_field, fixture.value_type()),
-        DefaultEnumVariantRefV1::new(fixture.variant, fixture.value_type()),
-    );
-    let next = DefaultIteratorNextV1::new(
-        fixture.callable(),
-        element.clone(),
-        option,
-        element,
-        fixture.origin(),
-    );
-    DefaultForIterationPlanV1::try_new(
-        vec![expression_statement(fixture)],
-        source,
-        unit(fixture),
-        vec![expression_statement(fixture)],
-        unit(fixture),
-        conformance,
-        next,
-        binding,
-        vec![break_statement(fixture)],
-    )
-    .unwrap()
 }
 
 fn when_value(fixture: &Fixture) -> DefaultWhenV1 {
@@ -382,10 +273,6 @@ fn try_value(fixture: &Fixture) -> DefaultTryV1 {
         OptionalDefaultStatementListV1::try_present(vec![expression_statement(fixture)]).unwrap(),
     )
     .unwrap()
-}
-
-fn temporary(fixture: &Fixture) -> DefaultBindingTemporaryV1 {
-    DefaultBindingTemporaryV1::new(fixture.local(), fixture.value_type())
 }
 
 fn statement(kind: DefaultStatementKindV1, fixture: &Fixture) -> DefaultStatementV1 {

@@ -6,14 +6,11 @@ use super::{
     DefaultBodyProviderTypeSiteV1, DefaultLocalFunctionSignatureAuthority,
 };
 use crate::{
-    DefaultAnonymousFunctionV1, DefaultAppliedOptionV1, DefaultArrayAssemblyV1,
-    DefaultAssignTargetV1, DefaultBindingActionV1, DefaultBindingLeafV1, DefaultBindingPlanV1,
-    DefaultBindingProjectionV1, DefaultBindingShapeV1, DefaultBindingTemporaryV1,
+    DefaultAnonymousFunctionV1, DefaultArrayAssemblyV1, DefaultAssignTargetV1,
     DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1, DefaultCallableRefV1,
     DefaultCallableReferenceV1, DefaultCaptureV1, DefaultCatchV1, DefaultConstructorRefV1,
     DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefV1, DefaultExpressionV1, DefaultFieldRefV1,
-    DefaultForIterationPlanV1, DefaultIntegerArgumentsV1, DefaultIteratorConformanceV1,
-    DefaultIteratorNextV1, DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1,
+    DefaultIntegerArgumentsV1, DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1,
     DefaultMethodCalleeV1, DefaultPatternV1, DefaultStatementV1, DefaultTemplateProviderShapeV1,
     DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
     ExportDefaultBodyV1, ExportDefinitionSourceV1, NominalInterfaceShapeAuthority,
@@ -289,49 +286,6 @@ where
                 definition_origin,
             } => self.process_try(value, definition_origin, pending),
             BodyNode::Catch(catch) => self.process_catch(catch, pending),
-            BodyNode::For {
-                plan,
-                definition_origin,
-            } => self.process_for(plan, definition_origin, pending),
-            BodyNode::BindingPlan {
-                plan,
-                definition_origin,
-            } => self.process_binding_plan(plan, definition_origin, pending),
-            BodyNode::BindingAction(action) => self.process_binding_action(action, pending),
-            BodyNode::BindingShape {
-                shape,
-                definition_origin,
-            } => self.process_binding_shape(shape, definition_origin, pending),
-            BodyNode::BindingTemporary {
-                temporary,
-                definition_origin,
-            } => self.push_type(
-                pending,
-                temporary.value_type(),
-                DefaultBodyProviderTypeSiteV1::BindingTemporaryValue,
-                definition_origin,
-            ),
-            BodyNode::BindingLeaf {
-                leaf,
-                definition_origin,
-            } => self.push_type(
-                pending,
-                leaf.value_type(),
-                DefaultBodyProviderTypeSiteV1::BindingLeafValue,
-                definition_origin,
-            ),
-            BodyNode::BindingProjection {
-                projection,
-                definition_origin,
-            } => self.process_binding_projection(projection, definition_origin, pending),
-            BodyNode::IteratorConformance(conformance) => {
-                self.process_iterator_conformance(conformance, pending)
-            }
-            BodyNode::IteratorNext(next) => self.process_iterator_next(next, pending),
-            BodyNode::AppliedOption {
-                option,
-                definition_origin,
-            } => self.process_applied_option(option, definition_origin, pending),
             BodyNode::LocalFunction {
                 function,
                 definition_origin,

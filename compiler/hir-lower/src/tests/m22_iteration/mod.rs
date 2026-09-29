@@ -214,16 +214,6 @@ fn concrete_body<'module>(
         .unwrap_or_else(|| panic!("missing concrete test function `{name}`"))
 }
 
-fn first_for(body: &hir::Body) -> &hir::ForIterationPlan {
-    body.statements
-        .iter()
-        .find_map(|statement| match &statement.kind {
-            hir::StatementKind::For(plan) => Some(plan),
-            _ => None,
-        })
-        .expect("test body must contain a source for plan")
-}
-
 fn export_callee_name<'module>(module: &'module hir::Module, expr: &hir::Expr) -> &'module str {
     let function = match &expr.kind {
         hir::ExprKind::Call { callee, .. } => module.callable_function(*callee),
@@ -266,4 +256,46 @@ fn concrete_local_init(
             _ => None,
         })
         .expect("concrete hidden local must have one initializer")
+}
+
+fn export_loop(
+    body: &hir::Body,
+) -> (
+    hir::LoopId,
+    &[hir::Statement],
+    &hir::Expr,
+    &[hir::Statement],
+) {
+    body.statements
+        .iter()
+        .find_map(|statement| match &statement.kind {
+            hir::StatementKind::While {
+                target,
+                condition_setup,
+                cond,
+                body,
+            } => Some((*target, condition_setup.as_slice(), cond, body.as_slice())),
+            _ => None,
+        })
+        .expect("the source for loop must be expanded before Export HIR")
+}
+
+fn export_local_with_prefix(body: &hir::Body, prefix: &str) -> hir::LocalId {
+    body.locals
+        .iter()
+        .find_map(|(id, local)| local.name.starts_with(prefix).then_some(id))
+        .unwrap_or_else(|| panic!("missing export local with prefix `{prefix}`"))
+}
+
+fn export_local_init(statements: &[hir::Statement], local: hir::LocalId) -> &hir::Expr {
+    statements
+        .iter()
+        .find_map(|statement| match &statement.kind {
+            hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: found },
+                init,
+            } if *found == local => Some(init),
+            _ => None,
+        })
+        .expect("a desugared iteration local has an ordinary initializer")
 }

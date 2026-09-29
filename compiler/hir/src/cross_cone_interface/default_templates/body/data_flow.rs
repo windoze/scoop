@@ -1,83 +1,41 @@
 use std::fmt;
 
-use scoop_identity::{LocalValueSelector, PersistentFieldId, SignatureTypeKey};
-use scoop_wire::{WireError, WireErrorKind, WirePath};
+use scoop_identity::{LocalValueSelector, SignatureTypeKey};
+use scoop_wire::{WireError, WirePath};
 
-use crate::{
-    CanonicalBooleanV1, DefaultBindingTemporaryV1, ExportDefaultTemplateV1, TemplateLocalRecordV1,
-};
+use crate::{CanonicalBooleanV1, ExportDefaultTemplateV1};
 
-mod binding;
 mod control;
 mod expression;
 
 #[cfg(test)]
 mod tests;
 
-/// Resolves the one foundation fact that cannot be reconstructed from the
-/// portable binding shape itself.
-pub trait DefaultLocalDataFlowSemanticAuthority<E> {
-    fn default_binding_struct_field_index(
-        &mut self,
-        declaration: PersistentFieldId,
-        owner_type: &SignatureTypeKey,
-    ) -> Result<u32, E>;
-}
-
 impl ExportDefaultTemplateV1 {
-    /// Checks definite local definition, mutability, loop nesting, and the
-    /// exact binding-shape/action schedule for this template.
+    /// Checks definite local definition, mutability and loop nesting.
     ///
     /// Types and declaration references have already been resolved at the reader boundary.
-    pub fn validate_local_data_flow_semantics<A, E>(
+    pub fn validate_local_data_flow_semantics(
         &self,
-        authority: &mut A,
 
         path: &WirePath,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>>
-    where
-        A: DefaultLocalDataFlowSemanticAuthority<E>,
-    {
-        Validator::new(self, authority, path)?.run()
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
+        Validator {
+            template: self,
+            path,
+        }
+        .run()
     }
 }
 
-struct Validator<'a, A, E> {
+struct Validator<'a> {
     template: &'a ExportDefaultTemplateV1,
-    authority: &'a mut A,
-    owners: Vec<Option<DefinitionOwner>>,
-    next_plan: u32,
 
     path: &'a WirePath,
-    error: std::marker::PhantomData<fn() -> E>,
 }
 
-impl<'a, A, E> Validator<'a, A, E>
-where
-    A: DefaultLocalDataFlowSemanticAuthority<E>,
-{
-    fn new(
-        template: &'a ExportDefaultTemplateV1,
-        authority: &'a mut A,
-
-        path: &'a WirePath,
-    ) -> Result<Self, ExportDefaultLocalDataFlowValidationError<E>> {
-        let mut owners = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut owners, template.locals().records().len(), path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        owners.resize(template.locals().records().len(), None);
-        Ok(Self {
-            template,
-            authority,
-            owners,
-            next_plan: 0,
-
-            path,
-            error: std::marker::PhantomData,
-        })
-    }
-
-    fn run(mut self) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+impl<'a> Validator<'a> {
+    fn run(mut self) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         let mut available = self.empty_bits()?;
 
         if let Some(receiver) = self.template.receiver().receiver() {
@@ -87,7 +45,6 @@ where
                 Some(CanonicalBooleanV1::False),
                 DefaultLocalDataFlowSiteV1::Receiver,
                 &mut available,
-                DefinitionOwner::Ordinary,
             )?;
         }
         for parameter in self.template.value_parameters().parameters() {
@@ -99,14 +56,10 @@ where
                     position: parameter.position(),
                 },
                 &mut available,
-                DefinitionOwner::Ordinary,
             )?;
         }
 
-        let region = Region {
-            owner: DefinitionOwner::Ordinary,
-            loop_depth: 0,
-        };
+        let region = Region { loop_depth: 0 };
         let flow = self.validate_statements(
             self.template.body().statements(),
             Flow::falling_through(available),
@@ -124,7 +77,7 @@ where
         &mut self,
         selector: &LocalValueSelector,
         site: DefaultLocalDataFlowSiteV1,
-    ) -> Result<usize, ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<usize, ExportDefaultLocalDataFlowValidationError> {
         self.template
             .locals()
             .records()
@@ -138,7 +91,7 @@ where
         actual_type: Option<&SignatureTypeKey>,
         actual_mutability: Option<CanonicalBooleanV1>,
         site: DefaultLocalDataFlowSiteV1,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         let record = &self.template.locals().records()[index];
         if let Some(actual) = actual_type
             && record.value_type() != actual
@@ -174,7 +127,7 @@ where
         site: DefaultLocalDataFlowSiteV1,
         available: &[bool],
         reachable: bool,
-    ) -> Result<usize, ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<usize, ExportDefaultLocalDataFlowValidationError> {
         let index = self.local_index(selector, site)?;
         self.check_local_shape(index, actual_type, None, site)?;
         if reachable && !available[index] {
@@ -195,8 +148,7 @@ where
         actual_mutability: Option<CanonicalBooleanV1>,
         site: DefaultLocalDataFlowSiteV1,
         available: &mut [bool],
-        owner: DefinitionOwner,
-    ) -> Result<usize, ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<usize, ExportDefaultLocalDataFlowValidationError> {
         let index = self.local_index(selector, site)?;
         self.check_local_shape(index, actual_type, actual_mutability, site)?;
         if available[index] {
@@ -206,47 +158,8 @@ where
                 DefaultLocalDataFlowLocalError::AlreadyDefined,
             ));
         }
-        self.claim_owner(index, site, owner)?;
         available[index] = true;
         Ok(index)
-    }
-
-    fn claim_local(
-        &mut self,
-        selector: &LocalValueSelector,
-        actual_type: Option<&SignatureTypeKey>,
-        actual_mutability: Option<CanonicalBooleanV1>,
-        site: DefaultLocalDataFlowSiteV1,
-        owner: DefinitionOwner,
-    ) -> Result<usize, ExportDefaultLocalDataFlowValidationError<E>> {
-        let index = self.local_index(selector, site)?;
-        self.check_local_shape(index, actual_type, actual_mutability, site)?;
-        self.claim_owner(index, site, owner)?;
-        Ok(index)
-    }
-
-    fn claim_owner(
-        &mut self,
-        index: usize,
-        site: DefaultLocalDataFlowSiteV1,
-        owner: DefinitionOwner,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        match self.owners[index] {
-            None => self.owners[index] = Some(owner),
-            Some(actual) if actual == owner => {}
-            Some(actual) => {
-                let selector = self.template.locals().records()[index].selector();
-                return Err(self.local_error(
-                    site,
-                    selector,
-                    DefaultLocalDataFlowLocalError::DefinitionOwner {
-                        expected: owner.into_public(),
-                        actual: actual.into_public(),
-                    },
-                ));
-            }
-        }
-        Ok(())
     }
 
     fn require_mutable_assignment(
@@ -254,19 +167,13 @@ where
         selector: &LocalValueSelector,
         site: DefaultLocalDataFlowSiteV1,
         available: &mut [bool],
-        owner: DefinitionOwner,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         let index = self.local_index(selector, site)?;
         self.check_local_shape(index, None, Some(CanonicalBooleanV1::True), site)?;
         if !available[index] {
-            self.claim_owner(index, site, owner)?;
             available[index] = true;
         }
         Ok(())
-    }
-
-    fn local_record(&self, index: usize) -> &TemplateLocalRecordV1 {
-        &self.template.locals().records()[index]
     }
 
     fn local_error(
@@ -274,7 +181,7 @@ where
         site: DefaultLocalDataFlowSiteV1,
         selector: &LocalValueSelector,
         error: DefaultLocalDataFlowLocalError,
-    ) -> ExportDefaultLocalDataFlowValidationError<E> {
+    ) -> ExportDefaultLocalDataFlowValidationError {
         ExportDefaultLocalDataFlowValidationError::Local {
             site,
             selector: Box::new(selector.clone()),
@@ -282,7 +189,7 @@ where
         }
     }
 
-    fn empty_bits(&mut self) -> Result<Vec<bool>, ExportDefaultLocalDataFlowValidationError<E>> {
+    fn empty_bits(&mut self) -> Result<Vec<bool>, ExportDefaultLocalDataFlowValidationError> {
         let mut bits = Vec::new();
         scoop_wire::allocation::try_reserve(
             &mut bits,
@@ -297,7 +204,7 @@ where
     fn copy_bits(
         &mut self,
         source: &[bool],
-    ) -> Result<Vec<bool>, ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<Vec<bool>, ExportDefaultLocalDataFlowValidationError> {
         let mut copy = Vec::new();
         scoop_wire::allocation::try_reserve(&mut copy, source.len(), self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
@@ -310,7 +217,7 @@ where
         &mut self,
         available: Vec<bool>,
         outcome: DefaultLoopControlV1,
-    ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError> {
         let state = self.copy_bits(&available)?;
         Ok(Flow {
             available,
@@ -323,7 +230,7 @@ where
         &mut self,
         target: &mut AbruptOutcomes,
         other: AbruptOutcomes,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         for (outcome, state) in other.into_entries() {
             let Some(state) = state else {
                 continue;
@@ -340,47 +247,17 @@ where
         &mut self,
         target: &mut [bool],
         other: &[bool],
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         for (slot, other) in target.iter_mut().zip(other) {
             *slot &= *other;
         }
         Ok(())
     }
-
-    fn next_plan_owner(
-        &mut self,
-    ) -> Result<DefinitionOwner, ExportDefaultLocalDataFlowValidationError<E>> {
-        let plan = self.next_plan;
-        self.next_plan = self.next_plan.checked_add(1).ok_or_else(|| {
-            ExportDefaultLocalDataFlowValidationError::Resource(WireError::new(
-                WireErrorKind::IntegerOutOfRange,
-                self.path.clone(),
-                None,
-            ))
-        })?;
-        Ok(DefinitionOwner::ForPlan(plan))
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Region {
-    owner: DefinitionOwner,
     loop_depth: u64,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DefinitionOwner {
-    Ordinary,
-    ForPlan(u32),
-}
-
-impl DefinitionOwner {
-    const fn into_public(self) -> DefaultLocalDefinitionOwnerV1 {
-        match self {
-            Self::Ordinary => DefaultLocalDefinitionOwnerV1::Ordinary,
-            Self::ForPlan(index) => DefaultLocalDefinitionOwnerV1::ForPlan { index },
-        }
-    }
 }
 
 struct Flow {
@@ -458,45 +335,13 @@ impl AbruptOutcomes {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultLocalDataFlowSiteV1 {
     Receiver,
-    ValueParameter {
-        position: u32,
-    },
+    ValueParameter { position: u32 },
     Expression,
     AddressOf,
     Assignment,
-    Capture {
-        index: usize,
-    },
+    Capture { index: usize },
     PatternBinding,
     Catch,
-    ForTemporary(DefaultForTemporaryRoleV1),
-    BindingSubject,
-    BindingAction {
-        index: usize,
-        role: DefaultBindingActionLocalRoleV1,
-    },
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefaultForTemporaryRoleV1 {
-    Source,
-    ConformanceSource,
-    Iterator,
-    NextResult,
-    NextElement,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefaultBindingActionLocalRoleV1 {
-    Source,
-    Result,
-    Target,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefaultLocalDefinitionOwnerV1 {
-    Ordinary,
-    ForPlan { index: u32 },
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -512,10 +357,6 @@ pub enum DefaultLocalDataFlowLocalError {
         expected: CanonicalBooleanV1,
         actual: CanonicalBooleanV1,
     },
-    DefinitionOwner {
-        expected: DefaultLocalDefinitionOwnerV1,
-        actual: DefaultLocalDefinitionOwnerV1,
-    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -526,45 +367,8 @@ pub enum DefaultLoopControlV1 {
     Continue,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefaultBindingShapeActionKindV1 {
-    Bind,
-    TupleProjection,
-    StructProjection,
-    Component,
-}
-
 #[derive(Debug, Eq, PartialEq)]
-pub enum DefaultBindingShapeDataFlowValidationError<E> {
-    ClassComponentOrder {
-        position: usize,
-        expected: u32,
-        actual: u32,
-    },
-    StructProjection {
-        action_index: usize,
-        error: Box<E>,
-    },
-    MissingAction {
-        kind: DefaultBindingShapeActionKindV1,
-    },
-    MultipleActions {
-        kind: DefaultBindingShapeActionKindV1,
-    },
-    ActionKind {
-        index: usize,
-        expected: DefaultBindingShapeActionKindV1,
-    },
-    ReusedAction {
-        index: usize,
-    },
-    ExtraAction {
-        index: usize,
-    },
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum ExportDefaultLocalDataFlowValidationError<E> {
+pub enum ExportDefaultLocalDataFlowValidationError {
     UnboundCapture(u32),
     Local {
         site: DefaultLocalDataFlowSiteV1,
@@ -574,16 +378,6 @@ pub enum ExportDefaultLocalDataFlowValidationError<E> {
     LoopControlOutsideLoop {
         control: DefaultLoopControlV1,
     },
-    ForTemporaryAlias {
-        first: DefaultForTemporaryRoleV1,
-        second: DefaultForTemporaryRoleV1,
-        selector: Box<LocalValueSelector>,
-    },
-    BindingSubject {
-        expected: Box<DefaultBindingTemporaryV1>,
-        actual: Box<DefaultBindingTemporaryV1>,
-    },
-    BindingShape(Box<DefaultBindingShapeDataFlowValidationError<E>>),
     Resource(WireError),
 }
 
@@ -602,56 +396,11 @@ impl fmt::Display for DefaultLocalDataFlowLocalError {
                     "has mutability {actual:?}, expected {expected:?}"
                 )
             }
-            Self::DefinitionOwner { expected, actual } => write!(
-                formatter,
-                "is owned by {actual:?}, but this definition belongs to {expected:?}"
-            ),
         }
     }
 }
 
-impl<E: fmt::Display> fmt::Display for DefaultBindingShapeDataFlowValidationError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ClassComponentOrder {
-                position,
-                expected,
-                actual,
-            } => write!(
-                formatter,
-                "binding class component {position} has index {actual}, expected {expected}"
-            ),
-            Self::StructProjection {
-                action_index,
-                error,
-            } => write!(
-                formatter,
-                "cannot resolve binding struct projection action {action_index}: {error}"
-            ),
-            Self::MissingAction { kind } => {
-                write!(formatter, "binding shape is missing its {kind:?} action")
-            }
-            Self::MultipleActions { kind } => {
-                write!(formatter, "binding shape matches multiple {kind:?} actions")
-            }
-            Self::ActionKind { index, expected } => write!(
-                formatter,
-                "binding action {index} does not produce the expected {expected:?} result"
-            ),
-            Self::ReusedAction { index } => {
-                write!(formatter, "binding shape reuses action {index}")
-            }
-            Self::ExtraAction { index } => {
-                write!(
-                    formatter,
-                    "binding action {index} is outside the checked shape"
-                )
-            }
-        }
-    }
-}
-
-impl<E: fmt::Display> fmt::Display for ExportDefaultLocalDataFlowValidationError<E> {
+impl fmt::Display for ExportDefaultLocalDataFlowValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnboundCapture(index) => {
@@ -668,19 +417,6 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultLocalDataFlowValidationError
                     "default {control:?} appears outside an active loop"
                 )
             }
-            Self::ForTemporaryAlias {
-                first,
-                second,
-                selector,
-            } => write!(
-                formatter,
-                "for temporaries {first:?} and {second:?} alias local {selector:?}"
-            ),
-            Self::BindingSubject { expected, actual } => write!(
-                formatter,
-                "for binding subject {actual:?} differs from next element {expected:?}"
-            ),
-            Self::BindingShape(error) => write!(formatter, "invalid binding shape: {error}"),
             Self::Resource(error) => {
                 write!(
                     formatter,
@@ -691,12 +427,4 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultLocalDataFlowValidationError
     }
 }
 
-impl<E: std::error::Error + 'static> std::error::Error
-    for ExportDefaultLocalDataFlowValidationError<E>
-{
-}
-
-impl<E: std::error::Error + 'static> std::error::Error
-    for DefaultBindingShapeDataFlowValidationError<E>
-{
-}
+impl std::error::Error for ExportDefaultLocalDataFlowValidationError {}

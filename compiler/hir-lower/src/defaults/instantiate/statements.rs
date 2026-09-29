@@ -75,9 +75,6 @@ impl Lowerer {
                     body,
                 }
             }
-            hir::StatementKind::For(plan) => {
-                hir::StatementKind::For(Box::new(self.instantiate_default_for(plan, context)))
-            }
             hir::StatementKind::Break { target } => {
                 let &(source, mapped) = context
                     .loop_targets

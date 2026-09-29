@@ -1,0 +1,1352 @@
+Module
+  struct Entry<Reference> (slot: Long, payload: (Reference, Int))
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<() -> Reference>
+    Some(_0: () -> Reference)
+    None()
+  enum Option<Entry<Reference>>
+    Some(_0: Entry<Reference>)
+    None()
+  enum Option<Components<Reference>>
+    Some(_0: Components<Reference>)
+    None()
+  enum CoroutineStep<Reference>
+    Completed(value: Reference)
+    Suspended()
+  enum CoroutineSlot<Reference>
+    Empty()
+    Value(value: Reference)
+  class Reference vtable=0 itables=0
+  class Components<Reference> vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class MutableArrayIterator<() -> Reference> vtable=0 itables=1
+  class ArrayIterator<Entry<Reference>> vtable=0 itables=1
+  class ArrayIterator<Components<Reference>> vtable=0 itables=1
+  interface Iterable<() -> Reference>
+  interface Iterator<() -> Reference>
+  interface Iterable<Entry<Reference>>
+  interface Iterator<Entry<Reference>>
+  interface Iterable<Components<Reference>>
+  interface Iterator<Components<Reference>>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=1
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=1
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn15 captures=1
+  closure cc3 $Closure$reference0 type=function_type1 invoke=@fn21 captures=0
+  generated_exact_type get0 location=enum5 nominal_id=dce25350990960c072ae5886f5cfe56bc029c4d2ca3b2ef2de33541681ef6ce7 exact_id=03dd774c65461963c62dbfc0ef40c47cd752e1e5e8ec24fa95eed076f24cc831
+  generated_exact_type get1 location=enum4 nominal_id=ec1ae4f2feb8b1d72532dfd65244da288f6f547d597666d6a7d44aa542eff9e7 exact_id=1811c166e2b11aef8dbfad35c73f7f886b76179bfb888c9eefba7bedb9ea4df8
+  generated_exact_type get2 location=closure3 nominal_id=d16e5e9622547129a47d1a21a52780a457daf8e6cdcd6f23f155dbfa8e10d1ff exact_id=70ab8f7ec19b2d6d8e5519c44272caff0ebad8d7f902ff57ee1551a73a116822
+  generated_exact_type get3 location=closure0 nominal_id=86ff63d9fcb1e506a84e8de73e457a1dcfe6808a22458b839050a1f558f4aa96 exact_id=7355013d525f1b3a72fe54606062cf943fe17e9a844af308112b75f1991bc503
+  generated_exact_type get4 location=closure1 nominal_id=86cb1746553e762b33c5f86245408284b0a1a66277d53361ae20f4a873f4cd3c exact_id=de428ac0d27c30e6261e65e6b56fe02b376bed6475621e54b4094a399e75542b
+  generated_exact_type get5 location=closure2 nominal_id=7b45a01a348ed2e4d7c08e58223d36c63bf001568e24ddf456adf231a85c9f4d exact_id=e903c4f0c26f78c989c52b079cc1c00814d85470107c268c53908596cad2a6ee
+  fun readInt @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun readReference @fn1(value: Reference) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Reference
+          Local value
+  fun result @fn2() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Reference
+        ClassAlloc Reference
+      call @fn22 direct
+        Type Reference
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val first: Reference
+        Type Reference
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Reference
+        ClassAlloc Reference
+      call @fn22 direct
+        Type Reference
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val second: Reference
+        Type Reference
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Reference
+        ClassAlloc Reference
+      call @fn22 direct
+        Type Reference
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val empty: Reference
+        Type Reference
+        Local $new.3
+      val readers: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        ArrayLiteral MutableArray<() -> Reference>
+          Type () -> Reference
+          ClosureAlloc cc0 $Closure$lambda0
+            CaptureInit field=0
+              Type Reference
+              Local empty
+          Type () -> Reference
+          ClosureAlloc cc1 $Closure$lambda1
+            CaptureInit field=0
+              Type Reference
+              Local empty
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: (Reference, Int)
+        Type (Reference, Int)
+        TupleLiteral
+          Type Reference
+          Local first
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.slot: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.payload: (Reference, Int)
+        Type (Reference, Int)
+        Local $dependency.argument.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.1: (Reference, Int)
+        Type (Reference, Int)
+        TupleLiteral
+          Type Reference
+          Local second
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.slot: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.payload: (Reference, Int)
+        Type (Reference, Int)
+        Local $dependency.argument.1
+      call $call.4: Entry<Reference> = @fn27 direct
+        Type Long
+        Local $dependency.parameter.slot
+        Type (Reference, Int)
+        Local $dependency.parameter.payload
+      call $call.5: Entry<Reference> = @fn27 direct
+        Type Long
+        Local $dependency.parameter.slot
+        Type (Reference, Int)
+        Local $dependency.parameter.payload
+      val $dependency.argument.0: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        ArrayLiteral Array<Entry<Reference>>
+          Type Entry<Reference>
+          Local $call.4
+          Type Entry<Reference>
+          Local $call.5
+      val $dependency.argument.1: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local readers
+      val $dependency.parameter.entries: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        Local $dependency.argument.0
+      val $dependency.parameter.readers: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $dependency.argument.1
+      call @fn8 direct
+        Type Array<Entry<Reference>>
+        Local $dependency.parameter.entries
+        Type MutableArray<() -> Reference>
+        Local $dependency.parameter.readers
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type Reference
+        ClassAlloc Reference
+      call @fn22 direct
+        Type Reference
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      val allocation: Reference
+        Type Reference
+        Local $new.6
+      val $dependency.receiver: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local readers
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $arr.1: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $dependency.receiver
+      val $idx.2: Long
+        Type Long
+        Local $dependency.parameter.index
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.7
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<() -> Reference>
+            Type MutableArray<() -> Reference>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.7
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.7
+    bb4 if.then.4
+      assign $new.8
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.8
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.8
+    bb5 if.merge.5
+      call $call.9: Reference = <closure:function_type0> closure[function_type0]
+        Type () -> Reference
+        ArrayGet MutableArray<() -> Reference>
+          Type MutableArray<() -> Reference>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      branch bb6 bb7
+        Type Boolean
+        Binary RefNe
+          Type Reference
+          Local $call.9
+          Type Reference
+          Local first
+    bb6 if.then.6
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      val $dependency.receiver: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local readers
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $arr.3: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $dependency.receiver
+      val $idx.4: Long
+        Type Long
+        Local $dependency.parameter.index
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 if.merge.8
+      branch bb14 bb15
+        Type Boolean
+        Local $shortCircuit.0
+    bb9 logic.rhs.9
+      assign $logic.10
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.4
+          Type Long
+          ArrayLen MutableArray<() -> Reference>
+            Type MutableArray<() -> Reference>
+            Local $arr.3
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.10
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $logic.10
+    bb12 if.then.12
+      assign $new.11
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.11
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.11
+    bb13 if.merge.13
+      call $call.12: Reference = <closure:function_type0> closure[function_type0]
+        Type () -> Reference
+        ArrayGet MutableArray<() -> Reference>
+          Type MutableArray<() -> Reference>
+          Local $arr.3
+          Type Long
+          Local $idx.4
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type Reference
+          Local $call.12
+          Type Reference
+          Local second
+      goto bb8
+    bb14 if.then.14
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb15 if.merge.15
+      val $dependency.argument.0: Reference
+        Type Reference
+        Local first
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Reference
+        Type Reference
+        Local $dependency.argument.0
+      val $dependency.parameter.extra: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.argument.0: Reference
+        Type Reference
+        Local second
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val $dependency.parameter.value: Reference
+        Type Reference
+        Local $dependency.argument.0
+      val $dependency.parameter.extra: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.13
+        Type Components<Reference>
+        ClassAlloc Components<Reference>
+      call @fn23 direct
+        Type Components<Reference>
+        Local $new.13
+        Type Reference
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.extra
+      assign $new.14
+        Type Components<Reference>
+        ClassAlloc Components<Reference>
+      call @fn23 direct
+        Type Components<Reference>
+        Local $new.14
+        Type Reference
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.extra
+      val $dependency.argument.0: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        ArrayLiteral Array<Components<Reference>>
+          Type Components<Reference>
+          Local $new.13
+          Type Components<Reference>
+          Local $new.14
+      val $dependency.argument.1: (Reference) -> Int
+        Type (Reference) -> Int
+        ClosureAlloc cc3 $Closure$reference0
+      val $dependency.parameter.values: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Reference) -> Int
+        Type (Reference) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn9 direct
+        Type Array<Components<Reference>>
+        Local $dependency.parameter.values
+        Type (Reference) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb16 if.then.16
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb17 if.merge.17
+      var sum: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $for.source.1: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local readers
+      val $dependency.receiver: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $for.source.1
+      call $for.iterator.result.2: Iterator<() -> Reference> = @fn3 direct
+        Type MutableArray<() -> Reference>
+        Local $dependency.receiver
+      val $for.iterator.3: Iterator<() -> Reference>
+        Type Iterator<() -> Reference>
+        Local $for.iterator.result.2
+      goto bb18
+    bb18 while.cond.18 <loop-header-poll>
+      call $for.next.4: Option<() -> Reference> = @fn10 interface Iterator<() -> Reference>[0]
+        Type Iterator<() -> Reference>
+        Local $for.iterator.3
+      branch bb20 bb19
+        Type Boolean
+        VariantTest Option<() -> Reference> v0
+          Type Option<() -> Reference>
+          Local $for.next.4
+    bb19 while.exit.19
+      val $dependency.receiver: Int
+        Type Int
+        Local sum
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          Local allocation
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb20 while.body.20
+      val $for.element.5: () -> Reference
+        Type () -> Reference
+        VariantPayloadProject Option<() -> Reference> v0 f0
+          Type Option<() -> Reference>
+          Local $for.next.4
+      val reader: () -> Reference
+        Type () -> Reference
+        Local $for.element.5
+      val $dependency.receiver: Int
+        Type Int
+        Local sum
+      call $call.15: Reference = <closure:function_type0> closure[function_type0]
+        Type () -> Reference
+        Local reader
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          Local $call.15
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign sum
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb18
+  fun iterator @fn3(this: MutableArray<() -> Reference>) -> Iterator<() -> Reference>
+    bb0 entry
+      val $dependency.local.1: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type MutableArrayIterator<() -> Reference>
+        ClassAlloc MutableArrayIterator<() -> Reference>
+      call @fn24 direct
+        Type MutableArrayIterator<() -> Reference>
+        Local $new.1
+        Type MutableArray<() -> Reference>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<() -> Reference>
+        Retype Iterator<() -> Reference>
+          Type MutableArrayIterator<() -> Reference>
+          Local $new.1
+  fun iterator @fn4(this: Array<Entry<Reference>>) -> Iterator<Entry<Reference>>
+    bb0 entry
+      val $dependency.local.1: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Entry<Reference>>
+        ClassAlloc ArrayIterator<Entry<Reference>>
+      call @fn25 direct
+        Type ArrayIterator<Entry<Reference>>
+        Local $new.1
+        Type Array<Entry<Reference>>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Entry<Reference>>
+        Retype Iterator<Entry<Reference>>
+          Type ArrayIterator<Entry<Reference>>
+          Local $new.1
+  fun iterator @fn5(this: Array<Components<Reference>>) -> Iterator<Components<Reference>>
+    bb0 entry
+      val $dependency.local.1: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Components<Reference>>
+        ClassAlloc ArrayIterator<Components<Reference>>
+      call @fn26 direct
+        Type ArrayIterator<Components<Reference>>
+        Local $new.1
+        Type Array<Components<Reference>>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Components<Reference>>
+        Retype Iterator<Components<Reference>>
+          Type ArrayIterator<Components<Reference>>
+          Local $new.1
+  fun $lambda.0 @fn6($closure: () -> Reference) -> Reference
+    bb0 entry
+      return
+        Type Reference
+        ClosureCapture cc0 0
+          Type () -> Reference
+          Local $closure
+  fun $lambda.1 @fn7($closure: () -> Reference) -> Reference
+    bb0 entry
+      return
+        Type Reference
+        ClosureCapture cc1 0
+          Type () -> Reference
+          Local $closure
+  fun installReaders @fn8(entries: Array<Entry<Reference>>, readers: MutableArray<() -> Reference>) -> Unit
+    bb0 entry
+      val $dependency.local.4: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        Local entries
+      val $dependency.local.5: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        Local $dependency.local.4
+      call $dependency.local.6: Iterator<Entry<Reference>> = @fn4 direct
+        Type Array<Entry<Reference>>
+        Local $dependency.local.5
+      val $dependency.local.7: Iterator<Entry<Reference>>
+        Type Iterator<Entry<Reference>>
+        Local $dependency.local.6
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $dependency.local.8: Option<Entry<Reference>> = @fn14 interface Iterator<Entry<Reference>>[0]
+        Type Iterator<Entry<Reference>>
+        Local $dependency.local.7
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Entry<Reference>> v0
+          Type Option<Entry<Reference>>
+          Local $dependency.local.8
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $dependency.local.9: Entry<Reference>
+        Type Entry<Reference>
+        VariantPayloadProject Option<Entry<Reference>> v0 f0
+          Type Option<Entry<Reference>>
+          Local $dependency.local.8
+      val $dependency.local.10: Long
+        Type Long
+        FieldAccess 0
+          Type Entry<Reference>
+          Local $dependency.local.9
+      val $dependency.local.2: Long
+        Type Long
+        Local $dependency.local.10
+      val $dependency.local.11: (Reference, Int)
+        Type (Reference, Int)
+        FieldAccess 1
+          Type Entry<Reference>
+          Local $dependency.local.9
+      val $dependency.local.12: Reference
+        Type Reference
+        FieldAccess 0
+          Type (Reference, Int)
+          Local $dependency.local.11
+      val $dependency.local.3: Reference
+        Type Reference
+        Local $dependency.local.12
+      val $dependency.local.13: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local readers
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.15: () -> Reference
+        Type () -> Reference
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type Reference
+            Local $dependency.local.3
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.14
+      val $dependency.local.17: () -> Reference
+        Type () -> Reference
+        Local $dependency.local.15
+      val $arr.1: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $dependency.local.13
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.16
+      val $value.3: () -> Reference
+        Type () -> Reference
+        Local $dependency.local.17
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<() -> Reference>
+            Type MutableArray<() -> Reference>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type () -> Reference
+        Local $value.3
+      goto bb1
+  fun componentTotal @fn9(values: Array<Components<Reference>>, read: (Reference) -> Int) -> Int
+    bb0 entry
+      var $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.5: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        Local values
+      val $dependency.local.6: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        Local $dependency.local.5
+      call $dependency.local.7: Iterator<Components<Reference>> = @fn5 direct
+        Type Array<Components<Reference>>
+        Local $dependency.local.6
+      val $dependency.local.8: Iterator<Components<Reference>>
+        Type Iterator<Components<Reference>>
+        Local $dependency.local.7
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $dependency.local.9: Option<Components<Reference>> = @fn16 interface Iterator<Components<Reference>>[0]
+        Type Iterator<Components<Reference>>
+        Local $dependency.local.8
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Components<Reference>> v0
+          Type Option<Components<Reference>>
+          Local $dependency.local.9
+    bb2 while.exit.2
+      return
+        Type Int
+        Local $dependency.local.2
+    bb3 while.body.3
+      val $dependency.local.10: Components<Reference>
+        Type Components<Reference>
+        VariantPayloadProject Option<Components<Reference>> v0 f0
+          Type Option<Components<Reference>>
+          Local $dependency.local.9
+      val $dependency.local.11: Components<Reference>
+        Type Components<Reference>
+        Local $dependency.local.10
+      call $dependency.local.12: Reference = @fn17 direct
+        Type Components<Reference>
+        Local $dependency.local.11
+      val $dependency.local.3: Reference
+        Type Reference
+        Local $dependency.local.12
+      val $dependency.local.13: Components<Reference>
+        Type Components<Reference>
+        Local $dependency.local.10
+      call $dependency.local.14: Int = @fn18 direct
+        Type Components<Reference>
+        Local $dependency.local.13
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.14
+      val $dependency.local.15: Int
+        Type Int
+        Local $dependency.local.2
+      call $dependency.local.16: Int = <closure:function_type1> closure[function_type1]
+        Type (Reference) -> Int
+        Local read
+        Type Reference
+        Local $dependency.local.3
+      val $dependency.local.17: Int
+        Type Int
+        Local $dependency.local.16
+      val $dependency.local.18: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.15
+          Type Int
+          Local $dependency.local.17
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.20: Int
+        Type Int
+        Local $dependency.local.19
+      assign $dependency.local.2
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.18
+          Type Int
+          Local $dependency.local.20
+      goto bb1
+  fun next @fn10(this: Iterator<() -> Reference>) -> Option<() -> Reference>
+    bb0 entry
+      trap "call to abstract method `next`"
+  fun next @fn11(this: MutableArrayIterator<() -> Reference>) -> Option<() -> Reference>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type MutableArrayIterator<() -> Reference>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen MutableArray<() -> Reference>
+          Type MutableArray<() -> Reference>
+          FieldAccess 0
+            Type MutableArrayIterator<() -> Reference>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        FieldAccess 0
+          Type MutableArrayIterator<() -> Reference>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type MutableArrayIterator<() -> Reference>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: MutableArray<() -> Reference>
+        Type MutableArray<() -> Reference>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<() -> Reference>
+        VariantConstruct Option<() -> Reference> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<() -> Reference>
+            Type MutableArray<() -> Reference>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: () -> Reference
+        Type () -> Reference
+        ArrayGet MutableArray<() -> Reference>
+          Type MutableArray<() -> Reference>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type MutableArrayIterator<() -> Reference>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type MutableArrayIterator<() -> Reference>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: () -> Reference
+        Type () -> Reference
+        Local $dependency.local.1
+      val $dependency.local.12: () -> Reference
+        Type () -> Reference
+        Local $dependency.local.11
+      return
+        Type Option<() -> Reference>
+        VariantConstruct Option<() -> Reference> v0
+          Type () -> Reference
+          Local $dependency.local.12
+  fun next @fn12(this: ArrayIterator<Entry<Reference>>) -> Option<Entry<Reference>>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Entry<Reference>>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<Entry<Reference>>
+          Type Array<Entry<Reference>>
+          FieldAccess 0
+            Type ArrayIterator<Entry<Reference>>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        FieldAccess 0
+          Type ArrayIterator<Entry<Reference>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Entry<Reference>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<Entry<Reference>>
+        Type Array<Entry<Reference>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<Entry<Reference>>
+        VariantConstruct Option<Entry<Reference>> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Entry<Reference>>
+            Type Array<Entry<Reference>>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: Entry<Reference>
+        Type Entry<Reference>
+        ArrayGet Array<Entry<Reference>>
+          Type Array<Entry<Reference>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Entry<Reference>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<Entry<Reference>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Entry<Reference>
+        Type Entry<Reference>
+        Local $dependency.local.1
+      val $dependency.local.12: Entry<Reference>
+        Type Entry<Reference>
+        Local $dependency.local.11
+      return
+        Type Option<Entry<Reference>>
+        VariantConstruct Option<Entry<Reference>> v0
+          Type Entry<Reference>
+          Local $dependency.local.12
+  fun next @fn13(this: ArrayIterator<Components<Reference>>) -> Option<Components<Reference>>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Components<Reference>>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<Components<Reference>>
+          Type Array<Components<Reference>>
+          FieldAccess 0
+            Type ArrayIterator<Components<Reference>>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        FieldAccess 0
+          Type ArrayIterator<Components<Reference>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Components<Reference>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<Components<Reference>>
+        Type Array<Components<Reference>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<Components<Reference>>
+        VariantConstruct Option<Components<Reference>> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Components<Reference>>
+            Type Array<Components<Reference>>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: Components<Reference>
+        Type Components<Reference>
+        ArrayGet Array<Components<Reference>>
+          Type Array<Components<Reference>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Components<Reference>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<Components<Reference>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Components<Reference>
+        Type Components<Reference>
+        Local $dependency.local.1
+      val $dependency.local.12: Components<Reference>
+        Type Components<Reference>
+        Local $dependency.local.11
+      return
+        Type Option<Components<Reference>>
+        VariantConstruct Option<Components<Reference>> v0
+          Type Components<Reference>
+          Local $dependency.local.12
+  fun next @fn14(this: Iterator<Entry<Reference>>) -> Option<Entry<Reference>>
+    bb0 entry
+      trap "call to abstract method `next`"
+  fun $lambda @fn15($argument.0: () -> Reference) -> Reference
+    bb0 entry
+      return
+        Type Reference
+        ClosureCapture cc2 0
+          Type () -> Reference
+          Local $argument.0
+  fun next @fn16(this: Iterator<Components<Reference>>) -> Option<Components<Reference>>
+    bb0 entry
+      trap "call to abstract method `next`"
+  fun component1 @fn17(this: Components<Reference>) -> Reference
+    bb0 entry
+      call $call.1: Reference = @fn19 direct
+        Type Components<Reference>
+        Local this
+      return
+        Type Reference
+        Local $call.1
+  fun component2 @fn18(this: Components<Reference>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn20 direct
+        Type Components<Reference>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun value @fn19(this: Components<Reference>) -> Reference
+    bb0 entry
+      return
+        Type Reference
+        FieldAccess 0
+          Type Components<Reference>
+          Local this
+  fun extra @fn20(this: Components<Reference>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Components<Reference>
+          Local this
+  fun $reference.0 @fn21($closure: (Reference) -> Int, arg0: Reference) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Reference
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun init.Reference.$c0 @fn22(this: Reference, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Reference
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Components.$c1 @fn23(this: Components<Reference>, value: Reference, extra: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Components<Reference>
+        Local this
+        Type Reference
+        Local value
+      field_set 1
+        Type Components<Reference>
+        Local this
+        Type Int
+        Local extra
+      return
+  fun init.MutableArrayIterator.$c7 @fn24(this: MutableArrayIterator<() -> Reference>, source: MutableArray<() -> Reference>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type MutableArrayIterator<() -> Reference>
+        Local this
+        Type MutableArray<() -> Reference>
+        Local source
+      field_set 1
+        Type MutableArrayIterator<() -> Reference>
+        Local this
+        Type Long
+        Local index
+      return
+  fun init.ArrayIterator.$c6 @fn25(this: ArrayIterator<Entry<Reference>>, source: Array<Entry<Reference>>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<Entry<Reference>>
+        Local this
+        Type Array<Entry<Reference>>
+        Local source
+      field_set 1
+        Type ArrayIterator<Entry<Reference>>
+        Local this
+        Type Long
+        Local index
+      return
+  fun init.ArrayIterator.$c6 @fn26(this: ArrayIterator<Components<Reference>>, source: Array<Components<Reference>>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<Components<Reference>>
+        Local this
+        Type Array<Components<Reference>>
+        Local source
+      field_set 1
+        Type ArrayIterator<Components<Reference>>
+        Local this
+        Type Long
+        Local index
+      return
+  fun ctor.Entry.$c0 @fn27(slot: Long, payload: (Reference, Int)) -> Entry<Reference> <no-gc>
+    bb0 entry
+      return
+        Type Entry<Reference>
+        StructInit Entry<Reference>
+          Type Long
+          Local slot
+          Type (Reference, Int)
+          Local payload
+  coroutine_step cs0 CoroutineStep<Reference> result=Reference
+  coroutine_slot cl0 CoroutineSlot<Reference> value=Reference
+  instance mi0 function=@fn3 <- iterator
+  instance mi1 function=@fn4 <- iterator
+  instance mi2 function=@fn5 <- iterator
+  instance mi3 function=@fn8 <- installReaders
+  instance mi4 function=@fn9 <- componentTotal
+  instance mi5 function=@fn10 <- next
+  instance mi6 function=@fn11 <- next
+  instance mi7 function=@fn12 <- next
+  instance mi8 function=@fn13 <- next
+  instance mi9 function=@fn14 <- next
+  instance mi10 function=@fn15 <- $lambda
+  instance mi11 function=@fn16 <- next
+  instance mi12 function=@fn17 <- component1
+  instance mi13 function=@fn18 <- component2
+  instance mi14 function=@fn19 <- value
+  instance mi15 function=@fn20 <- extra
+  output library

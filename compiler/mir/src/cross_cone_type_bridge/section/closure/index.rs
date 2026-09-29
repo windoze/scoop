@@ -43,9 +43,7 @@ impl TargetIndex {
                 (
                     Some(MirTypeBridgeSemanticRecordV1::Type(left)),
                     Some(MirTypeBridgeSemanticRecordV1::Type(right)),
-                ) => {
-                    matches!(left.origin(), MirTypeOriginV1::NominalApplication(_)) && left == right
-                }
+                ) => left.is_odr() && left == right,
                 (
                     Some(MirTypeBridgeSemanticRecordV1::Callable(left)),
                     Some(MirTypeBridgeSemanticRecordV1::Callable(right)),
@@ -58,7 +56,7 @@ impl TargetIndex {
                 (
                     Some(MirTypeBridgeSemanticRecordV1::Dispatch(left)),
                     Some(MirTypeBridgeSemanticRecordV1::Dispatch(right)),
-                ) => left.is_application() && left == right,
+                ) => left.is_odr() && left == right,
                 _ => false,
             };
             if !compatible {

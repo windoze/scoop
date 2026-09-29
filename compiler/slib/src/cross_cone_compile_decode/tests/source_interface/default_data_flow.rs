@@ -62,7 +62,7 @@ fn the_ordinary_reader_rejects_loop_control_outside_a_default_loop() {
 fn failure(
     bytes: &[u8],
     owner: CallableTemplateOrigin,
-) -> ExportDefaultLocalDataFlowValidationError<crate::CrossConeHirDefaultFieldError> {
+) -> ExportDefaultLocalDataFlowValidationError {
     let Err(CrossConeHirSourceInterfaceSurfaceError::DefaultDataFlow(
         CrossConeHirDefaultDataFlowError::Template { index, key, source },
     )) = validate_until_type_alias(bytes).validate_source_interfaces(vec![])

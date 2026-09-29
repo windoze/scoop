@@ -1,0 +1,146 @@
+package upstream.iteration
+
+public var sourceCalls: Int = 0
+public var iteratorCalls: Int = 0
+public var nextCalls: Int = 0
+
+public fun resetCalls() { sourceCalls = 0; iteratorCalls = 0; nextCalls = 0 }
+
+public open class Cursor<T> public constructor(public val values: Array<T>): Iterator<T> {
+    private var index: Long = 0L
+    public override fun next(): Option<T> {
+        nextCalls = nextCalls + 1
+        if (index < values.size) {
+            val value = values[index]
+            index = index + 1L
+            return Some(value)
+        }
+        return None
+    }
+}
+
+public class Sequence<T> public constructor(public val values: Array<T>): Iterable<T> {
+    public override operator fun iterator(): Iterator<T> {
+        iteratorCalls = iteratorCalls + 1
+        return Cursor<T>(values)
+    }
+}
+
+public fun <T> marked(values: Array<T>): Sequence<T> {
+    sourceCalls = sourceCalls + 1
+    return Sequence<T>(values)
+}
+
+public struct Direct<I>(val value: I) {
+    public operator fun iterator(): I = this.value
+}
+
+public struct ValueCursor<T>(val inner: Cursor<T>): Iterator<T> {
+    public override fun next(): Option<T> = this.inner.next()
+}
+
+public class Items<T> public constructor(public val values: Array<T>)
+public struct ValueItems<T>(val values: Array<T>)
+
+public operator fun <T> Items<T>.iterator(): Iterator<T> {
+    iteratorCalls = iteratorCalls + 1
+    return Cursor<T>(this.values)
+}
+
+public operator fun <T> ValueItems<T>.iterator(): ValueCursor<T> {
+    iteratorCalls = iteratorCalls + 1
+    return ValueCursor<T>(Cursor<T>(this.values))
+}
+
+public enum EnumCursor<T>: Iterator<T> {
+    Items(Cursor<T>)
+    public override fun next(): Option<T> = when (this) {
+        Items(inner) -> inner.next()
+    }
+}
+
+public interface Left<T>: Iterator<T> {}
+public interface Right<T>: Iterator<T> {}
+public interface Diamond<T>: Left<T>, Right<T> {}
+
+public class DiamondCursor<T> public constructor(public val inner: Cursor<T>): Diamond<T> {
+    public override fun next(): Option<T> = this.inner.next()
+}
+
+public fun <T> total(values: Iterable<T>, read: (T) -> Int): Int {
+    var sum = 0
+    for (value in values) { sum = sum + read(value) }
+    return sum
+}
+
+public fun <T, I: Iterator<T>> boundTotal(iterator: I, read: (T) -> Int): Int {
+    var sum = 0
+    for (value in Direct<I>(iterator)) { sum = sum + read(value) }
+    return sum
+}
+
+public fun <T, I: Cursor<T>> classTotal(iterator: I, read: (T) -> Int): Int {
+    var sum = 0
+    for (value in Direct<I>(iterator)) { sum = sum + read(value) }
+    return sum
+}
+
+public fun <T, I: Diamond<T>> diamondTotal(iterator: I, read: (T) -> Int): Int {
+    var sum = 0
+    for (value in Direct<I>(iterator)) { sum = sum + read(value) }
+    return sum
+}
+
+public fun <T> defaultTotal(
+    values: Iterable<T>,
+    read: (T) -> Int,
+    compute: () -> Int = {
+        var sum = 0
+        for (value in values) { sum = sum + read(value) }
+        sum
+    }
+): Int = compute()
+
+public fun <T> totalPack(vararg values: T, read: (T) -> Int): Int {
+    var sum = 0
+    for (value in values) { sum = sum + read(value) }
+    return sum
+}
+
+public fun <T> defaultPick(
+    values: Array<T>,
+    fallback: T,
+    chosen: T = if (values.size > 0L) {
+        var last = fallback
+        for (value in values) { last = value }
+        last
+    } else { fallback }
+): T = chosen
+
+public struct Entry<T>(val slot: Long, val payload: (T, Int))
+
+public fun <T> installReaders(entries: Array<Entry<T>>, readers: MutableArray<() -> T>) {
+    for ({ slot, payload: (value, _) } in entries) { readers[slot] = { value } }
+}
+
+public class Components<T> public constructor(public val value: T, public val extra: Int) {
+    public operator fun component1(): T = this.value
+    public operator fun component2(): Int = this.extra
+}
+
+public fun <T> componentTotal(values: Array<Components<T>>, read: (T) -> Int): Int {
+    var sum = 0
+    for ((value, extra) in values) { sum = sum + read(value) + extra }
+    return sum
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val values = [seed]
+    if (total<T>(values, read) != 42) { return 1 }
+    if (defaultTotal<T>(Sequence<T>(values), read) != 42) { return 2 }
+    if (totalPack<T>(seed, read = read) != 42) { return 3 }
+    if (boundTotal<T, Cursor<T>>(Cursor<T>(values), read) != 42) { return 4 }
+    if (boundTotal<T, ValueCursor<T>>(ValueCursor<T>(Cursor<T>(values)), read) != 42) { return 5 }
+    if (boundTotal<T, EnumCursor<T>>(EnumCursor.Items(Cursor<T>(values)), read) != 42) { return 6 }
+    return diamondTotal<T, DiamondCursor<T>>(DiamondCursor<T>(Cursor<T>(values)), read)
+}

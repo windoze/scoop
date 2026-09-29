@@ -91,9 +91,8 @@ pub enum IrrefutableBindingAction {
 }
 
 /// Typed binding data shared by `val` / `var`, lambda parameters, and source
-/// `for`. The first two consumers expand it before publishing Export HIR;
-/// generic source `for` retains it inside its complete iteration plan until
-/// LocalConcrete HIR expansion.
+/// `for`. Every consumer expands the plan into ordinary typed statements
+/// before publishing Export HIR.
 #[derive(Debug, Clone)]
 pub struct IrrefutableBindingPlan {
     pub subject: BindingTemporary,

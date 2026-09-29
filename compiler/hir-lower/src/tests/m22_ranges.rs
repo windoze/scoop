@@ -420,16 +420,6 @@ fn main_body(module: &hir::ExportHirOutput) -> &hir::Body {
     user_body(module, module.entry())
 }
 
-fn for_plans(body: &hir::Body) -> Vec<&hir::ForIterationPlan> {
-    body.statements
-        .iter()
-        .filter_map(|statement| match &statement.kind {
-            hir::StatementKind::For(plan) => Some(plan.as_ref()),
-            _ => None,
-        })
-        .collect()
-}
-
 fn assert_plain_public_method(
     module: &hir::Module,
     function: hir::FunctionId,
@@ -717,29 +707,52 @@ fn m22_range_resolution_widening_and_for_elements_preserve_exact_targets() {
         );
     }
 
-    let plans = for_plans(body);
-    assert_eq!(plans.len(), INTEGER_RANGE_CASES.len());
-    for (plan, case) in plans.into_iter().zip(INTEGER_RANGE_CASES) {
-        assert_eq!(hir::type_name(&module, plan.source_init().ty), case.range);
+    let sources = iteration_initializers(body, "$for.source.");
+    let iterators = iteration_initializers(body, "$for.iterator.result.");
+    let loops = body
+        .statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::While { body, .. } => Some(body),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(sources.len(), INTEGER_RANGE_CASES.len());
+    assert_eq!(iterators.len(), INTEGER_RANGE_CASES.len());
+    assert_eq!(loops.len(), INTEGER_RANGE_CASES.len());
+    for (((source, iterator), loop_body), case) in sources
+        .into_iter()
+        .zip(iterators)
+        .zip(loops)
+        .zip(INTEGER_RANGE_CASES)
+    {
+        assert_eq!(hir::type_name(&module, source.ty), case.range);
         assert_eq!(
-            callee_function(&module, plan.source_init()),
+            callee_function(&module, source),
             integer_method(&module, case.kind, "rangeTo")
         );
         assert_eq!(
-            callee_function(&module, plan.iterator_call()),
+            callee_function(&module, iterator),
             class_method(&module, find_class(&module, case.range), "iterator")
         );
-        assert_eq!(
-            hir::type_name(&module, plan.next().element().ty),
-            case.element.canonical_name()
-        );
-        let hir::IrrefutableBindingShape::Binding(binding) = &plan.binding().shape else {
-            panic!("range for bindings are plain exact element bindings")
-        };
-        assert_eq!(
-            hir::type_name(&module, binding.ty),
-            case.element.canonical_name()
-        );
+        let bindings = loop_body
+            .iter()
+            .filter_map(|statement| match &statement.kind {
+                hir::StatementKind::ValDecl {
+                    pattern: hir::Pattern::Binding { local },
+                    ..
+                } => Some(&body.locals[*local]),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(bindings.len(), 3);
+        for binding in bindings {
+            assert_eq!(
+                hir::type_name(&module, binding.ty),
+                case.element.canonical_name()
+            );
+            assert!(!binding.mutable);
+        }
     }
 
     for case in INTEGER_RANGE_CASES {
@@ -786,4 +799,17 @@ fn m22_range_resolution_widening_and_for_elements_preserve_exact_targets() {
             }
         }
     }
+}
+
+fn iteration_initializers<'body>(body: &'body hir::Body, prefix: &str) -> Vec<&'body hir::Expr> {
+    body.statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local },
+                init,
+            } if body.locals[*local].name.starts_with(prefix) => Some(init),
+            _ => None,
+        })
+        .collect()
 }

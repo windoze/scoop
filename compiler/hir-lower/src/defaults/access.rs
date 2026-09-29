@@ -3,7 +3,6 @@ use std::collections::HashSet;
 
 use crate::Lowerer;
 
-mod bindings;
 mod coverage;
 mod expressions;
 mod shapes;

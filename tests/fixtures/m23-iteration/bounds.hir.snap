@@ -1,0 +1,225 @@
+Module
+  struct LocalValue<T> : Iterator<T0>
+    field0 cursor: Cursor<T0>
+    property0 val cursor: Cursor<T0> getter0=storage <stored struct0-field0>
+  class Derived<T>(values: Array<T0>)
+  class LocalSource<T>(values: Array<T0>)
+    field0 property1: Array<T0>
+    property1 val values: Array<T0> getter1=storage <stored field0 init=parameter2>
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local read : (T0) -> Int
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      Local $dependency.argument.1 : (T0) -> Int
+    return
+      ImportedGenericCall exercise<T0> : Int
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.read : (T0) -> Int
+  fun readInt(value: Int): Int
+    return
+      Local value : Int
+  fun result(): Int
+    val local0
+      ArrayLiteral : Array<Int>
+        IntegerLiteral 20 : Int
+        IntegerLiteral 22 : Int
+    val local1
+      Local $argument.0 : Array<Int>
+    val local2
+      ClassInit Derived<Int> : Derived<Int>
+        Local $parameter.values : Array<Int>
+    val local3
+      CallableReference reference0 target=readInt captures=0 : (Int) -> Int
+    val local4
+      Local $dependency.argument.0 : Derived<Int>
+    val local5
+      Local $dependency.argument.1 : (Int) -> Int
+    val local6
+      ImportedGenericCall classTotal<Int, Derived<Int>> : Int
+        Local $dependency.parameter.iterator : Derived<Int>
+        Local $dependency.parameter.read : (Int) -> Int
+    val local7
+      IntegerLiteral 42 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local9
+      ArrayLiteral : Array<Int>
+        IntegerLiteral 20 : Int
+        IntegerLiteral 22 : Int
+    val local10
+      Local $dependency.argument.0 : Array<Int>
+    val local11
+      ImportedConstructorInit Cursor : Cursor<Int>
+        Local $dependency.parameter.values : Array<Int>
+    val local12
+      Local $argument.0 : Cursor<Int>
+    val local13
+      StructInit LocalValue : LocalValue<Int>
+        Local $parameter.cursor : Cursor<Int>
+    val local14
+      CallableReference reference1 target=readInt captures=0 : (Int) -> Int
+    val local15
+      Local $dependency.argument.0 : LocalValue<Int>
+    val local16
+      Local $dependency.argument.1 : (Int) -> Int
+    val local17
+      ImportedGenericCall boundTotal<Int, LocalValue<Int>> : Int
+        Local $dependency.parameter.iterator : LocalValue<Int>
+        Local $dependency.parameter.read : (Int) -> Int
+    val local18
+      IntegerLiteral 42 : Int
+    val local19
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local20
+      ArrayLiteral : Array<Int>
+        IntegerLiteral 20 : Int
+        IntegerLiteral 22 : Int
+    val local21
+      Local $dependency.argument.0 : Array<Int>
+    val local22
+      ImportedConstructorInit Cursor : Cursor<Int>
+        Local $dependency.parameter.values : Array<Int>
+    val local23
+      Local $dependency.argument.0 : Cursor<Int>
+    val local24
+      ReferenceUpcast : Diamond<Int>
+        ImportedConstructorInit DiamondCursor : DiamondCursor<Int>
+          Local $dependency.parameter.inner : Cursor<Int>
+    val local25
+      IntegerLiteral 0 : Int
+    val local26
+      Local diamond : Diamond<Int>
+    val local27
+      Local $dependency.argument.0 : Diamond<Int>
+    val local28
+      ImportedConstructorInit Direct : Direct<Diamond<Int>>
+        Local $dependency.parameter.value : Diamond<Int>
+    val local29
+      Local $for.source.0 : Direct<Diamond<Int>>
+    val local30
+      ImportedGenericCall iterator<Diamond<Int>> : Diamond<Int>
+        Local $dependency.receiver : Direct<Diamond<Int>>
+    val local31
+      ReferenceUpcast : Iterator<Int>
+        Local $for.iterator.result.1 : Diamond<Int>
+    while
+      condition setup
+        val local32
+          ImportedGenericCall next<Int> : Option<Int>
+            Local $for.iterator.2 : Iterator<Int>
+      IsSome : Boolean
+        Local $for.next.3 : Option<Int>
+      val local33
+        Unwrap trap=false : Int
+          Local $for.next.3 : Option<Int>
+      val local34
+        Local $for.element.4 : Int
+      val local35
+        Local sum : Int
+      val local36
+        Local value : Int
+      val local37
+        Local $dependency.argument.0 : Int
+      assign sum
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    val local38
+      Local sum : Int
+    val local39
+      IntegerLiteral 42 : Int
+    val local40
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local41
+      IntegerLiteral 0 : Int
+    val local42
+      ArrayLiteral : Array<Int>
+        IntegerLiteral 20 : Int
+        IntegerLiteral 22 : Int
+    val local43
+      Local $argument.0 : Array<Int>
+    val local44
+      ClassInit LocalSource<Int> : LocalSource<Int>
+        Local $parameter.values : Array<Int>
+    val local45
+      Local $for.source.5 : LocalSource<Int>
+    val local46
+      MethodCall LocalSource.iterator : Derived<Int>
+        Local $receiver : LocalSource<Int>
+    val local47
+      ReferenceUpcast : Iterator<Int>
+        Local $for.iterator.result.6 : Derived<Int>
+    while
+      condition setup
+        val local48
+          ImportedGenericCall next<Int> : Option<Int>
+            Local $for.iterator.7 : Iterator<Int>
+      IsSome : Boolean
+        Local $for.next.8 : Option<Int>
+      val local49
+        Unwrap trap=false : Int
+          Local $for.next.8 : Option<Int>
+      val local50
+        Local $for.element.9 : Int
+      val local51
+        Local local : Int
+      val local52
+        Local value : Int
+      val local53
+        Local $dependency.argument.0 : Int
+      assign local
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    val local54
+      Local local : Int
+    val local55
+      IntegerLiteral 42 : Int
+    val local56
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local57
+      IntegerLiteral 42 : Int
+    val local58
+      CallableReference reference2 target=readInt captures=0 : (Int) -> Int
+    val local59
+      Local $argument.0 : Int
+    val local60
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

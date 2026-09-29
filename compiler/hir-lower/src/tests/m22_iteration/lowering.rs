@@ -30,13 +30,16 @@ fn break_and_continue_keep_the_innermost_typed_loop_target() {
     ]))
     .expect("nested loop jumps must retain typed lexical targets");
 
-    let plan = first_for(export_body(&output.export, "jumps"));
-    let outer = plan.target();
+    let (outer, _, _, loop_body) = export_loop(export_body(&output.export, "jumps"));
     let hir::StatementKind::While {
         target: inner,
         body: inner_body,
         ..
-    } = &plan.body()[0].kind
+    } = &loop_body
+        .iter()
+        .find(|statement| matches!(statement.kind, hir::StatementKind::While { .. }))
+        .unwrap()
+        .kind
     else {
         panic!("the first source body statement must be the nested while")
     };
@@ -62,7 +65,11 @@ fn break_and_continue_keep_the_innermost_typed_loop_target() {
         then_body,
         else_body: Some(else_body),
         ..
-    } = &plan.body()[1].kind
+    } = &loop_body
+        .iter()
+        .find(|statement| matches!(statement.kind, hir::StatementKind::If { .. }))
+        .unwrap()
+        .kind
     else {
         panic!("the outer source body must contain both jump branches")
     };
@@ -101,42 +108,45 @@ fn named_struct_for_binding_keeps_shape_and_action_orders_independent() {
     .expect("a named struct binding may list fields in reverse declaration order");
 
     let body = export_body(&module, "main");
-    let plan = first_for(body);
-    let hir::IrrefutableBindingShape::Struct { fields, .. } = &plan.binding().shape else {
-        panic!("the producer must retain one declaration-order struct shape")
-    };
+    let (_, _, _, loop_body) = export_loop(body);
+    let pair = module
+        .structs
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Pair")
+        .unwrap()
+        .1;
     assert_eq!(
-        fields
+        pair.semantic_fields()
             .iter()
-            .map(|(field, _)| field.local_index())
+            .map(|field| field.name.as_str())
             .collect::<Vec<_>>(),
-        [0, 1]
+        ["left", "right"]
     );
     assert_eq!(
-        plan.binding()
-            .actions
+        loop_body
             .iter()
-            .filter_map(|action| match action {
-                hir::IrrefutableBindingAction::Project {
-                    projection: hir::BindingProjection::StructField(field),
-                    ..
-                } => Some(field.local_index()),
-                hir::IrrefutableBindingAction::Project { .. } => {
-                    panic!("a struct binding must use struct field projections")
-                }
+            .filter_map(|statement| match &statement.kind {
+                hir::StatementKind::ValDecl { init, .. } => match &init.kind {
+                    hir::ExprKind::FieldAccess {
+                        field: hir::FieldRef::StructField(field),
+                        ..
+                    } => Some(field.local_index()),
+                    _ => None,
+                },
                 _ => None,
             })
             .collect::<Vec<_>>(),
         [1, 0]
     );
     assert_eq!(
-        plan.binding()
-            .actions
+        loop_body
             .iter()
-            .filter_map(|action| match action {
-                hir::IrrefutableBindingAction::Bind { target, .. } => {
-                    Some(body.locals[target.local].name.as_str())
-                }
+            .filter_map(|statement| match &statement.kind {
+                hir::StatementKind::ValDecl {
+                    pattern: hir::Pattern::Binding { local },
+                    ..
+                } if matches!(body.locals[*local].name.as_str(), "r" | "l") =>
+                    Some(body.locals[*local].name.as_str()),
                 _ => None,
             })
             .collect::<Vec<_>>(),
@@ -174,7 +184,7 @@ fn branch_merged_values_can_supply_the_iteration_source() {
         export_body(&export, "main")
             .statements
             .iter()
-            .filter(|statement| matches!(statement.kind, hir::StatementKind::For(_)))
+            .filter(|statement| matches!(statement.kind, hir::StatementKind::While { .. }))
             .count(),
         2
     );
@@ -295,7 +305,7 @@ fn inherited_and_upcast_receivers_resolve_iteration_protocols() {
         export_body(&export, "main")
             .statements
             .iter()
-            .filter(|statement| matches!(statement.kind, hir::StatementKind::For(_)))
+            .filter(|statement| matches!(statement.kind, hir::StatementKind::While { .. }))
             .count(),
         3
     );

@@ -152,10 +152,12 @@ fn generic_iteration_concretization_keeps_the_export_selected_winner() {
     ]))
     .expect("the generic body selects the bound-compatible extension once");
 
+    let body = export_body(&output.export, "consume");
+    let iterator = export_local_with_prefix(body, "$for.iterator.result.");
     assert_eq!(
         export_callee_name(
             &output.export,
-            first_for(export_body(&output.export, "consume")).iterator_call(),
+            export_local_init(&body.statements, iterator),
         ),
         "iterator"
     );

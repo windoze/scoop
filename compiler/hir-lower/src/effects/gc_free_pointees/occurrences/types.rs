@@ -76,30 +76,6 @@ pub(in super::super) fn collect_statement_types(
                 collect_expr_types(lowerer, cond, out);
                 collect_statement_types(lowerer, body, out);
             }
-            hir::StatementKind::For(plan) => {
-                collect_statement_types(lowerer, plan.source_setup(), out);
-                out.push(plan.source().ty);
-                collect_expr_types(lowerer, plan.source_init(), out);
-                collect_statement_types(lowerer, plan.iterator_setup(), out);
-                collect_expr_types(lowerer, plan.iterator_call(), out);
-                let conformance = plan.conformance();
-                out.push(conformance.source().ty);
-                out.push(conformance.iterator().ty);
-                out.push(lowerer.interface_applications[conformance.application()].canonical_type);
-                let next = plan.next();
-                collect_callable_types(lowerer, hir::Callable::Method(next.callable()), out);
-                out.push(next.result().ty);
-                let option = next.option();
-                out.push(lowerer.enum_applications[option.application()].canonical_type);
-                out.push(
-                    lowerer.enum_applications[option.some_payload().variant().application()]
-                        .canonical_type,
-                );
-                out.push(lowerer.enum_applications[option.none().application()].canonical_type);
-                out.push(next.element().ty);
-                collect_binding_plan_types(lowerer, plan.binding(), out);
-                collect_statement_types(lowerer, plan.body(), out);
-            }
             hir::StatementKind::When(when) => {
                 collect_expr_types(lowerer, &when.subject, out);
                 for arm in &when.arms {
@@ -128,82 +104,6 @@ pub(in super::super) fn collect_statement_types(
             | hir::StatementKind::LocalFunction(_)
             | hir::StatementKind::Break { .. }
             | hir::StatementKind::Continue { .. } => {}
-        }
-    }
-}
-
-fn collect_binding_plan_types(
-    lowerer: &Lowerer,
-    plan: &hir::IrrefutableBindingPlan,
-    out: &mut Vec<hir::TypeId>,
-) {
-    out.push(plan.subject.ty);
-    collect_binding_shape_types(lowerer, &plan.shape, out);
-    for action in &plan.actions {
-        match action {
-            hir::IrrefutableBindingAction::Project {
-                source,
-                result,
-                projection,
-                ..
-            } => {
-                out.push(source.ty);
-                out.push(result.ty);
-                if let hir::BindingProjection::StructField(field) = projection {
-                    out.push(lowerer.struct_applications[field.application()].canonical_type);
-                }
-            }
-            hir::IrrefutableBindingAction::Component {
-                source,
-                result,
-                setup,
-                call,
-                ..
-            } => {
-                out.push(source.ty);
-                out.push(result.ty);
-                collect_statement_types(lowerer, setup, out);
-                collect_expr_types(lowerer, call, out);
-            }
-            hir::IrrefutableBindingAction::Bind { source, target, .. } => {
-                out.push(source.ty);
-                out.push(target.ty);
-            }
-        }
-    }
-}
-
-fn collect_binding_shape_types(
-    lowerer: &Lowerer,
-    shape: &hir::IrrefutableBindingShape,
-    out: &mut Vec<hir::TypeId>,
-) {
-    match shape {
-        hir::IrrefutableBindingShape::Binding(binding) => out.push(binding.ty),
-        hir::IrrefutableBindingShape::Wildcard => {}
-        hir::IrrefutableBindingShape::Tuple(elements) => {
-            for element in elements {
-                collect_binding_shape_types(lowerer, element, out);
-            }
-        }
-        hir::IrrefutableBindingShape::Struct {
-            application,
-            fields,
-        } => {
-            out.push(lowerer.struct_applications[*application].canonical_type);
-            for (field, shape) in fields {
-                out.push(lowerer.struct_applications[field.application()].canonical_type);
-                collect_binding_shape_types(lowerer, shape, out);
-            }
-        }
-        hir::IrrefutableBindingShape::Class {
-            application,
-            components,
-        } => {
-            out.push(lowerer.class_applications[*application].canonical_type);
-            for (_, shape) in components {
-                collect_binding_shape_types(lowerer, shape, out);
-            }
         }
     }
 }

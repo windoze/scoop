@@ -160,7 +160,7 @@ impl MirInterfaceDispatchTableV1 {
 /// by the canonical schema table rather than inferred from sorted slot ids.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParamFreeMirDispatchSchemaV1 {
-    application: bool,
+    odr: bool,
     pub(super) owner: PersistentExactTypeId,
     pub(super) slots: MirDispatchSlotsV1,
     pub(super) itables: Vec<MirInterfaceDispatchTableV1>,
@@ -173,10 +173,7 @@ impl ParamFreeMirDispatchSchemaV1 {
         itables: Vec<MirInterfaceDispatchTableV1>,
     ) -> Result<Self, MirDispatchSchemaError> {
         let record = Self {
-            application: matches!(
-                authority.type_export(owner)?.origin(),
-                MirTypeOriginV1::NominalApplication(_)
-            ),
+            odr: authority.type_export(owner)?.is_odr(),
             owner,
             slots,
             itables,
@@ -187,8 +184,8 @@ impl ParamFreeMirDispatchSchemaV1 {
     pub const fn owner(&self) -> PersistentExactTypeId {
         self.owner
     }
-    pub(in crate::cross_cone_type_bridge) const fn is_application(&self) -> bool {
-        self.application
+    pub(in crate::cross_cone_type_bridge) const fn is_odr(&self) -> bool {
+        self.odr
     }
     pub const fn slots(&self) -> &MirDispatchSlotsV1 {
         &self.slots

@@ -6,16 +6,13 @@ use crate::{
 
 use super::{DefaultLocalDataFlowSiteV1, ExportDefaultLocalDataFlowValidationError, Validator};
 
-impl<A, E> Validator<'_, A, E>
-where
-    A: super::DefaultLocalDataFlowSemanticAuthority<E>,
-{
+impl Validator<'_> {
     pub(super) fn validate_expression(
         &mut self,
         expression: &DefaultExpressionV1,
         available: &[bool],
         reachable: bool,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         let mut pending = Vec::new();
         scoop_wire::allocation::try_reserve(&mut pending, 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
@@ -29,7 +26,7 @@ where
         captures: &[DefaultCaptureV1],
         available: &[bool],
         reachable: bool,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         let mut pending = Vec::new();
         self.push_captures(&mut pending, captures)?;
         self.run_local_work(&mut pending, available, reachable)
@@ -40,7 +37,7 @@ where
         pending: &mut Vec<LocalWork<'_>>,
         available: &[bool],
         reachable: bool,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         while let Some(work) = pending.pop() {
             match work {
                 LocalWork::Expression { expression } => {
@@ -80,7 +77,7 @@ where
         pending: &mut Vec<LocalWork<'body>>,
         available: &[bool],
         reachable: bool,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         match expression.kind() {
             DefaultExpressionKindV1::Capture(index) => Err(
                 ExportDefaultLocalDataFlowValidationError::UnboundCapture(*index),
@@ -281,7 +278,7 @@ where
         &mut self,
         pending: &mut Vec<LocalWork<'body>>,
         expression: &'body DefaultExpressionV1,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         scoop_wire::allocation::try_reserve(pending, 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
 
@@ -293,7 +290,7 @@ where
         &mut self,
         pending: &mut Vec<LocalWork<'body>>,
         expressions: &'body [DefaultExpressionV1],
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         for expression in expressions.iter().rev() {
             self.push_expression(pending, expression)?;
         }
@@ -304,7 +301,7 @@ where
         &mut self,
         pending: &mut Vec<LocalWork<'body>>,
         captures: &'body [DefaultCaptureV1],
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         for (index, capture) in captures.iter().enumerate().rev() {
             scoop_wire::allocation::try_reserve(pending, 1, self.path)
                 .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;

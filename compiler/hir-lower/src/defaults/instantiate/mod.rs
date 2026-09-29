@@ -7,7 +7,6 @@ use crate::{Lowerer, Type};
 mod closures;
 mod entities;
 mod expressions;
-mod iteration;
 mod patterns;
 mod signatures;
 mod statements;

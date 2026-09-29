@@ -189,9 +189,6 @@ pub enum DefaultBodyOriginSiteV1 {
     Expression,
     WhenArm,
     Catch,
-    BindingAction,
-    IteratorConformance,
-    IteratorNext,
     CaptureFirstUse,
 }
 
@@ -227,11 +224,6 @@ pub enum DefaultBodyProviderTypeSiteV1 {
     WhenFallbackSubject,
     WhenFallbackEnumOwner,
     CatchValue,
-    BindingTemporaryValue,
-    BindingLeafValue,
-    BindingShapeOwner,
-    BindingProjectionOwner,
-    IteratorInterface,
 }
 
 #[derive(Debug, Eq, PartialEq)]

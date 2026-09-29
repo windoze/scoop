@@ -1,0 +1,3 @@
+span=87..98
+expression=Some(value)
+refutable patterns are only allowed in `when`
