@@ -14,7 +14,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     Call $set$stored : Unit
-      ImportedVariantConstruct Option.Some : Option<Int>
+      VariantConstruct Option.Some<Int> : Option<Int>
         Local $dependency.parameter._1 : Int
     val local2
       Call $get$stored : Option<Int>
@@ -38,9 +38,9 @@ Module
       ImportedGenericCall wrap<T0> : Option<T0>
         Local $dependency.parameter.value : T0
     Call $set$stored : Unit
-      ImportedVariantConstruct Option.None : Option<Int>
+      VariantConstruct Option.None<Int> : Option<Int>
     Call $set$referenced : Unit
-      ImportedVariantConstruct Option.None : Option<Cell>
+      VariantConstruct Option.None<Cell> : Option<Cell>
     val local4
       Call $get$qualified : Option<Int>
     if
@@ -117,7 +117,7 @@ Module
     val local21
       Local $dependency.argument.0 : Cell
     Call $set$referenced : Unit
-      ImportedVariantConstruct Option.Some : Option<Cell>
+      VariantConstruct Option.Some<Cell> : Option<Cell>
         Local $dependency.parameter._1 : Cell
     val local22
       IntegerLiteral 0 : Int

@@ -65,3 +65,12 @@
 - 字段身份在实际字段可用后按需建立，委托初始化仍在确定实际存储类型后建立字段。已建立的 property／field 身份由导出复用；最终表补齐未被正文引用的声明并保留完整索引。原 359 行字段身份模块拆为记录、构建和查询，分别约 195、171、96 行。
 - fmt／clippy、2840 项 HIR／前端／MIR lowering／slib 单元测试、51 项真实泛型产物回归均通过。核对 27 份快照，仅字段显示和派生相等的声明字段路径发生变化；错误位置与 MIR／LIR／wire 快照不变。关闭更新开关，使用保存的配套二进制复验覆盖全部变更快照的 11 项完整组合，全部通过。日志 `/tmp/scoop-m23-6a-field-refs-unit.log`、`/tmp/scoop-m23-6a-field-refs-fixtures.log`、`/tmp/scoop-m23-6a-field-refs-verify.log`。
 - 本批完成字段引用统一；底层 nominal 声明、调用与正文的其他来源分支仍按阶段设计继续迁移。
+
+## 共同 enum 引用与模式查询
+
+- variant 构造、判别、payload 投影、默认构造目标与模式统一保存原 variant／payload 字段 ID 及完整 enum 类型，删除 Imported variant 正文和模式分支。身份在变体收集完成后建立，导出复用；具体化按原 ID 取得 concrete 表示，默认替换只改变宿主类型。
+- 字段形状、派生相等、模式覆盖共用 variant 查询；Export HIR 的 enum 穷尽性记录只保存完整 subject，删除冗余本地 enum application，源码与依赖均保留同一种记录。wire 字段及 section 版本未改变。变体形状处理、声明查询与具体化分别为 97、111、73 行。
+- 新增 `m23-shared-enums` 的 3 组正例、4 组反例与三阶段／诊断快照；覆盖位置／命名／默认构造变体、嵌套 enum／Option、guard、类型别名、派生相等、宽值／引用／Unit、泛型再次发布及普通／移动 GC。
+- 完整回归暴露候选事务深复制不可变 core 协议表导致默认测试线程栈溢出；Lowerer、Export HIR 与 concrete HIR 改为共享同一 Arc 数据，未扩大线程栈或引入预算。原嵌套泛型用例在默认栈下已通过。
+- 全仓 fmt／clippy、2840 项 HIR／HIR lowering／MIR lowering／slib 单元测试及 54 项真实泛型／enum 产物回归通过。核对 19 份旧快照，仅 HIR 构造／模式／穷尽性显示和一条派生相等字段路径改变，MIR／LIR 与诊断位置不变；关闭更新开关的 13 项专项复验覆盖全部变化，全部通过。日志 `/tmp/scoop-m23-6a-variant-refs-unit.log`、`/tmp/scoop-m23-6a-variant-refs-fixtures.log`、`/tmp/scoop-m23-6a-variant-refs-verify.log`。
+- 此前已清理编辑器生成且未在构建中使用的 `target/debug/incremental`，释放约 1.23 GiB；阶段构建仍使用独立的 `target/m23-6a`。底层来源类型、声明与调用／正文迁移仍在继续。

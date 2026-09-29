@@ -77,10 +77,10 @@ Module
     val local25
       Local $dependency.argument.0 : Ptr<Int>
     val local26
-      ImportedVariantConstruct Option.Some : Option<Ptr<Int>>
+      VariantConstruct Option.Some<Ptr<Int>> : Option<Ptr<Int>>
         Local $dependency.parameter._1 : Ptr<Int>
     val local27
-      ImportedVariantConstruct Option.None : Option<Ptr<Int>>
+      VariantConstruct Option.None<Ptr<Int>> : Option<Ptr<Int>>
     val local28
       SizeOf Option<Ptr<Int>> : ULong
     val local29
@@ -96,7 +96,7 @@ Module
         IntegerLiteral 2 : Int
     when
       Local present : Option<Ptr<Int>>
-      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local31)
+      arm variant0(0: local31)
         val local36
           Local pointer : Ptr<Int>
         val local32
@@ -117,19 +117,19 @@ Module
         PtrStore : Unit
           Local $dependency.receiver : Ptr<Int>
           Local $dependency.parameter.value : Int
-      arm dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38()
+      arm variant1()
         return
           IntegerLiteral 3 : Int
-      impossible <pattern matrix for Option<Ptr<Int>>>
+      impossible <enum pattern matrix for Option<Ptr<Int>>>
     when
       Local absent : Option<Ptr<Int>>
-      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local39)
+      arm variant0(0: local39)
         return
           IntegerLiteral 4 : Int
-      arm dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38()
+      arm variant1()
         return
           Local number : Int
-      impossible <pattern matrix for Option<Ptr<Int>>>
+      impossible <enum pattern matrix for Option<Ptr<Int>>>
   fun result(): Int
     val local0
       IntegerLiteral 0 : Int

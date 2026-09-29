@@ -174,23 +174,13 @@ fn collect_pattern_type_occurrences(
             }
             collect_expr_type_occurrences(lowerer, value, out);
         }
-        hir::Pattern::ImportedVariant { owner, fields, .. } => {
-            out.push(TypeOccurrence {
-                ty: *owner,
-                file,
-                span,
-            });
-            for (_, field) in fields {
-                collect_pattern_type_occurrences(lowerer, field, file, span, out);
-            }
-        }
         hir::Pattern::Variant {
             application,
             fields,
             ..
         } => {
             out.push(TypeOccurrence {
-                ty: lowerer.enum_applications[*application].canonical_type,
+                ty: application.owner,
                 file,
                 span,
             });
@@ -285,35 +275,17 @@ pub(in super::super) fn collect_expr_type_occurrences(
             }
         }
         ExprKind::VariantConstruct { variant, args } => {
-            push_type_at_expression(
-                lowerer.enum_applications[variant.application()].canonical_type,
-                expression,
-                out,
-            );
-            for argument in args {
-                collect_expr_type_occurrences(lowerer, argument, out);
-            }
-        }
-        ExprKind::ImportedVariantConstruct { owner, args, .. } => {
-            push_type_at_expression(*owner, expression, out);
+            push_type_at_expression(variant.owner, expression, out);
             for argument in args {
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
         ExprKind::VariantTest { operand, variant } => {
-            push_type_at_expression(
-                lowerer.enum_applications[variant.application()].canonical_type,
-                expression,
-                out,
-            );
+            push_type_at_expression(variant.owner, expression, out);
             collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::VariantPayloadProject { operand, field } => {
-            push_type_at_expression(
-                lowerer.enum_applications[field.variant().application()].canonical_type,
-                expression,
-                out,
-            );
+            push_type_at_expression(field.variant.owner, expression, out);
             collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::Lambda(lambda) => {

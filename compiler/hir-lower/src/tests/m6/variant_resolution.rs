@@ -29,7 +29,14 @@ fn qualified_variant_construction_in_method_call_shape() {
     let main = body_of(&module, "main");
     match &local_init(main, "s").kind {
         hir::ExprKind::VariantConstruct { variant, args, .. } => {
-            assert_eq!(variant.local_index(), 0);
+            assert_eq!(
+                module
+                    .enum_member_identities
+                    .variant_declaration(variant.variant)
+                    .expect("the construction retains its original variant")
+                    .local_index(),
+                0
+            );
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].ty, int_type(&module));
             assert!(matches!(args[0].kind, hir::ExprKind::Local(_)));
@@ -42,7 +49,12 @@ fn qualified_variant_construction_in_method_call_shape() {
         .filter_map(|statement| match &statement.kind {
             hir::StatementKind::ValDecl { init, .. } => match &init.kind {
                 hir::ExprKind::VariantConstruct { variant, args, .. }
-                    if variant.local_index() == 1 =>
+                    if module
+                        .enum_member_identities
+                        .variant_declaration(variant.variant)
+                        .expect("the construction retains its original variant")
+                        .local_index()
+                        == 1 =>
                 {
                     Some(args)
                 }
@@ -77,7 +89,10 @@ fn qualified_generic_variant_infers_type_arguments() {
     let main = body_of(&module, "main");
     match &local_init(main, "b").kind {
         hir::ExprKind::VariantConstruct { variant, .. } => {
-            let arguments = &module.enum_applications[variant.application()].arguments;
+            let hir::Type::Enum(application) = module.types[variant.owner] else {
+                panic!("the construction retains its complete enum owner")
+            };
+            let arguments = &module.enum_applications[application].arguments;
             assert_eq!(arguments.len(), 1);
             assert_eq!(
                 module.types[arguments[0]],

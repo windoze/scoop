@@ -673,9 +673,6 @@ impl Lowerer {
         target: hir::ExportDefaultConstructorTarget,
     ) -> hir::AccessDomain {
         match target {
-            hir::ExportDefaultConstructorTarget::ImportedVariant { owner_type, .. } => {
-                self.type_access_domain(owner_type)
-            }
             hir::ExportDefaultConstructorTarget::Imported { .. } => hir::AccessDomain::universal(),
             hir::ExportDefaultConstructorTarget::Struct(application) => {
                 let constructor = self.struct_constructor_applications[application].constructor;
@@ -690,8 +687,7 @@ impl Lowerer {
                 self.class_constructors[constructor].access.lookup.0.clone()
             }
             hir::ExportDefaultConstructorTarget::Variant(variant) => {
-                let enumeration = self.enum_applications[variant.application()].template;
-                self.enums[enumeration].access.lookup.0.clone()
+                self.type_access_domain(variant.owner)
             }
         }
     }

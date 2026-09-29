@@ -53,7 +53,7 @@ Module
     val local17
       Local $dependency.argument.0 : Wide
     val local18
-      ImportedVariantConstruct Option.Some : Option<Wide>
+      VariantConstruct Option.Some<Wide> : Option<Wide>
         Local $dependency.parameter._1 : Wide
     val local19
       IntegerLiteral 1 : Int
@@ -67,23 +67,23 @@ Module
     val local22
       Local $dependency.argument.0 : (Cell, Int)
     val local23
-      ImportedVariantConstruct Option.Some : Option<(Cell, Int)>
+      VariantConstruct Option.Some<(Cell, Int)> : Option<(Cell, Int)>
         Local $dependency.parameter._1 : (Cell, Int)
     val local24
       StructInit Empty : Empty
     val local25
       Local $dependency.argument.0 : Empty
     val local26
-      ImportedVariantConstruct Option.Some : Option<Empty>
+      VariantConstruct Option.Some<Empty> : Option<Empty>
         Local $dependency.parameter._1 : Empty
     val local27
-      ImportedVariantConstruct Option.None : Option<Empty>
+      VariantConstruct Option.None<Empty> : Option<Empty>
     val local28
       Lambda lambda0 invoke=$lambda.0 captures=0 : () -> Int
     val local29
       Local $dependency.argument.0 : () -> Int
     val local30
-      ImportedVariantConstruct Option.Some : Option<() -> Int>
+      VariantConstruct Option.Some<() -> Int> : Option<() -> Int>
         Local $dependency.parameter._1 : () -> Int
     val local31
       IntegerLiteral 0 : Int
@@ -101,26 +101,26 @@ Module
         Local $dependency.parameter.value : Option<T0>
     when
       Local empty : Option<Empty>
-      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local37)
+      arm variant0(0: local37)
         assign $result.0
           BoolLiteral false : Boolean
-      arm dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38()
+      arm variant1()
         assign $result.0
           BoolLiteral true : Boolean
-      impossible <pattern matrix for Option<Empty>>
+      impossible <enum pattern matrix for Option<Empty>>
     if
       Local $result.0 : Boolean
       return
         IntegerLiteral 1 : Int
     when
       Local missing : Option<Empty>
-      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local39)
+      arm variant0(0: local39)
         assign $result.1
           BoolLiteral true : Boolean
-      arm dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38()
+      arm variant1()
         assign $result.1
           BoolLiteral false : Boolean
-      impossible <pattern matrix for Option<Empty>>
+      impossible <enum pattern matrix for Option<Empty>>
     if
       Local $result.1 : Boolean
       return

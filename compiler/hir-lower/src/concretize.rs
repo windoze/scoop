@@ -32,6 +32,7 @@ mod objects;
 mod protocols;
 mod runtime_exceptions;
 mod types;
+mod variants;
 
 use automatic::AutomaticNominalRoots;
 use callback_slots::{PendingForeignCallbackRegistration, finish_foreign_callback_slots};

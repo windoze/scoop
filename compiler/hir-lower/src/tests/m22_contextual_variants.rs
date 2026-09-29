@@ -20,11 +20,20 @@ fn assert_variant(module: &hir::Module, expression: &hir::Expr, owner: &str, nam
     let hir::ExprKind::VariantConstruct { variant, .. } = &expression.kind else {
         panic!("expected a variant construction, found {expression:?}");
     };
-    let application = variant.application();
-    let enumeration = module.enum_applications[application].template;
-    assert_eq!(module.enums[enumeration].name, owner);
+    let declaration = module
+        .enum_member_identities
+        .variant_declaration(variant.variant)
+        .expect("the construction retains its original variant");
+    let hir::Type::Enum(application) = module.types[variant.owner] else {
+        panic!("the construction retains its complete enum owner")
+    };
     assert_eq!(
-        module.enums[enumeration].variants[variant.local_index() as usize].name,
+        module.enum_applications[application].template,
+        declaration.enumeration()
+    );
+    assert_eq!(module.enums[declaration.enumeration()].name, owner);
+    assert_eq!(
+        module.enums[declaration.enumeration()].variants[declaration.local_index() as usize].name,
         name
     );
 }

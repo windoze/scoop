@@ -62,12 +62,10 @@ impl Lowerer {
             return Some(hir::ExhaustivenessProof::IrrefutableArm { subject_ty });
         }
         match self.types[subject_ty] {
-            Type::Enum(application) => Some(hir::ExhaustivenessProof::EnumPatternMatrix {
-                subject_ty,
-                application,
-            }),
-            Type::ImportedEnum(_)
-            | Type::ImportedStruct(_)
+            Type::Enum(_) | Type::ImportedEnum(_) => {
+                Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty })
+            }
+            Type::ImportedStruct(_)
             | Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Tuple(_)
@@ -218,59 +216,23 @@ impl Lowerer {
                     field_types: structure.fields.iter().map(|field| field.ty).collect(),
                 }])
             }
-            Type::ImportedEnum(enumeration) => ConstructorSpace::Closed(
-                enumeration
-                    .variants
-                    .iter()
+            Type::Enum(_) | Type::ImportedEnum(_) => ConstructorSpace::Closed(
+                self.enum_variants(ty)
+                    .into_iter()
                     .enumerate()
                     .map(|(index, variant)| Constructor::EnumVariant {
                         variant: index as u32,
-                        name: variant.name.clone(),
-                        style: match variant.style {
-                            hir::EnumSourceVariantStyleV1::Unit => hir::VariantStyle::Unit,
-                            hir::EnumSourceVariantStyleV1::Positional => {
-                                hir::VariantStyle::Positional
-                            }
-                            hir::EnumSourceVariantStyleV1::Named => hir::VariantStyle::Named,
-                            hir::EnumSourceVariantStyleV1::Constructor => {
-                                hir::VariantStyle::Constructor
-                            }
-                        },
+                        name: variant.name,
+                        style: variant.style,
                         field_names: variant
                             .fields
                             .iter()
-                            .map(|field| field.name.clone())
+                            .map(|(name, _)| name.clone())
                             .collect(),
-                        field_types: variant.fields.iter().map(|field| field.ty).collect(),
+                        field_types: variant.fields.into_iter().map(|(_, ty)| ty).collect(),
                     })
                     .collect(),
             ),
-            Type::Enum(application) => {
-                let application_value = self.enum_applications[application].clone();
-                let enum_id = application_value.template;
-                let variants = self.enums[enum_id].variants.clone();
-                ConstructorSpace::Closed(
-                    variants
-                        .into_iter()
-                        .enumerate()
-                        .map(|(index, variant)| Constructor::EnumVariant {
-                            variant: index as u32,
-                            name: variant.name,
-                            style: variant.style,
-                            field_names: variant
-                                .fields
-                                .iter()
-                                .map(|field| field.name.clone())
-                                .collect(),
-                            field_types: self.variant_field_types(
-                                enum_id,
-                                index as u32,
-                                &application_value.arguments,
-                            ),
-                        })
-                        .collect(),
-                )
-            }
             Type::Tuple(field_types) => {
                 ConstructorSpace::Closed(vec![Constructor::Tuple { field_types }])
             }
@@ -363,35 +325,17 @@ impl Lowerer {
         match (constructor, pattern) {
             (
                 Constructor::EnumVariant {
-                    variant: index,
-                    field_types,
-                    ..
-                },
-                hir::Pattern::ImportedVariant {
-                    owner,
-                    variant,
-                    fields,
-                },
-            ) => {
-                let Type::ImportedEnum(enumeration) = &self.types[*owner] else {
-                    unreachable!("an imported variant pattern retains its enum subject")
-                };
-                (enumeration.variants[*index as usize].identity == *variant)
-                    .then(|| normalize_fields(field_types.len(), fields))
-            }
-
-            (
-                Constructor::EnumVariant {
                     variant,
                     field_types,
                     ..
                 },
                 hir::Pattern::Variant {
-                    variant: pattern_variant,
+                    application,
                     fields,
-                    ..
                 },
-            ) if variant == pattern_variant => Some(normalize_fields(field_types.len(), fields)),
+            ) if *variant == self.enum_variant_index(*application) => {
+                Some(normalize_fields(field_types.len(), fields))
+            }
             (Constructor::Tuple { field_types }, hir::Pattern::Tuple(elements)) => {
                 debug_assert_eq!(elements.len(), field_types.len());
                 Some(elements.clone())

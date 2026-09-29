@@ -97,34 +97,7 @@ impl Concretizer<'_> {
             ),
             export::ExprKind::VariantConstruct { variant, args } => {
                 concrete::ExprKind::VariantConstruct {
-                    variant: self.lower_applied_enum_variant_ref(*variant, substitution),
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
-                }
-            }
-            export::ExprKind::ImportedVariantConstruct {
-                owner,
-                variant,
-                args,
-            } => {
-                let owner = self.lower_type(*owner, substitution);
-                let concrete::TypeKind::Enum(enumeration) = self.types[owner].kind else {
-                    unreachable!("a dependency enum constructor has a concrete enum representation")
-                };
-                let index = self.enums[enumeration]
-                    .variants
-                    .iter()
-                    .position(|value| value.identity == *variant)
-                    .expect("the constructor retains an actual variant of its dependency enum");
-                concrete::ExprKind::VariantConstruct {
-                    variant: concrete::EnumVariantRef::checked(
-                        &self.enums,
-                        enumeration,
-                        concrete::VariantId::from_raw(index as u32),
-                    )
-                    .expect("the variant was selected from this enum representation"),
+                    variant: self.lower_enum_variant(*variant, substitution),
                     args: args
                         .iter()
                         .map(|argument| self.lower_expr(argument, substitution, locals))
@@ -133,12 +106,12 @@ impl Concretizer<'_> {
             }
             export::ExprKind::VariantTest { operand, variant } => concrete::ExprKind::VariantTest {
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                variant: self.lower_applied_enum_variant_ref(*variant, substitution),
+                variant: self.lower_enum_variant(*variant, substitution),
             },
             export::ExprKind::VariantPayloadProject { operand, field } => {
                 concrete::ExprKind::VariantPayloadProject {
                     operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                    field: self.lower_applied_enum_variant_field_ref(*field, substitution),
+                    field: self.lower_enum_variant_field(*field, substitution),
                 }
             }
             export::ExprKind::Local(local) => {

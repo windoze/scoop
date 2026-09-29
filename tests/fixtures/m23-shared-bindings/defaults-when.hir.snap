@@ -126,7 +126,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedVariantConstruct Option.Some : Option<Int>
+      VariantConstruct Option.Some<Int> : Option<Int>
         Local $dependency.parameter._1 : Int
     val local3
       IntegerLiteral 2 : Int
@@ -138,7 +138,7 @@ Module
       ImportedConstructorInit Pair : Pair<Option<Int>>
         Local $dependency.parameter.left : Option<Int>
         Local $dependency.parameter.right : Int
-      arm struct(0: dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local6), 1: local7)
+      arm struct(0: variant0(0: local6), 1: local7)
         val local8
           Local value : Int
         val local9
@@ -149,7 +149,7 @@ Module
           IntegerOperation int.add <no-gc> : Int
             Local $dependency.receiver : Int
             Local $dependency.parameter.other : Int
-      arm struct(0: dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38(), 1: _)
+      arm struct(0: variant1(), 1: _)
         assign $result.1
           IntegerLiteral 1 : Int
       impossible <pattern matrix for Pair<Option<Int>>>

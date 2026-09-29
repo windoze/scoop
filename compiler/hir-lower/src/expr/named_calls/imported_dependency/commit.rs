@@ -217,9 +217,11 @@ impl Lowerer {
             candidate.interface().declaration()
         {
             return Some(hir::Expr {
-                kind: hir::ExprKind::ImportedVariantConstruct {
-                    owner: result_type,
-                    variant,
+                kind: hir::ExprKind::VariantConstruct {
+                    variant: hir::EnumVariantApplication {
+                        owner: result_type,
+                        variant,
+                    },
                     args: parameter_values,
                 },
                 ty: result_type,

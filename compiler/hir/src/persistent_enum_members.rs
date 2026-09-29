@@ -1,5 +1,6 @@
 //! Persistent identities aligned with source enum variants and their fields.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::Index;
 
@@ -30,6 +31,8 @@ struct HirEnumVariantIdentityRow {
 #[derive(Clone, Debug)]
 pub struct HirEnumMemberIdentities {
     enums: Vec<HirEnumIdentityRow>,
+    variants_by_identity: HashMap<PersistentEnumVariantId, EnumVariantRef>,
+    fields_by_identity: HashMap<PersistentEnumVariantFieldId, EnumVariantFieldRef>,
 }
 
 impl HirEnumMemberIdentities {
@@ -38,6 +41,8 @@ impl HirEnumMemberIdentities {
         nominal_identities: &HirNominalIdentities,
     ) -> Result<Self, HirEnumMemberIdentityError> {
         let mut rows = Vec::with_capacity(enums.len());
+        let mut variants_by_identity = HashMap::new();
+        let mut fields_by_identity = HashMap::new();
         for (enum_id, enumeration) in enums.iter() {
             let enum_index = raw_enum_index(enum_id);
             let owner = nominal_identities[enum_id].source().ok_or(
@@ -74,6 +79,9 @@ impl HirEnumMemberIdentities {
                         error,
                     }
                 })?;
+                let variant_ref = EnumVariantRef::checked(enums, enum_id, variant_index)
+                    .expect("the variant comes from this enum declaration");
+                variants_by_identity.insert(variant_record.id(), variant_ref);
                 let mut field_records = Vec::with_capacity(variant.fields.len());
                 for (field_index, field) in variant.fields.iter().enumerate() {
                     let field_index = u32::try_from(field_index).map_err(|_| {
@@ -115,6 +123,9 @@ impl HirEnumMemberIdentities {
                             error,
                         }
                     })?;
+                    let field_ref = EnumVariantFieldRef::checked(enums, variant_ref, field_index)
+                        .expect("the field comes from this variant declaration");
+                    fields_by_identity.insert(record.id(), field_ref);
                     field_records.push(record);
                 }
                 variant_rows.push(HirEnumVariantIdentityRow {
@@ -126,7 +137,22 @@ impl HirEnumMemberIdentities {
                 variants: variant_rows,
             });
         }
-        Ok(Self { enums: rows })
+        Ok(Self {
+            enums: rows,
+            variants_by_identity,
+            fields_by_identity,
+        })
+    }
+
+    pub fn variant_declaration(&self, id: PersistentEnumVariantId) -> Option<EnumVariantRef> {
+        self.variants_by_identity.get(&id).copied()
+    }
+
+    pub fn field_declaration(
+        &self,
+        id: PersistentEnumVariantFieldId,
+    ) -> Option<EnumVariantFieldRef> {
+        self.fields_by_identity.get(&id).copied()
     }
 
     pub(crate) fn get_variant(&self, variant: EnumVariantRef) -> Option<&VariantRecord> {

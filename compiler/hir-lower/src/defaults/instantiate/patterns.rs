@@ -64,27 +64,11 @@ impl Lowerer {
                 },
                 subject_ty: self.instantiate_method_ty(*subject_ty, &context.bindings),
             },
-            hir::Pattern::ImportedVariant {
-                owner,
-                variant,
-                fields,
-            } => hir::Pattern::ImportedVariant {
-                owner: self.instantiate_method_ty(*owner, &context.bindings),
-                variant: *variant,
-                fields: fields
-                    .iter()
-                    .map(|(index, pattern)| {
-                        (*index, self.instantiate_default_pattern(pattern, context))
-                    })
-                    .collect(),
-            },
             hir::Pattern::Variant {
                 application,
-                variant,
                 fields,
             } => hir::Pattern::Variant {
-                application: self.instantiate_default_enum_application(*application, context),
-                variant: *variant,
+                application: self.instantiate_default_variant(*application, context),
                 fields: fields
                     .iter()
                     .map(|(index, pattern)| {

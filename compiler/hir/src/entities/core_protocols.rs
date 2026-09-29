@@ -7,7 +7,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub enum CoreProtocols {
     Defined(Box<DefinedCoreProtocols>),
-    Imported(Box<ImportedCoreProtocols>),
+    Imported(std::sync::Arc<ImportedCoreProtocols>),
 }
 
 /// Complete compiler-facing protocol authority defined by the current HIR

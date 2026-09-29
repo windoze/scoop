@@ -336,6 +336,13 @@ impl AppliedEnumVariantFieldRef {
         self.variant
     }
 
+    pub const fn declaration(self) -> EnumVariantFieldRef {
+        EnumVariantFieldRef {
+            variant: self.variant.declaration(),
+            local_index: self.local_index,
+        }
+    }
+
     pub const fn local_index(self) -> u32 {
         self.local_index
     }

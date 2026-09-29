@@ -6,10 +6,10 @@ Module
   fun score(value: Choice): Long <no-gc cdecl>
     when
       Local value : Choice
-      arm dependency variant 9647f7997aec08abd539bf566642f39a7fa439bf4f85fc2c1da51f3039dd4bb0()
+      arm variant0()
         assign $result.1
           IntegerLiteral 0 : Long
-      arm dependency variant 29eb7408dda5830ac206d17f2bca964f0c66071ac2af437d5951d88ebd039bd0(0: local1, 1: _, 2: local2) if <guard>
+      arm variant1(0: local1, 1: _, 2: local2) if <guard>
         guard setup
           val local3
             Local left : Long
@@ -25,7 +25,7 @@ Module
             IntegerLiteral 0 : Long
         assign $result.1
           IntegerLiteral 0 : Long
-      arm dependency variant 29eb7408dda5830ac206d17f2bca964f0c66071ac2af437d5951d88ebd039bd0(0: local6, 1: _, 2: local7)
+      arm variant1(0: local6, 1: _, 2: local7)
         val local8
           Local left : Long
         val local9
@@ -36,16 +36,16 @@ Module
           IntegerOperation long.add <no-gc> : Long
             Local $dependency.receiver : Long
             Local $dependency.parameter.other : Long
-      impossible <pattern matrix for Choice>
+      impossible <enum pattern matrix for Choice>
     return
       Local $result.1 : Long
   fun packetScore(value: Packet): Long <no-gc cdecl>
     when
       Local value : Packet
-      arm dependency variant 8ebe4e61a4145b967e5d7b69aa3f808c606cdce17709ee7447c27dd152ccb584()
+      arm variant0()
         assign $result.2
           IntegerLiteral 0 : Long
-      arm dependency variant 92c83ead6e8f56b8aa6d379e8bda3b0cf64c21c22484c0ea98f4e4e8befcbd6c(0: (local1, _, local2), 1: _)
+      arm variant1(0: (local1, _, local2), 1: _)
         val local3
           Local left : Long
         val local4
@@ -56,19 +56,19 @@ Module
           IntegerOperation long.add <no-gc> : Long
             Local $dependency.receiver : Long
             Local $dependency.parameter.other : Long
-      impossible <pattern matrix for Packet>
+      impossible <enum pattern matrix for Packet>
     return
       Local $result.2 : Long
   fun flagScore(value: Flag): Long <no-gc cdecl>
     when
       Local value : Flag
-      arm dependency variant fdbb3796920ca563d5b306f063305502899806c328d8c1c3a830fe7b9d45fcf5()
+      arm variant0()
         assign $result.3
           IntegerLiteral 0 : Long
-      arm dependency variant b02a6dd09d694ef6350d2cae40611358c8c7bfa33d57d0cf3ba148f808638f85()
+      arm variant1()
         assign $result.3
           IntegerLiteral 1 : Long
-      impossible <pattern matrix for Flag>
+      impossible <enum pattern matrix for Flag>
     return
       Local $result.3 : Long
   fun defaultScore(value: Choice, result: Long): Long <no-gc cdecl>
@@ -116,10 +116,10 @@ Module
       Local $argument.0 : Choice
     when
       Local $parameter.value : Choice
-      arm dependency variant 9647f7997aec08abd539bf566642f39a7fa439bf4f85fc2c1da51f3039dd4bb0()
+      arm variant0()
         assign $result.0
           IntegerLiteral 0 : Long
-      arm dependency variant 29eb7408dda5830ac206d17f2bca964f0c66071ac2af437d5951d88ebd039bd0(0: local15, 1: _, 2: local16)
+      arm variant1(0: local15, 1: _, 2: local16)
         val local17
           Local left : Long
         val local18
@@ -130,7 +130,7 @@ Module
           IntegerOperation long.add <no-gc> : Long
             Local $dependency.receiver : Long
             Local $dependency.parameter.other : Long
-      impossible <pattern matrix for Choice>
+      impossible <enum pattern matrix for Choice>
     val local21
       Local $result.0 : Long
     val local23

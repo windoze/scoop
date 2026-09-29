@@ -4,9 +4,10 @@ use scoop_identity::{GeneratedCallableKey, PersistentGeneratedCallableId};
 
 use super::{DefaultEntityProjector, arena_get};
 use crate::{
-    AppliedEnumVariantFieldRef, AppliedEnumVariantRef, DefaultClassConstructorIdV1,
-    DefaultConstructorRefV1, DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefV1,
-    DefaultFieldRefV1, HirClassConstructorIdentity, HirSignatureBinder, LexicalDefinitionRoot,
+    DefaultClassConstructorIdV1, DefaultConstructorRefV1, DefaultEnumVariantFieldRefV1,
+    DefaultEnumVariantRefV1, DefaultFieldRefV1, EnumVariantApplication,
+    EnumVariantFieldApplication, HirClassConstructorIdentity, HirSignatureBinder,
+    LexicalDefinitionRoot,
 };
 
 impl DefaultEntityProjector<'_> {
@@ -66,45 +67,23 @@ impl DefaultEntityProjector<'_> {
 
     pub(in crate::production::default_templates) fn variant(
         &self,
-        variant: AppliedEnumVariantRef,
+        variant: EnumVariantApplication,
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultEnumVariantRefV1, super::super::DefaultEntityProjectionError> {
-        let application = arena_get(&self.export.enum_applications, variant.application()).ok_or(
-            super::super::DefaultEntityProjectionError::Unknown {
-                kind: "enum application",
-                index: super::super::raw_index(variant.application()),
-            },
-        )?;
         Ok(DefaultEnumVariantRefV1::new(
-            self.variant_id(variant.declaration())?,
-            self.type_key(application.canonical_type, binders)?,
+            variant.variant,
+            self.type_key(variant.owner, binders)?,
         ))
     }
 
     pub(in crate::production::default_templates) fn variant_field(
         &self,
-        field: AppliedEnumVariantFieldRef,
+        field: EnumVariantFieldApplication,
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultEnumVariantFieldRefV1, super::super::DefaultEntityProjectionError> {
-        let variant = field.variant();
-        let application = arena_get(&self.export.enum_applications, variant.application()).ok_or(
-            super::super::DefaultEntityProjectionError::Unknown {
-                kind: "enum application",
-                index: super::super::raw_index(variant.application()),
-            },
-        )?;
-        let declaration = crate::EnumVariantFieldRef::checked(
-            &self.export.enums,
-            variant.declaration(),
-            field.local_index(),
-        )
-        .ok_or(super::super::DefaultEntityProjectionError::Unknown {
-            kind: "enum variant field",
-            index: field.local_index(),
-        })?;
         Ok(DefaultEnumVariantFieldRefV1::new(
-            self.export.enum_member_identities[declaration].id(),
-            self.type_key(application.canonical_type, binders)?,
+            field.field,
+            self.type_key(field.variant.owner, binders)?,
         ))
     }
 

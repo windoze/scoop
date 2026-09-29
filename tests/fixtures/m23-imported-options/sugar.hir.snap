@@ -44,11 +44,11 @@ Module
       val local6
         Local $dependency.argument.0 : Cell
       assign $result.0
-        ImportedVariantConstruct Option.Some : Option<Cell>
+        VariantConstruct Option.Some<Cell> : Option<Cell>
           Local $dependency.parameter._1 : Cell
     else
       assign $result.0
-        ImportedVariantConstruct Option.None : Option<Cell>
+        VariantConstruct Option.None<Cell> : Option<Cell>
     return
       Local $result.0 : Option<Cell>
   fun exercise<T>(value: T0): Int
@@ -362,7 +362,7 @@ Module
     val local79
       Local $dependency.argument.0 : T0
     val local80
-      ImportedVariantConstruct Option.Some : Option<T0>
+      VariantConstruct Option.Some<T0> : Option<T0>
         Local $dependency.parameter._1 : T0
     val local81
       Local $dependency.argument.0 : Option<T0>
@@ -383,7 +383,7 @@ Module
         IntegerLiteral 2 : Int
     when
       Local nested : Option<Option<Int>>
-      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local87))
+      arm variant0(0: variant0(0: local87))
         val local88
           Local number : Int
         val local89

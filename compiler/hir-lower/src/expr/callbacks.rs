@@ -147,14 +147,17 @@ impl Lowerer {
             );
             return None;
         };
-        if !core.modes.contains(*variant) || !args.is_empty() {
+        let declared_mode = [core.modes.reusable(), core.modes.one_shot()]
+            .into_iter()
+            .find(|mode| self.enum_variant_reference(*mode) == *variant);
+        let Some(declared_mode) = declared_mode.filter(|_| args.is_empty()) else {
             self.error(
                 mode.span,
                 "foreign callback mode must be the constant `Reusable` or `OneShot`".to_string(),
             );
             return None;
-        }
-        let mode = *variant;
+        };
+        let mode = declared_mode;
         self.check_call_effects(hir::Callable::Function(function), call.span);
         let definition_path = self
             .definition_paths

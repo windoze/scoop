@@ -92,18 +92,12 @@ impl ReferenceCollector<'_> {
                 }
                 self.type_reference(*subject_ty, origin);
             }
-            hir::Pattern::ImportedVariant { owner, fields, .. } => {
-                self.type_reference(*owner, origin);
-                for (_, field) in fields {
-                    self.pattern(field, origin);
-                }
-            }
             hir::Pattern::Variant {
                 application,
                 fields,
                 ..
             } => {
-                let owner = self.lowerer.enum_applications[*application].canonical_type;
+                let owner = application.owner;
                 self.type_reference(owner, origin);
                 for (_, field) in fields {
                     self.pattern(field, origin);
@@ -141,15 +135,10 @@ impl ReferenceCollector<'_> {
             })
             | hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
                 subject_ty,
-            }) => self.type_reference(*subject_ty, origin),
-            hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
+            })
+            | hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                 subject_ty,
-                application,
-            }) => {
-                self.type_reference(*subject_ty, origin);
-                let owner = self.lowerer.enum_applications[*application].canonical_type;
-                self.type_reference(owner, origin);
-            }
+            }) => self.type_reference(*subject_ty, origin),
         }
     }
 

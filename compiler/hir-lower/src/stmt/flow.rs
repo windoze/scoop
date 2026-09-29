@@ -401,12 +401,20 @@ mod tests {
     #[test]
     fn refutable_when_arm_unions_its_body_with_the_fallback() {
         let when = statement(hir::StatementKind::When(hir::When {
-            subject: expression(),
+            subject: hir::Expr {
+                kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(1)),
+                ..expression()
+            },
             arms: vec![hir::WhenArm {
-                pattern: hir::Pattern::Variant {
-                    application: hir::EnumApplicationId::from_raw(0_u32.into()),
-                    variant: 0,
-                    fields: Vec::new(),
+                pattern: hir::Pattern::Literal {
+                    value: hir::Expr {
+                        kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Signed32(0)),
+                        ..expression()
+                    },
+                    equality: hir::LiteralPatternEquality::Integer {
+                        kind: hir::IntegerKind::SIGNED_32,
+                    },
+                    subject_ty: expression().ty,
                 },
                 guard: None,
                 body: vec![return_statement()],

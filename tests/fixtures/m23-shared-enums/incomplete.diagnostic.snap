@@ -1,0 +1,7 @@
+span=75..185
+expression=when (value) {
+    Empty -> 0
+    Item(payload) -> payload
+    Named { payload, amount } -> payload + amount
+}
+non-exhaustive when: missing pattern Defaults(-2147483648, -2147483648)

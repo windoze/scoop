@@ -1,33 +1,5 @@
 use super::*;
 
-enum VariantTarget {
-    Local {
-        application: hir::EnumApplicationId,
-        index: u32,
-    },
-    Imported {
-        owner: hir::TypeId,
-        variant: scoop_identity::PersistentEnumVariantId,
-    },
-}
-
-impl VariantTarget {
-    fn pattern(&self, fields: Vec<(u32, hir::Pattern)>) -> hir::Pattern {
-        match *self {
-            Self::Local { application, index } => hir::Pattern::Variant {
-                application,
-                variant: index,
-                fields,
-            },
-            Self::Imported { owner, variant } => hir::Pattern::ImportedVariant {
-                owner,
-                variant,
-                fields,
-            },
-        }
-    }
-}
-
 impl Lowerer {
     pub(super) fn build_derived_enum_equality(
         &mut self,
@@ -38,67 +10,18 @@ impl Lowerer {
         span: ast::Span,
         stack: &mut Vec<hir::TypeId>,
     ) -> Result<Vec<hir::Statement>, String> {
-        let (variants, proof) = match self.types[ty].clone() {
-            Type::Enum(application) => {
-                let value = self.enum_applications[application].clone();
-                let declaration = self.enums[value.template].clone();
-                let variants = declaration
-                    .variants
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, variant)| {
-                        let fields = variant
-                            .fields
-                            .into_iter()
-                            .map(|field| {
-                                (field.name, self.instantiate_ty(field.ty, &value.arguments))
-                            })
-                            .collect::<Vec<_>>();
-                        (
-                            VariantTarget::Local {
-                                application,
-                                index: index as u32,
-                            },
-                            format!("{}.{}", declaration.name, variant.name),
-                            fields,
-                        )
-                    })
-                    .collect::<Vec<_>>();
+        let variants = self
+            .enum_variants(ty)
+            .into_iter()
+            .map(|variant| {
                 (
-                    variants,
-                    hir::ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty: ty,
-                        application,
-                    },
+                    variant.application,
+                    format!("{}.{}", variant.owner_name, variant.name),
+                    variant.fields,
                 )
-            }
-            Type::ImportedEnum(enumeration) => {
-                let name = self.type_name(ty);
-                let variants = enumeration
-                    .variants
-                    .iter()
-                    .map(|variant| {
-                        (
-                            VariantTarget::Imported {
-                                owner: ty,
-                                variant: variant.identity,
-                            },
-                            format!("{name}.{}", variant.name),
-                            variant
-                                .fields
-                                .iter()
-                                .map(|field| (field.name.clone(), field.ty))
-                                .collect(),
-                        )
-                    })
-                    .collect();
-                (
-                    variants,
-                    hir::ExhaustivenessProof::PatternMatrix { subject_ty: ty },
-                )
-            }
-            _ => unreachable!("enum equality retains its exact enum owner"),
-        };
+            })
+            .collect::<Vec<_>>();
+        let proof = hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty: ty };
         let mut synthetic_ordinal = 0;
         let mut arms = Vec::with_capacity(variants.len());
         for (variant_index, (target, path, fields)) in variants.into_iter().enumerate() {
@@ -139,7 +62,10 @@ impl Lowerer {
                 kind: hir::StatementKind::When(hir::When {
                     subject: other_expr.clone(),
                     arms: vec![hir::WhenArm {
-                        pattern: target.pattern(right_fields),
+                        pattern: hir::Pattern::Variant {
+                            application: target,
+                            fields: right_fields,
+                        },
                         guard: None,
                         body: vec![return_statement(equal, span)],
                         span,
@@ -152,7 +78,10 @@ impl Lowerer {
                 span,
             };
             arms.push(hir::WhenArm {
-                pattern: target.pattern(left_fields),
+                pattern: hir::Pattern::Variant {
+                    application: target,
+                    fields: left_fields,
+                },
                 guard: None,
                 body: vec![inner],
                 span,

@@ -55,7 +55,7 @@ impl Lowerer {
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                variant,
+                variant: self.enum_variant_reference(variant),
                 args: Vec::new(),
             },
             ty,
@@ -164,7 +164,7 @@ impl Lowerer {
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                variant,
+                variant: self.enum_variant_reference(variant),
                 args: lowered,
             },
             ty,

@@ -1146,8 +1146,7 @@ fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
                             subject: local_ref(subject, option_boolean),
                             arms: vec![hir::WhenArm {
                                 pattern: hir::Pattern::Variant {
-                                    application: option_application,
-                                    variant: 0,
+                                    application: h.enum_variant_ref(option_application, 0),
                                     fields: vec![(0, hir::Pattern::Wildcard)],
                                 },
                                 guard: None,

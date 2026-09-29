@@ -150,10 +150,7 @@ pub enum ExhaustivenessProof {
     PatternMatrix { subject_ty: TypeId },
     /// Every constructor of this exact enum application, including each
     /// constructor's recursive payload matrix, is covered.
-    EnumPatternMatrix {
-        subject_ty: TypeId,
-        application: EnumApplicationId,
-    },
+    EnumPatternMatrix { subject_ty: TypeId },
 }
 
 #[derive(Debug, Clone)]
@@ -188,17 +185,9 @@ pub enum Pattern {
         equality: LiteralPatternEquality,
         subject_ty: TypeId,
     },
-    ImportedVariant {
-        owner: TypeId,
-        variant: scoop_identity::PersistentEnumVariantId,
-        /// Selected payload fields in declaration order.
-        fields: Vec<(u32, Pattern)>,
-    },
     Variant {
-        application: EnumApplicationId,
-        /// Variant index in declaration order.
-        variant: u32,
-        /// `(field index, subpattern)` in declaration order.
+        application: EnumVariantApplication,
+        /// Selected payload fields in declaration order.
         fields: Vec<(u32, Pattern)>,
     },
     Tuple(Vec<Pattern>),
@@ -263,22 +252,16 @@ pub enum ExprKind {
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
     VariantConstruct {
-        variant: AppliedEnumVariantRef,
-        args: Vec<Expr>,
-    },
-    /// A value constructor from a dependency's complete enum declaration.
-    ImportedVariantConstruct {
-        owner: TypeId,
-        variant: scoop_identity::PersistentEnumVariantId,
+        variant: EnumVariantApplication,
         args: Vec<Expr>,
     },
     VariantTest {
         operand: Box<Expr>,
-        variant: AppliedEnumVariantRef,
+        variant: EnumVariantApplication,
     },
     VariantPayloadProject {
         operand: Box<Expr>,
-        field: AppliedEnumVariantFieldRef,
+        field: EnumVariantFieldApplication,
     },
     Local(LocalId),
     GlobalRead(GlobalId),
@@ -611,4 +594,18 @@ pub enum BinOp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
     Not,
+}
+
+/// An original variant in one complete, possibly symbolic enum application.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantApplication {
+    pub owner: TypeId,
+    pub variant: scoop_identity::PersistentEnumVariantId,
+}
+
+/// A payload field retains its original variant and field identities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantFieldApplication {
+    pub variant: EnumVariantApplication,
+    pub field: scoop_identity::PersistentEnumVariantFieldId,
 }

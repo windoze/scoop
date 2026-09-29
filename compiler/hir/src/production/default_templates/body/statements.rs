@@ -192,22 +192,9 @@ impl BodyProjection<'_, '_> {
             WhenFallback::Impossible(ExhaustivenessProof::PatternMatrix { subject_ty }) => {
                 DefaultWhenFallbackV1::pattern_matrix(self.type_key(*subject_ty)?)
             }
-            WhenFallback::Impossible(ExhaustivenessProof::EnumPatternMatrix {
-                subject_ty,
-                application,
-            }) => {
-                let application = super::super::arena_get(
-                    &self.entities.export().enum_applications,
-                    *application,
-                )
-                .ok_or(super::super::DefaultEntityProjectionError::Unknown {
-                    kind: "exhaustiveness enum application",
-                    index: super::super::raw_index(*application),
-                })?;
-                DefaultWhenFallbackV1::enum_pattern_matrix(
-                    self.type_key(*subject_ty)?,
-                    self.type_key(application.canonical_type)?,
-                )
+            WhenFallback::Impossible(ExhaustivenessProof::EnumPatternMatrix { subject_ty }) => {
+                let subject = self.type_key(*subject_ty)?;
+                DefaultWhenFallbackV1::enum_pattern_matrix(subject.clone(), subject)
             }
         })
     }

@@ -71,15 +71,10 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
-        let enum_member_identities =
-            match crate::persistent_enum_members::build(&self, nominal_identities) {
-                Ok(identities) => identities,
-                Err(error) => {
-                    let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
-                    diagnostic.file = error.file();
-                    return Err(vec![diagnostic]);
-                }
-            };
+        let enum_member_identities = self
+            .enum_member_identities
+            .as_ref()
+            .expect("enum member identities precede bodies");
         let field_identities = match crate::persistent_fields::build(
             &self,
             nominal_identities,
@@ -122,7 +117,7 @@ impl Lowerer {
             &initialization_unit_identities,
             &type_identities,
             &constructor_identities,
-            &enum_member_identities,
+            enum_member_identities,
             core_types,
         ) {
             Ok(identities) => identities,
@@ -140,7 +135,7 @@ impl Lowerer {
                     nominal_identities,
                     &property_accessor_identities,
                     &constructor_identities,
-                    &enum_member_identities,
+                    enum_member_identities,
                     &function_identities,
                     core_types,
                 ) {
@@ -193,7 +188,7 @@ impl Lowerer {
             &self,
             &public_surface,
             nominal_identities,
-            &enum_member_identities,
+            enum_member_identities,
             &object_value_identities,
             &function_identities,
             &property_identities,
@@ -282,7 +277,7 @@ impl Lowerer {
             &function_identities,
             &property_identities,
             &type_alias_identities,
-            &enum_member_identities,
+            enum_member_identities,
             &source_context_identities,
         ) {
             Ok(identities) => identities,
@@ -298,7 +293,7 @@ impl Lowerer {
             &property_identities,
             &property_accessor_identities,
             &type_alias_identities,
-            &enum_member_identities,
+            enum_member_identities,
             &field_identities,
             &initialization_unit_identities,
             &constructor_identities,
@@ -323,7 +318,9 @@ impl Lowerer {
             property_identities,
             property_accessor_identities,
             type_alias_identities,
-            enum_member_identities,
+            enum_member_identities: self
+                .enum_member_identities
+                .expect("completed HIR retains original enum member identities"),
             field_identities,
             object_value_identities,
             initialization_unit_identities,

@@ -224,9 +224,11 @@ impl Lowerer {
                         ))
                     })
                     .collect::<Result<Vec<_>, ImportedDefaultMaterializationError>>()?;
-                Ok(hir::Pattern::ImportedVariant {
-                    owner,
-                    variant: variant.declaration(),
+                Ok(hir::Pattern::Variant {
+                    application: hir::EnumVariantApplication {
+                        owner,
+                        variant: variant.declaration(),
+                    },
                     fields,
                 })
             }
@@ -298,7 +300,7 @@ impl Lowerer {
                 })
             }
             hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { subject_type, .. } => {
-                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
+                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                     subject_ty: self.materialize_imported_default_type(subject_type, context)?,
                 })
             }

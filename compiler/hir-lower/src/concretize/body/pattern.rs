@@ -31,38 +31,18 @@ impl Concretizer<'_> {
                 },
                 subject_ty: self.lower_type(*subject_ty, substitution),
             },
-            export::Pattern::ImportedVariant {
-                owner,
-                variant,
-                fields,
-            } => {
-                let concrete_owner = self.lower_type(*owner, substitution);
-                assert_eq!(
-                    concrete_owner, expected,
-                    "the variant owner matches its subject"
-                );
-                let concrete::TypeKind::Enum(enumeration) = self.types[concrete_owner].kind else {
-                    unreachable!("an imported enum pattern has a concrete enum representation")
-                };
-                let index = self.enums[enumeration]
-                    .variants
-                    .iter()
-                    .position(|value| value.identity == *variant)
-                    .expect("the pattern retains an actual variant of its dependency enum");
-                self.lower_enum_pattern(enumeration, index as u32, fields, substitution, locals)
-            }
             export::Pattern::Variant {
                 application,
-                variant,
                 fields,
             } => {
-                let concrete_enum = self.lower_enum_application(*application, substitution);
-                assert_eq!(
-                    self.types[expected].kind,
-                    concrete::TypeKind::Enum(concrete_enum),
-                    "the checked pattern application must match its subject"
-                );
-                self.lower_enum_pattern(concrete_enum, *variant, fields, substitution, locals)
+                let variant = self.lower_enum_variant(*application, substitution);
+                self.lower_enum_pattern(
+                    variant.enumeration(),
+                    variant.variant().into_raw(),
+                    fields,
+                    substitution,
+                    locals,
+                )
             }
             export::Pattern::Tuple(patterns) => {
                 let concrete::TypeKind::Tuple(elements) = self.types[expected].kind.clone() else {

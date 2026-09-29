@@ -218,34 +218,26 @@ impl Lowerer {
         self.enum_application_id(source.template, arguments)
     }
 
-    pub(super) fn instantiate_default_applied_enum_variant(
+    pub(super) fn instantiate_default_variant(
         &mut self,
-        source: hir::AppliedEnumVariantRef,
+        source: hir::EnumVariantApplication,
         context: &InstantiationContext,
-    ) -> hir::AppliedEnumVariantRef {
-        let application = self.instantiate_default_enum_application(source.application(), context);
-        hir::AppliedEnumVariantRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            application,
-            source.declaration(),
-        )
-        .expect("default substitution preserves the enum variant template")
+    ) -> hir::EnumVariantApplication {
+        hir::EnumVariantApplication {
+            owner: self.instantiate_method_ty(source.owner, &context.bindings),
+            variant: source.variant,
+        }
     }
 
-    pub(super) fn instantiate_default_applied_enum_field(
+    pub(super) fn instantiate_default_enum_field(
         &mut self,
-        source: hir::AppliedEnumVariantFieldRef,
+        source: hir::EnumVariantFieldApplication,
         context: &InstantiationContext,
-    ) -> hir::AppliedEnumVariantFieldRef {
-        let variant = self.instantiate_default_applied_enum_variant(source.variant(), context);
-        hir::AppliedEnumVariantFieldRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            variant,
-            source.local_index(),
-        )
-        .expect("default substitution preserves the enum payload field")
+    ) -> hir::EnumVariantFieldApplication {
+        hir::EnumVariantFieldApplication {
+            variant: self.instantiate_default_variant(source.variant, context),
+            field: source.field,
+        }
     }
 
     pub(super) fn instantiate_default_class_application(

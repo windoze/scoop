@@ -1,0 +1,7 @@
+import upstream.enums.Choice
+import upstream.enums.TextChoice
+
+public fun reject(value: Choice<Int>): Int = when (value) {
+    TextChoice.Item(payload) -> payload
+    else -> 0
+}

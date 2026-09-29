@@ -214,6 +214,7 @@ impl Lowerer {
             imports: crate::imports::CurrentUnitImports::default(),
             declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
             nominal_identities: None,
+            enum_member_identities: None,
             nominal_owners: HashMap::new(),
             property_identity_records: HashMap::new(),
             field_identity_builder: hir::HirFieldIdentityBuilder::default(),
@@ -420,7 +421,7 @@ impl Lowerer {
     }
 
     pub(super) fn with_imported_core(mut self, core: &hir::ImportedCoreInputs) -> Self {
-        self.core = CoreLoweringAuthority::Imported(Box::new(core.protocols().clone()));
+        self.core = CoreLoweringAuthority::Imported(std::sync::Arc::new(core.protocols().clone()));
         self
     }
 

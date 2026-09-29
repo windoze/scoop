@@ -13,14 +13,14 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedVariantConstruct Option.Some : Option<T0>
+      VariantConstruct Option.Some<T0> : Option<T0>
         Local $dependency.parameter._1 : T0
     val local4
       Local value : T0
     val local5
       Local $dependency.argument.0 : T0
     val local6
-      ImportedVariantConstruct Option.Some : Option<T0>
+      VariantConstruct Option.Some<T0> : Option<T0>
         Local $dependency.parameter._1 : T0
     val local7
       Local value : T0
@@ -61,13 +61,13 @@ Module
         Local $dependency.parameter.value : Option<T0>
     when
       Local saved : Option<T0>
-      arm dependency variant faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036(0: local23)
+      arm variant0(0: local23)
         assign $result.0
           BoolLiteral false : Boolean
-      arm dependency variant dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38()
+      arm variant1()
         assign $result.0
           BoolLiteral true : Boolean
-      impossible <pattern matrix for Option<T0>>
+      impossible <enum pattern matrix for Option<T0>>
     if
       Local $result.0 : Boolean
       return

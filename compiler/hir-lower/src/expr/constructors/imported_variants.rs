@@ -135,9 +135,11 @@ impl Lowerer {
             return None;
         }
         Some(hir::Expr {
-            kind: ExprKind::ImportedVariantConstruct {
-                owner,
-                variant: variant.identity,
+            kind: ExprKind::VariantConstruct {
+                variant: hir::EnumVariantApplication {
+                    owner,
+                    variant: variant.identity,
+                },
                 args: Vec::new(),
             },
             ty: owner,

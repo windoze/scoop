@@ -1,0 +1,6 @@
+import upstream.enums.Choice
+
+public fun reject(value: Choice<Int>): Int = when (value) {
+    Item(first, second) -> first + second
+    else -> 0
+}

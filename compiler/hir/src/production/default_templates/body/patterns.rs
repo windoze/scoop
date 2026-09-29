@@ -24,36 +24,14 @@ impl BodyProjection<'_, '_> {
                 self.literal_equality(*equality)?,
                 self.type_key(*subject_ty)?,
             )),
-            Pattern::ImportedVariant {
-                owner,
-                variant,
+            Pattern::Variant {
+                application,
                 fields,
             } => DefaultPatternV1::try_variant(
-                crate::DefaultEnumVariantRefV1::new(*variant, self.type_key(*owner)?),
+                self.entities.variant(*application, self.binders)?,
                 self.pattern_fields(fields)?,
             )
             .map_err(super::super::DefaultBodyProjectionError::Pattern),
-            Pattern::Variant {
-                application,
-                variant,
-                fields,
-            } => {
-                let variant = crate::AppliedEnumVariantRef::checked_index(
-                    &self.entities.export().enums,
-                    &self.entities.export().enum_applications,
-                    *application,
-                    *variant,
-                )
-                .ok_or(super::super::DefaultEntityProjectionError::Unknown {
-                    kind: "enum variant",
-                    index: *variant,
-                })?;
-                DefaultPatternV1::try_variant(
-                    self.entities.variant(variant, self.binders)?,
-                    self.pattern_fields(fields)?,
-                )
-                .map_err(super::super::DefaultBodyProjectionError::Pattern)
-            }
             Pattern::Tuple(elements) => {
                 let elements = elements
                     .iter()

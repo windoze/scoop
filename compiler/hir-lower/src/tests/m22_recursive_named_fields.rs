@@ -124,14 +124,20 @@ fn recursive_named_fields_lower_by_exact_type_in_declaration_order() {
     assert!(matches!(&leaf_fields[1].1, hir::Pattern::Wildcard));
 
     let hir::Pattern::Variant {
-        variant,
+        application,
         fields: variant_fields,
-        ..
     } = &payload[1]
     else {
         panic!("nested named variant must retain its variant shape")
     };
-    assert_eq!(*variant, 0);
+    assert_eq!(
+        module
+            .enum_member_identities
+            .variant_declaration(application.variant)
+            .expect("the nested pattern retains its original variant")
+            .local_index(),
+        0
+    );
     assert_eq!(variant_fields.len(), 1);
     assert!(matches!(&variant_fields[0].1, hir::Pattern::Literal { .. }));
 }

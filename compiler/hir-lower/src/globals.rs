@@ -1088,13 +1088,13 @@ impl Lowerer {
             }
             let mut sink = Vec::new();
             let value = self.lower_expr(expression, &mut sink, Some(expected))?;
-            let hir::ExprKind::ImportedVariantConstruct { variant, args, .. } = value.kind else {
+            let hir::ExprKind::VariantConstruct { variant, args } = value.kind else {
                 return None;
             };
             return (args.is_empty() && sink.is_empty() && self.types_equal(value.ty, expected))
                 .then_some(hir::HirConstantImage::ImportedEnumUnit {
                     ty: expected,
-                    variant,
+                    variant: variant.variant,
                 });
         }
         let ast::Expr::Var(name) = expression else {

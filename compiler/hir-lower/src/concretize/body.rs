@@ -307,19 +307,13 @@ impl Concretizer<'_> {
                         );
                         concrete::ExhaustivenessProof::PatternMatrix { subject_ty }
                     }
-                    export::ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty,
-                        application,
-                    } => {
+                    export::ExhaustivenessProof::EnumPatternMatrix { subject_ty } => {
                         let subject_ty = self.lower_type(*subject_ty, substitution);
-                        let enum_id = self.lower_enum_application(*application, substitution);
+                        let concrete::TypeKind::Enum(enum_id) = self.types[subject_ty].kind else {
+                            unreachable!("an enum matrix retains its complete enum subject")
+                        };
                         assert_eq!(
                             subject_ty, subject.ty,
-                            "the checked enum proof must match its concrete subject",
-                        );
-                        assert_eq!(
-                            self.types[subject_ty].kind,
-                            concrete::TypeKind::Enum(enum_id),
                             "the checked enum proof must match its concrete subject",
                         );
                         concrete::ExhaustivenessProof::EnumPatternMatrix {

@@ -463,27 +463,6 @@ impl Concretizer<'_> {
         }
     }
 
-    pub(super) fn lower_applied_enum_variant_ref(
-        &mut self,
-        source: export::AppliedEnumVariantRef,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::EnumVariantRef {
-        let enumeration = self.lower_enum_application(source.application(), substitution);
-        let variant = concrete::VariantId::from_raw(source.local_index());
-        concrete::EnumVariantRef::checked(&self.enums, enumeration, variant)
-            .expect("a checked applied enum variant concretizes to the same variant")
-    }
-
-    pub(super) fn lower_applied_enum_variant_field_ref(
-        &mut self,
-        source: export::AppliedEnumVariantFieldRef,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::EnumVariantFieldRef {
-        let variant = self.lower_applied_enum_variant_ref(source.variant(), substitution);
-        concrete::EnumVariantFieldRef::checked(&self.enums, variant, source.local_index())
-            .expect("a checked applied enum field concretizes to the same payload field")
-    }
-
     pub(super) fn source_class_field_layout_index(&self, field: export::ClassFieldId) -> u32 {
         let declaration = &self.source.class_fields[field];
         let own = self.source.classes[declaration.owner]

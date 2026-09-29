@@ -63,7 +63,7 @@ Module
     val local6
       Local $dependency.default.local.0 : String
     val local7
-      ImportedVariantConstruct Option.Some : Option<String>
+      VariantConstruct Option.Some<String> : Option<String>
         Local $dependency.default.local.1 : String
     throw
       ImportedDependencyCall #0 : IllegalStateException
@@ -90,7 +90,7 @@ Module
     val local6
       Local $dependency.default.local.0 : String
     val local7
-      ImportedVariantConstruct Option.Some : Option<String>
+      VariantConstruct Option.Some<String> : Option<String>
         Local $dependency.default.local.1 : String
     throw
       ImportedDependencyCall #0 : IllegalStateException

@@ -111,6 +111,28 @@ impl Harness {
         application
     }
 
+    pub(in crate::tests) fn enum_variant_ref(
+        &self,
+        application: hir::EnumApplicationId,
+        index: u32,
+    ) -> hir::EnumVariantApplication {
+        let owner = &self.enum_applications[application];
+        let declaration = hir::EnumVariantRef::checked(&self.enums, owner.template, index)
+            .expect("test variant belongs to its declaring enum");
+        let nominals = super::test_nominal_identities_without_objects(
+            &self.structs,
+            &self.enums,
+            &self.classes,
+            &self.interfaces,
+        );
+        let members = hir::HirEnumMemberIdentities::from_declarations(&self.enums, &nominals)
+            .expect("test variants have their original declaration identities");
+        hir::EnumVariantApplication {
+            owner: owner.canonical_type,
+            variant: members[declaration].id(),
+        }
+    }
+
     pub(in crate::tests) fn class_application_of(
         &self,
         ty: hir::TypeId,

@@ -76,69 +76,40 @@ pub(super) fn dump_expr(
             }
         }
         ExprKind::VariantConstruct { variant, args } => {
-            let application = &module.enum_applications[variant.application()];
-            let decl = &module.enums[application.template];
-            let type_args = if application.arguments.is_empty() {
+            let (name, variant_name, arguments, _) = enum_variant_names(module, *variant);
+            let arguments = if arguments.is_empty() {
                 String::new()
             } else {
-                let args: Vec<String> = application
-                    .arguments
-                    .iter()
-                    .map(|t| type_name(module, *t))
-                    .collect();
-                format!("<{}>", args.join(", "))
+                format!(
+                    "<{}>",
+                    arguments
+                        .iter()
+                        .map(|ty| type_name(module, *ty))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             };
             out.push_str(&format!(
-                "{pad}VariantConstruct {}.{}{type_args} : {ty}\n",
-                decl.name,
-                decl.variants[variant.local_index() as usize].name
-            ));
-            for arg in args {
-                dump_expr(module, locals, arg, indent + 1, out);
-            }
-        }
-        ExprKind::ImportedVariantConstruct {
-            owner,
-            variant,
-            args,
-        } => {
-            let Type::ImportedEnum(enumeration) = &module.types[*owner] else {
-                unreachable!("a dependency enum constructor retains its enum owner")
-            };
-            let name = &enumeration
-                .variants
-                .iter()
-                .find(|value| value.identity == *variant)
-                .expect("a dependency enum constructor retains its declared variant")
-                .name;
-            out.push_str(&format!(
-                "{pad}ImportedVariantConstruct {}.{name} : {ty}\n",
-                enumeration.declaration.name()
+                "{pad}VariantConstruct {name}.{variant_name}{arguments} : {ty}\n"
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
         ExprKind::VariantTest { operand, variant } => {
-            let application = &module.enum_applications[variant.application()];
-            let declaration = &module.enums[application.template];
+            let (_, name, _, _) = enum_variant_names(module, *variant);
             out.push_str(&format!(
-                "{pad}VariantTest {}.{} : {ty}\n",
-                type_name(module, application.canonical_type),
-                declaration.variants[variant.local_index() as usize].name
+                "{pad}VariantTest {}.{name} : {ty}\n",
+                type_name(module, variant.owner)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::VariantPayloadProject { operand, field } => {
-            let variant = field.variant();
-            let application = &module.enum_applications[variant.application()];
-            let declaration = &module.enums[application.template];
-            let payload = &declaration.variants[variant.local_index() as usize];
+            let (_, name, _, _) = enum_variant_names(module, field.variant);
             out.push_str(&format!(
-                "{pad}VariantPayloadProject {}.{}.{} : {ty}\n",
-                type_name(module, application.canonical_type),
-                payload.name,
-                payload.fields[field.local_index() as usize].name
+                "{pad}VariantPayloadProject {}.{name}.{} : {ty}\n",
+                type_name(module, field.variant.owner),
+                enum_field_name(module, *field)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }

@@ -9,7 +9,7 @@ Module
     val local4
       Local $dependency.default.local.1 : T0
     val local5
-      ImportedVariantConstruct Option.Some : Option<T0>
+      VariantConstruct Option.Some<T0> : Option<T0>
         Local $dependency.default.local.2 : T0
     val local6
       ImportedGenericCall optionalDefault<T0> : T0
@@ -24,12 +24,12 @@ Module
     val local10
       Local $dependency.default.local.1 : T0
     val local11
-      ImportedVariantConstruct Option.Some : Option<T0>
+      VariantConstruct Option.Some<T0> : Option<T0>
         Local $dependency.default.local.2 : T0
     val local12
       Local $dependency.default.local.3 : Option<T0>
     val local13
-      ImportedVariantConstruct Option.Some : Option<Option<T0>>
+      VariantConstruct Option.Some<Option<T0>> : Option<Option<T0>>
         Local $dependency.default.local.4 : Option<T0>
     val local14
       ImportedGenericCall nestedDefault<T0> : T0
@@ -47,7 +47,7 @@ Module
     val local18
       Local $dependency.argument.0 : Holder<T0>
     val local20
-      ImportedVariantConstruct Option.Some : Option<Holder<T0>>
+      VariantConstruct Option.Some<Holder<T0>> : Option<Holder<T0>>
         Local $dependency.parameter._1 : Holder<T0>
     val local21
       Local $dependency.argument.0 : T0
@@ -85,7 +85,7 @@ Module
     val local30
       Local $dependency.argument.0 : Holder<Int>
     val local32
-      ImportedVariantConstruct Option.Some : Option<Holder<Int>>
+      VariantConstruct Option.Some<Holder<Int>> : Option<Holder<Int>>
         Local $dependency.parameter._1 : Holder<Int>
     val local33
       Local $dependency.argument.0 : Int
@@ -125,7 +125,7 @@ Module
     val local41
       IntegerLiteral 22 : Int
     val local42
-      ImportedVariantConstruct Option.None : Option<Holder<Int>>
+      VariantConstruct Option.None<Holder<Int>> : Option<Holder<Int>>
     val local43
       Local $dependency.argument.0 : Int
     val local44
@@ -170,7 +170,7 @@ Module
     val local54
       Local $dependency.default.local.1 : Int
     val local55
-      ImportedVariantConstruct Option.Some : Option<Int>
+      VariantConstruct Option.Some<Int> : Option<Int>
         Local $dependency.default.local.2 : Int
     val local59
       ImportedGenericCall optionalDefault<Int> : Int
@@ -181,7 +181,7 @@ Module
     val local57
       Local $dependency.argument.0 : Int
     val local58
-      ImportedVariantConstruct Option.None : Option<Int>
+      VariantConstruct Option.None<Int> : Option<Int>
     val local60
       ImportedGenericCall noneDefault<Int> : Int
         Local $dependency.parameter.fallback : Int

@@ -205,7 +205,7 @@ pub(crate) struct CurrentSourceDetails<'a> {
 #[derive(Clone)]
 enum CoreLoweringAuthority {
     Defined,
-    Imported(Box<hir::ImportedCoreProtocols>),
+    Imported(std::sync::Arc<hir::ImportedCoreProtocols>),
 }
 
 struct LoweringCompletion {
@@ -530,6 +530,7 @@ pub(crate) struct Lowerer {
     pub(crate) declaration_surface: declaration_surface::DeclarationSurface,
     /// Established after declaration collection, before semantic queries.
     pub(crate) nominal_identities: Option<hir::HirNominalIdentities>,
+    pub(crate) enum_member_identities: Option<hir::HirEnumMemberIdentities>,
     pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
     pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,

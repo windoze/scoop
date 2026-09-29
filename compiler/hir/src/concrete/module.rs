@@ -113,7 +113,7 @@ impl Module {
 #[derive(Debug, Clone)]
 pub enum ConcreteCoreProtocols {
     Defined(Box<DefinedConcreteCoreProtocols>),
-    Imported(Box<crate::ImportedCoreProtocols>),
+    Imported(std::sync::Arc<crate::ImportedCoreProtocols>),
 }
 
 /// Closed local-concrete compiler protocol product. Its fields are kept

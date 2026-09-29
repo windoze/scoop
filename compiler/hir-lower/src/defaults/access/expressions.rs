@@ -152,23 +152,9 @@ impl ReferenceCollector<'_> {
                 );
                 self.expressions(args);
             }
-            hir::ExprKind::ImportedVariantConstruct {
-                owner,
-                variant,
-                args,
-            } => {
-                self.constructor_use(
-                    hir::ExportDefaultConstructorTarget::ImportedVariant {
-                        owner_type: *owner,
-                        variant: *variant,
-                    },
-                    origin,
-                );
-                self.expressions(args);
-            }
             hir::ExprKind::VariantTest { operand, variant } => {
                 self.expression(operand);
-                let owner = self.lowerer.enum_applications[variant.application()].canonical_type;
+                let owner = variant.owner;
                 self.type_reference(owner, origin);
             }
             hir::ExprKind::VariantPayloadProject { operand, field } => {

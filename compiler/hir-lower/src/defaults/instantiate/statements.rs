@@ -142,15 +142,12 @@ impl Lowerer {
                                         .instantiate_method_ty(*subject_ty, &context.bindings),
                                 }
                             }
-                            hir::ExhaustivenessProof::EnumPatternMatrix {
-                                subject_ty,
-                                application,
-                            } => hir::ExhaustivenessProof::EnumPatternMatrix {
-                                subject_ty: self
-                                    .instantiate_method_ty(*subject_ty, &context.bindings),
-                                application: self
-                                    .instantiate_default_enum_application(*application, context),
-                            },
+                            hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty } => {
+                                hir::ExhaustivenessProof::EnumPatternMatrix {
+                                    subject_ty: self
+                                        .instantiate_method_ty(*subject_ty, &context.bindings),
+                                }
+                            }
                         };
                         hir::WhenFallback::Impossible(proof)
                     }

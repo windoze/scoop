@@ -1,7 +1,9 @@
 use super::*;
 
 mod expr;
+mod variants;
 use expr::dump_expr;
+use variants::{enum_field_name, enum_variant_names};
 
 fn generic_delegate_name(module: &Module, reference: &GenericDelegateReference) -> String {
     let name = match reference.template {
@@ -99,7 +101,7 @@ pub(super) fn dump_statements(
                 }
             }
             StatementKind::ValDecl { pattern, init } => {
-                out.push_str(&format!("{pad}val {}\n", dump_pattern(pattern)));
+                out.push_str(&format!("{pad}val {}\n", dump_pattern(module, pattern)));
                 dump_expr(module, locals, init, indent + 1, out);
             }
             StatementKind::Assign { target, value } => {
@@ -195,7 +197,7 @@ pub(super) fn dump_statements(
                     out.push_str(&format!(
                         "{}  arm {}{}\n",
                         pad,
-                        dump_pattern(&arm.pattern),
+                        dump_pattern(module, &arm.pattern),
                         if arm.guard.is_some() {
                             " if <guard>"
                         } else {
@@ -243,39 +245,35 @@ pub(super) fn dump_statements(
 }
 
 /// Compact one-line pattern rendering for dumps.
-pub fn dump_pattern(pattern: &Pattern) -> String {
+pub fn dump_pattern(module: &Module, pattern: &Pattern) -> String {
     match pattern {
         Pattern::Binding { local } => format!("local{}", local.into_raw()),
         Pattern::Wildcard => "_".to_string(),
         Pattern::Literal { value, .. } => {
             format!("<lit {:?}>", value.kind).chars().take(40).collect()
         }
-        Pattern::ImportedVariant {
-            variant, fields, ..
+        Pattern::Variant {
+            application,
+            fields,
         } => {
+            let (_, _, _, variant) = enum_variant_names(module, *application);
             let fields = fields
                 .iter()
-                .map(|(index, pattern)| format!("{index}: {}", dump_pattern(pattern)))
+                .map(|(index, pattern)| format!("{index}: {}", dump_pattern(module, pattern)))
                 .collect::<Vec<_>>();
-            format!("dependency variant {variant}({})", fields.join(", "))
-        }
-        Pattern::Variant {
-            variant, fields, ..
-        } => {
-            let fields: Vec<String> = fields
-                .iter()
-                .map(|(i, p)| format!("{i}: {}", dump_pattern(p)))
-                .collect();
-            format!("variant{}({})", variant, fields.join(", "))
+            format!("variant{variant}({})", fields.join(", "))
         }
         Pattern::Tuple(elements) => {
-            let parts: Vec<String> = elements.iter().map(dump_pattern).collect();
+            let parts: Vec<String> = elements
+                .iter()
+                .map(|pattern| dump_pattern(module, pattern))
+                .collect();
             format!("({})", parts.join(", "))
         }
         Pattern::Struct { fields, .. } => {
             let fields: Vec<String> = fields
                 .iter()
-                .map(|(i, p)| format!("{i}: {}", dump_pattern(p)))
+                .map(|(i, p)| format!("{i}: {}", dump_pattern(module, p)))
                 .collect();
             format!("struct({})", fields.join(", "))
         }

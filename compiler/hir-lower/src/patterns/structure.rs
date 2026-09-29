@@ -50,40 +50,6 @@ impl Lowerer {
         Some(hir::Pattern::Struct { owner, fields })
     }
 
-    pub(super) fn bare_variant_pattern(
-        &mut self,
-        name: &ast::Ident,
-        application: hir::EnumApplicationId,
-        variant: u32,
-        ctx: PatternCtx,
-    ) -> Option<hir::Pattern> {
-        let enum_id = self.enum_applications[application].template;
-        let field_count = self.enums[enum_id].variants[variant as usize].fields.len();
-        if field_count != 0 {
-            let enum_name = &self.enums[enum_id].name;
-            let text = &name.text;
-            self.error(
-                name.span,
-                format!(
-                    "variant `{text}` of `{enum_name}` has {field_count} field(s); use `{text}(...)` to match it"
-                ),
-            );
-            return None;
-        }
-        if !ctx.in_when {
-            self.error(
-                name.span,
-                "refutable patterns are only allowed in `when`".to_string(),
-            );
-            return None;
-        }
-        Some(hir::Pattern::Variant {
-            application,
-            variant,
-            fields: Vec::new(),
-        })
-    }
-
     pub(super) fn resolve_pattern_path(
         &mut self,
         path: &[ast::Ident],
@@ -124,7 +90,9 @@ impl Lowerer {
                         );
                         return None;
                     };
-                    Some(PatternTarget::Variant(application, variant))
+                    Some(PatternTarget::Variant(
+                        self.enum_variant_at(application, variant),
+                    ))
                 }
                 Type::Ptr(_) | Type::FunPtr(_) => {
                     let found = self.type_name(matched_ty);
@@ -199,7 +167,9 @@ impl Lowerer {
                     Type::Enum(application)
                         if self.enum_applications[application].template == enum_id =>
                     {
-                        Some(PatternTarget::Variant(application, variant))
+                        Some(PatternTarget::Variant(
+                            self.enum_variant_at(application, variant),
+                        ))
                     }
                     _ => {
                         let found = self.type_name(matched_ty);
@@ -342,40 +312,6 @@ impl Lowerer {
             indices.push(index);
         }
         Some(indices)
-    }
-
-    pub(super) fn variant_field_types(
-        &mut self,
-        enum_id: hir::EnumId,
-        variant: u32,
-        type_args: &[TypeId],
-    ) -> Vec<TypeId> {
-        let field_types: Vec<TypeId> = self.enums[enum_id].variants[variant as usize]
-            .fields
-            .iter()
-            .map(|field| field.ty)
-            .collect();
-        field_types
-            .into_iter()
-            .map(|ty| self.instantiate_ty(ty, type_args))
-            .collect()
-    }
-
-    pub(super) fn variant_named_field_types(
-        &mut self,
-        enum_id: hir::EnumId,
-        variant: u32,
-        type_args: &[TypeId],
-    ) -> Vec<(String, TypeId)> {
-        let fields: Vec<(String, TypeId)> = self.enums[enum_id].variants[variant as usize]
-            .fields
-            .iter()
-            .map(|field| (field.name.clone(), field.ty))
-            .collect();
-        fields
-            .into_iter()
-            .map(|(name, ty)| (name, self.instantiate_ty(ty, type_args)))
-            .collect()
     }
 }
 

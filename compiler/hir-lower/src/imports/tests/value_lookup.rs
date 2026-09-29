@@ -108,7 +108,13 @@ fn value_layers_cover_current_star_and_core_and_deduplicate_origins() {
         panic!("variant value")
     };
     assert_eq!(
-        output.export.enums[variant.declaration().enumeration()].name,
+        output.export.enums[output
+            .export
+            .enum_member_identities
+            .variant_declaration(variant.variant)
+            .expect("the original variant belongs to the source declarations")
+            .enumeration()]
+        .name,
         "State"
     );
     user.imports.extend([

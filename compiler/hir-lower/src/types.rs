@@ -75,6 +75,7 @@ mod qualified;
 mod relations;
 mod resolution;
 mod substitution;
+mod variants;
 
 pub(crate) use qualified::TypeQualifier;
 

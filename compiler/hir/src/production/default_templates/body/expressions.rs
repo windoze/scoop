@@ -119,14 +119,6 @@ impl BodyProjection<'_, '_> {
                     arguments: self.expressions(args)?,
                 }
             }
-            ExprKind::ImportedVariantConstruct {
-                owner,
-                variant,
-                args,
-            } => DefaultExpressionKindV1::VariantConstruct {
-                variant: crate::DefaultEnumVariantRefV1::new(*variant, self.type_key(*owner)?),
-                arguments: self.expressions(args)?,
-            },
             ExprKind::VariantTest { operand, variant } => DefaultExpressionKindV1::VariantTest {
                 operand: Box::new(self.expression(operand)?),
                 variant: self.entities.variant(*variant, self.binders)?,

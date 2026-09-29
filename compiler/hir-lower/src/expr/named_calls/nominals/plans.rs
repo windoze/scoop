@@ -347,7 +347,7 @@ impl Lowerer {
                 .expect("the chosen nominal application owns its variant");
                 (
                     ExprKind::VariantConstruct {
-                        variant,
+                        variant: self.enum_variant_reference(variant),
                         args: resolved.args,
                     },
                     self.enum_applications[application].canonical_type,

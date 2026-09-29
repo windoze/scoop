@@ -4,7 +4,7 @@ Module
     property0 val number: Int getter0=storage <stored field0 init=parameter0>
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
     val local2
-      ImportedVariantConstruct Option.None : Option<T0>
+      VariantConstruct Option.None<T0> : Option<T0>
     val local3
       Local seed : T0
     val local4
@@ -150,7 +150,7 @@ Module
       return
         IntegerLiteral 3 : Int
     val local23
-      ImportedVariantConstruct Option.None : Option<Int>
+      VariantConstruct Option.None<Int> : Option<Int>
     val local24
       IntegerLiteral 42 : Int
     val local25
@@ -174,7 +174,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local30
-        ImportedVariantConstruct Option.None : Option<Int>
+        VariantConstruct Option.None<Int> : Option<Int>
       val local31
         IntegerLiteral 42 : Int
       val local32

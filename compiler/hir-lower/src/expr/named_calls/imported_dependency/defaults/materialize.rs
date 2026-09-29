@@ -361,13 +361,16 @@ impl Lowerer {
                 self.materialize_imported_default_expression(array, context)?,
             )),
             Kind::VariantConstruct { variant, arguments } => {
-                hir::ExprKind::ImportedVariantConstruct {
-                    owner: self
-                        .imported_default_type_with_bindings(variant.owner_type(), context.bindings)
-                        .map_err(|error| {
-                            ImportedDefaultMaterializationError::Plan(error.to_string())
-                        })?,
-                    variant: variant.declaration(),
+                let owner = self
+                    .imported_default_type_with_bindings(variant.owner_type(), context.bindings)
+                    .map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?;
+                hir::ExprKind::VariantConstruct {
+                    variant: hir::EnumVariantApplication {
+                        owner,
+                        variant: variant.declaration(),
+                    },
                     args: self.materialize_imported_default_expressions(arguments, context)?,
                 }
             }

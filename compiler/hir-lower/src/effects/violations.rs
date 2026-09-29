@@ -173,8 +173,7 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
-            ExprKind::VariantConstruct { args, .. }
-            | ExprKind::ImportedVariantConstruct { args, .. } => {
+            ExprKind::VariantConstruct { args, .. } => {
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }

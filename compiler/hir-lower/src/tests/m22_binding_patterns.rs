@@ -315,10 +315,11 @@ fn bare_unit_variant_in_match_remains_variant_first() {
     assert!(matches!(
         &when.arms[0].pattern,
         hir::Pattern::Variant {
-            variant: 0,
+            application,
             fields,
-            ..
         } if fields.is_empty()
+            && module.enum_member_identities.variant_declaration(application.variant)
+                .expect("the pattern retains its original variant").local_index() == 0
     ));
 }
 
@@ -431,10 +432,11 @@ fn match_field_shorthand_classifies_its_same_named_subpattern_from_the_field_typ
             Expected::UnitVariant => assert!(matches!(
                 &fields[0].1,
                 hir::Pattern::Variant {
-                    variant: 0,
+                    application,
                     fields,
-                    ..
                 } if fields.is_empty()
+                    && module.enum_member_identities.variant_declaration(application.variant)
+                        .expect("the pattern retains its original variant").local_index() == 0
             )),
             Expected::PayloadVariantError => unreachable!(),
         }

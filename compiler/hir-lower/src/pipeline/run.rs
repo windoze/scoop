@@ -335,6 +335,11 @@ impl Lowerer {
             self.type_params_in_scope.clear();
             self.enums[id].interfaces = interfaces;
         }
+        if let Err(error) = self.establish_enum_member_identities() {
+            self.current_file = error.file();
+            self.error(error.span(), error.to_string());
+            return Err(self.diagnostics);
+        }
         if defines_core {
             self.validate_option_variants();
         }

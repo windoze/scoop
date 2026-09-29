@@ -35,6 +35,7 @@ mod binding;
 mod exhaustiveness;
 mod imported;
 mod structure;
+mod variants;
 
 pub(crate) use binding::BindingSubject;
 use structure::pattern_span;
@@ -101,20 +102,12 @@ impl Lowerer {
                 // enum has a variant with the same name. `Unit` / `()` reach
                 // this stage as literal patterns and remain rejected below.
                 let unmatched_enum = if ctx.in_when {
-                    if let Type::ImportedEnum(enumeration) = &self.types[matched_ty] {
-                        if let Some(variant) = enumeration
-                            .variants
-                            .iter()
-                            .position(|variant| variant.name == name.text)
-                        {
-                            return self
-                                .bare_imported_variant_pattern(name, matched_ty, variant, ctx);
-                        }
-                        Some(self.type_name(matched_ty))
-                    } else if let Type::Enum(application) = self.types[matched_ty] {
-                        let enum_id = self.enum_applications[application].template;
-                        if let Some(variant) = self.find_variant(enum_id, &name.text) {
-                            return self.bare_variant_pattern(name, application, variant, ctx);
+                    if matches!(
+                        self.types[matched_ty],
+                        Type::Enum(_) | Type::ImportedEnum(_)
+                    ) {
+                        if let Some(application) = self.named_enum_variant(matched_ty, &name.text) {
+                            return self.bare_variant_pattern(name, application, ctx);
                         }
                         Some(self.type_name(matched_ty))
                     } else {
@@ -270,55 +263,13 @@ impl Lowerer {
             } => {
                 let target = self.resolve_pattern_path(path, matched_ty, *span)?;
                 match target {
-                    PatternTarget::Variant(application, variant) => {
-                        let application_value = self.enum_applications[application].clone();
-                        let enum_id = application_value.template;
-                        if !ctx.in_when {
-                            self.error(
-                                *span,
-                                "refutable patterns are only allowed in `when`".to_string(),
-                            );
-                            return None;
-                        }
-                        let style = self.enums[enum_id].variants[variant as usize].style;
-                        if style == VariantStyle::Named {
-                            let owner = variant_owner(
-                                &self.enums[enum_id].name,
-                                &self.enums[enum_id].variants[variant as usize].name,
-                            );
-                            self.error(
-                                *span,
-                                format!("{owner} has named fields; use a named field pattern"),
-                            );
-                            return None;
-                        }
-                        let owner = variant_owner(
-                            &self.enums[enum_id].name,
-                            &self.enums[enum_id].variants[variant as usize].name,
-                        );
-                        let field_types = self.variant_field_types(
-                            enum_id,
-                            variant,
-                            &application_value.arguments,
-                        );
-                        let fields = self.lower_positional_pattern(
-                            elements,
-                            *rest,
-                            &field_types,
-                            &owner,
-                            *span,
-                            ctx,
-                        )?;
-                        Some(hir::Pattern::Variant {
-                            application,
-                            variant,
-                            fields,
-                        })
-                    }
-                    PatternTarget::ImportedVariant { owner, variant } => self
-                        .imported_positional_variant_pattern(
-                            owner, variant, elements, *rest, *span, ctx,
-                        ),
+                    PatternTarget::Variant(application) => self.lower_variant_positional_pattern(
+                        application,
+                        elements,
+                        *rest,
+                        *span,
+                        ctx,
+                    ),
                     PatternTarget::Struct(owner) => {
                         self.lower_struct_positional_pattern(owner, elements, *rest, *span, ctx)
                     }
@@ -332,53 +283,9 @@ impl Lowerer {
             } => {
                 let target = self.resolve_pattern_path(path, matched_ty, *span)?;
                 match target {
-                    PatternTarget::Variant(application, variant) => {
-                        let application_value = self.enum_applications[application].clone();
-                        let enum_id = application_value.template;
-                        if !ctx.in_when {
-                            self.error(
-                                *span,
-                                "refutable patterns are only allowed in `when`".to_string(),
-                            );
-                            return None;
-                        }
-                        let style = self.enums[enum_id].variants[variant as usize].style;
-                        if matches!(style, VariantStyle::Unit | VariantStyle::Positional) {
-                            let owner = variant_owner(
-                                &self.enums[enum_id].name,
-                                &self.enums[enum_id].variants[variant as usize].name,
-                            );
-                            self.error(
-                                *span,
-                                format!("{owner} has no named fields; use a positional pattern"),
-                            );
-                            return None;
-                        }
-                        let owner = variant_owner(
-                            &self.enums[enum_id].name,
-                            &self.enums[enum_id].variants[variant as usize].name,
-                        );
-                        let named_fields = self.variant_named_field_types(
-                            enum_id,
-                            variant,
-                            &application_value.arguments,
-                        );
-                        let fields = self.lower_named_fields(
-                            fields,
-                            *rest,
-                            &named_fields,
-                            &owner,
-                            *span,
-                            ctx,
-                        )?;
-                        Some(hir::Pattern::Variant {
-                            application,
-                            variant,
-                            fields,
-                        })
+                    PatternTarget::Variant(application) => {
+                        self.lower_variant_named_pattern(application, fields, *rest, *span, ctx)
                     }
-                    PatternTarget::ImportedVariant { owner, variant } => self
-                        .imported_named_variant_pattern(owner, variant, fields, *rest, *span, ctx),
                     PatternTarget::Struct(owner) => {
                         self.lower_struct_named_pattern(owner, fields, *rest, *span, ctx)
                     }
@@ -405,8 +312,7 @@ impl Lowerer {
 /// What a pattern path resolved to: an enum variant (with the matched
 /// type's arguments, for instantiating field types) or a struct.
 enum PatternTarget {
-    Variant(hir::EnumApplicationId, u32),
-    ImportedVariant { owner: TypeId, variant: usize },
+    Variant(hir::EnumVariantApplication),
     Struct(TypeId),
 }
 
@@ -423,9 +329,7 @@ pub(super) fn is_irrefutable(pattern: &hir::Pattern) -> bool {
         hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => true,
         hir::Pattern::Tuple(elements) => elements.iter().all(is_irrefutable),
         hir::Pattern::Struct { fields, .. } => fields.iter().all(|(_, sub)| is_irrefutable(sub)),
-        hir::Pattern::Variant { .. }
-        | hir::Pattern::ImportedVariant { .. }
-        | hir::Pattern::Literal { .. } => false,
+        hir::Pattern::Variant { .. } | hir::Pattern::Literal { .. } => false,
     }
 }
 

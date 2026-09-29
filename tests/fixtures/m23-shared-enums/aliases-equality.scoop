@@ -1,0 +1,19 @@
+package consumer.enums
+import upstream.enums.*
+import upstream.enums.IntChoice as Renamed
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = score<T>(pack<T>(seed), read)
+
+public fun result(): Int {
+    val left: IntChoice = Choice.Named(payload = 40, amount = 2)
+    val right: Renamed = Choice.Named(amount = 2, payload = 40)
+    if (left != right) { return 1 }
+    if (left == Choice.Item(40)) { return 2 }
+    val score = when (left) {
+        Renamed.Empty -> 3
+        Renamed.Item(payload) -> payload
+        Renamed.Named { amount, payload } -> payload + amount
+        Renamed.Defaults { payload, amount } -> payload + amount
+    }
+    return exercise<Int>(score, { value -> value })
+}

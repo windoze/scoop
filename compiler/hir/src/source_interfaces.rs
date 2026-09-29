@@ -423,17 +423,13 @@ pub struct ExportDefaultConstructorRef {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportDefaultConstructorTarget {
-    ImportedVariant {
-        variant: scoop_identity::PersistentEnumVariantId,
-        owner_type: TypeId,
-    },
     Imported {
         declaration: scoop_identity::PersistentConstructorId,
         owner_type: TypeId,
     },
     Struct(StructConstructorApplicationId),
     Class(ClassConstructorApplicationId),
-    Variant(AppliedEnumVariantRef),
+    Variant(EnumVariantApplication),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

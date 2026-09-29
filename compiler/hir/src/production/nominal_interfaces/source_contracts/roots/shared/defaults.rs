@@ -41,8 +41,7 @@ impl SourceRoots {
         }
         for reference in &references.constructors {
             let (owner, ty) = match reference.target {
-                ExportDefaultConstructorTarget::Imported { owner_type, .. }
-                | ExportDefaultConstructorTarget::ImportedVariant { owner_type, .. } => {
+                ExportDefaultConstructorTarget::Imported { owner_type, .. } => {
                     roots.require_field_type(export, index, owner_type)?;
                     continue;
                 }
@@ -60,10 +59,19 @@ impl SourceRoots {
                         export.class_applications[application.owner].canonical_type,
                     )
                 }
-                ExportDefaultConstructorTarget::Variant(variant) => (
-                    ExportParameterOwner::VariantConstructor(variant.declaration()),
-                    export.enum_applications[variant.application()].canonical_type,
-                ),
+                ExportDefaultConstructorTarget::Variant(variant) => {
+                    let Some(declaration) = export
+                        .enum_member_identities
+                        .variant_declaration(variant.variant)
+                    else {
+                        roots.require_field_type(export, index, variant.owner)?;
+                        continue;
+                    };
+                    (
+                        ExportParameterOwner::VariantConstructor(declaration),
+                        variant.owner,
+                    )
+                }
             };
             roots.require_field_type(export, index, ty)?;
             self.callable(export, owner, roots)?;

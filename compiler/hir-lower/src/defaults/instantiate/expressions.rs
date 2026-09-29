@@ -68,26 +68,17 @@ impl Lowerer {
                 hir::ExprKind::ConstructorParam(*parameter)
             }
             hir::ExprKind::VariantConstruct { variant, args } => hir::ExprKind::VariantConstruct {
-                variant: self.instantiate_default_applied_enum_variant(*variant, context),
-                args: self.instantiate_default_exprs(args, context),
-            },
-            hir::ExprKind::ImportedVariantConstruct {
-                owner,
-                variant,
-                args,
-            } => hir::ExprKind::ImportedVariantConstruct {
-                owner: self.instantiate_method_ty(*owner, &context.bindings),
-                variant: *variant,
+                variant: self.instantiate_default_variant(*variant, context),
                 args: self.instantiate_default_exprs(args, context),
             },
             hir::ExprKind::VariantTest { operand, variant } => hir::ExprKind::VariantTest {
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
-                variant: self.instantiate_default_applied_enum_variant(*variant, context),
+                variant: self.instantiate_default_variant(*variant, context),
             },
             hir::ExprKind::VariantPayloadProject { operand, field } => {
                 hir::ExprKind::VariantPayloadProject {
                     operand: Box::new(self.instantiate_default_expr(operand, context)),
-                    field: self.instantiate_default_applied_enum_field(*field, context),
+                    field: self.instantiate_default_enum_field(*field, context),
                 }
             }
             hir::ExprKind::Local(_) => unreachable!("local reads return before kind cloning"),

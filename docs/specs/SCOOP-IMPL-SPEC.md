@@ -34,7 +34,7 @@ primitive 声明按需查询并在本次 HIR 中复用。只有实际 Box、值 
 
 默认值引用收集与 reader 对 enum 模式、变体测试只记录实际 owner 类型及正文中的 typed variant 引用，不再将其计为构造器调用或追加独立构造器访问记录。真正的构造表达式仍保留完整构造器引用。`hir/cross-cone-interface/30` 同步这项引用集合语义，旧 `/22` 及更早产物要求重建；既有 body tag 保持且退役 tag 不复用，profile 与内容 fingerprint 正常更新。
 
-外来 enum 的 `when` 使用与本地 enum 相同的 variant 优先查找、字段模式、guard 与穷尽性规则。qualified 名称先走共有类型解析并核对实际声明身份；HIR 模式保存真实 enum 类型和 variant ID，concretization 按已有完整声明转换为普通 concrete enum 模式。payload 读取沿既有 MIR/LIR 的 tag/niche 与字段布局实现，不复制 provider 定义，也不新增 matcher 凭证或独立格式。默认值正文中的模式沿共有模板格式保留同一 typed 引用。
+外来 enum 的 `when` 使用与本地 enum 相同的 variant 优先查找、字段模式、guard 与穷尽性规则。qualified 名称先走共有类型解析并核对实际声明身份；HIR 模式保存真实 enum 类型和 variant ID，concretization 按已有完整声明转换为普通 concrete enum 模式。enum 穷尽性记录只保存完整 subject 类型，不重复保存本地 application 索引；产物读回与默认值替换保留同一种记录，具体 enum 表示由该类型直接取得。payload 读取沿既有 MIR/LIR 的 tag/niche 与字段布局实现，不复制 provider 定义，也不新增 matcher 凭证或独立格式。默认值正文中的模式沿共有模板格式保留同一 typed 引用。
 
 组合值的 ZST 判定必须包含其实际外来字段：本地 tuple/struct 不能因字段事实保存在依赖表中就默认字段非零。producer 从完整 concrete 值表示取得依赖字段的 ZST 结果并在本次投影内复用；依赖事实仍保留实际 provider 引用，不复制为本地定义。
 
@@ -219,6 +219,8 @@ M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、own
 nominal 原声明身份在完整声明树及类型参数元数收集完成后建立，先于 import、签名约束和正文的语义查询；它只依赖原声明位置、owner 链、种类与元数，不依赖实例化结果。当前声明和依赖声明的 application 查询使用同一种原声明 ID 与完整实参，当前 arena 索引只由本次构建的反向表解析。导出直接复用已建立的身份记录，不在完成边界重新生成同一身份。
 
 struct 字段、class 存储字段和初始化字段引用均保存原 `PersistentFieldId` 与完整宿主类型；tuple 元素仍以结构位置区分。当前字段身份在实际字段确定后按需建立并复用，委托存储在初始化分析确定实际字段时建立，不为提前冻结身份而补造未完成字段。默认值替换只替换宿主类型，编解码保留同一字段引用，具体化从原字段身份映射到实际布局；成功 HIR 不保留来源专用字段引用。
+
+enum 正文引用的 variant 和 payload 字段使用原类型化身份与完整 enum application。构造、判别、payload 投影及 `when` 模式共用该引用，不区分当前与依赖声明；默认值只替换宿主类型，具体化按原 variant／field 身份取得同一完整表示。variant 与 payload 身份在变体声明收集完成后建立，后续正文分析与导出复用同一记录，不能按名称或布局回退。
 
 不可失败的 `val`／`var`、lambda 参数与 `for` 绑定在同一事务中直接生成普通声明、字段投影和已选 component 调用。字段访问、绑定及 `when` 模式从同一完整 struct application 查询声明顺序、字段身份与替换后的类型；class component 使用普通 operator 决议。成功输出不另存一份仅供互相校验的绑定形状和执行计划，不在展开时重演已完成的 callable 选择、字段范围或叶子调度。失败仍原子撤销局部值、候选状态和诊断副作用，命名模式按源码顺序求值，`..` 和 `_` 保持语言规定的跳过与调用行为。
 

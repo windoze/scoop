@@ -54,8 +54,7 @@ fn when_lowers_to_a_decision_sequence() {
                     vec![
                         arm(
                             hir::Pattern::Variant {
-                                application: option_application,
-                                variant: 0,
+                                application: h.enum_variant_ref(option_application, 0),
                                 fields: vec![(0, hir::Pattern::Binding { local: x })],
                             },
                             None,
@@ -63,8 +62,7 @@ fn when_lowers_to_a_decision_sequence() {
                         ),
                         arm(
                             hir::Pattern::Variant {
-                                application: option_application,
-                                variant: 1,
+                                application: h.enum_variant_ref(option_application, 1),
                                 fields: Vec::new(),
                             },
                             None,
@@ -77,7 +75,6 @@ fn when_lowers_to_a_decision_sequence() {
                     ],
                     hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                         subject_ty: option_int,
-                        application: option_application,
                     }),
                 ),
             ],
@@ -229,8 +226,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
                 call_typed(producer, vec![local_ref(source, outer)], outer),
                 vec![arm(
                     hir::Pattern::Variant {
-                        application: outer_application,
-                        variant: 0,
+                        application: h.enum_variant_ref(outer_application, 0),
                         fields: vec![(
                             0,
                             hir::Pattern::Struct {
@@ -239,8 +235,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
                                     (
                                         0,
                                         hir::Pattern::Variant {
-                                            application: inner_application,
-                                            variant: 0,
+                                            application: h.enum_variant_ref(inner_application, 0),
                                             fields: vec![(
                                                 0,
                                                 hir::Pattern::Binding { local: value },
@@ -388,8 +383,7 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                     vec![
                         arm(
                             hir::Pattern::Variant {
-                                application,
-                                variant: 1,
+                                application: h.enum_variant_ref(application, 1),
                                 fields: Vec::new(),
                             },
                             None,
@@ -397,8 +391,7 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                         ),
                         arm(
                             hir::Pattern::Variant {
-                                application,
-                                variant: 0,
+                                application: h.enum_variant_ref(application, 0),
                                 fields: vec![(0, hir::Pattern::Binding { local: value })],
                             },
                             None,
@@ -410,7 +403,6 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                     } else {
                         hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                             subject_ty: option_int,
-                            application,
                         })
                     },
                 )],
@@ -550,8 +542,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
                 local_ref(subject, single_ty),
                 vec![arm(
                     hir::Pattern::Variant {
-                        application,
-                        variant: 0,
+                        application: h.enum_variant_ref(application, 0),
                         fields: vec![(
                             0,
                             hir::Pattern::Literal {
@@ -671,7 +662,6 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
     let mut h = Harness::new();
     let never = h.declare_enum("Never", Vec::new(), Vec::new(), Vec::new());
     let never_ty = h.enum_ty(never);
-    let application = h.enum_application_of(never_ty);
     let mut locals = Arena::new();
     let subject = locals.alloc(local("subject", never_ty));
     let impossible_name = "zeroArmImpossible";
@@ -687,7 +677,6 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
                 Vec::new(),
                 hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                     subject_ty: never_ty,
-                    application,
                 }),
             )],
         },
@@ -729,8 +718,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     );
     let mut guarded_arm = arm(
         hir::Pattern::Variant {
-            application: option_application,
-            variant: 0,
+            application: h.enum_variant_ref(option_application, 0),
             fields: vec![(0, hir::Pattern::Binding { local: x })],
         },
         Some(binary(

@@ -1,0 +1,141 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      VariantConstruct Choice.Item<T0> : Choice<T0>
+        Local $dependency.parameter._1 : T0
+    when
+      Local value : Choice<T0>
+      arm variant0()
+        assign $result.0
+          IntegerLiteral 1 : Int
+      arm variant1(0: local5)
+        assign $result.0
+          CallableCall function_type0 : Int
+            Local read : (T0) -> Int
+            Local payload : T0
+      arm variant2(0: local6, 1: _)
+        assign $result.0
+          CallableCall function_type0 : Int
+            Local read : (T0) -> Int
+            Local payload : T0
+      arm variant3(0: local7, 1: _)
+        assign $result.0
+          CallableCall function_type0 : Int
+            Local read : (T0) -> Int
+            Local payload : T0
+      impossible <enum pattern matrix for Choice<T0>>
+    val local9
+      Local $result.0 : Int
+    val local10
+      Local selected : Int
+    val local11
+      IntegerLiteral 42 : Int
+    val local12
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local13
+      Local value : Choice<T0>
+    val local14
+      Local seed : T0
+    val local15
+      Local $dependency.argument.0 : Choice<T0>
+    val local16
+      Local $dependency.argument.1 : T0
+    when
+      Local $dependency.parameter.value : Choice<T0>
+      arm variant0()
+        assign $dependency.default.local.5
+          Local $dependency.parameter.fallback : T0
+      arm variant1(0: local17)
+        assign $dependency.default.local.5
+          Local $dependency.default.local.2 : T0
+      arm variant2(0: local18, 1: _)
+        assign $dependency.default.local.5
+          Local $dependency.default.local.3 : T0
+      arm variant3(0: local19, 1: _)
+        assign $dependency.default.local.5
+          Local $dependency.default.local.4 : T0
+      impossible <enum pattern matrix for Choice<T0>>
+    val local21
+      Local $dependency.default.local.5 : T0
+    val local22
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall select<T0> : T0
+          Local $dependency.parameter.value : Choice<T0>
+          Local $dependency.parameter.fallback : T0
+          Local $dependency.parameter.selected : T0
+    val local23
+      IntegerLiteral 42 : Int
+    val local24
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local25
+      Local seed : T0
+    val local26
+      Local $dependency.argument.0 : T0
+    val local27
+      IntegerLiteral 2 : Int
+    val local28
+      VariantConstruct Choice.Defaults<T0> : Choice<T0>
+        Local $dependency.parameter.payload : T0
+        Local $dependency.parameter.amount : Int
+    when
+      Local defaulted : Choice<T0>
+      arm variant3(0: local29, 1: local30)
+        val local31
+          CallableCall function_type0 : Int
+            Local read : (T0) -> Int
+            Local payload : T0
+        val local32
+          Local amount : Int
+        val local33
+          Local $dependency.argument.0 : Int
+        val local34
+          IntegerOperation int.add <no-gc> : Int
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+        val local35
+          IntegerLiteral 2 : Int
+        val local36
+          Local $dependency.argument.0 : Int
+        assign $result.1
+          IntegerOperation int.sub <no-gc> : Int
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+      else
+        assign $result.1
+          IntegerLiteral 3 : Int
+    return
+      Local $result.1 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>
