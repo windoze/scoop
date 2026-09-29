@@ -43,7 +43,7 @@ Module
         StringLiteral "provider-default" : String
     val local7
       ImportedDependencyCall #6 : Any
-        Local $dependency.default.local.0 : Any
+        Local $default.local.0 : Any
     val local8
       ImportedDependencyCall #10 : Any
         Local $dependency.parameter.value : Any

@@ -20,6 +20,7 @@ impl Lowerer {
             value.origin = instantiate_origin(source.origin, context.evaluation);
             return value;
         }
+        let origin = instantiate_origin(source.origin, context.evaluation);
         let kind = match &source.kind {
             hir::ExprKind::StringLiteral { value, owner } => hir::ExprKind::StringLiteral {
                 value: value.clone(),
@@ -97,9 +98,7 @@ impl Lowerer {
                 self.instantiate_default_imported_closure(closure, context),
             )),
             hir::ExprKind::ImportedCallableReference(reference) => {
-                hir::ExprKind::ImportedCallableReference(Box::new(
-                    self.instantiate_default_imported_reference(reference, context),
-                ))
+                self.instantiate_default_imported_reference(reference, context)
             }
             hir::ExprKind::ImportedMethodCall {
                 receiver,
@@ -107,7 +106,7 @@ impl Lowerer {
                 args,
             } => hir::ExprKind::ImportedMethodCall {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                callee: self.instantiate_default_imported_method_callee(callee, context),
+                callee: self.instantiate_default_imported_method_callee(callee, origin, context),
                 args: self.instantiate_default_exprs(args, context),
             },
             hir::ExprKind::Lambda(lambda) => {
@@ -209,7 +208,7 @@ impl Lowerer {
                 args,
             } => hir::ExprKind::MethodCall {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                callee: self.instantiate_default_method_callee(*callee, context),
+                callee: self.instantiate_default_method_callee(*callee, origin, context),
                 args: self.instantiate_default_exprs(args, context),
             },
             hir::ExprKind::DirectSuperMethodCall {
@@ -218,7 +217,7 @@ impl Lowerer {
                 args,
             } => hir::ExprKind::DirectSuperMethodCall {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                callee: self.instantiate_default_method_callee(*callee, context),
+                callee: self.instantiate_default_method_callee(*callee, origin, context),
                 args: self.instantiate_default_exprs(args, context),
             },
             hir::ExprKind::Box(value) => {

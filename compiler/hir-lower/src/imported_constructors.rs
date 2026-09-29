@@ -52,10 +52,6 @@ impl Index<hir::ImportedConstructorTemplateId> for ImportedConstructorTemplates 
 }
 
 impl ImportedConstructorTemplates {
-    pub(crate) fn definition(&self, id: PersistentConstructorId) -> &PreparedImportedConstructor {
-        &self[self.by_declaration[&id]]
-    }
-
     pub(crate) fn into_completed(self) -> Arena<hir::ImportedConstructorTemplate> {
         self.templates
             .into_iter()

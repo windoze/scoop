@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v40_retires_iteration_and_binding_plans() {
+fn source_interface_v41_preserves_original_capture_bindings() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        40,
+        41,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,

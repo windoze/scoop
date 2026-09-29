@@ -39,7 +39,7 @@ pub trait TemplateLocalIndexResolver {
     ) -> Result<u32, Self::Error>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum TemplateLocalDefinitionV1 {
     Source(ExportDefinitionSourceV1),
     Synthetic,
@@ -71,7 +71,7 @@ pub enum DecodedTemplateLocalDefinitionV1 {
 }
 
 impl DecodedTemplateLocalDefinitionV1 {
-    fn resolve<R, E>(
+    pub(crate) fn resolve<R, E>(
         self,
         resolver: &mut R,
     ) -> Result<TemplateLocalDefinitionV1, SourceOriginResolutionError<E>>
@@ -394,7 +394,7 @@ impl<R, E> TemplateLocalReferenceResolver<E> for R where
 {
 }
 
-fn validate_definition_shape(
+pub(crate) fn validate_definition_shape(
     selector: &LocalValueSelector,
     definition: &TemplateLocalDefinitionV1,
 ) -> Result<(), TemplateLocalRecordBuildError> {

@@ -35,7 +35,7 @@ Module
     local %3 $dependency.argument.0: ptr<managed>
     local %4 $dependency.parameter.value: ptr<managed>
     local %5 selected: ptr<managed>
-    local %6 $dependency.default.local.0: ptr<managed>
+    local %6 $default.local.0: ptr<managed>
     local %7 $dependency.parameter.value: ptr<managed>
     local %8 copiedDefault: ptr<managed>
     local %9 $dependency.argument.0: ptr<managed>

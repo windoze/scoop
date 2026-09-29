@@ -38,10 +38,10 @@ Module
     val local5
       StringLiteral "illegal state" : String
     val local6
-      Local $dependency.default.local.0 : String
+      Local $default.local.0 : String
     val local7
       VariantConstruct Option.Some<String> : Option<String>
-        Local $dependency.default.local.1 : String
+        Local $default.local.1 : String
     throw
       ImportedDependencyCall #0 : IllegalStateException
         Local $dependency.parameter.message : Option<String>

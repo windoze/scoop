@@ -190,6 +190,7 @@ pub enum DefaultBodyOriginSiteV1 {
     WhenArm,
     Catch,
     CaptureFirstUse,
+    CaptureBinding,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

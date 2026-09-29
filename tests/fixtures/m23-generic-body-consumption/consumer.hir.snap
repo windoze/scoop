@@ -69,10 +69,10 @@ Module
     val local2
       Local $dependency.parameter.first : Int
     val local3
-      Local $dependency.default.local.1 : Int
+      Local $default.local.1 : Int
     val local4
       ImportedGenericCall identity<Int> : Int
-        Local $dependency.default.local.2 : Int
+        Local $default.local.2 : Int
     return
       ImportedGenericCall defaulted<Int> : Int
         Local $dependency.parameter.first : Int
@@ -90,10 +90,10 @@ Module
     val local4
       Local $dependency.parameter.first : LocalValue
     val local5
-      Local $dependency.default.local.1 : LocalValue
+      Local $default.local.1 : LocalValue
     val local6
       ImportedGenericCall identity<LocalValue> : LocalValue
-        Local $dependency.default.local.2 : LocalValue
+        Local $default.local.2 : LocalValue
     return
       FieldAccess field 0 : Int
         ImportedGenericCall defaulted<LocalValue> : LocalValue

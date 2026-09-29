@@ -67,20 +67,16 @@ impl<'a> Input<'a> {
         root: CallableMaterialization,
         position: Option<HirCallableTypePositionV1>,
     ) -> Result<(), Error> {
-        if let CallableTemplateOwner::Generated(id) = root.template()
-            && root.context() != CallableMaterializationContext::NoSubstitution
-        {
+        if let CallableTemplateOwner::Generated(id) = root.template() {
             match root.context() {
-                CallableMaterializationContext::Application(application) => {
-                    self.key(&self.foundation.callable_applications, application)?;
-                }
+                CallableMaterializationContext::Application(application) => self
+                    .key(&self.foundation.callable_applications, application)
+                    .map(|_| ()),
                 CallableMaterializationContext::InitializationApplication(unit) => {
-                    self.generic_delegate(unit)?;
+                    self.generic_delegate(unit)
                 }
-                CallableMaterializationContext::NoSubstitution => {
-                    unreachable!("an applied generated callable has a substitution context")
-                }
-            }
+                CallableMaterializationContext::NoSubstitution => Ok(()),
+            }?;
             let (foundation, key) =
                 self.source_record(id, |foundation| &foundation.generated_callables)?;
             signature::generated(key, root, position)?;
@@ -159,42 +155,40 @@ impl<'a> Input<'a> {
         if root.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::Materialization(root));
         }
-        let foundation = self.foundation;
         match root.template() {
             CallableTemplateOwner::Function(id) => {
-                let key = self.key(&foundation.functions, id)?;
-                self.source(key)?;
+                let (foundation, key) =
+                    self.source_record(id, |foundation| &foundation.functions)?;
+                self.declaration_origin(foundation, key)?;
                 signature::source(key, root, position)
             }
             CallableTemplateOwner::Constructor(id) => {
-                let key = self.key(&foundation.constructors, id)?;
-                self.source(key)?;
+                let (foundation, key) =
+                    self.source_record(id, |foundation| &foundation.constructors)?;
+                self.declaration_origin(foundation, key)?;
                 signature::source(key, root, position)
             }
             CallableTemplateOwner::Accessor(id) => {
-                let key = self.key(&foundation.property_accessors, id)?;
-                let property = self.property_key(key.owner())?;
-                self.source(property)?;
+                let (foundation, key) =
+                    self.source_record(id, |foundation| &foundation.property_accessors)?;
+                let property = match key.owner() {
+                    PropertyOwner::Property(id) => self.key(&foundation.properties, id)?,
+                    PropertyOwner::ExtensionProperty(id) => {
+                        self.key(&foundation.extension_properties, id)?
+                    }
+                };
+                self.declaration_origin(foundation, property)?;
                 signature::accessor(property, key.role(), root, position)
             }
-            CallableTemplateOwner::Generated(id) => {
-                let key = self.key(&foundation.generated_callables, id)?;
-                signature::generated(key, root, position)?;
-                // Generated bodies can have no source span. Their typed owners
-                // and roles were resolved by the same foundation, and later
-                // MIR joins still check the actual generated signature.
-                let subject = DefinitionOriginSubject::GeneratedCallable(id);
-
-                if foundation.definition_origin(subject).is_some() {
-                    self.origin(subject)?;
-                }
-                Ok(())
-            }
             CallableTemplateOwner::VariantConstructor(id) => {
-                self.key(&foundation.enum_variants, id)?;
-                self.origin(DefinitionOriginSubject::EnumVariant(id))
+                let (foundation, _) =
+                    self.source_record(id, |foundation| &foundation.enum_variants)?;
+                Self::source_origin(foundation, DefinitionOriginSubject::EnumVariant(id))
             }
             CallableTemplateOwner::GenericFunction(_) => Err(Error::Materialization(root)),
+            CallableTemplateOwner::Generated(_) => {
+                unreachable!("generated roots were resolved with their substitution context")
+            }
         }
     }
 
@@ -223,6 +217,18 @@ impl<'a> Input<'a> {
                 expected: self.current,
                 actual,
             })
+        }
+    }
+
+    fn declaration_origin(
+        &self,
+        foundation: &CanonicalHirFoundation,
+        key: &SourceDeclarationKey,
+    ) -> Result<(), Error> {
+        if std::ptr::eq(foundation, self.foundation) {
+            self.source(key)
+        } else {
+            Ok(())
         }
     }
 

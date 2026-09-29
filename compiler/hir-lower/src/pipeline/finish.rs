@@ -310,6 +310,13 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
+        let default_local_value_scopes = crate::defaults::finish_default_local_scopes(
+            self.default_local_value_scopes,
+            &function_identities,
+            &property_accessor_identities,
+            &constructor_identities,
+            enum_member_identities,
+        );
         let module = hir::Module {
             cone: current_cone,
             nominal_identities: self
@@ -356,7 +363,7 @@ impl Lowerer {
             foreign_callback_registrations: self.foreign_callback_registrations,
             source_parameter_interfaces: self.source_parameter_interfaces,
             export_default_exprs: self.export_default_exprs,
-            default_local_value_scopes: self.default_local_value_scopes,
+            default_local_value_scopes,
             export_default_sources: self.export_default_sources,
             export_vararg_parameter_types: self.export_vararg_parameter_types,
             functions: self.functions,

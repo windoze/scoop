@@ -354,25 +354,48 @@ pub struct ExportDefaultExpr {
     /// Stable declaration-local path of this source default. Instantiating the
     /// template preserves this path and never assigns a call-site ordinal.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
-    pub locals: Arena<Local>,
-    pub statements: Vec<Statement>,
-    pub value: Expr,
-    pub result_type: TypeId,
+    pub expression: DefaultExpression,
     /// Whether this declaration-bound region may contain suspend calls.
     /// The reader boundary checks this against every source-parameter owner
     /// that references the template.
     pub allows_suspend: bool,
-    /// The exact declaration identities referenced by `Type::Param` nodes in
-    /// the template. An inherited source relates these to its own static view
-    /// through the type arguments of `ExportDefaultSource::Declared`.
-    pub type_parameters: Vec<TypeParamId>,
-    pub receiver: Option<ExportDefaultReceiver>,
-    pub value_parameters: Vec<ExportDefaultValueParameter>,
     /// Direct declaration-bound dependencies of the typed template. Each
     /// category has its own identity domain. Target access domains are cached
     /// for inherited defaults whose callable domain changes.
     pub references: ExportDefaultReferences,
+}
+
+impl std::ops::Deref for ExportDefaultExpr {
+    type Target = DefaultExpression;
+    fn deref(&self) -> &Self::Target {
+        &self.expression
+    }
+}
+
+impl std::ops::DerefMut for ExportDefaultExpr {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.expression
+    }
+}
+
+/// A typed expression region shares ordinary body nodes and local storage.
+/// Declaration metadata is separate from the body instantiated at each use.
+#[derive(Debug, Clone)]
+pub struct DefaultExpression {
+    pub body: Body,
+    pub value: Expr,
+    pub result_type: TypeId,
+    pub type_parameters: Vec<TypeParamId>,
+    pub receiver: Option<ExportDefaultReceiver>,
+    pub value_parameters: Vec<ExportDefaultValueParameter>,
     pub origin: DefinitionOrigin,
+}
+
+impl std::ops::Deref for DefaultExpression {
+    type Target = Body;
+    fn deref(&self) -> &Self::Target {
+        &self.body
+    }
 }
 
 #[derive(Debug, Clone, Default)]

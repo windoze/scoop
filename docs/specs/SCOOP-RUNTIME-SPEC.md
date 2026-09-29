@@ -1,10 +1,12 @@
 # Scoop Runtime 规范
 
-`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
+默认值展开复用普通 HIR 正文。闭包捕获分别保存本次读取值的来源和绑定的原定义，后者在跨 Cone 展开与再次发布后保持不变。共有 capture product 新增 field 4，当前格式为 `hir/cross-cone-interface/41`；旧 `/40` 及更早产物与缓存重建，runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
+
+`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 
 静态嵌套 import 与 re-export 保留原 provider 的 typed 实体及机器定义；support provider 的合法公开成员可通过已选 owner 消费，不重新发射其 Strong 定义。该规则自 `hir/cross-cone-interface/39` 起启用；本项不改变 runtime C ABI、对象布局、初始化或 GC 契约。
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/40`，旧 `/39` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/41`，旧 `/40` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 旧 identity-only 产物 profile、平行来源 reader 和发布/Link 凭证策略退役；三个完整生产 profile 升为 `/3`，descriptor 只保留实际必需 section 清单，旧产物与缓存重建。此调整不改变 runtime C ABI、String 表示、初始化或 GC 语义；类型、对象范围和实际引用检查仍在对应消费边界完成。具体格式见实现规范 2.6 与 M23-2 设计 8.3。
 

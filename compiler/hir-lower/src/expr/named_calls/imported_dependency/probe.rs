@@ -84,22 +84,19 @@ impl Lowerer {
         receiver_source: ImportedDependencyCallReceiver,
         operator_set: bool,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
-        let mut state = self.clone();
-        let candidate = match state
+        let candidate = self
             .dependencies
             .as_ref()
             .expect("ordinary lowering carries a dependency selection plan")
             .callable_candidate(binding)
-        {
-            Ok(candidate) => candidate,
-            Err(error) => {
+            .map_err(|error| {
+                let mut state = self.clone();
                 state.error(
                     name.span,
                     format!("invalid imported dependency callable: {error}"),
                 );
-                return Err(Box::new(state));
-            }
-        };
+                Box::new(state)
+            })?;
         self.probe_imported_callable_candidate(
             ImportedCallableCandidate::Binding(Box::new(candidate)),
             name,

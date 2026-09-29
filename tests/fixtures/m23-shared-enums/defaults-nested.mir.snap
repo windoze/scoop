@@ -209,7 +209,7 @@ Module
     bb7 pattern.merge.7
       goto bb3
     bb8 pattern.pass.8
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
         Local $dependency.parameter.fallback
       goto bb10
@@ -225,7 +225,7 @@ Module
     bb10 pattern.merge.10
       val $dependency.parameter.selected: Int
         Type Int
-        Local $dependency.default.local.5
+        Local $default.local.5
       call $call.1: Int = @fn3 direct
         Type Choice<Int>
         Local $dependency.parameter.value
@@ -238,14 +238,14 @@ Module
         Local $call.1
       goto bb7
     bb11 pattern.pass.11
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
         VariantPayloadProject Choice<Int> v1 f0
           Type Choice<Int>
           Local $pattern.subject.7
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       goto bb13
     bb12 pattern.else.12
       val $pattern.subject.8: Choice<Int>
@@ -259,14 +259,14 @@ Module
     bb13 pattern.merge.13
       goto bb10
     bb14 pattern.pass.14
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
         VariantPayloadProject Choice<Int> v2 f0
           Type Choice<Int>
           Local $pattern.subject.8
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
-        Local $dependency.default.local.3
+        Local $default.local.3
       goto bb16
     bb15 pattern.else.15
       val $pattern.subject.9: Choice<Int>
@@ -280,14 +280,14 @@ Module
     bb16 pattern.merge.16
       goto bb13
     bb17 pattern.pass.17
-      val $dependency.default.local.4: Int
+      val $default.local.4: Int
         Type Int
         VariantPayloadProject Choice<Int> v3 f0
           Type Choice<Int>
           Local $pattern.subject.9
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
-        Local $dependency.default.local.4
+        Local $default.local.4
       goto bb19
     bb18 pattern.else.18
       unreachable
@@ -338,7 +338,7 @@ Module
     bb23 pattern.merge.23
       goto bb7
     bb24 pattern.pass.24
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
         Local $dependency.parameter.fallback
       goto bb26
@@ -354,7 +354,7 @@ Module
     bb26 pattern.merge.26
       val $dependency.parameter.selected: Int
         Type Int
-        Local $dependency.default.local.5
+        Local $default.local.5
       call $call.2: Int = @fn3 direct
         Type Choice<Int>
         Local $dependency.parameter.value
@@ -367,14 +367,14 @@ Module
         Local $call.2
       goto bb23
     bb27 pattern.pass.27
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
         VariantPayloadProject Choice<Int> v1 f0
           Type Choice<Int>
           Local $pattern.subject.14
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       goto bb29
     bb28 pattern.else.28
       val $pattern.subject.15: Choice<Int>
@@ -388,14 +388,14 @@ Module
     bb29 pattern.merge.29
       goto bb26
     bb30 pattern.pass.30
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
         VariantPayloadProject Choice<Int> v2 f0
           Type Choice<Int>
           Local $pattern.subject.15
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
-        Local $dependency.default.local.3
+        Local $default.local.3
       goto bb32
     bb31 pattern.else.31
       val $pattern.subject.16: Choice<Int>
@@ -409,14 +409,14 @@ Module
     bb32 pattern.merge.32
       goto bb29
     bb33 pattern.pass.33
-      val $dependency.default.local.4: Int
+      val $default.local.4: Int
         Type Int
         VariantPayloadProject Choice<Int> v3 f0
           Type Choice<Int>
           Local $pattern.subject.16
-      assign $dependency.default.local.5
+      assign $default.local.5
         Type Int
-        Local $dependency.default.local.4
+        Local $default.local.4
       goto bb35
     bb34 pattern.else.34
       unreachable

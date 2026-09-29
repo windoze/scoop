@@ -36,10 +36,10 @@ Module
     val local8
       IntegerLiteral 3 : Int
     val local9
-      Local $dependency.default.local.2 : Int
+      Local $default.local.2 : Int
     val local10
       ImportedDependencyCall #1 : Int
-        Local $dependency.default.local.3 : Int
+        Local $default.local.3 : Int
     val local11
       Local $dependency.parameter.values : Array<Int>
     val local12
@@ -111,10 +111,10 @@ Module
     val local30
       IntegerLiteral 4 : Int
     val local31
-      Local $dependency.default.local.1 : Int
+      Local $default.local.1 : Int
     val local32
       ImportedDependencyCall #1 : Int
-        Local $dependency.default.local.2 : Int
+        Local $default.local.2 : Int
     val local33
       ImportedGenericCall orderedPack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>

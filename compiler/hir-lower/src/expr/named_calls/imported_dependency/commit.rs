@@ -166,7 +166,6 @@ impl Lowerer {
                         return None;
                     };
                     match self.materialize_imported_default(
-                        &candidate,
                         prepared,
                         receiver.as_ref(),
                         &parameter_values,

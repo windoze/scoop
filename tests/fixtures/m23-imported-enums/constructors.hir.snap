@@ -224,11 +224,11 @@ Module
     val local50
       IntegerLiteral 1 : Long
     val local51
-      Local $dependency.default.local.3 : Long
+      Local $default.local.3 : Long
     val local52
       IntegerOperation long.add <no-gc> : Long
-        Local $dependency.default.local.2 : Long
-        Local $dependency.default.local.4 : Long
+        Local $default.local.2 : Long
+        Local $default.local.4 : Long
     val local53
       VariantConstruct Draft.Defaults : Draft
         Local $dependency.parameter.left : Long

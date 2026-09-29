@@ -21,7 +21,7 @@ Module
     val local9
       Local $dependency.argument.1 : Counter<T0>
     val local10
-      ImportedMethodCall DerivedEquality(Idx::<DerivedEqualityApplication>(0)) : Boolean
+      ImportedMethodCall DerivedEquality(Idx::<DerivedEqualityApplication>(1)) : Boolean
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
     val local11
@@ -87,7 +87,7 @@ Module
     val local30
       Local $dependency.argument.1 : Counter<T0>
     val local31
-      ImportedMethodCall DerivedEquality(Idx::<DerivedEqualityApplication>(0)) : Boolean
+      ImportedMethodCall DerivedEquality(Idx::<DerivedEqualityApplication>(1)) : Boolean
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
     return

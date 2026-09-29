@@ -42,15 +42,15 @@ Module
       val $dependency.parameter.seed: Int
         Type Int
         Local $dependency.argument.1
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       call $dependency.parameter.after: Int = external1 direct
         Type Int
-        Local $dependency.default.local.3
+        Local $default.local.3
       val $dependency.parameter.copied: Array<Int>
         Type Array<Int>
         Local $dependency.parameter.values
@@ -155,15 +155,15 @@ Module
           CopyArray
             Type Array<Int>
             Local $dependency.argument.2
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       call $dependency.parameter.after: Int = external1 direct
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       call packed: Array<Int> = @fn4 direct
         Type Array<Int>
         Local $dependency.parameter.values

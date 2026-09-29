@@ -34,20 +34,20 @@ Module
       val local3
         Local $dependency.parameter.value : Int
       val local4
-        Local $dependency.default.local.2 : Int
-      assign $dependency.default.local.4
+        Local $default.local.2 : Int
+      assign $default.local.4
         ImportedGenericCall identity<Int> : Int
-          Local $dependency.default.local.3 : Int
+          Local $default.local.3 : Int
     finally
       val local6
         IntegerLiteral 0 : Int
       val local7
-        Local $dependency.default.local.5 : Int
+        Local $default.local.5 : Int
       val local2
         ImportedGenericCall identity<Int> : Int
-          Local $dependency.default.local.6 : Int
+          Local $default.local.6 : Int
     val local8
-      Local $dependency.default.local.4 : Int
+      Local $default.local.4 : Int
     return
       ImportedGenericCall defaulted<Int> : Int
         Local $dependency.parameter.value : Int

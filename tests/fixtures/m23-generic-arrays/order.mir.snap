@@ -45,15 +45,15 @@ Module
       call $dependency.argument.1: Int = external1 direct
         Type Int
         Local $dependency.parameter.digit
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       call $dependency.parameter.seed: Int = external1 direct
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       val $dependency.parameter.values: Array<Int>
         Type Array<Int>
         Local $dependency.argument.0
@@ -229,15 +229,15 @@ Module
           Element
             Type Int
             Local $dependency.argument.3
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
-      val $dependency.default.local.4: Int
+      val $default.local.4: Int
         Type Int
-        Local $dependency.default.local.3
+        Local $default.local.3
       call $dependency.parameter.after: Int = external1 direct
         Type Int
-        Local $dependency.default.local.4
+        Local $default.local.4
       val $dependency.parameter.copied: Array<Int>
         Type Array<Int>
         Local $dependency.parameter.values
@@ -359,29 +359,29 @@ Module
       call $dependency.receiver: Int = external1 direct
         Type Int
         Local $dependency.parameter.digit
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       call $dependency.parameter.seed: Int = external1 direct
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       val $dependency.parameter.values: Array<Int>
         Type Array<Int>
         ArrayLiteral Array<Int>
           Type Int
           Local $dependency.parameter.seed
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
-      val $dependency.default.local.4: Int
+      val $default.local.4: Int
         Type Int
-        Local $dependency.default.local.3
+        Local $default.local.3
       call $dependency.parameter.after: Int = external1 direct
         Type Int
-        Local $dependency.default.local.4
+        Local $default.local.4
       val $dependency.parameter.copied: Array<Int>
         Type Array<Int>
         Local $dependency.parameter.values
@@ -518,21 +518,21 @@ Module
           CopyArray
             Type Array<Int>
             Local $dependency.argument.1
-      val $dependency.default.local.1: Array<Int>
+      val $default.local.1: Array<Int>
         Type Array<Int>
         Local $dependency.parameter.values
-      val $dependency.default.local.2: Long
+      val $default.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.default.local.3: Long
+      val $default.local.3: Long
         Type Long
-        Local $dependency.default.local.2
+        Local $default.local.2
       val $arr.1: Array<Int>
         Type Array<Int>
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $idx.2: Long
         Type Long
-        Local $dependency.default.local.3
+        Local $default.local.3
       branch bb26 bb25
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean

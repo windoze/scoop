@@ -156,6 +156,19 @@ where
         capture: &'body DefaultCaptureV1,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
+        if let crate::DefaultCaptureBindingV1::Definition {
+            definition: crate::TemplateLocalDefinitionV1::Source(source),
+            ..
+        } = capture.binding()
+        {
+            self.push_child(
+                pending,
+                BodyNode::Origin {
+                    source,
+                    site: DefaultBodyOriginSiteV1::CaptureBinding,
+                },
+            )?;
+        }
         self.push_type(
             pending,
             capture.value_type(),

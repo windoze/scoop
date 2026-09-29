@@ -8,7 +8,7 @@ Module
       AddressOf $dependency.parameter.value : Ptr<Int>
     val local4
       PtrLoad : Int
-        Local $dependency.default.local.1 : Ptr<Int>
+        Local $default.local.1 : Ptr<Int>
     return
       ImportedGenericCall loadDefault<Int> : Int
         Local $dependency.parameter.value : Int

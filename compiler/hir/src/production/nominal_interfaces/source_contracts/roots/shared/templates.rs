@@ -44,6 +44,7 @@ impl SharedSourceRoots {
             collection.expand().map_err(declarations)?;
             let roots = collection.snapshot().map_err(declarations)?;
             producer.include_roots(&roots);
+            producer.include_defaults(&collection.sources.defaults)?;
             initialization_producer.include_roots(&roots);
             for (id, template) in export.generic_delegate_templates.iter() {
                 if roots

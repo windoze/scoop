@@ -203,8 +203,8 @@ impl Lowerer {
         self.loop_targets = outer_loop_targets;
         value.map(|value| {
             self.default_local_value_scopes
-                .alloc(hir::DefaultLocalValueScope {
-                    definition_root: context.definition_root,
+                .alloc(super::PendingDefaultLocalScope {
+                    definition_root: super::DefaultScopeRoot::Declared(context.definition_root),
                     definition_path: definition_path.clone(),
                     values: locals
                         .iter()
@@ -219,20 +219,21 @@ impl Lowerer {
                 hir::ExportDefaultExpr {
                     definition_root: context.definition_root,
                     definition_path,
-                    locals,
-                    statements,
-                    value,
-                    result_type: parameter.ty,
                     allows_suspend: context.is_suspend,
-                    type_parameters: context
-                        .type_parameters
-                        .iter()
-                        .map(|parameter| parameter.id)
-                        .collect(),
-                    receiver,
-                    value_parameters,
+                    expression: hir::DefaultExpression {
+                        body: hir::Body { locals, statements },
+                        value,
+                        result_type: parameter.ty,
+                        type_parameters: context
+                            .type_parameters
+                            .iter()
+                            .map(|parameter| parameter.id)
+                            .collect(),
+                        receiver,
+                        value_parameters,
+                        origin,
+                    },
                     references: hir::ExportDefaultReferences::default(),
-                    origin,
                 },
                 captures,
             )

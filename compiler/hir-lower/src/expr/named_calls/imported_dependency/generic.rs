@@ -278,10 +278,7 @@ impl Lowerer {
                         method_arguments: solution.callable,
                     }
                 }
-                _ => hir::ImportedCallableArguments::Function(
-                    hir::NonEmptyVec::from_vec(solution.callable)
-                        .expect("a generic function or constructor has binders"),
-                ),
+                _ => hir::ImportedCallableArguments::Function(solution.callable),
             };
             ImportedCallImplementation::Generic {
                 template,

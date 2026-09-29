@@ -37,12 +37,12 @@ Module
   fun @scoop$1$cb$76cef9db3b20b4cbdc9ba77e77fe6ef019f49041ea3f75fff9fdc92a6a577dd2() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
-    local %2 $dependency.default.local.1: i32
-    local %3 $dependency.default.local.2: i32
-    local %4 $dependency.default.local.3: i32
-    local %5 $dependency.default.local.4: i32
-    local %6 $dependency.default.local.5: i32
-    local %7 $dependency.default.local.6: i32
+    local %2 $default.local.1: i32
+    local %3 $default.local.2: i32
+    local %4 $default.local.3: i32
+    local %5 $default.local.4: i32
+    local %6 $default.local.5: i32
+    local %7 $default.local.6: i32
     local %8 $dependency.parameter.second: i32
     local %9 $call.1: i32
     local %10 $call.2: i32

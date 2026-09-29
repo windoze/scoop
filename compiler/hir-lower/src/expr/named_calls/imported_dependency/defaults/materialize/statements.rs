@@ -1,9 +1,7 @@
 use scoop_hir as hir;
 use scoop_identity::LocalValueSelector;
 
-use super::{
-    ImportedDefaultContext, ImportedDefaultMaterializationError, ImportedTemplateEvaluation,
-};
+use super::{ImportedDefaultContext, ImportedDefaultMaterializationError};
 use crate::Lowerer;
 
 impl Lowerer {
@@ -20,12 +18,13 @@ impl Lowerer {
             // Local declarations have no runtime effect. Actual calls request
             // their provider-owned bodies and pass captures explicitly.
             Kind::LocalFunction(descriptor) => {
-                let ImportedTemplateEvaluation::Definition(parent) = context.evaluation else {
-                    return Err(ImportedDefaultMaterializationError::InvalidControlFlow(
-                        "local declaration has no enclosing callable template",
-                    ));
-                };
-                self.register_imported_local_function(parent, descriptor);
+                let parent = context.parent;
+                let bindings = descriptor
+                    .captures()
+                    .iter()
+                    .map(|capture| self.materialize_capture_binding(capture, context))
+                    .collect::<Result<_, _>>()?;
+                self.register_imported_local_function(parent, descriptor, bindings);
                 return Ok(None);
             }
             Kind::Expr(value) => hir::StatementKind::Expr(
@@ -118,14 +117,9 @@ impl Lowerer {
         source: &hir::ExportDefinitionSourceV1,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<scoop_ast::Span, ImportedDefaultMaterializationError> {
-        match context.evaluation {
-            ImportedTemplateEvaluation::Definition(_) => Ok(self
-                .imported_default_definition_origin(source, context)?
-                .span),
-            // Expanded scaffolding belongs to the caller. Expressions retain
-            // their full provider definition and evaluation origins.
-            ImportedTemplateEvaluation::DefaultUse(evaluation) => Ok(evaluation.span),
-        }
+        Ok(self
+            .imported_default_definition_origin(source, context)?
+            .span)
     }
 
     fn materialize_imported_default_statements(

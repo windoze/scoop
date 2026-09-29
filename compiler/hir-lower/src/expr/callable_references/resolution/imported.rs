@@ -215,10 +215,7 @@ impl ImportedReferenceDeclaration {
                             method_arguments: type_args[self.owner_parameters.len()..].to_vec(),
                         }
                     }
-                    _ => hir::ImportedCallableArguments::Function(
-                        hir::NonEmptyVec::from_vec(type_args.to_vec())
-                            .expect("a generic free function has callable arguments"),
-                    ),
+                    _ => hir::ImportedCallableArguments::Function(type_args.to_vec()),
                 };
                 hir::ImportedCallableTarget::Application(state.imported_generic_applications.alloc(
                     hir::ImportedGenericCallableApplication {

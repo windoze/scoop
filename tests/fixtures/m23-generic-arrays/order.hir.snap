@@ -39,10 +39,10 @@ Module
     val local9
       IntegerLiteral 4 : Int
     val local10
-      Local $dependency.default.local.1 : Int
+      Local $default.local.1 : Int
     val local11
       ImportedDependencyCall #1 : Int
-        Local $dependency.default.local.2 : Int
+        Local $default.local.2 : Int
     val local12
       Local $dependency.argument.0 : Array<Int>
     val local13
@@ -160,10 +160,10 @@ Module
     val local47
       IntegerLiteral 5 : Int
     val local48
-      Local $dependency.default.local.3 : Int
+      Local $default.local.3 : Int
     val local49
       ImportedDependencyCall #1 : Int
-        Local $dependency.default.local.4 : Int
+        Local $default.local.4 : Int
     val local50
       Local $dependency.parameter.values : Array<Int>
     val local51
@@ -241,20 +241,20 @@ Module
     val local70
       IntegerLiteral 4 : Int
     val local71
-      Local $dependency.default.local.1 : Int
+      Local $default.local.1 : Int
     val local72
       ImportedDependencyCall #1 : Int
-        Local $dependency.default.local.2 : Int
+        Local $default.local.2 : Int
     val local73
       ArrayLiteral : Array<Int>
         Local $dependency.parameter.seed : Int
     val local74
       IntegerLiteral 5 : Int
     val local75
-      Local $dependency.default.local.3 : Int
+      Local $default.local.3 : Int
     val local76
       ImportedDependencyCall #1 : Int
-        Local $dependency.default.local.4 : Int
+        Local $default.local.4 : Int
     val local77
       Local $dependency.parameter.values : Array<Int>
     val local78
@@ -345,11 +345,11 @@ Module
     val local101
       IntegerLiteral 0 : Long
     val local102
-      Local $dependency.default.local.2 : Long
+      Local $default.local.2 : Long
     val local103
       Index ImmutableGet : Int
-        Local $dependency.default.local.1 : Array<Int>
-        Local $dependency.default.local.3 : Long
+        Local $default.local.1 : Array<Int>
+        Local $default.local.3 : Long
     val local104
       ImportedGenericCall defaultFirst<Int> : Int
         Local $dependency.parameter.values : Array<Int>

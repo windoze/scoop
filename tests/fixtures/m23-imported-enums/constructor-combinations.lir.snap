@@ -80,9 +80,9 @@ Module
     local %13 $dependency.argument.0: i64
     local %14 $dependency.parameter.left: i64
     local %15 $dependency.parameter.marker: struct1 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
-    local %16 $dependency.default.local.2: i64
-    local %17 $dependency.default.local.3: i64
-    local %18 $dependency.default.local.4: i64
+    local %16 $default.local.2: i64
+    local %17 $default.local.3: i64
+    local %18 $default.local.4: i64
     local %19 $dependency.parameter.right: i64
     local %20 $argument.0: enum1
     local %21 $argument.1: {struct1, struct1} <logical-zst 822215957ff797cf757da75b7554a4bf21a30a4387a019013a55d7142502155c>

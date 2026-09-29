@@ -30,7 +30,7 @@ Module
     ret param0
   fun @scoop$1$cb$3b204774a60a1e16951c21b8cf6ab2aa9a3c5c4627b249891ee9eed3de5c3f7c() -> i32
     local %0 initial: i32
-    local %1 $dependency.default.local.0: ptr<managed>
+    local %1 $default.local.0: ptr<managed>
     local %2 $dependency.parameter.value: i32
     local %3 copiedDefault: i32
     local %4 read: i32

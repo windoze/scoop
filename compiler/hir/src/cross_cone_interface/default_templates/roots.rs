@@ -30,6 +30,16 @@ pub enum PersistentLexicalRootV1 {
 }
 
 impl PersistentLexicalRootV1 {
+    pub const fn template_owner(self) -> scoop_identity::CallableTemplateOwner {
+        use scoop_identity::CallableTemplateOwner as Owner;
+        match self {
+            Self::Function(id) => Owner::Function(id),
+            Self::GenericFunction(id) => Owner::GenericFunction(id),
+            Self::Constructor(id) => Owner::Constructor(id),
+            Self::EnumVariantConstructor(id) => Owner::VariantConstructor(id),
+        }
+    }
+
     pub const fn declaration(self) -> CallableTemplateOrigin {
         match self {
             Self::Function(declaration) => CallableTemplateOrigin::Function(declaration),

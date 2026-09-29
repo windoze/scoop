@@ -62,7 +62,8 @@ impl Lowerer {
         *self = *state;
         ImportedExtensionAccessorSelection {
             template,
-            arguments,
+            arguments: hir::NonEmptyVec::from_vec(arguments)
+                .expect("a generic extension property has its declared binders"),
             receiver,
             static_receiver_type: static_type,
             value_type: result_type,

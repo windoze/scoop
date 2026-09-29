@@ -63,14 +63,14 @@ Module
         Retype Any
           Type String
           StringConst @str2
-      val $dependency.default.local.0: Any
+      val $default.local.0: Any
         Type Any
         Retype Any
           Type String
           StringConst @str3
       call $dependency.parameter.value: Any = external6 direct
         Type Any
-        Local $dependency.default.local.0
+        Local $default.local.0
       call copiedDefault: Any = external10 direct
         Type Any
         Local $dependency.parameter.value

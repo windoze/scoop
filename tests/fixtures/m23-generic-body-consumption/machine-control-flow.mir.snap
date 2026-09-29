@@ -74,7 +74,7 @@ Module
     bb5 try.end.5
       val $dependency.parameter.second: Int
         Type Int
-        Local $dependency.default.local.4
+        Local $default.local.4
       call $call.2: Int = @fn6 direct
         Type Int
         Local $dependency.parameter.value
@@ -84,40 +84,40 @@ Module
         Type Int
         Local $call.2
     bb6 try.body.6 unwind bb1
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
         Local $dependency.parameter.value
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       call $call.1: Int = @fn5 direct
         Type Int
-        Local $dependency.default.local.3
-      assign $dependency.default.local.4
+        Local $default.local.3
+      assign $default.local.4
         Type Int
         Local $call.1
       goto bb7
     bb7 scope.7
-      val $dependency.default.local.5: Int
+      val $default.local.5: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.default.local.6: Int
+      val $default.local.6: Int
         Type Int
-        Local $dependency.default.local.5
-      call $dependency.default.local.1: Int = @fn5 direct
+        Local $default.local.5
+      call $default.local.1: Int = @fn5 direct
         Type Int
-        Local $dependency.default.local.6
+        Local $default.local.6
       goto bb5
     bb8 scope.8 unwind bb3
-      val $dependency.default.local.5: Int
+      val $default.local.5: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.default.local.6: Int
+      val $default.local.6: Int
         Type Int
-        Local $dependency.default.local.5
-      call $dependency.default.local.1: Int = @fn5 direct
+        Local $default.local.5
+      call $default.local.1: Int = @fn5 direct
         Type Int
-        Local $dependency.default.local.6
+        Local $default.local.6
       rethrow unwind bb3
   fun checked @fn3(value: Int, count: Int) -> Int
     bb0 entry

@@ -101,8 +101,8 @@ Module
     local %92 $dependency.parameter.digit: i32
     local %93 $dependency.argument.0: ptr<managed>
     local %94 $dependency.parameter.source: ptr<managed>
-    local %95 $dependency.default.local.1: ptr<managed>
-    local %96 $dependency.default.local.2: ptr<managed>
+    local %95 $default.local.1: ptr<managed>
+    local %96 $default.local.2: ptr<managed>
     local %97 $dependency.parameter.copied: ptr<managed>
     local %98 defaulted: ptr<managed>
     local %99 $dependency.receiver: i32

@@ -6,8 +6,9 @@ mod local_function;
 pub use captures::{
     DecodedDefaultCallableBodyTypeArgumentsV1, DecodedDefaultCaptureV1,
     DefaultCallableBodyTypeArgumentsBuildError, DefaultCallableBodyTypeArgumentsResolutionError,
-    DefaultCallableBodyTypeArgumentsV1, DefaultCaptureIndexError, DefaultCaptureResolutionError,
-    DefaultCaptureSourceV1, DefaultCaptureV1, IndexedDefaultCaptureV1,
+    DefaultCallableBodyTypeArgumentsV1, DefaultCaptureBindingV1, DefaultCaptureIndexError,
+    DefaultCaptureResolutionError, DefaultCaptureSourceV1, DefaultCaptureV1,
+    IndexedDefaultCaptureV1,
 };
 pub use identity::{
     DefaultNestedCallableBodyArgumentsV1, DefaultNestedCallableIdentityV1,

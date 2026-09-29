@@ -317,14 +317,42 @@ impl BodyProjection<'_, '_> {
         let mut origin = capture.source.origin.definition();
         origin.span = capture.first_use_span;
         let origin = self.origin(origin)?;
-        Ok(match source {
+        let binding = self.capture_binding(capture.binding)?;
+        let capture = match source {
             crate::DefaultCaptureSourceV1::Local(selector) => {
                 DefaultCaptureV1::new(selector, value_type, origin)
             }
             crate::DefaultCaptureSourceV1::EnclosingCapture(index) => {
                 DefaultCaptureV1::from_enclosing_capture(index, value_type, origin)
             }
-        })
+        };
+        Ok(capture.with_binding(binding))
+    }
+
+    fn capture_binding(
+        &self,
+        binding: crate::BindingId,
+    ) -> Result<crate::DefaultCaptureBindingV1, super::super::DefaultBodyProjectionError> {
+        for (_, scope) in self.entities.export().default_local_value_scopes.iter() {
+            let Some(value) = scope.values.iter().find(|value| value.binding == binding) else {
+                continue;
+            };
+            let definition = match value.definition {
+                crate::LocalValueDefinitionSite::Source(origin) => {
+                    crate::TemplateLocalDefinitionV1::Source(self.origin(origin)?)
+                }
+                crate::LocalValueDefinitionSite::Synthetic => {
+                    crate::TemplateLocalDefinitionV1::Synthetic
+                }
+            };
+            return Ok(crate::DefaultCaptureBindingV1::Definition {
+                owner: scope.definition_root,
+                scope: scope.definition_path.clone(),
+                selector: value.selector.clone(),
+                definition,
+            });
+        }
+        Ok(crate::DefaultCaptureBindingV1::Source)
     }
 
     fn local_function_record(

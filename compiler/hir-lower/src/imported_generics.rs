@@ -39,6 +39,7 @@ pub(crate) struct ImportedGenericTemplates {
 struct ImportedLocalFunctionSource {
     parent: scoop_identity::CallableTemplateOwner,
     descriptor: hir::DefaultLocalFunctionV1,
+    capture_bindings: Vec<hir::BindingId>,
 }
 
 #[derive(Clone)]
@@ -119,17 +120,6 @@ impl Index<hir::ImportedGenericCallableTemplateId> for ImportedGenericTemplates 
 }
 
 impl ImportedGenericTemplates {
-    pub(crate) fn definition(
-        &self,
-        owner: scoop_identity::CallableTemplateOwner,
-    ) -> &PreparedImportedGeneric {
-        self.templates
-            .iter()
-            .flatten()
-            .find(|template| template.declaration.body_owner().template_owner() == owner)
-            .expect("a lexical parent retains its original body declaration")
-    }
-
     pub(crate) fn into_completed(self) -> Arena<hir::ImportedGenericCallableTemplate> {
         self.templates
             .into_iter()

@@ -9,6 +9,7 @@ use scoop_identity::{
 };
 use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
+use super::super::test_support::Fixture;
 use super::*;
 
 #[test]
@@ -17,7 +18,7 @@ fn capture_uses_canonical_local_index_and_round_trips() {
     let mut locals = LocalResolver::new(vec![LocalValueSelector::This, parameter(0)]);
     let bytes = encode(&capture.index_local(&mut locals).unwrap()).unwrap();
 
-    assert_eq!(&bytes[..7], &[0xa3, 0x01, 0xa2, 0x00, 0x01, 0x01, 0x01]);
+    assert_eq!(&bytes[..7], &[0xa4, 0x01, 0xa2, 0x00, 0x01, 0x01, 0x01]);
     let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver::without_nominal(), &mut locals),
@@ -49,7 +50,7 @@ fn enclosing_capture_source_uses_its_own_index_space() {
     let capture = DefaultCaptureV1::from_enclosing_capture(3, binder(0), origin());
     let mut locals = LocalResolver::new(Vec::new());
     let bytes = encode(&capture.index_local(&mut locals).unwrap()).unwrap();
-    assert_eq!(&bytes[..7], &[0xa3, 0x01, 0xa2, 0x00, 0x02, 0x01, 0x03]);
+    assert_eq!(&bytes[..7], &[0xa4, 0x01, 0xa2, 0x00, 0x02, 0x01, 0x03]);
     let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver::without_nominal(), &mut locals),
@@ -62,6 +63,57 @@ fn enclosing_capture_source_uses_its_own_index_space() {
             .unwrap_err()
             .kind(),
         WireErrorKind::UnknownTag { tag: 3 }
+    ));
+}
+
+#[test]
+fn expanded_capture_keeps_its_original_binding_separate_from_the_value_source() {
+    let mut resolver = Resolver::without_nominal();
+    let capture = DefaultCaptureV1::new(parameter(1), binder(0), origin()).with_binding(
+        DefaultCaptureBindingV1::Definition {
+            owner: scoop_identity::CallableTemplateOwner::Function(resolver.callables.function),
+            scope: super::super::test_support::path(
+                scoop_identity::StructuralDefinitionSiteRole::DefaultValue,
+                0,
+            ),
+            selector: parameter(0),
+            definition: crate::TemplateLocalDefinitionV1::Source(origin()),
+        },
+    );
+    // Only the value source is indexed in the calling body.
+    let mut locals = LocalResolver::new(vec![parameter(1)]);
+    let bytes = encode(&capture.index_local(&mut locals).unwrap()).unwrap();
+    let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(
+        decoded.resolve(&mut resolver, &mut locals),
+        Ok(capture.clone())
+    );
+
+    let mut missing_owner = bytes;
+    let binding = encode(capture.binding()).unwrap();
+    let offset = missing_owner.len() - binding.len();
+    // A generic-function owner cannot resolve the ordinary function identity.
+    assert_eq!(
+        &missing_owner[offset..offset + 7],
+        &[0xa5, 0, 2, 1, 0xa2, 0, 1]
+    );
+    missing_owner[offset + 6] = 2;
+    let decoded: DecodedDefaultCaptureV1 = decode_canonical(&missing_owner).unwrap();
+    assert!(matches!(
+        decoded.resolve(&mut resolver, &mut locals),
+        Err(DefaultCaptureResolutionError::BindingOwner(_))
+    ));
+
+    let mut invalid = capture;
+    let DefaultCaptureBindingV1::Definition { definition, .. } = &mut invalid.binding else {
+        unreachable!("the fixture has a complete original binding");
+    };
+    *definition = crate::TemplateLocalDefinitionV1::Synthetic;
+    let bytes = encode(&invalid.index_local(&mut locals).unwrap()).unwrap();
+    let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
+    assert!(matches!(
+        decoded.resolve(&mut resolver, &mut locals),
+        Err(DefaultCaptureResolutionError::BindingShape(_))
     ));
 }
 
@@ -184,19 +236,44 @@ impl std::error::Error for LocalError {}
 
 struct Resolver {
     nominal: Option<PersistentTypeId>,
+    callables: Fixture,
 }
 
 impl Resolver {
-    const fn new(nominal: PersistentTypeId) -> Self {
+    fn new(nominal: PersistentTypeId) -> Self {
         Self {
             nominal: Some(nominal),
+            callables: Fixture::new(),
         }
     }
 
-    const fn without_nominal() -> Self {
-        Self { nominal: None }
+    fn without_nominal() -> Self {
+        Self {
+            nominal: None,
+            callables: Fixture::new(),
+        }
     }
 }
+
+macro_rules! resolve_callable {
+    ($($id:ty),+ $(,)?) => {$(
+        impl PersistentIdResolver<$id> for Resolver {
+            type Error = ResolutionError;
+            fn resolve(&mut self, id: DecodedPersistentId<$id>) -> Result<$id, Self::Error> {
+                self.callables.resolver().resolve(id).map_err(|_| ResolutionError)
+            }
+        }
+    )+};
+}
+
+resolve_callable!(
+    scoop_identity::PersistentFunctionId,
+    scoop_identity::PersistentGenericFunctionId,
+    scoop_identity::PersistentConstructorId,
+    scoop_identity::PersistentPropertyAccessorId,
+    scoop_identity::PersistentGeneratedCallableId,
+    scoop_identity::PersistentEnumVariantId,
+);
 
 impl PersistentIdResolver<ConeIdentity> for Resolver {
     type Error = ResolutionError;

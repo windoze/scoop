@@ -51,7 +51,7 @@ impl DefaultTemplateProviderShapeV1 {
     }
 
     /// Returns the canonical identity argument in flattened host/own order.
-    pub(crate) fn identity_binder_at(self, position: u32) -> Option<SignatureTypeKey> {
+    pub fn identity_binder_at(self, position: u32) -> Option<SignatureTypeKey> {
         if position >= self.binder_arity {
             return None;
         }

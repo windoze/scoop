@@ -18,6 +18,7 @@ struct InstantiationContext {
     local_functions: HashMap<hir::LocalFunctionId, hir::LocalFunctionId>,
     loop_targets: Vec<(hir::LoopId, hir::LoopId)>,
     evaluation: InstantiationEvaluation,
+    statement_span: scoop_ast::Span,
 }
 
 #[derive(Clone, Copy)]
@@ -57,7 +58,11 @@ impl Lowerer {
         let (template, captures, template_bindings) = match template {
             DefaultExprTemplateRef::Local(template) => {
                 let template = self.local_default_exprs[template].clone();
-                (template.body, template.captures, bindings.to_vec())
+                (
+                    template.body.expression,
+                    template.captures,
+                    bindings.to_vec(),
+                )
             }
             DefaultExprTemplateRef::Export(source) => {
                 let source = self.export_default_sources[source].clone();
@@ -88,9 +93,31 @@ impl Lowerer {
                     .copied()
                     .zip(arguments)
                     .collect();
-                (template, Vec::new(), template_bindings)
+                (template.expression, Vec::new(), template_bindings)
             }
         };
+        Some(self.instantiate_default_expression(
+            &template,
+            captures,
+            template_bindings,
+            receiver,
+            value_parameters,
+            call_span,
+            sink,
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn instantiate_default_expression(
+        &mut self,
+        template: &hir::DefaultExpression,
+        captures: Vec<hir::Capture>,
+        template_bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
+        receiver: Option<&hir::Expr>,
+        value_parameters: &[hir::Expr],
+        call_span: scoop_ast::Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> hir::Expr {
         let mut mapped = vec![None; template.locals.len()];
         if let Some(source) = template.receiver {
             mapped[arena_index(source.local)] = Some(
@@ -122,6 +149,7 @@ impl Lowerer {
             });
         }
         let mut context = InstantiationContext {
+            statement_span: call_span,
             local_functions: HashMap::new(),
             bindings: template_bindings,
             locals: mapped
@@ -152,7 +180,7 @@ impl Lowerer {
             sink.push(self.instantiate_default_statement(statement, &mut context));
         }
         debug_assert!(context.loop_targets.is_empty());
-        Some(self.instantiate_default_expr(&template.value, &mut context))
+        self.instantiate_default_expr(&template.value, &mut context)
     }
 }
 

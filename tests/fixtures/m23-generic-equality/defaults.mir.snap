@@ -159,7 +159,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $derived.equals.0 @fn2(this: Counter<Int>, other: Counter<Int>) -> Boolean
+  fun $derived.equals.1 @fn2(this: Counter<Int>, other: Counter<Int>) -> Boolean
     bb0 entry
       return
         Type Boolean

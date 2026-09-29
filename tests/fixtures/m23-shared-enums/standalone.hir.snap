@@ -54,20 +54,20 @@ Module
     when
       Local $dependency.parameter.value : Choice<T0>
       arm variant0()
-        assign $dependency.default.local.5
+        assign $default.local.5
           Local $dependency.parameter.fallback : T0
       arm variant1(0: local17)
-        assign $dependency.default.local.5
-          Local $dependency.default.local.2 : T0
+        assign $default.local.5
+          Local $default.local.2 : T0
       arm variant2(0: local18, 1: _)
-        assign $dependency.default.local.5
-          Local $dependency.default.local.3 : T0
+        assign $default.local.5
+          Local $default.local.3 : T0
       arm variant3(0: local19, 1: _)
-        assign $dependency.default.local.5
-          Local $dependency.default.local.4 : T0
+        assign $default.local.5
+          Local $default.local.4 : T0
       impossible <enum pattern matrix for Choice<T0>>
     val local21
-      Local $dependency.default.local.5 : T0
+      Local $default.local.5 : T0
     val local22
       CallableCall function_type0 : Int
         Local read : (T0) -> Int

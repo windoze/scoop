@@ -6,14 +6,6 @@ impl Lowerer {
         reference: &hir::DefaultGenericDelegateReferenceV1,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::GenericDelegateReference, ImportedDefaultMaterializationError> {
-        if matches!(
-            context.evaluation,
-            ImportedTemplateEvaluation::DefaultUse(_)
-        ) {
-            return Err(ImportedDefaultMaterializationError::InvalidControlFlow(
-                "default properties require accessor calls, not direct delegate storage",
-            ));
-        }
         let template = self
             .request_imported_generic_delegate(reference.property())
             .map_err(ImportedDefaultMaterializationError::Plan)?;

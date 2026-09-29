@@ -28,12 +28,12 @@ Module
   fun outside @fn1() -> Int
     bb0 entry
       call initial: Int = external0 direct
-      val $dependency.default.local.0: String
+      val $default.local.0: String
         Type String
         StringConst @str0
       call $dependency.parameter.value: Int = external6 direct
         Type String
-        Local $dependency.default.local.0
+        Local $default.local.0
       call copiedDefault: Int = external7 direct
         Type Int
         Local $dependency.parameter.value

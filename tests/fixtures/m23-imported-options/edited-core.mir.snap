@@ -100,17 +100,17 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         Local $dependency.parameter.value
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.wrapped: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v1
           Type Int
-          Local $dependency.default.local.2
+          Local $default.local.2
       call defaulted: Int = @fn7 direct
         Type Int
         Local $dependency.parameter.value

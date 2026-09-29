@@ -36,9 +36,40 @@ impl Lowerer {
         &mut self,
         source: &hir::ImportedCallableReference,
         context: &mut InstantiationContext,
-    ) -> hir::ImportedCallableReference {
-        let target = self.instantiate_default_imported_reference_target(&source.target, context);
-        hir::ImportedCallableReference {
+    ) -> hir::ExprKind {
+        let origin = instantiate_origin(
+            hir::ExpressionOrigin::Definition(source.origin),
+            context.evaluation,
+        );
+        let target =
+            self.instantiate_default_imported_reference_target(&source.target, origin, context);
+        let function_type = self.instantiate_default_function_type(source.function_type, context);
+        let captures = source
+            .captures
+            .iter()
+            .map(|capture| self.instantiate_default_capture(capture, context))
+            .collect();
+        if matches!(context.evaluation, InstantiationEvaluation::Concrete(_)) {
+            let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
+            let definition_root = self.current_definition_root();
+            let definition_path = self
+                .definition_paths
+                .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
+            let origin = self.definition_origin(context.statement_span);
+            return hir::ExprKind::CallableReference(self.callable_references.alloc(
+                hir::CallableReference {
+                    definition_root,
+                    definition_path,
+                    owner_type_arguments,
+                    target: hir::CallableReferenceTarget::Imported(target),
+                    function_type,
+                    captures,
+                    origin,
+                    span: origin.span,
+                },
+            ));
+        }
+        hir::ExprKind::ImportedCallableReference(Box::new(hir::ImportedCallableReference {
             definition: source.definition.clone(),
             parent: source.parent,
             owner_type_arguments: source
@@ -47,19 +78,16 @@ impl Lowerer {
                 .map(|ty| self.instantiate_method_ty(*ty, &context.bindings))
                 .collect(),
             target,
-            function_type: self.instantiate_default_function_type(source.function_type, context),
-            captures: source
-                .captures
-                .iter()
-                .map(|capture| self.instantiate_default_capture(capture, context))
-                .collect(),
+            function_type,
+            captures,
             origin: source.origin,
-        }
+        }))
     }
 
     fn instantiate_default_imported_reference_target(
         &mut self,
         target: &hir::ImportedCallableReferenceTarget,
+        origin: hir::ExpressionOrigin,
         context: &mut InstantiationContext,
     ) -> hir::ImportedCallableReferenceTarget {
         match target {
@@ -85,7 +113,8 @@ impl Lowerer {
             hir::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
                 hir::ImportedCallableReferenceTarget::BoundMember {
                     receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                    callee: self.instantiate_default_imported_method_callee(callee, context),
+                    callee: self
+                        .instantiate_default_imported_method_callee(callee, origin, context),
                 }
             }
             hir::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
@@ -207,10 +236,14 @@ impl Lowerer {
         context: &mut InstantiationContext,
     ) -> hir::CallableReferenceId {
         let source = self.callable_references[source].clone();
+        let origin = instantiate_origin(
+            hir::ExpressionOrigin::Definition(source.origin),
+            context.evaluation,
+        );
         let target = match source.target {
             hir::CallableReferenceTarget::Imported(target) => {
                 hir::CallableReferenceTarget::Imported(
-                    self.instantiate_default_imported_reference_target(&target, context),
+                    self.instantiate_default_imported_reference_target(&target, origin, context),
                 )
             }
             hir::CallableReferenceTarget::Named(callee) => hir::CallableReferenceTarget::Named(
@@ -226,7 +259,7 @@ impl Lowerer {
             hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
                 hir::CallableReferenceTarget::BoundMember {
                     receiver: Box::new(self.instantiate_default_expr(&receiver, context)),
-                    callee: self.instantiate_default_method_callee(callee, context),
+                    callee: self.instantiate_default_method_callee(callee, origin, context),
                 }
             }
             hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {

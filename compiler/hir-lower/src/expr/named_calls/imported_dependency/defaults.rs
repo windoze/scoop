@@ -1,7 +1,7 @@
-//! Winner-only materialization of validated dependency default templates.
+//! Load default definitions and expand the shared HIR body for selected calls.
 
 mod materialize;
 mod plan;
-mod preflight;
+mod prepare;
 
 pub(super) use plan::ImportedDefaultPlan;

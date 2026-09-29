@@ -25,14 +25,24 @@ impl Lowerer {
             ),
             _ => unreachable!("closure materialization receives a lexical closure descriptor"),
         };
-        let ImportedTemplateEvaluation::Definition(parent) = context.evaluation else {
+        let definition = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.generated_callable_definition(body))
+            .ok_or_else(|| {
+                ImportedDefaultMaterializationError::Plan(
+                    "dependency closure is missing its original definition".into(),
+                )
+            })?;
+        let scoop_identity::GeneratedCallableKey::Lexical { parent, .. } = definition.key() else {
             return Err(ImportedDefaultMaterializationError::Plan(
-                "dependency closure has no enclosing definition".into(),
+                "dependency closure body is not a lexical callable".into(),
             ));
         };
+        let parent = parent.template();
         let capture_bindings = captures
             .iter()
-            .map(|capture| self.imported_closure_capture_binding(capture.source(), parent, context))
+            .map(|capture| self.materialize_capture_binding(capture, context))
             .collect::<Result<_, _>>()?;
         let template = self
             .request_imported_closure(parent, body, kind, capture_bindings)
@@ -42,13 +52,8 @@ impl Lowerer {
                 .iter()
                 .map(|argument| self.materialize_imported_default_type(argument, context))
                 .collect::<Result<Vec<_>, _>>()?,
-            None => self.imported_lexical_owner_arguments(parent),
+            None => context.lexical_arguments.clone(),
         };
-        let arguments = hir::NonEmptyVec::from_vec(arguments).ok_or_else(|| {
-            ImportedDefaultMaterializationError::Plan(
-                "a materialized dependency closure requires its enclosing application".into(),
-            )
-        })?;
         let application =
             self.imported_generic_applications
                 .alloc(hir::ImportedGenericCallableApplication {
@@ -97,37 +102,14 @@ impl Lowerer {
     pub(super) fn imported_closure_capture_binding(
         &self,
         source: &hir::DefaultCaptureSourceV1,
-        parent: scoop_identity::CallableTemplateOwner,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::BindingId, ImportedDefaultMaterializationError> {
         match source {
-            hir::DefaultCaptureSourceV1::Local(selector) => {
-                let source = context.locals.get(selector).ok_or_else(|| {
-                    ImportedDefaultMaterializationError::UnknownLocal(selector.clone())
-                })?;
-                match source.kind {
-                    hir::ExprKind::Local(id) => Ok(self.locals[id].binding),
-                    hir::ExprKind::ConstructorParam(parameter) => {
-                        let scoop_identity::CallableTemplateOwner::Constructor(parent) = parent
-                        else {
-                            unreachable!("constructor inputs retain their lexical constructor")
-                        };
-                        self.imported_constructor_templates
-                            .definition(parent)
-                            .signature
-                            .parameters
-                            .iter()
-                            .find(|input| input.id == parameter)
-                            .map(|input| input.binding)
-                            .ok_or_else(|| {
-                                ImportedDefaultMaterializationError::UnknownLocal(selector.clone())
-                            })
-                    }
-                    _ => Err(ImportedDefaultMaterializationError::Plan(
-                        "dependency closure capture does not name a lexical binding".into(),
-                    )),
-                }
-            }
+            hir::DefaultCaptureSourceV1::Local(selector) => context
+                .local_bindings
+                .get(selector)
+                .copied()
+                .ok_or_else(|| ImportedDefaultMaterializationError::UnknownLocal(selector.clone())),
             hir::DefaultCaptureSourceV1::EnclosingCapture(index) => context
                 .captures
                 .get(*index as usize)
@@ -201,30 +183,5 @@ impl Lowerer {
                 })
             })
             .collect::<Result<_, ImportedDefaultMaterializationError>>()
-    }
-
-    pub(super) fn imported_lexical_owner_arguments(
-        &mut self,
-        parent: scoop_identity::CallableTemplateOwner,
-    ) -> Vec<hir::TypeId> {
-        let parameters = match parent {
-            scoop_identity::CallableTemplateOwner::Constructor(parent) => self
-                .imported_constructor_templates
-                .definition(parent)
-                .signature
-                .type_parameters
-                .iter()
-                .map(|parameter| parameter.id)
-                .collect(),
-            _ => self
-                .imported_generic_templates
-                .definition(parent)
-                .type_parameters
-                .ids(),
-        };
-        parameters
-            .into_iter()
-            .map(|parameter| self.intern_type(hir::Type::Param(parameter)))
-            .collect()
     }
 }

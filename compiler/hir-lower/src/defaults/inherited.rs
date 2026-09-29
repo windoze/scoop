@@ -29,14 +29,7 @@ impl Lowerer {
                 return None;
             }
         };
-        match self.materialize_imported_default(
-            &declaration,
-            &prepared,
-            receiver,
-            value_parameters,
-            span,
-            sink,
-        ) {
+        match self.materialize_imported_default(&prepared, receiver, value_parameters, span, sink) {
             Ok(value) => Some(value),
             Err(error) => {
                 self.error(span, error.to_string());

@@ -38,8 +38,8 @@ Module
     local %2 $dependency.parameter.left: i32
     local %3 $dependency.parameter.right: i1
     local %4 error: ptr<managed>
-    local %5 $dependency.default.local.0: ptr<managed>
-    local %6 $dependency.default.local.1: ptr<managed>
+    local %5 $default.local.0: ptr<managed>
+    local %6 $default.local.1: ptr<managed>
     local %7 $dependency.parameter.message: enum0
     local %8 $new.1: ptr<managed>
     local %9 $call.2: i32

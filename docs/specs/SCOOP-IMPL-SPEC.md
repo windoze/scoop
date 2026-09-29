@@ -1,10 +1,12 @@
 # Scoop 实现大纲
 
-`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
+默认值展开复用普通 HIR 正文。闭包捕获分别保存本次读取值的来源和绑定的原定义，后者在跨 Cone 展开与再次发布后保持不变。共有 capture product 新增 field 4，当前格式为 `hir/cross-cone-interface/41`；旧 `/40` 及更早产物与缓存重建，runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
+
+`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 
 静态 namespace 查询只依赖已选 nominal owner 和其实际 public binding 表，不以 provider 的 direct/support 角色过滤嵌套成员。direct package index 仍只包含直接依赖；exact、star、public import 与普通 receiver 查询共用实际终点绑定。公开绑定和外部名称引用的 reader 检查归属、typed target、namespace、role、闭合及既有转导出连续性，删除重复的 direct-provider 资格检查和仅服务该检查的输入表。该规则自 `hir/cross-cone-interface/39` 起启用；runtime ABI 与 GC 契约不变。
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/40`，旧 `/39` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/41`，旧 `/40` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 
@@ -219,6 +221,14 @@ M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、own
 具体化队列的函数请求以原函数、泛型函数、访问器或生成正文身份和完整宿主／callable 实参为 key；派生相等以既定生成规则与完整宿主区分。词法 callable 的原正文身份保留其定义处 parent／path，完整实参包括继承 binder。当前或依赖的 arena 位置只用于定位记录，不进入 key；相同请求在同一队列复用。方法的宿主实参与自身实参按同一顺序组合，`Ptr<T>` 的 pointee 也属于真实宿主实参。
 
 词法 parent 使用原 `CallableTemplateOwner`，不保存依赖模板 arena 位置；局部函数、闭包与函数引用共用原定义及完整继承实参查询父 application。捕获绑定仍按原正文的局部值 selector 关联，存储定位不改变词法归属。
+
+默认值的局部值与语句使用普通 `Body`，表达式结果、参数映射和 binder 是该正文的入口信息。读入依赖默认值时只将身份和索引映射一次，之后与当前声明共用同一默认值展开；不在每个调用点重走运输树的类型、局部值和控制流验证。lambda、匿名函数与局部函数保留原定义和捕获绑定，实际捕获表达式随每次展开替换；没有泛型参数的词法正文使用空实参列表。默认值局部值作用域保存原 callable 身份，调用方的临时变量不改变被捕获值的原定义身份。
+
+声明类型位置中的 callable root 按原身份查询当前与依赖声明，空实参不意味着定义必须属于当前 Cone。闭包及其捕获局部值可以属于外来普通默认值；reader 仍核对实际声明、位置和 application 连接，不能因 `NoSubstitution` 拒绝这个合法归属。
+
+捕获描述符分别保存本次读取值的来源和绑定的原定义。正常词法捕获直接绑定其来源；默认值展开改变读取位置时，绑定额外保留原 callable、默认作用域路径、局部值 selector 和定义位置。再次发布复用这些定义，不能把调用方临时变量重新解释成提供方的局部值。读入按原作用域与 selector 复用绑定，实际捕获表达式仍来自本次调用。共有 capture product 新增 field 4 表达这两种完整绑定形式，HIR interface 升至 `/41`；旧 `/40` 产物、required inventory、profile fingerprint 与缓存重建，runtime C ABI 保持。
+
+发布声明的默认值所引用的词法正文加入同一正文依赖闭包；复用已收集的默认值引用集合，不只发布闭包描述符而遗漏其实现。普通默认值中的函数引用在实际展开点建立 invoke 身份，生成记录的位置属于该展开点，泛型调用点包含全部宿主实参；引用表达式仍保留默认值的原定义位置与本次求值位置。函数型适配沿普通 `FunctionCoercion` 和装箱路径执行。
 
 nominal 原声明身份在完整声明树及类型参数元数收集完成后建立，先于 import、签名约束和正文的语义查询；它只依赖原声明位置、owner 链、种类与元数，不依赖实例化结果。当前声明和依赖声明的 application 查询使用同一种原声明 ID 与完整实参，当前 arena 索引只由本次构建的反向表解析。导出直接复用已建立的身份记录，不在完成边界重新生成同一身份。
 

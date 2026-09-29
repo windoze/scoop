@@ -38,10 +38,10 @@ Module
     local %12 $dependency.argument.1: i32
     local %13 $dependency.parameter.value: enum0
     local %14 $dependency.parameter.fallback: i32
-    local %15 $dependency.default.local.2: i32
-    local %16 $dependency.default.local.3: i32
-    local %17 $dependency.default.local.4: i32
-    local %18 $dependency.default.local.5: i32
+    local %15 $default.local.2: i32
+    local %16 $default.local.3: i32
+    local %17 $default.local.4: i32
+    local %18 $default.local.5: i32
     local %19 $dependency.parameter.selected: i32
     local %20 $dependency.receiver: i32
     local %21 $dependency.argument.0: i32

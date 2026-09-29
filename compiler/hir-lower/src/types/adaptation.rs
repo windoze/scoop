@@ -51,6 +51,21 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn function_coercion(
+        &mut self,
+        source: hir::FunctionTypeId,
+        target: hir::FunctionTypeId,
+    ) -> hir::FunctionCoercionId {
+        if let Some(&id) = self.function_coercion_by_types.get(&(source, target)) {
+            return id;
+        }
+        let id = self
+            .function_coercions
+            .alloc(hir::FunctionCoercion { source, target });
+        self.function_coercion_by_types.insert((source, target), id);
+        id
+    }
+
     /// Adapt an expression to a target type it is a subtype of (callers
     /// check `is_subtype` first and diagnose otherwise): a value type
     /// crossing into a reference target is boxed (`ExprKind::Box`,
@@ -65,19 +80,7 @@ impl Lowerer {
         if let (Type::Function(source), Type::Function(target_type)) =
             (self.types[expr.ty].clone(), self.types[target].clone())
         {
-            let key = (source, target_type);
-            let coercion = self
-                .function_coercion_by_types
-                .get(&key)
-                .copied()
-                .unwrap_or_else(|| {
-                    let id = self.function_coercions.alloc(hir::FunctionCoercion {
-                        source,
-                        target: target_type,
-                    });
-                    self.function_coercion_by_types.insert(key, id);
-                    id
-                });
+            let coercion = self.function_coercion(source, target_type);
             return hir::Expr {
                 kind: hir::ExprKind::FunctionCoercion {
                     source: Box::new(expr),
@@ -106,7 +109,12 @@ impl Lowerer {
         }
     }
 
-    fn retain_boxing_sources(&mut self, source: TypeId, target: TypeId, span: ast::Span) {
+    pub(crate) fn retain_boxing_sources(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        span: ast::Span,
+    ) {
         if self.types_equal(source, target) {
             return;
         }

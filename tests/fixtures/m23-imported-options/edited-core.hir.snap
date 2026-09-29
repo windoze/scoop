@@ -41,10 +41,10 @@ Module
     val local14
       Local $dependency.parameter.value : T0
     val local15
-      Local $dependency.default.local.1 : T0
+      Local $default.local.1 : T0
     val local16
       VariantConstruct Option.Some<T0> : Option<T0>
-        Local $dependency.default.local.2 : T0
+        Local $default.local.2 : T0
     val local17
       ImportedGenericCall reorderedDefault<T0> : T0
         Local $dependency.parameter.value : T0

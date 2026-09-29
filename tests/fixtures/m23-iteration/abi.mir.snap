@@ -118,23 +118,23 @@ Module
   generated_exact_type get0 location=enum10 nominal_id=f5fd7053832697faa14ac31e9582288409e71eb3a747c73ef66721bc37869be0 exact_id=0540200de50cc9d6e629ae797df299d7f10e180689708880753d83c341732edc
   generated_exact_type get1 location=class24 nominal_id=9e68820032a9ec367822188d6a770d5177dcc9720c7c7ebc2d892f9874429d31 exact_id=224fae4067bae6924a339037f679c1bbafffd788cdb5c303a08a3cca483fb80f
   generated_exact_type get2 location=class28 nominal_id=9ddfa9369468f68c6ae03b0297c5594521686f8b98ee4fcc46173c6768664e56 exact_id=2288e7ffbe6dd7824fab3465ade15a5c801d4b7d284a5e4b18e4fa41bea0e763
-  generated_exact_type get3 location=closure2 nominal_id=1971df16bef9b0dd059f1601c40e1b5990034540d2087c5ca01448eed9dea572 exact_id=244c8581e3fc8c277a558e822bac53f9039ce204f9210444342fdc96d166aab9
-  generated_exact_type get4 location=closure1 nominal_id=45b5d5b30c741de8a0926cb053434541814a9cafe96a2146fe7f755b7dc5d16a exact_id=3353d803f80417bfed066e99f1eb7b2a5cba3e3f2ae27e5246dbb018a5009dfa
-  generated_exact_type get5 location=class29 nominal_id=d45a683bde95e847157fb1f3421b3a88e44b319ed212e742d011deb8ec230471 exact_id=749a7f38668fc0f355ec078d475d349d995d930350ca0294405da39c29f9c96f
-  generated_exact_type get6 location=class32 nominal_id=b2eaf1a375d6c3a4a3c8db86af914b808fcfa0af11cce073ad19d3ac9a86e61b exact_id=7a3f50b9c3d45a7f921fd870674a1e38ca8cdc1f51e675b971abd02ccb946be5
-  generated_exact_type get7 location=class25 nominal_id=0bbccacc47fdf12a32479f247ee1c534573c56f60cdb52e02fbb31293c59bd49 exact_id=90ff99555a3ca242a3c05d5b096e5dd6df0dde8409b6a6b5b0431e356940583f
+  generated_exact_type get3 location=class29 nominal_id=d45a683bde95e847157fb1f3421b3a88e44b319ed212e742d011deb8ec230471 exact_id=749a7f38668fc0f355ec078d475d349d995d930350ca0294405da39c29f9c96f
+  generated_exact_type get4 location=class32 nominal_id=b2eaf1a375d6c3a4a3c8db86af914b808fcfa0af11cce073ad19d3ac9a86e61b exact_id=7a3f50b9c3d45a7f921fd870674a1e38ca8cdc1f51e675b971abd02ccb946be5
+  generated_exact_type get5 location=closure3 nominal_id=39dfa84bdc28cc73028fc31aeddd60a3b556fb4c43350a9df845d52048a3b46f exact_id=7a8bb24a8823985d286e91a8bd7f0a972eacd52dbf44d47e9c81e86b12cee767
+  generated_exact_type get6 location=class25 nominal_id=0bbccacc47fdf12a32479f247ee1c534573c56f60cdb52e02fbb31293c59bd49 exact_id=90ff99555a3ca242a3c05d5b096e5dd6df0dde8409b6a6b5b0431e356940583f
+  generated_exact_type get7 location=closure2 nominal_id=822c7e73f0b8e4c5fc6a9dfa7661a9227132c379d25919cdef59aac199e54d12 exact_id=925fedc56689caaf149349d6d3cd0bc5674c93122d1b16a420e2f8394a21454e
   generated_exact_type get8 location=class31 nominal_id=7b12b36541fa981aedec5c1830d15be2d1554a0ca437ae8d366cdb72b48cdb88 exact_id=97b0130e0dc5eba513a7b9d65c395cfb0393ecff981cbc3e14ae42f1cae16cfe
   generated_exact_type get9 location=closure4 nominal_id=f17d6ed6a7fa1db2e8958b123bebbabcfe7afbb3777c8431d701cb58c5b75568 exact_id=9941623da6cf35f90b3cb3ebcc44766e45429a8096f8a70a13da11d025ccbe01
   generated_exact_type get10 location=closure6 nominal_id=9565462ba31c91b518e5e7d24dfb1b0d638ea6a73409cfae7cc2d34aadc8368a exact_id=9a5c948fe17aeb08baf1dc0f18bece27110a05d9c272da434d630d06411303c7
   generated_exact_type get11 location=closure5 nominal_id=5b0cac4bb29caa351bab1c79189ebd1155cf1ecb3ca5f42cd458da24b10c2310 exact_id=b187b20501076555cd472fcfdf61e1b072c7412275e995c4e2c1f812d3754d37
   generated_exact_type get12 location=enum13 nominal_id=3645c05ab525b7f315200170f16518351639069e6e7bb4defc8b4073c3aa5fd9 exact_id=b6b9015619bbc024431f1ce3e6940b9d95ea0491a88723d22a0416664334b450
-  generated_exact_type get13 location=closure3 nominal_id=efced9f609fe5b1b1bdf1bfcb3be3f051b24e6e9c1c303ed80b0f0b5f523eef2 exact_id=cfd71668c8b24d48963104ceb4c0633d34dccc03a123a7c72b90ad0758767bfe
+  generated_exact_type get13 location=closure1 nominal_id=3f14e72164aba8d3d641818198ba1631aed4e6857b1e356ef8f32a63f1fd4cef exact_id=c82d168a2a7b2351af0b297fed341eff73a8996a697217e060fb00d4df4e4970
   generated_exact_type get14 location=enum12 nominal_id=e3ed49bb7add2d78074b61f5de53b02f18ab403969f87f9993f9ac2896d364e1 exact_id=d167970b41d03cd96883f11424e7be603be88a228bafbaa0b950af0617070493
-  generated_exact_type get15 location=closure0 nominal_id=cf5ad25c830194c173a75a462d271024391baa227f84987649f9c0ec88da69a4 exact_id=daa03eb5d8d8ae6b45ba78569d7e6da7c07d521caf20a36fee826d74b4dfd570
-  generated_exact_type get16 location=enum11 nominal_id=d8c728411f8072441be83fb376af1792f9f6b76028c4a13a14b7bdc98bbb17bf exact_id=e0015f299db9c2beb1304e0c37aba88fc5d2ae077c85f80c86c1ee165ab3f3ed
-  generated_exact_type get17 location=class26 nominal_id=cd1ce1bf4e4671f12f40fd1aa8d65e38bdaaeaec1c0ddba257950cd0531b8639 exact_id=f03fdbadd5b88b6dbf9d778d1de48cc95153f929e23130c6d2d7e69970b7e6e1
-  generated_exact_type get18 location=class30 nominal_id=324ccf2deef2b11e99a6d1f4e1fcf21a0aa3fc4091a1c22834122feda4d38c75 exact_id=f88925f0f2ec0526ac727cda352f3e7134d1106a0d5d7a834e48e54f1c3f6d72
-  generated_exact_type get19 location=closure7 nominal_id=f4ddf88d69420c82c11212445298fd23736c02ca88bfd1284bed8066b9c3e2f3 exact_id=fad05ed91f008c1b296e70c826df14ecb105bf153c468181a7b01c9cc62e969f
+  generated_exact_type get15 location=enum11 nominal_id=d8c728411f8072441be83fb376af1792f9f6b76028c4a13a14b7bdc98bbb17bf exact_id=e0015f299db9c2beb1304e0c37aba88fc5d2ae077c85f80c86c1ee165ab3f3ed
+  generated_exact_type get16 location=class26 nominal_id=cd1ce1bf4e4671f12f40fd1aa8d65e38bdaaeaec1c0ddba257950cd0531b8639 exact_id=f03fdbadd5b88b6dbf9d778d1de48cc95153f929e23130c6d2d7e69970b7e6e1
+  generated_exact_type get17 location=class30 nominal_id=324ccf2deef2b11e99a6d1f4e1fcf21a0aa3fc4091a1c22834122feda4d38c75 exact_id=f88925f0f2ec0526ac727cda352f3e7134d1106a0d5d7a834e48e54f1c3f6d72
+  generated_exact_type get18 location=closure7 nominal_id=f4ddf88d69420c82c11212445298fd23736c02ca88bfd1284bed8066b9c3e2f3 exact_id=fad05ed91f008c1b296e70c826df14ecb105bf153c468181a7b01c9cc62e969f
+  generated_exact_type get19 location=closure0 nominal_id=decb828fedcc0d84c7eb689973b86ec78badda2a5af35b96ac607e27b4b70857 exact_id=fad1ff272f8166089a38e59db70fb6bfc3cdc32fea616b7ed89fe1c254902e52
   generated_exact_type get20 location=class27 nominal_id=f25679b5e568c98265648620cacf3d6f84781b5af8450b3a1a98784530a7a82d exact_id=febb015014222fe23fa4febced50e78eec792bfa89453d95175f9738c5c4e025
   generated_callable gc0 function=@fn157 id=0e19c6586f8f2458126476158a96d2b644fb007b5efe50f29296476f67757c4c
   generated_callable gc1 function=@fn152 id=2052a83b2d0d02eeb56ab827e989b5b4892399f5ab45d3098ae63e1524cb1529
@@ -957,10 +957,10 @@ Module
       val $dependency.local.16: () -> Int
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-          CaptureInit field=0
+          CaptureInit field=1
             Type Iterable<Large>
             Local $dependency.local.14
-          CaptureInit field=1
+          CaptureInit field=0
             Type (Large) -> Int
             Local $dependency.local.15
       call $dependency.local.17: Int = @fn24 direct
@@ -2052,10 +2052,10 @@ Module
       val $dependency.local.16: () -> Int
         Type () -> Int
         ClosureAlloc cc3 $Closure$lambda3
-          CaptureInit field=1
+          CaptureInit field=0
             Type Iterable<Unit>
             Local $dependency.local.14
-          CaptureInit field=0
+          CaptureInit field=1
             Type (Unit) -> Int
             Local $dependency.local.15
       call $dependency.local.17: Int = @fn66 direct
@@ -2641,7 +2641,7 @@ Module
         IntegerLiteral Int value=0 bits=0x00000000
       val $dependency.local.2: Iterable<Large>
         Type Iterable<Large>
-        ClosureCapture cc0 0
+        ClosureCapture cc0 1
           Type () -> Int
           Local $argument.0
       val $dependency.local.3: Iterable<Large>
@@ -2681,7 +2681,7 @@ Module
         Local $dependency.local.0
       call $dependency.local.9: Int = <closure:function_type0> closure[function_type0]
         Type (Large) -> Int
-        ClosureCapture cc0 1
+        ClosureCapture cc0 0
           Type () -> Int
           Local $argument.0
         Type Large
@@ -4804,7 +4804,7 @@ Module
         IntegerLiteral Int value=0 bits=0x00000000
       val $dependency.local.2: Iterable<Unit>
         Type Iterable<Unit>
-        ClosureCapture cc3 1
+        ClosureCapture cc3 0
           Type () -> Int
           Local $argument.0
       val $dependency.local.3: Iterable<Unit>
@@ -4844,7 +4844,7 @@ Module
         Local $dependency.local.0
       call $dependency.local.9: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
-        ClosureCapture cc3 0
+        ClosureCapture cc3 1
           Type () -> Int
           Local $argument.0
         Type Unit

@@ -31,17 +31,17 @@ Module
       val $dependency.parameter.fallback: Int
         Type Int
         Local $dependency.argument.0
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         Local $dependency.parameter.fallback
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.value: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
-          Local $dependency.default.local.2
+          Local $default.local.2
       call first: Int = @fn2 direct
         Type Int
         Local $dependency.parameter.fallback
@@ -53,25 +53,25 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         Local $dependency.parameter.value
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
-      val $dependency.default.local.3: Option<Int>
+        Local $default.local.1
+      val $default.local.3: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
-          Local $dependency.default.local.2
-      val $dependency.default.local.4: Option<Int>
+          Local $default.local.2
+      val $default.local.4: Option<Int>
         Type Option<Int>
-        Local $dependency.default.local.3
+        Local $default.local.3
       val $dependency.parameter.wrapped: Option<Option<Int>>
         Type Option<Option<Int>>
         VariantConstruct Option<Option<Int>> v0
           Type Option<Int>
-          Local $dependency.default.local.4
+          Local $default.local.4
       call second: Int = @fn3 direct
         Type Int
         Local $dependency.parameter.value
@@ -111,35 +111,35 @@ Module
       val $dependency.parameter.holder: Option<Holder<Int>>
         Type Option<Holder<Int>>
         Local $dependency.argument.1
-      val $dependency.default.local.2: Option<Holder<Int>>
+      val $default.local.2: Option<Holder<Int>>
         Type Option<Holder<Int>>
         Local $dependency.parameter.holder
       branch bb1 bb2
         Type Boolean
         VariantTest Option<Holder<Int>> v0
           Type Option<Holder<Int>>
-          Local $dependency.default.local.2
+          Local $default.local.2
     bb1 if.then.1
       call $call.2: Int = @fn4 direct
         Type Holder<Int>
         VariantPayloadProject Option<Holder<Int>> v0 f0
           Type Option<Holder<Int>>
-          Local $dependency.default.local.2
-      val $dependency.default.local.3: Option<Int>
+          Local $default.local.2
+      val $default.local.3: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
           Local $call.2
       goto bb3
     bb2 if.else.2
-      val $dependency.default.local.3: Option<Int>
+      val $default.local.3: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v1
       goto bb3
     bb3 if.merge.3
       val $dependency.parameter.value: Option<Int>
         Type Option<Int>
-        Local $dependency.default.local.3
+        Local $default.local.3
       call third: Int = @fn5 direct
         Type Int
         Local $dependency.parameter.fallback
@@ -181,35 +181,35 @@ Module
       val $dependency.parameter.holder: Option<Holder<Int>>
         Type Option<Holder<Int>>
         Local $dependency.argument.1
-      val $dependency.default.local.2: Option<Holder<Int>>
+      val $default.local.2: Option<Holder<Int>>
         Type Option<Holder<Int>>
         Local $dependency.parameter.holder
       branch bb4 bb5
         Type Boolean
         VariantTest Option<Holder<Int>> v0
           Type Option<Holder<Int>>
-          Local $dependency.default.local.2
+          Local $default.local.2
     bb4 if.then.4
       call $call.4: Int = @fn4 direct
         Type Holder<Int>
         VariantPayloadProject Option<Holder<Int>> v0 f0
           Type Option<Holder<Int>>
-          Local $dependency.default.local.2
-      val $dependency.default.local.3: Option<Int>
+          Local $default.local.2
+      val $default.local.3: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
           Local $call.4
       goto bb6
     bb5 if.else.5
-      val $dependency.default.local.3: Option<Int>
+      val $default.local.3: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v1
       goto bb6
     bb6 if.merge.6
       val $dependency.parameter.value: Option<Int>
         Type Option<Int>
-        Local $dependency.default.local.3
+        Local $default.local.3
       call $dependency.receiver: Int = @fn5 direct
         Type Int
         Local $dependency.parameter.fallback
@@ -249,35 +249,35 @@ Module
       val $dependency.parameter.holder: Option<Holder<Int>>
         Type Option<Holder<Int>>
         Local $dependency.argument.1
-      val $dependency.default.local.2: Option<Holder<Int>>
+      val $default.local.2: Option<Holder<Int>>
         Type Option<Holder<Int>>
         Local $dependency.parameter.holder
       branch bb9 bb10
         Type Boolean
         VariantTest Option<Holder<Int>> v0
           Type Option<Holder<Int>>
-          Local $dependency.default.local.2
+          Local $default.local.2
     bb9 if.then.9
       call $call.5: Int = @fn4 direct
         Type Holder<Int>
         VariantPayloadProject Option<Holder<Int>> v0 f0
           Type Option<Holder<Int>>
-          Local $dependency.default.local.2
-      val $dependency.default.local.3: Option<Int>
+          Local $default.local.2
+      val $default.local.3: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
           Local $call.5
       goto bb11
     bb10 if.else.10
-      val $dependency.default.local.3: Option<Int>
+      val $default.local.3: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v1
       goto bb11
     bb11 if.merge.11
       val $dependency.parameter.value: Option<Int>
         Type Option<Int>
-        Local $dependency.default.local.3
+        Local $default.local.3
       call $dependency.receiver: Int = @fn5 direct
         Type Int
         Local $dependency.parameter.fallback
@@ -311,17 +311,17 @@ Module
       val $dependency.parameter.fallback: Int
         Type Int
         Local $dependency.argument.0
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         Local $dependency.parameter.fallback
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.value: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
-          Local $dependency.default.local.2
+          Local $default.local.2
       call $dependency.receiver: Int = @fn2 direct
         Type Int
         Local $dependency.parameter.fallback

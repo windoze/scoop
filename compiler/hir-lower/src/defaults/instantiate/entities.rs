@@ -4,6 +4,7 @@ impl Lowerer {
     pub(super) fn instantiate_default_imported_method_callee(
         &mut self,
         source: &hir::ImportedMethodCallee,
+        origin: hir::ExpressionOrigin,
         context: &InstantiationContext,
     ) -> hir::ImportedMethodCallee {
         match source {
@@ -27,6 +28,7 @@ impl Lowerer {
                 let hir::MethodCallee::DerivedEquality(application) = self
                     .instantiate_default_method_callee(
                         hir::MethodCallee::DerivedEquality(*application),
+                        origin,
                         context,
                     )
                 else {
@@ -102,6 +104,7 @@ impl Lowerer {
     pub(super) fn instantiate_default_method_callee(
         &mut self,
         source: hir::MethodCallee,
+        origin: hir::ExpressionOrigin,
         context: &InstantiationContext,
     ) -> hir::MethodCallee {
         match source {
@@ -145,7 +148,7 @@ impl Lowerer {
                     hir::MethodCallee::DerivedEquality(application)
                 } else {
                     let candidate = self
-                        .derived_equality_candidate(ty, source.span)
+                        .derived_equality_candidate_at(ty, origin)
                         .expect("a validated default keeps a valid equality derivation")
                         .expect("the original expression has a derived equality target");
                     let application = match candidate {
@@ -327,15 +330,7 @@ impl Lowerer {
         let value = self.function_coercions[source].clone();
         let source = self.instantiate_default_function_type(value.source, context);
         let target = self.instantiate_default_function_type(value.target, context);
-        if let Some(&coercion) = self.function_coercion_by_types.get(&(source, target)) {
-            return coercion;
-        }
-        let coercion = self
-            .function_coercions
-            .alloc(hir::FunctionCoercion { source, target });
-        self.function_coercion_by_types
-            .insert((source, target), coercion);
-        coercion
+        self.function_coercion(source, target)
     }
 
     pub(super) fn instantiate_default_foreign_callback(

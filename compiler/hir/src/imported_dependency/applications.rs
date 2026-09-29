@@ -1,10 +1,10 @@
-use crate::{NonEmptyVec, Type, TypeId};
+use crate::{Type, TypeId};
 
 /// Source applications retain the nominal owner independently from the
 /// method's own arguments. A substitution vector is only a transient view.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportedCallableArguments {
-    Function(NonEmptyVec<TypeId>),
+    Function(Vec<TypeId>),
     Method {
         owner: TypeId,
         method_arguments: Vec<TypeId>,
@@ -14,7 +14,7 @@ pub enum ImportedCallableArguments {
 impl ImportedCallableArguments {
     pub fn substitution(&self, types: &la_arena::Arena<Type>) -> Vec<TypeId> {
         match self {
-            Self::Function(arguments) => arguments.iter().copied().collect(),
+            Self::Function(arguments) => arguments.clone(),
             Self::Method {
                 owner,
                 method_arguments,
@@ -39,10 +39,9 @@ impl ImportedCallableArguments {
 
     pub fn map(&self, mut map: impl FnMut(TypeId) -> TypeId) -> Self {
         match self {
-            Self::Function(arguments) => Self::Function(
-                NonEmptyVec::from_vec(arguments.iter().copied().map(map).collect())
-                    .expect("substitution preserves callable argument arity"),
-            ),
+            Self::Function(arguments) => {
+                Self::Function(arguments.iter().copied().map(map).collect())
+            }
             Self::Method {
                 owner,
                 method_arguments,

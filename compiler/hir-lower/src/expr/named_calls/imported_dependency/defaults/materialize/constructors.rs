@@ -130,13 +130,19 @@ impl Lowerer {
     ) -> Result<Vec<hir::Expr>, ImportedDefaultMaterializationError> {
         let mut context = ImportedDefaultContext {
             owner: ImportedTemplateSource::Default(&template.source),
-            callables: &BTreeMap::new(),
             bindings: &template.bindings,
             locals: BTreeMap::new(),
+            local_bindings: BTreeMap::new(),
+            lexical_arguments: template
+                .signature
+                .type_parameters
+                .iter()
+                .map(|parameter| self.intern_type(hir::Type::Param(parameter.id)))
+                .collect(),
             captures: &[],
             loop_targets: Vec::new(),
-            evaluation: ImportedTemplateEvaluation::Definition(
-                scoop_identity::CallableTemplateOwner::Constructor(template.signature.declaration),
+            parent: scoop_identity::CallableTemplateOwner::Constructor(
+                template.signature.declaration,
             ),
         };
         for local in fragment.locals().records() {
@@ -154,12 +160,19 @@ impl Lowerer {
             let kind = match local.selector() {
                 LocalValueSelector::This => hir::ExprKind::ConstructorReceiver,
                 LocalValueSelector::Parameter { declaration_index } => {
+                    context.local_bindings.insert(
+                        local.selector().clone(),
+                        template.signature.parameters[*declaration_index as usize].binding,
+                    );
                     hir::ExprKind::ConstructorParam(
                         template.signature.parameters[*declaration_index as usize].id,
                     )
                 }
                 _ => {
                     let binding = self.fresh_binding();
+                    context
+                        .local_bindings
+                        .insert(local.selector().clone(), binding);
                     let id = self.locals.alloc(hir::Local {
                         binding,
                         selector: local.selector().clone(),

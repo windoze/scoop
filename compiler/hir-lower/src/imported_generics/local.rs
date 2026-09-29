@@ -5,12 +5,14 @@ impl Lowerer {
         &mut self,
         parent: scoop_identity::CallableTemplateOwner,
         descriptor: &hir::DefaultLocalFunctionV1,
+        capture_bindings: Vec<hir::BindingId>,
     ) {
         self.imported_generic_templates.local_functions.insert(
             descriptor.declaration(),
             ImportedLocalFunctionSource {
                 parent,
                 descriptor: descriptor.clone(),
+                capture_bindings,
             },
         );
     }
@@ -37,6 +39,7 @@ impl Lowerer {
         let origin = hir::ImportedCallableTemplateOrigin::Local {
             parent: source.parent,
             descriptor: source.descriptor,
+            capture_bindings: source.capture_bindings,
         };
         let body = self
             .dependencies

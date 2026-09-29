@@ -13,6 +13,12 @@ mod instantiate;
 mod lowering;
 mod preparation;
 mod registration;
+mod scopes;
+pub(crate) use scopes::{DefaultScopeRoot, PendingDefaultLocalScope, finish_default_local_scopes};
+pub(crate) type DefaultExpressionKey = (
+    hir::PersistentLexicalRootV1,
+    scoop_identity::StructuralDefinitionPath,
+);
 pub(crate) use preparation::{DefaultArgumentSource, DefaultPreparation, SourceDefaultKey};
 
 #[derive(Clone)]

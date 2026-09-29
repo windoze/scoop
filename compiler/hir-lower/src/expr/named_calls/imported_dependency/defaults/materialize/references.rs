@@ -8,15 +8,11 @@ impl Lowerer {
         creation: hir::ExpressionOrigin,
         context: &mut ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        let ImportedTemplateEvaluation::Definition(parent) = context.evaluation else {
-            return Err(ImportedDefaultMaterializationError::Plan(
-                "dependency callable reference has no enclosing definition".into(),
-            ));
-        };
+        let parent = context.parent;
         let definition = self
             .dependencies
             .as_ref()
-            .and_then(|dependencies| dependencies.callable_reference_definition(source.invoke()))
+            .and_then(|dependencies| dependencies.generated_callable_definition(source.invoke()))
             .cloned()
             .ok_or_else(|| {
                 ImportedDefaultMaterializationError::Plan(
@@ -87,11 +83,11 @@ impl Lowerer {
         let bindings = source
             .captures()
             .iter()
-            .map(|capture| self.imported_closure_capture_binding(capture.source(), parent, context))
+            .map(|capture| self.materialize_capture_binding(capture, context))
             .collect::<Result<Vec<_>, _>>()?;
         let captures =
             self.materialize_imported_captures(source.captures(), &bindings, creation, context)?;
-        let owner_type_arguments = self.imported_lexical_owner_arguments(parent);
+        let owner_type_arguments = context.lexical_arguments.clone();
         let function_type =
             self.materialize_imported_function_type(source.function_type(), context)?;
         Ok(hir::ExprKind::ImportedCallableReference(Box::new(

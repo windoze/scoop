@@ -39,8 +39,8 @@ Module
     local %10 read: i32
     local %11 $dependency.argument.0: i32
     local %12 $dependency.parameter.value: i32
-    local %13 $dependency.default.local.1: i32
-    local %14 $dependency.default.local.2: i32
+    local %13 $default.local.1: i32
+    local %14 $default.local.2: i32
     local %15 $dependency.parameter.wrapped: enum0
     local %16 defaulted: i32
     local %17 payload: i32

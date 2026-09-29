@@ -251,6 +251,7 @@ impl Lowerer {
             source_parameter_interfaces: Vec::new(),
             export_default_exprs: Arena::new(),
             default_local_value_scopes: Arena::new(),
+            loaded_default_expressions: HashMap::new(),
             export_default_sources: Arena::new(),
             export_vararg_parameter_types: Arena::new(),
             local_default_exprs: Arena::new(),

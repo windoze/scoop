@@ -62,7 +62,7 @@ pub(super) struct DependencyCatalog {
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
-    pub(super) reference_invokes: BTreeMap<
+    pub(super) generated_callables: BTreeMap<
         scoop_identity::PersistentGeneratedCallableId,
         crate::concrete::GeneratedCallableRecord,
     >,
@@ -88,7 +88,7 @@ impl ImportedSemanticWorld<'_> {
             .map_err(ImportedDependencySelectionPlanBuildError::NominalClassifier)?;
         let mut callables = BTreeMap::new();
         let mut bodies = BTreeMap::new();
-        let mut reference_invokes = BTreeMap::new();
+        let mut generated_callables = BTreeMap::new();
         let mut initializations = BTreeMap::new();
         let mut delegates = BTreeMap::new();
         let mut properties = BTreeMap::new();
@@ -103,14 +103,9 @@ impl ImportedSemanticWorld<'_> {
                 .canonical_for_semantic_authority()
                 .type_source_generated_callable_records()
             {
-                if matches!(
-                    record.key(),
-                    scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { .. }
-                ) {
-                    reference_invokes
-                        .entry(record.id())
-                        .or_insert_with(|| record.clone());
-                }
+                generated_callables
+                    .entry(record.id())
+                    .or_insert_with(|| record.clone());
             }
             for nominal in provider.interface().nominal_interfaces().all_records() {
                 nominal_visibilities.insert(
@@ -343,7 +338,7 @@ impl ImportedSemanticWorld<'_> {
                 consumer: self.current,
                 callables,
                 bodies,
-                reference_invokes,
+                generated_callables,
                 initializations,
                 delegates,
                 properties,

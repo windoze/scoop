@@ -142,7 +142,7 @@ impl Lowerer {
             self.imported_generic_applications
                 .alloc(hir::ImportedGenericCallableApplication {
                     template,
-                    arguments: hir::ImportedCallableArguments::Function(arguments.clone()),
+                    arguments: hir::ImportedCallableArguments::Function(arguments.to_vec()),
                 });
         hir::Expr {
             kind: hir::ExprKind::ImportedGenericCall {

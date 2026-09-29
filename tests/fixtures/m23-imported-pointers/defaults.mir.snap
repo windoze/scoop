@@ -21,14 +21,14 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      val $dependency.default.local.1: Ptr<Int>
+      val $default.local.1: Ptr<Int>
         Type Ptr<Int>
         AddressOf $dependency.parameter.value : Ptr<Int>
       val $dependency.parameter.next: Int
         Type Int
         PtrLoad Int
           Type Ptr<Int>
-          Local $dependency.default.local.1
+          Local $default.local.1
       call $call.1: Int = @fn2 direct
         Type Int
         Local $dependency.parameter.value

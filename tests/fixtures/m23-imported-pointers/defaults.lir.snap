@@ -13,7 +13,7 @@ Module
   fun @scoop$1$cb$98a833c481b2fffb08e6a108cfd4b39e748885e2b93cffaadb488912a42b5000(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
-    local %2 $dependency.default.local.1: ptr<raw>
+    local %2 $default.local.1: ptr<raw>
     local %3 $dependency.parameter.next: i32
     local %4 $call.1: i32
   block entry

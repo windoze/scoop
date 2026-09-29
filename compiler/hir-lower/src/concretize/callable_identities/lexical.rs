@@ -64,7 +64,9 @@ impl CallableIdentityBuilder<'_> {
                 };
                 self.source_materialization(template, owner, &arguments[owner_parameter_count..])
             }
-            export::ImportedCallableTemplateOrigin::Local { parent, descriptor } => {
+            export::ImportedCallableTemplateOrigin::Local {
+                parent, descriptor, ..
+            } => {
                 let inherited = descriptor.owner_type_parameter_count() as usize;
                 let parent = self.imported_parent_materialization(parent, &arguments[..inherited]);
                 let owner = match parent.context() {
@@ -104,6 +106,15 @@ impl CallableIdentityBuilder<'_> {
         parent: scoop_identity::CallableTemplateOwner,
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
+        if arguments.is_empty() {
+            return CallableMaterialization::new(
+                parent,
+                CallableMaterializationContext::NoSubstitution,
+            );
+        }
+        if let CallableTemplateOwner::VariantConstructor(variant) = parent {
+            return self.variant_definition_materialization(variant, arguments);
+        }
         if let CallableTemplateOwner::Constructor(declaration) = parent {
             let template = self
                 .concretizer
@@ -250,10 +261,30 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
         let origin = self.concretizer.source.enum_member_identities[variant].id();
+        self.variant_definition_materialization(origin, arguments)
+    }
+
+    fn variant_definition_materialization(
+        &mut self,
+        origin: scoop_identity::PersistentEnumVariantId,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
         let context = if arguments.is_empty() {
             CallableMaterializationContext::NoSubstitution
         } else {
-            let exact_owner = self.enum_owner_exact(variant.enumeration(), arguments);
+            let owner = self
+                .concretizer
+                .enums
+                .values()
+                .find(|owner| {
+                    owner.type_arguments == arguments
+                        && owner
+                            .variants
+                            .iter()
+                            .any(|variant| variant.identity == origin)
+                })
+                .expect("a variant default retains its complete enum application");
+            let exact_owner = self.exact_types[owner.canonical_type].id();
             let application =
                 self.record_application(CallableApplicationKey::for_variant_constructor(
                     origin,
@@ -347,18 +378,5 @@ impl CallableIdentityBuilder<'_> {
             concrete::MethodOwner::TypeOwned(ty) => ty,
         };
         self.exact_types[ty].id()
-    }
-
-    fn enum_owner_exact(
-        &self,
-        owner: export::EnumId,
-        arguments: &[concrete::TypeId],
-    ) -> scoop_identity::PersistentExactTypeId {
-        assert_eq!(
-            self.concretizer.source.enums[owner].type_params.len(),
-            arguments.len()
-        );
-        let local = self.concretizer.enum_by_key[&(owner, arguments.to_vec())];
-        self.exact_types[self.concretizer.enum_type[&local]].id()
     }
 }

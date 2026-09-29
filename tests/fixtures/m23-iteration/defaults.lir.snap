@@ -24,18 +24,18 @@ Module
     local %1 $dependency.argument.1: i32
     local %2 $dependency.parameter.values: ptr<managed>
     local %3 $dependency.parameter.fallback: i32
-    local %4 $dependency.default.local.2: i32
-    local %5 $dependency.default.local.3: i32
-    local %6 $dependency.default.local.4: i64
-    local %7 $dependency.default.local.5: i64
-    local %8 $dependency.default.local.6: i64
-    local %9 $dependency.default.local.7: ptr<managed>
-    local %10 $dependency.default.local.8: ptr<managed>
-    local %11 $dependency.default.local.9: ptr<managed>
-    local %12 $dependency.default.local.10: ptr<managed>
-    local %13 $dependency.default.local.11: enum2
-    local %14 $dependency.default.local.12: i32
-    local %15 $dependency.default.local.13: i32
+    local %4 $default.local.2: i32
+    local %5 $default.local.3: i32
+    local %6 $default.local.4: i64
+    local %7 $default.local.5: i64
+    local %8 $default.local.6: i64
+    local %9 $default.local.7: ptr<managed>
+    local %10 $default.local.8: ptr<managed>
+    local %11 $default.local.9: ptr<managed>
+    local %12 $default.local.10: ptr<managed>
+    local %13 $default.local.11: enum2
+    local %14 $default.local.12: i32
+    local %15 $default.local.13: i32
     local %16 $dependency.parameter.chosen: i32
     local %17 $dependency.receiver: i32
     local %18 $dependency.argument.0: i32
@@ -50,35 +50,35 @@ Module
     local %27 $dependency.argument.1: ptr<managed>
     local %28 $dependency.parameter.values: ptr<managed>
     local %29 $dependency.parameter.fallback: ptr<managed>
-    local %30 $dependency.default.local.2: ptr<managed>
-    local %31 $dependency.default.local.3: ptr<managed>
-    local %32 $dependency.default.local.4: i64
-    local %33 $dependency.default.local.5: i64
-    local %34 $dependency.default.local.6: i64
-    local %35 $dependency.default.local.7: ptr<managed>
-    local %36 $dependency.default.local.8: ptr<managed>
-    local %37 $dependency.default.local.9: ptr<managed>
-    local %38 $dependency.default.local.10: ptr<managed>
-    local %39 $dependency.default.local.11: enum3
-    local %40 $dependency.default.local.12: ptr<managed>
-    local %41 $dependency.default.local.13: ptr<managed>
+    local %30 $default.local.2: ptr<managed>
+    local %31 $default.local.3: ptr<managed>
+    local %32 $default.local.4: i64
+    local %33 $default.local.5: i64
+    local %34 $default.local.6: i64
+    local %35 $default.local.7: ptr<managed>
+    local %36 $default.local.8: ptr<managed>
+    local %37 $default.local.9: ptr<managed>
+    local %38 $default.local.10: ptr<managed>
+    local %39 $default.local.11: enum3
+    local %40 $default.local.12: ptr<managed>
+    local %41 $default.local.13: ptr<managed>
     local %42 $dependency.parameter.chosen: ptr<managed>
     local %43 $dependency.argument.0: ptr<managed>
     local %44 $dependency.argument.1: ptr<managed>
     local %45 $dependency.parameter.values: ptr<managed>
     local %46 $dependency.parameter.fallback: ptr<managed>
-    local %47 $dependency.default.local.2: ptr<managed>
-    local %48 $dependency.default.local.3: ptr<managed>
-    local %49 $dependency.default.local.4: i64
-    local %50 $dependency.default.local.5: i64
-    local %51 $dependency.default.local.6: i64
-    local %52 $dependency.default.local.7: ptr<managed>
-    local %53 $dependency.default.local.8: ptr<managed>
-    local %54 $dependency.default.local.9: ptr<managed>
-    local %55 $dependency.default.local.10: ptr<managed>
-    local %56 $dependency.default.local.11: enum3
-    local %57 $dependency.default.local.12: ptr<managed>
-    local %58 $dependency.default.local.13: ptr<managed>
+    local %47 $default.local.2: ptr<managed>
+    local %48 $default.local.3: ptr<managed>
+    local %49 $default.local.4: i64
+    local %50 $default.local.5: i64
+    local %51 $default.local.6: i64
+    local %52 $default.local.7: ptr<managed>
+    local %53 $default.local.8: ptr<managed>
+    local %54 $default.local.9: ptr<managed>
+    local %55 $default.local.10: ptr<managed>
+    local %56 $default.local.11: enum3
+    local %57 $default.local.12: ptr<managed>
+    local %58 $default.local.13: ptr<managed>
     local %59 $dependency.parameter.chosen: ptr<managed>
     local %60 $dependency.argument.0: i32
     local %61 $dependency.argument.1: ptr<managed>
@@ -705,10 +705,10 @@ Module
     store local10 -> local12
     store local11 -> local13
     call managed-direct-target2 sp<managed-call:4> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local12:ptr<managed>@0, local13:ptr<managed>@0] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(40)))
-    t7 = function_address @scoop$1$cb$aef197ff1d1524a157aa13c99f85d86943ed9b79004ee2156e35a0a4c2b17682 : ptr
+    t7 = function_address @scoop$1$cb$fe1ce756933b7cfc20737095fe184dcb682c772d1cf03a1b77d34b6b50dbad32 : ptr
     heap_store t6 +16 t7
-    heap_store t6 +24 local12
-    heap_store t6 +32 local13
+    heap_store t6 +32 local12
+    heap_store t6 +24 local13
     store t6 -> local14
     call managed-direct-target3 sp<managed-call:5> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local12:ptr<managed>@0, local13:ptr<managed>@0, local14:ptr<managed>@0] t8 = sig=direct3 (ptr<managed>, ptr<managed>, ptr<managed>) -> i32 local-fn21(local12, local13, local14)
     store t8 -> local15
@@ -1028,7 +1028,7 @@ Module
     call managed-void-target0 sp<managed-call:2> live=[local4:ptr<managed>@0, local5:ptr<managed>@0] sig=void1 (ptr<managed>, ptr<managed>) local-fn42(local5, local4)
     t5 = aggregate () : {}
     ret local5
-  fun @scoop$1$cb$aef197ff1d1524a157aa13c99f85d86943ed9b79004ee2156e35a0a4c2b17682(ptr<managed>) -> i32
+  fun @scoop$1$cb$fe1ce756933b7cfc20737095fe184dcb682c772d1cf03a1b77d34b6b50dbad32(ptr<managed>) -> i32
     local %0 $dependency.local.0: i32
     local %1 $dependency.local.1: i32
     local %2 $dependency.local.2: ptr<managed>
@@ -1044,7 +1044,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store integer<Int>(0x00000000) -> local0
-    t0 = heap_load param0 +24 : ptr<managed>
+    t0 = heap_load param0 +32 : ptr<managed>
     store t0 -> local2
     store local2 -> local3
     t1 = heap_load local3 +0 : ptr<metadata>
@@ -1068,7 +1068,7 @@ Module
     store t7 -> local7
     store local7 -> local1
     store local0 -> local8
-    t8 = heap_load param0 +32 : ptr<managed>
+    t8 = heap_load param0 +24 : ptr<managed>
     call managed-direct-target1 sp<managed-call:2> live=[param0:ptr<managed>@0, local5:ptr<managed>@0, t8:ptr<managed>@0] t9 = sig=direct3 (ptr<managed>, i32) -> i32 dispatch[Closure:2] t8(t8, local1)
     store t9 -> local9
     store local9 -> local10
@@ -1460,7 +1460,7 @@ Module
   td td14 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.iteration;o=-;k=C;x=Sequence);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$81ad54809eac39828170df65ed0f92a8f0a94d9304456d58ad54461aeab37337 type-id=13872225195930807561 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn19]]
   td td15 g(r=00000006;i=58406229412dc999b74a0cb3905512e8f5828ffadeb0522f5128e6f173f118c5) @scoop$1$td$becd2bc86ca1b1cce4cc421222f15851e5e7a990a20ef42d418c833df18f8362 type-id=7904141749529416009 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td1:[local-fn49]]
   td td16 g(r=00000006;i=03aa53f4c43cbd8bc78008fb22f6ab6752d9dfd8d256114d915cd23d539ab93b) @scoop$1$td$bc337c562ffc1ca18e8b78da47d146dba6c18243f77c818c3b5062f4bcc9643a type-id=6852429642992826847 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[td1:[local-fn50]]
-  td td17 g(r=00000001;i=ad8aba570acbc6bb641eb335fb74c9d5f385f39eea2d039dd9d8e3231b3f6b9d) @scoop$1$td$17a7cb61cbc2e16538b9641d8592d23b3eb85c2331cee1dddf5f623d177ef39a type-id=8857521214330154120 shape=FixedObject minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td17 g(r=00000001;i=541d862916f31aae70de4347edb6bc1368eba50439525fe242edba42966a4431) @scoop$1$td$be19ca0f975fcd11ba0dad01b38423c4caf83e1cd8685a6de1bbfa9427864cbb type-id=4395047638408389459 shape=FixedObject minimum-size=40 align=8 parent=none vtable=[] itables=[]
   td td18 g(r=00000001;i=0aef275c219ee190fd5bf0b8dcfa37da55205535b77843ff6799eccbfb46da83) @scoop$1$td$992ca02ab2aa17a5489c988d6c764a9311563c0b85d8bdde4a8e1a5566fc6a88 type-id=17345686403387566834 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td19 g(r=00000001;i=8118058a8d8b99d66e535bdef8c43d7fd684db6ed0131e51332251fcacc1a7a1) @scoop$1$td$b72a59a92b964140a4b41ed302d7f48b454d01febb439906fed9eaacad64c9e0 type-id=118316825800433406 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td20 g(r=00000001;i=737ecddecce9e8c55ba303f5a744e71a839e761f818437c38107ab016b00fcfc) @scoop$1$td$fec4a508baeaff79e7330dbebc63b8a376eee5292ad9749a95dfeb20202771ff type-id=4597603037129110855 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]

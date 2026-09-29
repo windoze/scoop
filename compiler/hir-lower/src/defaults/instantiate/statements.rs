@@ -119,7 +119,7 @@ impl Lowerer {
                             .iter()
                             .map(|statement| self.instantiate_default_statement(statement, context))
                             .collect(),
-                        span: arm.span,
+                        span: context.statement_span,
                     })
                     .collect(),
                 fallback: match &when.fallback {
@@ -170,7 +170,7 @@ impl Lowerer {
                             .iter()
                             .map(|statement| self.instantiate_default_statement(statement, context))
                             .collect(),
-                        span: catch.span,
+                        span: context.statement_span,
                     })
                     .collect(),
                 finally_body: value.finally_body.as_ref().map(|body| {
@@ -185,7 +185,7 @@ impl Lowerer {
         };
         hir::Statement {
             kind,
-            span: source.span,
+            span: context.statement_span,
         }
     }
 }

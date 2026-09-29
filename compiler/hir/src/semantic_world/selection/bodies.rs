@@ -37,11 +37,11 @@ impl ImportedCallableBody {
 }
 
 impl super::ImportedDependencySelectionPlan {
-    pub fn callable_reference_definition(
+    pub fn generated_callable_definition(
         &self,
-        invoke: scoop_identity::PersistentGeneratedCallableId,
+        id: scoop_identity::PersistentGeneratedCallableId,
     ) -> Option<&crate::concrete::GeneratedCallableRecord> {
-        self.catalog.reference_invokes.get(&invoke)
+        self.catalog.generated_callables.get(&id)
     }
 
     pub fn generic_delegate(

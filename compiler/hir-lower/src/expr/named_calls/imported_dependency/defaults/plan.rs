@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_hir as hir;
-use scoop_identity::LocalValueSelector;
 
 use super::super::arguments::{ImportedArgumentMap, ImportedParameterInput};
 use crate::Lowerer;
@@ -15,10 +14,8 @@ pub(in super::super) struct ImportedDefaultPlan {
 
 #[derive(Clone)]
 pub(crate) struct PreparedImportedDefault {
-    pub(super) bindings: crate::imported_core::ImportedTypeBindings,
-    pub(super) template: hir::ExportDefaultTemplateV1,
-    pub(super) callables:
-        BTreeMap<scoop_identity::CallableTemplateOrigin, hir::ImportedCallableDeclaration>,
+    pub(super) expression: std::sync::Arc<hir::DefaultExpression>,
+    pub(super) arguments: Vec<hir::TypeId>,
 }
 
 impl ImportedDefaultPlan {
@@ -78,13 +75,7 @@ impl Lowerer {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ImportedDefaultPlanError {
     MissingTemplate(hir::ExportDefaultTemplateKeyV1),
-    UnknownLocal(LocalValueSelector),
-    UnboundCapture(u32),
-    InvalidControlFlow(&'static str),
-    Callable {
-        callee: scoop_identity::CallableTemplateOrigin,
-        error: String,
-    },
+    Body(String),
     Requires {
         requirement: ImportedCapabilityRequirement,
         operation: &'static str,
@@ -94,34 +85,11 @@ pub(crate) enum ImportedDefaultPlanError {
 impl fmt::Display for ImportedDefaultPlanError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnboundCapture(index) => write!(
+            Self::MissingTemplate(key) => write!(
                 formatter,
-                "dependency default root has no closure input {index}"
+                "dependency callable is missing default template {key:?}"
             ),
-            Self::MissingTemplate(key) => {
-                write!(
-                    formatter,
-                    "dependency callable is missing default template {key:?}"
-                )
-            }
-            Self::UnknownLocal(local) => {
-                write!(
-                    formatter,
-                    "dependency default reads unmapped local {local:?}"
-                )
-            }
-            Self::InvalidControlFlow(operation) => {
-                write!(
-                    formatter,
-                    "invalid dependency default control flow: {operation}"
-                )
-            }
-            Self::Callable { callee, error } => {
-                write!(
-                    formatter,
-                    "cannot bind dependency default call {callee:?}: {error}"
-                )
-            }
+            Self::Body(message) => formatter.write_str(message),
             Self::Requires {
                 requirement,
                 operation,

@@ -7,10 +7,10 @@ Module
     val local3
       Local $dependency.parameter.fallback : T0
     val local4
-      Local $dependency.default.local.1 : T0
+      Local $default.local.1 : T0
     val local5
       VariantConstruct Option.Some<T0> : Option<T0>
-        Local $dependency.default.local.2 : T0
+        Local $default.local.2 : T0
     val local6
       ImportedGenericCall optionalDefault<T0> : T0
         Local $dependency.parameter.fallback : T0
@@ -22,15 +22,15 @@ Module
     val local9
       Local $dependency.parameter.value : T0
     val local10
-      Local $dependency.default.local.1 : T0
+      Local $default.local.1 : T0
     val local11
       VariantConstruct Option.Some<T0> : Option<T0>
-        Local $dependency.default.local.2 : T0
+        Local $default.local.2 : T0
     val local12
-      Local $dependency.default.local.3 : Option<T0>
+      Local $default.local.3 : Option<T0>
     val local13
       VariantConstruct Option.Some<Option<T0>> : Option<Option<T0>>
-        Local $dependency.default.local.4 : Option<T0>
+        Local $default.local.4 : Option<T0>
     val local14
       ImportedGenericCall nestedDefault<T0> : T0
         Local $dependency.parameter.value : T0
@@ -57,17 +57,17 @@ Module
       Local $dependency.parameter.holder : Option<Holder<T0>>
     if
       IsSome : Boolean
-        Local $dependency.default.local.2 : Option<Holder<T0>>
+        Local $default.local.2 : Option<Holder<T0>>
       val local24
         SomeWrap : Option<T0>
           ImportedGenericCall value<T0> : T0
             Unwrap trap=false : Holder<T0>
-              Local $dependency.default.local.2 : Option<Holder<T0>>
+              Local $default.local.2 : Option<Holder<T0>>
     else
       val local24
         NoneLiteral : Option<T0>
     val local25
-      Local $dependency.default.local.3 : Option<T0>
+      Local $default.local.3 : Option<T0>
     val local26
       ImportedGenericCall safeDefault<T0> : T0
         Local $dependency.parameter.fallback : T0
@@ -95,17 +95,17 @@ Module
       Local $dependency.parameter.holder : Option<Holder<Int>>
     if
       IsSome : Boolean
-        Local $dependency.default.local.2 : Option<Holder<Int>>
+        Local $default.local.2 : Option<Holder<Int>>
       val local36
         SomeWrap : Option<Int>
           ImportedGenericCall value<Int> : Int
             Unwrap trap=false : Holder<Int>
-              Local $dependency.default.local.2 : Option<Holder<Int>>
+              Local $default.local.2 : Option<Holder<Int>>
     else
       val local36
         NoneLiteral : Option<Int>
     val local37
-      Local $dependency.default.local.3 : Option<Int>
+      Local $default.local.3 : Option<Int>
     val local38
       ImportedGenericCall safeDefault<Int> : Int
         Local $dependency.parameter.fallback : Int
@@ -134,17 +134,17 @@ Module
       Local $dependency.parameter.holder : Option<Holder<Int>>
     if
       IsSome : Boolean
-        Local $dependency.default.local.2 : Option<Holder<Int>>
+        Local $default.local.2 : Option<Holder<Int>>
       val local46
         SomeWrap : Option<Int>
           ImportedGenericCall value<Int> : Int
             Unwrap trap=false : Holder<Int>
-              Local $dependency.default.local.2 : Option<Holder<Int>>
+              Local $default.local.2 : Option<Holder<Int>>
     else
       val local46
         NoneLiteral : Option<Int>
     val local47
-      Local $dependency.default.local.3 : Option<Int>
+      Local $default.local.3 : Option<Int>
     val local48
       ImportedGenericCall safeDefault<Int> : Int
         Local $dependency.parameter.fallback : Int
@@ -168,10 +168,10 @@ Module
     val local53
       Local $dependency.parameter.fallback : Int
     val local54
-      Local $dependency.default.local.1 : Int
+      Local $default.local.1 : Int
     val local55
       VariantConstruct Option.Some<Int> : Option<Int>
-        Local $dependency.default.local.2 : Int
+        Local $default.local.2 : Int
     val local59
       ImportedGenericCall optionalDefault<Int> : Int
         Local $dependency.parameter.fallback : Int

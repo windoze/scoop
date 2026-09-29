@@ -97,3 +97,13 @@
 - 默认值／构造正文加载已不再传递仅用于 parent 归属的 arena ID，构造 helper 的多层透传参数一并删除。现有源码 binder、捕获、派生身份与 wire 格式保持。
 - 全仓 fmt／clippy、2848 项 HIR／HIR lowering／MIR lowering／slib 单元测试，以及 10 项真实产物回归通过。覆盖构造器内闭包、局部泛型、函数引用、委托初始化、相同实例汇合、再次发布及普通／移动 GC；快照更新开关关闭。日志 `/tmp/scoop-m23-6a-lexical-parent-unit.log`、`/tmp/scoop-m23-6a-lexical-parent-fixtures.log`。
 - 确认没有构建占用后，清理本轮临时生成的 `compiler/target` 和编辑器增量缓存，共约 391 MiB；继续复用 `target/m23-6a`。默认值正文统一与无父函数机器实例的词法归属继续迁移。
+
+## 共同默认值正文展开与捕获绑定
+
+- 默认值的局部值和语句使用普通 `Body`，源码与依赖共用同一展开器；依赖默认定义按原 root／path 加载一次，调用点只替换类型、receiver、参数和捕获。删除两块重复预检查遍历，加载入口改名为 `prepare`；加载主模块、定义映射和捕获绑定分别约 165、160、76 行，展开及 wire 子模块均控制在 500 行内。
+- 默认 lambda、匿名函数、局部函数和函数引用保留原词法 owner；普通默认值中零参数词法正文使用空 application。发布闭包描述符时把实际词法实现加入既有正文闭包，普通默认函数引用在展开点建立 invoke，保留完整泛型宿主实参。
+- 捕获记录分离实际读取来源与原绑定。默认展开造成两者不同的情况下，wire 保留原 callable、默认作用域、selector 和定义来源；读取默认正文与捕获描述符复用同一原绑定。新增 capture field 4，HIR interface 升至 `/41`，同步三份规范、Stage 7 格式表、required inventory、profile 固定向量和旧 `/40` 拒绝回归。
+- 修正空 application 的外来词法定义查询、默认语句的实际调用位置，以及派生相等替换时的完整表达式来源；正常 `FunctionCoercion` 与装箱路径用于函数值默认参数。真实嵌套泛型回归另暴露声明查询中多余的 Lowerer 复制，移除该复制后原用例在默认线程栈下通过。
+- 新增 `m23-shared-default-bodies` 的普通／泛型函数、方法和构造组合，包含局部函数、lambda、匿名函数、函数引用、型变适配、前序默认参数、Int／宽值／引用／Unit，以及两个诊断反例。真实发布后移走源码，再次发布、链接和普通／移动 GC 运行均通过。
+- 全仓 fmt／clippy、2851 项相关单元回归通过，来源修复后追加的 1298 项 HIR lowering 回归通过。89 项真实产物与格式回归均已覆盖成功；关闭更新开关的 13 项语义组合与 3 项格式复验全部通过。核对旧快照：默认临时值名称、部分 arena 编号与捕获布局变化符合共同展开；core 与依赖布局快照的变化仅为完整产物指纹，Code／RuntimeImage 指纹保持。日志前缀 `/tmp/scoop-m23-6a-default-bodies-`，主要结果见 `verify.log`、`format-verify.log`、`fixed-cases.log` 和 `core-update.log`。
+- 两次清理未被构建使用的 `target/debug/incremental`，共释放约 3.34 GiB；继续复用 `target/m23-6a`。本批完成默认展开共用，声明／类型来源分支、正文的 wire 到 imported 构造和其余调用调度仍按阶段设计继续删除。

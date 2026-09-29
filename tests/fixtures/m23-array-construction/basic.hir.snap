@@ -338,10 +338,10 @@ Module
     val local95
       Local $dependency.parameter.source : MutableArray<Int>
     val local96
-      Local $dependency.default.local.1 : MutableArray<Int>
+      Local $default.local.1 : MutableArray<Int>
     val local97
       ArrayClone : Array<Int>
-        Local $dependency.default.local.2 : MutableArray<Int>
+        Local $default.local.2 : MutableArray<Int>
     val local98
       ImportedGenericCall defaultSnapshot<Int> : Array<Int>
         Local $dependency.parameter.source : MutableArray<Int>

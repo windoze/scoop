@@ -75,15 +75,15 @@ Module
       val $dependency.parameter.first: Int
         Type Int
         Local $dependency.argument.0
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         Local $dependency.parameter.first
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       call $dependency.parameter.second: Int = @fn9 direct
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       call $call.1: Int = @fn13 direct
         Type Int
         Local $dependency.parameter.first
@@ -106,15 +106,15 @@ Module
       val $dependency.parameter.first: LocalValue
         Type LocalValue
         Local $dependency.argument.0
-      val $dependency.default.local.1: LocalValue
+      val $default.local.1: LocalValue
         Type LocalValue
         Local $dependency.parameter.first
-      val $dependency.default.local.2: LocalValue
+      val $default.local.2: LocalValue
         Type LocalValue
-        Local $dependency.default.local.1
+        Local $default.local.1
       call $dependency.parameter.second: LocalValue = @fn10 direct
         Type LocalValue
-        Local $dependency.default.local.2
+        Local $default.local.2
       call $call.1: LocalValue = @fn14 direct
         Type LocalValue
         Local $dependency.parameter.first

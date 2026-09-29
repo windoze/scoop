@@ -195,9 +195,9 @@ Module
     local %46 $dependency.argument.0: i64
     local %47 $dependency.parameter.left: i64
     local %48 $dependency.parameter.marker: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
-    local %49 $dependency.default.local.2: i64
-    local %50 $dependency.default.local.3: i64
-    local %51 $dependency.default.local.4: i64
+    local %49 $default.local.2: i64
+    local %50 $default.local.3: i64
+    local %51 $default.local.4: i64
     local %52 $dependency.parameter.right: i64
     local %53 $argument.0: enum3
     local %54 $parameter.value: enum3

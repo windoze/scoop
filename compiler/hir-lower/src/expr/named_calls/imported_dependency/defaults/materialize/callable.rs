@@ -13,10 +13,30 @@ impl Lowerer {
             )),
             hir::ImportedCallableTypeParameters::Substitution(_) => None,
         };
+        let mut local_bindings = template
+            .locals
+            .iter()
+            .map(|(_, local)| (local.selector.clone(), local.binding))
+            .collect::<BTreeMap<_, _>>();
+        if let hir::ImportedCallableTemplateOrigin::Local {
+            capture_bindings, ..
+        } = &template.declaration
+        {
+            for (parameter, binding) in template.parameters.iter().zip(capture_bindings) {
+                local_bindings.insert(template.locals[parameter.local].selector.clone(), *binding);
+            }
+        }
+        let lexical_arguments = template
+            .type_parameters
+            .ids()
+            .into_iter()
+            .map(|parameter| self.intern_type(hir::Type::Param(parameter)))
+            .collect();
         let mut context = ImportedDefaultContext {
             owner: ImportedTemplateSource::Callable(&template.source),
-            callables: &BTreeMap::new(),
             bindings: &template.bindings,
+            local_bindings,
+            lexical_arguments,
             locals: template
                 .locals
                 .iter()
@@ -39,9 +59,7 @@ impl Lowerer {
                 _ => &[],
             },
             loop_targets: Vec::new(),
-            evaluation: ImportedTemplateEvaluation::Definition(
-                template.declaration.body_owner().template_owner(),
-            ),
+            parent: template.declaration.body_owner().template_owner(),
         };
         let statements = template
             .source
@@ -159,13 +177,7 @@ impl Lowerer {
                     method_arguments: arguments,
                 }
             } else {
-                hir::ImportedCallableArguments::Function(
-                    hir::NonEmptyVec::from_vec(arguments).ok_or_else(|| {
-                        ImportedDefaultMaterializationError::Plan(
-                            "generic dependency call has no arguments".into(),
-                        )
-                    })?,
-                )
+                hir::ImportedCallableArguments::Function(arguments)
             };
             if let hir::ImportedCallableTypeParameters::Declared(parameters) =
                 &self.imported_generic_templates[template].type_parameters
@@ -195,7 +207,7 @@ impl Lowerer {
                     });
             return Ok(hir::ImportedCallableTarget::Application(application));
         }
-        self.imported_default_callable_target(origin, kind, context)
+        self.imported_default_callable_target(origin, kind)
             .map(hir::ImportedCallableTarget::Dependency)
     }
 }

@@ -82,6 +82,7 @@ pub enum ImportedCallableTemplateOrigin {
     Local {
         parent: scoop_identity::CallableTemplateOwner,
         descriptor: crate::DefaultLocalFunctionV1,
+        capture_bindings: Vec<crate::BindingId>,
     },
     Closure {
         parent: scoop_identity::CallableTemplateOwner,

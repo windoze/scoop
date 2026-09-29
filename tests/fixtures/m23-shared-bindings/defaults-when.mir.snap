@@ -242,23 +242,23 @@ Module
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      val $dependency.default.local.2: Pair<Int>
+      val $default.local.2: Pair<Int>
         Type Pair<Int>
         Local $dependency.parameter.pair
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
         FieldAccess 0
           Type Pair<Int>
-          Local $dependency.default.local.2
-      val $dependency.default.local.1: Int
+          Local $default.local.2
+      val $default.local.1: Int
         Type Int
-        Local $dependency.default.local.3
-      assign $dependency.default.local.4
+        Local $default.local.3
+      assign $default.local.4
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       goto bb3
     bb2 if.else.2
-      assign $dependency.default.local.4
+      assign $default.local.4
         Type Int
         FieldAccess 0
           Type Pair<Int>
@@ -267,7 +267,7 @@ Module
     bb3 if.merge.3
       val $dependency.parameter.value: Int
         Type Int
-        Local $dependency.default.local.4
+        Local $default.local.4
       call $call.1: Int = @fn3 direct
         Type Pair<Int>
         Local $dependency.parameter.pair
@@ -307,17 +307,17 @@ Module
       val $when.1: Pair<Int>
         Type Pair<Int>
         Local $dependency.parameter.pair
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         FieldAccess 0
           Type Pair<Int>
           Local $when.1
-      assign $dependency.default.local.2
+      assign $default.local.2
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.value: Int
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       call $call.2: Int = @fn4 direct
         Type Pair<Int>
         Local $dependency.parameter.pair

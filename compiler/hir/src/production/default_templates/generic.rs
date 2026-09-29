@@ -38,6 +38,7 @@ pub(in crate::production) struct GenericBodyProducer<'a> {
     index: BTreeMap<DefaultCallableDeclarationV1, FunctionId>,
     pending: VecDeque<FunctionId>,
     scheduled: BTreeSet<FunctionId>,
+    defaults: BTreeSet<crate::ExportDefaultExprId>,
 }
 
 impl<'a> GenericBodyProducer<'a> {
@@ -61,6 +62,7 @@ impl<'a> GenericBodyProducer<'a> {
             index,
             pending: VecDeque::new(),
             scheduled: BTreeSet::new(),
+            defaults: BTreeSet::new(),
         })
     }
 
@@ -74,6 +76,44 @@ impl<'a> GenericBodyProducer<'a> {
                 self.pending.push_back(function);
             }
         }
+    }
+
+    pub(in crate::production) fn include_defaults(
+        &mut self,
+        defaults: &BTreeSet<crate::ExportDefaultExprId>,
+    ) -> Result<(), GenericTemplateProductionError> {
+        let export = self.entities.export();
+        for &id in defaults {
+            if !self.defaults.insert(id) {
+                continue;
+            }
+            for reference in &export.export_default_exprs[id].references.callables {
+                let function = match reference.target {
+                    crate::ExportDefaultCallableTarget::Lambda(id) => export.lambdas[id].function,
+                    crate::ExportDefaultCallableTarget::AnonymousFunction(id) => {
+                        export.anonymous_functions[id].function
+                    }
+                    crate::ExportDefaultCallableTarget::LocalFunction(id) => {
+                        export.local_functions[id].function
+                    }
+                    crate::ExportDefaultCallableTarget::CallableReference(id) => {
+                        let crate::CallableReferenceTarget::Local { local_function, .. } =
+                            export.callable_references[id].target
+                        else {
+                            continue;
+                        };
+                        export.local_functions[local_function].function
+                    }
+                    _ => continue,
+                };
+                let owner = self
+                    .entities
+                    .callable_declaration(function)
+                    .map_err(GenericTemplateProductionError::Entity)?;
+                self.require(owner);
+            }
+        }
+        Ok(())
     }
 
     pub(in crate::production) fn next_body(

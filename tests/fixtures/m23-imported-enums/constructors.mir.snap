@@ -492,22 +492,22 @@ Module
         Type Long
         Local $dependency.argument.0
       call $dependency.parameter.marker: Token = external0 direct
-      val $dependency.default.local.2: Long
+      val $default.local.2: Long
         Type Long
         Local $dependency.parameter.left
-      val $dependency.default.local.3: Long
+      val $default.local.3: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.default.local.4: Long
+      val $default.local.4: Long
         Type Long
-        Local $dependency.default.local.3
+        Local $default.local.3
       val $dependency.parameter.right: Long
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.default.local.2
+          Local $default.local.2
           Type Long
-          Local $dependency.default.local.4
+          Local $default.local.4
       val $argument.0: Draft
         Type Draft
         VariantConstruct Draft v3

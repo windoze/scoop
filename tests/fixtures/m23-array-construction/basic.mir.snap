@@ -984,17 +984,17 @@ Module
       val $dependency.parameter.source: MutableArray<Int>
         Type MutableArray<Int>
         Local $dependency.argument.0
-      val $dependency.default.local.1: MutableArray<Int>
+      val $default.local.1: MutableArray<Int>
         Type MutableArray<Int>
         Local $dependency.parameter.source
-      val $dependency.default.local.2: MutableArray<Int>
+      val $default.local.2: MutableArray<Int>
         Type MutableArray<Int>
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.copied: Array<Int>
         Type Array<Int>
         ArrayClone MutableArray<Int> -> Array<Int>
           Type MutableArray<Int>
-          Local $dependency.default.local.2
+          Local $default.local.2
       call defaulted: Array<Int> = @fn4 direct
         Type MutableArray<Int>
         Local $dependency.parameter.source
