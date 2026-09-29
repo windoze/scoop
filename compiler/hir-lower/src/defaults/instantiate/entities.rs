@@ -42,19 +42,9 @@ impl Lowerer {
         source: hir::InitializingClassFieldRef,
         context: &mut InstantiationContext,
     ) -> hir::InitializingClassFieldRef {
-        match source {
-            hir::InitializingClassFieldRef::Declared { application, field } => {
-                hir::InitializingClassFieldRef::Declared {
-                    application: self.instantiate_default_class_application(application, context),
-                    field,
-                }
-            }
-            hir::InitializingClassFieldRef::Imported { owner, field } => {
-                hir::InitializingClassFieldRef::Imported {
-                    owner: self.instantiate_method_ty(owner, &context.bindings),
-                    field,
-                }
-            }
+        hir::InitializingClassFieldRef {
+            owner: self.instantiate_method_ty(source.owner, &context.bindings),
+            field: source.field,
         }
     }
 
@@ -325,31 +315,15 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::FieldRef {
         match source {
-            hir::FieldRef::ImportedStruct { owner, field } => hir::FieldRef::ImportedStruct {
+            hir::FieldRef::StructField { owner, field } => hir::FieldRef::StructField {
                 owner: self.instantiate_method_ty(owner, &context.bindings),
                 field,
             },
-            hir::FieldRef::ImportedClass { owner, field } => hir::FieldRef::ImportedClass {
+            hir::FieldRef::ClassField { owner, field } => hir::FieldRef::ClassField {
                 owner: self.instantiate_method_ty(owner, &context.bindings),
                 field,
             },
-            hir::FieldRef::StructField(field) => {
-                let application =
-                    self.instantiate_default_struct_application(field.application(), context);
-                let field = hir::AppliedStructFieldRef::checked(
-                    &self.structs,
-                    &self.struct_applications,
-                    application,
-                    field.local_index(),
-                )
-                .expect("default substitution preserves a checked struct field");
-                hir::FieldRef::StructField(field)
-            }
             hir::FieldRef::TupleIndex(index) => hir::FieldRef::TupleIndex(index),
-            hir::FieldRef::ClassField { application, field } => hir::FieldRef::ClassField {
-                application: self.instantiate_default_class_application(application, context),
-                field,
-            },
         }
     }
 

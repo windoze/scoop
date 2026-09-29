@@ -215,6 +215,8 @@ impl Lowerer {
             declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
             nominal_identities: None,
             nominal_owners: HashMap::new(),
+            property_identity_records: HashMap::new(),
+            field_identity_builder: hir::HirFieldIdentityBuilder::default(),
             source_contexts: Arena::new(),
             source_context_by_value: HashMap::new(),
             file_source_contexts: Vec::new(),

@@ -23,22 +23,44 @@ fn generic_delegate_name(module: &Module, reference: &GenericDelegateReference) 
 }
 
 fn initializing_field_name(module: &Module, field: InitializingClassFieldRef) -> &str {
-    match field {
-        InitializingClassFieldRef::Declared { field, .. } => {
-            &module.properties[module.class_fields[field].property].name
-        }
-        InitializingClassFieldRef::Imported { owner, field } => {
-            let Type::ImportedClass(class) = &module.types[owner] else {
-                unreachable!("an imported initializing field has a class owner")
-            };
-            &class
-                .fields
-                .iter()
-                .find(|candidate| candidate.identity == field)
-                .expect("a resolved initializing field belongs to its declaring class")
-                .name
-        }
+    class_field_name(module, field.owner, field.field)
+}
+
+fn class_field_name(
+    module: &Module,
+    owner: TypeId,
+    field: scoop_identity::PersistentFieldId,
+) -> &str {
+    if let Some(declaration) = module.field_identities.class_declaration(field) {
+        return &module.properties[module.class_fields[declaration].property].name;
     }
+    let Type::ImportedClass(class) = &module.types[owner] else {
+        unreachable!("a class field retains its declaring class")
+    };
+    &class
+        .fields
+        .iter()
+        .find(|candidate| candidate.identity == field)
+        .expect("a resolved field belongs to its declaring class")
+        .name
+}
+
+fn struct_field_index(
+    module: &Module,
+    owner: TypeId,
+    field: scoop_identity::PersistentFieldId,
+) -> u32 {
+    if let Some(declaration) = module.field_identities.struct_declaration(field) {
+        return declaration.local_index();
+    }
+    let Type::ImportedStruct(structure) = &module.types[owner] else {
+        unreachable!("a struct field retains its declaring struct")
+    };
+    structure
+        .fields
+        .iter()
+        .position(|candidate| candidate.identity == field)
+        .expect("a resolved field belongs to its declaring struct") as u32
 }
 
 pub(super) fn dump_statements(

@@ -36,18 +36,10 @@ impl BodyProjection<'_, '_> {
         origin: crate::DefinitionOrigin,
     ) -> Result<(DefaultExpressionV1, DefaultFieldRefV1), super::super::DefaultBodyProjectionError>
     {
-        let owner = self.type_key(field.owner_type(&self.entities.export().class_applications))?;
-        let reference = match field {
-            crate::InitializingClassFieldRef::Declared { application, field } => {
-                self.entities.field(
-                    crate::FieldRef::ClassField { application, field },
-                    self.binders,
-                )?
-            }
-            crate::InitializingClassFieldRef::Imported { field, .. } => DefaultFieldRefV1::Class {
-                declaration: field,
-                owner_type: owner.clone(),
-            },
+        let owner = self.type_key(field.owner)?;
+        let reference = DefaultFieldRefV1::Class {
+            declaration: field.field,
+            owner_type: owner.clone(),
         };
         Ok((self.initializing_receiver(owner, origin)?, reference))
     }

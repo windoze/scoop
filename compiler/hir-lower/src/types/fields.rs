@@ -28,17 +28,11 @@ impl Lowerer {
                     .into_iter()
                     .enumerate()
                     .map(|(index, field)| {
-                        let reference = hir::AppliedStructFieldRef::checked(
-                            &self.structs,
-                            &self.struct_applications,
-                            application,
-                            index as u32,
-                        )
-                        .expect("the field comes from its owning declaration");
+                        let reference = self.struct_field_reference(application, index as u32);
                         StructField {
                             name: field.name,
                             ty: self.instantiate_ty(field.ty, &value.arguments),
-                            reference: hir::FieldRef::StructField(reference),
+                            reference,
                         }
                     })
                     .collect();
@@ -52,7 +46,7 @@ impl Lowerer {
                     .map(|field| StructField {
                         name: field.name.clone(),
                         ty: field.ty,
-                        reference: hir::FieldRef::ImportedStruct {
+                        reference: hir::FieldRef::StructField {
                             owner: ty,
                             field: field.identity,
                         },

@@ -238,7 +238,7 @@ fn smart_cast_narrows_value_types_with_unbox() {
                 hir::ExprKind::FieldAccess { receiver, field } => {
                     assert!(matches!(
                         field,
-                        hir::FieldRef::StructField(field) if field.local_index() == 0
+                        hir::FieldRef::StructField { field, .. } if module.field_identities.struct_declaration(*field).unwrap().local_index() == 0
                     ));
                     // The narrowed access unboxes the Any local.
                     assert!(matches!(receiver.kind, hir::ExprKind::Unbox(_)));

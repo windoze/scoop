@@ -51,7 +51,7 @@ Module
         Local $parameter.value : Int
     val local17
       FieldAccess class field value : Int
-        FieldAccess dependency field 39e1f842b6ed15bb9a2d852fb555b1a1cae099fc845ca7ea1c2612d8f337fb06 : Payload
+        FieldAccess field 0 : Payload
           Local pair : Pair<Payload>
     val local18
       ImportedGenericCall count<Payload> : Int

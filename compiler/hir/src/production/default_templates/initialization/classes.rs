@@ -210,7 +210,10 @@ fn class_field(
     projection
         .entities
         .field(
-            crate::FieldRef::ClassField { application, field },
+            crate::FieldRef::ClassField {
+                owner: projection.entities.export().class_applications[application].canonical_type,
+                field: projection.entities.export().field_identities[field].id(),
+            },
             &projection.binders,
         )
         .map_err(Error::Entity)

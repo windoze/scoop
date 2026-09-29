@@ -334,12 +334,12 @@ impl Lowerer {
                     .imported_generic_type(owner_type, bindings)
                     .map_err(ImportedDefaultMaterializationError::Plan)?;
                 Ok(if matches!(field, hir::DefaultFieldRefV1::Class { .. }) {
-                    hir::FieldRef::ImportedClass {
+                    hir::FieldRef::ClassField {
                         owner,
                         field: *declaration,
                     }
                 } else {
-                    hir::FieldRef::ImportedStruct {
+                    hir::FieldRef::StructField {
                         owner,
                         field: *declaration,
                     }

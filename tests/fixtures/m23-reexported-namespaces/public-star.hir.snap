@@ -26,7 +26,7 @@ Module
     val local11
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        FieldAccess dependency field 5d1d8adbaa6f038492a899d6e0bc3ba90331798826e2a22264b4e5288f73e371 : T0
+        FieldAccess field 0 : T0
           Local box : Box<T0>
     val local12
       IntegerLiteral 42 : Int
@@ -37,7 +37,7 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
       assign $result.0
-        FieldAccess dependency field 6b0aefd35e37d211c17f21c7ce3ddb50512622378cc9861fc18389cb4b347d3b : Int
+        FieldAccess field 0 : Int
           Local leaf : Leaf
     else
       assign $result.0

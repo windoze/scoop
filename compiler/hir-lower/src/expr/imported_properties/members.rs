@@ -93,7 +93,7 @@ impl Lowerer {
                 .zip(&class.fields)
                 .find_map(|(source, field)| {
                     (source.backing_property == Some(property)).then_some(
-                        hir::FieldRef::ImportedClass {
+                        hir::FieldRef::ClassField {
                             owner,
                             field: field.identity,
                         },

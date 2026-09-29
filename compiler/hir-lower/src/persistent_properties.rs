@@ -15,12 +15,7 @@ pub(crate) fn build(
     nominals: &hir::HirNominalIdentities,
     core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirPropertyIdentities, PersistentPropertyIdentityError> {
-    PropertyIdentityBuilder {
-        lowerer,
-        nominals,
-        type_mapper: SignatureTypeMapper::new(lowerer, nominals, core_types),
-    }
-    .build()
+    PropertyIdentityBuilder { lowerer, nominals }.build(core_types)
 }
 
 #[derive(Debug)]
@@ -94,16 +89,25 @@ impl fmt::Display for PersistentPropertyIdentityErrorDetail {
 struct PropertyIdentityBuilder<'a> {
     lowerer: &'a Lowerer,
     nominals: &'a hir::HirNominalIdentities,
-    type_mapper: SignatureTypeMapper<'a>,
 }
 
 impl PropertyIdentityBuilder<'_> {
-    fn build(self) -> Result<hir::HirPropertyIdentities, PersistentPropertyIdentityError> {
+    fn build(
+        self,
+        core_types: hir::HirCoreTypeIdentityAuthority<'_>,
+    ) -> Result<hir::HirPropertyIdentities, PersistentPropertyIdentityError> {
         let identities = self
             .lowerer
             .properties
             .iter()
-            .map(|(id, property)| self.identity(id, property))
+            .map(|(id, property)| {
+                self.lowerer
+                    .property_identity_records
+                    .get(&id)
+                    .cloned()
+                    .map(Ok)
+                    .unwrap_or_else(|| self.identity(id, property, core_types))
+            })
             .collect::<Result<Vec<_>, _>>()?;
         hir::HirPropertyIdentities::checked(
             &self.lowerer.properties,
@@ -117,6 +121,63 @@ impl PropertyIdentityBuilder<'_> {
         &self,
         id: hir::PropertyId,
         property: &hir::Property,
+        core_types: hir::HirCoreTypeIdentityAuthority<'_>,
+    ) -> Result<hir::HirPropertyIdentity, PersistentPropertyIdentityError> {
+        let hir::PropertyOwner::Extension(extension_id) = property.owner else {
+            return self.ordinary_identity(id, property);
+        };
+        let file = self.source_file(id)?;
+        let site = self.declaration_site(id, property, file)?;
+        let name = CanonicalIdentifier::new(&property.name).map_err(|error| {
+            self.failure(
+                id,
+                PersistentPropertyIdentityErrorDetail::InvalidName(error),
+            )
+        })?;
+        if raw_index(extension_id) as usize >= self.lowerer.extension_properties.len() {
+            return Err(self.failure(id, PersistentPropertyIdentityErrorDetail::UnknownExtension));
+        }
+        let extension = &self.lowerer.extension_properties[extension_id];
+        let mut binders = Vec::with_capacity(extension.type_params.len());
+        for (index, parameter) in extension.type_params.iter().enumerate() {
+            binders.push(SignatureBinder {
+                parameter: parameter.id,
+                depth: 0,
+                index: u32::try_from(index).map_err(|_| {
+                    self.failure(
+                        id,
+                        PersistentPropertyIdentityErrorDetail::TooManyTypeParameters,
+                    )
+                })?,
+            });
+        }
+        let receiver = SignatureTypeMapper::new(self.lowerer, self.nominals, core_types)
+            .map(extension.receiver_ty, &binders)
+            .map_err(|error| {
+                self.failure(
+                    id,
+                    PersistentPropertyIdentityErrorDetail::InvalidSignatureType(error),
+                )
+            })?;
+        let count = u32::try_from(extension.type_params.len()).map_err(|_| {
+            self.failure(
+                id,
+                PersistentPropertyIdentityErrorDetail::TooManyTypeParameters,
+            )
+        })?;
+        let declaration = SourceDeclarationKey::extension_property(site, name, count, receiver);
+        hir::HirPropertyIdentity::from_extension_declaration(declaration).map_err(|error| {
+            self.failure(
+                id,
+                PersistentPropertyIdentityErrorDetail::InvalidIdentity(error),
+            )
+        })
+    }
+
+    fn ordinary_identity(
+        &self,
+        id: hir::PropertyId,
+        property: &hir::Property,
     ) -> Result<hir::HirPropertyIdentity, PersistentPropertyIdentityError> {
         let file = self.source_file(id)?;
         let site = self.declaration_site(id, property, file)?;
@@ -126,66 +187,13 @@ impl PropertyIdentityBuilder<'_> {
                 PersistentPropertyIdentityErrorDetail::InvalidName(error),
             )
         })?;
-        match property.owner {
-            hir::PropertyOwner::Extension(extension_id) => {
-                if raw_index(extension_id) as usize >= self.lowerer.extension_properties.len() {
-                    return Err(
-                        self.failure(id, PersistentPropertyIdentityErrorDetail::UnknownExtension)
-                    );
-                }
-                let extension = &self.lowerer.extension_properties[extension_id];
-                let mut binders = Vec::with_capacity(extension.type_params.len());
-                for (index, parameter) in extension.type_params.iter().enumerate() {
-                    binders.push(SignatureBinder {
-                        parameter: parameter.id,
-                        depth: 0,
-                        index: u32::try_from(index).map_err(|_| {
-                            self.failure(
-                                id,
-                                PersistentPropertyIdentityErrorDetail::TooManyTypeParameters,
-                            )
-                        })?,
-                    });
-                }
-                let receiver = self
-                    .type_mapper
-                    .map(extension.receiver_ty, &binders)
-                    .map_err(|error| {
-                        self.failure(
-                            id,
-                            PersistentPropertyIdentityErrorDetail::InvalidSignatureType(error),
-                        )
-                    })?;
-                let count = u32::try_from(extension.type_params.len()).map_err(|_| {
-                    self.failure(
-                        id,
-                        PersistentPropertyIdentityErrorDetail::TooManyTypeParameters,
-                    )
-                })?;
-                let declaration =
-                    SourceDeclarationKey::extension_property(site, name, count, receiver);
-                hir::HirPropertyIdentity::from_extension_declaration(declaration).map_err(|error| {
-                    self.failure(
-                        id,
-                        PersistentPropertyIdentityErrorDetail::InvalidIdentity(error),
-                    )
-                })
-            }
-            hir::PropertyOwner::TopLevel
-            | hir::PropertyOwner::Class(_)
-            | hir::PropertyOwner::Struct(_)
-            | hir::PropertyOwner::Enum(_)
-            | hir::PropertyOwner::Interface(_)
-            | hir::PropertyOwner::Object(_) => {
-                let declaration = SourceDeclarationKey::property(site, name);
-                hir::HirPropertyIdentity::from_ordinary_declaration(declaration).map_err(|error| {
-                    self.failure(
-                        id,
-                        PersistentPropertyIdentityErrorDetail::InvalidIdentity(error),
-                    )
-                })
-            }
-        }
+        let declaration = SourceDeclarationKey::property(site, name);
+        hir::HirPropertyIdentity::from_ordinary_declaration(declaration).map_err(|error| {
+            self.failure(
+                id,
+                PersistentPropertyIdentityErrorDetail::InvalidIdentity(error),
+            )
+        })
     }
 
     fn declaration_site(
@@ -327,6 +335,32 @@ impl PropertyIdentityBuilder<'_> {
 }
 
 impl Lowerer {
+    pub(crate) fn ordinary_property_identity(
+        &mut self,
+        property: hir::PropertyId,
+    ) -> hir::HirPropertyIdentity {
+        if let Some(identity) = self.property_identity_records.get(&property) {
+            return identity.clone();
+        }
+        let declaration = &self.properties[property];
+        assert!(!matches!(
+            declaration.owner,
+            hir::PropertyOwner::Extension(_)
+        ));
+        let identity = PropertyIdentityBuilder {
+            lowerer: self,
+            nominals: self
+                .nominal_identities
+                .as_ref()
+                .expect("nominal identities precede field references"),
+        }
+        .ordinary_identity(property, declaration)
+        .expect("a resolved ordinary property has a valid declaration identity");
+        self.property_identity_records
+            .insert(property, identity.clone());
+        identity
+    }
+
     pub(crate) fn property_source_file(&self, property: hir::PropertyId) -> Option<usize> {
         match self.properties[property].owner {
             hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => {

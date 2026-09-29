@@ -227,17 +227,18 @@ impl Harness {
         let enum_member_identities =
             hir::HirEnumMemberIdentities::from_declarations(&self.enums, &nominal_identities)
                 .expect("the MIR test fixture enum members have persistent identities");
-        let field_identities = hir::HirFieldIdentities::from_declarations(
-            &self.structs,
-            &self.classes,
-            &Arena::new(),
-            &self.class_fields,
-            &self.properties,
-            &Arena::new(),
-            &nominal_identities,
-            &property_identities,
-        )
-        .expect("the MIR test fixture fields have persistent identities");
+        let field_identities = hir::HirFieldIdentityBuilder::default()
+            .finish(
+                &self.structs,
+                &self.classes,
+                &Arena::new(),
+                &self.class_fields,
+                &self.properties,
+                &Arena::new(),
+                &nominal_identities,
+                &property_identities,
+            )
+            .expect("the MIR test fixture fields have persistent identities");
         let object_value_identities = hir::HirObjectValueIdentities::from_declarations(
             &Arena::new(),
             &Arena::new(),

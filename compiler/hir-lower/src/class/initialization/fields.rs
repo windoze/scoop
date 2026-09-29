@@ -34,7 +34,7 @@ impl Lowerer {
                 )
             });
             return Some((
-                hir::InitializingClassFieldRef::Declared { application, field },
+                self.initializing_class_field_reference(application, field),
                 ty,
                 mutable,
             ));
@@ -106,11 +106,7 @@ impl Lowerer {
             .iter()
             .find(|source| source.identity == field)?
             .ty;
-        Some((
-            hir::InitializingClassFieldRef::Imported { owner, field },
-            ty,
-            mutable,
-        ))
+        Some((hir::InitializingClassFieldRef { owner, field }, ty, mutable))
     }
 
     pub(crate) fn initializing_receiver_type(&self) -> Option<TypeId> {
@@ -155,8 +151,9 @@ impl Lowerer {
                     );
                     return None;
                 };
-                if let hir::InitializingClassFieldRef::Declared { field, .. } = field
-                    && !initialized.contains(&field)
+                if let Some(declaration) =
+                    self.field_identity_builder.class_declaration(field.field)
+                    && !initialized.contains(&declaration)
                 {
                     self.error(
                         name.span,
@@ -194,12 +191,14 @@ impl Lowerer {
                     return None;
                 };
                 let ty = self.instantiate_ty(fields[index].ty, &application_value.arguments);
+                let hir::FieldRef::StructField { owner, field } =
+                    self.struct_field_reference(application, index as u32)
+                else {
+                    unreachable!("a struct projection selects a struct field")
+                };
                 Some(InitializingField {
                     read: hir::Expr {
-                        kind: hir::ExprKind::InitializingStructFieldAccess {
-                            application,
-                            index: index as u32,
-                        },
+                        kind: hir::ExprKind::InitializingStructFieldAccess { owner, field },
                         ty,
                         span,
                         origin: self.expression_origin(span),

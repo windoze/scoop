@@ -45,12 +45,12 @@ Module
     val local7
       Local pair : Pair<T0>
     val local8
-      FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : T0
+      FieldAccess field 0 : T0
         Local $binding.subject.0 : Pair<T0>
     val local9
       Local $binding.projection.1 : T0
     val local10
-      FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+      FieldAccess field 1 : Int
         Local $binding.subject.0 : Pair<T0>
     val local11
       Local $binding.projection.2 : Int
@@ -129,12 +129,12 @@ Module
     val local0
       Call marked : Pair<Int>
     val local1
-      FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : Int
+      FieldAccess field 0 : Int
         Local $binding.subject.6 : Pair<Int>
     val local2
       Local $binding.projection.7 : Int
     val local3
-      FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+      FieldAccess field 1 : Int
         Local $binding.subject.6 : Pair<Int>
     val local4
       Local $binding.projection.8 : Int
@@ -197,7 +197,7 @@ Module
         Local $dependency.parameter.spare : Int
         Local $dependency.parameter.empty : Unit
     val local22
-      FieldAccess dependency field 3c1a9cd5be21b9689f294fdf4fa00cbe794142a093fd5ed2cc09c0ec1b832122 : (Int, Int)
+      FieldAccess field 0 : (Int, Int)
         Local $binding.subject.10 : Nested<Int>
     val local23
       FieldAccess _1 : Int
@@ -224,7 +224,7 @@ Module
         Local $dependency.parameter.spare : Int
         Local $dependency.parameter.empty : Unit
     val local32
-      FieldAccess dependency field 959a336d0ef1ee7397ef72d543e16b8da512167e8dfe8c1a7abdc7240856b99c : Unit
+      FieldAccess field 2 : Unit
         Local $binding.subject.13 : Nested<Int>
     val local33
       Local $binding.projection.14 : Unit
@@ -241,12 +241,12 @@ Module
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Int
     val local39
-      FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+      FieldAccess field 1 : Int
         Local $binding.subject.15 : Pair<Int>
     val local40
       Local $binding.projection.16 : Int
     val local41
-      FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : Int
+      FieldAccess field 0 : Int
         Local $binding.subject.15 : Pair<Int>
     val local42
       Local $binding.projection.17 : Int

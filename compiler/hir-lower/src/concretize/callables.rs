@@ -437,51 +437,30 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::FieldRef {
         match source {
-            export::FieldRef::ImportedClass { owner, field } => {
+            export::FieldRef::ClassField { owner, field } => {
                 let ty = self.lower_type(owner, substitution);
                 let concrete::TypeKind::Class(class_id) = self.types[ty].kind else {
-                    unreachable!("a dependency class field retains its class owner")
+                    unreachable!("a class field retains its declaring class")
                 };
-                self.imported_class_field_ref(class_id, field)
+                self.class_field_ref(class_id, field)
             }
-            export::FieldRef::ImportedStruct { owner, field } => {
+            export::FieldRef::StructField { owner, field } => {
                 let ty = self.lower_type(owner, substitution);
                 let concrete::TypeKind::Struct(structure) = self.types[ty].kind else {
-                    unreachable!("a dependency struct field retains its struct receiver")
+                    unreachable!("a struct field retains its declaring struct")
                 };
                 let index = self.structs[structure]
                     .declared_fields()
                     .iter()
                     .position(|candidate| candidate.identity == field)
-                    .expect("a resolved dependency field belongs to its declaration");
+                    .expect("a resolved field belongs to its declaration");
                 concrete::FieldRef::StructField(
                     concrete::StructFieldRef::checked(&self.structs, structure, index as u32)
-                        .expect("a declared dependency field is in range"),
+                        .expect("a declared field is in range"),
                 )
             }
-            export::FieldRef::StructField(field) => concrete::FieldRef::StructField(
-                self.lower_applied_struct_field_ref(field, substitution),
-            ),
             export::FieldRef::TupleIndex(index) => concrete::FieldRef::TupleIndex(index),
-            export::FieldRef::ClassField { application, field } => {
-                let concrete_id = self.lower_class_application(application, substitution);
-                let index = self.source_class_field_layout_index(field);
-                concrete::FieldRef::ClassField {
-                    class_id: concrete_id,
-                    index,
-                }
-            }
         }
-    }
-
-    pub(super) fn lower_applied_struct_field_ref(
-        &mut self,
-        source: export::AppliedStructFieldRef,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::StructFieldRef {
-        let structure = self.lower_struct_application(source.application(), substitution);
-        concrete::StructFieldRef::checked(&self.structs, structure, source.local_index())
-            .expect("a checked applied struct field concretizes to the same declared field")
     }
 
     pub(super) fn lower_applied_enum_variant_ref(

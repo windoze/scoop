@@ -62,7 +62,7 @@ MIR 输出在 HIR→MIR 边界完成一次整模块结构、类型与实际外�
 
 跨 Cone 的参数自由 class 继承直接使用依赖产物中的完整声明、真实基类、字段、接口与 dispatch selection。共有成员查询保存声明本身及其可见性，public、protected 和必要支持声明不改造成另一份 public 声明；前端按实际词法类和接收者静态类型执行访问、覆写及默认值规则。基类构造在已分配的派生对象上调用实际 provider 的 initializer，保持基类先于派生类的初始化顺序及移动 GC 接收者跟踪。继承的 virtual family 保留原 typed slot identity，派发表中的外来实现直接引用实际 callable；本地覆写只替换对应槽，未覆写的基类和接口选择完整传递。构造、super、成员与 getter/setter 沿共有调用、布局、ABI 和 relocation 路径消费，派生类再次发布后仍可由后续 Cone 使用。以上使用既有源码与机器声明格式，不增加来源资格、独立证明、平行来源表或后续里程碑能力。依赖虚槽的 lookup 域由 HIR lowering 按共有声明的 visibility 与 typed owner 计算，保留 protected 与外层 owner 约束；产物不重复保存该域，reader 不重放访问语义。只有本次实际物化的 descriptor 和派发表产生物理外部引用；依赖类的查询数据本身不形成 relocation。受保护的嵌套类型通过实际 owner 的 child 声明引用参与限定名查询，不能要求 public binding 或将其重建为本地声明。前端分别检查全部词法 owner 的有效访问域和 protected 成员自身的接收者规则；嵌套类型中的 public 成员不会额外要求接收者属于访问者的子类。嵌套构造、成员、enum 变体与 object 继续使用共有 typed 选择及初始化路径，访问错误与签名泄露在前端诊断。 已发布的可物化 nominal 声明必须同时具有完整 dispatch 与有限 BoxedValue/CoroutineStep/CoroutineSlot 支持，包括受保护嵌套类型和实际表示所需的支持声明；producer 与 reader 从同一共有声明闭包取得这些需求，public binding 不控制机器支持的生成。source-only 声明及仅存在于当前私有实现、未进入发布声明闭包的类型不因此成为发布根。 reader 的声明查询不再区分“仅当前 provider 支持查询”模式；本地与依赖的签名、父类型、accessor 和 variant 都按实际 typed ID 查询完整声明，保留 kind、arity、owner 与依赖范围检查。
 
-继承的实际产物验收同时覆盖 ZST 字段与交错参数/返回值、大值构造与虚调用的 indirect/sret ABI、含 managed 引用的聚合参数和基类/派生类字段、次构造器的基类先行初始化及 object 单例继承。派生类再次发布后，由后续 Cone 继续派生并执行 super 与虚调用；普通和移动 GC 运行使用同一完整产物。上述场景不增加新的机器表示或 runtime ABI。跨 Cone 初始化中的 inherited backing field 由共有 property、实际字段身份与声明关系解析，前端检查 getter/setter 可见性及字段就绪；不能用同名字段或调用 accessor 代替直接存储访问。完整 HIR 的初始化字段引用区分本地 class application 与实际依赖字段，concretize 后均成为共有的 ConstructorReceiver 字段读写。基类完成后外来存储已就绪，computed/delegated property、不可见 setter、未就绪自有字段与 receiver 逃逸继续拒绝。现有产物已携带所需 property/field 引用，此项不增加 wire 字段或来源表。
+继承的实际产物验收同时覆盖 ZST 字段与交错参数/返回值、大值构造与虚调用的 indirect/sret ABI、含 managed 引用的聚合参数和基类/派生类字段、次构造器的基类先行初始化及 object 单例继承。派生类再次发布后，由后续 Cone 继续派生并执行 super 与虚调用；普通和移动 GC 运行使用同一完整产物。上述场景不增加新的机器表示或 runtime ABI。跨 Cone 初始化中的 inherited backing field 由共有 property、实际字段身份与声明关系解析，前端检查 getter/setter 可见性及字段就绪；不能用同名字段或调用 accessor 代替直接存储访问。完整 HIR 的初始化字段引用统一保存声明 class 的完整类型与原字段身份，concretize 后成为共有的 ConstructorReceiver 字段读写。基类完成后外来存储已就绪，computed/delegated property、不可见 setter、未就绪自有字段与 receiver 逃逸继续拒绝。现有产物已携带所需 property/field 引用，此项不增加 wire 字段或来源表。
 
 setter 的有效访问域包含关系由前端在声明处检查。共有 reader 保留 property/accessor 的 typed 身份、owner、签名、effect、声明位置和 public binding 一致性检查，删除第二套访问域集合运算、逐属性继承遍历及其专用测试。继承环和引用闭合仍在共有继承图边界检查；已检查的完整声明不附加来源或操作资格，也不因 selected 去重而反复重新证明源码访问。此清理不改变 wire、profile、runtime C ABI 或 String 表示。
 
@@ -217,6 +217,8 @@ M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、own
 源码分析、导出投影与具体化均属于既有 HIR 工作流，不新增 stage 实现之间的依赖。默认值、普通函数、泛型正文、构造初始化和词法 callable 共用正文节点及必要的局部值、捕获、类型替换；编解码只做机械的身份／索引转换和边界验证。具体化按原定义身份、完整宿主／callable 实参和既有词法身份查询同一正文，不先创建独立 imported template 或当前 Cone 的同名替身。声明、泛型应用和具体实体保持不同的 typed ID；本地 arena 仅作实现内的存储索引，不能充当跨 Cone 实体身份。
 
 nominal 原声明身份在完整声明树及类型参数元数收集完成后建立，先于 import、签名约束和正文的语义查询；它只依赖原声明位置、owner 链、种类与元数，不依赖实例化结果。当前声明和依赖声明的 application 查询使用同一种原声明 ID 与完整实参，当前 arena 索引只由本次构建的反向表解析。导出直接复用已建立的身份记录，不在完成边界重新生成同一身份。
+
+struct 字段、class 存储字段和初始化字段引用均保存原 `PersistentFieldId` 与完整宿主类型；tuple 元素仍以结构位置区分。当前字段身份在实际字段确定后按需建立并复用，委托存储在初始化分析确定实际字段时建立，不为提前冻结身份而补造未完成字段。默认值替换只替换宿主类型，编解码保留同一字段引用，具体化从原字段身份映射到实际布局；成功 HIR 不保留来源专用字段引用。
 
 不可失败的 `val`／`var`、lambda 参数与 `for` 绑定在同一事务中直接生成普通声明、字段投影和已选 component 调用。字段访问、绑定及 `when` 模式从同一完整 struct application 查询声明顺序、字段身份与替换后的类型；class component 使用普通 operator 决议。成功输出不另存一份仅供互相校验的绑定形状和执行计划，不在展开时重演已完成的 callable 选择、字段范围或叶子调度。失败仍原子撤销局部值、候选状态和诊断副作用，命名模式按源码顺序求值，`..` 和 `_` 保持语言规定的跳过与调用行为。
 

@@ -170,13 +170,19 @@ fn val_binding_plan_emits_source_order_projections_and_immutable_temporaries() {
                 return None;
             };
             let hir::ExprKind::FieldAccess {
-                field: hir::FieldRef::StructField(field),
+                field: hir::FieldRef::StructField { field, .. },
                 ..
             } = &init.kind
             else {
                 return None;
             };
-            Some(field.local_index())
+            Some(
+                module
+                    .field_identities
+                    .struct_declaration(*field)
+                    .unwrap()
+                    .local_index(),
+            )
         })
         .collect::<Vec<_>>();
     assert_eq!(

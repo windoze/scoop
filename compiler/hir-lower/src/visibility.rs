@@ -698,19 +698,32 @@ impl Lowerer {
 
     pub(crate) fn field_access_domain(&self, target: hir::FieldRef) -> hir::AccessDomain {
         match target {
-            hir::FieldRef::ClassField { field, .. } => self.properties
-                [self.class_fields[field].property]
-                .access
-                .lookup
-                .0
-                .clone(),
-            hir::FieldRef::StructField(field) => {
-                let owner = self.struct_applications[field.application()].template;
-                self.structs[owner].access.lookup.0.clone()
-            }
-            hir::FieldRef::ImportedStruct { .. }
-            | hir::FieldRef::ImportedClass { .. }
-            | hir::FieldRef::TupleIndex(_) => hir::AccessDomain::universal(),
+            hir::FieldRef::ClassField { owner, field } => match self.types[owner] {
+                hir::Type::Class(_) => {
+                    let field = self
+                        .field_identity_builder
+                        .class_declaration(field)
+                        .expect("a current class field has its declaration identity");
+                    self.properties[self.class_fields[field].property]
+                        .access
+                        .lookup
+                        .0
+                        .clone()
+                }
+                hir::Type::ImportedClass(_) => hir::AccessDomain::universal(),
+                _ => unreachable!("a class field retains its declaring class"),
+            },
+            hir::FieldRef::StructField { owner, .. } => match self.types[owner] {
+                hir::Type::Struct(application) => self.structs
+                    [self.struct_applications[application].template]
+                    .access
+                    .lookup
+                    .0
+                    .clone(),
+                hir::Type::ImportedStruct(_) => hir::AccessDomain::universal(),
+                _ => unreachable!("a struct field retains its declaring struct"),
+            },
+            hir::FieldRef::TupleIndex(_) => hir::AccessDomain::universal(),
         }
     }
 }

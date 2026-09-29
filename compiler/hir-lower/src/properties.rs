@@ -467,7 +467,7 @@ impl Lowerer {
                     };
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(receiver),
-                        field: hir::FieldRef::ClassField { application, field },
+                        field: self.class_field_reference(application, field),
                     }
                 }
                 hir::PropertyBacking::StructField { owner: _, index } => {
@@ -476,16 +476,10 @@ impl Lowerer {
                     else {
                         unreachable!("struct storage access has a struct owner application")
                     };
-                    let field = hir::AppliedStructFieldRef::checked(
-                        &self.structs,
-                        &self.struct_applications,
-                        application,
-                        index,
-                    )
-                    .expect("a struct-backed property names its declaring field");
+                    let field = self.struct_field_reference(application, index);
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(receiver),
-                        field: hir::FieldRef::StructField(field),
+                        field,
                     }
                 }
             },
@@ -542,7 +536,7 @@ impl Lowerer {
                     };
                     hir::AssignTarget::Field {
                         receiver: Box::new(receiver),
-                        field: hir::FieldRef::ClassField { application, field },
+                        field: self.class_field_reference(application, field),
                     }
                 }
                 hir::PropertyBacking::StructField { .. } => {
@@ -604,7 +598,7 @@ impl Lowerer {
                 };
                 let application_value = self.class_applications[application].clone();
                 let ty = self.instantiate_ty(physical.ty, &application_value.arguments);
-                let field_ref = hir::FieldRef::ClassField { application, field };
+                let field_ref = self.class_field_reference(application, field);
                 let read = hir::Expr {
                     kind: hir::ExprKind::FieldAccess {
                         receiver: Box::new(receiver.clone()),

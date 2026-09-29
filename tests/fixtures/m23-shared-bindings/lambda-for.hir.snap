@@ -78,12 +78,12 @@ Module
         Unwrap trap=false : Pair<T0>
           Local $for.next.5 : Option<Pair<T0>>
       val local26
-        FieldAccess dependency field e6f117f497778c39f10f44f5475be2a9333b4effbd6bf210c8cead0ecb12b138 : Int
+        FieldAccess field 1 : Int
           Local $for.element.6 : Pair<T0>
       val local27
         Local $binding.projection.7 : Int
       val local28
-        FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : T0
+        FieldAccess field 0 : T0
           Local $for.element.6 : Pair<T0>
       val local29
         Local $binding.projection.8 : T0

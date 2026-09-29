@@ -30,7 +30,7 @@ Module
       PtrLoad : Int
         Local $dependency.receiver : Ptr<Int>
     val local11
-      FieldAccess dependency field 4d3c6c87c2982c281d0fd9d9ef1f7c860b8ac2a546189ce61aea6eaf3f33ffd9 : Int
+      FieldAccess field 0 : Int
         Local box : Box<Int>
     val local12
       Local $dependency.argument.0 : Int

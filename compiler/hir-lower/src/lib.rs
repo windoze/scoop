@@ -531,6 +531,8 @@ pub(crate) struct Lowerer {
     /// Established after declaration collection, before semantic queries.
     pub(crate) nominal_identities: Option<hir::HirNominalIdentities>,
     pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
+    pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
+    pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,

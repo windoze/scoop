@@ -44,13 +44,13 @@ pub(in super::super) fn collect_statement_types(
                     }
                     hir::AssignTarget::Field { receiver, field } => {
                         collect_expr_types(lowerer, receiver, out);
-                        collect_field_ref_types(lowerer, *field, out);
+                        collect_field_ref_types(*field, out);
                     }
                     hir::AssignTarget::Local(_)
                     | hir::AssignTarget::Global(_)
                     | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                     hir::AssignTarget::InitializingClassField { field, .. } => {
-                        out.push(field.owner_type(&lowerer.class_applications));
+                        out.push(field.owner);
                     }
                 }
                 collect_expr_types(lowerer, value, out);
@@ -302,7 +302,7 @@ pub(in super::super) fn collect_expr_types(
             collect_expr_types(lowerer, callback, out)
         }
         ExprKind::FieldAccess { receiver, field } => {
-            collect_field_ref_types(lowerer, *field, out);
+            collect_field_ref_types(*field, out);
             collect_expr_types(lowerer, receiver, out);
         }
         ExprKind::MethodCall {
@@ -458,10 +458,10 @@ pub(in super::super) fn collect_expr_types(
             collect_callable_reference_types(lowerer, *reference, out);
         }
         ExprKind::InitializingClassFieldAccess { field, .. } => {
-            out.push(field.owner_type(&lowerer.class_applications));
+            out.push(field.owner);
         }
-        ExprKind::InitializingStructFieldAccess { application, .. } => {
-            out.push(lowerer.struct_applications[*application].canonical_type);
+        ExprKind::InitializingStructFieldAccess { owner, .. } => {
+            out.push(*owner);
         }
         ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
@@ -618,19 +618,10 @@ pub(in super::super) fn collect_method_callee_types(
     }
 }
 
-pub(in super::super) fn collect_field_ref_types(
-    lowerer: &Lowerer,
-    field: hir::FieldRef,
-    out: &mut Vec<hir::TypeId>,
-) {
+pub(in super::super) fn collect_field_ref_types(field: hir::FieldRef, out: &mut Vec<hir::TypeId>) {
     match field {
-        hir::FieldRef::ImportedStruct { owner, .. }
-        | hir::FieldRef::ImportedClass { owner, .. } => out.push(owner),
-        hir::FieldRef::StructField(field) => {
-            out.push(lowerer.struct_applications[field.application()].canonical_type);
-        }
-        hir::FieldRef::ClassField { application, .. } => {
-            out.push(lowerer.class_applications[application].canonical_type);
+        hir::FieldRef::StructField { owner, .. } | hir::FieldRef::ClassField { owner, .. } => {
+            out.push(owner)
         }
         hir::FieldRef::TupleIndex(_) => {}
     }

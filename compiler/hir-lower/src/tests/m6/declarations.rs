@@ -281,8 +281,9 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                application: class_application(&module, point_id),
-                field: y_field
+                owner: module.class_applications[class_application(&module, point_id)]
+                    .canonical_type,
+                field: module.field_identities[y_field].id()
             }
         ),
         other => panic!("expected a field access, found {other:?}"),
@@ -291,8 +292,9 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                application: class_application(&module, shape_id),
-                field: name_field
+                owner: module.class_applications[class_application(&module, shape_id)]
+                    .canonical_type,
+                field: module.field_identities[name_field].id()
             }
         ),
         other => panic!("expected a field access, found {other:?}"),

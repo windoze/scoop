@@ -55,48 +55,18 @@ impl Lowerer {
                     span,
                 )]
             }
-            Type::Struct(application) => {
-                let value = self.struct_applications[application].clone();
-                let fields = self.structs[value.template].semantic_fields().to_vec();
-                let mut comparisons = Vec::with_capacity(fields.len());
-                for (index, field) in fields.into_iter().enumerate() {
-                    let field_ty = self.instantiate_ty(field.ty, &value.arguments);
-                    let field_ref = hir::FieldRef::StructField(
-                        hir::AppliedStructFieldRef::checked(
-                            &self.structs,
-                            &self.struct_applications,
-                            application,
-                            index as u32,
-                        )
-                        .expect("a derived struct field is declared by its application"),
-                    );
-                    let left = self.field_expr(this_expr.clone(), field_ref, field_ty, span);
-                    let right = self.field_expr(other_expr.clone(), field_ref, field_ty, span);
-                    let path = format!("{}.{}", self.structs[value.template].name, field.name);
-                    comparisons.push(self.build_derived_field_comparison(
-                        field_ty, left, right, &path, span, stack,
-                    )?);
-                }
-                vec![return_statement(
-                    self.fold_conjunction(comparisons, self.boolean, span),
-                    span,
-                )]
-            }
-            Type::ImportedStruct(structure) => {
+            Type::Struct(_) | Type::ImportedStruct(_) => {
+                let structure = self
+                    .struct_fields(ty)
+                    .expect("a struct has complete fields");
                 let mut comparisons = Vec::with_capacity(structure.fields.len());
-                for field in &structure.fields {
-                    let field_ref = hir::FieldRef::ImportedStruct {
-                        owner: ty,
-                        field: field.identity,
-                    };
-                    let path = format!("{}.{}", self.type_name(ty), field.name);
+                for field in structure.fields {
+                    let left = self.field_expr(this_expr.clone(), field.reference, field.ty, span);
+                    let right =
+                        self.field_expr(other_expr.clone(), field.reference, field.ty, span);
+                    let path = format!("{}.{}", structure.name, field.name);
                     comparisons.push(self.build_derived_field_comparison(
-                        field.ty,
-                        self.field_expr(this_expr.clone(), field_ref, field.ty, span),
-                        self.field_expr(other_expr.clone(), field_ref, field.ty, span),
-                        &path,
-                        span,
-                        stack,
+                        field.ty, left, right, &path, span, stack,
                     )?);
                 }
                 vec![return_statement(

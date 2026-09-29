@@ -242,10 +242,7 @@ fn field_assignment_lowers_to_field_set() {
             statements: vec![stmt(hir::StatementKind::Assign {
                 target: hir::AssignTarget::Field {
                     receiver: Box::new(local_ref(p, c_ty)),
-                    field: hir::FieldRef::ClassField {
-                        application: c_application,
-                        field: y_field,
-                    },
+                    field: h.class_field_ref(c_application, y_field),
                 },
                 value: int_lit(&h, 3),
             })],

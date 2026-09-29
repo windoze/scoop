@@ -253,20 +253,17 @@ impl BodyProjection<'_, '_> {
                     field,
                 }
             }
-            ExprKind::InitializingStructFieldAccess { application, index } => {
-                let ty = self.struct_application_type(*application)?;
-                let field = crate::AppliedStructFieldRef::checked(
-                    &self.entities.export().structs,
-                    &self.entities.export().struct_applications,
-                    *application,
-                    *index,
-                )
-                .ok_or_else(|| self.unknown("struct application", *application))?;
+            ExprKind::InitializingStructFieldAccess { owner, field } => {
+                let ty = self.type_key(*owner)?;
                 DefaultExpressionKindV1::FieldAccess {
                     receiver: Box::new(self.initializing_receiver(ty, origin)?),
-                    field: self
-                        .entities
-                        .field(crate::FieldRef::StructField(field), self.binders)?,
+                    field: self.entities.field(
+                        crate::FieldRef::StructField {
+                            owner: *owner,
+                            field: *field,
+                        },
+                        self.binders,
+                    )?,
                 }
             }
             ExprKind::MethodCall {

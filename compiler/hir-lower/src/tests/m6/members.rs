@@ -81,7 +81,11 @@ fn bare_var_property_assignment_in_a_method_stores_through_this() {
                     let hir::FieldRef::ClassField { field, .. } = field else {
                         panic!("class assignment carries a typed class field")
                     };
-                    assert_eq!(*field, module.classes[class_id(&module, "C")].fields[0]);
+                    assert_eq!(
+                        *field,
+                        module.field_identities[module.classes[class_id(&module, "C")].fields[0]]
+                            .id()
+                    );
                 }
                 other => panic!("expected a field store, found {other:?}"),
             }
@@ -176,8 +180,12 @@ fn field_assignment_on_a_var_property() {
                     assert_eq!(
                         *field,
                         hir::FieldRef::ClassField {
-                            application: class_application(&module, class_id(&module, "Point")),
-                            field: module.classes[class_id(&module, "Point")].fields[1]
+                            owner: module.class_applications
+                                [class_application(&module, class_id(&module, "Point"))]
+                            .canonical_type,
+                            field: module.field_identities
+                                [module.classes[class_id(&module, "Point")].fields[1]]
+                                .id()
                         }
                     );
                 }

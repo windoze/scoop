@@ -21,7 +21,7 @@ Module
       val local10
         Local $dependency.parameter.pair : Pair<T0>
       val local11
-        FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : T0
+        FieldAccess field 0 : T0
           Local $dependency.default.local.2 : Pair<T0>
       val local9
         Local $dependency.default.local.3 : T0
@@ -29,7 +29,7 @@ Module
         Local $dependency.default.local.1 : T0
     else
       assign $dependency.default.local.4
-        FieldAccess dependency field 7259984a4bf6e587cf5409e7357087850ad5047f93d7e63888a0485ee19c9a64 : T0
+        FieldAccess field 0 : T0
           Local $dependency.parameter.pair : Pair<T0>
     val local13
       Local $dependency.default.local.4 : T0

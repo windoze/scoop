@@ -175,17 +175,18 @@ fn relation_is_total_for_struct_and_source_class_fields() {
     );
     let property_identities = property_identities(&properties);
 
-    let identities = HirFieldIdentities::from_declarations(
-        &structs,
-        &classes,
-        &Arena::new(),
-        &class_fields,
-        &properties,
-        &Arena::new(),
-        &nominals,
-        &property_identities,
-    )
-    .unwrap();
+    let identities = HirFieldIdentityBuilder::default()
+        .finish(
+            &structs,
+            &classes,
+            &Arena::new(),
+            &class_fields,
+            &properties,
+            &Arena::new(),
+            &nominals,
+            &property_identities,
+        )
+        .unwrap();
     let x = StructFieldRef::checked(&structs, structure, 0).unwrap();
     let expected_x =
         FieldIdentityKey::source_declared(&struct_key, CanonicalIdentifier::new("x").unwrap())
@@ -210,17 +211,18 @@ fn relation_is_total_for_struct_and_source_class_fields() {
         location: DelegateStorageLocation::ClassField(field_id),
     });
     properties[property_id].representation = PropertyRepresentation::Delegated { storage };
-    let delegated = HirFieldIdentities::from_declarations(
-        &structs,
-        &classes,
-        &Arena::new(),
-        &class_fields,
-        &properties,
-        &delegate_storages,
-        &nominals,
-        &property_identities,
-    )
-    .unwrap();
+    let delegated = HirFieldIdentityBuilder::default()
+        .finish(
+            &structs,
+            &classes,
+            &Arena::new(),
+            &class_fields,
+            &properties,
+            &delegate_storages,
+            &nominals,
+            &property_identities,
+        )
+        .unwrap();
     let expected_delegate =
         FieldIdentityKey::source_property_delegate(&class_key, property).unwrap();
     assert_eq!(
@@ -259,7 +261,7 @@ fn relation_rejects_a_class_field_without_physical_property_storage() {
     let property_identities = property_identities(&properties);
 
     assert!(matches!(
-        HirFieldIdentities::from_declarations(
+        HirFieldIdentityBuilder::default().finish(
             &structs,
             &classes,
             &Arena::new(),

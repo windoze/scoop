@@ -6,26 +6,17 @@ impl Concretizer<'_> {
         source: export::InitializingClassFieldRef,
         substitution: &[concrete::TypeId],
     ) -> (concrete::TypeId, concrete::FieldRef) {
-        let receiver = self.lower_type(
-            source.owner_type(&self.source.class_applications),
+        let receiver = self.lower_type(source.owner, substitution);
+        let field = self.lower_field_ref(
+            export::FieldRef::ClassField {
+                owner: source.owner,
+                field: source.field,
+            },
             substitution,
         );
-        let field = match source {
-            export::InitializingClassFieldRef::Declared { application, field } => self
-                .lower_field_ref(
-                    export::FieldRef::ClassField { application, field },
-                    substitution,
-                ),
-            export::InitializingClassFieldRef::Imported { field, .. } => {
-                let concrete::TypeKind::Class(class_id) = self.types[receiver].kind else {
-                    unreachable!("a dependency initializer field retains its class owner")
-                };
-                self.imported_class_field_ref(class_id, field)
-            }
-        };
         (receiver, field)
     }
-    pub(super) fn imported_class_field_ref(
+    pub(super) fn class_field_ref(
         &self,
         class_id: concrete::ClassId,
         field: scoop_identity::PersistentFieldId,
@@ -34,7 +25,7 @@ impl Concretizer<'_> {
             .declared_fields()
             .iter()
             .position(|candidate| candidate.identity == field)
-            .expect("a dependency backing field belongs to its actual declaration");
+            .expect("a backing field belongs to its actual declaration");
         let mut index = u32::try_from(own_index).expect("class field indices fit in u32");
         let mut base = self.classes[class_id].base_class();
         while let Some(parent) = base {

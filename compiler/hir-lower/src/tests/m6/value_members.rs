@@ -42,7 +42,13 @@ fn struct_methods_and_bare_field_access() {
                 0,
             )
             .expect("S.v is a checked applied struct field");
-            assert_eq!(*field, hir::FieldRef::StructField(expected));
+            assert_eq!(
+                *field,
+                hir::FieldRef::StructField {
+                    owner: module.struct_applications[expected.application()].canonical_type,
+                    field: module.field_identities[expected].id(),
+                }
+            );
             assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
         }
         other => panic!("expected `this.v`, found {other:?}"),

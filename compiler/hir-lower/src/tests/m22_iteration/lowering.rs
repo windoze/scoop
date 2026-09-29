@@ -128,9 +128,15 @@ fn named_struct_for_binding_keeps_shape_and_action_orders_independent() {
             .filter_map(|statement| match &statement.kind {
                 hir::StatementKind::ValDecl { init, .. } => match &init.kind {
                     hir::ExprKind::FieldAccess {
-                        field: hir::FieldRef::StructField(field),
+                        field: hir::FieldRef::StructField { field, .. },
                         ..
-                    } => Some(field.local_index()),
+                    } => Some(
+                        module
+                            .field_identities
+                            .struct_declaration(*field)
+                            .unwrap()
+                            .local_index()
+                    ),
                     _ => None,
                 },
                 _ => None,

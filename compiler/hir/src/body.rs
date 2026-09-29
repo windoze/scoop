@@ -351,8 +351,8 @@ pub enum ExprKind {
     /// Direct read from the fully formed struct value owned by a secondary
     /// constructor. The value itself never becomes an expression.
     InitializingStructFieldAccess {
-        application: StructApplicationId,
-        index: u32,
+        owner: TypeId,
+        field: scoop_identity::PersistentFieldId,
     },
     /// A resolved method call; the dispatch kind (direct / virtual /
     /// interface) is decided at MIR from the receiver's static type.
@@ -575,48 +575,24 @@ pub enum Place {
 
 /// A ready backing field reached through the current initializer receiver.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InitializingClassFieldRef {
-    Declared {
-        application: ClassApplicationId,
-        field: ClassFieldId,
-    },
-    Imported {
-        owner: TypeId,
-        field: scoop_identity::PersistentFieldId,
-    },
-}
-
-impl InitializingClassFieldRef {
-    pub fn owner_type(self, applications: &Arena<ClassApplication>) -> TypeId {
-        match self {
-            Self::Declared { application, .. } => applications[application].canonical_type,
-            Self::Imported { owner, .. } => owner,
-        }
-    }
+pub struct InitializingClassFieldRef {
+    pub owner: TypeId,
+    pub field: scoop_identity::PersistentFieldId,
 }
 
 /// A fully resolved field access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
-    /// Field `index` of one complete struct application.
-    StructField(AppliedStructFieldRef),
-    /// A field of a dependency struct, identified within its actual declaration.
-    ImportedStruct {
+    StructField {
         owner: TypeId,
         field: scoop_identity::PersistentFieldId,
     },
-    ImportedClass {
+    ClassField {
         owner: TypeId,
         field: scoop_identity::PersistentFieldId,
     },
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
-    /// Source field of one complete declaring-class application. Layout is a
-    /// downstream typed mapping and is never used as source identity.
-    ClassField {
-        application: ClassApplicationId,
-        field: ClassFieldId,
-    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

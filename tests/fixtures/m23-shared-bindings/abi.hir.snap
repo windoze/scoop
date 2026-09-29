@@ -32,7 +32,7 @@ Module
         Local $dependency.parameter.spare : Int
         Local $dependency.parameter.empty : Unit
     val local9
-      FieldAccess dependency field 3c1a9cd5be21b9689f294fdf4fa00cbe794142a093fd5ed2cc09c0ec1b832122 : (T0, Int)
+      FieldAccess field 0 : (T0, Int)
         Local $binding.subject.0 : Nested<T0>
     val local10
       FieldAccess _1 : T0

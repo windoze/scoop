@@ -244,13 +244,19 @@ fn lambda_parameters_share_recursive_irrefutable_named_lowering() {
                 return None;
             };
             let hir::ExprKind::FieldAccess {
-                field: hir::FieldRef::StructField(field),
+                field: hir::FieldRef::StructField { field, .. },
                 ..
             } = init.kind
             else {
                 return None;
             };
-            Some(field.local_index())
+            Some(
+                module
+                    .field_identities
+                    .struct_declaration(field)
+                    .unwrap()
+                    .local_index(),
+            )
         })
         .collect::<Vec<_>>();
     assert_eq!(projections, vec![0, 0]);

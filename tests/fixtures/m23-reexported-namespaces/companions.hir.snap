@@ -37,7 +37,7 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
       assign $result.0
-        FieldAccess dependency field 3fb53257b02eb3f6e12e66066f83b0b494106169b2d7d338f0928db06898e952 : Int
+        FieldAccess field 0 : Int
           Local leaf : CompanionLeaf
     else
       assign $result.0

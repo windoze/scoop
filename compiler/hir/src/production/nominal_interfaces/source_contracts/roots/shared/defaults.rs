@@ -86,15 +86,7 @@ impl SourceRoots {
         }
         for reference in &references.fields {
             let ty = match reference.target {
-                FieldRef::ImportedStruct { owner, .. } | FieldRef::ImportedClass { owner, .. } => {
-                    owner
-                }
-                FieldRef::StructField(field) => {
-                    export.struct_applications[field.application()].canonical_type
-                }
-                FieldRef::ClassField { application, .. } => {
-                    export.class_applications[application].canonical_type
-                }
+                FieldRef::StructField { owner, .. } | FieldRef::ClassField { owner, .. } => owner,
                 // Tuple fields have no source declaration. Their complete
                 // receiver and element types are in the typed reference set.
                 FieldRef::TupleIndex(_) => continue,

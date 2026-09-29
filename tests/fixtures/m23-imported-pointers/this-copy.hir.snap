@@ -51,7 +51,7 @@ Module
         Local $dependency.parameter.value : Pair
     val local19
       FieldAccess field 0 : Int
-        FieldAccess dependency field 388662b1d9c80a082ef378ac45872205e96f304222378d41cc5169356a4e6f0b : Pair
+        FieldAccess field 0 : Pair
           Local original : Slot<Pair>
     val local20
       IntegerLiteral 1 : Int
@@ -67,7 +67,7 @@ Module
     else
       val local22
         FieldAccess field 1 : Int
-          FieldAccess dependency field 388662b1d9c80a082ef378ac45872205e96f304222378d41cc5169356a4e6f0b : Pair
+          FieldAccess field 0 : Pair
             Local original : Slot<Pair>
       val local23
         IntegerLiteral 2 : Int

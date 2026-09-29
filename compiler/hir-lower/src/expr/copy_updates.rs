@@ -158,7 +158,8 @@ impl Lowerer {
                 updates.get(&field).cloned().unwrap_or(hir::Expr {
                     kind: ExprKind::FieldAccess {
                         receiver: Box::new(base.clone()),
-                        field: hir::FieldRef::StructField(field),
+                        field: self
+                            .struct_field_reference(field.application(), field.local_index()),
                     },
                     ty,
                     span,

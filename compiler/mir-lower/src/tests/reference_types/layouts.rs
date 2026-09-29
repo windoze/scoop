@@ -44,10 +44,7 @@ fn class_fields_are_base_prefix_then_own() {
                 expr(
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(local_ref(d, derived_ty)),
-                        field: hir::FieldRef::ClassField {
-                            application: derived_application,
-                            field: b_field,
-                        },
+                        field: h.class_field_ref(derived_application, b_field),
                     },
                     string,
                 ),

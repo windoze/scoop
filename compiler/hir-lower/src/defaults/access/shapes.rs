@@ -115,15 +115,10 @@ impl ReferenceCollector<'_> {
 
     pub(super) fn field_use(&mut self, field: hir::FieldRef, origin: hir::DefinitionOrigin) {
         let owner = match field {
-            hir::FieldRef::ImportedStruct { owner, .. }
-            | hir::FieldRef::ImportedClass { owner, .. } => Some(owner),
-            hir::FieldRef::StructField(field) => {
-                Some(self.lowerer.struct_applications[field.application()].canonical_type)
+            hir::FieldRef::StructField { owner, .. } | hir::FieldRef::ClassField { owner, .. } => {
+                Some(owner)
             }
             hir::FieldRef::TupleIndex(_) => None,
-            hir::FieldRef::ClassField { application, .. } => {
-                Some(self.lowerer.class_applications[application].canonical_type)
-            }
         };
         if let Some(owner) = owner {
             self.type_reference(owner, origin);

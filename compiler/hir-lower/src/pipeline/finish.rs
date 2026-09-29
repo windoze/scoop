@@ -4,7 +4,7 @@ impl Lowerer {
     /// Seals a successful frontend graph into persistent identities and the
     /// structurally complete Export HIR module.
     pub(super) fn finish(
-        self,
+        mut self,
         current_cone: scoop_identity::ConeIdentity,
         warnings: Vec<Diagnostic>,
         core_protocols: hir::CoreProtocols,
@@ -18,6 +18,7 @@ impl Lowerer {
                 hir::HirCoreTypeIdentityAuthority::Imported(protocols.fundamental_types())
             }
         };
+        let field_identity_builder = std::mem::take(&mut self.field_identity_builder);
         let public_surface = self.public_semantic_surface();
         let nominal_identities = self
             .nominal_identities
@@ -83,6 +84,7 @@ impl Lowerer {
             &self,
             nominal_identities,
             &property_identities,
+            field_identity_builder,
         ) {
             Ok(identities) => identities,
             Err(error) => {

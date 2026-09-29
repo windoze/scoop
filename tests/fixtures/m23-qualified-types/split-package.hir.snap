@@ -21,7 +21,7 @@ Module
       FieldAccess field 0 : Int
         Local own : Local
     val local8
-      FieldAccess dependency field 34dd8886871a4147b3e0ee9bad58950d2e083e24d64d6ff9945a0b85f67059ad : Int
+      FieldAccess field 0 : Int
         Local foreign : Point
     val local9
       Local $dependency.argument.0 : Int

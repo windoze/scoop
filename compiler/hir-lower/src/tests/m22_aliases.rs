@@ -398,13 +398,16 @@ fn alias_qualified_patterns_preserve_the_exact_generic_application() {
                     hir::Expr {
                         kind:
                             hir::ExprKind::FieldAccess {
-                                field: hir::FieldRef::StructField(field),
+                                field: hir::FieldRef::StructField { owner, .. },
                                 ..
                             },
                         ..
                     },
                 ..
-            } => Some(field.application()),
+            } => match module.types[*owner] {
+                hir::Type::Struct(application) => Some(application),
+                _ => panic!("a struct field has a struct application owner"),
+            },
             _ => None,
         })
         .expect("alias-qualified struct projection");

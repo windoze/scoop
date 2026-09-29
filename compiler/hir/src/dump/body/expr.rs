@@ -418,17 +418,13 @@ pub(super) fn dump_expr(
         }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
-                FieldRef::ImportedStruct { field, .. } | FieldRef::ImportedClass { field, .. } => {
-                    format!("dependency field {field}")
+                FieldRef::StructField { owner, field } => {
+                    format!("field {}", struct_field_index(module, *owner, *field))
                 }
-                FieldRef::StructField(field) => format!("field {}", field.local_index()),
+                FieldRef::ClassField { owner, field } => {
+                    format!("class field {}", class_field_name(module, *owner, *field))
+                }
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
-                FieldRef::ClassField { field, .. } => {
-                    format!(
-                        "class field {}",
-                        module.properties[module.class_fields[*field].property].name
-                    )
-                }
             };
             out.push_str(&format!("{pad}FieldAccess {field} : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
@@ -437,8 +433,9 @@ pub(super) fn dump_expr(
             "{pad}InitializingClassFieldAccess {} : {ty}\n",
             initializing_field_name(module, *field)
         )),
-        ExprKind::InitializingStructFieldAccess { index, .. } => out.push_str(&format!(
-            "{pad}InitializingStructFieldAccess {index} : {ty}\n"
+        ExprKind::InitializingStructFieldAccess { owner, field } => out.push_str(&format!(
+            "{pad}InitializingStructFieldAccess {} : {ty}\n",
+            struct_field_index(module, *owner, *field),
         )),
         ExprKind::Call { callee, args, .. } => {
             let (function, type_args) = callable_dump_parts(module, *callee);

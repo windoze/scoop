@@ -302,14 +302,15 @@ impl Concretizer<'_> {
                     field,
                 }
             }
-            export::ExprKind::InitializingStructFieldAccess { application, index } => {
-                let receiver_ty = self.lower_type(
-                    self.source.struct_applications[*application].canonical_type,
+            export::ExprKind::InitializingStructFieldAccess { owner, field } => {
+                let receiver_ty = self.lower_type(*owner, substitution);
+                let field = self.lower_field_ref(
+                    export::FieldRef::StructField {
+                        owner: *owner,
+                        field: *field,
+                    },
                     substitution,
                 );
-                let structure = self.lower_struct_application(*application, substitution);
-                let field = concrete::StructFieldRef::checked(&self.structs, structure, *index)
-                    .expect("an initializing struct field remains in range");
                 concrete::ExprKind::FieldAccess {
                     receiver: Box::new(concrete::Expr {
                         kind: concrete::ExprKind::ConstructorReceiver,
@@ -317,7 +318,7 @@ impl Concretizer<'_> {
                         span: source.span,
                         origin: source.origin.concrete(),
                     }),
-                    field: concrete::FieldRef::StructField(field),
+                    field,
                 }
             }
             export::ExprKind::MethodCall {

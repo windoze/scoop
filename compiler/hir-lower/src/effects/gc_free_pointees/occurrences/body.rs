@@ -81,7 +81,7 @@ pub(in super::super) fn collect_statement_type_occurrences(
                         push_types_at(
                             file,
                             statement.span,
-                            |types| collect_field_ref_types(lowerer, *field, types),
+                            |types| collect_field_ref_types(*field, types),
                             out,
                         );
                         collect_expr_type_occurrences(lowerer, receiver, out);
@@ -89,7 +89,7 @@ pub(in super::super) fn collect_statement_type_occurrences(
                     hir::AssignTarget::InitializingClassField { field, origin, .. } => {
                         let evaluation = origin.concrete().evaluation;
                         out.push(TypeOccurrence {
-                            ty: field.owner_type(&lowerer.class_applications),
+                            ty: field.owner,
                             file: evaluation.file as usize,
                             span: evaluation.span,
                         });
@@ -510,24 +510,16 @@ pub(in super::super) fn collect_expr_type_occurrences(
         ExprKind::FieldAccess { receiver, field } => {
             push_types_at_expression(
                 expression,
-                |types| collect_field_ref_types(lowerer, *field, types),
+                |types| collect_field_ref_types(*field, types),
                 out,
             );
             collect_expr_type_occurrences(lowerer, receiver, out);
         }
         ExprKind::InitializingClassFieldAccess { field, .. } => {
-            push_type_at_expression(
-                field.owner_type(&lowerer.class_applications),
-                expression,
-                out,
-            );
+            push_type_at_expression(field.owner, expression, out);
         }
-        ExprKind::InitializingStructFieldAccess { application, .. } => {
-            push_type_at_expression(
-                lowerer.struct_applications[*application].canonical_type,
-                expression,
-                out,
-            );
+        ExprKind::InitializingStructFieldAccess { owner, .. } => {
+            push_type_at_expression(*owner, expression, out);
         }
         ExprKind::MethodCall {
             receiver,

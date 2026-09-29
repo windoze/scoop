@@ -206,10 +206,10 @@ impl Lowerer {
                     field: self.instantiate_default_initializing_field(*field, context),
                 }
             }
-            hir::ExprKind::InitializingStructFieldAccess { application, index } => {
+            hir::ExprKind::InitializingStructFieldAccess { owner, field } => {
                 hir::ExprKind::InitializingStructFieldAccess {
-                    application: self.instantiate_default_struct_application(*application, context),
-                    index: *index,
+                    owner: self.instantiate_method_ty(*owner, &context.bindings),
+                    field: *field,
                 }
             }
             hir::ExprKind::MethodCall {

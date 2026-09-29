@@ -12,7 +12,7 @@ Module
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Int
     val local4
-      FieldAccess dependency field 51816ffa6a0b532d17039fee40b3fb1aea36df781dd22db90573a7ae2d127e05 : Int
+      FieldAccess field 1 : Int
         Local pair : Pair<Int>
     val local5
       Local $dependency.argument.0 : Int
@@ -23,7 +23,7 @@ Module
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Int
     val local8
-      FieldAccess dependency field 51816ffa6a0b532d17039fee40b3fb1aea36df781dd22db90573a7ae2d127e05 : Int
+      FieldAccess field 1 : Int
         Local fixed : Pair<Int>
     val local9
       Local $dependency.argument.0 : Int
@@ -47,7 +47,7 @@ Module
       ImportedGenericCall value<Int> : Int
         Local locked : Locked<Int>
     val local17
-      FieldAccess dependency field 39e1f842b6ed15bb9a2d852fb555b1a1cae099fc845ca7ea1c2612d8f337fb06 : Int
+      FieldAccess field 0 : Int
         Local pair : Pair<Int>
     val local18
       Local $dependency.argument.0 : Int

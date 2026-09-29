@@ -58,3 +58,10 @@
 - class／interface 上界统一保存完整类型和声明位置，删除 Local／Imported 上界变体及仅保存本地 application 的中间结构。kind 约束与 nominal 约束仍由互斥结构表达，class 上界仍最多一个。
 - 约束推断、bound 诊断、访问域、父类型、dump 与导出签名直接读取共同类型；声明顺序继续按原位置保留。成员收集和完整 application 校验中的旧声明存储适配仍随 nominal 迁移继续删除，没有增加 wire 格式或来源资格规则。
 - 全仓 fmt／clippy、2143 项 HIR／HIR lowering 单元测试，以及 9 项真实泛型产物回归通过；覆盖 class／interface bound、函数引用、基本值派发、迭代、本地与依赖声明组合和再次发布，快照更新开关关闭。日志 `/tmp/scoop-m23-6a-bound-records-unit.log`、`/tmp/scoop-m23-6a-bound-records-fixtures.log`。
+
+## 共同字段引用与初始化投影
+
+- struct／class 普通字段引用及初始化字段投影统一保存原字段 ID 和完整宿主类型，删除 Imported 字段变体及初始化字段的 Declared／Imported 分支。默认值只代换宿主类型，具体化按原字段 ID 映射到同一 concrete 布局；派生 struct 相等复用共同字段查询。
+- 字段身份在实际字段可用后按需建立，委托初始化仍在确定实际存储类型后建立字段。已建立的 property／field 身份由导出复用；最终表补齐未被正文引用的声明并保留完整索引。原 359 行字段身份模块拆为记录、构建和查询，分别约 195、171、96 行。
+- fmt／clippy、2840 项 HIR／前端／MIR lowering／slib 单元测试、51 项真实泛型产物回归均通过。核对 27 份快照，仅字段显示和派生相等的声明字段路径发生变化；错误位置与 MIR／LIR／wire 快照不变。关闭更新开关，使用保存的配套二进制复验覆盖全部变更快照的 11 项完整组合，全部通过。日志 `/tmp/scoop-m23-6a-field-refs-unit.log`、`/tmp/scoop-m23-6a-field-refs-fixtures.log`、`/tmp/scoop-m23-6a-field-refs-verify.log`。
+- 本批完成字段引用统一；底层 nominal 声明、调用与正文的其他来源分支仍按阶段设计继续迁移。

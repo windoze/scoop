@@ -55,15 +55,53 @@ impl Harness {
         application: hir::StructApplicationId,
         index: u32,
     ) -> hir::FieldRef {
-        hir::FieldRef::StructField(
-            hir::AppliedStructFieldRef::checked(
-                &self.structs,
-                &self.struct_applications,
-                application,
-                index,
+        let owner = &self.struct_applications[application];
+        let reference = hir::StructFieldRef::checked(&self.structs, owner.template, index)
+            .expect("test field belongs to its declaring struct");
+        let nominals = super::test_nominal_identities_without_objects(
+            &self.structs,
+            &self.enums,
+            &self.classes,
+            &self.interfaces,
+        );
+        let field = hir::HirFieldIdentityBuilder::default()
+            .struct_field(&self.structs, &nominals, reference)
+            .expect("test field has its declaration identity");
+        hir::FieldRef::StructField {
+            owner: owner.canonical_type,
+            field,
+        }
+    }
+
+    pub(in crate::tests) fn class_field_ref(
+        &self,
+        application: hir::ClassApplicationId,
+        field: hir::ClassFieldId,
+    ) -> hir::FieldRef {
+        let nominals = super::test_nominal_identities_without_objects(
+            &self.structs,
+            &self.enums,
+            &self.classes,
+            &self.interfaces,
+        );
+        let properties =
+            super::test_property_identities(&self.properties, &Arena::new(), &nominals);
+        let declaration = &self.class_fields[field];
+        let field = hir::HirFieldIdentityBuilder::default()
+            .class_field(
+                field,
+                declaration,
+                &Arena::new(),
+                &self.properties,
+                &Arena::new(),
+                &nominals,
+                &properties[declaration.property],
             )
-            .expect("test field index belongs to the applied declared struct"),
-        )
+            .expect("test field has its storage identity");
+        hir::FieldRef::ClassField {
+            owner: self.class_applications[application].canonical_type,
+            field,
+        }
     }
 
     pub(in crate::tests) fn enum_application_of(&self, ty: hir::TypeId) -> hir::EnumApplicationId {

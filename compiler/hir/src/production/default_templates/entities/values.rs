@@ -114,45 +114,16 @@ impl DefaultEntityProjector<'_> {
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultFieldRefV1, super::super::DefaultEntityProjectionError> {
         match field {
-            crate::FieldRef::ImportedClass { owner, field } => Ok(DefaultFieldRefV1::Class {
+            crate::FieldRef::ClassField { owner, field } => Ok(DefaultFieldRefV1::Class {
                 declaration: field,
                 owner_type: self.type_key(owner, binders)?,
             }),
-            crate::FieldRef::ImportedStruct { owner, field } => Ok(DefaultFieldRefV1::Struct {
+            crate::FieldRef::StructField { owner, field } => Ok(DefaultFieldRefV1::Struct {
                 declaration: field,
                 owner_type: self.type_key(owner, binders)?,
             }),
-            crate::FieldRef::StructField(field) => {
-                let application = arena_get(&self.export.struct_applications, field.application())
-                    .ok_or(super::super::DefaultEntityProjectionError::Unknown {
-                        kind: "struct application",
-                        index: super::super::raw_index(field.application()),
-                    })?;
-                Ok(DefaultFieldRefV1::Struct {
-                    declaration: self.export.field_identities[field].id(),
-                    owner_type: self.type_key(application.canonical_type, binders)?,
-                })
-            }
             crate::FieldRef::TupleIndex(declaration_index) => {
                 Ok(DefaultFieldRefV1::Tuple { declaration_index })
-            }
-            crate::FieldRef::ClassField { application, field } => {
-                let application = arena_get(&self.export.class_applications, application).ok_or(
-                    super::super::DefaultEntityProjectionError::Unknown {
-                        kind: "class application",
-                        index: super::super::raw_index(application),
-                    },
-                )?;
-                arena_get(&self.export.class_fields, field).ok_or(
-                    super::super::DefaultEntityProjectionError::Unknown {
-                        kind: "class field",
-                        index: super::super::raw_index(field),
-                    },
-                )?;
-                Ok(DefaultFieldRefV1::Class {
-                    declaration: self.export.field_identities[field].id(),
-                    owner_type: self.type_key(application.canonical_type, binders)?,
-                })
             }
         }
     }

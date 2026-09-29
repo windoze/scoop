@@ -19,10 +19,10 @@ Module
       ImportedConstructorInit Box : Box<Int>
         Local $dependency.parameter.value : Int
     val local7
-      FieldAccess dependency field 8a18255c7b5f2c4006535b65670eba582cc04ca623837563bd0328ddd386a12d : Int
+      FieldAccess field 0 : Int
         Local point : Point
     val local8
-      FieldAccess dependency field 72f85e2b262ec2a2a9b7044649dee30a1e35b1a95c2d5c3cb2e15c6fa4ddccf5 : Int
+      FieldAccess field 0 : Int
         Local box : Box<Int>
     val local9
       Local $dependency.argument.0 : Int
@@ -36,7 +36,7 @@ Module
       ImportedDependencyCall #1 : Nested
         Local $dependency.parameter.number : Int
     return
-      FieldAccess dependency field 191f4cd80c2d8ba2607fa6e66f6369946276620f4cbd1c74e0da180efca6d66b : Int
+      FieldAccess field 0 : Int
         Local nested : Nested
   fun check(): Int
     val local0

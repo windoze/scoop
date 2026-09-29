@@ -82,7 +82,7 @@ impl Lowerer {
                         hir::Expr {
                             kind: hir::ExprKind::FieldAccess {
                                 receiver: Box::new(this_ref.clone()),
-                                field: hir::FieldRef::ClassField { application, field },
+                                field: self.class_field_reference(application, field),
                             },
                             ty: storage_ty,
                             span: property.span,

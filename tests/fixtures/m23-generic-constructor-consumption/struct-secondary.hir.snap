@@ -43,7 +43,7 @@ Module
         Local $parameter.value : Int
     val local16
       FieldAccess class field value : Int
-        FieldAccess dependency field faaab799e919ee1474ca471739279fec6300bd48eebc802a9c77210ce4a431a5 : Payload
+        FieldAccess field 0 : Payload
           Local value : Observed<Payload>
     val local17
       ImportedDependencyCall #1 : Int
