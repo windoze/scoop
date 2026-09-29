@@ -1,8 +1,10 @@
 # Scoop 语言规范
 
+`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
+
 经直接依赖选中的名义类型，其 public 静态嵌套类型、object、companion 与可导入成员按实际 typed owner 继续查找，包括原声明 provider 仅作为 support 的情况。exact、star 和 public import 使用同一规则；support provider 的包仍不加入源码可见包集合。产物只保存实际终点公开绑定及其既有转导出引用，reader 不重复要求终点 provider 是 direct，也不补造外层命名空间的来源证明。共有 HIR 格式更新为 `hir/cross-cone-interface/39`，旧 `/38` 及更早产物与缓存重建；runtime ABI 与 GC 契约不变。
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/39`，旧 `/38` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/40`，旧 `/39` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 
@@ -1263,7 +1265,7 @@ M23-7 的实际泛型存储将该 section 升至 `/9`，把已具体化 applicat
 
 ### 11.8 迭代与区间
 
-迭代操作、解构、挂起性、GC effect 与循环跳转的语言规则由前端在解析实际声明及构造 typed plan 时检查。已经完成的计划在 concretization 中直接代换引用并展开，不要求对整个 HIR 重新执行名称、类型、默认值或局部数据流检查；正常产物消费仍检查编码和实际引用。
+迭代操作、解构、挂起性、GC effect 与循环跳转的语言规则由前端在解析实际声明时检查。`for` 随后展开为普通的 typed 调用、装箱／引用转换、Option 操作和 `while`；泛型具体化只代换这些既有节点，不重新执行名称、协议、默认值或局部数据流检查。当前 Cone 与依赖 core 产物按同一规则使用实际 `Iterator`、`next` 和 Option 角色，不以同名用户声明代替协议身份。正常产物消费仍检查编码和实际引用。
 
 `for` 循环、区间表达式的最小支撑：
 

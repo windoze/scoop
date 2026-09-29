@@ -1,8 +1,10 @@
 # Scoop Runtime 规范
 
+`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，格式更新为 `hir/cross-cone-interface/40`；旧 `/39` 及更早产物与缓存重建。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
+
 静态嵌套 import 与 re-export 保留原 provider 的 typed 实体及机器定义；support provider 的合法公开成员可通过已选 owner 消费，不重新发射其 Strong 定义。共有 HIR 格式随终点绑定引用规则更新为 `hir/cross-cone-interface/39`，旧 `/38` 及更早产物与缓存重建；本项不改变 runtime C ABI、对象布局、初始化或 GC 契约。
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/39`，旧 `/38` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/40`，旧 `/39` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 旧 identity-only 产物 profile、平行来源 reader 和发布/Link 凭证策略退役；三个完整生产 profile 升为 `/3`，descriptor 只保留实际必需 section 清单，旧产物与缓存重建。此调整不改变 runtime C ABI、String 表示、初始化或 GC 语义；类型、对象范围和实际引用检查仍在对应消费边界完成。具体格式见实现规范 2.6 与 M23-2 设计 8.3。
 
@@ -100,7 +102,7 @@ String 的外部 TypeDescriptor 与 type-registration relocation 使用普通 pr
 
 ## 1. 概述与范围
 
-source `for` 与解构计划在 HIR 阶段完成语义检查和展开；runtime 只消费已有调用、异常、对象及 GC 数据。删除 concretizer 入口的重复整模块迭代验证不改变运行时 C ABI、String 表示、扫描记录或 GC 契约，也不增加运行时验证入口。
+source `for` 与解构计划在 HIR lowering 完成语义检查并在 Export HIR 前展开；本地与外来迭代器复用普通调用、装箱／引用转换、Option 操作和循环。泛型值迭代器使用实际物化后的 BoxedValue 布局，引用迭代器保持已有引用表示；runtime 只消费已有调用、异常、对象及 GC 数据，C ABI、String 表示、扫描记录和 GC 契约不变。
 
 Runtime 是编译产物的支撑层，职责包括：
 
