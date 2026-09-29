@@ -77,7 +77,7 @@ pub enum ImportedCallableTemplateOrigin {
         owner: crate::SourceNominalId,
         owner_parameter_count: usize,
         modifier: crate::MethodModifier,
-        dispatch: ImportedMethodDispatch,
+        dispatch: crate::DeclaredMethodDispatch,
     },
     Local {
         parent: scoop_identity::CallableTemplateOwner,
@@ -89,14 +89,6 @@ pub enum ImportedCallableTemplateOrigin {
         body: scoop_identity::PersistentGeneratedCallableId,
         capture_bindings: Vec<crate::BindingId>,
     },
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ImportedMethodDispatch {
-    Direct,
-    Virtual(crate::VirtualMethodId),
-    FinalOverride(crate::VirtualMethodId),
-    Interface(scoop_identity::PersistentDispatchSlotId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

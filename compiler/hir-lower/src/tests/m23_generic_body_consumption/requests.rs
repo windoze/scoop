@@ -78,3 +78,33 @@ fn method_arguments_and_lexical_binders_remain_distinct_in_common_requests() {
     )
     .unwrap();
 }
+
+#[test]
+fn nested_local_parameters_keep_their_original_capture_bindings() {
+    with_provider_consumer(
+        &fixture("provider"),
+        &fixture("captured-parameters"),
+        |output, _, _, _, _| {
+            let local = output.output().local.module();
+            let inner = local
+                .functions
+                .iter()
+                .filter(|(_, function)| function.name.rsplit('.').next() == Some("inner"))
+                .map(|(_, function)| function)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                inner.len(),
+                2,
+                "source and dependency retain their own local body"
+            );
+            for function in inner {
+                assert_eq!(
+                    function.capture_parameters.len(),
+                    4,
+                    "the reader, value and both enclosing locals remain captured"
+                );
+            }
+        },
+    )
+    .unwrap();
+}

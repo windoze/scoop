@@ -1,0 +1,328 @@
+Module
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn5 captures=0
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn7 captures=0
+  generated_exact_type get0 location=closure2 nominal_id=9de710d488a325408cb2cc21e4a21e9878ff081a159b2b57d33a4507537bf59e exact_id=0a78ce90ddc5e2ce1e37fa17bc980ffa472426f3aef1c36374c5761b470442f0
+  generated_exact_type get1 location=closure0 nominal_id=c10fc3f5cd4f9d062ecc7509961e08a48ee013eba090f80b2ab43d1b7bfe075a exact_id=43aed1071bc284d11fa94b141547733a2f0530e9b655c216e85a9b697ccd52e5
+  generated_exact_type get2 location=closure1 nominal_id=06507cbb371a39526313c2a8ec885a9eef1a2099eb73535371fad705c2205ccf exact_id=a2ee2996630467979f2db4a39ff13baf5a68c1b805b8a0e5aa35f6599db4db6c
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.1 @fn1($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn2(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local seed
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call local: Int = @fn3 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call dependency: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.receiver: Int
+        Type Int
+        Local local
+      val $dependency.argument.0: Int
+        Type Int
+        Local dependency
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.0
+        Type Int
+        Local dependency
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.0
+  fun localCaptured @fn3(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val amount: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.extra: Int
+        Type Int
+        Local $argument.0
+      val $parameter.use: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn6 direct
+        Type Int
+        Local value
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local amount
+        Type Int
+        Local $parameter.extra
+        Type (Int) -> Int
+        Local $parameter.use
+      return
+        Type Int
+        Local $call.1
+  fun captured @fn4(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.4: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.4
+      call $call.1: Int = @fn8 direct
+        Type Int
+        Local value
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.5
+        Type (Int) -> Int
+        Local $dependency.local.6
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn5($closure: (Int) -> Int, number: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local number
+  fun $local.2.apply @fn6($capture.value: Int, $capture.read: (Int) -> Int, $capture.amount: Int, extra: Int, use: (Int) -> Int) -> Int
+    bb0 entry
+      call $argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local use
+        Type Int
+        Local extra
+      val $parameter.delta: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn9 direct
+        Type (Int) -> Int
+        Local $capture.read
+        Type Int
+        Local $capture.value
+        Type Int
+        Local $capture.amount
+        Type Int
+        Local $parameter.delta
+      return
+        Type Int
+        Local $call.1
+  fun $lambda @fn7($argument.0: (Int) -> Int, $argument.1: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $argument.1
+  fun apply @fn8($capture.0: Int, $capture.1: (Int) -> Int, $capture.2: Int, $argument.0: Int, $argument.1: (Int) -> Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $argument.1
+        Type Int
+        Local $argument.0
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call $call.1: Int = @fn10 direct
+        Type (Int) -> Int
+        Local $capture.1
+        Type Int
+        Local $capture.0
+        Type Int
+        Local $capture.2
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        Local $call.1
+  fun $local.0.step @fn9($capture.read: (Int) -> Int, $capture.value: Int, $capture.amount: Int, delta: Int) -> Int
+    bb0 entry
+      val added: Int
+        Type Int
+        Local delta
+      call $call.1: Int = @fn11 direct
+        Type (Int) -> Int
+        Local $capture.read
+        Type Int
+        Local $capture.value
+        Type Int
+        Local $capture.amount
+        Type Int
+        Local added
+      return
+        Type Int
+        Local $call.1
+  fun step @fn10($capture.0: (Int) -> Int, $capture.1: Int, $capture.2: Int, $argument.0: Int) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn12 direct
+        Type (Int) -> Int
+        Local $capture.0
+        Type Int
+        Local $capture.1
+        Type Int
+        Local $capture.2
+        Type Int
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun $local.1.inner @fn11($capture.read: (Int) -> Int, $capture.value: Int, $capture.amount: Int, $capture.added: Int) -> Int
+    bb0 entry
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $capture.read
+        Type Int
+        Local $capture.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local $capture.amount
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local $capture.added
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun inner @fn12($capture.0: (Int) -> Int, $capture.1: Int, $capture.2: Int, $capture.3: Int) -> Int
+    bb0 entry
+      call $dependency.local.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $capture.0
+        Type Int
+        Local $capture.1
+      val $dependency.local.1: Int
+        Type Int
+        Local $capture.2
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.0
+          Type Int
+          Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        Local $capture.3
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- localCaptured
+  instance mi2 function=@fn4 <- captured
+  instance mi3 function=@fn5 <- $lambda.0
+  instance mi4 function=@fn6 <- $local.2.apply
+  instance mi5 function=@fn7 <- $lambda
+  instance mi6 function=@fn8 <- apply
+  instance mi7 function=@fn9 <- $local.0.step
+  instance mi8 function=@fn10 <- step
+  instance mi9 function=@fn11 <- $local.1.inner
+  instance mi10 function=@fn12 <- inner
+  output library

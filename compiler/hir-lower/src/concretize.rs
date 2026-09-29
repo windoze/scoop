@@ -21,7 +21,6 @@ mod constructor_slots;
 mod constructor_work;
 mod functions;
 mod imported_constructors;
-mod imported_functions;
 mod imported_methods;
 mod imported_nominals;
 mod initialization;

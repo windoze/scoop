@@ -1,6 +1,9 @@
 use super::*;
 
 mod captures;
+mod definition;
+
+use definition::{DefinitionReceiver, FunctionImplementation};
 
 pub(super) struct PendingFunction {
     pub(super) name: String,
@@ -55,101 +58,112 @@ impl Concretizer<'_> {
     }
 
     pub(super) fn lower_function(&mut self, key: &FunctionKey) -> PendingFunction {
-        let source_id = match self.function_source(key) {
-            FunctionSource::Local(source) => source,
-            FunctionSource::Imported(source) => {
-                return self.lower_imported_function(source, &self.function_key_arguments(key));
-            }
-        };
-        let source = self.source.functions[source_id].clone();
+        let definition = self.resolved_function_definition(key);
         let arguments = self.function_key_arguments(key);
-        let (kind, local_map) = match &source.kind {
-            export::FunctionKind::User(body) => {
-                let (body, local_map) = self.lower_body(body, &arguments);
-                (concrete::FunctionKind::User(body), local_map)
+        let (kind, local_map) = match definition.implementation {
+            FunctionImplementation::Body(body) => {
+                let (body, locals) = self.lower_body(body, &arguments);
+                (concrete::FunctionKind::User(body), Some(locals))
             }
-            export::FunctionKind::DerivedEquality => {
-                let (body, local_map) = self.derived_bodies.get(key).cloned().expect(
+            FunctionImplementation::DerivedEquality => {
+                let (body, locals) = self.derived_bodies.get(key).cloned().expect(
                     "a typed derived application supplies its concrete body before emission",
                 );
-                (concrete::FunctionKind::User(body), local_map)
+                (concrete::FunctionKind::User(body), Some(locals))
             }
-            export::FunctionKind::Intrinsic(intrinsic) => {
-                (concrete::FunctionKind::Intrinsic(*intrinsic), Vec::new())
+            FunctionImplementation::Intrinsic(intrinsic) => {
+                (concrete::FunctionKind::Intrinsic(intrinsic), None)
             }
-            export::FunctionKind::Extern(id) => (
-                concrete::FunctionKind::Extern(self.extern_map[id]),
-                Vec::new(),
+            FunctionImplementation::Extern(external) => (
+                concrete::FunctionKind::Extern(self.extern_map[&external]),
+                None,
+            ),
+            FunctionImplementation::InitializationEnsure => (
+                concrete::FunctionKind::User(concrete::Body {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                }),
+                Some(Vec::new()),
             ),
         };
-        let params: Vec<concrete::Param> = source
-            .params
+        let params: Vec<concrete::Param> = definition
+            .parameters
             .iter()
-            .map(|param| concrete::Param {
-                name: param.name.clone(),
-                ty: self.lower_type(param.ty, &arguments),
-                local: local_map
-                    .get(param.local.into_raw().into_u32() as usize)
-                    .copied()
-                    .unwrap_or_else(|| remap_idx(param.local)),
+            .map(|parameter| concrete::Param {
+                name: parameter.name.clone(),
+                ty: self.lower_type(parameter.ty, &arguments),
+                local: match &local_map {
+                    Some(locals) => locals[parameter.local.into_raw().into_u32() as usize],
+                    None => remap_idx(parameter.local),
+                },
             })
             .collect();
-        let return_ty = self.lower_type(source.return_ty, &arguments);
-        let method = source.method.map(|method| concrete::Method {
-            owner: self.lower_type(method.owner, &arguments),
-            modifier: method.modifier,
-            dispatch: self.lower_method_dispatch(method.dispatch, key),
-        });
-        let receiver = match method {
-            Some(method) => concrete::FunctionReceiver::Method(method),
-            None if self.source_function_has_extension_receiver(source_id) => {
-                let receiver = params
-                    .first()
-                    .expect("a source extension has one physical receiver parameter")
-                    .ty;
-                concrete::FunctionReceiver::Extension(receiver)
-            }
-            None => concrete::FunctionReceiver::None,
-        };
-        let capture_parameters = self.local_capture_parameters(source_id, &params);
+        let return_ty = self.lower_type(definition.return_type, &arguments);
+        let receiver = self.lower_definition_receiver(definition.receiver, &arguments);
+        let capture_parameters = definition
+            .capture_bindings
+            .iter()
+            .enumerate()
+            .map(|(index, binding)| concrete::LocalCaptureParameter {
+                binding: concrete::BindingId::from_raw(binding.into_raw()),
+                local: params[index].local,
+            })
+            .collect();
         PendingFunction {
-            name: source.name,
-            is_suspend: source.is_suspend,
-            modifiers: source.modifiers,
+            name: definition.name.to_owned(),
+            is_suspend: definition.is_suspend,
+            modifiers: definition.modifiers,
             params,
             capture_parameters,
             return_ty,
-            attributes: source.attributes,
+            attributes: definition.attributes,
             kind,
             receiver,
-            span: source.span,
+            span: definition.span,
         }
     }
 
-    fn source_function_has_extension_receiver(&self, source: export::FunctionId) -> bool {
-        match &self.source.function_identities[source] {
-            export::HirFunctionIdentity::Source(identity) => identity
-                .declaration()
-                .duplicate_signature()
-                .receiver_is_present(),
-            export::HirFunctionIdentity::PropertyAccessor(accessor) => {
-                let property = match accessor {
-                    export::HirPropertyAccessorFunction::Getter(getter) => {
-                        self.source.property_accessor_identities.get_getter(*getter)
-                    }
-                    export::HirPropertyAccessorFunction::Setter(setter) => {
-                        self.source.property_accessor_identities.get_setter(*setter)
-                    }
-                }
-                .expect("a concrete property accessor has one persistent identity")
-                .property();
-                self.source.property_identities[property]
-                    .extension_id()
-                    .is_some()
+    fn lower_definition_receiver(
+        &mut self,
+        receiver: DefinitionReceiver,
+        arguments: &[concrete::TypeId],
+    ) -> concrete::FunctionReceiver {
+        match receiver {
+            DefinitionReceiver::None => concrete::FunctionReceiver::None,
+            DefinitionReceiver::Extension(receiver) => {
+                concrete::FunctionReceiver::Extension(self.lower_type(receiver, arguments))
             }
-            export::HirFunctionIdentity::LexicalGenerated(_)
-            | export::HirFunctionIdentity::Initialization { .. }
-            | export::HirFunctionIdentity::DerivedEquality(_) => false,
+            DefinitionReceiver::Method {
+                owner,
+                modifier,
+                dispatch,
+            } => {
+                let owner = self.lower_type(owner, arguments);
+                let dispatch = match dispatch {
+                    export::DeclaredMethodDispatch::Direct => concrete::MethodDispatch::Direct,
+                    export::DeclaredMethodDispatch::Virtual(family) => {
+                        concrete::MethodDispatch::Virtual(self.lower_virtual_method(family))
+                    }
+                    export::DeclaredMethodDispatch::FinalOverride(family) => {
+                        concrete::MethodDispatch::FinalOverride(self.lower_virtual_method(family))
+                    }
+                    export::DeclaredMethodDispatch::Interface(slot) => {
+                        let concrete::TypeKind::Interface(interface) = self.types[owner].kind
+                        else {
+                            unreachable!("interface method dispatch retains its exact owner");
+                        };
+                        concrete::MethodDispatch::Interface {
+                            interface,
+                            slot: self.interface_slot_by_source[&(interface, slot)],
+                        }
+                    }
+                };
+                concrete::FunctionReceiver::Method(concrete::Method {
+                    owner,
+                    modifier,
+                    dispatch,
+                })
+            }
         }
     }
 }

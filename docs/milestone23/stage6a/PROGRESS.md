@@ -164,3 +164,11 @@
 - 共 1309 项 HIR lowering 单元测试通过。接口候选查询与原槽选择查询分别保持在 250 行内及 73 行；没有增加 wire 字段、物化根或重复的 override 验证。
 - 全仓 fmt／clippy 与 21 项相关真实产物回归均已覆盖通过。更新两组既有测试中的七份旧快照：共同字段编号、enum 构造节点及默认局部值名称；两个完整测试组关闭更新开关复验通过。日志前缀 `/tmp/scoop-m23-6a-ranges-`，最终结果见 `unit-verified.log`、`final-artifacts.log` 加 `conformance-verify.log`／`values-verify.log`。
 - 无进行中的 cargo／rustc 时清理约 1.19 GiB 的旧增量缓存，继续复用 `target/m23-6a`。本批完成既定接口选择的候选复用，声明／类型及正文的剩余来源表示继续迁移。
+
+## 共同函数正文具体化
+
+- 原定义请求在声明查询边界取得完整签名、实现类别、接收者和捕获绑定，之后共用正文、参数、结果、捕获及方法派发降低。源正文直接借用已完成的记录，删除逐实例复制整个源码／依赖正文的处理，以及 145 行的依赖专用函数降低文件；实际 application 请求继续进入同一原定义固定点。
+- 声明派发共用原虚方法 family／接口 slot 表示，源接口成员在查询边界取得原 slot，实际槽号从完整接口 application 的已有映射获取。含正文的参数必须从局部值映射取得编号，取消缺失时回退原 arena 编号；显式 intrinsic／extern 仍沿无正文签名处理，初始化协调函数保持所属单元的 MIR 生成契约。
+- 扩展 `m23-shared-requests/captured-parameters`，对照源码／依赖中的多层局部函数、泛型局部调用和四项捕获；实际发布、移走源码、再次发布及引用／Int／Unit 的普通／移动 GC 运行全部通过。新 HIR／MIR／LIR 快照关闭更新开关复验通过，既有快照无需修改。
+- 全仓 fmt／clippy、1310 项 HIR lowering 单元测试和 8 项相关真实产物回归均已覆盖通过，包含方法／接口 bound、构造、委托初始化局部函数、派生相等、函数引用和默认正文。函数替换、声明读取、请求队列分别为 169、174、219 行。日志前缀 `/tmp/scoop-m23-6a-function-definitions-`，结果见 `unit.log` 加 `captures-verified.log`、`artifacts.log` 和 `artifacts-verify.log`。
+- 本批统一实际替换算法；当前／读入声明的存储定位仍有机械适配，正式语义图中的 nominal、候选及正文存储来源表示继续按阶段设计迁移。wire payload 和 runtime ABI 未改变。

@@ -1,11 +1,10 @@
 use super::*;
 
 impl Concretizer<'_> {
-    pub(super) fn local_capture_parameters(
+    pub(super) fn local_capture_bindings(
         &self,
         function: export::FunctionId,
-        params: &[concrete::Param],
-    ) -> Vec<concrete::LocalCaptureParameter> {
+    ) -> Vec<export::BindingId> {
         let mut declarations = self
             .source
             .local_functions
@@ -30,15 +29,5 @@ impl Concretizer<'_> {
             );
         }
         bindings
-            .into_iter()
-            .enumerate()
-            .map(|(index, binding)| {
-                let parameter = &params[index];
-                concrete::LocalCaptureParameter {
-                    binding: concrete::BindingId::from_raw(binding.into_raw()),
-                    local: parameter.local,
-                }
-            })
-            .collect()
     }
 }

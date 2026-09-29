@@ -176,4 +176,44 @@ impl Concretizer<'_> {
             },
         }
     }
+
+    pub(super) fn lower_imported_callable_application(
+        &mut self,
+        application: &export::ImportedGenericCallableApplication,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::FunctionId {
+        let (owner, arguments) = match &application.arguments {
+            export::ImportedCallableArguments::Function(arguments) => (
+                None,
+                arguments
+                    .iter()
+                    .map(|ty| self.lower_type(*ty, substitution))
+                    .collect(),
+            ),
+            export::ImportedCallableArguments::Method {
+                owner,
+                method_arguments,
+            } => {
+                let ty = self.lower_type(*owner, substitution);
+                let owner = match self.types[ty].kind {
+                    concrete::TypeKind::Class(id) => concrete::MethodOwner::Class(id),
+                    concrete::TypeKind::Struct(id) => concrete::MethodOwner::Struct(id),
+                    concrete::TypeKind::Enum(id) => concrete::MethodOwner::Enum(id),
+                    concrete::TypeKind::Interface(id) => concrete::MethodOwner::Interface(id),
+                    concrete::TypeKind::Ptr(_) => concrete::MethodOwner::TypeOwned(ty),
+                    _ => unreachable!("a method has a nominal owner"),
+                };
+                let mut arguments = self.concrete_method_owner_arguments(owner).to_vec();
+                arguments.extend(
+                    method_arguments
+                        .iter()
+                        .map(|ty| self.lower_type(*ty, substitution)),
+                );
+                (Some(owner), arguments)
+            }
+        };
+        let source = FunctionSource::Imported(application.template);
+        let key = self.function_key(source, owner, arguments);
+        self.request_function_key(key, source)
+    }
 }

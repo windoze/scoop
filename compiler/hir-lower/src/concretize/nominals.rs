@@ -393,28 +393,4 @@ impl Concretizer<'_> {
             .entry(source)
             .or_insert_with(|| concrete::VirtualMethodId::from_raw(next))
     }
-
-    pub(super) fn lower_method_dispatch(
-        &mut self,
-        dispatch: export::MethodDispatch,
-        key: &FunctionKey,
-    ) -> concrete::MethodDispatch {
-        match dispatch {
-            export::MethodDispatch::Direct => concrete::MethodDispatch::Direct,
-            export::MethodDispatch::Virtual(source) => {
-                concrete::MethodDispatch::Virtual(self.lower_virtual_method(source))
-            }
-            export::MethodDispatch::FinalOverride(source) => {
-                concrete::MethodDispatch::FinalOverride(self.lower_virtual_method(source))
-            }
-            export::MethodDispatch::Interface(member) => {
-                let Some(concrete::MethodOwner::Interface(interface)) = key.owner else {
-                    unreachable!("interface dispatch belongs to a concrete interface method")
-                };
-                let source_slot = self.source.dispatch_slot_identities[member].id();
-                let slot = self.interface_slot_by_source[&(interface, source_slot)];
-                concrete::MethodDispatch::Interface { interface, slot }
-            }
-        }
-    }
 }
