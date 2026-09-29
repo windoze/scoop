@@ -2,7 +2,7 @@
 
 use scoop_hir as hir;
 
-use super::arguments::{CandidateArgumentMap, SourceInputKind};
+use super::arguments::CandidateArgumentMap;
 use super::candidates::{
     CallableView, NominalConstructorSource, NominalConstructorView, ReceiverShape,
 };
@@ -16,12 +16,9 @@ use crate::{Lowerer, Type};
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CallableApplicabilityInput<'a> {
     pub(crate) view: &'a CallableView,
-    pub(crate) argument_map: &'a CandidateArgumentMap,
     pub(crate) owner_arguments: &'a [hir::TypeId],
     pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
     pub(crate) receiver_type: Option<hir::TypeId>,
-    pub(crate) argument_types: &'a [Option<hir::TypeId>],
-    pub(crate) expected_result: Option<hir::TypeId>,
 }
 
 #[derive(Debug, Clone)]
@@ -185,52 +182,21 @@ impl Lowerer {
             .collect())
     }
 
-    pub(crate) fn solve_callable_applicability(
-        &mut self,
-        input: CallableApplicabilityInput<'_>,
-    ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
-        let (session, environment) = self.callable_applicability_session(input);
-        let solution = self.solve_constraints(&session)?;
-        let arguments = solution.arguments_for(&session, environment);
-        Ok(arguments
-            .owner
-            .into_iter()
-            .chain(arguments.callable)
-            .collect())
-    }
-
-    pub(crate) fn partially_solve_callable_applicability(
-        &mut self,
-        input: CallableApplicabilityInput<'_>,
-    ) -> Result<Vec<Option<hir::TypeId>>, ConstraintFailure> {
-        let (session, environment) = self.callable_applicability_session(input);
-        let arguments = self.solve_constraints_partially(&session, environment)?;
-        Ok(arguments
-            .owner
-            .into_iter()
-            .chain(arguments.callable)
-            .collect())
-    }
-
-    fn callable_applicability_session(
+    pub(crate) fn callable_applicability_session(
         &self,
         input: CallableApplicabilityInput<'_>,
     ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
         let CallableApplicabilityInput {
             view,
-            argument_map,
             owner_arguments,
             explicit_arguments,
             receiver_type,
-            argument_types,
-            expected_result,
         } = input;
         debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
         debug_assert!(
             explicit_arguments.is_empty()
                 || view.callable_parameters.len() == explicit_arguments.len()
         );
-        debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
 
         let mut session = InferenceSession::new();
         let environment =
@@ -277,48 +243,6 @@ impl Lowerer {
             debug_assert!(receiver_type.is_none());
         }
 
-        for input in &argument_map.source_order {
-            let source_index = input.index();
-            let Some(actual) = argument_types[source_index] else {
-                continue;
-            };
-            let (parameter, kind) = argument_map.source_binding(*input);
-            let parameter = &view.value_parameters[parameter.index()];
-            let expected = match (&parameter.calling, kind) {
-                (
-                    crate::defaults::SourceParameterCalling::Vararg {
-                        element_type: element_ty,
-                        ..
-                    },
-                    SourceInputKind::VarargElement,
-                ) => *element_ty,
-                (
-                    crate::defaults::SourceParameterCalling::Vararg { .. },
-                    SourceInputKind::VarargArray,
-                )
-                | (
-                    crate::defaults::SourceParameterCalling::Required
-                    | crate::defaults::SourceParameterCalling::Default(_),
-                    SourceInputKind::Value,
-                ) => parameter.ty,
-                _ => unreachable!("argument mapping fixes each input shape"),
-            };
-            let constraint = match kind {
-                SourceInputKind::Value | SourceInputKind::VarargElement => {
-                    Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-                SourceInputKind::VarargArray => {
-                    Constraint::Equal(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-            };
-            session.push(constraint, ConstraintOrigin::Argument(*input));
-        }
-        if let Some(expected) = expected_result {
-            session.push(
-                Constraint::Subtype(TypeTerm::Type(view.return_type), TypeTerm::Rigid(expected)),
-                ConstraintOrigin::ExpectedResult,
-            );
-        }
         (session, environment)
     }
 
@@ -326,6 +250,15 @@ impl Lowerer {
         &mut self,
         input: NominalApplicabilityInput<'_>,
     ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
+        let (session, environment) = self.nominal_applicability_session(input);
+        let solution = self.solve_constraints(&session)?;
+        Ok(solution.arguments_for(&session, environment).owner)
+    }
+
+    pub(crate) fn nominal_applicability_session(
+        &self,
+        input: NominalApplicabilityInput<'_>,
+    ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
         let NominalApplicabilityInput {
             view,
             argument_map,
@@ -369,41 +302,15 @@ impl Lowerer {
         }
 
         self.add_declaration_bounds(&mut session, view.owner_parameters.iter());
-        for input in &argument_map.source_order {
-            let source_index = input.index();
-            let Some(actual) = argument_types[source_index] else {
-                continue;
-            };
-            let (parameter, kind) = argument_map.source_binding(*input);
-            let parameter = &view.value_parameters[parameter.index()];
-            let expected = match (&parameter.calling, kind) {
-                (
-                    crate::defaults::SourceParameterCalling::Vararg {
-                        element_type: element_ty,
-                        ..
-                    },
-                    SourceInputKind::VarargElement,
-                ) => *element_ty,
-                (
-                    crate::defaults::SourceParameterCalling::Vararg { .. },
-                    SourceInputKind::VarargArray,
-                )
-                | (
-                    crate::defaults::SourceParameterCalling::Required
-                    | crate::defaults::SourceParameterCalling::Default(_),
-                    SourceInputKind::Value,
-                ) => parameter.ty,
-                _ => unreachable!("argument mapping fixes each input shape"),
-            };
-            let constraint = match kind {
-                SourceInputKind::Value | SourceInputKind::VarargElement => {
-                    Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-                SourceInputKind::VarargArray => {
-                    Constraint::Equal(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-            };
-            session.push(constraint, ConstraintOrigin::Argument(*input));
+        for (index, (pattern, actual)) in argument_map
+            .inference_patterns(&view.value_parameters)
+            .into_iter()
+            .zip(argument_types)
+            .enumerate()
+        {
+            if let Some(actual) = actual {
+                pattern.constrain(&mut session, index, *actual);
+            }
         }
 
         let application_arguments = owner_variables
@@ -435,8 +342,7 @@ impl Lowerer {
             ConstraintOrigin::Declaration,
         );
 
-        let solution = self.solve_constraints(&session)?;
-        Ok(solution.arguments_for(&session, environment).owner)
+        (session, environment)
     }
 
     pub(crate) fn add_declaration_bounds<'a>(

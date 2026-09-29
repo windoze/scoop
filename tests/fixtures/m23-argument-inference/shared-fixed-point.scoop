@@ -1,0 +1,50 @@
+package consumer.inference
+
+import dependency.inference.*
+
+private struct LocalPair<T>(val values: Array<T>, val seed: T)
+private enum LocalChoice<T> { Data(val values: Array<T>, val seed: T) }
+private class LocalHost<A> public constructor(public val value: A) {
+    public fun <T> transform(action: (T) -> A, seed: T): A = action(seed)
+}
+
+private fun <T> localIdentity(value: T): T = value
+private fun <T> localEmpty(): Array<T> = []
+private fun <T> localArrayOrSeed(values: Array<T>, seed: T): T = if (values.size == 0L) { seed } else { values[0L] }
+private fun <T> localReference(action: (T) -> T, seed: T): T = action(seed)
+private fun readInt(value: Int): Int = value
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val local = localArrayOrSeed(localEmpty(), seed)
+    val external = arrayOrSeed(empty(), seed)
+    val left = localReference(::identity, local)
+    val right = viaReference(::localIdentity, external)
+    val pair = LocalPair(values = [], seed = left)
+    val importedPair = Pair(seed = right, values = [])
+    val localHost = LocalHost(left)
+    val importedHost = Host(right)
+    val selected = localHost.transform({ value -> localIdentity(value) }, seed)
+    val importedSelected = importedHost.transform({ value -> identity(value) }, seed)
+    if (read(pair.seed) != 42 || read(importedPair.seed) != 42) { return 1 }
+    if (read(selected) != 42 || read(importedSelected) != 42) { return 2 }
+    if (pair.values.size != 0L || importedPair.values.size != 0L) { return 3 }
+    return read(localReference(::identity, viaReference(::localIdentity, seed)))
+}
+
+public fun result(): Int {
+    val pair = LocalPair([], fun(value: Int): Int { return value })
+    val reverse = LocalPair(seed = fun(value: Int): Int { return value }, values = [])
+    val importedPair = Pair([], fun(value: Int): Int { return value })
+    val choice = LocalChoice.Data([], fun(value: Int): Int { return value })
+    val importedChoice = Choice.Data([], fun(value: Int): Int { return value })
+    val local = localArrayOrSeed([], fun(value: Int): Int { return value })
+    val external = arrayOrSeed([], fun(value: Int): Int { return value })
+    val fromChoice = when (choice) { Data(values, seed) -> seed(42) }
+    val fromImported = when (importedChoice) {
+        Data(values, seed) -> seed(42)
+        Empty -> 0
+    }
+    if (pair.seed(42) != 42 || reverse.seed(42) != 42 || importedPair.seed(42) != 42) { return 4 }
+    if (fromChoice != 42 || fromImported != 42 || local(42) != 42 || external(42) != 42) { return 5 }
+    return exercise<Int>(42, ::readInt)
+}

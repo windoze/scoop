@@ -154,7 +154,8 @@ impl Lowerer {
             .zip(parameter_names)
         {
             let value = match input {
-                ImportedParameterInput::Explicit(source) => {
+                ImportedParameterInput::Explicit(source)
+                | ImportedParameterInput::WholeArray(source) => {
                     self.adapt_to(source_args[*source].clone(), parameter)
                 }
                 ImportedParameterInput::Default(template) => {

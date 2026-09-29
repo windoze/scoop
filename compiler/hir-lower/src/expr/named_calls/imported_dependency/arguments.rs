@@ -19,6 +19,7 @@ pub(in crate::expr) struct ImportedArgumentMap {
 #[derive(Clone, Debug)]
 pub(super) enum ImportedParameterInput {
     Explicit(usize),
+    WholeArray(usize),
     Default(hir::ExportDefaultTemplateKeyV1),
     Vararg(Vec<VarargPart>),
 }
@@ -159,7 +160,7 @@ impl ImportedArgumentMap {
                         }
                         hir::CallableParameterCallingV1::VarargEmpty { .. }
                         | hir::CallableParameterCallingV1::VarargDefault { .. } => {
-                            mapped[index] = Some(ImportedParameterInput::Explicit(source_index));
+                            mapped[index] = Some(ImportedParameterInput::WholeArray(source_index));
                             source_parameters[source_index] = Some(parameter.value_type().clone());
                             named_only = true;
                         }
@@ -257,6 +258,16 @@ impl ImportedArgumentMap {
 
     pub(super) fn source_parameters(&self) -> &[SignatureTypeKey] {
         &self.source_parameters
+    }
+
+    pub(super) fn is_array_input(&self, source: usize) -> bool {
+        self.parameters.iter().any(|parameter| match parameter {
+            ImportedParameterInput::WholeArray(input) => *input == source,
+            ImportedParameterInput::Vararg(parts) => parts
+                .iter()
+                .any(|part| part.input.index() == source && part.kind == VarargPartKind::CopyArray),
+            ImportedParameterInput::Explicit(_) | ImportedParameterInput::Default(_) => false,
+        })
     }
 
     pub(super) const fn defaults(&self) -> usize {

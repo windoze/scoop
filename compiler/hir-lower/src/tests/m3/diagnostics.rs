@@ -193,7 +193,7 @@ fn conflicting_type_arguments_are_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f<T>(a: T, b: T): T — conflicting types for `T`: Int and String"
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f<T>(a: T, b: T): T — conflicting types for `T`: String and Int"
     );
 }
 

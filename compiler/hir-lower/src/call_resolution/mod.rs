@@ -14,9 +14,9 @@ pub(crate) mod named;
 // specificity migrate in the following M16 slices.
 #[allow(dead_code)]
 pub(crate) mod constraints;
+pub(crate) mod contextual;
 #[allow(dead_code)]
 mod relations;
-pub(crate) use relations::type_contains_session_parameter;
 #[allow(dead_code)]
 pub(crate) mod solver;
 pub(crate) mod specificity;

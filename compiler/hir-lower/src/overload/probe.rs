@@ -1,6 +1,9 @@
 use super::*;
 
 use crate::call_resolution::applicability::CallableApplicabilityInput;
+use crate::call_resolution::contextual::{
+    ArgumentExpression, ArgumentInferenceFailureKind, ArgumentInferenceInput, InferredArguments,
+};
 use crate::expr::ResolvedCallTypeArgument;
 
 pub(super) struct ApplicableCandidate {
@@ -51,15 +54,10 @@ impl Lowerer {
     ) -> Result<ApplicableCandidate, Box<CandidateProbeFailure>> {
         let mut state = self.clone();
         let receiver_offset = usize::from(receiver.is_some());
-        let source_count = match arguments {
-            OverloadArguments::Source(expressions) => expressions.len(),
-            OverloadArguments::Lowered(arguments) => arguments.len(),
-        };
-        let mut lowered = Vec::with_capacity(receiver_offset + source_count);
-        if let Some(receiver) = receiver {
-            lowered.push(Some(receiver.clone()));
-        }
-        let mut argument_sinks = (0..source_count).map(|_| Vec::new()).collect::<Vec<_>>();
+        let argument_map = candidate
+            .argument_map
+            .as_ref()
+            .expect("only shape-applicable candidates are probed");
         let intrinsic_argument_expected = match arguments {
             OverloadArguments::Source(expressions) => {
                 let diagnostics_before = state.diagnostics.len();
@@ -80,7 +78,7 @@ impl Lowerer {
                         return Err(Box::new(CandidateProbeFailure {
                             candidate: candidate_index,
                             state: Box::new(state),
-                            arguments: lowered,
+                            arguments: receiver.cloned().map(Some).into_iter().collect(),
                             kind: CandidateProbeFailureKind::Intrinsic { span, reason },
                         }));
                     }
@@ -89,329 +87,85 @@ impl Lowerer {
             OverloadArguments::Lowered(_) => None,
         };
 
-        match arguments {
-            OverloadArguments::Source(expressions) => {
-                lowered.extend((0..expressions.len()).map(|_| None));
-                for input in &candidate
-                    .argument_map
-                    .as_ref()
-                    .expect("only shape-applicable candidates are probed")
-                    .source_order
-                {
-                    let source_index = input.index();
-                    if intrinsic_argument_expected
-                        .is_some_and(|(expected_source, _)| source_index == expected_source)
-                        || state.expr_requires_expected_type(&expressions[source_index])
-                    {
-                        continue;
-                    }
-                    let diagnostics_before = state.diagnostics.len();
-                    let argument = state.lower_expr(
-                        &expressions[source_index],
-                        &mut argument_sinks[source_index],
-                        None,
-                    );
-                    if let Some(argument) = argument
-                        && state.diagnostics.len() == diagnostics_before
-                    {
-                        lowered[receiver_offset + source_index] = Some(argument);
-                        continue;
-                    }
-                    let reason = diagnostic_reason(&state, diagnostics_before);
-                    let span = diagnostic_span(
-                        &state,
-                        diagnostics_before,
-                        expressions[source_index].span(),
-                    );
-                    return Err(Box::new(CandidateProbeFailure {
-                        candidate: candidate_index,
-                        state: Box::new(state),
-                        arguments: lowered,
-                        kind: CandidateProbeFailureKind::Expression {
-                            source_index,
-                            expected: None,
-                            span,
-                            reason,
-                        },
-                    }));
-                }
-            }
-            OverloadArguments::Lowered(arguments) => {
-                lowered.extend(arguments.iter().cloned().map(Some));
-            }
-        }
-
-        let mut use_expected_result = false;
-        let provisional_type_args = loop {
-            let argument_types = argument_types(&lowered, receiver_offset);
-            let input = CallableApplicabilityInput {
+        let expressions = match arguments {
+            OverloadArguments::Source(expressions) => expressions
+                .iter()
+                .map(|argument| ArgumentExpression::Source(&argument.expression))
+                .collect::<Vec<_>>(),
+            OverloadArguments::Lowered(arguments) => arguments
+                .iter()
+                .map(ArgumentExpression::Lowered)
+                .collect::<Vec<_>>(),
+        };
+        let patterns = argument_map.inference_patterns(&candidate.view.value_parameters);
+        let parameters = candidate
+            .view
+            .owner_parameters
+            .iter()
+            .chain(&candidate.view.callable_parameters)
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let (mut session, environment) =
+            state.callable_applicability_session(CallableApplicabilityInput {
                 view: &candidate.view,
-                argument_map: candidate
-                    .argument_map
-                    .as_ref()
-                    .expect("only shape-applicable candidates are probed"),
                 owner_arguments: &candidate.owner_arguments,
                 explicit_arguments: explicit_type_args,
                 receiver_type: receiver.map(|receiver| receiver.ty),
-                argument_types: &argument_types,
-                expected_result: use_expected_result.then_some(expected_result).flatten(),
-            };
-            let partial = match state.partially_solve_callable_applicability(input) {
-                Ok(partial) => partial,
-                Err(failure) => {
-                    return Err(Box::new(CandidateProbeFailure {
-                        candidate: candidate_index,
-                        state: Box::new(state),
-                        arguments: lowered,
-                        kind: CandidateProbeFailureKind::Constraint(failure),
-                    }));
-                }
-            };
-            if partial.iter().all(Option::is_some) {
-                break partial.into_iter().flatten().collect::<Vec<_>>();
-            }
-
-            let mut progress = false;
-            if let OverloadArguments::Source(expressions) = arguments {
-                for source_index in 0..expressions.len() {
-                    let parameter_index = receiver_offset + source_index;
-                    if lowered[parameter_index].is_some() {
-                        continue;
-                    }
-                    let expected =
-                        intrinsic_argument_expected.and_then(|(expected_source, expected)| {
-                            (source_index == expected_source).then_some(expected)
-                        });
-                    let Some(expected) = expected.or_else(|| {
-                        state.try_substitute(candidate.params[parameter_index], &partial)
-                    }) else {
-                        continue;
-                    };
-                    let diagnostics_before = state.diagnostics.len();
-                    let argument = state.lower_expr(
-                        &expressions[source_index],
-                        &mut argument_sinks[source_index],
-                        Some(expected),
-                    );
-                    let Some(argument) = argument else {
-                        let reason = diagnostic_reason(&state, diagnostics_before);
-                        let span = diagnostic_span(
-                            &state,
-                            diagnostics_before,
-                            expressions[source_index].span(),
-                        );
-                        return Err(Box::new(CandidateProbeFailure {
-                            candidate: candidate_index,
-                            state: Box::new(state),
-                            arguments: lowered,
-                            kind: CandidateProbeFailureKind::Expression {
-                                source_index,
-                                expected: Some(expected),
-                                span,
-                                reason,
-                            },
-                        }));
-                    };
-                    if state.diagnostics.len() != diagnostics_before {
-                        let reason = diagnostic_reason(&state, diagnostics_before);
-                        let span = diagnostic_span(
-                            &state,
-                            diagnostics_before,
-                            expressions[source_index].span(),
-                        );
-                        return Err(Box::new(CandidateProbeFailure {
-                            candidate: candidate_index,
-                            state: Box::new(state),
-                            arguments: lowered,
-                            kind: CandidateProbeFailureKind::Expression {
-                                source_index,
-                                expected: Some(expected),
-                                span,
-                                reason,
-                            },
-                        }));
-                    }
-                    lowered[parameter_index] = Some(argument);
-                    progress = true;
-                }
-            }
-            if progress {
-                continue;
-            }
-            if !use_expected_result && expected_result.is_some() {
-                use_expected_result = true;
-                continue;
-            }
-
-            let Some(expressions) = (match arguments {
-                OverloadArguments::Source(expressions) => Some(*expressions),
-                OverloadArguments::Lowered(_) => None,
-            }) else {
-                let failure = state
-                    .solve_callable_applicability(input)
-                    .expect_err("an incomplete lowered candidate has no complete solution");
-                return Err(Box::new(CandidateProbeFailure {
-                    candidate: candidate_index,
-                    state: Box::new(state),
-                    arguments: lowered,
-                    kind: CandidateProbeFailureKind::Constraint(failure),
-                }));
-            };
-
-            let mut first_failure = None;
-            let mut seed_order = (0..expressions.len())
-                .filter(|source_index| lowered[receiver_offset + source_index].is_none())
-                .collect::<Vec<_>>();
-            seed_order.sort_by_key(|source_index| {
-                std::cmp::Reverse(state.expr_default_seed_rank(&expressions[*source_index]))
             });
-            for source_index in seed_order {
-                let parameter_index = receiver_offset + source_index;
-                let mut attempt = state.clone();
-                let diagnostics_before = attempt.diagnostics.len();
-                let mut argument_sink = Vec::new();
-                let argument =
-                    attempt.lower_expr(&expressions[source_index], &mut argument_sink, None);
-                if let Some(argument) = argument
-                    && attempt.diagnostics.len() == diagnostics_before
-                {
-                    state = attempt;
-                    lowered[parameter_index] = Some(argument);
-                    argument_sinks[source_index] = argument_sink;
-                    progress = true;
-                    break;
-                }
-                first_failure.get_or_insert_with(|| {
-                    (
-                        source_index,
-                        diagnostic_span(
-                            &attempt,
-                            diagnostics_before,
-                            expressions[source_index].span(),
-                        ),
-                        diagnostic_reason(&attempt, diagnostics_before),
-                        attempt,
-                    )
-                });
-            }
-            if progress {
-                continue;
-            }
-            let Some((source_index, span, reason, failed_state)) = first_failure else {
-                let failure = state
-                    .solve_callable_applicability(input)
-                    .expect_err("an incomplete fully typed candidate has no complete solution");
-                return Err(Box::new(CandidateProbeFailure {
-                    candidate: candidate_index,
-                    state: Box::new(state),
-                    arguments: lowered,
-                    kind: CandidateProbeFailureKind::Constraint(failure),
-                }));
-            };
-            return Err(Box::new(CandidateProbeFailure {
-                candidate: candidate_index,
-                state: Box::new(failed_state),
-                arguments: lowered,
-                kind: CandidateProbeFailureKind::Expression {
-                    source_index,
-                    expected: None,
-                    span,
-                    reason,
-                },
-            }));
-        };
-
-        if let OverloadArguments::Source(expressions) = arguments {
-            for source_index in 0..expressions.len() {
-                let parameter_index = receiver_offset + source_index;
-                if lowered[parameter_index].is_some() {
-                    continue;
-                }
-                let expected = intrinsic_argument_expected
-                    .and_then(|(expected_source, expected)| {
-                        (source_index == expected_source).then_some(expected)
-                    })
-                    .unwrap_or_else(|| {
-                        state.substitute_call_level(
-                            candidate.params[parameter_index],
-                            &provisional_type_args,
-                        )
-                    });
-                let diagnostics_before = state.diagnostics.len();
-                let argument = state.lower_expr(
-                    &expressions[source_index],
-                    &mut argument_sinks[source_index],
-                    Some(expected),
-                );
-                let Some(argument) = argument else {
-                    let reason = diagnostic_reason(&state, diagnostics_before);
-                    let span = diagnostic_span(
-                        &state,
-                        diagnostics_before,
-                        expressions[source_index].span(),
-                    );
-                    return Err(Box::new(CandidateProbeFailure {
-                        candidate: candidate_index,
-                        state: Box::new(state),
-                        arguments: lowered,
-                        kind: CandidateProbeFailureKind::Expression {
-                            source_index,
-                            expected: Some(expected),
-                            span,
-                            reason,
-                        },
-                    }));
-                };
-                if state.diagnostics.len() != diagnostics_before {
-                    let reason = diagnostic_reason(&state, diagnostics_before);
-                    let span = diagnostic_span(
-                        &state,
-                        diagnostics_before,
-                        expressions[source_index].span(),
-                    );
-                    return Err(Box::new(CandidateProbeFailure {
-                        candidate: candidate_index,
-                        state: Box::new(state),
-                        arguments: lowered,
-                        kind: CandidateProbeFailureKind::Expression {
-                            source_index,
-                            expected: Some(expected),
-                            span,
-                            reason,
-                        },
-                    }));
-                }
-                lowered[parameter_index] = Some(argument);
-            }
-        }
-
-        let argument_types = argument_types(&lowered, receiver_offset);
-        let type_args = match state.solve_callable_applicability(CallableApplicabilityInput {
-            view: &candidate.view,
-            argument_map: candidate
-                .argument_map
-                .as_ref()
-                .expect("only shape-applicable candidates are probed"),
-            owner_arguments: &candidate.owner_arguments,
-            explicit_arguments: explicit_type_args,
-            receiver_type: receiver.map(|receiver| receiver.ty),
-            argument_types: &argument_types,
-            expected_result: use_expected_result.then_some(expected_result).flatten(),
+        let InferredArguments {
+            types,
+            values,
+            sinks: argument_sinks,
+        } = match state.infer_contextual_arguments(ArgumentInferenceInput {
+            expressions: &expressions,
+            patterns: &patterns,
+            parameters: &parameters,
+            session: &mut session,
+            environment,
+            expected_result: expected_result.map(|expected| (candidate.view.return_type, expected)),
+            forced_hint: intrinsic_argument_expected,
         }) {
             Ok(arguments) => arguments,
             Err(failure) => {
+                let kind = match failure.kind {
+                    ArgumentInferenceFailureKind::Constraint(failure) => {
+                        CandidateProbeFailureKind::Constraint(failure)
+                    }
+                    ArgumentInferenceFailureKind::Expression(failure) => {
+                        CandidateProbeFailureKind::Expression {
+                            source_index: failure.source_index,
+                            expected: failure.expected,
+                            span: failure.span,
+                            reason: failure.reason,
+                        }
+                    }
+                };
                 return Err(Box::new(CandidateProbeFailure {
                     candidate: candidate_index,
                     state: Box::new(state),
-                    arguments: lowered,
-                    kind: CandidateProbeFailureKind::Constraint(failure),
+                    arguments: receiver
+                        .cloned()
+                        .map(Some)
+                        .into_iter()
+                        .chain(failure.arguments)
+                        .collect(),
+                    kind,
                 }));
             }
         };
+        let type_args = types
+            .owner
+            .into_iter()
+            .chain(types.callable)
+            .collect::<Vec<_>>();
+        let lowered = receiver
+            .cloned()
+            .into_iter()
+            .chain(values)
+            .collect::<Vec<_>>();
 
         let mut args = Vec::with_capacity(lowered.len());
         for (index, argument) in lowered.into_iter().enumerate() {
-            let argument = argument.expect("a successful candidate types every argument");
             let source_index = index.saturating_sub(receiver_offset);
             let expected = (receiver_offset == 0)
                 .then_some(intrinsic_argument_expected)
@@ -452,13 +206,6 @@ impl Lowerer {
             return_ty,
         })
     }
-}
-
-fn argument_types(arguments: &[Option<hir::Expr>], receiver_offset: usize) -> Vec<Option<TypeId>> {
-    arguments[receiver_offset..]
-        .iter()
-        .map(|argument| argument.as_ref().map(|argument| argument.ty))
-        .collect()
 }
 
 fn diagnostic_reason(lowerer: &Lowerer, diagnostics_before: usize) -> String {

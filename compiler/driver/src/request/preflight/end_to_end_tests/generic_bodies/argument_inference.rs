@@ -9,6 +9,7 @@ fn imported_contextual_arguments_republish_and_execute_from_artifacts() {
             "order",
             "overloads",
             "abi",
+            "shared-fixed-point",
         ],
         &[
             "no-seed-vararg",

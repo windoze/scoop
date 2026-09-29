@@ -107,3 +107,12 @@
 - 新增 `m23-shared-default-bodies` 的普通／泛型函数、方法和构造组合，包含局部函数、lambda、匿名函数、函数引用、型变适配、前序默认参数、Int／宽值／引用／Unit，以及两个诊断反例。真实发布后移走源码，再次发布、链接和普通／移动 GC 运行均通过。
 - 全仓 fmt／clippy、2851 项相关单元回归通过，来源修复后追加的 1298 项 HIR lowering 回归通过。89 项真实产物与格式回归均已覆盖成功；关闭更新开关的 13 项语义组合与 3 项格式复验全部通过。核对旧快照：默认临时值名称、部分 arena 编号与捕获布局变化符合共同展开；core 与依赖布局快照的变化仅为完整产物指纹，Code／RuntimeImage 指纹保持。日志前缀 `/tmp/scoop-m23-6a-default-bodies-`，主要结果见 `verify.log`、`format-verify.log`、`fixed-cases.log` 和 `core-update.log`。
 - 两次清理未被构建使用的 `target/debug/incremental`，共释放约 3.34 GiB；继续复用 `target/m23-6a`。本批完成默认展开共用，声明／类型来源分支、正文的 wire 到 imported 构造和其余调用调度仍按阶段设计继续删除。
+
+## 共同上下文实参推断
+
+- 函数重载、名义构造与依赖泛型调用共用 `infer_contextual_arguments`：同一候选持续积累约束，部分解提供完整期望类型，固定点停滞后才加入允许的外层结果约束和尝试默认类型。删除依赖专用 `generic/arguments.rs` 及源码重载、构造中的重复循环，不再为每轮推断重建约束环境。
+- 部分替换按原声明 binder 查询，保留已解实参中的外层类型参数；结果分别保留宿主／callable 实参、源码顺序参数值及其 setup。spread 和命名整数组与源码调用共用精确相等约束，普通实参保留子类型约束。
+- 空数组等输入的无上下文失败不会阻止后续完整标注匿名函数提供类型。新增 `shared-fixed-point` fixture，对照源码／依赖函数、struct／enum 构造、泛型宿主方法、双向函数引用和命名重排，并经再次发布覆盖引用、Int、Unit 应用及普通／移动 GC 运行。函数值字段调用改用已有共同字段引用，修正误走导入 accessor 路径的问题。
+- 默认类型尝试的完整候选副本只存在于专用尝试调用中，通过交换提交成功状态；固定点自身不在递归栈帧中保存完整 Lowerer。原嵌套泛型用例在默认线程栈通过。共同固定点、表达式尝试、重载探测分别约 250、107、228 行；名义候选处理与上下文分类按职责分为约 192、422 行。
+- 全仓 fmt／clippy 通过；1299 项 HIR lowering 单元回归与 22 项相关真实产物回归均已覆盖通过。关闭快照更新开关复验新推断组合、上界反例和数组／vararg 全组成功。一个单元断言按约束加入顺序调整类型列举；四份诊断快照分别反映正常结果类型检查和整数组精确相等，源码位置未变。日志前缀 `/tmp/scoop-m23-6a-contextual-`，最终结果见 `unit-final.log` 加 `diagnostic-verify.log`、`artifacts.log`、`regression.log` 加 `verify.log`／`arrays-verify.log`。
+- 确认没有进行中的编译后清理 `target/debug/incremental`，释放约 496 MiB，继续复用约 3.6 GiB 的 `target/m23-6a`。本批删除了三套上下文推断循环；来源专用参数映射、普通依赖调用调度和 HIR 类型／正文来源分支仍需继续合并。

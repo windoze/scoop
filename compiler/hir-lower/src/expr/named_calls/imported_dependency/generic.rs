@@ -3,13 +3,15 @@
 
 use super::*;
 
-mod arguments;
 mod signature;
 use crate::call_resolution::constraints::{
     Constraint, ConstraintOrigin, InferenceSession, TypeTerm,
 };
+use crate::call_resolution::contextual::{
+    ArgumentExpression, ArgumentInferenceFailureKind, ArgumentInferenceInput, ArgumentPattern,
+    InferredArguments,
+};
 use crate::expr::ResolvedCallTypeArgument;
-use arguments::InferredImportedArguments;
 pub(in crate::expr) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
 
 impl Lowerer {
@@ -85,15 +87,6 @@ impl Lowerer {
                 );
             }
         }
-        if let Some(expected) = expected {
-            session.push(
-                Constraint::Subtype(
-                    TypeTerm::Type(signature.return_type),
-                    TypeTerm::Rigid(expected),
-                ),
-                ConstraintOrigin::ExpectedResult,
-            );
-        }
         if let (Some(expected), ImportedCallReceiver::Member { value, .. }) =
             (signature.receiver, &receiver)
         {
@@ -103,9 +96,12 @@ impl Lowerer {
             );
         }
         let mut source_patterns = Vec::new();
-        for pattern in argument_map.source_parameters() {
+        for (index, pattern) in argument_map.source_parameters().iter().enumerate() {
             match self.imported_signature_type_with_bindings(pattern, &template_bindings) {
-                Ok(ty) => source_patterns.push(ty),
+                Ok(ty) => source_patterns.push(ArgumentPattern {
+                    ty,
+                    exact: argument_map.is_array_input(index),
+                }),
                 Err(error) => {
                     self.error(
                         call.span,
@@ -131,20 +127,51 @@ impl Lowerer {
             } else {
                 None
             };
-        let Some(InferredImportedArguments {
-            mut source_args,
-            argument_sinks,
-        }) = self.infer_imported_generic_arguments(
-            name,
-            call,
-            signature,
-            &source_patterns,
-            &mut session,
+        let expressions = match call.arguments {
+            ImportedCallArguments::Source(arguments) => arguments
+                .iter()
+                .map(|argument| ArgumentExpression::Source(&argument.expression))
+                .collect::<Vec<_>>(),
+            ImportedCallArguments::Lowered(arguments) => arguments
+                .iter()
+                .map(ArgumentExpression::Lowered)
+                .collect::<Vec<_>>(),
+        };
+        let expressions = if let Some((place, ty)) = address_place {
+            vec![ArgumentExpression::Addressable {
+                place,
+                ty,
+                span: call.arguments.span(0),
+            }]
+        } else {
+            expressions
+        };
+        let parameters = signature
+            .owner_parameters
+            .iter()
+            .chain(&signature.type_parameters)
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let InferredArguments {
+            types: solution,
+            values: mut source_args,
+            sinks: argument_sinks,
+        } = match self.infer_contextual_arguments(ArgumentInferenceInput {
+            expressions: &expressions,
+            patterns: &source_patterns,
+            parameters: &parameters,
+            session: &mut session,
             environment,
-            address_place,
-        )
-        else {
-            return Err(self);
+            expected_result: expected.map(|expected| (signature.return_type, expected)),
+            forced_hint: None,
+        }) {
+            Ok(arguments) => arguments,
+            Err(failure) => {
+                if let ArgumentInferenceFailureKind::Constraint(failure) = failure.kind {
+                    self.imported_generic_inference_error(name, call, signature, &failure);
+                }
+                return Err(self);
+            }
         };
         let integer_arguments = source_args
             .iter()
@@ -153,14 +180,6 @@ impl Lowerer {
                 _ => None,
             })
             .collect();
-        let solution = match self.solve_constraints(&session) {
-            Ok(solution) => solution,
-            Err(failure) => {
-                self.imported_generic_inference_error(name, call, signature, &failure);
-                return Err(self);
-            }
-        };
-        let solution = solution.arguments_for(&session, environment);
         let bindings = signature
             .owner_parameters
             .iter()
@@ -176,7 +195,7 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let result_type = self.instantiate_method_ty(signature.return_type, &bindings);
         for (value, pattern) in source_args.iter_mut().zip(&source_patterns) {
-            let ty = self.instantiate_method_ty(*pattern, &bindings);
+            let ty = self.instantiate_method_ty(pattern.ty, &bindings);
             *value = self.adapt_to(value.clone(), ty);
         }
         let receiver = match receiver {
