@@ -1,5 +1,7 @@
 use super::*;
 
+mod enums;
+
 fn qualified(parts: &[&str]) -> ast::QualifiedNameSyntax {
     let (first, rest) = parts
         .split_first()

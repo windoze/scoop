@@ -490,7 +490,7 @@ when (v) {
   - 单元变体：直接写变体名；
   - 位置参数变体：`Variant(p1, p2, ...)`，参数位可以是绑定名、字面量（等值匹配）、`_`（通配）、`..`（忽略其余，规则见 4.6）或嵌套模式；
   - 命名字段变体：`Variant { f1, f2: subpattern, .. }`；`f1`是`f1: f1`的shorthand，冒号右侧可为binding、literal、`_`或任意嵌套match pattern；未列出全部字段时必须以`..`结尾。
-- 变体名可省略 enum 类型前缀（`E.`），编译器按被匹配值的类型解析；存在歧义时需写全限定名。
+- 变体名可省略 enum 类型前缀（`E.`），编译器按被匹配值的类型解析；存在歧义时需写全限定名。显式前缀遵守普通类型名称的包、import、嵌套声明和可见性规则。前缀直接命名泛型 enum 声明时，以 subject 的完整 application 确定类型实参，不要求在模式前缀重复写实参；前缀是 typealias 时，其展开后的完整类型必须与 subject 相同。
 - enum穷尽性按全局pattern matrix递归检查variant payload；仅列出全部variant名称但payload覆盖不全仍不穷尽。
 
 ### 5.2 tuple 模式

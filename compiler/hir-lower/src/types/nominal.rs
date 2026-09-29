@@ -60,4 +60,20 @@ impl Lowerer {
             arguments,
         })
     }
+    pub(crate) fn nominal_template_name(&self, template: hir::SourceNominalId) -> &str {
+        if let Some(owner) = self.nominal_owners.get(&template) {
+            return match *owner {
+                Owner::Struct(id) => &self.structs[id].name,
+                Owner::Class(id) => &self.classes[id].name,
+                Owner::Enum(id) => &self.enums[id].name,
+                Owner::Interface(id) => &self.interfaces[id].name,
+                Owner::Object(id) => &self.objects[id].name,
+            };
+        }
+        self.dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.nominal_declaration(template))
+            .expect("a resolved nominal retains its original declaration")
+            .name()
+    }
 }

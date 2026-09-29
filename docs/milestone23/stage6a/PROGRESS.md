@@ -74,3 +74,11 @@
 - 完整回归暴露候选事务深复制不可变 core 协议表导致默认测试线程栈溢出；Lowerer、Export HIR 与 concrete HIR 改为共享同一 Arc 数据，未扩大线程栈或引入预算。原嵌套泛型用例在默认栈下已通过。
 - 全仓 fmt／clippy、2840 项 HIR／HIR lowering／MIR lowering／slib 单元测试及 54 项真实泛型／enum 产物回归通过。核对 19 份旧快照，仅 HIR 构造／模式／穷尽性显示和一条派生相等字段路径改变，MIR／LIR 与诊断位置不变；关闭更新开关的 13 项专项复验覆盖全部变化，全部通过。日志 `/tmp/scoop-m23-6a-variant-refs-unit.log`、`/tmp/scoop-m23-6a-variant-refs-fixtures.log`、`/tmp/scoop-m23-6a-variant-refs-verify.log`。
 - 此前已清理编辑器生成且未在构建中使用的 `target/debug/incremental`，释放约 1.23 GiB；阶段构建仍使用独立的 `target/m23-6a`。底层来源类型、声明与调用／正文迁移仍在继续。
+
+## 共同限定类型名称与模式前缀
+
+- 模式前缀和普通 qualified 类型引用共用包、import 分层、透明别名与静态嵌套声明查找。名称结果保存原 nominal ID 或完整 alias 类型；泛型声明前缀沿用 subject 实参，alias 仍要求完整 application 相等。删除依赖 enum 专用模式入口，以及被替代的 Current／Imported 类型限定名遍历。
+- 完整声明查询补齐泛型嵌套 nominal；错误不会根据 subject 同名声明重试或绕过 import 遮蔽。可见性诊断统一显示并标注完整限定名，缺失嵌套类型保留完整前缀。名称选择与存储绑定模块分别为 161、68 行，模式形状主模块由 327 行降至 231 行。
+- 新增 6 项源码测试、`m23-shared-enums/qualified.scoop` 及两个名称前缀反例；覆盖当前／exact／star／alias／包／嵌套类型、不同泛型实参、错误 exact 遮蔽、star 歧义与未导入名称。真实泛型默认值、再次发布、下游本地引用类型／Int／Unit 和普通／移动 GC 组合通过。
+- 全仓 fmt／clippy、1294 项 HIR lowering 测试与 10 项相关真实产物测试通过。两份既有 qualified 类型诊断快照按完整前缀更新；新增三阶段与反例快照已核对，关闭更新开关的 5 项专项复验通过。日志 `/tmp/scoop-m23-6a-qualified-names-unit.log`、`/tmp/scoop-m23-6a-qualified-names-fixtures.log`、`/tmp/scoop-m23-6a-qualified-names-verify.log`。
+- 确认没有构建占用后，再清理约 1.71 GiB 的 `target/debug/incremental`。当前名称解析已共用；nominal 存储、候选和正文其他路径继续按设计迁移。

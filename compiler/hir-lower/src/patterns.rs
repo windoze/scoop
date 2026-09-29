@@ -33,7 +33,6 @@ use crate::{Lowerer, VariantStyle};
 
 mod binding;
 mod exhaustiveness;
-mod imported;
 mod structure;
 mod variants;
 

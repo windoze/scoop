@@ -32,6 +32,10 @@ impl Lowerer {
             .nominal_declaration(owner)?
             .clone();
         let parameters = declaration.interface.type_parameters().binders();
+        if parameters.is_empty() && !arguments.is_empty() {
+            self.error(name.span, format!("type `{}` is not generic", name.text));
+            return None;
+        }
         if arguments.len() != parameters.len() {
             self.error(
                 name.span,

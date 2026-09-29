@@ -1,0 +1,111 @@
+Module
+  struct Envelope<T>
+    field0 payload: T0
+    property0 val payload: T0 getter0=storage <stored struct0-field0>
+  enum Local<T>
+    Item(_1: T0)
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    when
+      ImportedGenericCall pack<T0> : Choice<T0>
+        Local $dependency.parameter.value : T0
+      arm variant0()
+        assign $result.0
+          Local seed : T0
+      arm variant1(0: local4)
+        assign $result.0
+          Local payload : T0
+      arm variant2(0: local5, 1: _)
+        assign $result.0
+          Local payload : T0
+      arm variant3(0: local6, 1: _)
+        assign $result.0
+          Local payload : T0
+      impossible <enum pattern matrix for Choice<T0>>
+    val local8
+      Local $result.0 : T0
+    val local9
+      Local selected : T0
+    val local10
+      Local $argument.0 : T0
+    val local11
+      StructInit Envelope : Envelope<T0>
+        Local $parameter.payload : T0
+    val local12
+      Local $argument.0 : Envelope<T0>
+    val local13
+      VariantConstruct Local.Item<Envelope<T0>> : Local<Envelope<T0>>
+        Local $parameter._1 : Envelope<T0>
+    when
+      Local wrapped : Local<Envelope<T0>>
+      arm variant0(0: struct(0: local14))
+        assign $result.1
+          CallableCall function_type0 : Int
+            Local read : (T0) -> Int
+            Local payload : T0
+      impossible <enum pattern matrix for Local<Envelope<T0>>>
+    return
+      Local $result.1 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 40 : Int
+    val local1
+      IntegerLiteral 2 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    val local3
+      Local $dependency.argument.1 : Int
+    val local4
+      VariantConstruct Choice.Named<Int> : Choice<Int>
+        Local $dependency.parameter.payload : Int
+        Local $dependency.parameter.amount : Int
+    when
+      Local selected : Choice<Int>
+      arm variant0()
+        assign $result.2
+          IntegerLiteral 0 : Int
+      arm variant1(0: local5)
+        assign $result.2
+          Local payload : Int
+      arm variant2(0: local7, 1: local6)
+        val local8
+          Local payload : Int
+        val local9
+          Local amount : Int
+        val local10
+          Local $dependency.argument.0 : Int
+        assign $result.2
+          IntegerOperation int.add <no-gc> : Int
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+      arm variant3(0: local11, 1: local12)
+        val local13
+          Local payload : Int
+        val local14
+          Local amount : Int
+        val local15
+          Local $dependency.argument.0 : Int
+        assign $result.2
+          IntegerOperation int.add <no-gc> : Int
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+      impossible <enum pattern matrix for Choice<Int>>
+    val local17
+      Local $result.2 : Int
+    val local18
+      Local number : Int
+    val local19
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local20
+      Local $argument.0 : Int
+    val local21
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

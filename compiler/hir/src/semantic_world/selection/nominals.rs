@@ -83,10 +83,7 @@ impl ImportedDependencySelectionPlan {
             .children()
             .values()
             .iter()
-            .filter_map(|child| match child {
-                SourceNominalId::Concrete(child) => self.nominal(*child),
-                SourceNominalId::GenericTemplate(_) => None,
-            })
+            .filter_map(|child| self.nominal_declaration(*child))
             .find(|declaration| declaration.name() == name)
     }
 

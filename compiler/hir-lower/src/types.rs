@@ -77,7 +77,7 @@ mod resolution;
 mod substitution;
 mod variants;
 
-pub(crate) use qualified::TypeQualifier;
+pub(crate) use qualified::ResolvedTypeName;
 
 fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
     match (&types[a], &types[b]) {

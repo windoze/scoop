@@ -1,69 +1,76 @@
+//! Pattern prefixes use ordinary declaration lookup before matching applications.
+
 use super::*;
+use crate::types::ResolvedTypeName;
 
 impl Lowerer {
-    pub(super) fn resolve_struct_pattern_path(
+    pub(super) fn resolve_enum_pattern_path(
         &mut self,
         path: &[ast::Ident],
         subject: TypeId,
         span: Span,
     ) -> Option<PatternTarget> {
-        let name = match path {
-            [] => return Some(PatternTarget::Struct(subject)),
-            [name] => name,
-            _ => {
-                self.error(span, "invalid pattern path".into());
-                return None;
-            }
-        };
-        let matched = if let Some(target) = self.lexical_nested_nominal_target(&name.text) {
-            self.nominal_target_for_type(subject) == Some(target)
-        } else {
-            use crate::imports::lookup::TypeLookupTarget;
-            use crate::namespace::TopLevelTypeTarget;
-            match self.resolve_type_lookup(name).ok()? {
-                Some(TypeLookupTarget::Current(TopLevelTypeTarget::Nominal(target))) => {
-                    if !self
-                        .top_level_type_target_is_accessible(TopLevelTypeTarget::Nominal(target))
-                    {
-                        self.error(
-                            name.span,
-                            format!(
-                                "type `{}` is not accessible from this source location",
-                                name.text
-                            ),
-                        );
-                        return None;
-                    }
-                    self.nominal_target_for_type(subject) == Some(target)
-                }
-                Some(TypeLookupTarget::Current(TopLevelTypeTarget::Alias(alias))) => {
-                    let target = self.resolve_type_alias_id_reference(alias, name, false)?;
-                    self.types_equal(target, subject)
-                }
-                Some(TypeLookupTarget::Dependency(binding)) => {
-                    if let Some(owner) = binding.target().source_nominal() {
-                        self.imported_nominal_owner(subject) == Some(owner)
-                    } else {
-                        let target =
-                            self.resolve_imported_dependency_type_target(&binding, name, false)?;
-                        self.types_equal(target, subject)
-                    }
-                }
-                None => false,
-            }
-        };
-        if matched {
-            Some(PatternTarget::Struct(subject))
-        } else {
-            let found = self.type_name(subject);
+        let Some((name, qualifier)) = path.split_last() else {
             self.error(
-                name.span,
+                span,
                 format!(
-                    "pattern `{}` does not match a subject of type {found}",
-                    name.text
+                    "a field pattern without a type name can only match a struct, found {}",
+                    self.type_name(subject),
                 ),
             );
-            None
+            return None;
+        };
+        if !qualifier.is_empty() && !self.pattern_type_name_matches(qualifier, subject)? {
+            self.pattern_type_mismatch(path, subject, span);
+            return None;
         }
+        let Some(variant) = self.named_enum_variant(subject, &name.text) else {
+            let owner = self
+                .nominal_application(subject)
+                .expect("an enum pattern retains its nominal application");
+            let owner_name = self.nominal_template_name(owner.template);
+            self.error(
+                name.span,
+                format!("enum `{owner_name}` has no variant `{}`", name.text,),
+            );
+            return None;
+        };
+        Some(PatternTarget::Variant(variant))
+    }
+
+    pub(super) fn pattern_type_name_matches(
+        &mut self,
+        path: &[ast::Ident],
+        subject: TypeId,
+    ) -> Option<bool> {
+        let matched = match self.resolve_type_name_path(path, false).ok()? {
+            Some(ResolvedTypeName::Nominal(owner)) => self
+                .nominal_application(subject)
+                .is_some_and(|subject| subject.template == owner),
+            Some(ResolvedTypeName::Alias(ty)) => self.types_equal(ty, subject),
+            None => false,
+        };
+        Some(matched)
+    }
+
+    pub(super) fn pattern_type_mismatch(
+        &mut self,
+        path: &[ast::Ident],
+        subject: TypeId,
+        span: Span,
+    ) {
+        let name = path
+            .iter()
+            .map(|part| part.text.as_str())
+            .collect::<Vec<_>>()
+            .join(".");
+        let span = if path.len() == 1 { path[0].span } else { span };
+        self.error(
+            span,
+            format!(
+                "pattern `{name}` does not match a subject of type {}",
+                self.type_name(subject),
+            ),
+        );
     }
 }

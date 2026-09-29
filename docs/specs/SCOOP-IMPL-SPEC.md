@@ -222,6 +222,8 @@ struct 字段、class 存储字段和初始化字段引用均保存原 `Persiste
 
 enum 正文引用的 variant 和 payload 字段使用原类型化身份与完整 enum application。构造、判别、payload 投影及 `when` 模式共用该引用，不区分当前与依赖声明；默认值只替换宿主类型，具体化按原 variant／field 身份取得同一完整表示。variant 与 payload 身份在变体声明收集完成后建立，后续正文分析与导出复用同一记录，不能按名称或布局回退。
 
+模式前缀与普通 qualified 类型引用共用包选择、import 分层和静态嵌套声明查询。名称结果保留原 nominal 身份或透明 alias 的完整展开类型；前者与 subject 的原声明相同即可沿用 subject 实参，后者要求完整类型相等。名称查找不为未提供实参的泛型限定名创建不完整类型，源码与依赖声明不另设模式解析入口。
+
 不可失败的 `val`／`var`、lambda 参数与 `for` 绑定在同一事务中直接生成普通声明、字段投影和已选 component 调用。字段访问、绑定及 `when` 模式从同一完整 struct application 查询声明顺序、字段身份与替换后的类型；class component 使用普通 operator 决议。成功输出不另存一份仅供互相校验的绑定形状和执行计划，不在展开时重演已完成的 callable 选择、字段范围或叶子调度。失败仍原子撤销局部值、候选状态和诊断副作用，命名模式按源码顺序求值，`..` 和 `_` 保持语言规定的跳过与调用行为。
 
 子类型、泛型约束、继承接口闭包与 Iterator application 查询复用同一已代换的直接父类型关系。查询保留完整 application 和定义域 binder；菱形路径按相同完整类型去重，不能把同一声明的不同实参合并。core 的整数、Boolean、String 表示从其真实声明取得父接口，不在查询中内置额外 conformance。继承环和按值环仍由对应的声明检查处理。

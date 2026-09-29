@@ -56,136 +56,40 @@ impl Lowerer {
         matched_ty: TypeId,
         span: Span,
     ) -> Option<PatternTarget> {
-        if matches!(self.types[matched_ty], Type::ImportedEnum(_)) {
-            return self.resolve_imported_enum_pattern_path(path, matched_ty, span);
-        }
-        if matches!(
-            self.types[matched_ty],
-            Type::Struct(_) | Type::ImportedStruct(_)
-        ) {
-            return self.resolve_struct_pattern_path(path, matched_ty, span);
-        }
-        match path {
-            [] => match self.types[matched_ty].clone() {
-                Type::Struct(_) | Type::ImportedStruct(_) => {
+        match self.types[matched_ty] {
+            Type::Struct(_) | Type::ImportedStruct(_) => {
+                if path.is_empty() || self.pattern_type_name_matches(path, matched_ty)? {
                     Some(PatternTarget::Struct(matched_ty))
-                }
-                _ => {
-                    let found = self.type_name(matched_ty);
-                    self.error(
-                        span,
-                        format!("a field pattern without a type name can only match a struct, found {found}"),
-                    );
-                    None
-                }
-            },
-            [name] => match self.types[matched_ty].clone() {
-                Type::Enum(application) => {
-                    let enum_id = self.enum_applications[application].template;
-                    let Some(variant) = self.find_variant(enum_id, &name.text) else {
-                        let enum_name = self.enums[enum_id].name.clone();
-                        self.error(
-                            name.span,
-                            format!("enum `{enum_name}` has no variant `{}`", name.text),
-                        );
-                        return None;
-                    };
-                    Some(PatternTarget::Variant(
-                        self.enum_variant_at(application, variant),
-                    ))
-                }
-                Type::Ptr(_) | Type::FunPtr(_) => {
-                    let found = self.type_name(matched_ty);
-                    self.error(
-                        span,
-                        format!("intrinsic pointer type `{found}` cannot be destructured"),
-                    );
-                    None
-                }
-                _ => {
-                    let found = self.type_name(matched_ty);
-                    self.error(
-                        name.span,
-                        format!(
-                            "pattern `{}` does not match a subject of type {found}",
-                            name.text
-                        ),
-                    );
-                    None
-                }
-            },
-            [enum_name, variant_name] => {
-                let lexical_target = self.lexical_nested_nominal_target(&enum_name.text);
-                let (enum_id, required_type) = if let Some(target) = lexical_target {
-                    let crate::NominalTarget::Enum(enum_id) = target else {
-                        self.error(
-                            enum_name.span,
-                            format!("type `{}` does not name an enum", enum_name.text),
-                        );
-                        return None;
-                    };
-                    (enum_id, None)
-                } else if self.source_type_alias_named(&enum_name.text).is_some() {
-                    let target = self.resolve_type_alias_reference(enum_name, false)?;
-                    let Type::Enum(application) = self.types[target] else {
-                        self.error(
-                            enum_name.span,
-                            format!("typealias `{}` does not name an enum", enum_name.text),
-                        );
-                        return None;
-                    };
-                    (self.enum_applications[application].template, Some(target))
                 } else {
-                    let Some(enum_id) = self.top_level_enum_named(&enum_name.text) else {
-                        self.error(enum_name.span, format!("unknown enum `{}`", enum_name.text));
-                        return None;
-                    };
-                    (enum_id, None)
-                };
-                if required_type.is_some_and(|required| !self.types_equal(required, matched_ty)) {
-                    let found = self.type_name(matched_ty);
-                    self.error(
-                        span,
-                        format!(
-                            "pattern `{}.{}` does not match a subject of type {found}",
-                            enum_name.text, variant_name.text
-                        ),
-                    );
-                    return None;
-                };
-                let Some(variant) = self.find_variant(enum_id, &variant_name.text) else {
-                    self.error(
-                        variant_name.span,
-                        format!(
-                            "enum `{}` has no variant `{}`",
-                            enum_name.text, variant_name.text
-                        ),
-                    );
-                    return None;
-                };
-                match self.types[matched_ty].clone() {
-                    Type::Enum(application)
-                        if self.enum_applications[application].template == enum_id =>
-                    {
-                        Some(PatternTarget::Variant(
-                            self.enum_variant_at(application, variant),
-                        ))
-                    }
-                    _ => {
-                        let found = self.type_name(matched_ty);
-                        self.error(
-                            span,
-                            format!(
-                                "pattern `{}.{}` does not match a subject of type {found}",
-                                enum_name.text, variant_name.text
-                            ),
-                        );
-                        None
-                    }
+                    self.pattern_type_mismatch(path, matched_ty, span);
+                    None
                 }
             }
+            Type::Enum(_) | Type::ImportedEnum(_) => {
+                self.resolve_enum_pattern_path(path, matched_ty, span)
+            }
+            _ if path.is_empty() => {
+                self.error(
+                    span,
+                    format!(
+                        "a field pattern without a type name can only match a struct, found {}",
+                        self.type_name(matched_ty),
+                    ),
+                );
+                None
+            }
+            Type::Ptr(_) | Type::FunPtr(_) => {
+                self.error(
+                    span,
+                    format!(
+                        "intrinsic pointer type `{}` cannot be destructured",
+                        self.type_name(matched_ty),
+                    ),
+                );
+                None
+            }
             _ => {
-                self.error(span, "invalid pattern path".to_string());
+                self.pattern_type_mismatch(path, matched_ty, span);
                 None
             }
         }
