@@ -1,7 +1,5 @@
 use super::*;
-use scoop_identity::{
-    ExactCallableSignature, PersistentConstructorId, StrongCallableDefinitionOwner,
-};
+use scoop_identity::{ExactCallableSignature, PersistentConstructorId};
 use scoop_slib::{
     SharedMirConstructorComponent as Component, SharedMirConstructorValidationError as Error,
 };

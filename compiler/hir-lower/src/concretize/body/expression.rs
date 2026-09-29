@@ -165,6 +165,11 @@ impl Concretizer<'_> {
             export::ExprKind::ImportedClosure(closure) => {
                 self.lower_imported_closure(closure, source.span, substitution, locals)
             }
+            export::ExprKind::ImportedMethodCall {
+                receiver,
+                callee,
+                args,
+            } => self.lower_imported_method_call(receiver, callee, args, substitution, locals),
             export::ExprKind::ImportedCallableReference(reference) => {
                 concrete::ExprKind::CallableReference(self.lower_imported_reference(
                     reference,

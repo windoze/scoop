@@ -83,10 +83,24 @@ fn protected_generic_members_republish_and_execute_from_artifacts() {
 }
 
 fn check_member_cases(cases: &[&str], rejected: &[&str], downstream_source: &str) {
+    check_fixture_cases(
+        "m23-generic-member-consumption",
+        cases,
+        rejected,
+        downstream_source,
+    );
+}
+
+pub(super) fn check_fixture_cases(
+    fixture: &str,
+    cases: &[&str],
+    rejected: &[&str],
+    downstream_source: &str,
+) {
     let target = resolved_target().expect("generic member publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-generic-member-consumption");
+    let fixtures = crate::workspace_root().join("tests/fixtures").join(fixture);
     let source =
         |name: &str| std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
     let provider_coordinate =
@@ -188,47 +202,61 @@ fn check_member_cases(cases: &[&str], rejected: &[&str], downstream_source: &str
                 .is_empty(),
             "the provider has not instantiated these generic types"
         );
-        let (sections, _) = closure.artifact(coordinate.identity().unwrap()).unwrap();
-        let mut members = 0;
-        for binding in sections
-            .mir_type_bridge()
-            .exports()
-            .callables()
-            .entries()
-            .iter()
-            .filter(|binding| {
-                matches!(
-                    binding.implementation(),
-                    scoop_identity::CallableDefinitionOwner::Odr(_)
-                )
-            })
-        {
-            let abi = sections
-                .lir_exports()
+        let mut materializations = 0;
+        for artifact in [consumer, &downstream] {
+            let identity = artifact
+                .artifact()
+                .summary()
+                .coordinate()
+                .identity()
+                .unwrap();
+            let (sections, _) = closure.artifact(identity).unwrap();
+            materializations += sections
+                .lir_strong_production()
+                .canonical_callable_definitions()
+                .definitions()
+                .iter()
+                .filter(|definition| {
+                    matches!(
+                        definition.owner(),
+                        scoop_lir::CanonicalCallableDefinitionOwnerV1::Odr { .. }
+                    )
+                })
+                .count();
+            for binding in sections
+                .mir_type_bridge()
+                .exports()
                 .callables()
-                .get(binding.implementation())
-                .expect("a method has its actual lowered ABI");
-            assert_eq!(
-                abi.canonical_signature().signature(),
-                binding.lowered_signature().exact()
-            );
-            assert_eq!(
-                abi.definition().symbol().linkage(),
-                scoop_identity::LinkageClass::OdrWeak
-            );
-            assert_eq!(
-                abi.physical_definition().provider(),
-                coordinate.identity().unwrap()
-            );
-            if matches!(
-                binding.lowering_role(),
-                scoop_mir::MirCallableLoweringRoleV1::Ordinary
-                    | scoop_mir::MirCallableLoweringRoleV1::Accessor
-            ) {
-                members += 1;
+                .entries()
+                .iter()
+                .filter(|binding| {
+                    matches!(
+                        binding.implementation(),
+                        scoop_identity::CallableDefinitionOwner::Odr(_)
+                    )
+                })
+            {
+                let abi = sections
+                    .lir_exports()
+                    .callables()
+                    .get(binding.implementation())
+                    .expect("a callable has its actual lowered ABI");
+                assert_eq!(
+                    abi.canonical_signature().signature(),
+                    binding.lowered_signature().exact()
+                );
+                assert_eq!(
+                    abi.definition().symbol().linkage(),
+                    scoop_identity::LinkageClass::OdrWeak
+                );
+                assert_eq!(abi.physical_definition().provider(), identity);
             }
         }
-        assert!(members > 0, "{case} has actual member definitions");
+        assert!(
+            materializations > 0,
+            "{case} has actual ODR callable definitions"
+        );
+        let (sections, _) = closure.artifact(coordinate.identity().unwrap()).unwrap();
         let mut boxes = 0;
         for ty in sections.mir_type_bridge().exports().types().records() {
             let scoop_mir::MirTypeRepresentationV1::BoxedValue { payload } = ty.representation()

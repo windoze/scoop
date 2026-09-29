@@ -6,10 +6,11 @@ use std::fmt;
 use scoop_identity::{CanonicalIdentifier, CanonicalIdentifierError, SignatureTypeKey};
 
 use crate::{
-    CanonicalBinderListV1, CanonicalSignatureTypesV1, ExportHir, HirSignatureBinder,
-    HirSignatureTypeMapper, HirSignatureTypeMappingError, NominalTypeParameterBoundsV1,
-    SignatureTypeSetBuildError, TypeParamBounds, TypeParamDecl, TypeParameterBinderBuildError,
-    TypeParameterBinderV1, TypeParameterBoundsBuildError, TypeParameterBoundsV1,
+    CanonicalBinderListV1, CanonicalSignatureTypesV1, ClassUpperBound, ExportHir,
+    HirSignatureBinder, HirSignatureTypeMapper, HirSignatureTypeMappingError, InterfaceUpperBound,
+    NominalTypeParameterBoundsV1, SignatureTypeSetBuildError, TypeParamBounds, TypeParamDecl,
+    TypeParameterBinderBuildError, TypeParameterBinderV1, TypeParameterBoundsBuildError,
+    TypeParameterBoundsV1,
 };
 
 pub(super) struct HirInterfaceSignatureProjector<'a> {
@@ -130,28 +131,17 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
             TypeParamBounds::Unconstrained => Ok(TypeParameterBoundsV1::Unconstrained),
             TypeParamBounds::Value { .. } => Ok(TypeParameterBoundsV1::Value),
             TypeParamBounds::Ref { .. } => Ok(TypeParameterBoundsV1::Ref),
-            TypeParamBounds::ImportedNominal(bounds) => {
-                let class = bounds
-                    .class
-                    .as_ref()
-                    .map(|bound| self.map_type(bound.ty, binders))
-                    .transpose()?;
-                let interfaces = bounds
-                    .interfaces
-                    .iter()
-                    .map(|bound| self.map_type(bound.ty, binders))
-                    .collect::<Result<Vec<_>, _>>()?;
-                let interfaces = CanonicalSignatureTypesV1::try_new(interfaces)
-                    .map_err(HirInterfaceSignatureProjectionError::InterfaceBounds)?;
-                NominalTypeParameterBoundsV1::try_new(class, interfaces)
-                    .map(TypeParameterBoundsV1::Nominal)
-                    .map_err(HirInterfaceSignatureProjectionError::NominalBounds)
-            }
             TypeParamBounds::Nominal(bounds) => {
                 let class = bounds
                     .class
                     .as_ref()
                     .map(|bound| {
+                        let bound = match bound {
+                            ClassUpperBound::Local(bound) => bound,
+                            ClassUpperBound::Imported(bound) => {
+                                return self.map_type(bound.ty, binders);
+                            }
+                        };
                         let index = raw_index(bound.application);
                         if index as usize >= self.export.class_applications.len() {
                             return Err(
@@ -170,6 +160,12 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
                     .interfaces
                     .iter()
                     .map(|bound| {
+                        let bound = match bound {
+                            InterfaceUpperBound::Local(bound) => bound,
+                            InterfaceUpperBound::Imported(bound) => {
+                                return self.map_type(bound.ty, binders);
+                            }
+                        };
                         let index = raw_index(bound.application);
                         if index as usize >= self.export.interface_applications.len() {
                             return Err(

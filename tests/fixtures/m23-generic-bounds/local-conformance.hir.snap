@@ -1,0 +1,81 @@
+Module
+  struct Local<T> : Readable
+    field0 payload: T0
+    property0 val payload: T0 getter0=storage <stored struct0-field0>
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      StructInit Local : Local<T0>
+        Local $parameter.payload : T0
+    val local4
+      Local receiver : Local<T0>
+    val local5
+      Local $dependency.argument.0 : Local<T0>
+    val local6
+      ImportedGenericCall readReference<Local<T0>> : () -> Int
+        Local $dependency.parameter.value : Local<T0>
+    val local7
+      Local value : T0
+    val local8
+      IntegerLiteral 0 : Int
+    val local9
+      Local $dependency.argument.0 : T0
+    val local10
+      Local $dependency.argument.1 : Int
+    val local11
+      ImportedConstructorInit GenericValue : GenericValue<T0>
+        Local $dependency.parameter.payload : T0
+        Local $dependency.parameter.number : Int
+    val local12
+      Local receiver : Local<T0>
+    val local13
+      Local $dependency.argument.0 : Local<T0>
+    val local14
+      ImportedGenericCall readBound<Local<T0>> : Int
+        Local $dependency.parameter.value : Local<T0>
+    val local15
+      IntegerLiteral 42 : Int
+    val local16
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local21
+        BoolLiteral true : Boolean
+    else
+      val local17
+        Local allocated : GenericValue<T0>
+      val local18
+        ImportedGenericCall read<T0> : Int
+          Local $dependency.receiver : GenericValue<T0>
+      val local19
+        IntegerLiteral 0 : Int
+      val local20
+        Local $dependency.argument.0 : Int
+      val local21
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    return
+      CallableCall function_type0 : Int
+        Local read : () -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

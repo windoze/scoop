@@ -109,10 +109,23 @@ impl Lowerer {
                 ));
             }
         };
-        let span = self
-            .imported_default_definition_origin(source.definition_origin(), context)?
-            .span;
+        let span = self.imported_statement_span(source.definition_origin(), context)?;
         Ok(Some(hir::Statement { kind, span }))
+    }
+
+    fn imported_statement_span(
+        &mut self,
+        source: &hir::ExportDefinitionSourceV1,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<scoop_ast::Span, ImportedDefaultMaterializationError> {
+        match context.evaluation {
+            ImportedTemplateEvaluation::Definition(_) => Ok(self
+                .imported_default_definition_origin(source, context)?
+                .span),
+            // Expanded scaffolding belongs to the caller. Expressions retain
+            // their full provider definition and evaluation origins.
+            ImportedTemplateEvaluation::DefaultUse(evaluation) => Ok(evaluation.span),
+        }
     }
 
     fn materialize_imported_default_statements(
@@ -143,9 +156,7 @@ impl Lowerer {
                     local: self.materialized_imported_default_local(catch.local(), context)?,
                     ty: self.materialize_imported_default_type(catch.value_type(), context)?,
                     body: self.materialize_imported_default_statements(catch.body(), context)?,
-                    span: self
-                        .imported_default_definition_origin(catch.definition_origin(), context)?
-                        .span,
+                    span: self.imported_statement_span(catch.definition_origin(), context)?,
                 })
             })
             .collect::<Result<_, ImportedDefaultMaterializationError>>()?;
@@ -252,9 +263,7 @@ impl Lowerer {
                 None
             };
             let body = self.materialize_imported_default_statements(arm.body(), context)?;
-            let span = self
-                .imported_default_definition_origin(arm.definition_origin(), context)?
-                .span;
+            let span = self.imported_statement_span(arm.definition_origin(), context)?;
             arms.push(hir::WhenArm {
                 pattern,
                 guard,

@@ -10,8 +10,7 @@ use std::collections::HashSet;
 use super::scoop_abi::canonical_storage_scan;
 use super::*;
 
-mod dataflow;
-use dataflow::*;
+use crate::dataflow::*;
 
 pub(super) fn validate_call_root_plans(module: &Module) -> Result<(), CodegenError> {
     for function in &module.functions {

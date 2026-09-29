@@ -8,8 +8,8 @@ use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 use super::super::body::expression_test_support::{Fixture, ResolutionError, hex};
 use super::*;
 use crate::{
-    DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
-    DefaultCallableDeclarationV1, DefaultConstructorRefV1, DefaultFieldRefV1,
+    DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1, DefaultCallableDeclarationV1,
+    DefaultConstructorRefV1, DefaultFieldRefV1,
 };
 
 #[test]
@@ -34,7 +34,7 @@ fn callable_target_tags_round_trip() {
     let fixture = Fixture::new();
     let value_type = fixture.value_type();
     let bound = DefaultBoundCallableRefV1::new(
-        DefaultBinderRefV1::new(0, 0),
+        SignatureTypeKey::Binder { depth: 0, index: 0 },
         DefaultBoundCallableSourceV1::Class {
             bound: value_type.clone(),
             callable: fixture.callable(),

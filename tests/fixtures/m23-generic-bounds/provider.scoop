@@ -1,0 +1,73 @@
+package templates.bounds
+
+public interface Readable {
+    public fun read(): Int
+}
+public interface Extra {
+    public fun extra(): Int
+}
+public interface Marker {}
+public interface Holder<T> {
+    public fun get(): T
+}
+public interface ChildHolder<T> : Holder<T> {}
+public interface DefaultHolder<T> : ChildHolder<T> {
+    public fun stored(): T
+    public override fun get(): T = this.stored()
+}
+public struct StoredHolder<T>(val payload: T) : DefaultHolder<T> {
+    public override fun stored(): T = this.payload
+}
+public interface DefaultReadable : Readable {
+    public override fun read(): Int = 42
+}
+
+public struct DefaultValue<T>(val payload: T) : DefaultReadable {}
+public enum DefaultTag<T> : DefaultReadable {
+    Empty,
+    Payload(T)
+}
+public fun <T> defaultTag(value: T): DefaultTag<T> = DefaultTag.Payload(value)
+public abstract class AbstractReader<T> public constructor() : Readable
+public class ActualReader<T> public constructor(public val payload: T) : AbstractReader<T>() {
+    public override fun read(): Int = 42
+}
+
+public struct Value(val number: Int) : Readable, Extra {
+    public override fun read(): Int = this.number
+    public override fun extra(): Int = 2
+}
+public struct GenericValue<T>(val payload: T, val number: Int) : Readable {
+    public override fun read(): Int = this.number
+}
+public open class PlainBase public constructor() : Readable, Marker {
+    public override fun read(): Int = 1
+}
+public class PlainDerived public constructor() : PlainBase() {
+    public override fun read(): Int = 42
+}
+public open class Base<T> public constructor(public val payload: T) : Readable, Marker {
+    public override fun read(): Int = 1
+    public open fun get(): T = this.payload
+}
+public class Derived<T> public constructor(payload: T) : Base<T>(payload) {
+    public override fun read(): Int = 42
+}
+public class HolderImpl<T> public constructor(public val payload: T) : ChildHolder<T> {
+    public override fun get(): T = this.payload
+}
+
+public fun <T : Readable> readBound(value: T): Int = value.read()
+public fun <T : Readable> readReference(value: T): () -> Int = value::read
+public fun <T> combined(value: T): Int where T : Readable, T : Extra = value.read() + value.extra()
+public fun <T> classBound(value: T): Int where T : PlainBase, T : Marker = value.read()
+public fun <T> classReference(value: T): () -> Int where T : PlainBase = value::read
+public fun <T, U> genericClassGet(value: T): U where T : Base<U> = value.get()
+public fun <T, U> genericClassReference(value: T): () -> U where T : Base<U> = value::get
+public fun <T, U> genericInterfaceGet(value: T): U where T : Holder<U> = value.get()
+public fun <T, U> inheritedReference(value: T): () -> U where T : ChildHolder<U> = value::get
+
+public fun <T : Readable> defaultRead(value: T, answer: Int = value.read()): Int = answer
+
+public fun <T : ToString> stringBound(value: T): String = value.toString()
+public fun <T : Hash> hashBound(value: T): Long = value.hash()

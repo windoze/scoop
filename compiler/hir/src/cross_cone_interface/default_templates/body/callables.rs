@@ -228,46 +228,6 @@ impl WireDecode for DecodedDefaultCallableRefV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefaultBinderRefV1 {
-    depth: u32,
-    index: u32,
-}
-
-impl DefaultBinderRefV1 {
-    pub const fn new(depth: u32, index: u32) -> Self {
-        Self { depth, index }
-    }
-
-    pub const fn depth(self) -> u32 {
-        self.depth
-    }
-
-    pub const fn index(self) -> u32 {
-        self.index
-    }
-}
-
-impl WireEncode for DefaultBinderRefV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        encoder.unsigned(u64::from(self.depth))?;
-        encoder.field(2)?;
-        encoder.unsigned(u64::from(self.index))
-    }
-}
-
-impl WireDecode for DefaultBinderRefV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        Ok(Self {
-            depth: decoder.field(1, Decoder::u32)?,
-            index: decoder.field(2, Decoder::u32)?,
-        })
-    }
-}
-
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultBoundCallableSourceV1 {
     Class {
@@ -392,26 +352,26 @@ impl WireDecode for DecodedDefaultBoundCallableSourceV1 {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DefaultBoundCallableRefV1 {
-    receiver_parameter: DefaultBinderRefV1,
+    receiver_type: SignatureTypeKey,
     source: DefaultBoundCallableSourceV1,
     instantiated_signature: SignatureTypeKey,
 }
 
 impl DefaultBoundCallableRefV1 {
     pub const fn new(
-        receiver_parameter: DefaultBinderRefV1,
+        receiver_type: SignatureTypeKey,
         source: DefaultBoundCallableSourceV1,
         instantiated_signature: SignatureTypeKey,
     ) -> Self {
         Self {
-            receiver_parameter,
+            receiver_type,
             source,
             instantiated_signature,
         }
     }
 
-    pub const fn receiver_parameter(&self) -> DefaultBinderRefV1 {
-        self.receiver_parameter
+    pub const fn receiver_type(&self) -> &SignatureTypeKey {
+        &self.receiver_type
     }
 
     pub const fn source(&self) -> &DefaultBoundCallableSourceV1 {
@@ -427,7 +387,7 @@ impl WireEncode for DefaultBoundCallableRefV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
-        self.receiver_parameter.encode(encoder)?;
+        self.receiver_type.encode(encoder)?;
         encoder.field(2)?;
         self.source.encode(encoder)?;
         encoder.field(3)?;
@@ -437,7 +397,7 @@ impl WireEncode for DefaultBoundCallableRefV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedDefaultBoundCallableRefV1 {
-    receiver_parameter: DefaultBinderRefV1,
+    receiver_type: DecodedSignatureTypeKey,
     source: DecodedDefaultBoundCallableSourceV1,
     instantiated_signature: DecodedSignatureTypeKey,
 }
@@ -451,7 +411,10 @@ impl DecodedDefaultBoundCallableRefV1 {
         R: DefaultCallableReferenceResolver<E>,
     {
         Ok(DefaultBoundCallableRefV1 {
-            receiver_parameter: self.receiver_parameter,
+            receiver_type: self
+                .receiver_type
+                .resolve(resolver)
+                .map_err(DefaultBoundCallableRefResolutionError::ReceiverType)?,
             source: self
                 .source
                 .resolve(resolver)
@@ -468,7 +431,7 @@ impl WireEncode for DecodedDefaultBoundCallableRefV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
         encoder.field(1)?;
-        self.receiver_parameter.encode(encoder)?;
+        self.receiver_type.encode(encoder)?;
         encoder.field(2)?;
         self.source.encode(encoder)?;
         encoder.field(3)?;
@@ -480,7 +443,7 @@ impl WireDecode for DecodedDefaultBoundCallableRefV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
-            receiver_parameter: decoder.field(1, DefaultBinderRefV1::decode)?,
+            receiver_type: decoder.field(1, DecodedSignatureTypeKey::decode)?,
             source: decoder.field(2, DecodedDefaultBoundCallableSourceV1::decode)?,
             instantiated_signature: decoder.field(3, DecodedSignatureTypeKey::decode)?,
         })
@@ -667,6 +630,7 @@ impl<E: std::error::Error + 'static> std::error::Error
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DefaultBoundCallableRefResolutionError<E> {
+    ReceiverType(E),
     Source(DefaultBoundCallableSourceResolutionError<E>),
     InstantiatedSignature(E),
 }
@@ -674,6 +638,9 @@ pub enum DefaultBoundCallableRefResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for DefaultBoundCallableRefResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ReceiverType(error) => {
+                write!(formatter, "invalid bound callable receiver type: {error}")
+            }
             Self::Source(error) => write!(formatter, "invalid bound callable source: {error}"),
             Self::InstantiatedSignature(error) => {
                 write!(formatter, "invalid bound callable signature: {error}")

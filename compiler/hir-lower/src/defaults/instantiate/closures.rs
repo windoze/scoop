@@ -17,7 +17,7 @@ impl Lowerer {
             })
     }
 
-    fn instantiate_default_imported_target(
+    pub(super) fn instantiate_default_imported_target(
         &mut self,
         target: hir::ImportedCallableTarget,
         context: &InstantiationContext,
@@ -51,7 +51,7 @@ impl Lowerer {
             hir::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
                 hir::ImportedCallableReferenceTarget::BoundMember {
                     receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                    callee: self.instantiate_default_imported_target(*callee, context),
+                    callee: self.instantiate_default_imported_method_callee(callee, context),
                 }
             }
             hir::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {

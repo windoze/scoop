@@ -9,7 +9,7 @@ Module
     val local2
       IntegerLiteral 1 : Long
     val local3
-      ImportedDependencyCall #7 interface[1] : Long
+      ImportedDependencyCall #12 interface[1] : Long
         Local $dependency.receiver : Readable
         Local $dependency.parameter.extra : Long
     val local4
@@ -23,6 +23,6 @@ Module
     val local7
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #8 : Counter
+      ImportedDependencyCall #13 : Counter
         Local $dependency.parameter.value : Long
   output library

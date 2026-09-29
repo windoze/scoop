@@ -5,19 +5,19 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #4 : ComputedValue
+      ImportedDependencyCall #6 : ComputedValue
         Local $dependency.parameter.initial : Long
     val local3
       Local cell : ComputedValue
-    ImportedDependencyCall #3 : Unit
+    ImportedDependencyCall #5 : Unit
       Local $place.0 : ComputedValue
       IntegerLiteral 10 : Long
     val local4
-      ImportedDependencyCall #2 : Long
+      ImportedDependencyCall #4 : Long
         Local cell : ComputedValue
     val local5
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #5 : Counter
+      ImportedDependencyCall #7 : Counter
         Local $dependency.parameter.value : Long
   output library

@@ -284,8 +284,23 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(&capture.source, out);
                 }
             }
+            ExprKind::ImportedMethodCall {
+                receiver,
+                callee,
+                args,
+            } => {
+                if let Some(hir::ImportedCallableTarget::Application(application)) =
+                    callee.declared_callable()
+                {
+                    out.push(self.imported_body_generic_call(application, expr.span));
+                }
+                self.collect_generic_calls_in_expr(receiver, out);
+                for arg in args {
+                    self.collect_generic_calls_in_expr(arg, out);
+                }
+            }
             ExprKind::ImportedCallableReference(reference) => {
-                if let hir::ImportedCallableTarget::Application(application) =
+                if let Some(hir::ImportedCallableTarget::Application(application)) =
                     reference.target.callee()
                 {
                     out.push(self.imported_body_generic_call(application, expr.span));

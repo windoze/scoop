@@ -536,10 +536,23 @@
 
 本项完成上述 initializer 函数引用与捕获、派发组合。类型参数 bound 成员及派生相等目标、导入默认值中的生成实体和消费方源码直接引用外来函数仍属后续主线，M23-7 尚未完成。
 
+## 2026-09-29：类型参数 bound 调用、函数引用与再次发布
+
+- 导入模板中的 bound 调用和绑定成员引用保留实际 receiver type、接口/member/slot、完整函数签名及已选声明。具体化按实际 conformance 选择本地或外来实现；class override 保留 virtual dispatch，抽象与接口接收者保留接口槽，接口默认实现按其实际声明 owner 适配。值接收者可以直接调用自己的实现，未装箱值不再发布物理派发表；下游后来装箱时仍按真实需要生成表并合并共有定义。
+- 源级本地与外来 class/interface 上界合并到同一结构，支持混合约束、继承接口及完整泛型应用，保留单 class、重复 interface、kind 互斥与 invariant 实参规则。源级类型参数的外来成员调用保留类型参数接收者，不制造提供方的本地 FunctionId。进入共有声明闭包且签名可物化的 private/internal 构造器随实际 MIR/LIR callable 导出，供下游再次实例化原模板；源码可见性保持，删除旧测试中把这些有效构造器重新拼装为非法导出的路径。
+- 默认参数中的 bound receiver 保存完整类型 key，展开后的具体类型可以再次发布；正文与引用目录共用同一 bound target，并包含 receiver、接口和签名的类型引用。临时语句和控制节点使用消费调用的位置，内部表达式保留定义与求值双来源，`@NoGC` 错误定位到本次调用。HIR `cross-cone-interface` 升至 `/37`，移除专用 binder 对及其独立遍历，生产、reader、profile 和固定向量同步迁移。
+- Int8/Int16/Int/Long、对应无符号整数、Boolean 和 String 的 bound 调用使用 core 的实际声明与接口实现。已具体化的 receiver 和模板内泛型转发的名义 bound 实参按需保留 primitive 声明；conformance 复用已有缓存，不在转发调用处重做语言约束检查。普通算术不会因此加载无关的 bound 方法。
+- 修复两处真实的重复 ODR 定义冲突：代码生成复用 use/def 遍历，按正文首次使用或定义的顺序分配局部栈槽；同一 callable 的本地和依赖 relocation 在对象摘要中统一为实际 callable-body 身份。原普通依赖 runtime target tag 11 退役，Strong/ODR callable 分别使用既有 tag 1/14，非 callable shape 保持原规则。LIR `link-identity-closure` 升至 `/5`；三份 spec 与设计同步，旧产物和缓存重建，runtime C ABI 保持。
+- 新增 27 份源码、13 组真实产物正例、39 份 HIR/MIR/LIR golden 和 11 份诊断 golden。覆盖 class/接口派发、泛型与继承接口默认实现、抽象接收者、本地 conformance、混合来源 bound、默认参数、原始类型及下游新增装箱；provider 与 consumer 发布后移走源码，由第三个 Cone 以自身引用类型再次实例化并链接运行，普通与移动 GC 模式均返回 42。反例验证实际调用或声明处的位置与诊断，包括不满足 class/interface、精确泛型接口、不匹配引用结果、默认值 effect、重复接口、多个 class 及 kind 混用。
+- `cargo fmt --all`、LLVM 22.1 下的 `cargo clippy --workspace --all-targets` 和最新配套 `scoopc` 构建通过，无警告。关闭全部快照更新后运行 `cargo test --workspace --no-fail-fast`，5194 项通过、0 失败、0 忽略；driver library 的 144 项全部通过，用时 369.30 秒。既有快照差异已核对：22 份继承/属性 HIR 只改变会话内 callable 编号，core 与类型支持快照补齐实际构造器、移除未装箱值物理派发表并更新相应摘要。完整日志为 `/tmp/scoop-m23-7-bounds-workspace-verified.log`。
+- 全仓通过后确认本仓库构建、测试和运行进程结束、`target` 无打开文件，通过 Cargo metadata 核对目录及缓存内容，恢复缺失的标准缓存标记后执行 `cargo clean --target-dir target`，删除 2954 个文件，回收 7.0 GiB。
+
+本项完成上述 bound 调用、引用、默认参数和再次发布闭环。导入派生相等目标、默认值中的生成实体及消费方源码直接引用外来函数继续推进，M23-7 尚未完成。
+
 ## 剩余主线
 
 1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值与两组 binder 基础上，补齐 vararg、组合 bound、bound dispatch（含类型参数成员和派生相等函数引用），以及泛型正文和默认参数中的 lambda、匿名函数和 callable reference 捕获组合；接通消费方源码直接引用外来函数的候选选择。
+2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder，以及混合来源 bound 的成员调用、函数引用与默认参数基础上，补齐 vararg、导入派生相等目标，以及泛型正文和默认参数中的 lambda、匿名函数和 callable reference 捕获组合；接通消费方源码直接引用外来函数的候选选择。
 3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，继续覆盖其他成员组合，以及递归扫描程序的实际对象 atom。
 4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support，验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
 5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。

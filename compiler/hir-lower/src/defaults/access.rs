@@ -111,9 +111,8 @@ impl ReferenceCollector<'_> {
         match *target {
             hir::ExportDefaultCallableTarget::Callable(callable) => self.callable_domain(callable),
             hir::ExportDefaultCallableTarget::ImportedDependency(_)
-            | hir::ExportDefaultCallableTarget::ImportedGeneric(_) => {
-                hir::AccessDomain::universal()
-            }
+            | hir::ExportDefaultCallableTarget::ImportedGeneric(_)
+            | hir::ExportDefaultCallableTarget::ImportedBound(_) => hir::AccessDomain::universal(),
             hir::ExportDefaultCallableTarget::Bound(bound) => {
                 self.method_callee_domain(hir::MethodCallee::Bound(bound))
             }

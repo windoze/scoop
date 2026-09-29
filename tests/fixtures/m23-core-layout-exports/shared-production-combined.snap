@@ -3,7 +3,7 @@ mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
 local-only descriptor SharedProductionPrivate
-layouts=218 descriptors=109 dispatch=130 callables=37 shapes=31
+layouts=218 descriptors=109 dispatch=130 callables=38 shapes=31
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$body$1: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
@@ -21,6 +21,7 @@ callable init.IllegalArgumentException.$c18: OrdinaryManaged receiver=true args=
 callable init.IllegalStateException.$c19: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable init.IllegalStateException.$c22: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.IndexOutOfBoundsException.$c17: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedProductionOwner.$c2: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.Throwable.$c12: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.UnwrapException.$c14: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable thunk<Boolean> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

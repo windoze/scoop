@@ -199,6 +199,17 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, &capture.source, indent + 1, out);
             }
         }
+        ExprKind::ImportedMethodCall {
+            receiver,
+            callee,
+            args,
+        } => {
+            out.push_str(&format!("{pad}ImportedMethodCall {callee:?} : {ty}\n"));
+            dump_expr(module, locals, receiver, indent + 1, out);
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
         ExprKind::Lambda(id) => {
             let lambda = &module.lambdas[*id];
             out.push_str(&format!(

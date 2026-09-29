@@ -71,24 +71,6 @@ where
         }
     }
 
-    fn validate_binder(
-        &mut self,
-        depth: u32,
-        index: u32,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &ExportDefinitionSourceV1,
-    ) -> Result<(), Self::Error> {
-        self.scope
-            .validate(&SignatureTypeKey::Binder { depth, index })
-            .map_err(
-                |error| DefaultBodyProviderEnvelopeSemanticValidationError::Binder {
-                    site,
-                    definition_origin: Box::new(definition_origin.clone()),
-                    error,
-                },
-            )
-    }
-
     fn visit_evaluation_origin(
         &mut self,
         _source: &scoop_identity::EvaluationOrigin,

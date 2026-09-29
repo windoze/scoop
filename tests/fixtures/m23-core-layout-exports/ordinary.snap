@@ -1,6 +1,7 @@
-layouts=22 descriptors=11 dispatch=11 callables=2 shapes=3
+layouts=22 descriptors=11 dispatch=11 callables=3 shapes=3
 callable ctor.Payload.$c1: OrdinaryNoGc receiver=false args=["Zst(0)", "Direct(1)"] result=Indirect(1)
 callable ctor.Token.$c0: OrdinaryNoGc receiver=false args=[] result=Zst(0)
+callable init.Published.$c1: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 descriptor g(r=00000005;i=4deb3ad5d37e6200e89d85c1ddf4b67039675ad33b0d3e6763c5088a2471de19): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=d8c47989fe46537831a92362d045602d3e252125b4e4d6ed196ba90b2912286c): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=f73004195592c47b78c0f7ff8bad162a03c94ac4a42fde532d38d2a75c48b190): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0

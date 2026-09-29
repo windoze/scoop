@@ -132,12 +132,6 @@ pub(in super::super) enum BodyNode<'a> {
         definition_origin: &'a ExportDefinitionSourceV1,
     },
     IntegerArguments(&'a DefaultIntegerArgumentsV1),
-    Binder {
-        depth: u32,
-        index: u32,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
     Origin {
         source: &'a ExportDefinitionSourceV1,
         site: DefaultBodyOriginSiteV1,

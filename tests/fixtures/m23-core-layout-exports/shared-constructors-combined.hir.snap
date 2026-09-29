@@ -1,7 +1,7 @@
 Nested(): Public Managed exported=false
 SharedConstructorBase(): Public Managed exported=true
-SharedConstructorBase(Boolean): Private Managed exported=false
-SharedConstructorBase(Int): Internal Managed exported=false
+SharedConstructorBase(Boolean): Private Managed exported=true
+SharedConstructorBase(Int): Internal Managed exported=true
 SharedConstructorBase(SharedConstructorToken): Protected Managed exported=true
 SharedConstructorDeferred(SharedConstructorGeneric<SharedConstructorToken>): Public Managed exported=true
 SharedConstructorDerived(SharedConstructorToken): Public Managed exported=true
@@ -14,6 +14,6 @@ SharedConstructorOther(): Public Managed exported=true
 SharedConstructorPair(): Public Managed exported=true
 SharedConstructorPair(SharedConstructorToken): Public NoGc exported=true
 SharedConstructorPair(SharedConstructorToken,SharedConstructorToken): Public Managed exported=true
-SharedConstructorPrivate(SharedConstructorToken): Private Managed exported=false
+SharedConstructorPrivate(SharedConstructorToken): Private Managed exported=true
 SharedConstructorSupport(): Public Managed exported=true
 SharedConstructorToken(): Public Managed exported=true

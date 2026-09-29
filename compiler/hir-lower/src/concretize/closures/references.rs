@@ -37,9 +37,15 @@ impl Concretizer<'_> {
                 }
             }
             export::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
+                let mut receiver = self.lower_expr(receiver, substitution, locals);
+                let (callee, interface) =
+                    self.lower_imported_method_callee(callee, receiver.ty, substitution);
+                if let Some(interface) = interface {
+                    receiver = self.adapt_receiver_to_interface(receiver, interface);
+                }
                 concrete::CallableReferenceTarget::BoundMember {
-                    receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
-                    callee: self.lower_imported_callable_target(*callee, substitution),
+                    receiver: Box::new(receiver),
+                    callee,
                 }
             }
             export::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {

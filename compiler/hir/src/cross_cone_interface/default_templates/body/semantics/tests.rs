@@ -8,9 +8,9 @@ use crate::cross_cone_interface::default_templates::body::expression_test_suppor
     Fixture, definition_path,
 };
 use crate::{
-    DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
-    DefaultCallableBodyTypeArgumentsV1, DefaultCaptureV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultLambdaV1, DefaultMethodCalleeV1, PublicNominalShapeV1,
+    DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1, DefaultCallableBodyTypeArgumentsV1,
+    DefaultCaptureV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultLambdaV1,
+    DefaultMethodCalleeV1, PublicNominalShapeV1,
 };
 
 #[test]
@@ -57,7 +57,7 @@ fn validates_bound_receiver_binders_against_the_provider_scope() {
     let fixture = Fixture::new();
     let origin = fixture.origin();
     let bound = DefaultBoundCallableRefV1::new(
-        DefaultBinderRefV1::new(1, 0),
+        SignatureTypeKey::Binder { depth: 1, index: 0 },
         DefaultBoundCallableSourceV1::Interface {
             bound: binder(0, 0),
             member: CallableTemplateOrigin::Function(fixture.function),
@@ -85,13 +85,15 @@ fn validates_bound_receiver_binders_against_the_provider_scope() {
 
     assert_eq!(
         validate(&body, &mut Authority),
-        Err(DefaultBodyProviderEnvelopeSemanticValidationError::Binder {
-            site: DefaultBodyProviderTypeSiteV1::BoundCallableReceiverParameter,
+        Err(DefaultBodyProviderEnvelopeSemanticValidationError::Type {
+            site: DefaultBodyProviderTypeSiteV1::BoundCallableReceiverType,
             definition_origin: Box::new(origin),
-            error: crate::SignatureBinderScopeError::DepthOutOfRange {
-                depth: 1,
-                available_depths: 1,
-            },
+            error: Box::new(SignatureTypeSemanticError::BinderScope(
+                crate::SignatureBinderScopeError::DepthOutOfRange {
+                    depth: 1,
+                    available_depths: 1,
+                }
+            )),
         })
     );
 }

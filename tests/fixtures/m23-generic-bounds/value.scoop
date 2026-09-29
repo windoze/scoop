@@ -1,0 +1,16 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver = GenericValue<T>(value, 42)
+    val read = readReference(receiver)
+    val allocated = PlainDerived()
+    if (readBound(receiver) != 42 || allocated.read() != 42) { return 1 }
+    if (combined(Value(40)) != 42) { return 2 }
+    return read()
+}
+
+public fun result(): Int = exercise<Int>(1)
+
+public fun <T> boxedRead(value: T): Readable = GenericValue<T>(value, 42)

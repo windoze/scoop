@@ -5,4 +5,5 @@ Managed(): Public Managed => receiver=none result=Managed Managed
 Managed(Base): Public Managed => receiver=none result=Managed NoGc
 Pair(): Public NoGc => receiver=none result=Pair NoGc
 Pair(Token, Token): Public Managed => receiver=none result=Pair NoGc
+Private(): Private Managed => receiver=Private result=Unit Managed
 Token(): Public Managed => receiver=none result=Token NoGc

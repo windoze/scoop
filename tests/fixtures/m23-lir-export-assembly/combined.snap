@@ -1,4 +1,4 @@
-layouts=62 descriptors=31 dispatch=36 callables=17 shapes=9
+layouts=62 descriptors=31 dispatch=36 callables=18 shapes=9
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Choice.equals: OrdinaryManaged receiver=true args=["Indirect(8)", "Indirect(8)"] result=Direct(1)
@@ -13,6 +13,7 @@ callable ctor.Value.$c3: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable init.Base.$c0: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
 callable init.Base.$c1: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.Derived.$c2: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable init.Pending.$c3: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable thunk<Value> Contract.$get$token(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable thunk<Value> Contract.echo(Token): OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable thunk<Value> Contract.run(Token): OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)

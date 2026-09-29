@@ -1,5 +1,5 @@
 use super::*;
-use crate::{DeclaredVisibilityV1, SourceNominalId};
+use crate::SourceNominalId;
 use scoop_identity::{DefinitionOwnerAtom, PersistentConstructorId, SourceDeclarationKey};
 
 /// Borrows the complete source constructors required by materialized owners.
@@ -44,11 +44,7 @@ pub fn select_param_free_source_constructors<'a>(
             {
                 return Err(Error::CallableContract(origin));
             }
-            if !matches!(
-                source.declared_visibility(),
-                DeclaredVisibilityV1::Public | DeclaredVisibilityV1::Protected
-            ) || !signatures.callable(source)
-            {
+            if !signatures.callable(source) {
                 continue;
             }
 

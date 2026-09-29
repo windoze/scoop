@@ -1,0 +1,47 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedConstructorInit DefaultValue : DefaultValue<T0>
+        Local $dependency.parameter.payload : T0
+    val local4
+      Local receiver : DefaultValue<T0>
+    val local5
+      Local $dependency.argument.0 : DefaultValue<T0>
+    val local6
+      ImportedGenericCall readBound<DefaultValue<T0>> : Int
+        Local $dependency.parameter.value : DefaultValue<T0>
+    val local7
+      IntegerLiteral 42 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local9
+      Local receiver : DefaultValue<T0>
+    val local10
+      Local $dependency.argument.0 : DefaultValue<T0>
+    val local11
+      ImportedGenericCall readReference<DefaultValue<T0>> : () -> Int
+        Local $dependency.parameter.value : DefaultValue<T0>
+    return
+      CallableCall function_type0 : Int
+        Local read : () -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

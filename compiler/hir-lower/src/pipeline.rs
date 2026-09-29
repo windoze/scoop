@@ -281,6 +281,7 @@ impl Lowerer {
             intrinsic_functions: HashMap::new(),
             intrinsic_type_owners: HashMap::new(),
             imported_intrinsic_types: std::collections::BTreeMap::new(),
+            imported_bound_interfaces: HashSet::new(),
             extern_functions: Arena::new(),
             globals: Arena::new(),
             initialization_units: Arena::new(),

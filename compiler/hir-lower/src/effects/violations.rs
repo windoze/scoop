@@ -369,6 +369,47 @@ impl Lowerer {
                 }
             }
 
+            ExprKind::ImportedMethodCall {
+                receiver,
+                callee,
+                args,
+            } => {
+                let span = expr.origin.concrete().evaluation.span;
+                if let Some(target) = callee.declared_callable() {
+                    let effect = match target {
+                        hir::ImportedCallableTarget::Application(application) => self
+                            .imported_generic_templates
+                            [self.imported_generic_applications[application].template]
+                            .effects
+                            .gc_effect(),
+                        hir::ImportedCallableTarget::Dependency(callee) => {
+                            let reference = self.imported_dependency_callables[callee].reference();
+                            self.dependencies
+                                .as_ref()
+                                .and_then(|dependencies| dependencies.resolve_callable(reference))
+                                .expect("a bound member retains its selected declaration")
+                                .capability()
+                                .gc_effect()
+                        }
+                    };
+                    if effect != scoop_identity::GcEffect::NoGc {
+                        out.push((
+                            span,
+                            "managed dependency calls are not allowed in `@NoGC` code".into(),
+                        ));
+                    }
+                } else if let hir::ImportedMethodCallee::DerivedEquality(application) = callee {
+                    self.check_no_gc_function(
+                        self.derived_equality_applications[*application].function,
+                        span,
+                        out,
+                    );
+                }
+                self.collect_no_gc_expr_violations(receiver, out, requirements);
+                for arg in args {
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
+                }
+            }
             ExprKind::ImportedConstructorInit { application, args } => {
                 let template = &self.imported_constructor_templates
                     [self.imported_constructor_applications[*application].template]

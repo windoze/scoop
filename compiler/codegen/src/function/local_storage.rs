@@ -1,4 +1,37 @@
 use super::*;
+use crate::dataflow::{LiveValue, instruction_defs, instruction_uses, terminator_uses};
+
+fn local_allocation_order(function: &Function) -> Vec<scoop_lir::LocalId> {
+    let mut order = Vec::with_capacity(function.locals.len());
+    let mut seen = HashSet::with_capacity(function.locals.len());
+    let mut visit = |value| {
+        if let LiveValue::Local(local) = value
+            && seen.insert(local)
+        {
+            order.push(local);
+        }
+    };
+    for (_, block) in function.blocks.iter() {
+        for instruction in &block.instructions {
+            for value in instruction_uses(instruction, function)
+                .into_iter()
+                .filter_map(LiveValue::from_value)
+                .chain(instruction_defs(instruction))
+            {
+                visit(value);
+            }
+        }
+        terminator_uses(&block.terminator, |value| {
+            if let Some(value) = LiveValue::from_value(value) {
+                visit(value);
+            }
+        });
+    }
+    for (local, _) in function.locals.iter() {
+        visit(LiveValue::Local(local));
+    }
+    order
+}
 
 pub(super) enum LocalAllocation<'ctx> {
     LogicalZst,
@@ -8,10 +41,13 @@ pub(super) enum LocalAllocation<'ctx> {
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn allocate_locals(&mut self) -> Result<(), CodegenError> {
-        for (_, local) in self.function.locals.iter() {
+        // Arena allocation can differ when a template is imported. Preserve
+        // the body's use/def order so equivalent bodies get the same slots.
+        for id in local_allocation_order(self.function) {
+            let local = &self.function.locals[id];
             let (ty, alignment, token) = match local.storage() {
                 scoop_lir::LocalStorage::LogicalZst(_) => {
-                    self.allocas.push(LocalAllocation::LogicalZst);
+                    self.allocas.insert(id, LocalAllocation::LogicalZst);
                     continue;
                 }
                 scoop_lir::LocalStorage::AddressableZst(place) => {
@@ -49,11 +85,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .expect("alloca is an instruction")
                 .set_alignment(alignment)
                 .map_err(|error| CodegenError(format!("align local %{}: {error}", local.name)))?;
-            self.allocas.push(if token {
-                LocalAllocation::ZstToken(pointer)
-            } else {
-                LocalAllocation::NonZero(pointer)
-            });
+            self.allocas.insert(
+                id,
+                if token {
+                    LocalAllocation::ZstToken(pointer)
+                } else {
+                    LocalAllocation::NonZero(pointer)
+                },
+            );
         }
         Ok(())
     }
@@ -62,7 +101,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &self,
         local: scoop_lir::LocalId,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
-        match self.allocas[arena_index(local)] {
+        match self.allocas[&local] {
             LocalAllocation::ZstToken(pointer) | LocalAllocation::NonZero(pointer) => Ok(pointer),
             LocalAllocation::LogicalZst => Err(CodegenError(format!(
                 "function @{} cannot take the address of logical ZST local %{} without a place token",

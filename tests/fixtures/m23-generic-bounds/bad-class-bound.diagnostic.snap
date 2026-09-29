@@ -1,0 +1,6 @@
+span=78..99
+expression=classBound(Value(42))
+dependency function `classBound`: type argument `Value` for `T` must satisfy `ref`
+span=130..149
+expression=classBound(Other())
+dependency function `classBound`: type argument `Other` for `T` must satisfy upper bound `PlainBase`

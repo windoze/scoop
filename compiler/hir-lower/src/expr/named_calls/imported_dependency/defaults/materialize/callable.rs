@@ -162,6 +162,26 @@ impl Lowerer {
                     })?,
                 )
             };
+            if let hir::ImportedCallableTypeParameters::Declared(parameters) =
+                &self.imported_generic_templates[template].type_parameters
+            {
+                let receivers = parameters
+                    .iter()
+                    .zip(arguments.substitution(&self.types))
+                    .filter_map(|(parameter, argument)| {
+                        matches!(parameter.bounds, hir::TypeParamBounds::Nominal(_))
+                            .then_some(argument)
+                    })
+                    .collect::<Vec<_>>();
+                for receiver in receivers {
+                    self.resolve_imported_member_receiver_type(receiver)
+                        .map_err(|error| {
+                            ImportedDefaultMaterializationError::Plan(
+                                error.diagnostic("bound type argument"),
+                            )
+                        })?;
+                }
+            }
             let application =
                 self.imported_generic_applications
                     .alloc(hir::ImportedGenericCallableApplication {

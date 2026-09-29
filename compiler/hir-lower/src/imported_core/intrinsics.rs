@@ -3,11 +3,42 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn require_imported_bound_interface(
+        &mut self,
+        interface: hir::TypeId,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let hir::Type::ImportedInterface(interface) = &self.types[interface] else {
+            return Err(ImportedSignatureTypeError::Structural);
+        };
+        if self
+            .imported_bound_interfaces
+            .insert(interface.declaration.owner())
+        {
+            let kinds = self
+                .imported_intrinsic_types
+                .keys()
+                .copied()
+                .collect::<Vec<_>>();
+            for kind in kinds {
+                self.resolve_imported_intrinsic_bound_conformances(kind)?;
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn resolve_imported_member_receiver(
         &mut self,
         ty: hir::TypeId,
         span: Span,
     ) -> Result<(), ()> {
+        self.resolve_imported_member_receiver_type(ty)
+            .map_err(|error| self.error(span, error.diagnostic("member receiver")))
+    }
+
+    pub(crate) fn resolve_imported_member_receiver_type(
+        &mut self,
+        ty: hir::TypeId,
+    ) -> Result<(), ImportedSignatureTypeError> {
         let kind = match self.types[ty] {
             hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
             hir::Type::Boolean => hir::IntrinsicTypeKind::Boolean,
@@ -15,7 +46,6 @@ impl Lowerer {
             _ => return Ok(()),
         };
         self.resolve_imported_intrinsic_type(kind)
-            .map_err(|error| self.error(span, error.diagnostic("member receiver")))
     }
 
     pub(crate) fn retain_imported_box_source(
@@ -71,6 +101,24 @@ impl Lowerer {
                 interface_implementations: Vec::new(),
             },
         );
+        self.resolve_imported_intrinsic_bound_conformances(kind)
+    }
+
+    fn resolve_imported_intrinsic_bound_conformances(
+        &mut self,
+        kind: hir::IntrinsicTypeKind,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let source = &self.imported_intrinsic_types[&kind];
+        if !source.interface_implementations.is_empty()
+            || !source.interfaces.iter().any(|interface| {
+                matches!(&self.types[*interface], hir::Type::ImportedInterface(interface)
+                if self.imported_bound_interfaces.contains(&interface.declaration.owner()))
+            })
+        {
+            return Ok(());
+        }
+        let declaration = source.declaration.clone();
+        let interfaces = source.interfaces.clone();
         let ty = match kind {
             hir::IntrinsicTypeKind::Integer(kind) => self.intern_type(hir::Type::Integer(kind)),
             hir::IntrinsicTypeKind::Boolean => self.boolean,

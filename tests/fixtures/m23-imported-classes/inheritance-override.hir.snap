@@ -12,11 +12,11 @@ Module
     val local3
       Local base : Parent
     val local4
-      ImportedDependencyCall #5 virtual[0] : Long
+      ImportedDependencyCall #1 virtual[0] : Long
         Local $dependency.receiver : Parent
     val local5
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #6 : Counter
+      ImportedDependencyCall #9 : Counter
         Local $dependency.parameter.value : Long
   output library

@@ -31,19 +31,30 @@ pub(super) fn for_owner<'a>(
         | mir::MirTypeRepresentationV1::Enum { .. }
         | mir::MirTypeRepresentationV1::InlineArray { .. }
         | mir::MirTypeRepresentationV1::CoroutineStep { .. }
-        | mir::MirTypeRepresentationV1::CoroutineSlot { .. }
-        | mir::MirTypeRepresentationV1::BoxedValue { .. }
-        | mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
+        | mir::MirTypeRepresentationV1::CoroutineSlot { .. } => Ok(Schema::Empty),
+        mir::MirTypeRepresentationV1::Intrinsic(intrinsic)
+            if !matches!(intrinsic, mir::MirParamFreeIntrinsicV1::String) =>
+        {
+            Ok(Schema::Empty)
+        }
+        mir::MirTypeRepresentationV1::BoxedValue { .. }
             if ty.base_and_interfaces().base == mir::MirBaseClassV1::None
                 && ty.base_and_interfaces().interfaces.is_empty() =>
         {
             Ok(Schema::Empty)
         }
-        mir::MirTypeRepresentationV1::BoxedValue { payload } => for_owner(bridge, payload.value),
-        _ => bridge
-            .dispatch()
-            .get(exact)
-            .map(Schema::Source)
-            .ok_or(Error::MissingDispatch(exact)),
+        mir::MirTypeRepresentationV1::BoxedValue { payload } => source(bridge, payload.value),
+        _ => source(bridge, exact),
     }
+}
+
+fn source(
+    bridge: &mir::MirTypeBridgeExportConstituentsV1,
+    exact: PersistentExactTypeId,
+) -> Result<Schema<'_>, Error> {
+    bridge
+        .dispatch()
+        .get(exact)
+        .map(Schema::Source)
+        .ok_or(Error::MissingDispatch(exact))
 }

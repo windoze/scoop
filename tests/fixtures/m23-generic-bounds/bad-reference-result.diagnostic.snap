@@ -1,0 +1,3 @@
+span=63..87
+expression=readReference(Value(42))
+dependency function `readReference`: Int is not a subtype of String

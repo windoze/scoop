@@ -33,15 +33,6 @@ where
     ) -> Result<(), Self::Error> {
         Ok(())
     }
-    fn validate_binder(
-        &mut self,
-        _: u32,
-        _: u32,
-        _: DefaultBodyProviderTypeSiteV1,
-        _: &ExportDefinitionSourceV1,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
     fn visit_origin(
         &mut self,
         source: &ExportDefinitionSourceV1,

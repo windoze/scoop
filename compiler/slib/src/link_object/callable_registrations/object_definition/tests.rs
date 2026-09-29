@@ -11,7 +11,7 @@ use scoop_wire::encode_runtime;
 use super::*;
 
 #[test]
-fn dependency_targets_have_distinct_stable_runtime_tags() {
+fn local_and_dependency_callable_targets_have_the_same_runtime_encoding() {
     let provider = ConeCoordinate::new("test", "provider", "1.0.0")
         .unwrap()
         .identity()
@@ -34,9 +34,20 @@ fn dependency_targets_have_distinct_stable_runtime_tags() {
     );
     let requirement = CanonicalObjectDefinitionRequirementV1::DependencyStrong { provider, target };
 
-    let mut expected = 11_u32.to_le_bytes().to_vec();
-    expected.extend_from_slice(provider.as_array());
-    expected.extend_from_slice(&encode_runtime(&target).unwrap());
+    let body = scoop_identity::PersistentCallableBodyId::from_key(
+        &scoop_identity::CallableBodyKey::strong(target),
+    )
+    .unwrap();
+    let local = CanonicalObjectDefinitionRequirementV1::Legacy(
+        FinalUndefinedSymbolRequirementV1::IntraConeStrong {
+            owner: StrongDefinitionOwnerV1::new(
+                StrongDefinitionEntity::callable_body(body),
+                StrongDefinitionRole::CallableBody,
+            )
+            .unwrap(),
+        },
+    );
+    let expected = encode_runtime(&local).unwrap();
     assert_eq!(encode_runtime(&requirement).unwrap(), expected);
 
     let subject = ExternalStrongShapeSubjectV1::Callable(
@@ -44,11 +55,6 @@ fn dependency_targets_have_distinct_stable_runtime_tags() {
     );
     let requirement =
         CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { provider, subject };
-    let mut expected = 12_u32.to_le_bytes().to_vec();
-    expected.extend_from_slice(provider.as_array());
-    expected.extend_from_slice(&1_u32.to_le_bytes());
-    expected.extend_from_slice(&1_u32.to_le_bytes());
-    expected.extend_from_slice(&encode_runtime(&target).unwrap());
     assert_eq!(encode_runtime(&requirement).unwrap(), expected);
 }
 

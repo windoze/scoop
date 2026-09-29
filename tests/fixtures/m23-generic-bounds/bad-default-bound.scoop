@@ -1,0 +1,3 @@
+import templates.bounds.defaultRead
+
+public fun result(): Int = defaultRead(42)

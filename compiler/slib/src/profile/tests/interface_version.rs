@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v36_requires_generic_delegate_templates() {
+fn source_interface_v37_preserves_substituted_bound_receivers() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        36,
+        37,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,

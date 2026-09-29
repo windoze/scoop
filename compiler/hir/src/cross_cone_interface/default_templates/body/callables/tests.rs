@@ -54,7 +54,7 @@ fn method_callee_variants_round_trip_without_application_ids() {
     let cases = [
         DefaultMethodCalleeV1::Callable(callable.clone()),
         DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
-            DefaultBinderRefV1::new(1, 2),
+            SignatureTypeKey::Binder { depth: 1, index: 2 },
             DefaultBoundCallableSourceV1::Class {
                 bound: binder(0),
                 callable,
@@ -62,10 +62,18 @@ fn method_callee_variants_round_trip_without_application_ids() {
             function_type(),
         )),
         DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
-            DefaultBinderRefV1::new(2, 3),
+            SignatureTypeKey::Binder { depth: 2, index: 3 },
             DefaultBoundCallableSourceV1::Interface {
                 bound: binder(1),
                 member: CallableTemplateOrigin::GenericFunction(fixture.generic_function),
+            },
+            function_type(),
+        )),
+        DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
+            SignatureTypeKey::Nominal(fixture.allowed_type),
+            DefaultBoundCallableSourceV1::Interface {
+                bound: binder(1),
+                member: CallableTemplateOrigin::Function(fixture.function),
             },
             function_type(),
         )),
@@ -74,7 +82,7 @@ fn method_callee_variants_round_trip_without_application_ids() {
         },
     ];
 
-    for (expected_tag, expected) in [1, 2, 2, 3].into_iter().zip(cases) {
+    for (expected_tag, expected) in [1, 2, 2, 2, 3].into_iter().zip(cases) {
         let bytes = encode(&expected).unwrap();
         assert_eq!(bytes[2], expected_tag);
         let decoded: DecodedDefaultMethodCalleeV1 = decode_canonical(&bytes).unwrap();
@@ -83,17 +91,24 @@ fn method_callee_variants_round_trip_without_application_ids() {
 }
 
 #[test]
-fn binder_reference_has_fixed_wire() {
-    let reference = DefaultBinderRefV1::new(3, 42);
-    let bytes = encode(&reference).unwrap();
-
-    assert_eq!(hex(&bytes), "a2010302182a");
+fn bound_receiver_resolution_reports_unknown_nominal_types() {
+    let fixture = Fixture::new();
+    let callee = DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
+        SignatureTypeKey::Nominal(fixture.missing_type),
+        DefaultBoundCallableSourceV1::Interface {
+            bound: binder(0),
+            member: CallableTemplateOrigin::Function(fixture.function),
+        },
+        function_type(),
+    ));
+    let decoded: DecodedDefaultMethodCalleeV1 =
+        decode_canonical(&encode(&callee).unwrap()).unwrap();
     assert_eq!(
-        decode_canonical::<DefaultBinderRefV1>(&bytes).unwrap(),
-        reference
+        decoded.resolve(&mut fixture.resolver()),
+        Err(DefaultMethodCalleeResolutionError::Bound(
+            DefaultBoundCallableRefResolutionError::ReceiverType(ResolutionError::Unknown("type"))
+        ))
     );
-    assert_eq!(reference.depth(), 3);
-    assert_eq!(reference.index(), 42);
 }
 
 #[test]

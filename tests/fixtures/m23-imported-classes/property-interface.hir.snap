@@ -6,24 +6,24 @@ Module
       Local $dependency.argument.0 : Long
     val local2
       ReferenceUpcast : MutableValue
-        ImportedDependencyCall #4 : ComputedValue
+        ImportedDependencyCall #6 : ComputedValue
           Local $dependency.parameter.initial : Long
     val local3
       Local cell : MutableValue
-    ImportedDependencyCall #5 interface[1] : Unit
+    ImportedDependencyCall #7 interface[1] : Unit
       Local $place.0 : MutableValue
       IntegerLiteral 9 : Long
     val local4
       Local cell : MutableValue
     val local5
-      ImportedDependencyCall #6 interface[0] : Long
+      ImportedDependencyCall #8 interface[0] : Long
         Local $place.1 : MutableValue
     val local6
       Local $old.2 : Long
     val local7
       IntegerOperation long.inc <no-gc> : Long
         Local $dependency.receiver : Long
-    ImportedDependencyCall #5 interface[1] : Unit
+    ImportedDependencyCall #7 interface[1] : Unit
       Local $place.1 : MutableValue
       Local $new.3 : Long
     val local8
@@ -39,7 +39,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
       val local12
-        ImportedDependencyCall #6 interface[0] : Long
+        ImportedDependencyCall #8 interface[0] : Long
           Local cell : MutableValue
       val local13
         IntegerLiteral 41 : Long
@@ -64,6 +64,6 @@ Module
     val local18
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #7 : Counter
+      ImportedDependencyCall #9 : Counter
         Local $dependency.parameter.value : Long
   output library

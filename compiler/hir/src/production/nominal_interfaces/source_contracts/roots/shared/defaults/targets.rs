@@ -47,6 +47,7 @@ impl SourceRoots {
             // keep their own generated identity and reference closure.
             ExportDefaultCallableTarget::ImportedDependency(_)
             | ExportDefaultCallableTarget::ImportedGeneric(_)
+            | ExportDefaultCallableTarget::ImportedBound(_)
             | ExportDefaultCallableTarget::LocalFunction(_)
             | ExportDefaultCallableTarget::Lambda(_)
             | ExportDefaultCallableTarget::AnonymousFunction(_) => Ok(()),

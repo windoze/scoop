@@ -1,0 +1,3 @@
+span=54..88
+expression=combined(GenericValue<Int>(1, 42))
+dependency function `combined`: type argument `GenericValue<Int>` for `T` must satisfy upper bound `Extra`

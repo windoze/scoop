@@ -43,17 +43,24 @@ fn interface_bounds_are_complete_ordered_hir_constraints() {
     };
     assert!(bounds.class.is_none());
     assert_eq!(bounds.interfaces.len(), 2);
+    let [
+        hir::InterfaceUpperBound::Local(marker),
+        hir::InterfaceUpperBound::Local(comparable),
+    ] = bounds.interfaces.as_slice()
+    else {
+        panic!("both interface bounds are declared in this source module")
+    };
     assert_eq!(
         hir::type_name(
             &module,
-            module.interface_applications[bounds.interfaces[0].application].canonical_type
+            module.interface_applications[marker.application].canonical_type
         ),
         "Marker"
     );
     assert_eq!(
         hir::type_name(
             &module,
-            module.interface_applications[bounds.interfaces[1].application].canonical_type
+            module.interface_applications[comparable.application].canonical_type
         ),
         "Comparable<T0>"
     );

@@ -2,7 +2,7 @@ hir Unit: Value { zst: ZeroSized } GcFree
 mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
-layouts=198 descriptors=99 dispatch=119 callables=31 shapes=28
+layouts=198 descriptors=99 dispatch=119 callables=33 shapes=28
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.HeapBridgeEmpty.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
@@ -10,6 +10,8 @@ callable ctor.SourceLocation.$c6: OrdinaryNoGc receiver=false args=["Direct(8)",
 callable init.ArithmeticException.$c16: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.ClassCastException.$c15: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.Exception.$c13: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable init.HeapBridgeBase.$c2: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable init.HeapBridgeDerived.$c3: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)", "Direct(4)"] result=UnitVoid
 callable init.IllegalArgumentException.$c18: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable init.IllegalStateException.$c19: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable init.IllegalStateException.$c20: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid

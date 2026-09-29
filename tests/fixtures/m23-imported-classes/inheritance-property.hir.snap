@@ -8,15 +8,15 @@ Module
         ClassInit Derived : Derived
     val local1
       Local value : Parent
-    ImportedDependencyCall #5 virtual[3] : Unit
+    ImportedDependencyCall #7 virtual[3] : Unit
       Local $place.0 : Parent
       IntegerLiteral 10 : Long
     val local2
-      ImportedDependencyCall #6 virtual[2] : Long
+      ImportedDependencyCall #5 virtual[2] : Long
         Local value : Parent
     val local3
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #7 : Counter
+      ImportedDependencyCall #9 : Counter
         Local $dependency.parameter.value : Long
   output library

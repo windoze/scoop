@@ -1,4 +1,6 @@
-use scoop_identity::{DefinitionAtomRole, NativeLibraryBinding};
+use scoop_identity::{
+    CallableDefinitionOwner, DefinitionAtomRole, NativeLibraryBinding, PersistentCallableBodyId,
+};
 use scoop_wire::{RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
 use super::*;
@@ -92,10 +94,14 @@ impl RuntimeEncode for CanonicalObjectDefinitionRequirementV1 {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         let requirement = match *self {
             CanonicalObjectDefinitionRequirementV1::Legacy(requirement) => requirement,
-            CanonicalObjectDefinitionRequirementV1::DependencyStrong { provider, target } => {
-                encoder.u32(11)?;
-                encoder.fixed(provider.as_array())?;
-                return target.runtime_encode(encoder);
+            CanonicalObjectDefinitionRequirementV1::DependencyStrong { target, .. } => {
+                return encode_callable_target(encoder, CallableDefinitionOwner::Strong(target));
+            }
+            CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
+                subject: scoop_lir::ExternalStrongShapeSubjectV1::Callable(target),
+                ..
+            } => {
+                return encode_callable_target(encoder, target);
             }
             CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { provider, subject } => {
                 encoder.u32(12)?;
@@ -105,6 +111,28 @@ impl RuntimeEncode for CanonicalObjectDefinitionRequirementV1 {
         };
         encode_legacy_requirement(encoder, requirement)
     }
+}
+
+fn encode_callable_target(
+    encoder: &mut RuntimeEncoder,
+    target: CallableDefinitionOwner,
+) -> Result<(), RuntimeEncodeError> {
+    let requirement = match target {
+        CallableDefinitionOwner::Strong(_) => {
+            let body = PersistentCallableBodyId::from_key(&target.body_key())
+                .expect("fixed-size callable body keys have valid runtime encoding");
+            let owner = StrongDefinitionOwnerV1::new(
+                StrongDefinitionEntity::callable_body(body),
+                StrongDefinitionRole::CallableBody,
+            )
+            .expect("a callable body has a callable definition role");
+            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner }
+        }
+        CallableDefinitionOwner::Odr(member) => FinalUndefinedSymbolRequirementV1::OdrMember {
+            member: member.member(),
+        },
+    };
+    encode_legacy_requirement(encoder, requirement)
 }
 
 fn encode_legacy_requirement(

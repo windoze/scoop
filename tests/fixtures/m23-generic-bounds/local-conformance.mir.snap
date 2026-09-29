@@ -1,0 +1,187 @@
+Module
+  struct Local<Int> (payload: Int)
+  struct GenericValue<Int> (payload: Int, number: Int)
+  interface Readable
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn6 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=4a3b146500de1d1c43af89d1601cd21816c41db92a5091677724a2ce15314d87 exact_id=398f2ee090b89778052839f62719e6ca8e2b736b40d43da248da44f85984ae02
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.payload: Int
+        Type Int
+        Local $argument.0
+      call receiver: Local<Int> = @fn7 direct
+        Type Int
+        Local $parameter.payload
+      val $dependency.argument.0: Local<Int>
+        Type Local<Int>
+        Local receiver
+      val $dependency.parameter.value: Local<Int>
+        Type Local<Int>
+        Local $dependency.argument.0
+      call read: () -> Int = @fn4 direct
+        Type Local<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call allocated: GenericValue<Int> = @fn8 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Local<Int>
+        Type Local<Int>
+        Local receiver
+      val $dependency.parameter.value: Local<Int>
+        Type Local<Int>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn5 direct
+        Type Local<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: GenericValue<Int>
+        Type GenericValue<Int>
+        Local allocated
+      call $dependency.receiver: Int = @fn3 direct
+        Type GenericValue<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.1
+  fun Local.read @fn2(this: Local<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun read @fn3(this: GenericValue<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type GenericValue<Int>
+          Local this
+  fun readReference @fn4(value: Local<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Local<Int>
+            Local value
+  fun readBound @fn5(value: Local<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Local<Int>
+        Type Local<Int>
+        Local value
+      call $call.1: Int = @fn2 direct
+        Type Local<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn6($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Local<Int>
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun ctor.Local.$c0 @fn7(payload: Int) -> Local<Int> <no-gc>
+    bb0 entry
+      return
+        Type Local<Int>
+        StructInit Local<Int>
+          Type Int
+          Local payload
+  fun ctor.GenericValue.$c0 @fn8(payload: Int, number: Int) -> GenericValue<Int> <no-gc>
+    bb0 entry
+      return
+        Type GenericValue<Int>
+        StructInit GenericValue<Int>
+          Type Int
+          Local payload
+          Type Int
+          Local number
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- Local.read
+  instance mi2 function=@fn3 <- read
+  instance mi3 function=@fn4 <- readReference
+  instance mi4 function=@fn5 <- readBound
+  output library

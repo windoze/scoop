@@ -110,6 +110,15 @@ impl Lowerer {
                     self.instantiate_default_imported_reference(reference, context),
                 ))
             }
+            hir::ExprKind::ImportedMethodCall {
+                receiver,
+                callee,
+                args,
+            } => hir::ExprKind::ImportedMethodCall {
+                receiver: Box::new(self.instantiate_default_expr(receiver, context)),
+                callee: self.instantiate_default_imported_method_callee(callee, context),
+                args: self.instantiate_default_exprs(args, context),
+            },
             hir::ExprKind::Lambda(lambda) => {
                 hir::ExprKind::Lambda(self.instantiate_default_lambda(*lambda, context))
             }

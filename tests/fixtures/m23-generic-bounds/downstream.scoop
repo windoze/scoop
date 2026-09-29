@@ -1,0 +1,12 @@
+import consumer.bounds.result
+import consumer.bounds.exercise
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    val first = Later(result())
+    val answer = exercise<Later>(first)
+    val allocated = Later(0)
+    if (first.value != 42 || allocated.value != 0) { return 1 }
+    return answer
+}

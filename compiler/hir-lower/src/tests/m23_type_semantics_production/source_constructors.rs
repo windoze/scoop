@@ -8,7 +8,7 @@ const SOURCE: &str = include_str!(concat!(
 ));
 
 #[test]
-fn constructors_project_protected_public_defaults_and_struct_representation() {
+fn constructors_project_all_visibilities_defaults_and_struct_representation() {
     with_source(SOURCE, |output, _| {
         let public = public_interface(output);
         let identities = source_inventory::identity_closure(output);
@@ -20,7 +20,7 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
         .unwrap()
         .into_values()
         .collect::<Vec<_>>();
-        assert_eq!(records.len(), 6);
+        assert_eq!(records.len(), 9);
         let export = output.output().export.module();
         let mut names = BTreeMap::new();
         for (id, class) in export.classes.iter() {

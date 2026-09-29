@@ -106,7 +106,16 @@ impl Lowerer {
                     );
                     return Err(Box::new(self.clone()));
                 };
-                self.adapt_imported_receiver(receiver, expected, name, "member")?
+                if matches!(self.types[receiver.ty()], hir::Type::Param(_))
+                    && matches!(self.types[expected], hir::Type::ImportedInterface(_))
+                {
+                    ImportedCallReceiver::Member {
+                        static_type: receiver.ty(),
+                        value: receiver,
+                    }
+                } else {
+                    self.adapt_imported_receiver(receiver, expected, name, "member")?
+                }
             }
         };
         Ok(receiver)

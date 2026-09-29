@@ -1,0 +1,3 @@
+span=127..140
+expression=T : LocalBase
+type parameter `T` of function cannot have more than one class upper bound; found `LocalBase`

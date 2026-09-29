@@ -46,7 +46,7 @@ struct FnEmitter<'a, 'ctx> {
     target_data: &'a inkwell::targets::TargetData,
     /// Hidden result pointer for a physically indirect aggregate return.
     return_slot: Option<PointerValue<'ctx>>,
-    allocas: Vec<local_storage::LocalAllocation<'ctx>>,
+    allocas: HashMap<scoop_lir::LocalId, local_storage::LocalAllocation<'ctx>>,
     temps: HashMap<TempId, BasicValueEnum<'ctx>>,
     /// Canonical addressable storage for every parameter/temporary named by
     /// a complete LIR root plan. Locals reuse their ordinary alloca. All
@@ -291,7 +291,7 @@ pub(super) fn emit_function<'ctx>(
         runtime_scans,
         target_data: module_ctx.target_data,
         return_slot,
-        allocas: Vec::with_capacity(function.locals.len()),
+        allocas: HashMap::with_capacity(function.locals.len()),
         temps: HashMap::new(),
         root_storage: HashMap::new(),
         unwind_root_sources,

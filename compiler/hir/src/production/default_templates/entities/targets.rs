@@ -27,6 +27,9 @@ impl DefaultEntityProjector<'_> {
             ExportDefaultCallableTarget::Bound(bound) => {
                 ExportDefaultCallableTargetV1::Bound(entities.bound_callable(bound, binders)?)
             }
+            ExportDefaultCallableTarget::ImportedBound(bound) => {
+                ExportDefaultCallableTargetV1::Bound(self.imported_bound_callable(&bound, binders)?)
+            }
             ExportDefaultCallableTarget::DerivedEquality(id) => {
                 let application =
                     super::super::arena_get(&export.derived_equality_applications, id).ok_or(

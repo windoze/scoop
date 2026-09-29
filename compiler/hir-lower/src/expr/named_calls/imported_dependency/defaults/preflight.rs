@@ -233,11 +233,48 @@ impl Lowerer {
                     owner, template, arguments, locals, bindings, callables,
                 )
             }
-            Kind::MethodCall { .. } | Kind::DirectSuperMethodCall { .. } => {
-                Err(ImportedDefaultPlanError::Requires {
-                    requirement: ImportedCapabilityRequirement::Dispatch,
-                    operation: "dependency default dispatch",
-                })
+            Kind::MethodCall {
+                receiver,
+                callee,
+                arguments,
+            } => {
+                match callee {
+                    hir::DefaultMethodCalleeV1::Bound(bound) => {
+                        self.imported_default_type_with_bindings(bound.receiver_type(), bindings)?;
+                        self.imported_default_type_with_bindings(
+                            bound.instantiated_signature(),
+                            bindings,
+                        )?;
+                        let callee = match bound.source() {
+                            hir::DefaultBoundCallableSourceV1::Class { bound, callable } => {
+                                self.imported_default_type_with_bindings(bound, bindings)?;
+                                super::plan::default_callable_origin(callable)?
+                            }
+                            hir::DefaultBoundCallableSourceV1::Interface { bound, member } => {
+                                self.imported_default_type_with_bindings(bound, bindings)?;
+                                *member
+                            }
+                        };
+                        self.prepare_imported_default_call(callee, callables)?;
+                    }
+                    hir::DefaultMethodCalleeV1::DerivedEquality { owner_type } => {
+                        self.imported_default_type_with_bindings(owner_type, bindings)?;
+                    }
+                    hir::DefaultMethodCalleeV1::Callable(_) => {
+                        unreachable!("ordinary calls were prepared above")
+                    }
+                }
+                self.preflight_imported_default_expression(
+                    owner, template, receiver, locals, bindings, callables,
+                )?;
+                self.preflight_imported_default_expressions(
+                    owner, template, arguments, locals, bindings, callables,
+                )
+            }
+            Kind::DirectSuperMethodCall { .. } => {
+                Err(ImportedDefaultPlanError::InvalidControlFlow(
+                    "a direct super call must name a declared method",
+                ))
             }
             Kind::Lambda(_)
             | Kind::AnonymousFunction(_)
@@ -326,7 +363,10 @@ impl Lowerer {
                 callee,
                 error: error.to_string(),
             })?;
-        if candidate.capability().is_none() && candidate.callable_body().is_none() {
+        if candidate.capability().is_none()
+            && candidate.callable_body().is_none()
+            && candidate.interface().modality() != hir::CallableModalityV1::Abstract
+        {
             return Err(ImportedDefaultPlanError::Requires {
                 requirement: callable_requirement(&candidate, false),
                 operation: "dependency default call",

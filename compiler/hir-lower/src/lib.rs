@@ -628,6 +628,7 @@ pub(crate) struct Lowerer {
         HashMap<hir::IntrinsicTypeKind, (IntrinsicTypeOwner, hir::IntrinsicProviderId)>,
     imported_intrinsic_types:
         std::collections::BTreeMap<hir::IntrinsicTypeKind, hir::ImportedIntrinsicType>,
+    imported_bound_interfaces: HashSet<hir::SourceNominalId>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
     pub(crate) initialization_units: Arena<hir::InitializationUnit>,

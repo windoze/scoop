@@ -10,7 +10,7 @@ pub enum ImportedMethodCallee {
 }
 
 /// The declared slot is retained until the actual receiver is concrete.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ImportedInterfaceBoundCallable {
     pub receiver_type: TypeId,
     pub interface: TypeId,

@@ -525,10 +525,27 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, &capture.source, out);
             }
         }
+        ExprKind::ImportedMethodCall {
+            receiver,
+            callee,
+            args,
+        } => {
+            collect_imported_method_callee_types(lowerer, callee, out);
+            collect_expr_types(lowerer, receiver, out);
+            for arg in args {
+                collect_expr_types(lowerer, arg, out);
+            }
+        }
         ExprKind::ImportedCallableReference(reference) => {
             collect_function_type_types(lowerer, reference.function_type, out);
             out.extend(reference.owner_type_arguments.iter().copied());
-            if let hir::ImportedCallableTarget::Application(application) = reference.target.callee()
+            if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } =
+                &reference.target
+            {
+                collect_imported_method_callee_types(lowerer, callee, out);
+            }
+            if let Some(hir::ImportedCallableTarget::Application(application)) =
+                reference.target.callee()
             {
                 out.extend(
                     lowerer.imported_generic_applications[application]
@@ -660,6 +677,35 @@ fn collect_generic_method_owner_types(
         hir::GenericMethodOwner::Object(_) => None,
     };
     out.extend(ty);
+}
+
+pub(in super::super) fn collect_imported_method_callee_types(
+    lowerer: &Lowerer,
+    callee: &hir::ImportedMethodCallee,
+    out: &mut Vec<hir::TypeId>,
+) {
+    if let Some(hir::ImportedCallableTarget::Application(application)) = callee.declared_callable()
+    {
+        out.extend(
+            lowerer.imported_generic_applications[application]
+                .arguments
+                .substitution(&lowerer.types),
+        );
+    }
+    match callee {
+        hir::ImportedMethodCallee::Callable(_) => {}
+        hir::ImportedMethodCallee::InterfaceBound(bound) => {
+            out.extend([bound.receiver_type, bound.interface]);
+            collect_function_type_types(lowerer, bound.signature, out);
+        }
+        hir::ImportedMethodCallee::DerivedEquality(application) => {
+            collect_method_callee_types(
+                lowerer,
+                hir::MethodCallee::DerivedEquality(*application),
+                out,
+            );
+        }
+    }
 }
 
 pub(in super::super) fn collect_method_callee_types(

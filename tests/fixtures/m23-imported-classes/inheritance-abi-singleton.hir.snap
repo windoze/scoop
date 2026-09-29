@@ -21,17 +21,17 @@ Module
       val local3
         Local $dependency.argument.0 : Long
       return
-        ImportedDependencyCall #4 : Counter
+        ImportedDependencyCall #5 : Counter
           Local $dependency.parameter.value : Long
     val local4
       Local second : ReferenceParent
     val local5
-      ImportedDependencyCall #5 : ReferenceAggregate
+      ImportedDependencyCall #6 : ReferenceAggregate
         Local second : ReferenceParent
     val local6
       Local $dependency.argument.0 : ReferenceAggregate
     val local7
-      ImportedDependencyCall #6 virtual[0] : ReferenceAggregate
+      ImportedDependencyCall #1 virtual[0] : ReferenceAggregate
         Local $dependency.receiver : ReferenceParent
         Local $dependency.parameter.input : ReferenceAggregate
     val local8
@@ -60,6 +60,6 @@ Module
     val local15
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #4 : Counter
+      ImportedDependencyCall #5 : Counter
         Local $dependency.parameter.value : Long
   output library

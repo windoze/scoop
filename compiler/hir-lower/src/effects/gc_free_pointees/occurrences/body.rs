@@ -3,7 +3,10 @@ use scoop_hir as hir;
 use crate::Lowerer;
 
 use super::TypeOccurrence;
-use super::types::{collect_callable_types, collect_field_ref_types, collect_method_callee_types};
+use super::types::{
+    collect_callable_types, collect_field_ref_types, collect_imported_method_callee_types,
+    collect_method_callee_types,
+};
 
 /// Collect source-backed type occurrences for diagnostics. Unlike the
 /// inference walkers, this deliberately omits local-arena types and records
@@ -487,13 +490,33 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }
+        ExprKind::ImportedMethodCall {
+            receiver,
+            callee,
+            args,
+        } => {
+            push_types_at_expression(
+                expression,
+                |types| collect_imported_method_callee_types(lowerer, callee, types),
+                out,
+            );
+            collect_expr_type_occurrences(lowerer, receiver, out);
+            for arg in args {
+                collect_expr_type_occurrences(lowerer, arg, out);
+            }
+        }
         ExprKind::ImportedCallableReference(reference) => {
             push_types_at_expression(
                 expression,
                 |types| {
+                    if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } =
+                        &reference.target
+                    {
+                        collect_imported_method_callee_types(lowerer, callee, types);
+                    }
                     types.extend(reference.owner_type_arguments.iter().copied());
                     types.extend(reference.captures.iter().map(|capture| capture.ty));
-                    if let hir::ImportedCallableTarget::Application(application) =
+                    if let Some(hir::ImportedCallableTarget::Application(application)) =
                         reference.target.callee()
                     {
                         types.extend(

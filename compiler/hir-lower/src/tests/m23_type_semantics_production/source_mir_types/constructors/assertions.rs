@@ -39,7 +39,7 @@ pub(super) fn actual(
         assert!(
             bindings
                 .get(StrongCallableDefinitionOwner::Constructor(id))
-                .is_none()
+                .is_some()
         );
     }
     for binding in bindings.entries() {
@@ -129,7 +129,7 @@ pub(super) fn actual(
             other => panic!("unexpected constructor role: {other:?}"),
         }
     }
-    let private: Vec<_> = input
+    let unexported: Vec<_> = input
         .module()
         .meta
         .source_callable_materializations
@@ -139,7 +139,7 @@ pub(super) fn actual(
             _ => None,
         })
         .collect();
-    for id in private {
+    for id in unexported {
         assert!(
             bindings
                 .get(StrongCallableDefinitionOwner::Constructor(id))

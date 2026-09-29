@@ -2,7 +2,7 @@ hir Unit: Value { zst: ZeroSized } GcFree
 mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
-layouts=228 descriptors=114 dispatch=134 callables=35 shapes=33
+layouts=228 descriptors=114 dispatch=134 callables=41 shapes=33
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
@@ -18,6 +18,12 @@ callable init.IllegalArgumentException.$c22: OrdinaryManaged receiver=true args=
 callable init.IllegalStateException.$c23: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable init.IllegalStateException.$c25: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.IndexOutOfBoundsException.$c21: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedDispatchAbstract.$c5: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedDispatchAgain.$c6: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedDispatchBase.$c3: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedDispatchChild.$c4: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedDispatchInherited.$c7: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedDispatchOrder.$c2: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.Throwable.$c16: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.UnwrapException.$c18: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable thunk<Boolean> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

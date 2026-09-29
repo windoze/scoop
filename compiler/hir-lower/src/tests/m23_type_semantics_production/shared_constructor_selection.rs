@@ -2,10 +2,10 @@ use super::*;
 use scoop_identity::CallableTemplateOrigin;
 
 #[test]
-fn shared_constructor_selection_keeps_only_required_source_constructor_bodies() {
+fn shared_constructor_selection_includes_materializable_support_bodies() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-core-layout-exports");
-    for (case, count) in [("standalone", 4), ("combined", 13)] {
+    for (case, count) in [("standalone", 4), ("combined", 16)] {
         let source =
             std::fs::read_to_string(directory.join(format!("shared-constructors-{case}.scoop")))
                 .unwrap();

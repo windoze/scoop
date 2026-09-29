@@ -122,7 +122,7 @@ impl Lowerer {
         }
     }
 
-    fn intern_imported_dependency_callable_use(
+    pub(crate) fn intern_imported_dependency_callable_use(
         &mut self,
         reference: hir::ImportedDependencyCallableRef,
         dispatch: hir::ImportedDependencyDispatch,

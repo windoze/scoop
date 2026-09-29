@@ -39,13 +39,39 @@ impl Concretizer<'_> {
                 .expect("a concrete conformance retains the declared interface slot");
             match method.target {
                 concrete::InterfaceImplementationTarget::Method(function) => {
+                    let interface =
+                        match self.function_keys[function.into_raw().into_u32() as usize] {
+                            FunctionKey::Method {
+                                owner: concrete::MethodOwner::Interface(interface),
+                                ..
+                            }
+                            | FunctionKey::ImportedMethod {
+                                owner: concrete::MethodOwner::Interface(interface),
+                                ..
+                            } => Some(interface),
+                            _ => None,
+                        };
                     return (
                         concrete::CallableTarget::Local(concrete::Callable::Function(function)),
-                        None,
+                        interface,
                     );
                 }
                 concrete::InterfaceImplementationTarget::Imported(callee) => {
-                    return (concrete::CallableTarget::Imported(callee), None);
+                    let reference = self.imported_dependency_callables[callee].reference();
+                    let callee = self
+                        .imported_dependency_callables
+                        .iter()
+                        .find_map(|(id, use_)| {
+                            (use_.reference() == reference
+                                && matches!(
+                                    use_.dispatch(),
+                                    export::ImportedDependencyDispatch::Virtual { .. }
+                                ))
+                            .then_some(id)
+                        })
+                        .unwrap_or(callee);
+                    let interface = self.imported_interface_method_owner(reference);
+                    return (concrete::CallableTarget::Imported(callee), interface);
                 }
                 concrete::InterfaceImplementationTarget::Abstract { .. }
                 | concrete::InterfaceImplementationTarget::ImportedAbstract { .. } => {}
@@ -55,6 +81,34 @@ impl Concretizer<'_> {
             self.lower_imported_callable_target(bound.declared, substitution),
             Some(interface),
         )
+    }
+
+    fn imported_interface_method_owner(
+        &self,
+        target: export::ImportedDependencyCallableRef,
+    ) -> Option<concrete::InterfaceId> {
+        self.source.types.iter().find_map(|(_, ty)| {
+            let export::Type::ImportedInterface(interface) = ty else {
+                return None;
+            };
+            let owner = interface.declaration.owner();
+            if interface.arguments.is_empty()
+                && interface.methods.iter().any(|method| {
+                    method.declaration.declaration() == target.declaration()
+                        && method.declaration.owner()
+                            == export::PublicDeclarationOwnerV1::Nominal(owner)
+                })
+            {
+                Some(
+                    *self
+                        .imported_interfaces
+                        .get(&(owner, Vec::new()))
+                        .expect("a default implementation retains its declaring interface"),
+                )
+            } else {
+                None
+            }
+        })
     }
 
     fn concrete_bound_conformances(

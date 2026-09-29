@@ -8,6 +8,23 @@ use crate::{
 use super::super::BodyProjection;
 
 impl BodyProjection<'_, '_> {
+    pub(in crate::production::default_templates::body) fn imported_method_callee(
+        &self,
+        callee: &crate::ImportedMethodCallee,
+    ) -> Result<DefaultMethodCalleeV1, super::super::super::DefaultBodyProjectionError> {
+        Ok(match callee {
+            crate::ImportedMethodCallee::Callable(callable) => {
+                DefaultMethodCalleeV1::Callable(self.imported_reference_callee(*callable)?)
+            }
+            crate::ImportedMethodCallee::InterfaceBound(bound) => DefaultMethodCalleeV1::Bound(
+                self.entities.imported_bound_callable(bound, self.binders)?,
+            ),
+            crate::ImportedMethodCallee::DerivedEquality(application) => {
+                self.method_callee(crate::MethodCallee::DerivedEquality(*application))?
+            }
+        })
+    }
+
     pub(super) fn optional_expression(
         &mut self,
         expression: Option<&crate::Expr>,

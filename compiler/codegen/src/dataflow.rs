@@ -1,4 +1,4 @@
-//! Protocol-neutral use/def and CFG facts for root-plan liveness.
+//! Protocol-neutral use/def and CFG facts shared by validation and emission.
 
 use super::*;
 

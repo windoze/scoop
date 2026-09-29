@@ -252,57 +252,25 @@ pub(crate) fn render_type_parameters(
                 hir::TypeParamBounds::Unconstrained => String::new(),
                 hir::TypeParamBounds::Value { .. } => " : value".to_string(),
                 hir::TypeParamBounds::Ref { .. } => " : ref".to_string(),
-                hir::TypeParamBounds::ImportedNominal(bounds) => {
-                    let mut rendered = bounds
-                        .class
-                        .iter()
-                        .chain(&bounds.interfaces)
+                hir::TypeParamBounds::Nominal(bounds) => {
+                    let rendered = bounds
+                        .in_source_order()
+                        .into_iter()
                         .map(|bound| {
-                            (
-                                bound.span.start,
-                                lowerer.type_name_with_params(bound.ty, all_parameters),
-                            )
+                            let ty = match bound {
+                                hir::NominalBoundRef::Class(bound) => {
+                                    lowerer.class_applications[bound.application].canonical_type
+                                }
+                                hir::NominalBoundRef::Interface(bound) => {
+                                    lowerer.interface_applications[bound.application].canonical_type
+                                }
+                                hir::NominalBoundRef::ImportedClass(bound)
+                                | hir::NominalBoundRef::ImportedInterface(bound) => bound.ty,
+                            };
+                            lowerer.type_name_with_params(ty, all_parameters)
                         })
                         .collect::<Vec<_>>();
-                    rendered.sort_by_key(|(span, _)| *span);
-                    format!(
-                        " : {}",
-                        rendered
-                            .into_iter()
-                            .map(|(_, name)| name)
-                            .collect::<Vec<_>>()
-                            .join(" & ")
-                    )
-                }
-                hir::TypeParamBounds::Nominal(bounds) => {
-                    let mut rendered = Vec::new();
-                    if let Some(bound) = &bounds.class {
-                        rendered.push((
-                            bound.span.start,
-                            lowerer.type_name_with_params(
-                                lowerer.class_applications[bound.application].canonical_type,
-                                all_parameters,
-                            ),
-                        ));
-                    }
-                    rendered.extend(bounds.interfaces.iter().map(|bound| {
-                        (
-                            bound.span.start,
-                            lowerer.type_name_with_params(
-                                lowerer.interface_applications[bound.application].canonical_type,
-                                all_parameters,
-                            ),
-                        )
-                    }));
-                    rendered.sort_by_key(|(start, _)| *start);
-                    format!(
-                        " : {}",
-                        rendered
-                            .into_iter()
-                            .map(|(_, value)| value)
-                            .collect::<Vec<_>>()
-                            .join(" & ")
-                    )
+                    format!(" : {}", rendered.join(" & "))
                 }
             };
             format!("{}{bound}", parameter.name)

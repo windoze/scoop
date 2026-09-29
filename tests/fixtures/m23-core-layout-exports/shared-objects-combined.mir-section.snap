@@ -1,4 +1,4 @@
-types=114 callables=38 dispatch=35 objects=3 shapes=32 units=4 selected=0
+types=114 callables=40 dispatch=34 objects=3 shapes=32 units=4 selected=0
 unit companion:SharedObjectOwner.Companion: Ordinary Managed
 unit object:SharedObjectService: Ordinary Managed
 unit object:SharedObjectSupport: Ordinary Managed

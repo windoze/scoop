@@ -1,0 +1,152 @@
+Module
+  enum DefaultTag<Int>
+    Empty()
+    Payload(_0: Int)
+  class box<DefaultTag<Int>> vtable=0 itables=2
+  interface DefaultReadable
+  interface Readable
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn5 captures=1
+  generated_exact_type get0 location=class0 nominal_id=0f56cf45d30fbba824dcbdd8a4affb2273b00d825474cdbc1e26b6331d0c0d62 exact_id=0b991593fb6b375c3c98a701046460c176e09a53980b14255abb9a047ce6f275
+  generated_exact_type get1 location=closure0 nominal_id=74a5cb555c695cf24778ff90d7065c5b823a6d993d25ab04b48e82b36d35fbab exact_id=342d3782ef308b389f2f628b9005027ae0618a009da9fbf593e3b5e4d8e23b47
+  generated_callable gc0 function=@fn6 id=43abfe13211bf4289c7614fc5feac8182008433f3995507d3e7f7ecd9b11714e
+  generated_callable gc1 function=@fn7 id=c7b4f9bfcebb7ab0f833c58c409cee60216d8f83c127e05d65c89926bb258f89
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call receiver: DefaultTag<Int> = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: DefaultTag<Int>
+        Type DefaultTag<Int>
+        Local receiver
+      val $dependency.parameter.value: DefaultTag<Int>
+        Type DefaultTag<Int>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn3 direct
+        Type DefaultTag<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: DefaultTag<Int>
+        Type DefaultTag<Int>
+        Local receiver
+      val $dependency.parameter.value: DefaultTag<Int>
+        Type DefaultTag<Int>
+        Local $dependency.argument.0
+      call read: () -> Int = @fn4 direct
+        Type DefaultTag<Int>
+        Local $dependency.parameter.value
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.1
+  fun defaultTag @fn2(value: Int) -> DefaultTag<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      return
+        Type DefaultTag<Int>
+        VariantConstruct DefaultTag<Int> v1
+          Type Int
+          Local $dependency.local.2
+  fun readBound @fn3(value: DefaultTag<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: DefaultTag<Int>
+        Type DefaultTag<Int>
+        Local value
+      call $call.1: Int = external0 direct
+        Type DefaultReadable
+        Box
+          Type DefaultTag<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun readReference @fn4(value: DefaultTag<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type DefaultReadable
+            Box
+              Type DefaultTag<Int>
+              Local value
+  fun $reference.0 @fn5($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+        Type DefaultReadable
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun thunk<DefaultTag<Int>> DefaultReadable.read() @fn6(this: DefaultReadable) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+        Type DefaultReadable
+        Retype DefaultReadable
+          Type DefaultReadable
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<DefaultTag<Int>> Readable.read() @fn7(this: Readable) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+        Type DefaultReadable
+        Retype DefaultReadable
+          Type Readable
+          Local this
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- defaultTag
+  instance mi2 function=@fn3 <- readBound
+  instance mi3 function=@fn4 <- readReference
+  output library

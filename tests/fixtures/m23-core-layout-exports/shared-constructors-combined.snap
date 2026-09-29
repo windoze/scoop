@@ -2,7 +2,7 @@ hir Unit: Value { zst: ZeroSized } GcFree
 mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
-layouts=266 descriptors=133 dispatch=153 callables=47 shapes=38
+layouts=266 descriptors=133 dispatch=153 callables=50 shapes=38
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$body$1: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
@@ -26,9 +26,12 @@ callable init.IllegalStateException.$c31: OrdinaryManaged receiver=true args=["D
 callable init.IndexOutOfBoundsException.$c25: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.SharedConstructorBase.$c2: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
 callable init.SharedConstructorBase.$c3: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedConstructorBase.$c4: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(4)"] result=UnitVoid
+callable init.SharedConstructorBase.$c5: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(1)"] result=UnitVoid
 callable init.SharedConstructorDeferred.$c10: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
 callable init.SharedConstructorDerived.$c6: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
 callable init.SharedConstructorEnvelope.$c9: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedConstructorPrivate.$c7: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
 callable init.SharedConstructorSupport.$c8: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.Throwable.$c20: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.UnwrapException.$c22: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid

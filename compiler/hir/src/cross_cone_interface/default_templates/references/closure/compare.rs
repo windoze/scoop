@@ -401,15 +401,7 @@ fn bound_callable_ref(
 
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
-    let ordering = left
-        .receiver_parameter()
-        .depth()
-        .cmp(&right.receiver_parameter().depth())
-        .then_with(|| {
-            left.receiver_parameter()
-                .index()
-                .cmp(&right.receiver_parameter().index())
-        });
+    let ordering = signature_type(left.receiver_type(), right.receiver_type(), path)?;
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }

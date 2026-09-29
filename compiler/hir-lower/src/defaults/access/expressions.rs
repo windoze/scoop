@@ -3,6 +3,54 @@ use scoop_hir as hir;
 use super::ReferenceCollector;
 
 impl ReferenceCollector<'_> {
+    fn imported_callable(
+        &mut self,
+        callee: hir::ImportedCallableTarget,
+        origin: hir::DefinitionOrigin,
+    ) {
+        let target = match callee {
+            hir::ImportedCallableTarget::Application(application) => {
+                let arguments = self.lowerer.imported_generic_applications[application]
+                    .arguments
+                    .substitution(&self.lowerer.types);
+                for ty in arguments {
+                    self.type_reference(ty, origin);
+                }
+                hir::ExportDefaultCallableTarget::ImportedGeneric(application)
+            }
+            hir::ImportedCallableTarget::Dependency(callee) => {
+                hir::ExportDefaultCallableTarget::ImportedDependency(callee)
+            }
+        };
+        self.record_callable(target, origin);
+    }
+
+    fn imported_method_callee(
+        &mut self,
+        callee: &hir::ImportedMethodCallee,
+        origin: hir::DefinitionOrigin,
+    ) {
+        match callee {
+            hir::ImportedMethodCallee::Callable(target) => self.imported_callable(*target, origin),
+            hir::ImportedMethodCallee::InterfaceBound(bound) => {
+                self.record_callable(
+                    hir::ExportDefaultCallableTarget::ImportedBound(**bound),
+                    origin,
+                );
+                self.type_reference(bound.receiver_type, origin);
+                self.type_reference(bound.interface, origin);
+                self.function_type_reference(bound.signature, origin);
+            }
+            hir::ImportedMethodCallee::DerivedEquality(application) => {
+                self.record_callable(
+                    hir::ExportDefaultCallableTarget::DerivedEquality(*application),
+                    origin,
+                );
+                self.method_callee_shape(hir::MethodCallee::DerivedEquality(*application), origin);
+            }
+        }
+    }
+
     pub(super) fn expression(&mut self, expression: &hir::Expr) {
         let origin = expression.origin.definition();
         self.type_reference(expression.ty, origin);
@@ -99,22 +147,23 @@ impl ReferenceCollector<'_> {
                     self.expression(&capture.source);
                 }
             }
+            hir::ExprKind::ImportedMethodCall {
+                receiver,
+                callee,
+                args,
+            } => {
+                self.imported_method_callee(callee, origin);
+                self.expression(receiver);
+                self.expressions(args);
+            }
             hir::ExprKind::ImportedCallableReference(reference) => {
-                let target = match reference.target.callee() {
-                    hir::ImportedCallableTarget::Application(application) => {
-                        let arguments = self.lowerer.imported_generic_applications[application]
-                            .arguments
-                            .substitution(&self.lowerer.types);
-                        for ty in arguments {
-                            self.type_reference(ty, origin);
-                        }
-                        hir::ExportDefaultCallableTarget::ImportedGeneric(application)
-                    }
-                    hir::ImportedCallableTarget::Dependency(callee) => {
-                        hir::ExportDefaultCallableTarget::ImportedDependency(callee)
-                    }
-                };
-                self.record_callable(target, origin);
+                if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } =
+                    &reference.target
+                {
+                    self.imported_method_callee(callee, origin);
+                } else if let Some(callee) = reference.target.callee() {
+                    self.imported_callable(callee, origin);
+                }
                 self.function_type_reference(reference.function_type, origin);
                 for ty in &reference.owner_type_arguments {
                     self.type_reference(*ty, origin);

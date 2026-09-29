@@ -3,7 +3,7 @@ mir Unit: MirTypeFactsV1 { kind: ZeroSizedValue, gc: GcFree } Intrinsic(Unit)
 hir Any: Reference ContainsManagedReferences
 mir Any: MirTypeFactsV1 { kind: Reference, gc: ContainsManagedReferences } Class { kind: Abstract, declared_fields: [] }
 local-only descriptor SharedUnitHidden
-layouts=202 descriptors=101 dispatch=122 callables=35 shapes=29
+layouts=202 descriptors=101 dispatch=122 callables=36 shapes=29
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$body$2: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
@@ -19,6 +19,7 @@ callable init.IllegalArgumentException.$c17: OrdinaryManaged receiver=true args=
 callable init.IllegalStateException.$c18: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable init.IllegalStateException.$c22: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.IndexOutOfBoundsException.$c16: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.SharedUnitOwner.$c2: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.Throwable.$c11: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.UnwrapException.$c13: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable thunk<Boolean> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

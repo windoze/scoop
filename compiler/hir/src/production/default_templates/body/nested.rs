@@ -36,9 +36,7 @@ impl BodyProjection<'_, '_> {
             crate::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
                 DefaultCallableReferenceTargetV1::BoundMember {
                     receiver: Box::new(self.expression(receiver)?),
-                    callee: crate::DefaultMethodCalleeV1::Callable(
-                        self.imported_reference_callee(*callee)?,
-                    ),
+                    callee: self.imported_method_callee(callee)?,
                 }
             }
             crate::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
@@ -64,7 +62,7 @@ impl BodyProjection<'_, '_> {
         .map_err(super::super::DefaultBodyProjectionError::CallableReference)
     }
 
-    fn imported_reference_callee(
+    pub(super) fn imported_reference_callee(
         &self,
         callee: crate::ImportedCallableTarget,
     ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultBodyProjectionError> {

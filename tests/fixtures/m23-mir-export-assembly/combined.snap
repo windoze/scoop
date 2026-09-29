@@ -1,4 +1,4 @@
-types=32 callables=26 dispatch=10 objects=1 shapes=9 initialization_uses=0 ordinary=1
+types=32 callables=27 dispatch=10 objects=1 shapes=9 initialization_uses=0 ordinary=1
 type Base: Reference/ContainsManagedReferences vslots=3 itables=1
 type Choice: NonZeroValue/GcFree vslots=0 itables=0
 type Contract: Reference/ContainsManagedReferences vslots=0 itables=0
@@ -29,6 +29,7 @@ callable ctor.Value.$c3: primary-value-constructor receiver=false parameters=0 N
 callable init.Base.$c0: class-initializer receiver=true parameters=1 Managed
 callable init.Base.$c1: class-initializer receiver=true parameters=0 Managed
 callable init.Derived.$c2: class-initializer receiver=true parameters=1 Managed
+callable init.Pending.$c3: class-initializer receiver=true parameters=0 Managed
 callable same: ordinary receiver=false parameters=2 Managed
 callable throughBase: ordinary receiver=false parameters=1 Managed
 callable thunk<Value> Contract.$get$token(): boxing-adjust receiver=true parameters=0 Managed

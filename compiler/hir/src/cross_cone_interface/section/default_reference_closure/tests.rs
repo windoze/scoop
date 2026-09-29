@@ -23,13 +23,13 @@ use crate::{
     CanonicalExportDefinitionSourcesV1, CanonicalExternalHirReferenceRolesV1,
     CanonicalExternalHirReferencesV1, CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1,
     CanonicalPublicExportBindingsV1, CanonicalTemplateLocalTableV1,
-    CanonicalTemplateValueParametersV1, CanonicalTypeAliasInterfacesV1, DefaultBinderRefV1,
-    DefaultCallableRefV1, DefaultExpressionKindV1, DefaultExpressionV1, DependencyBindingWitnessV1,
-    ExportDefaultBodyV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ExportDefinitionSourceV1,
-    ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1,
-    ExternalHirTargetV1, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
-    PublicExportBindingClosureAuthority, ReexportRouteHopV1, ReexportRouteV1,
+    CanonicalTemplateValueParametersV1, CanonicalTypeAliasInterfacesV1, DefaultCallableRefV1,
+    DefaultExpressionKindV1, DefaultExpressionV1, DependencyBindingWitnessV1, ExportDefaultBodyV1,
+    ExportDefaultReferenceSetV1, ExportDefaultReferenceV1, ExportDefaultTemplateKeyV1,
+    ExportDefaultTemplateV1, ExportDefinitionSourceV1, ExternalHirReferenceRoleV1,
+    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1, ExternalHirTargetV1,
+    OptionalTemplateReceiverV1, PersistentLexicalRootV1, PublicExportBindingClosureAuthority,
+    ReexportRouteHopV1, ReexportRouteV1,
 };
 
 #[test]
@@ -196,7 +196,7 @@ fn maps_all_non_structural_callable_and_constructor_target_forms() {
     }
 
     let class_bound = DefaultBoundCallableRefV1::new(
-        DefaultBinderRefV1::new(0, 0),
+        SignatureTypeKey::Binder { depth: 0, index: 0 },
         DefaultBoundCallableSourceV1::Class {
             bound: signature(identities.foreign_nominal),
             callable: callable(DefaultCallableDeclarationV1::Function(
@@ -215,7 +215,7 @@ fn maps_all_non_structural_callable_and_constructor_target_forms() {
     let interface_member =
         CallableTemplateOrigin::GenericFunction(identities.foreign_generic_function);
     let interface_bound = DefaultBoundCallableRefV1::new(
-        DefaultBinderRefV1::new(0, 0),
+        SignatureTypeKey::Binder { depth: 0, index: 0 },
         DefaultBoundCallableSourceV1::Interface {
             bound: signature(identities.foreign_nominal),
             member: interface_member,

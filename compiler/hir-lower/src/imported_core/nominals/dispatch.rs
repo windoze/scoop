@@ -34,7 +34,7 @@ impl Lowerer {
                 slots.push(slot);
             }
         }
-        for slot in &slots {
+        for (position, slot) in slots.iter().enumerate() {
             let family = if let Some(record) = class
                 .declaration
                 .dispatch_slots
@@ -52,6 +52,23 @@ impl Lowerer {
                 .find(|selection| selection.slot() == *slot)
                 .ok_or(ImportedSignatureTypeError::Structural)?;
             let callable = self.select_imported_dispatch_target(selection, ty)?;
+            if let hir::ImportedDispatchCallable::External(callee) = callable {
+                let reference = self.imported_dependency_callables[callee].reference();
+                let selected = self
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.resolve_callable(reference))
+                    .expect("a virtual implementation retains its selected declaration");
+                if selected.interface().modality() != hir::CallableModalityV1::Final {
+                    self.intern_imported_dependency_callable_use(
+                        reference,
+                        hir::ImportedDependencyDispatch::Virtual {
+                            slot: u32::try_from(position)
+                                .map_err(|_| ImportedSignatureTypeError::Structural)?,
+                        },
+                    );
+                }
+            }
             class.virtual_methods.push(hir::ImportedVirtualMethod {
                 slot: *slot,
                 family,

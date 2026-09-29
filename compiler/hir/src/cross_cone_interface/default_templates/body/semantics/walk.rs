@@ -144,14 +144,6 @@ pub(super) trait BodyWalkMode {
         path: &WirePath,
     ) -> Result<(), Self::Error>;
 
-    fn validate_binder(
-        &mut self,
-        depth: u32,
-        index: u32,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &ExportDefinitionSourceV1,
-    ) -> Result<(), Self::Error>;
-
     fn visit_evaluation_origin(
         &mut self,
         source: &scoop_identity::EvaluationOrigin,
@@ -245,26 +237,6 @@ where
                 definition_origin,
             )?;
         }
-        Ok(())
-    }
-
-    pub(super) fn push_binder<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        depth: u32,
-        index: u32,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), M::Error> {
-        self.reserve_edge(pending)?;
-        pending.push(WorkItem::Body {
-            node: BodyNode::Binder {
-                depth,
-                index,
-                site,
-                definition_origin,
-            },
-        });
         Ok(())
     }
 
@@ -436,14 +408,6 @@ where
                 self.process_integer_arguments(arguments, pending)
             }
             BodyNode::Origin { source, site } => self.mode.visit_origin(source, site, self.path),
-            BodyNode::Binder {
-                depth: binder_depth,
-                index,
-                site,
-                definition_origin,
-            } => self
-                .mode
-                .validate_binder(binder_depth, index, site, definition_origin),
         }
     }
 

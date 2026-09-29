@@ -103,6 +103,10 @@ impl Lowerer {
                 unreachable!("literal subjects commit through the pattern equality entry")
             }
         };
+        let bound_declaration = receiver
+            .as_ref()
+            .filter(|receiver| matches!(self.types[receiver.ty], hir::Type::Param(_)))
+            .map(|_| candidate.interface().clone());
         let receiver = receiver.map(|receiver| {
             self.imported_call_argument(
                 "$dependency.receiver".to_string(),
@@ -138,7 +142,7 @@ impl Lowerer {
         for ((input, parameter), name) in argument_map
             .parameters()
             .iter()
-            .zip(parameter_types)
+            .zip(parameter_types.iter().copied())
             .zip(parameter_names)
         {
             let value = match input {
@@ -268,7 +272,20 @@ impl Lowerer {
                             arguments,
                         },
                     );
-                    hir::ExprKind::ImportedGenericCall {
+                    let bound = match self.imported_bound_call_kind(
+                        bound_declaration.as_ref(),
+                        hir::ImportedCallableTarget::Application(application),
+                        &mut args,
+                        &parameter_types,
+                        result_type,
+                    ) {
+                        Ok(bound) => bound,
+                        Err(message) => {
+                            self.error(call_span, message);
+                            return None;
+                        }
+                    };
+                    bound.unwrap_or(hir::ExprKind::ImportedGenericCall {
                         application,
                         kind: match kind {
                             MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
@@ -279,7 +296,7 @@ impl Lowerer {
                         binding,
                         args,
                         receiver: source_receiver,
-                    }
+                    })
                 }
                 super::generic::ImportedGenericTarget::Constructor(template) => {
                     let application = self.imported_constructor_applications.alloc(
@@ -316,13 +333,26 @@ impl Lowerer {
                 return None;
             }
         };
+        let bound = match self.imported_bound_call_kind(
+            bound_declaration.as_ref(),
+            hir::ImportedCallableTarget::Dependency(callee),
+            &mut args,
+            &parameter_types,
+            result_type,
+        ) {
+            Ok(bound) => bound,
+            Err(message) => {
+                self.error(call_span, message);
+                return None;
+            }
+        };
         Some(hir::Expr {
-            kind: hir::ExprKind::ImportedDependencyCall {
+            kind: bound.unwrap_or(hir::ExprKind::ImportedDependencyCall {
                 callee,
                 binding,
                 args,
                 receiver: source_receiver,
-            },
+            }),
             ty: result_type,
             span: call_span,
             origin: self.expression_origin(call_span),

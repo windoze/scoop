@@ -55,7 +55,14 @@ impl Lowerer {
             let ImportedCallReceiver::Member { value, .. } = &receiver else {
                 unreachable!("nominal member inference has its exact receiver");
             };
-            let (_, owner_arguments) = self.types[value.ty()]
+            let hir::PublicDeclarationOwnerV1::Nominal(owner) = candidate.interface().owner()
+            else {
+                unreachable!("owner parameters belong to a nominal member")
+            };
+            let owner = self
+                .imported_member_owner_type(value.ty(), owner)
+                .expect("nominal member inference retains its declared owner application");
+            let (_, owner_arguments) = self.types[owner]
                 .imported_nominal_application()
                 .expect("nominal member inference retains its declared owner application");
             for (variable, argument) in session
@@ -186,8 +193,18 @@ impl Lowerer {
                         .expect("generic receiver has its declaration type"),
                     &bindings,
                 );
+                let value = if matches!(
+                    candidate.interface().owner(),
+                    hir::PublicDeclarationOwnerV1::Nominal(_)
+                ) && matches!(self.types[value.ty], hir::Type::Param(_))
+                    && matches!(self.types[ty], hir::Type::ImportedInterface(_))
+                {
+                    value
+                } else {
+                    self.adapt_to(value, ty)
+                };
                 ImportedCallReceiver::Member {
-                    value: ImportedMemberReceiver::Value(self.adapt_to(value, ty)),
+                    value: ImportedMemberReceiver::Value(value),
                     static_type,
                 }
             }

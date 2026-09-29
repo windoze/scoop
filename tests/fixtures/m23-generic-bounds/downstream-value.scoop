@@ -1,0 +1,14 @@
+import consumer.bounds.result
+import consumer.bounds.exercise
+import consumer.bounds.boxedRead
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    val first = Later(result())
+    val answer = exercise<Later>(first)
+    val boxed = boxedRead<Int>(1)
+    val allocated = Later(0)
+    if (boxed.read() != 42 || first.value != 42 || allocated.value != 0) { return 1 }
+    return answer
+}

@@ -11,8 +11,8 @@ use scoop_wire::{WireError, WirePath};
 mod binding;
 use binding::Producer;
 
-/// Produces all public/protected constructor bindings required by the local
-/// type interface. Imported types stay borrowed through the shared lookup.
+/// Produces the constructor bindings required by the shared type declarations.
+/// Imported types stay borrowed through the shared lookup.
 pub fn lower_constructor_bindings(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,

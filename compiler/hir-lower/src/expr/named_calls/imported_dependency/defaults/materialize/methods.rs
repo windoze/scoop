@@ -40,6 +40,12 @@ impl Lowerer {
                                 "an interface bound is missing its declared member slot".into(),
                             )
                         })?;
+                    self.require_imported_bound_interface(interface)
+                        .map_err(|error| {
+                            ImportedDefaultMaterializationError::Plan(
+                                error.diagnostic("bound conformance"),
+                            )
+                        })?;
                     let candidate = self
                         .dependencies
                         .as_ref()
@@ -83,14 +89,14 @@ impl Lowerer {
                             })?,
                         )
                     };
-                    let binder = bound.receiver_parameter();
-                    let receiver_type = self.materialize_imported_default_type(
-                        &scoop_identity::SignatureTypeKey::Binder {
-                            depth: binder.depth(),
-                            index: binder.index(),
-                        },
-                        context,
-                    )?;
+                    let receiver_type =
+                        self.materialize_imported_default_type(bound.receiver_type(), context)?;
+                    self.resolve_imported_member_receiver_type(receiver_type)
+                        .map_err(|error| {
+                            ImportedDefaultMaterializationError::Plan(
+                                error.diagnostic("bound receiver"),
+                            )
+                        })?;
                     let signature = self.materialize_imported_default_type(
                         bound.instantiated_signature(),
                         context,

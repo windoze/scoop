@@ -13,6 +13,7 @@ owner 9f32559df553302566f8dac3060487ac3717d4c4c14a48b7032a25a98ecd87b6
   protected NestedNominal(GenericTemplate(PersistentGenericTypeId([43, 3, 221, 104, 184, 16, 167, 86, 129, 77, 4, 210, 227, 121, 20, 224, 82, 151, 47, 126, 16, 161, 181, 32, 51, 223, 85, 203, 125, 49, 186, 163])))
   protected NestedNominal(GenericTemplate(PersistentGenericTypeId([48, 251, 29, 77, 85, 170, 75, 192, 224, 195, 242, 82, 219, 237, 79, 230, 170, 74, 167, 120, 68, 127, 173, 20, 162, 102, 189, 51, 42, 100, 198, 252])))
 owner a704787f4a8587b015e5f94c3f8e02bf81b357f82c00d9bdb2fb443d3776903e
+  constructor 15008308d2f01228f9c3e90f2d201b5afcf5bcbcc49ba6d1b157c22705406e9e Internal CanonicalSourceParameterShapesV1 { parameters: [], len: 0 }
 owner e06a6709e6be003cf77e095c1d5c57b8423641ea2bd5ee52837d99eee6265b8c
 owner fc1ea048fb83305521565e1e48dba68aaaa139838ac05c4456e9ac223e510b26
   constructor 054a33bdb197835a703cd77bd09cf0b1b80520f0aa886a893d4804dfea4737fe Protected CanonicalSourceParameterShapesV1 { parameters: [SourceParameterShapeV1 { name: CanonicalIdentifier("value"), value_type: Nominal(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247])) }], len: 1 }

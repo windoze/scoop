@@ -1,0 +1,336 @@
+Module
+  struct GenericValue<Int> (payload: Int, number: Int)
+  class Base<Int> vtable=2 itables=2
+  class Derived<Int> vtable=2 itables=2
+  interface Readable
+  interface Marker
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn11 captures=1
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn12 captures=1
+  generated_exact_type get0 location=closure1 nominal_id=5203891cc2edcfbfd391e45a3ecd6cdea3701746cfe53fb7a5e6d4f54d0b94ba exact_id=b50ebcf0de53e26fabc96c7b1263570156172fa29fe2a76feb88abf69cc1f7aa
+  generated_exact_type get1 location=closure0 nominal_id=89462e12714e0c40143ab57a1c91bc5f7ad9d4eade0242d6127e03fc87808aa1 exact_id=d3b175ce2abb72242335c37334ae14826ce05a5e6973b2a847d66df4566a4e17
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Derived<Int>
+        ClassAlloc Derived<Int>
+      call @fn13 direct
+        Type Derived<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.payload
+      val receiver: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Derived<Int>
+          Local $new.1
+      val $dependency.argument.0: Base<Int>
+        Type Base<Int>
+        Local receiver
+      val $dependency.parameter.value: Base<Int>
+        Type Base<Int>
+        Local $dependency.argument.0
+      call read: () -> Int = @fn6 direct
+        Type Base<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Base<Int>
+        Type Base<Int>
+        Local receiver
+      val $dependency.parameter.value: Base<Int>
+        Type Base<Int>
+        Local $dependency.argument.0
+      call get: () -> Int = @fn7 direct
+        Type Base<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Base<Int>
+        Type Base<Int>
+        Local receiver
+      val $dependency.parameter.value: Base<Int>
+        Type Base<Int>
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn8 direct
+        Type Base<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call copied: GenericValue<Int> = @fn15 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local get
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call retained: GenericValue<Int> = @fn15 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Base<Int>
+        Type Base<Int>
+        Local receiver
+      val $dependency.parameter.value: Base<Int>
+        Type Base<Int>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn9 direct
+        Type Base<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: GenericValue<Int>
+        Type GenericValue<Int>
+        Local copied
+      call $dependency.receiver: Int = @fn4 direct
+        Type GenericValue<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.receiver: GenericValue<Int>
+        Type GenericValue<Int>
+        Local retained
+      call $dependency.receiver: Int = @fn4 direct
+        Type GenericValue<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.2
+  fun read @fn2(this: Base<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun get @fn3(this: Base<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn10 direct
+        Type Base<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun read @fn4(this: GenericValue<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type GenericValue<Int>
+          Local this
+  fun read @fn5(this: Derived<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun readReference @fn6(value: Base<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Base<Int>
+            Local value
+  fun genericClassReference @fn7(value: Base<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Base<Int>
+            Local value
+  fun genericClassGet @fn8(value: Base<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Base<Int>
+        Type Base<Int>
+        Local value
+      call $call.1: Int = @fn3 virtual[1]
+        Type Base<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun readBound @fn9(value: Base<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Base<Int>
+        Type Base<Int>
+        Local value
+      call $call.1: Int = @fn2 virtual[0]
+        Type Base<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun payload @fn10(this: Base<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int>
+          Local this
+  fun $reference.0 @fn11($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 virtual[0]
+        Type Base<Int>
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn12($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 virtual[1]
+        Type Base<Int>
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.Derived.$c0 @fn13(this: Derived<Int>, payload: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local payload
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call @fn14 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Derived<Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.1
+      return
+  fun init.Base.$c2 @fn14(this: Base<Int>, payload: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int>
+        Local this
+        Type Int
+        Local payload
+      return
+  fun ctor.GenericValue.$c1 @fn15(payload: Int, number: Int) -> GenericValue<Int> <no-gc>
+    bb0 entry
+      return
+        Type GenericValue<Int>
+        StructInit GenericValue<Int>
+          Type Int
+          Local payload
+          Type Int
+          Local number
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- get
+  instance mi3 function=@fn4 <- read
+  instance mi4 function=@fn5 <- read
+  instance mi5 function=@fn6 <- readReference
+  instance mi6 function=@fn7 <- genericClassReference
+  instance mi7 function=@fn8 <- genericClassGet
+  instance mi8 function=@fn9 <- readBound
+  instance mi9 function=@fn10 <- payload
+  output library

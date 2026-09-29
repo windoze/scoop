@@ -42,16 +42,22 @@ impl Lowerer {
                 else {
                     return false;
                 };
-                if let Some(bound) = parameter.class_bound() {
-                    let bound = self.class_applications[bound.application].canonical_type;
-                    if self.is_subtype(bound, b) {
-                        return true;
-                    }
-                }
-                parameter.interface_bounds().iter().any(|bound| {
-                    let bound = self.interface_applications[bound.application].canonical_type;
-                    self.is_subtype(bound, b)
-                })
+                parameter
+                    .nominal_bounds_in_source_order()
+                    .into_iter()
+                    .any(|bound| {
+                        let ty = match bound {
+                            hir::NominalBoundRef::Class(bound) => {
+                                self.class_applications[bound.application].canonical_type
+                            }
+                            hir::NominalBoundRef::Interface(bound) => {
+                                self.interface_applications[bound.application].canonical_type
+                            }
+                            hir::NominalBoundRef::ImportedClass(bound)
+                            | hir::NominalBoundRef::ImportedInterface(bound) => bound.ty,
+                        };
+                        self.is_subtype(ty, b)
+                    })
             }
             (Type::Class(application), Type::Class(..) | Type::ImportedClass(_)) => {
                 let application = self.class_applications[application].clone();

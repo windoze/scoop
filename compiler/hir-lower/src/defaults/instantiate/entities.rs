@@ -1,6 +1,42 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn instantiate_default_imported_method_callee(
+        &mut self,
+        source: &hir::ImportedMethodCallee,
+        context: &InstantiationContext,
+    ) -> hir::ImportedMethodCallee {
+        match source {
+            hir::ImportedMethodCallee::Callable(callee) => hir::ImportedMethodCallee::Callable(
+                self.instantiate_default_imported_target(*callee, context),
+            ),
+            hir::ImportedMethodCallee::InterfaceBound(bound) => {
+                hir::ImportedMethodCallee::InterfaceBound(Box::new(
+                    hir::ImportedInterfaceBoundCallable {
+                        receiver_type: self
+                            .instantiate_method_ty(bound.receiver_type, &context.bindings),
+                        interface: self.instantiate_method_ty(bound.interface, &context.bindings),
+                        member: bound.member,
+                        slot: bound.slot,
+                        declared: self.instantiate_default_imported_target(bound.declared, context),
+                        signature: self.instantiate_default_function_type(bound.signature, context),
+                    },
+                ))
+            }
+            hir::ImportedMethodCallee::DerivedEquality(application) => {
+                let hir::MethodCallee::DerivedEquality(application) = self
+                    .instantiate_default_method_callee(
+                        hir::MethodCallee::DerivedEquality(*application),
+                        context,
+                    )
+                else {
+                    unreachable!("an equality application retains its callable kind")
+                };
+                hir::ImportedMethodCallee::DerivedEquality(application)
+            }
+        }
+    }
+
     pub(super) fn instantiate_default_initializing_field(
         &mut self,
         source: hir::InitializingClassFieldRef,

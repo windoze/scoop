@@ -292,7 +292,9 @@ impl Lowerer {
             .class()
             .map(|key| {
                 let ty = self.imported_generic_type(key, bindings)?;
-                Ok::<_, String>(hir::ImportedNominalTypeBound { ty, span })
+                Ok::<_, String>(hir::ClassUpperBound::Imported(
+                    hir::ImportedNominalTypeBound { ty, span },
+                ))
             })
             .transpose()?;
         let interfaces = bounds
@@ -301,11 +303,14 @@ impl Lowerer {
             .iter()
             .map(|key| {
                 let ty = self.imported_generic_type(key, bindings)?;
-                Ok::<_, String>(hir::ImportedNominalTypeBound { ty, span })
+                Ok::<_, String>(hir::InterfaceUpperBound::Imported(
+                    hir::ImportedNominalTypeBound { ty, span },
+                ))
             })
             .collect::<Result<_, String>>()?;
-        Ok(hir::TypeParamBounds::ImportedNominal(
-            hir::ImportedNominalBounds { class, interfaces },
-        ))
+        Ok(hir::TypeParamBounds::Nominal(hir::NominalBounds {
+            class,
+            interfaces,
+        }))
     }
 }

@@ -8,7 +8,7 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #6 : MutableCell
+      ImportedDependencyCall #10 : MutableCell
         Local $dependency.parameter.value : Long
     val local3
       Local trace : MutableCell
@@ -18,10 +18,10 @@ Module
       ClassInit Derived : Derived
         Local $parameter.trace : MutableCell
     val local6
-      ImportedDependencyCall #5 : Long
+      ImportedDependencyCall #9 : Long
         Local trace : MutableCell
     val local7
-      ImportedDependencyCall #5 : Long
+      ImportedDependencyCall #9 : Long
         MethodCall Derived.$get$own : MutableCell
           Local value : Derived
     val local8
@@ -31,7 +31,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local10
-      ImportedDependencyCall #8 : Long
+      ImportedDependencyCall #12 : Long
         ReferenceUpcast : OrderedParent
           Local value : Derived
     val local11
@@ -51,6 +51,6 @@ Module
     val local16
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #9 : Counter
+      ImportedDependencyCall #13 : Counter
         Local $dependency.parameter.value : Long
   output library

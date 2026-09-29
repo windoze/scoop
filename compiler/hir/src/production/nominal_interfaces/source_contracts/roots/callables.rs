@@ -95,11 +95,18 @@ pub(super) fn bounds(
     visit: &mut impl FnMut(TypeId) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for parameter in parameters {
-        if let Some(bound) = parameter.class_bound() {
-            visit(export.class_applications[bound.application].canonical_type)?;
-        }
-        for bound in parameter.interface_bounds() {
-            visit(export.interface_applications[bound.application].canonical_type)?;
+        for bound in parameter.nominal_bounds_in_source_order() {
+            let ty = match bound {
+                NominalBoundRef::Class(bound) => {
+                    export.class_applications[bound.application].canonical_type
+                }
+                NominalBoundRef::Interface(bound) => {
+                    export.interface_applications[bound.application].canonical_type
+                }
+                NominalBoundRef::ImportedClass(bound)
+                | NominalBoundRef::ImportedInterface(bound) => bound.ty,
+            };
+            visit(ty)?;
         }
     }
     Ok(())

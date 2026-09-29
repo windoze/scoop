@@ -4,7 +4,7 @@ use scoop_identity::OptionalSignatureType;
 
 use super::{DefaultEntityProjector, arena_get, unknown};
 use crate::{
-    Callable, DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
+    Callable, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
     DefaultCallableDeclarationV1, DefaultCallableRefV1, GenericMethodOwner, HirSignatureBinder,
     ImportedDependencyCallableUseId, MethodOwnerApplication, TypeId,
 };
@@ -222,8 +222,28 @@ impl DefaultEntityProjector<'_> {
         let signature = arena_get(&self.export.function_types, bound.instantiated_signature)
             .ok_or_else(|| unknown("bound callable signature", bound.instantiated_signature))?;
         Ok(DefaultBoundCallableRefV1::new(
-            DefaultBinderRefV1::new(receiver.depth, receiver.index),
+            scoop_identity::SignatureTypeKey::Binder {
+                depth: receiver.depth,
+                index: receiver.index,
+            },
             source,
+            self.type_key(signature.canonical_type, binders)?,
+        ))
+    }
+
+    pub(in crate::production::default_templates) fn imported_bound_callable(
+        &self,
+        bound: &crate::ImportedInterfaceBoundCallable,
+        binders: &[HirSignatureBinder],
+    ) -> Result<DefaultBoundCallableRefV1, super::super::DefaultEntityProjectionError> {
+        let signature = arena_get(&self.export.function_types, bound.signature)
+            .ok_or_else(|| unknown("bound callable signature", bound.signature))?;
+        Ok(DefaultBoundCallableRefV1::new(
+            self.type_key(bound.receiver_type, binders)?,
+            DefaultBoundCallableSourceV1::Interface {
+                bound: self.type_key(bound.interface, binders)?,
+                member: bound.member,
+            },
             self.type_key(signature.canonical_type, binders)?,
         ))
     }

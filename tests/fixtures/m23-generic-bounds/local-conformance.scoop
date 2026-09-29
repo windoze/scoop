@@ -1,0 +1,17 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+private struct Local<T>(val payload: T) : Readable {
+    public override fun read(): Int = 42
+}
+
+public fun <T> exercise(value: T): Int {
+    val receiver = Local<T>(value)
+    val read = readReference(receiver)
+    val allocated = GenericValue<T>(value, 0)
+    if (readBound(receiver) != 42 || allocated.read() != 0) { return 1 }
+    return read()
+}
+
+public fun result(): Int = exercise<Int>(1)

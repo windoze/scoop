@@ -241,6 +241,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     ) -> Result<(), V::Error> {
         self.push_type(
             pending,
+            callable.receiver_type(),
+            origin,
+            DefaultBodyProviderTypeSiteV1::BoundCallableReceiverType,
+        )?;
+        self.push_type(
+            pending,
             callable.instantiated_signature(),
             origin,
             DefaultBodyProviderTypeSiteV1::BoundCallableInstantiatedSignature,

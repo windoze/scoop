@@ -5,7 +5,7 @@ use scoop_wire::{WireError, WirePath};
 use super::ExportDefaultBodyV1;
 use crate::{
     DefaultTemplateProviderShapeV1, ExportDefinitionSourceV1, NominalInterfaceShapeAuthority,
-    SignatureBinderScopeError, SignatureTypeSemanticError,
+    SignatureTypeSemanticError,
 };
 
 mod walk;
@@ -213,7 +213,7 @@ pub enum DefaultBodyProviderTypeSiteV1 {
     GenericDelegateTypeArgument { index: usize },
     BoundCallableBound,
     BoundCallableInstantiatedSignature,
-    BoundCallableReceiverParameter,
+    BoundCallableReceiverType,
     DerivedEqualityOwner,
     ConstructorOwner,
     EnumVariantOwner,
@@ -246,11 +246,6 @@ pub enum DefaultBodyProviderEnvelopeSemanticValidationError<E> {
         definition_origin: Box<ExportDefinitionSourceV1>,
         error: Box<SignatureTypeSemanticError<E>>,
     },
-    Binder {
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: Box<ExportDefinitionSourceV1>,
-        error: SignatureBinderScopeError,
-    },
     Resource(WireError),
 }
 
@@ -268,9 +263,6 @@ impl<E: fmt::Display> fmt::Display for DefaultBodyProviderEnvelopeSemanticValida
                     formatter,
                     "invalid provider-scoped type at {site:?}: {error}"
                 )
-            }
-            Self::Binder { site, error, .. } => {
-                write!(formatter, "invalid provider binder at {site:?}: {error}")
             }
             Self::Resource(error) => {
                 write!(

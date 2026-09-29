@@ -1,0 +1,378 @@
+Module
+  enum CoroutineStep<LocalBase>
+    Completed(value: LocalBase)
+    Suspended()
+  enum CoroutineSlot<LocalBase>
+    Empty()
+    Value(value: LocalBase)
+  enum CoroutineStep<ForeignDerived>
+    Completed(value: ForeignDerived)
+    Suspended()
+  enum CoroutineSlot<ForeignDerived>
+    Empty()
+    Value(value: ForeignDerived)
+  enum CoroutineStep<LocalExtra>
+    Completed(value: LocalExtra)
+    Suspended()
+  enum CoroutineSlot<LocalExtra>
+    Empty()
+    Value(value: LocalExtra)
+  class LocalBase vtable=2 itables=2
+  class ForeignDerived vtable=1 itables=3
+  class PlainBase vtable=1 itables=2
+  class HolderImpl<Int> vtable=0 itables=2
+  interface LocalExtra
+  interface Readable
+  interface Extra
+  interface Marker
+  interface ChildHolder<Int>
+  interface Holder<Int>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn15 captures=1
+  generated_exact_type get0 location=enum1 nominal_id=ec9e475b4e2bfeadc67f8e6f95894668c6d1baa6fedccab37d4c5de1bb19841d exact_id=4abc7d53728f8809c2d143cda165363a02269c68417c83179149b707fce43904
+  generated_exact_type get1 location=enum3 nominal_id=e335975e8bf146e66194db954f3a79e0927242ef005601e7005d49a1e3b5cc3b exact_id=6f0fa820234e0b04fa9fb32b0f898b4dc57c74856a97f850f81a4cca77506aef
+  generated_exact_type get2 location=enum5 nominal_id=0b283770c4d4c9e03a7b407d341d40ad47ea14b4159cefd7bda0b2e7321bf8c4 exact_id=7680f1d9035ffc7e3c6911de7c15700fba6f94921e4e29e68c5fe2161ec95e86
+  generated_exact_type get3 location=enum0 nominal_id=0f7655596e8a641a0ed47985c350dbccc132309ae5d6a2fc3a9d4faac85bb646 exact_id=87feb5aa894bb1c1b084dc50cbf00ecdb4df116800e61a72ff1a46353a5c6687
+  generated_exact_type get4 location=closure0 nominal_id=41ed08f13d69caf8a3bfafddce021cc3c0fa29255eea6a55998d26691bc5f63c exact_id=9dfc6b93a97c512cc5ea35a5885186ad967de541873315ec470a15519603ff7f
+  generated_exact_type get5 location=enum2 nominal_id=6e43f67243045bd9dc2a0ba5de4ef3a252350d09a276a42bcce4ec9979e75bcf exact_id=ebceb79196b96d86be18479fa3419687af832add06abb499fa411a7e26348758
+  generated_exact_type get6 location=enum4 nominal_id=69cf599bb0ecab81ebfd509d827149544d6d541d09a6dada031623cf16ae4c65 exact_id=efa2579c1f37484f746776c2b82211b6d1a4d6d301fc8cb430c122f571dc58d8
+  fun LocalBase.read @fn0(this: LocalBase) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+  fun LocalBase.extra @fn1(this: LocalBase) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun ForeignDerived.read @fn2(this: ForeignDerived) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+  fun ForeignDerived.extra @fn3(this: ForeignDerived) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun result @fn4() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn5 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn5(value: Int) -> Int
+    bb0 entry
+      assign $new.1
+        Type LocalBase
+        ClassAlloc LocalBase
+      call @fn16 direct
+        Type LocalBase
+        Local $new.1
+      val $argument.0: LocalBase
+        Type LocalBase
+        Local $new.1
+      val $parameter.value: LocalBase
+        Type LocalBase
+        Local $argument.0
+      call $dependency.receiver: Int = @fn7 direct
+        Type LocalBase
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      assign $new.2
+        Type ForeignDerived
+        ClassAlloc ForeignDerived
+      call @fn17 direct
+        Type ForeignDerived
+        Local $new.2
+      val receiver: ForeignDerived
+        Type ForeignDerived
+        Local $new.2
+      val $argument.0: ForeignDerived
+        Type ForeignDerived
+        Local receiver
+      val $parameter.value: ForeignDerived
+        Type ForeignDerived
+        Local $argument.0
+      call $dependency.receiver: Int = @fn8 direct
+        Type ForeignDerived
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.3
+        Type HolderImpl<Int>
+        ClassAlloc HolderImpl<Int>
+      call @fn18 direct
+        Type HolderImpl<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.payload
+      val $argument.0: HolderImpl<Int>
+        Type HolderImpl<Int>
+        Local $new.3
+      val $parameter.value: HolderImpl<Int>
+        Type HolderImpl<Int>
+        Local $argument.0
+      call $dependency.receiver: Int = @fn9 direct
+        Type HolderImpl<Int>
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: ForeignDerived
+        Type ForeignDerived
+        Local receiver
+      val $parameter.value: ForeignDerived
+        Type ForeignDerived
+        Local $argument.0
+      call $call.4: Int = @fn10 direct
+        Type ForeignDerived
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.4
+  fun get @fn6(this: HolderImpl<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type HolderImpl<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun fromLocal @fn7(value: LocalBase) -> Int
+    bb0 entry
+      val $dependency.argument.0: LocalBase
+        Type LocalBase
+        Local value
+      val $dependency.parameter.value: LocalBase
+        Type LocalBase
+        Local $dependency.argument.0
+      call reference: () -> Int = @fn12 direct
+        Type LocalBase
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local reference
+      val $receiver: LocalBase
+        Type LocalBase
+        Local value
+      call $dependency.argument.0: Int = @fn1 virtual[1]
+        Type LocalBase
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun fromInterfaces @fn8(value: ForeignDerived) -> Int
+    bb0 entry
+      val $dependency.argument.0: ForeignDerived
+        Type ForeignDerived
+        Local value
+      val $dependency.parameter.value: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn13 direct
+        Type ForeignDerived
+        Local $dependency.parameter.value
+      val $receiver: ForeignDerived
+        Type ForeignDerived
+        Local value
+      call $dependency.argument.0: Int = @fn3 direct
+        Type ForeignDerived
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun fromHolder @fn9(value: HolderImpl<Int>) -> Int
+    bb0 entry
+      val $dependency.receiver: HolderImpl<Int>
+        Type HolderImpl<Int>
+        Local value
+      call $call.1: Int = @fn6 direct
+        Type HolderImpl<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun fromImported @fn10(value: ForeignDerived) -> Int
+    bb0 entry
+      val $dependency.argument.0: ForeignDerived
+        Type ForeignDerived
+        Local value
+      val $dependency.parameter.value: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn13 direct
+        Type ForeignDerived
+        Local $dependency.parameter.value
+      val $receiver: ForeignDerived
+        Type ForeignDerived
+        Local value
+      call $dependency.argument.0: Int = @fn3 direct
+        Type ForeignDerived
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun payload @fn11(this: HolderImpl<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type HolderImpl<Int>
+          Local this
+  fun readReference @fn12(value: LocalBase) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type LocalBase
+            Local value
+  fun readBound @fn13(value: ForeignDerived) -> Int
+    bb0 entry
+      val $dependency.local.1: ForeignDerived
+        Type ForeignDerived
+        Local value
+      call $call.1: Int = @fn2 direct
+        Type ForeignDerived
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun LocalExtra.extra @fn14(this: LocalExtra) -> Int
+    bb0 entry
+      trap "call to abstract method `LocalExtra.extra`"
+  fun $reference.0 @fn15($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 virtual[0]
+        Type LocalBase
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.LocalBase.$c0 @fn16(this: LocalBase) -> Unit
+    bb0 entry
+      return
+  fun init.ForeignDerived.$c1 @fn17(this: ForeignDerived) -> Unit
+    bb0 entry
+      call external1 direct
+        Type PlainBase
+        Retype PlainBase
+          Type ForeignDerived
+          Local this
+      return
+  fun init.HolderImpl.$c0 @fn18(this: HolderImpl<Int>, payload: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type HolderImpl<Int>
+        Local this
+        Type Int
+        Local payload
+      return
+  coroutine_step cs0 CoroutineStep<LocalBase> result=LocalBase
+  coroutine_step cs1 CoroutineStep<ForeignDerived> result=ForeignDerived
+  coroutine_step cs2 CoroutineStep<LocalExtra> result=LocalExtra
+  coroutine_slot cl0 CoroutineSlot<LocalBase> value=LocalBase
+  coroutine_slot cl1 CoroutineSlot<ForeignDerived> value=ForeignDerived
+  coroutine_slot cl2 CoroutineSlot<LocalExtra> value=LocalExtra
+  instance mi0 function=@fn5 <- exercise
+  instance mi1 function=@fn6 <- get
+  instance mi2 function=@fn7 <- fromLocal
+  instance mi3 function=@fn8 <- fromInterfaces
+  instance mi4 function=@fn9 <- fromHolder
+  instance mi5 function=@fn10 <- fromImported
+  instance mi6 function=@fn11 <- payload
+  instance mi7 function=@fn12 <- readReference
+  instance mi8 function=@fn13 <- readBound
+  output library

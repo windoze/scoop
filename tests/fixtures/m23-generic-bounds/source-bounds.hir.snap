@@ -1,0 +1,154 @@
+Module
+  open class LocalBase() : Readable, Extra
+  class ForeignDerived() : LocalExtra
+  interface LocalExtra
+    fun extra(): Int
+  fun fromLocal<T : LocalBase & Extra>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      ImportedGenericCall readReference<T0> : () -> Int
+        Local $dependency.parameter.value : T0
+    val local5
+      CallableCall function_type0 : Int
+        Local reference : () -> Int
+    val local4
+      Local value : T0
+    val local6
+      MethodCall bound T0 via LocalBase -> LocalBase.extra : Int
+        Local $receiver : T0
+    val local7
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun fromImported<T : LocalExtra & PlainBase>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedGenericCall readBound<T0> : Int
+        Local $dependency.parameter.value : T0
+    val local3
+      Local value : T0
+    val local5
+      MethodCall bound T0 via LocalExtra -> LocalExtra.extra : Int
+        Local $receiver : T0
+    val local6
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun fromInterfaces<T : Readable & LocalExtra>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedGenericCall readBound<T0> : Int
+        Local $dependency.parameter.value : T0
+    val local3
+      Local value : T0
+    val local5
+      MethodCall bound T0 via LocalExtra -> LocalExtra.extra : Int
+        Local $receiver : T0
+    val local6
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun fromHolder<T : ChildHolder<U>, U>(value: T0): T1
+    val local1
+      Local value : T0
+    return
+      ImportedMethodCall InterfaceBound(ImportedInterfaceBoundCallable { receiver_type: Idx::<Type>(25), interface: Idx::<Type>(24), member: Function(PersistentFunctionId([184, 16, 62, 75, 194, 115, 247, 82, 205, 119, 58, 126, 93, 175, 207, 208, 144, 38, 250, 167, 198, 103, 129, 225, 140, 37, 173, 132, 178, 179, 147, 219])), slot: PersistentDispatchSlotId([169, 80, 252, 146, 190, 107, 5, 250, 111, 236, 116, 193, 18, 12, 77, 92, 64, 252, 206, 124, 53, 216, 77, 160, 97, 187, 140, 142, 155, 44, 117, 195]), declared: Application(Idx::<ImportedGenericCallableApplication>(3)), signature: Idx::<FunctionType>(1) }) : T1
+        Local $dependency.receiver : T0
+  fun exercise<T>(value: T0): Int
+    val local1
+      ClassInit LocalBase : LocalBase
+    val local2
+      Local $argument.0 : LocalBase
+    val local3
+      Call fromLocal<LocalBase> : Int
+        Local $parameter.value : LocalBase
+    val local4
+      IntegerLiteral 42 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local6
+      ClassInit ForeignDerived : ForeignDerived
+    val local7
+      Local receiver : ForeignDerived
+    val local8
+      Local $argument.0 : ForeignDerived
+    val local9
+      Call fromInterfaces<ForeignDerived> : Int
+        Local $parameter.value : ForeignDerived
+    val local10
+      IntegerLiteral 42 : Int
+    val local11
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    val local14
+      ImportedConstructorInit HolderImpl : HolderImpl<Int>
+        Local $dependency.parameter.payload : Int
+    val local15
+      Local $argument.0 : HolderImpl<Int>
+    val local16
+      Call fromHolder<HolderImpl<Int>, Int> : Int
+        Local $parameter.value : HolderImpl<Int>
+    val local17
+      IntegerLiteral 42 : Int
+    val local18
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local19
+      Local receiver : ForeignDerived
+    val local20
+      Local $argument.0 : ForeignDerived
+    return
+      Call fromImported<ForeignDerived> : Int
+        Local $parameter.value : ForeignDerived
+  fun result(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance fromLocal<LocalBase>
+  instance fromInterfaces<ForeignDerived>
+  instance fromHolder<HolderImpl<Int>, Int>
+  instance fromImported<ForeignDerived>
+  instance exercise<Int>

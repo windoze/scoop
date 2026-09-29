@@ -7,12 +7,12 @@ Module
     val local1
       Local value : ZstParent
     val local2
-      ImportedDependencyCall #3 : Token
+      ImportedDependencyCall #4 : Token
         Local value : ZstParent
     val local3
       IntegerLiteral 20 : Long
     val local4
-      ImportedDependencyCall #1 : Token
+      ImportedDependencyCall #2 : Token
     val local5
       Local $dependency.argument.0 : Token
     val local6
@@ -20,7 +20,7 @@ Module
     val local7
       Local $dependency.argument.2 : Token
     val local8
-      ImportedDependencyCall #4 virtual[0] : Token
+      ImportedDependencyCall #1 virtual[0] : Token
         Local $dependency.receiver : ZstParent
         Local $dependency.parameter.first : Token
         Local $dependency.parameter.value : Long

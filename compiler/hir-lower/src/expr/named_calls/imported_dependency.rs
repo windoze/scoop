@@ -8,6 +8,7 @@ use super::*;
 use crate::call_resolution::specificity::{DeclarationForwardingView, OwnedDeclarationForwarding};
 
 mod arguments;
+mod bound_calls;
 mod candidate;
 mod commit;
 mod defaults;

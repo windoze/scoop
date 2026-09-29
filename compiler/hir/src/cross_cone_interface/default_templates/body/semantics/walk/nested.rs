@@ -215,12 +215,10 @@ where
                 definition_origin,
             },
         )?;
-        let receiver = callable.receiver_parameter();
-        self.push_binder(
+        self.push_type(
             pending,
-            receiver.depth(),
-            receiver.index(),
-            DefaultBodyProviderTypeSiteV1::BoundCallableReceiverParameter,
+            callable.receiver_type(),
+            DefaultBodyProviderTypeSiteV1::BoundCallableReceiverType,
             definition_origin,
         )
     }

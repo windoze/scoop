@@ -2,7 +2,7 @@ Module
   class Derived()
   fun primary(): Counter
     val local0
-      ImportedDependencyCall #5 : Long
+      ImportedDependencyCall #9 : Long
         ReferenceUpcast : Parent
           ClassInit Derived : Derived
     val local1
@@ -16,6 +16,6 @@ Module
     val local4
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #6 : Counter
+      ImportedDependencyCall #10 : Counter
         Local $dependency.parameter.value : Long
   output library

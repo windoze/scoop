@@ -35,31 +35,33 @@ pub(super) fn append(
                     .find(|boxed| boxed.payload() == *physical)
                     .map(|boxed| &context.input.module().classes[boxed.class()]),
             };
-            if let Some(class) = class {
-                if matches!(physical, mir::Type::Class(_)) {
-                    let mut entries = Vec::new();
-                    for (position, target) in class.vtable.iter().enumerate() {
-                        let target = physical_target(context, target)?;
-                        let slot = *slots.get(&target).ok_or(Error::Application(owner))?;
-                        let contract = virtual_contract(context, owner, slot, position)?;
-                        entries.push(entry(context, owner, contract, target)?);
-                    }
-                    vtable = mir::MirDispatchSlotsV1::ClassVtable(entries);
+            let Some(class) = class else {
+                // An unboxed value has no runtime dispatch table. Its semantic
+                // conformance remains in the type record and HIR declaration.
+                continue;
+            };
+            if matches!(physical, mir::Type::Class(_)) {
+                let mut entries = Vec::new();
+                for (position, target) in class.vtable.iter().enumerate() {
+                    let target = physical_target(context, target)?;
+                    let slot = *slots.get(&target).ok_or(Error::Application(owner))?;
+                    let contract = virtual_contract(context, owner, slot, position)?;
+                    entries.push(entry(context, owner, contract, target)?);
                 }
-                for table in &class.itables {
-                    let interface = context
-                        .input
-                        .module()
-                        .meta
-                        .source_exact_types
-                        .get(&mir::Type::Interface(table.interface))
-                        .ok_or(Error::Application(owner))?
-                        .identity_record()
-                        .id();
-                    let entries =
-                        interface_entries(local, context, owner, interface, &table.slots)?;
-                    itables.push(mir::MirInterfaceDispatchTableV1::new(interface, entries));
-                }
+                vtable = mir::MirDispatchSlotsV1::ClassVtable(entries);
+            }
+            for table in &class.itables {
+                let interface = context
+                    .input
+                    .module()
+                    .meta
+                    .source_exact_types
+                    .get(&mir::Type::Interface(table.interface))
+                    .ok_or(Error::Application(owner))?
+                    .identity_record()
+                    .id();
+                let entries = interface_entries(local, context, owner, interface, &table.slots)?;
+                itables.push(mir::MirInterfaceDispatchTableV1::new(interface, entries));
             }
         }
         itables.sort_unstable_by_key(mir::MirInterfaceDispatchTableV1::interface);

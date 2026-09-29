@@ -112,7 +112,15 @@ lambda/anonymous function 的模板正文保留按定义处捕获顺序排列的
 
 导入的 callable reference 保留定义方的完整 invoke key、词法父模板和有序宿主实参；已选目标区分实际模板 application 与普通依赖 callable use。命名函数、局部函数、绑定成员及绑定扩展复用现有 concrete 函数引用与 MIR invoke，普通依赖目标直接引用提供方代码，不在消费方伪造源码函数。实际引用目标随创建表达式进入既有可执行依赖集合，尚未实例化的模板引用不成为机器根。局部函数的捕获值按原前置参数 ABI 传入；绑定接收者在创建表达式处只求值一次，保留值拷贝或引用拷贝，以及原 virtual/interface 派发。环境字段、局部值身份和 GC 扫描沿既有闭包路径处理。
 
-导入的 bound member 与直接成员引用使用定义处已经选择的声明。class bound 的目标沿原成员 application 降低；interface bound 保留完整接口 application、原成员与 dispatch slot、接收者参数及替换后的签名，待接收者具体化后从实际 conformance 选取实现。普通调用与绑定函数引用共用该选择：值类型直接调用其实际方法，class 实现保留原 virtual 派发，接口接收者或留给派生类的 abstract obligation 使用原接口槽；不得把所有 bound 调用统一改成装箱和接口调用。外来普通类型和 core primitive 的实现同样来自共有声明中的 conformance，不复制为本地源码声明，不在 MIR 重新做成员查找。需要的实际目标进入既有可执行依赖集合，未选中的声明仍只作为模板支持。
+导入的 bound member 与直接成员引用使用定义处已经选择的声明。class bound 的目标沿原成员 application 降低；interface bound 保留完整接口 application、原成员与 dispatch slot、接收者参数及替换后的签名，待接收者具体化后从实际 conformance 选取实现。普通调用与绑定函数引用共用该选择：值类型直接调用其实际方法，class 实现保留原 virtual 派发，接口接收者或留给派生类的 abstract obligation 使用原接口槽。选中的实际实现属于接口默认方法时，接收者按该方法的精确接口 owner 进行装箱或引用转换；不得把所有 bound 调用统一改成装箱和接口调用。外来普通类型和 core primitive 的实现同样来自共有声明中的 conformance，不复制为本地源码声明，不在 MIR 重新做成员查找。primitive 的 conformance 实现按已使用的 bound 接口加载，普通算术或成员解析不因此选择全部 primitive 方法。 已经替换为具体 primitive 的导入 bound 调用同样按需保留其实际声明与 conformance，不能依赖消费方再次执行源码候选选择。 模板正文转发到泛型 callable 时，已经具体化的名义 bound 实参也在创建 application 时保留所需声明；不重做已完成的语言约束检查。需要的实际目标进入既有可执行依赖集合，未选中的声明仍只作为模板支持。
+
+源码声明中的本地与外来名义 bound 使用同一约束集合：class 上界以区分本地 application 和外来完整类型的单个字段保存，接口上界按相同原则保存有序列表。允许同一类型参数组合来自不同 Cone 的接口及 class 上界；单一 class 上界、重复接口、kind bound 互斥、完整实参和可访问性规则不因声明所属 Cone 改变。模板消费复用该表示和正常约束检查，不再另存一套只能表达全外来 bound 的集合。
+
+bound callable 的 receiver 使用完整 `SignatureTypeKey`，可以是定义处 binder，也可以是默认参数展开后已经替换的 nominal application 或结构类型；bound、原 member/slot 和完整函数签名继续保留。默认值中的 bound 调用按同一目标选择降低，再次发布时不把具体 receiver 伪造成 binder。正文与引用目录使用同一个完整 bound target，并收集 receiver、接口与签名中的实际类型引用。默认值展开生成的临时语句及控制节点使用本次求值位置，内部表达式继续保留提供方定义与实际求值位置；默认值求值的 effect 错误定位到本次调用处，不得把提供方的裸字节偏移绑定到消费方文件。该 payload 的 field 1 从专用 binder 对变更为类型 key，HIR interface 升至 `/37`，reader、required inventory、profile fingerprint 与缓存同步迁移，旧 major 需重建。
+
+共有名义声明中的参数自由构造函数按实际可物化签名导出对应 MIR 构造 binding，包括泛型正文所需的 private/internal 构造函数。源码可见性由 HIR 候选选择和定义处访问检查决定，不能再用 public/protected 过滤已经生成的构造函数 ABI。消费者引用定义 Cone 的实际 Strong 构造实现，不另发同名定义；producer 和 reader 共用同一构造声明选择。
+
+未装箱值的 TypeDescriptor 不携带接口运行时表；其完整 conformance 仍保留在 HIR 和 MIR 类型关系中。泛型值只有实际产生 box 时才导出 payload 的物理 dispatch schema，并由该 box 的 TD 引用；单纯的 bound 直接调用不请求 box 或 adjust helper。LIR 发布与 reader 对未装箱值使用空运行时分派，对实际 box 要求完整接口表及目标，因此同一 payload 的直接使用与装箱使用可以贡献不同 helper 成员而保持共同值布局和 TD 一致。
 
 导入模板中的局部具名函数声明与本地声明一样不产生运行时语句。实际直接调用复用原 typed callee 及完整类型实参，把已解析捕获表达式按原顺序放在显式参数之前，并进入已有导入 callable 的具体化队列；不为声明标记生成 Unit 占位表达式，也不把 provider 的源码函数复制为当前 Cone 的 `FunctionId`。
 
@@ -327,6 +335,10 @@ field 5 通常保存实际 ObjectDefinition leaves；static-storage registration
 
 函数正文的 canonical LIR leaf 使用 `scoop-lir-definition-v1`，从最终 `Function` 的实际 ABI、GC effect、指令、正常/异常控制流与 root plan 计算。块按入口可达 CFG 的固定后继顺序规范化，local/temp 按正文首次出现顺序编号；未使用的 arena 槽、诊断名称和不可达块不进入这个语义投影，实际发射的所有对象 atom 仍由 ObjectDefinition 覆盖。类型、函数、存储、桥和 safepoint 使用已有 typed persistent identity，call target/signature/root-scan 等函数局部表在使用位置编码实际值；不编码 arena ID、dump、LLVM 文本或最终摘要补丁。
 
+代码生成按实际发射的块和指令顺序，以局部值首次使用或定义的次序分配函数栈槽；同一指令先读取操作数，再处理结果定义。该顺序复用既有 use/def 遍历，未引用的局部槽最后处理，不依赖源码或导入模板的 arena 编号。局部值重新编号不能改变同一 ODR 正文的栈偏移及对象摘要；这项代码生成修正不改变 LIR 编码、摘要格式或 runtime ABI。
+
+对象摘要中的普通 callable relocation 统一编码实际 callable-body 身份：Strong callable 使用既有 runtime target tag 1 及其 CallableBody definition owner，ODR callable 使用既有 tag 14 及原 member；同一已解析函数在定义 Cone 和消费 Cone 必须得到相同字节。provider 与声明目标仍保留在普通依赖记录中，用于既有引用、ABI 和符号检查，不再成为 callable 对象摘要的本地/外来分类差异。原普通依赖 callable runtime target tag 11 退役且不复用；tag 12 继续用于非 callable 的外来 shape，原服务 tag 2、13 保持退役。此变更将 link-identity-closure 升至 /5，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
+
 production section 新增必需 field 13，保存按 callable-body ID 排序的 records：Strong 使用 `{1=body, 2=canonical LIR fingerprint}`，ODR 必需追加 `3=OdrAbiFingerprint`。此排序独立于 foundation 为解析引用使用的拓扑顺序，并精确覆盖全部 callable-body；其中普通 Strong/ODR 正文与 lowering 已生成的 root/init gateway 均按实际 `Function` 编码，不用空记录或入口计划替代 gateway 正文。body 的实际 Strong/ODR 分类及 ODR group/member/role 直接来自 foundation，wire 不复制身份字段；reader 拒绝 Strong 携带 ODR ABI 或 ODR 缺少 ABI。producer 从同一最终 LIR 计算一次，reader 检查集合、引用、排序和 fingerprint 格式后复用；物理对象仍独立按实际内容验证。当前两种 Strong reference schema 的 production capability 分别由 `/11`、`/12` 升至 `/13`、`/14`，旧产物重建，ODR 发布限制保持；ODR 必需分支随完整泛型 profile 发布，当前格式为下述 cone-production/2，不改变 Strong callable record 编码。
 
 callable-body member 的 ABI payload 固定为 `{1=GC effect, 2=ScoopAbiSignature}`，与 canonical Function 共用 GC effect、调用约定、参数和返回值的 direct/indirect/ZST、物理类型、布局及 scan 编码。ABI 计算只读取这些完整表示，不遍历函数正文或 CFG；group/member/role 使用该 body 的实际 ODR member key，不能将 adapter 等函数角色统一改为 CallableBody。已有 refined `CallableOdrMemberId` 在构造/解析时保留该 key 的 group 和 role，wire 仍只编码原 member ID；body key 因此可直接复用已解析关系，不要求上游 member key 在 LIR 本地表再次发布，也不再查找或解码原 key。经验证的 canonical callable record 用完整 Strong/ODR sum 保存分类，ODR 分支必需包含 group/member/role 和 ABI 摘要，不能在后续 stage 补猜。
@@ -453,14 +465,14 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | section/capability | 本阶段版本 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
-| `org.scoop-lang.hir/cross-cone-interface` | `/36` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置 |
+| `org.scoop-lang.hir/cross-cone-interface` | `/37` | 原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/10` | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5，复用声明 visibility 和 typed owner |
 | `org.scoop-lang.mir/cross-cone-type-bridge` | `/4` | 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
 | `org.scoop-lang.lir/cross-cone-layout-abi` | `/5` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用；完整 callable ABI 保留实际 callable member |
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |
 | `org.scoop-lang.lir/cross-cone-layout-link-closure` | `/3` | layout/descriptor/helper/callable 的实际 Strong/ODR 物理引用 |
-| `org.scoop-lang.lir/link-identity-closure` | `/4` | ODR definition、symbol、relocation 与 member-aware materialization |
+| `org.scoop-lang.lir/link-identity-closure` | `/5` | ODR definition、symbol、relocation 与 member-aware materialization；普通 callable 的本地和依赖 relocation 使用同一 callable-body 身份 |
 | `org.scoop-lang.lir/cone-production` | `/2` | 取代完整 layout 路径的 Strong production `/14`，统一表示完整 Strong/ODR 定义、六类 registration、image、digest plan 与实际 shape 内容摘要 |
 | `org.scoop-lang.link-object/scoop-lir` | `/3` | 同一 Mach-O verifier 支持并核对实际 ODR 对象与 member 摘要 |
 
@@ -474,7 +486,7 @@ field 13 的每条委托模板是四字段 product：`{1=extension property id, 
 
 external references 中的实际类型位置增加 tag 10：`{0=10, 1=initialization application id, 2=effective delegate exact type id}`。其位置按 application 区分，不能只用源 property 作为键而覆盖不同实参的存储类型。位置引用既有 application unit，其声明位置从原 extension-property unit 取得；类型依赖继续沿已有 nominal 遍历收集。该节点随 interface `/36` 一同迁移，不另建类型或存储目录。
 
-生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 为共享表达式增加必需的求值位置，`/36` 增加必需 field 13；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression 是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`；同一位置同时是定义和求值位置时也显式保存。expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
+生产按功能分步迁移：`/31` 增加必需 field 11 与捕获表示，`/32` 为实际调用增加必需 application 字段，`/33` 增加必需 field 12，`/34` 为字段类型位置增加所属 exact type，`/35` 为共享表达式增加必需的求值位置，`/36` 增加必需 field 13，`/37` 将 bound callable 的 receiver 改为完整类型 key；每次同步 reader、required inventory、profile fingerprint 与固定向量，拒绝旧 major。未完成的后续表不提前写入占位记录。callable body 是十字段 product：owner、locals、parameter indices、statements、result、effects、type parameters、predicates、definition origin、capture types。共享 expression 是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`；同一位置同时是定义和求值位置时也显式保存。expression tag 59 表示闭包输入读取；capture 的 source 为 `{0=kind, 1=index}`，kind 1 引用本地值表，kind 2 引用当前正文的捕获类型表。局部值及捕获索引分别在各自正文范围内解析，不能跨正文引用。
 
 构造初始化生产与读取从 `/33` 启用，字段实例位置从 `/34` 启用；委托模板生产与读取启用 `/36` 后，interface 是必需 field 1～13 的十三字段 product。field 12 中每个 nominal record 为 `{1=generic type owner, 2=common steps, 3=constructors}`；constructor 数组非空并按原 typed constructor reference 严格递增，nominal records 按 owner 严格递增。constructor 是六字段 product：declaration、inputs、effects、predicates、definition origin、kind。kind 1 为 struct primary；kind 2 为 struct secondary（delegation、body）；kind 3 为 class primary（base、primary stores）；kind 4 为 class secondary this（delegation、body）；kind 5 为 class terminal secondary（base、body）。base 用长度为 0 或 1 的数组区分根类和实际基类委托。delegation 保存目标和实参片段；primary store 保存原 field reference 和参数 selector。common field step 保存原 field reference 和单结果片段，common body step 保存无结果片段。所有片段统一使用 `{1=locals, 2=statements, 3=results}`，复用既有 typed 节点、局部值索引和引用解析；不重复声明表的 shape，也不为 abstract/intrinsic 构造产生执行记录。源码生产先排序，reader 保留 wire 顺序并在记录构造边界完成一次格式与引用形状检查。field 13 按上述四字段委托模板格式生产与读取。
 
@@ -488,7 +500,7 @@ manifest/single-cone-production `/2` 在原十字段 product 后增加必需 fie
 
 目录沿既有 producer/reader 迁移，`single-cone-production/1` 退役；全部当前 production profile 的 required inventory、profile fingerprint 和缓存同步改用 `/2`。历史 Strong profile 的完整目录为空，其既有语义边界继续拒绝 ODR；正式 generic 产物复用同一目录和共有生产投影。后续物理角色沿同一摘要与目录入口接入，不增加另一套发布路径。
 
-`link-identity-closure/4` 的 defined owner 增加 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/3` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
+`link-identity-closure/5` 沿用 `/4` 的 defined owner 分支 `{0=5, 1=OdrMemberId}`，原 Strong、generated-C、image、verifier boundary 的 tag 1～4 与内容保持。当前产物中的必需 ODR undefined requirement 使用 `{0=9, 1=OdrMemberId}`，退役 tag 2、8 不复用；规范化对象 relocation 使用 runtime target tag 14 后跟该 member 的 32 bytes，不加入本次发射它的 Cone，旧服务专用 runtime target tag 13 保持退役。实际 symbol plan 的 definition owner 可由 foundation 唯一恢复，不在 LIR 生产 section 再复制一份 owner key。`scoop-lir/3` 沿原对象读取器接受并核对实际 ODR weak definition，旧 verifier major 退役；未切换的 Strong profile 仍在既有边界拒绝 ODR foundation。
 
 ReleaseHook role 16 仍只由 M24 启用，本阶段完整 profile 继续拒绝其语义成员。退役字段和 tag 不复用；旧 Strong profile 保持“不支持 ODR”的含义。正式工具链、core、provider 与 consumer 同批重建为新 profile；不把新字段作为旧 section 的 optional 扩展，也不保留长期双轨 reader/publisher。尚未迁移的真实回归入口必须在正式切换前接入共有路径，旧格式仅保留拒绝测试。
 
