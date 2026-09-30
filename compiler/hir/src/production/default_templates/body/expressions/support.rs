@@ -14,7 +14,7 @@ impl BodyProjection<'_, '_> {
     ) -> Result<DefaultMethodCalleeV1, super::super::super::DefaultBodyProjectionError> {
         Ok(match callee {
             crate::ImportedMethodCallee::Callable(callable) => {
-                DefaultMethodCalleeV1::Callable(self.imported_reference_callee(*callable)?)
+                DefaultMethodCalleeV1::Callable(self.callable_target(*callable)?)
             }
             crate::ImportedMethodCallee::InterfaceBound(bound) => DefaultMethodCalleeV1::Bound(
                 self.entities.imported_bound_callable(bound, self.binders)?,

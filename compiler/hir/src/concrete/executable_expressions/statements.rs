@@ -83,7 +83,9 @@ impl<'a> Traversal<'a> {
     pub(super) fn pattern(&mut self, pattern: &'a Pattern) -> Result<(), StructureError> {
         match pattern {
             Pattern::Binding { .. } | Pattern::Wildcard => Ok(()),
-            Pattern::Literal { value, .. } => self.push(Item::Expression(value)),
+            Pattern::Literal {
+                value, equality, ..
+            } => self.push(Item::Literal(value, *equality)),
             Pattern::Variant { fields, .. } | Pattern::Struct { fields, .. } => {
                 for (_, value) in fields.iter().rev() {
                     self.push(Item::Pattern(value))?;

@@ -31,6 +31,7 @@ mod shared_classes;
 mod shared_defaults;
 mod shared_enums;
 mod shared_interfaces;
+mod shared_literals;
 mod shared_requests;
 mod shared_structs;
 mod siblings;

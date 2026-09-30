@@ -123,8 +123,7 @@ impl Lowerer {
                 let reference = &self.callable_references[*reference];
                 match &reference.target {
                     hir::CallableReferenceTarget::Imported(target) => {
-                        if let Some(hir::ImportedCallableTarget::Application(application)) =
-                            target.callee()
+                        if let Some(hir::CallableTarget::Application(application)) = target.callee()
                         {
                             out.push(self.imported_body_generic_call(application, expr.span));
                         }
@@ -298,7 +297,7 @@ impl Lowerer {
                 callee,
                 args,
             } => {
-                if let Some(hir::ImportedCallableTarget::Application(application)) =
+                if let Some(hir::CallableTarget::Application(application)) =
                     callee.declared_callable()
                 {
                     out.push(self.imported_body_generic_call(application, expr.span));
@@ -309,7 +308,7 @@ impl Lowerer {
                 }
             }
             ExprKind::ImportedCallableReference(reference) => {
-                if let Some(hir::ImportedCallableTarget::Application(application)) =
+                if let Some(hir::CallableTarget::Application(application)) =
                     reference.target.callee()
                 {
                     out.push(self.imported_body_generic_call(application, expr.span));

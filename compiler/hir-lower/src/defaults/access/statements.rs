@@ -85,12 +85,14 @@ impl ReferenceCollector<'_> {
             hir::Pattern::Literal {
                 equality,
                 subject_ty,
-                ..
+                value,
             } => {
+                let origin = value.origin.definition();
                 if let hir::LiteralPatternEquality::Ordinary { equals } = equality {
-                    self.callable_use(*equals, origin);
+                    self.callable_target(*equals, origin);
                 }
                 self.type_reference(*subject_ty, origin);
+                self.expression(value);
             }
             hir::Pattern::Variant {
                 application,

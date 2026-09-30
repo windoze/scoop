@@ -123,8 +123,10 @@ where
             DefaultPatternViewV1::Literal {
                 equality,
                 subject_type,
-                ..
+                value,
             } => {
+                let definition_origin = value.definition_origin();
+                self.push_child(pending, BodyNode::Expression(value))?;
                 self.push_child(
                     pending,
                     BodyNode::LiteralEquality {

@@ -336,7 +336,7 @@ impl Lowerer {
                     );
                     let bound = match self.imported_bound_call_kind(
                         bound_declaration.as_ref(),
-                        hir::ImportedCallableTarget::Application(application),
+                        hir::CallableTarget::Application(application),
                         &mut args,
                         &parameter_types,
                         result_type,
@@ -403,7 +403,7 @@ impl Lowerer {
         };
         let bound = match self.imported_bound_call_kind(
             bound_declaration.as_ref(),
-            hir::ImportedCallableTarget::Dependency(callee),
+            hir::CallableTarget::Dependency(callee),
             &mut args,
             &parameter_types,
             result_type,

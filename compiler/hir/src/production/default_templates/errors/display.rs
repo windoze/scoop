@@ -168,9 +168,7 @@ impl fmt::Display for DefaultBodyProjectionError {
             Self::InvalidCaptureSource => {
                 formatter.write_str("default body capture source is not canonical")
             }
-            Self::InvalidLiteralPattern => {
-                formatter.write_str("default body literal pattern is not canonical")
-            }
+
             Self::UnsupportedExpression(kind) => {
                 write!(
                     formatter,

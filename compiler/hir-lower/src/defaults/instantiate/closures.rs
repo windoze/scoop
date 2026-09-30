@@ -17,18 +17,19 @@ impl Lowerer {
             })
     }
 
-    pub(super) fn instantiate_default_imported_target(
+    pub(super) fn instantiate_default_callable_target(
         &mut self,
-        target: hir::ImportedCallableTarget,
+        target: hir::CallableTarget,
         context: &InstantiationContext,
-    ) -> hir::ImportedCallableTarget {
+    ) -> hir::CallableTarget {
         match target {
-            hir::ImportedCallableTarget::Application(application) => {
-                hir::ImportedCallableTarget::Application(
-                    self.instantiate_default_imported_application(application, context),
-                )
+            hir::CallableTarget::Local(callable) => {
+                hir::CallableTarget::Local(self.instantiate_default_callable(callable, context))
             }
-            target @ hir::ImportedCallableTarget::Dependency(_) => target,
+            hir::CallableTarget::Application(application) => hir::CallableTarget::Application(
+                self.instantiate_default_imported_application(application, context),
+            ),
+            target @ hir::CallableTarget::Dependency(_) => target,
         }
     }
 
@@ -102,7 +103,7 @@ impl Lowerer {
             },
             hir::ImportedCallableReferenceTarget::Named(callee) => {
                 hir::ImportedCallableReferenceTarget::Named(
-                    self.instantiate_default_imported_target(*callee, context),
+                    self.instantiate_default_callable_target(*callee, context),
                 )
             }
             hir::ImportedCallableReferenceTarget::Local(application) => {
@@ -120,7 +121,7 @@ impl Lowerer {
             hir::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
                 hir::ImportedCallableReferenceTarget::BoundExtension {
                     receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                    callee: self.instantiate_default_imported_target(*callee, context),
+                    callee: self.instantiate_default_callable_target(*callee, context),
                 }
             }
         }

@@ -58,7 +58,7 @@ impl Lowerer {
                     }
                     hir::LiteralPatternEquality::Ordinary { equals } => {
                         hir::LiteralPatternEquality::Ordinary {
-                            equals: self.instantiate_default_callable(equals, context),
+                            equals: self.instantiate_default_callable_target(equals, context),
                         }
                     }
                 },

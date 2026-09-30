@@ -6,8 +6,7 @@ use scoop_hir as hir;
 
 use super::super::{
     ImportedArgumentMap, ImportedCallImplementation, ImportedCallReceiver,
-    ImportedCallableCandidate, ImportedDependencyCallProbe, ImportedMemberReceiver,
-    ImportedProbeCall,
+    ImportedCallableCandidate, ImportedDependencyCallProbe, ImportedProbeCall,
 };
 use crate::Lowerer;
 use crate::call_resolution::constraints::{ConstraintOrigin, InferenceSession};
@@ -131,15 +130,7 @@ impl Lowerer {
             .zip(signature.patterns)
             .map(|(value, pattern)| self.adapt_to(value, pattern.ty))
             .collect();
-        if !candidate.executable()
-            || (matches!(
-                receiver,
-                ImportedCallReceiver::Member {
-                    value: ImportedMemberReceiver::LiteralSubject(_),
-                    ..
-                }
-            ) && candidate.integer_equality_kind().is_none())
-        {
+        if !candidate.executable() {
             self.imported_dependency_capability_error(
                 &candidate,
                 argument_map.has_vararg(),

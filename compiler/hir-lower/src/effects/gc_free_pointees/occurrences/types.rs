@@ -2,6 +2,13 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod callables;
+use callables::collect_callable_reference_types;
+pub(in super::super) use callables::{
+    collect_callable_target_types, collect_callable_types, collect_imported_method_callee_types,
+    collect_imported_reference_target_types, collect_method_callee_types,
+};
+
 pub(in super::super) fn collect_body_types(
     lowerer: &Lowerer,
     body: &hir::Body,
@@ -111,9 +118,14 @@ pub(in super::super) fn collect_statement_types(
 fn collect_pattern_types(lowerer: &Lowerer, pattern: &hir::Pattern, out: &mut Vec<hir::TypeId>) {
     match pattern {
         hir::Pattern::Literal {
-            value, subject_ty, ..
+            value,
+            equality,
+            subject_ty,
         } => {
             out.push(*subject_ty);
+            if let hir::LiteralPatternEquality::Ordinary { equals } = equality {
+                collect_callable_target_types(lowerer, *equals, out);
+            }
             collect_expr_types(lowerer, value, out);
         }
         hir::Pattern::Variant {
@@ -478,189 +490,11 @@ pub(in super::super) fn collect_function_type_types(
     out.push(function.return_type);
 }
 
-pub(in super::super) fn collect_callable_types(
-    lowerer: &Lowerer,
-    callable: hir::Callable,
-    out: &mut Vec<hir::TypeId>,
-) {
-    match callable {
-        hir::Callable::Function(_) => {}
-        hir::Callable::Generic(application) => {
-            out.extend(
-                lowerer.instantiations[application]
-                    .type_args
-                    .iter()
-                    .copied(),
-            );
-        }
-        hir::Callable::Method(application) => {
-            collect_method_owner_types(
-                lowerer,
-                lowerer.method_applications[application].owner,
-                out,
-            );
-        }
-        hir::Callable::GenericMethod(application) => {
-            let application = &lowerer.generic_method_applications[application];
-            collect_generic_method_owner_types(lowerer, application.owner, out);
-            out.extend(application.method_arguments.iter().copied());
-        }
-    }
-}
-
-fn collect_method_owner_types(
-    lowerer: &Lowerer,
-    owner: hir::MethodOwnerApplication,
-    out: &mut Vec<hir::TypeId>,
-) {
-    let ty = match owner {
-        hir::MethodOwnerApplication::Class(application) => {
-            Some(lowerer.class_applications[application].canonical_type)
-        }
-        hir::MethodOwnerApplication::Struct(application) => {
-            Some(lowerer.struct_applications[application].canonical_type)
-        }
-        hir::MethodOwnerApplication::Enum(application) => {
-            Some(lowerer.enum_applications[application].canonical_type)
-        }
-        hir::MethodOwnerApplication::Interface(application) => {
-            Some(lowerer.interface_applications[application].canonical_type)
-        }
-        hir::MethodOwnerApplication::Object(_) => None,
-    };
-    out.extend(ty);
-}
-
-fn collect_generic_method_owner_types(
-    lowerer: &Lowerer,
-    owner: hir::GenericMethodOwner,
-    out: &mut Vec<hir::TypeId>,
-) {
-    let ty = match owner {
-        hir::GenericMethodOwner::Class(application) => {
-            Some(lowerer.class_applications[application].canonical_type)
-        }
-        hir::GenericMethodOwner::Struct(application) => {
-            Some(lowerer.struct_applications[application].canonical_type)
-        }
-        hir::GenericMethodOwner::Enum(application) => {
-            Some(lowerer.enum_applications[application].canonical_type)
-        }
-        hir::GenericMethodOwner::Object(_) => None,
-    };
-    out.extend(ty);
-}
-
-pub(in super::super) fn collect_imported_method_callee_types(
-    lowerer: &Lowerer,
-    callee: &hir::ImportedMethodCallee,
-    out: &mut Vec<hir::TypeId>,
-) {
-    if let Some(hir::ImportedCallableTarget::Application(application)) = callee.declared_callable()
-    {
-        out.extend(
-            lowerer.imported_generic_applications[application]
-                .arguments
-                .substitution(&lowerer.types),
-        );
-    }
-    match callee {
-        hir::ImportedMethodCallee::Callable(_) => {}
-        hir::ImportedMethodCallee::InterfaceBound(bound) => {
-            out.extend([bound.receiver_type, bound.interface]);
-            collect_function_type_types(lowerer, bound.signature, out);
-        }
-        hir::ImportedMethodCallee::DerivedEquality(application) => {
-            collect_method_callee_types(
-                lowerer,
-                hir::MethodCallee::DerivedEquality(*application),
-                out,
-            );
-        }
-    }
-}
-
-pub(in super::super) fn collect_method_callee_types(
-    lowerer: &Lowerer,
-    callee: hir::MethodCallee,
-    out: &mut Vec<hir::TypeId>,
-) {
-    match callee {
-        hir::MethodCallee::Callable(callable) => collect_callable_types(lowerer, callable, out),
-        hir::MethodCallee::Bound(bound) => {
-            let bound = &lowerer.bound_callable_refs[bound];
-            collect_function_type_types(lowerer, bound.instantiated_signature, out);
-            match bound.source {
-                hir::BoundCallableSource::Class { bound, callable } => {
-                    out.push(lowerer.class_applications[bound].canonical_type);
-                    collect_callable_types(lowerer, callable, out);
-                }
-                hir::BoundCallableSource::Interface { bound, .. } => {
-                    out.push(lowerer.interface_applications[bound].canonical_type);
-                }
-            }
-        }
-        hir::MethodCallee::DerivedEquality(application) => {
-            out.push(lowerer.derived_equality_applications[application].owner_ty);
-        }
-    }
-}
-
 pub(in super::super) fn collect_field_ref_types(field: hir::FieldRef, out: &mut Vec<hir::TypeId>) {
     match field {
         hir::FieldRef::StructField { owner, .. } | hir::FieldRef::ClassField { owner, .. } => {
             out.push(owner)
         }
         hir::FieldRef::TupleIndex(_) => {}
-    }
-}
-
-fn collect_callable_reference_types(
-    lowerer: &Lowerer,
-    reference: hir::CallableReferenceId,
-    out: &mut Vec<hir::TypeId>,
-) {
-    let reference = &lowerer.callable_references[reference];
-    collect_function_type_types(lowerer, reference.function_type, out);
-    out.extend(reference.captures.iter().map(|capture| capture.ty));
-    for capture in &reference.captures {
-        collect_expr_types(lowerer, &capture.source, out);
-    }
-    match &reference.target {
-        hir::CallableReferenceTarget::Imported(target) => {
-            collect_imported_reference_target_types(lowerer, target, out);
-            if let Some(receiver) = target.receiver() {
-                collect_expr_types(lowerer, receiver, out);
-            }
-        }
-        hir::CallableReferenceTarget::Named(callee)
-        | hir::CallableReferenceTarget::Local { callee, .. } => {
-            collect_callable_types(lowerer, *callee, out)
-        }
-        hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-            collect_method_callee_types(lowerer, *callee, out);
-            collect_expr_types(lowerer, receiver, out);
-        }
-        hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-            collect_callable_types(lowerer, *callee, out);
-            collect_expr_types(lowerer, receiver, out);
-        }
-    }
-}
-
-pub(super) fn collect_imported_reference_target_types(
-    lowerer: &Lowerer,
-    target: &hir::ImportedCallableReferenceTarget,
-    out: &mut Vec<hir::TypeId>,
-) {
-    if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } = target {
-        collect_imported_method_callee_types(lowerer, callee, out);
-    }
-    if let Some(hir::ImportedCallableTarget::Application(application)) = target.callee() {
-        out.extend(
-            lowerer.imported_generic_applications[application]
-                .arguments
-                .substitution(&lowerer.types),
-        );
     }
 }

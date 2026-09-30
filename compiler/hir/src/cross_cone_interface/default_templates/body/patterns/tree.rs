@@ -1,16 +1,18 @@
-use std::fmt;
-
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 use scoop_wire::{Encoder, WireEncode};
 
 mod decoded;
+mod errors;
 
 pub use decoded::{DecodedDefaultPatternFieldV1, DecodedDefaultPatternV1};
+pub use errors::{
+    DefaultPatternBuildError, DefaultPatternIndexError, DefaultPatternResolutionError,
+};
 
-use super::{DefaultLiteralEqualityResolutionError, DefaultLiteralEqualityV1};
+use super::DefaultLiteralEqualityV1;
 use crate::{
-    CanonicalConstValueV1, DefaultCallableReferenceResolver, DefaultEnumVariantRefResolutionError,
-    DefaultEnumVariantRefV1, DefaultFieldReferenceResolver, TemplateLocalIndexResolver,
+    DefaultEnumVariantRefV1, DefaultExpressionKindV1, DefaultExpressionReferenceResolver,
+    DefaultExpressionV1, IndexedDefaultExpressionV1, TemplateLocalIndexResolver,
 };
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -23,7 +25,7 @@ enum DefaultPatternKindV1 {
     },
     Wildcard,
     Literal {
-        value: CanonicalConstValueV1,
+        value: Box<DefaultExpressionV1>,
         equality: DefaultLiteralEqualityV1,
         subject_type: SignatureTypeKey,
     },
@@ -47,7 +49,7 @@ pub enum DefaultPatternViewV1<'a> {
     },
     Wildcard,
     Literal {
-        value: &'a CanonicalConstValueV1,
+        value: &'a DefaultExpressionV1,
         equality: &'a DefaultLiteralEqualityV1,
         subject_type: &'a SignatureTypeKey,
     },
@@ -73,16 +75,24 @@ impl DefaultPatternV1 {
         Self(DefaultPatternKindV1::Wildcard)
     }
 
-    pub const fn literal(
-        value: CanonicalConstValueV1,
+    pub fn try_literal(
+        value: DefaultExpressionV1,
         equality: DefaultLiteralEqualityV1,
         subject_type: SignatureTypeKey,
-    ) -> Self {
-        Self(DefaultPatternKindV1::Literal {
-            value,
+    ) -> Result<Self, DefaultPatternBuildError> {
+        if !matches!(
+            value.kind(),
+            DefaultExpressionKindV1::IntegerLiteral(_)
+                | DefaultExpressionKindV1::BooleanLiteral(_)
+                | DefaultExpressionKindV1::StringLiteral { .. }
+        ) {
+            return Err(DefaultPatternBuildError::InvalidLiteralExpression);
+        }
+        Ok(Self(DefaultPatternKindV1::Literal {
+            value: Box::new(value),
             equality,
             subject_type,
-        })
+        }))
     }
 
     pub fn try_variant(
@@ -136,48 +146,51 @@ impl DefaultPatternV1 {
     where
         I: TemplateLocalIndexResolver,
     {
-        let kind = match &self.0 {
-            DefaultPatternKindV1::Binding { local } => {
-                let local_index = resolver
-                    .resolve_template_local_index(local)
-                    .map_err(DefaultPatternIndexError::Local)?;
-                IndexedDefaultPatternKindV1::Binding { local_index }
-            }
-            DefaultPatternKindV1::Wildcard => IndexedDefaultPatternKindV1::Wildcard,
-            DefaultPatternKindV1::Literal {
-                value,
-                equality,
-                subject_type,
-            } => IndexedDefaultPatternKindV1::Literal {
-                value,
-                equality,
-                subject_type,
-            },
-            DefaultPatternKindV1::Variant { variant, fields } => {
-                IndexedDefaultPatternKindV1::Variant {
-                    variant,
-                    fields: index_fields(fields, resolver)?,
+        let kind =
+            match &self.0 {
+                DefaultPatternKindV1::Binding { local } => {
+                    let local_index = resolver
+                        .resolve_template_local_index(local)
+                        .map_err(DefaultPatternIndexError::Local)?;
+                    IndexedDefaultPatternKindV1::Binding { local_index }
                 }
-            }
-            DefaultPatternKindV1::Tuple { elements } => {
-                let mut indexed = Vec::with_capacity(elements.len());
-                for (index, element) in elements.iter().enumerate() {
-                    indexed.push(element.index_locals(resolver).map_err(|error| {
-                        DefaultPatternIndexError::Element {
-                            index,
-                            error: Box::new(error),
-                        }
-                    })?);
+                DefaultPatternKindV1::Wildcard => IndexedDefaultPatternKindV1::Wildcard,
+                DefaultPatternKindV1::Literal {
+                    value,
+                    equality,
+                    subject_type,
+                } => IndexedDefaultPatternKindV1::Literal {
+                    value: Box::new(value.index_locals(resolver).map_err(|error| {
+                        DefaultPatternIndexError::LiteralValue(Box::new(error))
+                    })?),
+                    equality,
+                    subject_type,
+                },
+                DefaultPatternKindV1::Variant { variant, fields } => {
+                    IndexedDefaultPatternKindV1::Variant {
+                        variant,
+                        fields: index_fields(fields, resolver)?,
+                    }
                 }
-                IndexedDefaultPatternKindV1::Tuple { elements: indexed }
-            }
-            DefaultPatternKindV1::Struct { owner_type, fields } => {
-                IndexedDefaultPatternKindV1::Struct {
-                    owner_type,
-                    fields: index_fields(fields, resolver)?,
+                DefaultPatternKindV1::Tuple { elements } => {
+                    let mut indexed = Vec::with_capacity(elements.len());
+                    for (index, element) in elements.iter().enumerate() {
+                        indexed.push(element.index_locals(resolver).map_err(|error| {
+                            DefaultPatternIndexError::Element {
+                                index,
+                                error: Box::new(error),
+                            }
+                        })?);
+                    }
+                    IndexedDefaultPatternKindV1::Tuple { elements: indexed }
                 }
-            }
-        };
+                DefaultPatternKindV1::Struct { owner_type, fields } => {
+                    IndexedDefaultPatternKindV1::Struct {
+                        owner_type,
+                        fields: index_fields(fields, resolver)?,
+                    }
+                }
+            };
         Ok(IndexedDefaultPatternV1 { kind })
     }
 }
@@ -217,7 +230,7 @@ enum IndexedDefaultPatternKindV1<'a> {
     },
     Wildcard,
     Literal {
-        value: &'a CanonicalConstValueV1,
+        value: Box<IndexedDefaultExpressionV1<'a>>,
         equality: &'a DefaultLiteralEqualityV1,
         subject_type: &'a SignatureTypeKey,
     },
@@ -251,7 +264,7 @@ impl WireEncode for IndexedDefaultPatternV1<'_> {
                 value,
                 equality,
                 subject_type,
-            } => encode_literal(encoder, *value, *equality, *subject_type),
+            } => encode_literal(encoder, value.as_ref(), *equality, *subject_type),
             IndexedDefaultPatternKindV1::Variant { variant, fields } => {
                 encode_composite(encoder, 4, *variant, fields)
             }
@@ -278,126 +291,9 @@ impl WireEncode for IndexedDefaultPatternFieldV1<'_> {
     }
 }
 
-pub trait DefaultPatternReferenceResolver<E>:
-    DefaultCallableReferenceResolver<E> + DefaultFieldReferenceResolver<E>
-{
-}
+pub trait DefaultPatternReferenceResolver<E>: DefaultExpressionReferenceResolver<E> {}
 
-impl<R, E> DefaultPatternReferenceResolver<E> for R where
-    R: DefaultCallableReferenceResolver<E> + DefaultFieldReferenceResolver<E>
-{
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefaultPatternBuildError {
-    TooManyElements,
-    TooManyFields,
-    DuplicateField {
-        declaration_index: u32,
-    },
-    NonCanonicalFieldOrder {
-        index: usize,
-        previous: u32,
-        actual: u32,
-    },
-}
-
-impl fmt::Display for DefaultPatternBuildError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::TooManyElements => formatter.write_str("default tuple pattern exceeds u32"),
-            Self::TooManyFields => formatter.write_str("default pattern field count exceeds u32"),
-            Self::DuplicateField { declaration_index } => write!(
-                formatter,
-                "duplicate default pattern field {declaration_index}"
-            ),
-            Self::NonCanonicalFieldOrder {
-                index,
-                previous,
-                actual,
-            } => write!(
-                formatter,
-                "default pattern field {index} is out of order: {actual} follows {previous}"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for DefaultPatternBuildError {}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum DefaultPatternResolutionError<E, L> {
-    Local(L),
-    LiteralEquality(DefaultLiteralEqualityResolutionError<E>),
-    SubjectType(E),
-    Variant(DefaultEnumVariantRefResolutionError<E>),
-    Element { index: usize, error: Box<Self> },
-    Field { index: usize, error: Box<Self> },
-    StructOwnerType(E),
-    Shape(DefaultPatternBuildError),
-}
-
-impl<E: fmt::Display, L: fmt::Display> fmt::Display for DefaultPatternResolutionError<E, L> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Local(error) => write!(formatter, "invalid default pattern local: {error}"),
-            Self::LiteralEquality(error) => {
-                write!(formatter, "invalid default literal equality: {error}")
-            }
-            Self::SubjectType(error) => {
-                write!(formatter, "invalid default literal subject type: {error}")
-            }
-            Self::Variant(error) => write!(formatter, "invalid default variant pattern: {error}"),
-            Self::Element { index, error } => {
-                write!(
-                    formatter,
-                    "invalid default tuple pattern element {index}: {error}"
-                )
-            }
-            Self::Field { index, error } => {
-                write!(formatter, "invalid default pattern field {index}: {error}")
-            }
-            Self::StructOwnerType(error) => {
-                write!(formatter, "invalid default struct pattern owner: {error}")
-            }
-            Self::Shape(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static, L: std::error::Error + 'static> std::error::Error
-    for DefaultPatternResolutionError<E, L>
-{
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum DefaultPatternIndexError<E> {
-    Local(E),
-    Element { index: usize, error: Box<Self> },
-    Field { index: usize, error: Box<Self> },
-}
-
-impl<E: fmt::Display> fmt::Display for DefaultPatternIndexError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Local(error) => write!(formatter, "cannot index default pattern local: {error}"),
-            Self::Element { index, error } => {
-                write!(
-                    formatter,
-                    "cannot index default tuple pattern element {index}: {error}"
-                )
-            }
-            Self::Field { index, error } => {
-                write!(
-                    formatter,
-                    "cannot index default pattern field {index}: {error}"
-                )
-            }
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error for DefaultPatternIndexError<E> {}
+impl<R, E> DefaultPatternReferenceResolver<E> for R where R: DefaultExpressionReferenceResolver<E> {}
 
 fn canonicalize_fields(
     fields: &mut [DefaultPatternFieldV1],

@@ -316,12 +316,19 @@ impl Lowerer {
                 let span = expr.origin.concrete().evaluation.span;
                 if let Some(target) = callee.declared_callable() {
                     let effect = match target {
-                        hir::ImportedCallableTarget::Application(application) => self
+                        hir::CallableTarget::Local(callable) => {
+                            let function = self.callable_function_id(callable);
+                            match self.functions[function].attributes.gc_effect {
+                                hir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
+                                hir::GcEffect::Managed => scoop_identity::GcEffect::Managed,
+                            }
+                        }
+                        hir::CallableTarget::Application(application) => self
                             .imported_generic_templates
                             [self.imported_generic_applications[application].template]
                             .effects
                             .gc_effect(),
-                        hir::ImportedCallableTarget::Dependency(callee) => {
+                        hir::CallableTarget::Dependency(callee) => {
                             let reference = self.imported_dependency_callables[callee].reference();
                             self.dependencies
                                 .as_ref()

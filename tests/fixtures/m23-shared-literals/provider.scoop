@@ -1,0 +1,18 @@
+package upstream.literals
+
+public struct Tagged<T>(val enabled: Boolean, val label: String, val value: T)
+
+public fun <T> inspect(value: Tagged<T>, read: (T) -> Int): Int = when (value) {
+    Tagged(true, "hit", item) -> read(item)
+    Tagged(false, _, _) -> 0
+    else -> -1
+}
+
+public fun <T> defaulted(
+    value: T,
+    read: (T) -> Int,
+    score: Int = when (Tagged(true, "hit", value)) {
+        Tagged(true, "hit", item) -> read(item)
+        else -> 0
+    }
+): Int = score

@@ -221,14 +221,18 @@ pub(super) fn dump_expr(
             let reference = &module.callable_references[*id];
             let function = match &reference.target {
                 CallableReferenceTarget::Imported(target) => match target.callee() {
-                    Some(crate::ImportedCallableTarget::Application(application)) => {
+                    Some(crate::CallableTarget::Local(callable)) => module.functions
+                        [crate::callable_function(module, callable)]
+                    .name
+                    .clone(),
+                    Some(crate::CallableTarget::Application(application)) => {
                         let template = module.imported_generic_applications[application].template;
                         format!(
                             "imported {}",
                             module.imported_generic_templates[template].name
                         )
                     }
-                    Some(crate::ImportedCallableTarget::Dependency(callee)) => {
+                    Some(crate::CallableTarget::Dependency(callee)) => {
                         format!("dependency #{}", callee.into_raw().into_u32())
                     }
                     None => match target {

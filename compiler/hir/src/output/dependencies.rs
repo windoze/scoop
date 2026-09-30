@@ -43,18 +43,25 @@ impl DependencyHirOutput {
                 .map_err(DependencyHirOutputError::CallOccurrence)?;
         local
             .visit_executable_expressions(|occurrence| {
-                let callable = match &occurrence.expression.kind {
-                    concrete::ExprKind::ClassInitializerCall {
-                        initializer: concrete::ClassInitializerTarget::Imported(callable),
-                        ..
-                    } => *callable,
-                    concrete::ExprKind::CallableReference(id) => {
-                        match local.callable_references[*id].target.callee() {
-                            Some(concrete::CallableTarget::Imported(callable)) => callable,
-                            Some(concrete::CallableTarget::Local(_)) | None => return Ok(()),
+                let callable = if let Some(concrete::LiteralPatternEquality::Ordinary {
+                    equals: concrete::CallableTarget::Imported(callable),
+                }) = occurrence.literal_equality
+                {
+                    callable
+                } else {
+                    match &occurrence.expression.kind {
+                        concrete::ExprKind::ClassInitializerCall {
+                            initializer: concrete::ClassInitializerTarget::Imported(callable),
+                            ..
+                        } => *callable,
+                        concrete::ExprKind::CallableReference(id) => {
+                            match local.callable_references[*id].target.callee() {
+                                Some(concrete::CallableTarget::Imported(callable)) => callable,
+                                Some(concrete::CallableTarget::Local(_)) | None => return Ok(()),
+                            }
                         }
+                        _ => return Ok(()),
                     }
-                    _ => return Ok(()),
                 };
                 if callable.into_raw().into_u32() as usize
                     >= local.imported_dependency_callables.len()

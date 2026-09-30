@@ -1,0 +1,5 @@
+span=75..129
+expression=when (value) {
+    Tagged(true, _, amount) -> amount
+}
+non-exhaustive when: missing pattern Tagged { enabled: false, label: "", value: -2147483648 }

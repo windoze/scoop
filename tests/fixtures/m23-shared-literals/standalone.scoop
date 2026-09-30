@@ -1,0 +1,17 @@
+package consumer.literals
+import upstream.literals.Tagged as Entry
+import upstream.literals.inspect
+import upstream.literals.defaulted
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    if (inspect(Entry(false, "hit", value), read) != 0) { return 1 }
+    if (inspect(Entry(true, "miss", value), read) != -1) { return 2 }
+    if (defaulted(value, read) != 42) { return 3 }
+    return inspect(Entry(true, "hit", value), read)
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

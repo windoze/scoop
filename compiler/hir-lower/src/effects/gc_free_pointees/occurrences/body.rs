@@ -4,8 +4,9 @@ use crate::Lowerer;
 
 use super::TypeOccurrence;
 use super::types::{
-    collect_callable_types, collect_field_ref_types, collect_imported_method_callee_types,
-    collect_imported_reference_target_types, collect_method_callee_types,
+    collect_callable_target_types, collect_callable_types, collect_field_ref_types,
+    collect_imported_method_callee_types, collect_imported_reference_target_types,
+    collect_method_callee_types,
 };
 
 /// Collect source-backed type occurrences for diagnostics. Unlike the
@@ -168,7 +169,7 @@ fn collect_pattern_type_occurrences(
             if let hir::LiteralPatternEquality::Ordinary { equals } = equality {
                 push_types_at_expression(
                     value,
-                    |types| collect_callable_types(lowerer, *equals, types),
+                    |types| collect_callable_target_types(lowerer, *equals, types),
                     out,
                 );
             }

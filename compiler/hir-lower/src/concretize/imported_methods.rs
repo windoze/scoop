@@ -9,10 +9,7 @@ impl Concretizer<'_> {
     ) -> (concrete::CallableTarget, Option<concrete::InterfaceId>) {
         let bound = match source {
             export::ImportedMethodCallee::Callable(callee) => {
-                return (
-                    self.lower_imported_callable_target(*callee, substitution),
-                    None,
-                );
+                return (self.lower_callable_target(*callee, substitution), None);
             }
             export::ImportedMethodCallee::DerivedEquality(application) => {
                 return (
@@ -71,7 +68,7 @@ impl Concretizer<'_> {
             }
         }
         (
-            self.lower_imported_callable_target(bound.declared, substitution),
+            self.lower_callable_target(bound.declared, substitution),
             Some(interface),
         )
     }

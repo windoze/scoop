@@ -397,7 +397,10 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
     });
     for (pattern, expected_name) in ordinary_patterns.zip(["Boolean.equals", "String.equals"]) {
         let hir::Pattern::Literal {
-            equality: hir::LiteralPatternEquality::Ordinary { equals },
+            equality:
+                hir::LiteralPatternEquality::Ordinary {
+                    equals: hir::CallableTarget::Local(equals),
+                },
             ..
         } = pattern
         else {

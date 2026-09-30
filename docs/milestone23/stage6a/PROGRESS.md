@@ -232,3 +232,12 @@
 - 新增 `m23-shared-interfaces` 两组正例、六份阶段快照及两个反例，覆盖父接口参数交换、恢复顺序、菱形继承、默认方法、getter／setter、缺失实现与错误返回类型。源码移走后再次发布，下游本地类型、引用／Int／Unit 和普通／移动 GC 均通过；新快照关闭更新开关复验通过。
 - 全仓 fmt／clippy、1317 项 HIR lowering 单元测试及 13 项不同真实产物回归全部覆盖成功，包括普通值／primitive 接口、抽象访问器、限定 super、泛型成员、三类 nominal 实例及实际重建 core 声明。四份旧 super 快照仅同步共同字段显示和默认局部值名称，完整组关闭更新开关复验通过。
 - 日志前缀 `/tmp/scoop-m23-6a-interface-definitions-`，结果见 `unit.log`、`shared-verified.log`、`artifacts.log` 与 `super-verified.log`。本批统一接口的实际具体化算法；完整前端声明／application 和正文的来源存储继续按设计迁移，wire payload 与 runtime ABI 未改变。
+
+## 共同字面量模式调用与完整来源位置
+
+- Boolean／String 字面量模式保存定义处选择的共同 `CallableTarget`，当前声明与普通依赖的 `equals` 进入同一模式、默认值、effect 和 MIR 调用处理；整数继续使用既定的 typed 比较。实际模式的隐式调用随原有正文遍历进入依赖闭包，未使用模板不因此成为发射根。
+- 修复真实再次发布发现的来源位置缺口：字面量模式复用完整 `DefaultExpressionV1`，同时保留定义位置、求值位置及类型，不再从 arm 位置重建常量。producer、reader、引用收集与普通表达式共用路径；增加非法表达式与旧常量 payload 的格式反例，往返测试刻意使用不同的定义／求值位置。
+- 实际 wire 字段改变，HIR `cross-cone-interface` 从 `/41` 升至 `/42`；同步三份 spec、Stage 7 说明、required profile、固定向量与旧版本拒绝测试。43 份既有快照经核对只更新完整摘要，没有引入新的 runtime ABI 或机器行为。
+- 新增 `m23-shared-literals`，覆盖 Boolean／String、嵌套 struct 模式、guard、默认表达式、泛型正文、别名与 Option，包含两组正例和两个反例。源码移走后再次发布，下游本地 Payload 与引用／Int／Unit 的普通／移动 GC 运行均通过；六份阶段快照和两个诊断关闭更新开关复验通过。
+- 全仓 fmt／clippy、2873 项 HIR／HIR lowering／MIR lowering／slib 单元测试均已覆盖通过，最后的引用收集修复后再次执行全部 1317 项 HIR lowering 测试。9 组真实产物回归和完整 core 22 项均关闭所有快照更新开关通过。最终日志前缀 `/tmp/scoop-m23-6a-literal-wire-`，结果见 `lower-verified.log`、`slib-verified.log`、`artifacts-verified.log` 与 `core-verified.log`。
+- 按实际职责拆出 pattern 格式错误、默认模式读取和 callable effect 查询，相关主文件控制在 502 行以内。无 cargo／rustc 占用时清理约 2109.6 MiB 旧增量缓存，继续复用 `target/m23-6a`。共同 target 是声明／application 存储迁移的一步，本批不代表全部候选或完整语义图已经统一。

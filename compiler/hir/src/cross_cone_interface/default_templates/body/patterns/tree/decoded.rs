@@ -8,7 +8,9 @@ use super::{
     encode_composite, encode_empty_sum, encode_literal, encode_sequence, encode_single_payload,
     require_u32_len, u32_wire,
 };
-use crate::{CanonicalConstValueV1, DecodedDefaultEnumVariantRefV1, TemplateLocalSelectorResolver};
+use crate::{
+    DecodedDefaultEnumVariantRefV1, DecodedDefaultExpressionV1, TemplateLocalSelectorResolver,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedDefaultPatternV1(DecodedDefaultPatternKindV1);
@@ -20,7 +22,7 @@ enum DecodedDefaultPatternKindV1 {
     },
     Wildcard,
     Literal {
-        value: CanonicalConstValueV1,
+        value: Box<DecodedDefaultExpressionV1>,
         equality: DecodedDefaultLiteralEqualityV1,
         subject_type: DecodedSignatureTypeKey,
     },
@@ -57,15 +59,18 @@ impl DecodedDefaultPatternV1 {
                 value,
                 equality,
                 subject_type,
-            } => Ok(DefaultPatternV1::literal(
-                value,
+            } => DefaultPatternV1::try_literal(
+                value.resolve(resolver, locals).map_err(|error| {
+                    DefaultPatternResolutionError::LiteralValue(Box::new(error))
+                })?,
                 equality
                     .resolve(resolver)
                     .map_err(DefaultPatternResolutionError::LiteralEquality)?,
                 subject_type
                     .resolve(resolver)
                     .map_err(DefaultPatternResolutionError::SubjectType)?,
-            )),
+            )
+            .map_err(DefaultPatternResolutionError::Shape),
             DecodedDefaultPatternKindV1::Variant { variant, fields } => {
                 let variant = variant
                     .resolve(resolver)
@@ -119,7 +124,7 @@ impl WireEncode for DecodedDefaultPatternV1 {
                 value,
                 equality,
                 subject_type,
-            } => encode_literal(encoder, value, equality, subject_type),
+            } => encode_literal(encoder, value.as_ref(), equality, subject_type),
             DecodedDefaultPatternKindV1::Variant { variant, fields } => {
                 encode_composite(encoder, 4, variant, fields)
             }
@@ -154,7 +159,7 @@ impl WireDecode for DecodedDefaultPatternV1 {
             3 => {
                 expect_sum_length(decoder, fields, 4)?;
                 Ok(Self(DecodedDefaultPatternKindV1::Literal {
-                    value: decoder.field(1, CanonicalConstValueV1::decode)?,
+                    value: Box::new(decoder.field(1, DecodedDefaultExpressionV1::decode)?),
                     equality: decoder.field(2, DecodedDefaultLiteralEqualityV1::decode)?,
                     subject_type: decoder.field(3, DecodedSignatureTypeKey::decode)?,
                 }))

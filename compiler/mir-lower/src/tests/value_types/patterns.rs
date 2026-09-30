@@ -548,7 +548,9 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
                             hir::Pattern::Literal {
                                 value: bool_lit(&h, true),
                                 equality: hir::LiteralPatternEquality::Ordinary {
-                                    equals: hir::Callable::Function(equality),
+                                    equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                        equality,
+                                    )),
                                 },
                                 subject_ty: boolean,
                             },
@@ -938,14 +940,18 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
                         hir::Pattern::Literal {
                             value: bool_lit(&h, true),
                             equality: hir::LiteralPatternEquality::Ordinary {
-                                equals: hir::Callable::Function(first_equals),
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                    first_equals,
+                                )),
                             },
                             subject_ty: boolean,
                         },
                         hir::Pattern::Literal {
                             value: bool_lit(&h, false),
                             equality: hir::LiteralPatternEquality::Ordinary {
-                                equals: hir::Callable::Function(second_equals),
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                    second_equals,
+                                )),
                             },
                             subject_ty: boolean,
                         },
@@ -1077,7 +1083,7 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
                         hir::Pattern::Literal {
                             value: literal,
                             equality: hir::LiteralPatternEquality::Ordinary {
-                                equals: hir::Callable::Function(equals),
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(equals)),
                             },
                             subject_ty: ty,
                         },

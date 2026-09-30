@@ -70,14 +70,14 @@ impl Lowerer {
                                 )
                             })? {
                             hir::ImportedDispatchCallable::Template(application) => {
-                                hir::ImportedCallableTarget::Application(application)
+                                hir::CallableTarget::Application(application)
                             }
                             hir::ImportedDispatchCallable::External(callee) => {
-                                hir::ImportedCallableTarget::Dependency(callee)
+                                hir::CallableTarget::Dependency(callee)
                             }
                         }
                     } else {
-                        hir::ImportedCallableTarget::Dependency(
+                        hir::CallableTarget::Dependency(
                             self.select_imported_callable_declaration_use_with_kind(
                                 candidate,
                                 MemberCallKind::Ordinary,

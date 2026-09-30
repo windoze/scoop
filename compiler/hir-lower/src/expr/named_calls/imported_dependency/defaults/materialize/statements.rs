@@ -196,62 +196,6 @@ impl Lowerer {
         }
     }
 
-    fn materialize_imported_default_pattern(
-        &mut self,
-        pattern: &hir::DefaultPatternV1,
-        context: &ImportedDefaultContext<'_>,
-    ) -> Result<hir::Pattern, ImportedDefaultMaterializationError> {
-        match pattern.view() {
-            hir::DefaultPatternViewV1::Binding { local } => self
-                .materialized_imported_default_local(local, context)
-                .map(|local| hir::Pattern::Binding { local }),
-            hir::DefaultPatternViewV1::Wildcard => Ok(hir::Pattern::Wildcard),
-            hir::DefaultPatternViewV1::Variant { variant, fields } => {
-                let owner =
-                    self.materialize_imported_default_type(variant.owner_type(), context)?;
-                let fields = fields
-                    .iter()
-                    .map(|field| {
-                        Ok((
-                            field.declaration_index(),
-                            self.materialize_imported_default_pattern(field.pattern(), context)?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>, ImportedDefaultMaterializationError>>()?;
-                Ok(hir::Pattern::Variant {
-                    application: hir::EnumVariantApplication {
-                        owner,
-                        variant: variant.declaration(),
-                    },
-                    fields,
-                })
-            }
-            hir::DefaultPatternViewV1::Tuple { elements } => elements
-                .iter()
-                .map(|element| self.materialize_imported_default_pattern(element, context))
-                .collect::<Result<Vec<_>, _>>()
-                .map(hir::Pattern::Tuple),
-            hir::DefaultPatternViewV1::Struct { owner_type, fields } => {
-                let owner = self.materialize_imported_default_type(owner_type, context)?;
-                let fields = fields
-                    .iter()
-                    .map(|field| {
-                        Ok((
-                            field.declaration_index(),
-                            self.materialize_imported_default_pattern(field.pattern(), context)?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>, ImportedDefaultMaterializationError>>()?;
-                Ok(hir::Pattern::Struct { owner, fields })
-            }
-            hir::DefaultPatternViewV1::Literal { .. } => {
-                Err(ImportedDefaultMaterializationError::Plan(
-                    "preflight admitted an unsupported dependency default pattern".to_owned(),
-                ))
-            }
-        }
-    }
-
     fn materialize_imported_default_when(
         &mut self,
         value: &hir::DefaultWhenV1,
@@ -315,7 +259,7 @@ impl Lowerer {
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))
     }
 
-    fn materialized_imported_default_local(
+    pub(super) fn materialized_imported_default_local(
         &self,
         source: &LocalValueSelector,
         context: &ImportedDefaultContext<'_>,

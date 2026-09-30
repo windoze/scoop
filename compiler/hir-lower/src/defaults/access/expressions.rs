@@ -18,17 +18,21 @@ impl ReferenceCollector<'_> {
         }
     }
 
-    fn imported_callable(
+    pub(super) fn callable_target(
         &mut self,
-        callee: hir::ImportedCallableTarget,
+        callee: hir::CallableTarget,
         origin: hir::DefinitionOrigin,
     ) {
         self.imported_callable_shape(callee, origin);
         let target = match callee {
-            hir::ImportedCallableTarget::Application(application) => {
+            hir::CallableTarget::Local(callable) => {
+                self.callable_shape(callable, origin);
+                hir::ExportDefaultCallableTarget::Callable(callable)
+            }
+            hir::CallableTarget::Application(application) => {
                 hir::ExportDefaultCallableTarget::ImportedGeneric(application)
             }
-            hir::ImportedCallableTarget::Dependency(callee) => {
+            hir::CallableTarget::Dependency(callee) => {
                 hir::ExportDefaultCallableTarget::ImportedDependency(callee)
             }
         };
@@ -37,10 +41,10 @@ impl ReferenceCollector<'_> {
 
     fn imported_callable_shape(
         &mut self,
-        callee: hir::ImportedCallableTarget,
+        callee: hir::CallableTarget,
         origin: hir::DefinitionOrigin,
     ) {
-        let hir::ImportedCallableTarget::Application(application) = callee else {
+        let hir::CallableTarget::Application(application) = callee else {
             return;
         };
         let arguments = self.lowerer.imported_generic_applications[application]
@@ -67,7 +71,7 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         match callee {
-            hir::ImportedMethodCallee::Callable(target) => self.imported_callable(*target, origin),
+            hir::ImportedMethodCallee::Callable(target) => self.callable_target(*target, origin),
             hir::ImportedMethodCallee::InterfaceBound(bound) => {
                 self.record_callable(
                     hir::ExportDefaultCallableTarget::ImportedBound(**bound),
@@ -401,10 +405,7 @@ impl ReferenceCollector<'_> {
                 receiver,
                 ..
             } => {
-                self.imported_callable(
-                    hir::ImportedCallableTarget::Application(*application),
-                    origin,
-                );
+                self.callable_target(hir::CallableTarget::Application(*application), origin);
                 self.expressions(args);
                 if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                     self.type_reference(*static_type, origin);

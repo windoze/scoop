@@ -9,7 +9,7 @@ impl Lowerer {
     ) -> hir::ImportedMethodCallee {
         match source {
             hir::ImportedMethodCallee::Callable(callee) => hir::ImportedMethodCallee::Callable(
-                self.instantiate_default_imported_target(*callee, context),
+                self.instantiate_default_callable_target(*callee, context),
             ),
             hir::ImportedMethodCallee::InterfaceBound(bound) => {
                 hir::ImportedMethodCallee::InterfaceBound(Box::new(
@@ -19,7 +19,7 @@ impl Lowerer {
                         interface: self.instantiate_method_ty(bound.interface, &context.bindings),
                         member: bound.member,
                         slot: bound.slot,
-                        declared: self.instantiate_default_imported_target(bound.declared, context),
+                        declared: self.instantiate_default_callable_target(bound.declared, context),
                         signature: self.instantiate_default_function_type(bound.signature, context),
                     },
                 ))

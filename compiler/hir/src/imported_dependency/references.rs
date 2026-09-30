@@ -1,18 +1,11 @@
 use crate::{
-    Capture, DefinitionOrigin, Expr, FunctionTypeId, ImportedDependencyCallableUseId,
+    CallableTarget, Capture, DefinitionOrigin, Expr, FunctionTypeId,
     ImportedGenericCallableApplicationId, ImportedMethodCallee, TypeId,
 };
 
-/// A resolved dependency target shared by direct calls and callable references.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ImportedCallableTarget {
-    Application(ImportedGenericCallableApplicationId),
-    Dependency(ImportedDependencyCallableUseId),
-}
-
 #[derive(Debug, Clone)]
 pub enum ImportedCallableReferenceTarget {
-    Named(ImportedCallableTarget),
+    Named(CallableTarget),
     Local(ImportedGenericCallableApplicationId),
     BoundMember {
         receiver: Box<Expr>,
@@ -20,7 +13,7 @@ pub enum ImportedCallableReferenceTarget {
     },
     BoundExtension {
         receiver: Box<Expr>,
-        callee: ImportedCallableTarget,
+        callee: CallableTarget,
     },
     BoundIntrinsic {
         receiver: Box<Expr>,
@@ -30,11 +23,11 @@ pub enum ImportedCallableReferenceTarget {
 }
 
 impl ImportedCallableReferenceTarget {
-    pub fn callee(&self) -> Option<ImportedCallableTarget> {
+    pub fn callee(&self) -> Option<CallableTarget> {
         match self {
             Self::Named(callee) | Self::BoundExtension { callee, .. } => Some(*callee),
             Self::BoundMember { callee, .. } => callee.declared_callable(),
-            Self::Local(application) => Some(ImportedCallableTarget::Application(*application)),
+            Self::Local(application) => Some(CallableTarget::Application(*application)),
             Self::BoundIntrinsic { .. } => None,
         }
     }

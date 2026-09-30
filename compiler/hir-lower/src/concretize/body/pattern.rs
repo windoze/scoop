@@ -25,7 +25,7 @@ impl Concretizer<'_> {
                     }
                     export::LiteralPatternEquality::Ordinary { equals } => {
                         concrete::LiteralPatternEquality::Ordinary {
-                            equals: self.lower_callable(equals, substitution),
+                            equals: self.lower_callable_target(equals, substitution),
                         }
                     }
                 },

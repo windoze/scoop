@@ -30,7 +30,7 @@ impl Lowerer {
                 )
             }
             hir::DefaultCallableReferenceTargetV1::Local { callee, .. } => {
-                let hir::ImportedCallableTarget::Application(application) = self
+                let hir::CallableTarget::Application(application) = self
                     .materialize_imported_callable_target(
                         callee,
                         MemberCallKind::Ordinary,

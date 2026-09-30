@@ -226,7 +226,7 @@ impl Lowerer {
                 )
                 .ok()?
         {
-            return Some(self.commit_imported_literal_equality(probe));
+            return self.commit_imported_literal_equality(probe);
         }
         let mut sink = Vec::new();
         let resolved = self.resolve_member_overload_lowered(
@@ -267,7 +267,9 @@ impl Lowerer {
             let hir::MethodCallee::Callable(equals) = callee else {
                 unreachable!("literal equality is an ordinary concrete member")
             };
-            hir::LiteralPatternEquality::Ordinary { equals }
+            hir::LiteralPatternEquality::Ordinary {
+                equals: hir::CallableTarget::Local(equals),
+            }
         };
         let [literal] = resolved.args.as_slice() else {
             unreachable!("equals has exactly one explicit argument")

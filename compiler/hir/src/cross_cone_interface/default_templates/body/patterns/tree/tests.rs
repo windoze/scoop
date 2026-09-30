@@ -1,27 +1,24 @@
-use scoop_identity::{
-    CanonicalIdentifier, ConeIdentity, DeclarationScope, DecodedPersistentId, DefinitionOwnerChain,
-    EnumVariantIdentityKey, LocalValueSelector, OptionalSignatureType, PackagePath,
-    PersistentConstructorId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
-    PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdResolver,
-    PersistentPropertyAccessorId, PersistentTypeId, SignatureTypeKey, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind,
-};
+use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
-use crate::{DecodedDefaultLiteralEqualityV1, DefaultCallableRefV1, TemplateLocalSelectorResolver};
+use crate::cross_cone_interface::default_templates::body::expressions::test_support::Fixture;
+use crate::{DecodedDefaultLiteralEqualityV1, TemplateLocalSelectorResolver};
 
 #[test]
 fn nested_pattern_canonicalizes_fields_and_round_trips_local_indices() {
     let fixture = Fixture::new();
-    let literal = DefaultPatternV1::literal(
-        CanonicalConstValueV1::Integer(crate::CanonicalIntegerConstantV1::Signed32(7)),
+    let literal = DefaultPatternV1::try_literal(
+        literal_expression(
+            DefaultExpressionKindV1::IntegerLiteral(crate::CanonicalIntegerConstantV1::Signed32(7)),
+            &fixture,
+        ),
         DefaultLiteralEqualityV1::Integer {
             kind: crate::DefaultIntegerKindV1::Signed32,
         },
         binder(0),
-    );
+    )
+    .unwrap();
     let tuple = DefaultPatternV1::try_tuple(vec![DefaultPatternV1::wildcard(), literal]).unwrap();
     let expected = DefaultPatternV1::try_struct(
         binder(1),
@@ -80,11 +77,18 @@ fn ordinary_literal_equality_round_trips() {
     };
     assert_eq!(encode(&equality).unwrap()[2], 2);
 
-    let expected = DefaultPatternV1::literal(
-        CanonicalConstValueV1::String("value".to_owned()),
+    let expected = DefaultPatternV1::try_literal(
+        literal_expression(
+            DefaultExpressionKindV1::StringLiteral {
+                value: "value".to_owned(),
+                owner: crate::DefaultStringOwnerV1::CurrentInstantiation,
+            },
+            &fixture,
+        ),
         equality,
         binder(0),
-    );
+    )
+    .unwrap();
     let mut locals = LocalResolver::new(Vec::new());
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
     let decoded: DecodedDefaultPatternV1 = decode_canonical(&bytes).unwrap();
@@ -227,109 +231,6 @@ fn encode_wildcard_field(
     encoder.unsigned(2)
 }
 
-struct Fixture {
-    function: PersistentFunctionId,
-    variant: PersistentEnumVariantId,
-}
-
-impl Fixture {
-    fn new() -> Self {
-        let function =
-            PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
-                top_level_site(),
-                identifier("equals"),
-                0,
-                None,
-                Vec::new(),
-            ))
-            .unwrap();
-        let enumeration = SourceDeclarationKey::nominal(
-            top_level_site(),
-            identifier("Choice"),
-            SourceNominalKind::Enum,
-            0,
-        );
-        let variant = PersistentEnumVariantId::from_key(
-            &EnumVariantIdentityKey::source(&enumeration, identifier("Only")).unwrap(),
-        )
-        .unwrap();
-        Self { function, variant }
-    }
-
-    fn callable(&self) -> DefaultCallableRefV1 {
-        DefaultCallableRefV1::try_new(
-            crate::DefaultCallableDeclarationV1::Function(self.function),
-            OptionalSignatureType::Absent,
-            Vec::new(),
-        )
-        .unwrap()
-    }
-
-    fn resolver(&self) -> Resolver {
-        Resolver {
-            function: self.function,
-            variant: self.variant,
-        }
-    }
-}
-
-struct Resolver {
-    function: PersistentFunctionId,
-    variant: PersistentEnumVariantId,
-}
-
-macro_rules! resolve_fixture_identity {
-    ($identity:ty, $field:ident) => {
-        impl PersistentIdResolver<$identity> for Resolver {
-            type Error = ResolutionError;
-
-            fn resolve(
-                &mut self,
-                id: DecodedPersistentId<$identity>,
-            ) -> Result<$identity, Self::Error> {
-                id.verify(self.$field).map_err(|_| ResolutionError)
-            }
-        }
-    };
-}
-
-macro_rules! reject_identity {
-    ($identity:ty) => {
-        impl PersistentIdResolver<$identity> for Resolver {
-            type Error = ResolutionError;
-
-            fn resolve(
-                &mut self,
-                _id: DecodedPersistentId<$identity>,
-            ) -> Result<$identity, Self::Error> {
-                Err(ResolutionError)
-            }
-        }
-    };
-}
-
-resolve_fixture_identity!(PersistentFunctionId, function);
-resolve_fixture_identity!(PersistentEnumVariantId, variant);
-reject_identity!(PersistentGenericFunctionId);
-reject_identity!(PersistentConstructorId);
-reject_identity!(PersistentPropertyAccessorId);
-reject_identity!(PersistentGeneratedCallableId);
-reject_identity!(PersistentTypeId);
-reject_identity!(PersistentGenericTypeId);
-reject_identity!(PersistentEnumVariantFieldId);
-reject_identity!(PersistentFieldId);
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct ResolutionError;
-
-impl std::fmt::Display for ResolutionError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("identity is absent")
-    }
-}
-
-impl std::error::Error for ResolutionError {}
-
 struct LocalResolver {
     selectors: Vec<LocalValueSelector>,
 }
@@ -384,20 +285,6 @@ impl std::fmt::Display for LocalError {
 
 impl std::error::Error for LocalError {}
 
-fn top_level_site() -> SourceDeclarationSite {
-    SourceDeclarationSite::new(
-        ConeIdentity::SINGLE_FILE,
-        PackagePath::root(),
-        DefinitionOwnerChain::top_level(),
-        DeclarationScope::ConeWide,
-    )
-    .unwrap()
-}
-
-fn identifier(value: &str) -> CanonicalIdentifier {
-    CanonicalIdentifier::new(value).unwrap()
-}
-
 fn parameter(declaration_index: u32) -> LocalValueSelector {
     LocalValueSelector::Parameter { declaration_index }
 }
@@ -408,4 +295,61 @@ const fn binder(index: u32) -> SignatureTypeKey {
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn literal_expression(kind: DefaultExpressionKindV1, fixture: &Fixture) -> DefaultExpressionV1 {
+    use scoop_identity::{EvaluationOrigin, SourceContextKey, SourceSpan};
+    let definition = fixture.origin();
+    let source = definition.origin().source().clone();
+    let evaluation = EvaluationOrigin::new(
+        source.clone(),
+        SourceSpan::new(11, 16).unwrap(),
+        &SourceContextKey::File { source },
+    )
+    .unwrap();
+    assert_ne!(evaluation.span(), definition.origin().span());
+    DefaultExpressionV1::try_new(kind, fixture.value_type(), definition, evaluation).unwrap()
+}
+
+#[test]
+fn literal_pattern_requires_a_literal_expression() {
+    let fixture = Fixture::new();
+    assert_eq!(
+        DefaultPatternV1::try_literal(
+            literal_expression(DefaultExpressionKindV1::UnitLiteral, &fixture),
+            DefaultLiteralEqualityV1::Ordinary {
+                target: fixture.callable()
+            },
+            binder(0),
+        ),
+        Err(DefaultPatternBuildError::InvalidLiteralExpression),
+    );
+}
+
+#[test]
+fn reader_rejects_retired_constant_only_literal_payload() {
+    let bytes = encode(&RetiredLiteralPattern).unwrap();
+    let error = decode_canonical::<DecodedDefaultPatternV1>(&bytes).unwrap_err();
+    assert_eq!(
+        error.kind(),
+        &WireErrorKind::InvalidLength {
+            expected: 4,
+            actual: 2
+        }
+    );
+}
+
+struct RetiredLiteralPattern;
+
+impl WireEncode for RetiredLiteralPattern {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_literal(
+            encoder,
+            &crate::CanonicalConstValueV1::Boolean(crate::CanonicalBooleanV1::True),
+            &DefaultLiteralEqualityV1::Ordinary {
+                target: Fixture::new().callable(),
+            },
+            &binder(0),
+        )
+    }
 }

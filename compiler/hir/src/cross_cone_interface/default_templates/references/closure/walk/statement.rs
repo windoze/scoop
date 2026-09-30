@@ -82,8 +82,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             DefaultPatternViewV1::Literal {
                 equality,
                 subject_type,
-                ..
+                value,
             } => {
+                let origin = value.definition_origin();
+                self.push_child(pending, BodyNode::Expression(value))?;
                 self.push_type(
                     pending,
                     subject_type,

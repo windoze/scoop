@@ -67,7 +67,7 @@ impl Concretizer<'_> {
             }
             export::ImportedCallableReferenceTarget::Named(callee) => {
                 concrete::CallableReferenceTarget::Named(
-                    self.lower_imported_callable_target(*callee, substitution),
+                    self.lower_callable_target(*callee, substitution),
                 )
             }
             export::ImportedCallableReferenceTarget::Local(application) => {
@@ -106,25 +106,28 @@ impl Concretizer<'_> {
             export::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
                 concrete::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
-                    callee: self.lower_imported_callable_target(*callee, substitution),
+                    callee: self.lower_callable_target(*callee, substitution),
                 }
             }
         }
     }
 
-    pub(in crate::concretize) fn lower_imported_callable_target(
+    pub(in crate::concretize) fn lower_callable_target(
         &mut self,
-        callee: export::ImportedCallableTarget,
+        callee: export::CallableTarget,
         substitution: &[concrete::TypeId],
     ) -> concrete::CallableTarget {
         match callee {
-            export::ImportedCallableTarget::Application(application) => {
+            export::CallableTarget::Local(callable) => {
+                concrete::CallableTarget::Local(self.lower_callable(callable, substitution))
+            }
+            export::CallableTarget::Application(application) => {
                 let application = self.source.imported_generic_applications[application].clone();
                 concrete::CallableTarget::Local(concrete::Callable::Function(
                     self.lower_imported_callable_application(&application, substitution),
                 ))
             }
-            export::ImportedCallableTarget::Dependency(callee) => {
+            export::CallableTarget::Dependency(callee) => {
                 concrete::CallableTarget::Imported(self.imported_dependency_callable_map[&callee])
             }
         }

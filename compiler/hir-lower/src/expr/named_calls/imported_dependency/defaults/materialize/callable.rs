@@ -88,7 +88,12 @@ impl Lowerer {
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
         Ok(
             match self.materialize_imported_callable_target(callee, kind, context)? {
-                hir::ImportedCallableTarget::Application(application) => {
+                hir::CallableTarget::Local(callee) => hir::ExprKind::Call {
+                    callee,
+                    args,
+                    receiver,
+                },
+                hir::CallableTarget::Application(application) => {
                     hir::ExprKind::ImportedGenericCall {
                         application,
                         kind: match kind {
@@ -102,14 +107,12 @@ impl Lowerer {
                         receiver,
                     }
                 }
-                hir::ImportedCallableTarget::Dependency(callee) => {
-                    hir::ExprKind::ImportedDependencyCall {
-                        callee,
-                        binding: None,
-                        args,
-                        receiver,
-                    }
-                }
+                hir::CallableTarget::Dependency(callee) => hir::ExprKind::ImportedDependencyCall {
+                    callee,
+                    binding: None,
+                    args,
+                    receiver,
+                },
             },
         )
     }
@@ -119,7 +122,7 @@ impl Lowerer {
         callee: &hir::DefaultCallableRefV1,
         kind: MemberCallKind,
         context: &ImportedDefaultContext<'_>,
-    ) -> Result<hir::ImportedCallableTarget, ImportedDefaultMaterializationError> {
+    ) -> Result<hir::CallableTarget, ImportedDefaultMaterializationError> {
         let origin = super::super::plan::default_callable_origin(callee)
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
         let local = self
@@ -205,9 +208,9 @@ impl Lowerer {
                         template,
                         arguments,
                     });
-            return Ok(hir::ImportedCallableTarget::Application(application));
+            return Ok(hir::CallableTarget::Application(application));
         }
         self.imported_default_callable_target(origin, kind)
-            .map(hir::ImportedCallableTarget::Dependency)
+            .map(hir::CallableTarget::Dependency)
     }
 }

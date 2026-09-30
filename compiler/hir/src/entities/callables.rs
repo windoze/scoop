@@ -127,6 +127,15 @@ pub enum Callable {
     GenericMethod(GenericMethodApplicationId),
 }
 
+/// A selected callable application or an ordinary external definition.
+/// Storage handles do not replace the target's original declaration identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallableTarget {
+    Local(Callable),
+    Application(ImportedGenericCallableApplicationId),
+    Dependency(ImportedDependencyCallableUseId),
+}
+
 pub(crate) fn callable_function(module: &Module, callable: Callable) -> FunctionId {
     match callable {
         Callable::Function(function) => function,

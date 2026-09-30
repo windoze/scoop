@@ -1,10 +1,10 @@
-use crate::{DerivedEqualityApplicationId, FunctionTypeId, ImportedCallableTarget, TypeId};
+use crate::{CallableTarget, DerivedEqualityApplicationId, FunctionTypeId, TypeId};
 use scoop_identity::{CallableTemplateOrigin, PersistentDispatchSlotId};
 
 /// A member selected in the provider's lexical scope.
 #[derive(Debug, Clone)]
 pub enum ImportedMethodCallee {
-    Callable(ImportedCallableTarget),
+    Callable(CallableTarget),
     InterfaceBound(Box<ImportedInterfaceBoundCallable>),
     DerivedEquality(DerivedEqualityApplicationId),
 }
@@ -16,12 +16,12 @@ pub struct ImportedInterfaceBoundCallable {
     pub interface: TypeId,
     pub member: CallableTemplateOrigin,
     pub slot: PersistentDispatchSlotId,
-    pub declared: ImportedCallableTarget,
+    pub declared: CallableTarget,
     pub signature: FunctionTypeId,
 }
 
 impl ImportedMethodCallee {
-    pub fn declared_callable(&self) -> Option<ImportedCallableTarget> {
+    pub fn declared_callable(&self) -> Option<CallableTarget> {
         match self {
             Self::Callable(callee) => Some(*callee),
             Self::InterfaceBound(bound) => Some(bound.declared),

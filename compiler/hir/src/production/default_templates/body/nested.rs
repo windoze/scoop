@@ -51,7 +51,7 @@ impl BodyProjection<'_, '_> {
                 ),
             },
             crate::ImportedCallableReferenceTarget::Named(callee) => {
-                DefaultCallableReferenceTargetV1::Named(self.imported_reference_callee(*callee)?)
+                DefaultCallableReferenceTargetV1::Named(self.callable_target(*callee)?)
             }
             crate::ImportedCallableReferenceTarget::Local(application) => {
                 let export = self.entities.export();
@@ -78,21 +78,24 @@ impl BodyProjection<'_, '_> {
             crate::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
                 DefaultCallableReferenceTargetV1::BoundExtension {
                     receiver: Box::new(self.expression(receiver)?),
-                    callee: self.imported_reference_callee(*callee)?,
+                    callee: self.callable_target(*callee)?,
                 }
             }
         })
     }
 
-    pub(super) fn imported_reference_callee(
+    pub(super) fn callable_target(
         &self,
-        callee: crate::ImportedCallableTarget,
+        callee: crate::CallableTarget,
     ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultBodyProjectionError> {
         Ok(match callee {
-            crate::ImportedCallableTarget::Application(application) => self
+            crate::CallableTarget::Local(callable) => {
+                self.entities.callable(callable, self.binders)?
+            }
+            crate::CallableTarget::Application(application) => self
                 .entities
                 .imported_generic_callable(application, self.binders)?,
-            crate::ImportedCallableTarget::Dependency(callee) => {
+            crate::CallableTarget::Dependency(callee) => {
                 self.entities.imported_dependency_callable(callee)?
             }
         })

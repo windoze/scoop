@@ -94,7 +94,7 @@ abstract slot、intrinsic 声明和 source extern 继续使用各自已有 imple
 
 exact、star、public import 在选中 nominal owner 后沿其真实 public 静态 namespace 继续，原 provider 仅作 support 时也保留终点公开绑定。direct package index 决定源码入口，不能用终点 provider 的角色再次过滤合法嵌套成员。产物 reader 保留普通绑定、类型及引用检查，删除重复的 direct-provider 资格检查和专用输入；不追加外层 lookup 路径或新的证明记录。该规则自 `hir/cross-cone-interface/39` 起启用。
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/41`，旧 `/40` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/42`，旧 `/41` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 当前 Cone 在 SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出支持闭包，并独立收集实际物化需求；二者由 6a 的共同查询连接，不用导出可见集合替代机器根。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application 及实际导出的泛型成员的 receiver、参数和结果类型沿表示依赖，把当前 Cone 所需的源码名义声明补入同一支持集合，并闭合其字段、成员和模板引用；普通函数正文中用于泛型 payload 或共有成员 ABI 的私有类型也必须有完整表示依赖。只有支持根增加时才扩展源码投影及对应的 shape support plan，最终不可变结果由 HIR 类型语义、MIR/LIR 布局和正式共有 section 复用。支持声明保留原 typed identity 和可见性，不生成 public binding；所有本地私有物理声明、未调用模板、未求值默认值和整个类型 arena 仍不构成共有机器根。该结果是当前编译的数据投影，不新增产物字段或来源资格。
 
@@ -501,7 +501,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | section/capability | 既有基线／物理目标 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
-| `org.scoop-lang.hir/cross-cone-interface` | `/41` | 捕获 field 4 分离读取值来源与原绑定；for 在 Export 前展开，撤销专用 For 与 portable binding-plan 编码； 公开绑定引用不要求终点 provider 是 direct；AliasTarget 只保存实际 typed 引用；原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
+| `org.scoop-lang.hir/cross-cone-interface` | `/42` | Literal field 1 使用完整 typed 表达式，保留原定义与求值位置； 捕获 field 4 分离读取值来源与原绑定；for 在 Export 前展开，撤销专用 For 与 portable binding-plan 编码； 公开绑定引用不要求终点 provider 是 direct；AliasTarget 只保存实际 typed 引用；原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/11` | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5 与槽根／目标 owner field 2，以原声明和完整 receiver 查询泛型父类型 |
 | `org.scoop-lang.mir/cross-cone-type-bridge` | `/4` | 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
@@ -524,7 +524,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 
 call site 保留原直接目标或完整 callable application，以及实际 receiver、参数和 source/evaluation origin；application 引用原声明及两组完整实参，不复制另一份签名。generic 目标不能伪装成参数自由直接目标。模板中的支持引用按原 provider／typed declaration 连接，不携带消费方源码 lookup 路径；默认展开和实例化只替换定义处已经选定的目标。
 
-旧 HIR `/31`–`/40` 曾逐步加入正文、application、构造、字段类型位置、求值位置、委托和 bound receiver，并移除别名／静态 namespace 的重复来源检查及专用 For/binding-plan。`/41` 增加默认值捕获的原 callable、作用域与局部值定义，跨 Cone 展开和再次发布保持同一绑定。该序列仅记录历史迁移；6a 的共同节点取代其独立语义模型，不能要求新正文继续经历旧 transport→imported template。已退役的 statement tag 9、TemplateDependency role tag 9 和其他退役字段不复用；必要的旧格式拒绝和兼容性测试保留。
+旧 HIR `/31`–`/40` 曾逐步加入正文、application、构造、字段类型位置、求值位置、委托和 bound receiver，并移除别名／静态 namespace 的重复来源检查及专用 For/binding-plan。`/41` 增加默认值捕获的原 callable、作用域与局部值定义，跨 Cone 展开和再次发布保持同一绑定。`/42` 让字面量模式复用完整表达式记录，避免从模板声明补造作用域。该序列仅记录历史迁移；6a 的共同节点取代其独立语义模型，不能要求新正文继续经历旧 transport→imported template。已退役的 statement tag 9、TemplateDependency role tag 9 和其他退役字段不复用；必要的旧格式拒绝和兼容性测试保留。
 
 若共同模型沿用现有字节编码，reader 直接构造共同节点；若实际 payload 改变，同批升级 HIR section、required inventory、profile fingerprint 和缓存，重建 core/provider/consumer。不得把实际变更伪装成旧 section 的 optional 扩展，也不为各语法保留不同 profile。
 

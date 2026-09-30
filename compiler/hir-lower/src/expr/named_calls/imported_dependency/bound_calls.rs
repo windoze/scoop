@@ -5,7 +5,7 @@ impl Lowerer {
     pub(super) fn imported_bound_call_kind(
         &mut self,
         declaration: Option<&hir::CallableDeclarationRecordV1>,
-        declared: hir::ImportedCallableTarget,
+        declared: hir::CallableTarget,
         args: &mut Vec<hir::Expr>,
         parameter_types: &[hir::TypeId],
         result_type: hir::TypeId,
@@ -33,7 +33,7 @@ impl Lowerer {
     pub(in crate::expr) fn imported_bound_member_callee(
         &mut self,
         declaration: &hir::CallableDeclarationRecordV1,
-        declared: hir::ImportedCallableTarget,
+        declared: hir::CallableTarget,
         receiver_type: hir::TypeId,
         parameter_types: &[hir::TypeId],
         result_type: hir::TypeId,

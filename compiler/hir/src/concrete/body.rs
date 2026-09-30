@@ -157,7 +157,7 @@ pub enum Pattern {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralPatternEquality {
     Integer { kind: IntegerKind },
-    Ordinary { equals: Callable },
+    Ordinary { equals: CallableTarget },
 }
 
 #[derive(Debug, Clone)]

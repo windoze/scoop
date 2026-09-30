@@ -43,11 +43,18 @@ impl BodyLowerer<'_> {
                         )
                     }
                     hir::LiteralPatternEquality::Ordinary { equals } => {
-                        let function = self.module.callable_function(*equals);
-                        let callee = self.instances.get(function).map_or_else(
-                            || mir::Callee::User(self.function_map[&function]),
-                            mir::Callee::Monomorphized,
-                        );
+                        let callee = match *equals {
+                            hir::CallableTarget::Local(callable) => {
+                                let function = self.module.callable_function(callable);
+                                self.instances.get(function).map_or_else(
+                                    || mir::Callee::User(self.function_map[&function]),
+                                    mir::Callee::Monomorphized,
+                                )
+                            }
+                            hir::CallableTarget::Imported(callable) => mir::Callee::External(
+                                self.imported_dependency_callable_map[&callable].callable,
+                            ),
+                        };
                         smir::Expr::new(
                             mir::Type::Boolean,
                             smir::ExprKind::Call(smir::Call {

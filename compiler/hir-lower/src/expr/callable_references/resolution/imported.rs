@@ -217,7 +217,7 @@ impl ImportedReferenceDeclaration {
                     }
                     _ => hir::ImportedCallableArguments::Function(type_args.to_vec()),
                 };
-                hir::ImportedCallableTarget::Application(state.imported_generic_applications.alloc(
+                hir::CallableTarget::Application(state.imported_generic_applications.alloc(
                     hir::ImportedGenericCallableApplication {
                         template,
                         arguments,
@@ -238,7 +238,7 @@ impl ImportedReferenceDeclaration {
                 .map_err(|error| {
                     format!("failed to select imported callable reference: {error}")
                 })?;
-                hir::ImportedCallableTarget::Dependency(selected)
+                hir::CallableTarget::Dependency(selected)
             }
         };
         let target = if let Some(receiver) = receiver {

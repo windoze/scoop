@@ -97,7 +97,6 @@ pub enum DefaultBodyProjectionError {
     UnknownConstructorParameter(u32),
     MissingInitializingReceiver,
     InvalidCaptureSource,
-    InvalidLiteralPattern,
     MissingMethodReceiver,
     UnsupportedExpression(&'static str),
     UnsupportedAssignment(&'static str),

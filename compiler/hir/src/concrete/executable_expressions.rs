@@ -23,6 +23,8 @@ pub struct ExecutableExpressionPosition {
 pub struct ExecutableExpressionOccurrence<'a> {
     pub position: ExecutableExpressionPosition,
     pub expression: &'a Expr,
+    /// The selected comparison when this expression is a pattern literal.
+    pub literal_equality: Option<LiteralPatternEquality>,
 }
 
 impl Module {
@@ -40,25 +42,32 @@ impl Module {
             body.schedule(&mut traversal)?;
             let mut expression_index = 0_u32;
             while let Some(item) = traversal.pending.pop() {
-                match item {
-                    Item::Expression(expression) => {
-                        let position = ExecutableExpressionPosition {
-                            root,
-                            expression_index,
-                        };
-                        expression_index = expression_index
-                            .checked_add(1)
-                            .ok_or(StructureError::ExpressionIndexOverflow(root))?;
-                        visitor(ExecutableExpressionOccurrence {
-                            position,
-                            expression,
-                        })
-                        .map_err(ExecutableExpressionVisitError::Visitor)?;
-                        traversal.expression(expression)?;
+                let (expression, literal_equality) = match item {
+                    Item::Expression(expression) => (expression, None),
+                    Item::Literal(expression, equality) => (expression, Some(equality)),
+                    Item::Statement(statement) => {
+                        traversal.statement(statement)?;
+                        continue;
                     }
-                    Item::Statement(statement) => traversal.statement(statement)?,
-                    Item::Pattern(pattern) => traversal.pattern(pattern)?,
-                }
+                    Item::Pattern(pattern) => {
+                        traversal.pattern(pattern)?;
+                        continue;
+                    }
+                };
+                let position = ExecutableExpressionPosition {
+                    root,
+                    expression_index,
+                };
+                expression_index = expression_index
+                    .checked_add(1)
+                    .ok_or(StructureError::ExpressionIndexOverflow(root))?;
+                visitor(ExecutableExpressionOccurrence {
+                    position,
+                    expression,
+                    literal_equality,
+                })
+                .map_err(ExecutableExpressionVisitError::Visitor)?;
+                traversal.expression(expression)?;
             }
         }
         Ok(())
@@ -67,6 +76,7 @@ impl Module {
 
 enum Item<'a> {
     Expression(&'a Expr),
+    Literal(&'a Expr, LiteralPatternEquality),
     Statement(&'a Statement),
     Pattern(&'a Pattern),
 }

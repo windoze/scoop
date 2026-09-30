@@ -1,8 +1,8 @@
 //! Recursive source-pattern projection.
 
 use crate::{
-    CanonicalBooleanV1, CanonicalConstValueV1, DefaultLiteralEqualityV1, DefaultPatternFieldV1,
-    DefaultPatternV1, ExprKind, LiteralPatternEquality, Pattern,
+    DefaultLiteralEqualityV1, DefaultPatternFieldV1, DefaultPatternV1, LiteralPatternEquality,
+    Pattern,
 };
 
 use super::BodyProjection;
@@ -19,11 +19,12 @@ impl BodyProjection<'_, '_> {
                 value,
                 equality,
                 subject_ty,
-            } => Ok(DefaultPatternV1::literal(
-                literal_value(value)?,
+            } => DefaultPatternV1::try_literal(
+                self.expression(value)?,
                 self.literal_equality(*equality)?,
                 self.type_key(*subject_ty)?,
-            )),
+            )
+            .map_err(super::super::DefaultBodyProjectionError::Pattern),
             Pattern::Variant {
                 application,
                 fields,
@@ -69,21 +70,8 @@ impl BodyProjection<'_, '_> {
                 DefaultLiteralEqualityV1::Integer { kind: kind.into() }
             }
             LiteralPatternEquality::Ordinary { equals } => DefaultLiteralEqualityV1::Ordinary {
-                target: self.entities.callable(equals, self.binders)?,
+                target: self.callable_target(equals)?,
             },
         })
-    }
-}
-
-fn literal_value(
-    expression: &crate::Expr,
-) -> Result<CanonicalConstValueV1, super::super::DefaultBodyProjectionError> {
-    match &expression.kind {
-        ExprKind::StringLiteral { value, .. } => Ok(CanonicalConstValueV1::String(value.clone())),
-        ExprKind::IntegerLiteral(value) => Ok(CanonicalConstValueV1::Integer((*value).into())),
-        ExprKind::BoolLiteral(value) => Ok(CanonicalConstValueV1::Boolean(
-            CanonicalBooleanV1::from(*value),
-        )),
-        _ => Err(super::super::DefaultBodyProjectionError::InvalidLiteralPattern),
     }
 }
