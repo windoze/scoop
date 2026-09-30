@@ -187,3 +187,9 @@
 - 新增 `m23-shared-abstract` 的源码／依赖两组正例、六份阶段快照和两个反例，覆盖泛型抽象方法、getter／setter、默认实现、局部覆写、函数引用、引用／Int／Unit 组合及移动 GC。真实发布后移走源码，再次发布、ODR 比较、链接和运行通过；新快照关闭更新开关复验通过。
 - 全仓 fmt／clippy、2282 项 HIR／HIR lowering／MIR lowering 单元测试均已覆盖通过。15 项真实产物回归均已覆盖成功，包含抽象继承正反例、泛型 bound、成员、委托初始化及完整初始化 Link 组；最后一项包含初始化顺序、失败缓存、物理定义与损坏产物验证。五份旧成员快照仅修正访问器名称及 trap 字符串，另同步一份早期共同字段显示快照；两个完整测试组均关闭更新开关复验通过。日志前缀 `/tmp/scoop-m23-6a-implementations-`，结果见 `unit.log`、`singleton-verified.log`、`accessors-unit.log`、`artifacts-verified.log`、`members-verified.log` 及 `core-initialization.log`。
 - 确认没有 cargo／rustc 占用后，两次清理旧增量缓存，共约 3.6 GiB；继续复用 `target/m23-6a`。本批统一实现类别及消费，当前／读入声明的完整存储、nominal 类型、候选及正式正文编解码继续按阶段设计迁移。
+
+## private 词法访问域使用原声明身份
+
+- 删除保存 Class／Interface／Struct／Enum／Object arena ID 的 `VisibilityOwner`，成员 private 约束统一保存原 `SourceNominalId`。词法包含、定义文件和 protected 词法上下文继续通过既有声明索引定位；域正规化直接按完整约束排序，删除手写的 arena 排序键。相关实现净减少 55 行，没有扩展依赖可见性或增加身份映射表。
+- 全仓 fmt／clippy、856 项 HIR 和 1312 项 HIR lowering 单元测试全部通过；既有 private setter 结构断言同步验证原 class 声明身份。4 项真实产物回归全部通过，覆盖泛型 protected／private、嵌套词法作用域、函数引用、继承访问及错误诊断；快照无需改动。
+- 日志前缀 `/tmp/scoop-m23-6a-private-owners-`，结果见 `unit.log` 和 `artifacts.log`。nominal application 与完整声明／正文中的其余来源表示继续迁移，本批不宣告 6a 完成。

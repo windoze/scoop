@@ -30,7 +30,7 @@ fn lexical_classes_supply_protected_access_and_allow_private_setters() {
     assert_eq!(
         setter.access.lookup.0.constraints(),
         &[hir::AccessConstraint::LexicalOwner(
-            hir::VisibilityOwner::Class(owner)
+            module.nominal_identities[owner].declaration_id()
         )]
     );
 }

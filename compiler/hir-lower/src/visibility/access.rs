@@ -85,17 +85,10 @@ impl Lowerer {
 
     pub(super) fn lexical_scope_implies_subclass(
         &self,
-        owner: hir::VisibilityOwner,
+        owner: hir::SourceNominalId,
         base: hir::SourceNominalId,
     ) -> bool {
-        let owner = match owner {
-            hir::VisibilityOwner::Class(id) => Owner::Class(id),
-            hir::VisibilityOwner::Interface(id) => Owner::Interface(id),
-            hir::VisibilityOwner::Struct(id) => Owner::Struct(id),
-            hir::VisibilityOwner::Enum(id) => Owner::Enum(id),
-            hir::VisibilityOwner::Object(id) => Owner::Object(id),
-        };
-        self.protected_scope_classes(owner)
+        self.protected_scope_classes(self.nominal_owners[&owner])
             .any(|class| self.class_inherits_declaration(class, base))
     }
 

@@ -12,25 +12,14 @@ pub enum DeclaredVisibility {
     Protected,
 }
 
-/// Nominal lexical owner used by member-private access. Kinds remain distinct
-/// so a coincident arena index cannot grant access to another declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum VisibilityOwner {
-    Class(ClassId),
-    Interface(InterfaceId),
-    Struct(StructId),
-    Enum(EnumId),
-    Object(crate::ObjectId),
-}
-
 /// One conjunct of an access set. Domains are normalized conjunctions rather
 /// than visibility ranks: file, lexical-owner and inheritance regions are
 /// incomparable and may be intersected with a Cone restriction.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AccessConstraint {
     Cone(ConeIdentity),
     File(SourceIdentity),
-    LexicalOwner(VisibilityOwner),
+    LexicalOwner(crate::SourceNominalId),
     SubclassesOf(crate::SourceNominalId),
 }
 
@@ -62,12 +51,7 @@ impl AccessDomain {
                 normalized.push(constraint);
             }
         }
-        normalized.sort_by(|left, right| match (left, right) {
-            (AccessConstraint::SubclassesOf(left), AccessConstraint::SubclassesOf(right)) => {
-                left.cmp(right)
-            }
-            _ => access_constraint_sort_key(left).cmp(&access_constraint_sort_key(right)),
-        });
+        normalized.sort();
         Self {
             inhabited: true,
             constraints: normalized,
@@ -120,23 +104,6 @@ pub struct PublicSemanticSurface {
     pub companion_relations: Vec<crate::CompanionRelationId>,
     pub singleton_values: Vec<crate::SingletonValueId>,
     pub type_aliases: Vec<crate::ExportTypeAliasId>,
-}
-
-fn access_constraint_sort_key(
-    constraint: &AccessConstraint,
-) -> (u8, Option<ConeIdentity>, Option<SourceIdentity>, u8, u32) {
-    match constraint {
-        AccessConstraint::Cone(cone) => (0, Some(*cone), None, 0, 0),
-        AccessConstraint::File(source) => (1, Some(source.cone()), Some(source.clone()), 0, 0),
-        AccessConstraint::LexicalOwner(owner) => match owner {
-            VisibilityOwner::Class(id) => (2, None, None, 0, id.into_raw().into_u32()),
-            VisibilityOwner::Interface(id) => (2, None, None, 1, id.into_raw().into_u32()),
-            VisibilityOwner::Struct(id) => (2, None, None, 2, id.into_raw().into_u32()),
-            VisibilityOwner::Enum(id) => (2, None, None, 3, id.into_raw().into_u32()),
-            VisibilityOwner::Object(id) => (2, None, None, 4, id.into_raw().into_u32()),
-        },
-        AccessConstraint::SubclassesOf(_) => (3, None, None, 0, 0),
-    }
 }
 
 /// Domain used for direct name/member lookup after intersecting every owner.

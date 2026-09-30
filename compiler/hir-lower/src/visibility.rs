@@ -119,16 +119,6 @@ impl Lowerer {
         }
     }
 
-    fn owner_visibility(&self, owner: Owner) -> hir::VisibilityOwner {
-        match owner {
-            Owner::Class(id) => hir::VisibilityOwner::Class(id),
-            Owner::Interface(id) => hir::VisibilityOwner::Interface(id),
-            Owner::Struct(id) => hir::VisibilityOwner::Struct(id),
-            Owner::Enum(id) => hir::VisibilityOwner::Enum(id),
-            Owner::Object(id) => hir::VisibilityOwner::Object(id),
-        }
-    }
-
     pub(crate) fn owner_lookup_domain(&self, owner: Owner) -> &hir::AccessDomain {
         match owner {
             Owner::Class(id) => &self.classes[id].access.lookup.0,
@@ -153,7 +143,7 @@ impl Lowerer {
             }
             hir::DeclaredVisibility::Private => {
                 hir::AccessDomain::from_constraints([hir::AccessConstraint::LexicalOwner(
-                    self.owner_visibility(owner),
+                    self.nominal_identity(owner).declaration_id(),
                 )])
             }
             hir::DeclaredVisibility::Protected => {
@@ -232,9 +222,9 @@ impl Lowerer {
         Some(Owner::from_nominal_owner(parent))
     }
 
-    fn lexical_owner_contains(&self, mut current: Owner, required: hir::VisibilityOwner) -> bool {
+    fn lexical_owner_contains(&self, mut current: Owner, required: hir::SourceNominalId) -> bool {
         loop {
-            if self.owner_visibility(current) == required {
+            if self.nominal_identity(current).declaration_id() == required {
                 return true;
             }
             let Some(parent) = self.owner_parent(current) else {
@@ -246,26 +236,19 @@ impl Lowerer {
 
     fn visibility_owner_is_within(
         &self,
-        current: hir::VisibilityOwner,
-        required: hir::VisibilityOwner,
+        current: hir::SourceNominalId,
+        required: hir::SourceNominalId,
     ) -> bool {
-        let current = match current {
-            hir::VisibilityOwner::Class(id) => Owner::Class(id),
-            hir::VisibilityOwner::Interface(id) => Owner::Interface(id),
-            hir::VisibilityOwner::Struct(id) => Owner::Struct(id),
-            hir::VisibilityOwner::Enum(id) => Owner::Enum(id),
-            hir::VisibilityOwner::Object(id) => Owner::Object(id),
-        };
-        self.lexical_owner_contains(current, required)
+        self.lexical_owner_contains(self.nominal_owners[&current], required)
     }
 
-    fn owner_definition_file(&self, owner: hir::VisibilityOwner) -> scoop_identity::SourceIdentity {
-        let file = match owner {
-            hir::VisibilityOwner::Class(id) => self.class_files[&id],
-            hir::VisibilityOwner::Interface(id) => self.interface_files[&id],
-            hir::VisibilityOwner::Struct(id) => self.struct_files[&id],
-            hir::VisibilityOwner::Enum(id) => self.enum_files[&id],
-            hir::VisibilityOwner::Object(id) => self.object_files[&id],
+    fn owner_definition_file(&self, owner: hir::SourceNominalId) -> scoop_identity::SourceIdentity {
+        let file = match self.nominal_owners[&owner] {
+            Owner::Class(id) => self.class_files[&id],
+            Owner::Interface(id) => self.interface_files[&id],
+            Owner::Struct(id) => self.struct_files[&id],
+            Owner::Enum(id) => self.enum_files[&id],
+            Owner::Object(id) => self.object_files[&id],
         };
         self.visibility_file(file)
     }
