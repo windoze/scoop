@@ -76,7 +76,7 @@ impl Harness {
             let field = self.class_fields.alloc(hir::ClassField {
                 owner: class,
                 property,
-                ty: parameter.ty,
+                definition_index: fields.len(),
                 source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
                 span: SPAN,
             });
@@ -155,19 +155,28 @@ impl Harness {
         });
         let class = self.classes.alloc(hir::ClassDecl {
             owner: None,
-            modifier,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params: Vec::new(),
+            definition: hir::ClassDefinition {
+                modifier,
+                self_application,
+                type_params: Vec::new(),
+                representation: hir::ClassRepresentation::Declared,
+                fields: constructor
+                    .iter()
+                    .map(|(name, ty)| hir::Field {
+                        name: (*name).to_owned(),
+                        ty: *ty,
+                    })
+                    .collect(),
+                base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
+                interfaces,
+                interface_implementations,
+            },
             gc_free_pointee_requirements: Vec::new(),
-            representation: hir::ClassRepresentation::Declared,
             fields,
             properties,
             constructors: vec![constructor_id],
-            base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
-            interfaces,
-            interface_implementations,
             methods: Vec::new(),
             span: SPAN,
         });

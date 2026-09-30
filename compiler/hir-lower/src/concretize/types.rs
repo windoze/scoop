@@ -79,14 +79,7 @@ impl Concretizer<'_> {
                 )
             }
         };
-        self.ensure_class(
-            self.source
-                .nominal_identities
-                .class_id(application.template)
-                .expect("an application retains its declaration"),
-            arguments,
-            representation,
-        )
+        self.ensure_class_definition(application.template, arguments, representation)
     }
 
     pub(super) fn lower_intrinsic_type_representation(
@@ -161,7 +154,6 @@ impl Concretizer<'_> {
             }
             export::Type::Boolean => self.intern_type(concrete::TypeKind::Boolean, true),
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
-            export::Type::ImportedClass(class) => self.lower_imported_class(&class, substitution),
             export::Type::ImportedInterface(interface) => {
                 self.lower_imported_interface(&interface, substitution)
             }

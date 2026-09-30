@@ -284,7 +284,6 @@ impl Lowerer {
         let base = self.instantiate_ty(base, &application.arguments);
         let base_application = match self.types[base] {
             Type::Class(application) => application,
-            Type::ImportedClass(_) => return None,
             _ => unreachable!("resolved class bases have class types"),
         };
         let (_, property, ty) =

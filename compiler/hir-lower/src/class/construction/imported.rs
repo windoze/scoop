@@ -12,12 +12,12 @@ impl Lowerer {
         span: ast::Span,
         context: &str,
     ) -> Option<hir::BaseInitialization> {
-        let Type::ImportedClass(class) = &self.types[owner] else {
+        let Type::Class(application) = self.types[owner] else {
             unreachable!("dependency base initialization has a class owner")
         };
-        let identity = class.declaration.owner();
+        let identity = self.class_applications[application].template;
         let name = ast::Ident {
-            text: class.declaration.name().to_owned(),
+            text: self.nominal_template_name(identity).to_owned(),
             span,
         };
         let candidates = self

@@ -158,7 +158,7 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                 "    field{} property{}: {}\n",
                 field.into_raw(),
                 physical.property.into_raw(),
-                type_name(module, physical.ty)
+                type_name(module, module.class_field_definition(field).ty)
             ));
         }
         for &property in &decl.properties {
@@ -211,7 +211,7 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                 "    field{} property{}: {}\n",
                 field.into_raw(),
                 physical.property.into_raw(),
-                type_name(module, physical.ty)
+                type_name(module, module.class_field_definition(field).ty)
             ));
         }
         for &property in &backing.properties {

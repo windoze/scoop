@@ -48,7 +48,6 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
         }
     };
     match &types[ty] {
-        Type::ImportedClass(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
@@ -85,17 +84,21 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
         }
         Type::Class(application) => {
             let application = &lowerer.class_applications[*application];
-            let id = lowerer.class_id(application.template);
             let args = &application.arguments;
-            let name = nominal_name(
-                structs,
-                enums,
-                classes,
-                interfaces,
-                &lowerer.objects,
-                &classes[id].name,
-                classes[id].owner,
-            );
+            let name = match lowerer.source_class_id(application.template) {
+                Some(id) => nominal_name(
+                    structs,
+                    enums,
+                    classes,
+                    interfaces,
+                    &lowerer.objects,
+                    &classes[id].name,
+                    classes[id].owner,
+                ),
+                None => lowerer
+                    .nominal_template_name(application.template)
+                    .to_owned(),
+            };
             if args.is_empty() {
                 name
             } else {

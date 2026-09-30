@@ -12,8 +12,6 @@ pub enum Type {
     /// non-generic structs). Keeping the arguments in the type itself
     /// makes every `TypeId` structurally complete.
     Struct(StructApplicationId),
-    /// A dependency reference type with its actual declaration and field types.
-    ImportedClass(std::sync::Arc<ImportedClassType>),
     /// A dependency interface with complete inherited method signatures.
     ImportedInterface(std::sync::Arc<ImportedInterfaceType>),
     /// A reference type declared with `class` (spec 9.1).
@@ -53,7 +51,6 @@ impl Type {
         &self,
     ) -> Option<(&std::sync::Arc<ImportedNominalDeclaration>, &[TypeId])> {
         match self {
-            Self::ImportedClass(value) => Some((&value.declaration, &value.arguments)),
             Self::ImportedInterface(value) => Some((&value.declaration, &value.arguments)),
             _ => None,
         }
@@ -64,24 +61,6 @@ impl Type {
 pub struct ImportedIntrinsicType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub interfaces: Vec<TypeId>,
-    pub interface_implementations: Vec<InterfaceImplementation>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedNominalField {
-    pub identity: scoop_identity::PersistentFieldId,
-    pub name: String,
-    pub ty: TypeId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedClassType {
-    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
-    pub arguments: Vec<TypeId>,
-    pub fields: Vec<ImportedNominalField>,
-    pub base_class: Option<TypeId>,
-    pub interfaces: Vec<TypeId>,
-    pub virtual_methods: Vec<ImportedVirtualMethod>,
     pub interface_implementations: Vec<InterfaceImplementation>,
 }
 
@@ -136,9 +115,6 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::String, Type::String) => true,
         (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
-        (Type::ImportedClass(x), Type::ImportedClass(y)) => {
-            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
-        }
         (Type::ImportedInterface(x), Type::ImportedInterface(y)) => {
             x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
@@ -184,7 +160,6 @@ pub(crate) fn type_name_with_params(
         }
     };
     match &module.types[ty] {
-        Type::ImportedClass(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
@@ -213,15 +188,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Class(application) => {
             let application = &module.class_applications[*application];
-            let template = module
-                .nominal_identities
-                .class_id(application.template)
-                .expect("a resolved application retains its declaration");
-            let name = nominal_declaration_name(
-                module,
-                &module.classes[template].name,
-                module.classes[template].owner,
-            );
+            let name = match module.nominal_identities.class_id(application.template) {
+                Some(template) => nominal_declaration_name(
+                    module,
+                    &module.classes[template].name,
+                    module.classes[template].owner,
+                ),
+                None => module.class_name(application.template).to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name

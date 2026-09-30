@@ -1,43 +1,9 @@
 use super::*;
 use hir::ImportedCallableSource;
 
-impl Lowerer {
-    pub(super) fn instantiate_inherited_dependency_default(
-        &mut self,
-        template: &hir::ExportDefaultTemplateV1,
-        receiver: Option<&hir::Expr>,
-        value_parameters: &[hir::Expr],
-        span: ast::Span,
-        sink: &mut Vec<hir::Statement>,
-    ) -> Option<hir::Expr> {
-        let declaration = match self
-            .dependencies
-            .as_ref()
-            .expect("an inherited dependency default retains its declaration catalog")
-            .callable_declaration(template.key().owner())
-        {
-            Ok(declaration) => declaration,
-            Err(error) => {
-                self.error(span, error.to_string());
-                return None;
-            }
-        };
-        let prepared = match self.prepare_imported_default(&declaration, template.clone()) {
-            Ok(prepared) => prepared,
-            Err(error) => {
-                self.error(span, error.to_string());
-                return None;
-            }
-        };
-        match self.materialize_imported_default(&prepared, receiver, value_parameters, span, sink) {
-            Ok(value) => Some(value),
-            Err(error) => {
-                self.error(span, error.to_string());
-                None
-            }
-        }
-    }
+mod dependencies;
 
+impl Lowerer {
     pub(super) fn prepare_inherited_default(
         &mut self,
         key: SourceDefaultKey,
@@ -89,10 +55,20 @@ impl Lowerer {
                                 .map(|argument| self.instantiate_method_ty(argument, &bindings))
                                 .collect(),
                         },
+                        InheritedDefaultSource::Imported {
+                            template,
+                            type_arguments,
+                        } => InheritedDefaultSource::Imported {
+                            template,
+                            type_arguments: type_arguments
+                                .into_iter()
+                                .map(|argument| self.instantiate_method_ty(argument, &bindings))
+                                .collect(),
+                        },
                         source => source,
                     }
                 }
-                DefaultOverrideSource::Imported(declaration) => {
+                DefaultOverrideSource::Imported { declaration, owner } => {
                     let declaration = self
                         .dependencies
                         .as_ref()
@@ -128,7 +104,17 @@ impl Lowerer {
                         self.error(span, error.to_string());
                         return None;
                     }
-                    InheritedDefaultSource::Imported(std::sync::Arc::new(template.clone()))
+                    let type_arguments = self.inherited_default_type_arguments(
+                        function,
+                        owner,
+                        &declaration,
+                        template,
+                        span,
+                    )?;
+                    InheritedDefaultSource::Imported {
+                        template: std::sync::Arc::new(template.clone()),
+                        type_arguments,
+                    }
                 }
             };
             if !sources
@@ -170,9 +156,13 @@ impl Lowerer {
                     expression: *expression,
                     type_arguments: type_arguments.clone(),
                 },
-                hir::ExportDefaultSource::Imported { template } => {
-                    InheritedDefaultSource::Imported(template.clone())
-                }
+                hir::ExportDefaultSource::Imported {
+                    template,
+                    type_arguments,
+                } => InheritedDefaultSource::Imported {
+                    template: template.clone(),
+                    type_arguments: type_arguments.clone(),
+                },
             },
         }
     }
@@ -190,9 +180,13 @@ impl Lowerer {
                 expression,
                 type_arguments,
             },
-            InheritedDefaultSource::Imported(template) => {
-                hir::ExportDefaultSource::Imported { template }
-            }
+            InheritedDefaultSource::Imported {
+                template,
+                type_arguments,
+            } => hir::ExportDefaultSource::Imported {
+                template,
+                type_arguments,
+            },
         };
         DefaultExprTemplateRef::Export(self.export_default_sources.alloc(source))
     }
@@ -212,10 +206,19 @@ impl InheritedDefaultSource {
                     type_arguments: right_arguments,
                 },
             ) => left == right && left_arguments == right_arguments,
-            (Self::Imported(left), Self::Imported(right)) => {
+            (
+                Self::Imported {
+                    template: left,
+                    type_arguments: left_arguments,
+                },
+                Self::Imported {
+                    template: right,
+                    type_arguments: right_arguments,
+                },
+            ) => {
                 left.definition_root() == right.definition_root()
                     && left.definition_path() == right.definition_path()
-                    && left.type_parameters() == right.type_parameters()
+                    && left_arguments == right_arguments
             }
             _ => false,
         }

@@ -71,9 +71,17 @@ impl Lowerer {
                         expression,
                         type_arguments,
                     } => (expression, type_arguments),
-                    hir::ExportDefaultSource::Imported { template } => {
+                    hir::ExportDefaultSource::Imported {
+                        template,
+                        type_arguments,
+                    } => {
+                        let arguments = type_arguments
+                            .into_iter()
+                            .map(|argument| self.instantiate_method_ty(argument, bindings))
+                            .collect();
                         return self.instantiate_inherited_dependency_default(
                             &template,
+                            arguments,
                             receiver,
                             value_parameters,
                             call_span,

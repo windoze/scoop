@@ -186,6 +186,7 @@ impl ReferenceCollector<'_> {
                         &self.lowerer.types,
                         &self.lowerer.enum_applications,
                         &self.lowerer.struct_applications,
+                        &self.lowerer.class_applications,
                     );
                 for ty in arguments {
                     self.type_reference(ty, origin);

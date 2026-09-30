@@ -53,7 +53,7 @@ impl Lowerer {
         declaration: PersistentTypeId,
     ) -> Result<(), ImportedSignatureTypeError> {
         if self.types.iter().any(|(_, ty)| {
-            matches!(ty, export::Type::ImportedClass(class) if class.declaration.owner() == export::SourceNominalId::Concrete(declaration))
+            matches!(ty, export::Type::Class(class) if self.class_applications[*class].template == export::SourceNominalId::Concrete(declaration))
         }) {
             return Ok(());
         }
@@ -109,7 +109,7 @@ impl Concretizer<'_> {
 
     fn lower_runtime_exception_type(&mut self, declaration: PersistentTypeId) {
         if let Some((ty, _)) = self.source.types.iter().find(|(_, ty)| {
-            matches!(ty, export::Type::ImportedClass(class) if class.declaration.owner() == export::SourceNominalId::Concrete(declaration))
+            matches!(ty, export::Type::Class(class) if self.source.class_applications[*class].template == export::SourceNominalId::Concrete(declaration))
         }) {
             self.lower_type(ty, &[]);
         }

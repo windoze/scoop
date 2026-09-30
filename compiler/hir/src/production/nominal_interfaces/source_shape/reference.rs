@@ -31,7 +31,7 @@ fn declared_fields(
             let identity = &projection.export.field_identities[*field];
             let value_type = projection
                 .signatures
-                .map_type(projection.export.class_fields[*field].ty, binders)
+                .map_type(projection.export.class_field_definition(*field).ty, binders)
                 .map_err(|source| NominalInterfaceBuildError::Signature {
                     declaration: owner,
                     source,

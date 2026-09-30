@@ -6,56 +6,40 @@ mod definition;
 use definition::{ResolvedClassDefinition, ResolvedClassRepresentation};
 
 impl Concretizer<'_> {
-    pub(super) fn ensure_class(
+    pub(super) fn ensure_class_definition(
         &mut self,
-        source: export::ClassId,
+        origin: export::SourceNominalId,
         arguments: Vec<concrete::TypeId>,
         application: ConcreteApplicationRepresentation,
     ) -> concrete::ClassId {
-        let origin = self.source.nominal_identities[source].declaration_id();
         let key = (origin, arguments.clone());
         if let Some(&id) = self.class_by_key.get(&key) {
             return id;
         }
-        let definition = self.source_class_definition(source, application);
+        let source = self.source.nominal_identities.class_id(origin);
+        let definition = match source {
+            Some(source) => self.source_class_definition(source, application),
+            None => ResolvedClassDefinition::from_dependency(
+                &self.source.loaded_class_definitions[&origin],
+                application,
+            ),
+        };
         let id = self.allocate_class_definition(&definition, arguments.clone());
-        self.class_source.insert(id, source);
-        let method_owner = if let Some(object) = self.object_by_backing_class.get(&source).copied()
-        {
-            self.register_object(object, id, self.class_type[&id]);
-            concrete::MethodOwner::Object(
-                self.object_type_map[&self.source.objects[object].object_type],
-            )
+        let method_owner = if let Some(source) = source {
+            self.class_source.insert(id, source);
+            if let Some(object) = self.object_by_backing_class.get(&source).copied() {
+                self.register_object(object, id, self.class_type[&id]);
+                concrete::MethodOwner::Object(
+                    self.object_type_map[&self.source.objects[object].object_type],
+                )
+            } else {
+                concrete::MethodOwner::Class(id)
+            }
         } else {
             concrete::MethodOwner::Class(id)
         };
         self.complete_class_definition(id, definition, &arguments, method_owner);
         id
-    }
-
-    pub(super) fn lower_imported_class(
-        &mut self,
-        source: &export::ImportedClassType,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::TypeId {
-        let arguments = source
-            .arguments
-            .iter()
-            .map(|argument| self.lower_type(*argument, substitution))
-            .collect::<Vec<_>>();
-        let key = (source.declaration.owner(), arguments.clone());
-        if let Some(id) = self.class_by_key.get(&key) {
-            return self.class_type[id];
-        }
-        let definition = ResolvedClassDefinition::from_dependency(source, &arguments);
-        let id = self.allocate_class_definition(&definition, arguments);
-        self.complete_class_definition(
-            id,
-            definition,
-            substitution,
-            concrete::MethodOwner::Class(id),
-        );
-        self.class_type[&id]
     }
 
     fn allocate_class_definition(

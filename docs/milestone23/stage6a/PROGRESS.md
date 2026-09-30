@@ -292,3 +292,12 @@
 - 新增 `m23-shared-value-layouts` 两组正例、四个反例及六份阶段快照，覆盖依赖与本地包装器组合、Phantom、经 class 的合法递归、接口装箱和嵌套模式。修复前真实源码单元已复现非法布局被接受；修复后四个诊断均准确定位消费方声明，源码移走后再次发布及普通／移动 GC 运行通过。新快照与诊断全部关闭更新开关复验通过。
 - 全仓 fmt／clippy 无警告，859 项 HIR、1320 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。七组不同真实产物回归通过，包括新布局规则、共同 struct／enum、bound、泛型构造与完整 core 三组 MIR／LIR 导出闭包；既有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-shared-value-layouts-`，结果见 `before.log`、`unit.log`、`new-verified.log` 与 `verified-artifacts.json`。
 - 循环检查主文件缩至 244 行，内联参数分析为 141 行。确认没有 cargo／rustc 占用后清理约 1122.7 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未改变 wire payload 或 runtime ABI；完整 nominal、条件与成员、候选和正文存储继续按 6a 设计推进。
+
+## class 共用 application 与带形参的字段、父类型定义
+
+- 删除 `Type::ImportedClass`、`ImportedClassType` 和预替换的依赖字段记录。当前与依赖 class 共用原身份加完整实参的 `ClassApplication`，字段、基类、直接接口及既定接口实现保存在共同 `ClassDefinition` 中；依赖定义只在原声明形参域内解码一次。类型身份、父类型、字段查询和具体化消费同一 application，String／Array／MutableArray 与 object backing 的既定表示及原身份保持。
+- 源码属性和构造初始化元数据按共同字段位置关联，删除其重复字段类型；后期确定的委托存储也加入同一字段表。初始化读取外来泛型基类字段时取得实际声明宿主及完整实参，保留原字段身份。普通外部虚方法与实现继续关联提供方，具体化不重新选择继承和 dispatch。
+- 真实组合揭示继承默认值在交换泛型参数后丢失发布映射。默认来源现保留原提供方到当前声明域的完整实参，每层继承组合代换；再次发布只更新归属与 binder 映射，实际调用使用同一已加载正文及共同展开器。单元通过完整产物接口投影确认两层覆写分别保留 `[B, A]`、`[X, Y]`，且指向同一原定义；没有改写原正文、伪造局部函数身份或放宽合同校验。
+- 新增 `m23-shared-class-definitions` 的两组正例、三个诊断反例与 HIR／MIR／LIR 快照，覆盖递归 class、struct 包装、类型别名、泛型基类初始化、多层交换参数与默认值、接口默认方法、数组、普通委托存储及 singleton。源码移走后再次发布、consumer-local 类型、String／Int／Unit 与普通／移动 GC 运行均通过；反例准确定位 final 基类、错误字段实参与泛型基类字段初始化。
+- 全仓 fmt／clippy 无警告；859 项 HIR、1321 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。20 组不同真实产物回归均覆盖通过，包括完整 core MIR／LIR 闭包、class／struct／enum／interface、构造、成员、属性、默认值、数组、继承初始化、抽象 conformance、companion 与 singleton。默认映射修复后，使用最终配套编译器关闭更新开关复验相关八组全部通过；既有快照仅三份 HIR 中的四处 arena 编号改变。日志前缀 `/tmp/scoop-m23-6a-shared-class-types-`，结果见 `unit.log`、`build.log`、`default-mapping.log` 与 `verified-results.json`。
+- 属性声明主文件由 1225 行降至 186 行，拆出的 class、访问器规则和函数构造模块分别为 350、399、324 行；新 class 解码为 148 行，继承默认映射为 103 行。确认没有 cargo／rustc 占用后清理 1777.6 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未改变 wire payload 或 runtime ABI；interface 类型、完整 nominal 条件与成员、候选和正文存储继续按 6a 设计迁移。

@@ -351,7 +351,7 @@ impl Lowerer {
         span: ast::Span,
         context: &str,
     ) -> Option<hir::BaseInitialization> {
-        if matches!(self.types[base_ty], Type::ImportedClass(_)) {
+        if self.dependency_nominal_application(base_ty).is_some() {
             return self
                 .lower_imported_base_initialization(source, base_ty, arguments, span, context);
         }

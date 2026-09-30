@@ -86,7 +86,7 @@ Module
     val local19
       Local $dependency.argument.0 : Foreign<T0>
     val local20
-      ImportedMethodCall Callable(Application(Idx::<ImportedGenericCallableApplication>(20))) : T0
+      ImportedMethodCall Callable(Application(Idx::<ImportedGenericCallableApplication>(4))) : T0
         Local $dependency.parameter.box : Foreign<T0>
     val local21
       ImportedGenericCall defaultRead<T0, Foreign<T0>> : T0

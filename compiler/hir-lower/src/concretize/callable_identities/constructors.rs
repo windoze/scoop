@@ -51,9 +51,9 @@ impl CallableIdentityBuilder<'_> {
                 let owner = self.concretizer.struct_by_key[&(origin, arguments.to_vec())];
                 self.concretizer.struct_type[&owner]
             }
-            export::Type::ImportedClass(owner) => {
-                let owner =
-                    self.concretizer.class_by_key[&(owner.declaration.owner(), arguments.to_vec())];
+            export::Type::Class(owner) => {
+                let origin = self.concretizer.source.class_applications[*owner].template;
+                let owner = self.concretizer.class_by_key[&(origin, arguments.to_vec())];
                 self.concretizer.class_type[&owner]
             }
             _ => unreachable!("imported constructors retain their nominal owner"),

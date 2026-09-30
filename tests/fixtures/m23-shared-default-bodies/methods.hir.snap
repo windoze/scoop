@@ -28,7 +28,7 @@ Module
     val local10
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        CallableCall function_type3 : T0
+        CallableCall function_type4 : T0
           ImportedGenericCall read<T0> : () -> T0
             Local first : Box<T0>
     val local11
@@ -47,7 +47,7 @@ Module
     val local13
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        CallableCall function_type3 : T0
+        CallableCall function_type4 : T0
           ImportedGenericCall read<T0> : () -> T0
             Local second : Box<T0>
     val local14

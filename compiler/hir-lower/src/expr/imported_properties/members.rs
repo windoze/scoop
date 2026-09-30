@@ -82,25 +82,27 @@ impl Lowerer {
         let value_type = self
             .imported_signature_type_with_bindings(getter.interface().result(), &bindings)
             .map_err(|error| self.error(name.span, error.diagnostic("dependency property")))?;
-        let storage = match (&self.types[owner], property.declaration()) {
-            (
-                hir::Type::ImportedClass(class),
-                scoop_identity::PropertyOwner::Property(property),
-            ) if !class.arguments.is_empty() => class
-                .declaration
-                .field_sources
-                .iter()
-                .zip(&class.fields)
-                .find_map(|(source, field)| {
-                    (source.backing_property == Some(property)).then_some(
-                        hir::FieldRef::ClassField {
-                            owner,
-                            field: field.identity,
+        let storage =
+            match (&self.types[owner], property.declaration()) {
+                (
+                    hir::Type::Class(application),
+                    scoop_identity::PropertyOwner::Property(property),
+                ) if !self.class_applications[*application].arguments.is_empty() => {
+                    let class = &self.loaded_class_definitions
+                        [&self.class_applications[*application].template];
+                    class.declaration.field_sources.iter().enumerate().find_map(
+                        |(index, source)| {
+                            (source.backing_property == Some(property)).then_some(
+                                hir::FieldRef::ClassField {
+                                    owner,
+                                    field: class.field_identity(index),
+                                },
+                            )
                         },
                     )
-                }),
-            _ => None,
-        };
+                }
+                _ => None,
+            };
         Ok(Some(ResolvedImportedMemberProperty {
             getter,
             accessors,

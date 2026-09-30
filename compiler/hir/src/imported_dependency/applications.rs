@@ -17,6 +17,7 @@ impl ImportedCallableArguments {
         types: &la_arena::Arena<Type>,
         enums: &la_arena::Arena<crate::EnumApplication>,
         structs: &la_arena::Arena<crate::StructApplication>,
+        classes: &la_arena::Arena<crate::ClassApplication>,
     ) -> Vec<TypeId> {
         match self {
             Self::Function(arguments) => arguments.clone(),
@@ -28,6 +29,7 @@ impl ImportedCallableArguments {
                     Type::Ptr(pointee) => std::slice::from_ref(pointee),
                     Type::Enum(application) => &enums[*application].arguments,
                     Type::Struct(application) => &structs[*application].arguments,
+                    Type::Class(application) => &classes[*application].arguments,
                     owner => {
                         owner
                             .imported_nominal_application()

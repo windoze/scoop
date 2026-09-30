@@ -68,9 +68,8 @@ impl Lowerer {
                     .as_ref()
                     .and_then(|base| match self.types[*base] {
                         Type::Class(application) => {
-                            Some(self.class_id(self.class_applications[application].template))
+                            self.source_class_id(self.class_applications[application].template)
                         }
-                        Type::ImportedClass(_) => None,
                         _ => unreachable!("resolved class bases have class types"),
                     });
         }

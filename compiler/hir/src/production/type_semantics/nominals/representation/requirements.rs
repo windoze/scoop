@@ -93,7 +93,7 @@ fn class(
     visit: &mut impl FnMut(TypeId) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for field in &declaration.fields {
-        visit(export.class_fields[*field].ty)?;
+        visit(export.class_field_definition(*field).ty)?;
     }
     if let Some(base) = declaration.base_class {
         visit(base)?;

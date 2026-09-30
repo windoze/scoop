@@ -14,8 +14,11 @@ pub(super) fn source_members(
             fields.insert(export.field_identities[reference].id(), exact(field.ty));
         }
     }
-    for (id, field) in export.class_fields.iter() {
-        fields.insert(export.field_identities[id].id(), exact(field.ty));
+    for (id, _) in export.class_fields.iter() {
+        fields.insert(
+            export.field_identities[id].id(),
+            exact(export.class_field_definition(id).ty),
+        );
     }
     let mut variants = BTreeMap::new();
     for (id, source) in export.enums.iter() {

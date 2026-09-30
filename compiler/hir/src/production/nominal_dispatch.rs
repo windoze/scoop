@@ -59,24 +59,22 @@ impl<'a> Projection<'a> {
             self.push(&mut result, current)?;
             let base = match current {
                 ClassChainEntry::Local(class) => self.export.classes[class].base_class,
-                ClassChainEntry::Imported(ty) => {
-                    let Type::ImportedClass(class) = &self.export.types[ty] else {
-                        return Err(invalid("class base does not resolve to a class type"));
-                    };
-                    class.base_class
-                }
+                // The dependency's selected virtual table already includes
+                // its entire base chain. Reuse that checked selection.
+                ClassChainEntry::Imported(_) => None,
             };
             let Some(base) = base else {
                 return Ok(result);
             };
             current = match &self.export.types[base] {
-                Type::Class(application) => ClassChainEntry::Local(
-                    self.export
-                        .nominal_identities
-                        .class_id(self.export.class_applications[*application].template)
-                        .expect("a class application retains its declaration"),
-                ),
-                Type::ImportedClass(_) => ClassChainEntry::Imported(base),
+                Type::Class(application) => match self
+                    .export
+                    .nominal_identities
+                    .class_id(self.export.class_applications[*application].template)
+                {
+                    Some(class) => ClassChainEntry::Local(class),
+                    None => ClassChainEntry::Imported(base),
+                },
                 _ => return Err(invalid("class base does not resolve to a class type")),
             };
         }

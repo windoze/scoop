@@ -168,7 +168,7 @@ fn class_fields(
         .map(|field| {
             ClassRepresentationFieldV1::try_new(
                 export.field_identities[*field].key(),
-                map(export.class_fields[*field].ty)?,
+                map(export.class_field_definition(*field).ty)?,
             )
             .map_err(|error| Error::InvalidRepresentation {
                 declaration: SourceNominalId::Concrete(owner),

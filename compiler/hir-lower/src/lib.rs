@@ -605,6 +605,8 @@ pub(crate) struct Lowerer {
     pub(crate) loaded_enum_definitions: HashMap<hir::SourceNominalId, hir::LoadedEnumDefinition>,
     pub(crate) loaded_struct_definitions:
         HashMap<hir::SourceNominalId, hir::LoadedStructDefinition>,
+
+    pub(crate) loaded_class_definitions: HashMap<hir::SourceNominalId, hir::LoadedClassDefinition>,
     pub(crate) enum_variant_spans: HashMap<hir::EnumVariantRef, Span>,
     pub(crate) enum_variant_field_spans: HashMap<hir::EnumVariantFieldRef, Span>,
     pub(crate) enum_applications: Arena<hir::EnumApplication>,

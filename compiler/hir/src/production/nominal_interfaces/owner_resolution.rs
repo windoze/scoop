@@ -6,9 +6,6 @@ pub(in crate::production) fn from_type(
 ) -> Option<NominalDeclarationOwner> {
     let ty = super::arena_get(&export.types, ty)?;
     let identity = match ty {
-        crate::Type::ImportedClass(structure) => {
-            return Some(structure.declaration.owner());
-        }
         crate::Type::ImportedInterface(structure) => {
             return Some(structure.declaration.owner());
         }
@@ -44,10 +41,10 @@ pub(in crate::production) fn from_type(
         }
         crate::Type::Class(application) => {
             let application = super::arena_get(&export.class_applications, *application)?;
-            class_or_object_identity(
-                export,
-                export.nominal_identities.class_id(application.template)?,
-            )?
+            let Some(class) = export.nominal_identities.class_id(application.template) else {
+                return Some(application.template);
+            };
+            class_or_object_identity(export, class)?
         }
         crate::Type::Ptr(_) => {
             return intrinsic_generic_owner(export, IntrinsicGenericType::Pointer);

@@ -45,8 +45,21 @@ fn project_inner(
             expression,
             type_arguments,
         } => (*expression, type_arguments),
-        ExportDefaultSource::Imported { template } => {
-            return Ok(template.as_ref().clone().inherited_at(key));
+        ExportDefaultSource::Imported {
+            template,
+            type_arguments,
+        } => {
+            let arguments = type_arguments
+                .iter()
+                .map(|&argument| {
+                    entities
+                        .type_key(argument, &owner.binders)
+                        .map_err(DefaultTemplateEnvelopeProjectionError::Provider)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let parameters = crate::CanonicalBinderUseListV1::try_new(arguments)
+                .map_err(DefaultTemplateEnvelopeProjectionError::BinderUse)?;
+            return Ok(template.as_ref().clone().inherited_at(key, parameters));
         }
     };
     let projected =

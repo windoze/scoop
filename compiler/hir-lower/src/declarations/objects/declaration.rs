@@ -132,20 +132,23 @@ impl Lowerer {
         })
         .ok()?;
         let backing_class = self.classes.alloc(ClassDecl {
-            modifier: hir::ClassModifier::Final,
             name: name.to_string(),
             owner: owner.map(Owner::as_nominal_owner),
             access: access.clone(),
-            self_application,
-            type_params: Vec::new(),
+            definition: hir::ClassDefinition {
+                modifier: hir::ClassModifier::Final,
+                self_application,
+                type_params: Vec::new(),
+                representation: hir::ClassRepresentation::Declared,
+                fields: Vec::new(),
+                base_class: None,
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+            },
             gc_free_pointee_requirements: Vec::new(),
-            representation: hir::ClassRepresentation::Declared,
             fields: Vec::new(),
             properties: Vec::new(),
             constructors: Vec::new(),
-            base_class: None,
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: source.span(),
         });

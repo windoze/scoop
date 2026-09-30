@@ -116,6 +116,7 @@ impl BodyProjection<'_, '_> {
             &export.types,
             &export.enum_applications,
             &export.struct_applications,
+            &export.class_applications,
         );
         let count = owner_parameter_count(arguments.len())?;
         let arguments = arguments

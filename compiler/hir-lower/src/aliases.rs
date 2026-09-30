@@ -327,15 +327,12 @@ impl Lowerer {
                 .source_enum_id(self.enum_applications[application].template)
                 .map(NominalTarget::Enum),
             Type::Class(application) => {
-                let class = self.class_applications[application].template;
+                let class = self.source_class_id(self.class_applications[application].template)?;
                 Some(
                     self.object_by_backing_class
-                        .get(&self.class_id(class))
+                        .get(&class)
                         .copied()
-                        .map_or(
-                            NominalTarget::Class(self.class_id(class)),
-                            NominalTarget::Object,
-                        ),
+                        .map_or(NominalTarget::Class(class), NominalTarget::Object),
                 )
             }
             Type::Interface(application) => Some(NominalTarget::Interface(
@@ -343,8 +340,7 @@ impl Lowerer {
             )),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
-            Type::ImportedClass(_)
-            | Type::ImportedInterface(_)
+            Type::ImportedInterface(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)

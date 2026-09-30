@@ -110,10 +110,7 @@ impl Lowerer {
                 let bound_name = self.type_name(ty);
                 if !matches!(
                     self.types[ty],
-                    Type::Class(_)
-                        | Type::Interface(_)
-                        | Type::ImportedClass(_)
-                        | Type::ImportedInterface(_)
+                    Type::Class(_) | Type::Interface(_) | Type::ImportedInterface(_)
                 ) {
                     self.error(
                         reference.span,
@@ -142,7 +139,7 @@ impl Lowerer {
                     return;
                 };
                 match self.types[ty] {
-                    Type::Class(_) | Type::ImportedClass(_) => {
+                    Type::Class(_) => {
                         if bounds.class.is_some() {
                             self.error(
                                 span,
@@ -231,10 +228,11 @@ impl Lowerer {
                     let (target_params, arguments) = match self.types[bound.ty()] {
                         Type::Class(application) => {
                             let application = self.class_applications[application].clone();
+                            let Some(class) = self.source_class_id(application.template) else {
+                                continue;
+                            };
                             (
-                                self.classes[self.class_id(application.template)]
-                                    .type_params
-                                    .clone(),
+                                self.classes[class].type_params.clone(),
                                 application.arguments,
                             )
                         }
@@ -249,7 +247,7 @@ impl Lowerer {
                         }
                         // Source references to dependency applications have already
                         // checked their complete declaration constraints on entry.
-                        Type::ImportedClass(_) | Type::ImportedInterface(_) => continue,
+                        Type::ImportedInterface(_) => continue,
                         _ => unreachable!("nominal bounds retain a class or interface type"),
                     };
                     self.check_type_argument_kinds(

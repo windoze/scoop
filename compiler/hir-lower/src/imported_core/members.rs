@@ -65,29 +65,29 @@ impl Lowerer {
             self.record_selected_interface_sources(ty, &mut selected_sources);
             match &self.types[ty] {
                 hir::Type::Class(application) => {
-                    let declaration = &self.classes
-                        [self.class_id(self.class_applications[*application].template)];
-                    pending.extend(declaration.interfaces.iter().rev().copied());
-                    pending.extend(declaration.base_class);
-                    for function in &declaration.methods {
-                        if let Some(method) = self.functions[*function].method {
-                            let family = match method.dispatch {
-                                hir::MethodDispatch::Virtual(family)
-                                | hir::MethodDispatch::FinalOverride(family) => family,
-                                _ => continue,
-                            };
-                            if let Some(crate::persistent_dispatch::VirtualMethodRoot::Imported(
-                                record,
-                            )) = self.virtual_method_roots.get(&family)
-                            {
-                                suppressed_slots.insert(record.id());
+                    let template = self.class_applications[*application].template;
+                    if let Some(class) = self.source_class_id(template) {
+                        for function in &self.classes[class].methods {
+                            if let Some(method) = self.functions[*function].method {
+                                let family = match method.dispatch {
+                                    hir::MethodDispatch::Virtual(family)
+                                    | hir::MethodDispatch::FinalOverride(family) => family,
+                                    _ => continue,
+                                };
+                                if let Some(
+                                    crate::persistent_dispatch::VirtualMethodRoot::Imported(record),
+                                ) = self.virtual_method_roots.get(&family)
+                                {
+                                    suppressed_slots.insert(record.id());
+                                }
                             }
                         }
                     }
                     suppress_local_implementations(
-                        &declaration.interface_implementations,
+                        &self.class_definition(template).interface_implementations,
                         &mut suppressed_slots,
                     );
+                    pending.extend(self.direct_nominal_supertypes(ty).into_iter().rev());
                 }
                 hir::Type::Struct(application) => {
                     let declaration =
@@ -120,10 +120,6 @@ impl Lowerer {
                             suppressed_slots.insert(*slot);
                         }
                     }
-                }
-                hir::Type::ImportedClass(class) => {
-                    pending.extend(class.interfaces.iter().rev().copied());
-                    pending.extend(class.base_class);
                 }
                 hir::Type::ImportedInterface(interface) => {
                     pending.extend(interface.parents.iter().rev().copied())

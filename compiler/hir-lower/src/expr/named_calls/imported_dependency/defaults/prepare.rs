@@ -9,19 +9,26 @@ use crate::Lowerer;
 use crate::imported_core::ImportedTypeBindings;
 
 impl Lowerer {
-    pub(crate) fn prepare_imported_default(
-        &mut self,
-        owner: &dyn hir::ImportedCallableSource,
-        template: hir::ExportDefaultTemplateV1,
-    ) -> Result<PreparedImportedDefault, ImportedDefaultPlanError> {
-        self.prepare_imported_default_with_bindings(owner, template, &ImportedTypeBindings::new())
-    }
-
     pub(super) fn prepare_imported_default_with_bindings(
         &mut self,
         owner: &dyn hir::ImportedCallableSource,
         template: hir::ExportDefaultTemplateV1,
         bindings: &ImportedTypeBindings,
+    ) -> Result<PreparedImportedDefault, ImportedDefaultPlanError> {
+        let arguments = template
+            .type_parameters()
+            .arguments()
+            .iter()
+            .map(|argument| self.imported_default_type_with_bindings(argument, bindings))
+            .collect::<Result<_, _>>()?;
+        self.prepare_imported_default_with_arguments(owner, &template, arguments)
+    }
+
+    pub(crate) fn prepare_imported_default_with_arguments(
+        &mut self,
+        owner: &dyn hir::ImportedCallableSource,
+        template: &hir::ExportDefaultTemplateV1,
+        arguments: Vec<hir::TypeId>,
     ) -> Result<PreparedImportedDefault, ImportedDefaultPlanError> {
         let key = (
             template.definition_root(),
@@ -31,19 +38,13 @@ impl Lowerer {
             Arc::clone(expression)
         } else {
             let expression = Arc::new(
-                self.load_default_expression(owner, &template)
+                self.load_default_expression(owner, template)
                     .map_err(|error| ImportedDefaultPlanError::Body(error.to_string()))?,
             );
             self.loaded_default_expressions
                 .insert(key, Arc::clone(&expression));
             expression
         };
-        let arguments = template
-            .type_parameters()
-            .arguments()
-            .iter()
-            .map(|argument| self.imported_default_type_with_bindings(argument, bindings))
-            .collect::<Result<_, _>>()?;
         Ok(PreparedImportedDefault {
             expression,
             arguments,

@@ -97,7 +97,9 @@ impl Lowerer {
             .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(owner))
             .map_err(|_| invalid())?;
         match &self.types[ty] {
-            hir::Type::ImportedClass(class) => {
+            hir::Type::Class(application) => {
+                let class =
+                    &self.loaded_class_definitions[&self.class_applications[*application].template];
                 let position = class
                     .virtual_methods
                     .iter()

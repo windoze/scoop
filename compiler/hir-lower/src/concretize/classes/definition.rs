@@ -42,10 +42,10 @@ impl<'input> Concretizer<'input> {
                     .fields
                     .iter()
                     .map(|field| {
-                        let value = &self.source.class_fields[*field];
+                        let value = self.source.class_field_definition(*field);
                         ResolvedField {
                             identity: self.source.field_identities[*field].id(),
-                            name: &self.source.properties[value.property].name,
+                            name: &value.name,
                             ty: value.ty,
                         }
                     })
@@ -86,64 +86,53 @@ impl<'input> Concretizer<'input> {
 
 impl<'a> ResolvedClassDefinition<'a> {
     pub(super) fn from_dependency(
-        source: &'a export::ImportedClassType,
-        arguments: &[concrete::TypeId],
+        source: &'a export::LoadedClassDefinition,
+        application: ConcreteApplicationRepresentation,
     ) -> Self {
         let declaration = &source.declaration;
-        let modifier = match declaration.interface.declaration_details().modality() {
-            export::NominalInheritanceModalityV1::Final => export::ClassModifier::Final,
-            export::NominalInheritanceModalityV1::Open => export::ClassModifier::Open,
-            export::NominalInheritanceModalityV1::Abstract => export::ClassModifier::Abstract,
-            export::NominalInheritanceModalityV1::Interface => {
-                unreachable!("a class retains class modality")
-            }
-        };
-        let representation = match declaration.interface.source_shape() {
-            export::NominalSourceShapeV1::Intrinsic(source) => {
-                let [element] = arguments else {
-                    unreachable!("intrinsic array arity was checked in HIR")
-                };
-                let application = match source.family() {
-                    export::IntrinsicTypeKind::Array => {
-                        concrete::IntrinsicTypeRepresentation::Array { element: *element }
-                    }
-                    export::IntrinsicTypeKind::MutableArray => {
-                        concrete::IntrinsicTypeRepresentation::MutableArray { element: *element }
-                    }
-                    _ => unreachable!(
-                        "resolved intrinsic class applications retain their array family"
-                    ),
-                };
-                ResolvedClassRepresentation::Intrinsic {
-                    declaration: source.family(),
-                    application,
-                }
-            }
-            _ => ResolvedClassRepresentation::Declared {
-                fields: source
+        let definition = &source.definition;
+        let representation = match (&definition.representation, application) {
+            (
+                export::ClassRepresentation::Declared,
+                ConcreteApplicationRepresentation::Declared,
+            ) => ResolvedClassRepresentation::Declared {
+                fields: definition
                     .fields
                     .iter()
-                    .map(|field| ResolvedField {
-                        identity: field.identity,
+                    .enumerate()
+                    .map(|(index, field)| ResolvedField {
+                        identity: source.field_identity(index),
                         name: &field.name,
                         ty: field.ty,
                     })
                     .collect(),
-                base_class: source.base_class,
+                base_class: definition.base_class,
             },
+            (
+                export::ClassRepresentation::Intrinsic(declaration),
+                ConcreteApplicationRepresentation::Intrinsic(application),
+            ) => ResolvedClassRepresentation::Intrinsic {
+                declaration: *declaration,
+                application,
+            },
+            _ => unreachable!("declaration and application representations agree"),
         };
+        let span = declaration.origin.origin().span();
         Self {
             origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
             name: declaration.name().to_owned(),
             owner: None,
-            modifier,
+            modifier: definition.modifier,
             representation,
-            interfaces: &source.interfaces,
-            interface_implementations: &source.interface_implementations,
+            interfaces: &definition.interfaces,
+            interface_implementations: &definition.interface_implementations,
             methods: &[],
             virtual_methods: &source.virtual_methods,
             constructors: &[],
-            span: scoop_ast::Span::new(0, 0),
+            span: scoop_ast::Span::new(
+                u32::try_from(span.start_byte()).expect("decoded source spans fit HIR"),
+                u32::try_from(span.end_byte()).expect("decoded source spans fit HIR"),
+            ),
         }
     }
 }

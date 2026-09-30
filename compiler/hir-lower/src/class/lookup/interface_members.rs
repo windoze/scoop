@@ -10,7 +10,7 @@ impl Lowerer {
             Type::Class(application) => {
                 let application = &self.class_applications[application];
                 (
-                    self.classes[self.class_id(application.template)]
+                    self.class_definition(application.template)
                         .interface_implementations
                         .clone(),
                     application.arguments.clone(),

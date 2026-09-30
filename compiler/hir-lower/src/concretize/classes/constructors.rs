@@ -50,7 +50,10 @@ impl Concretizer<'_> {
                     );
                     let receiver =
                         self.constructor_receiver(receiver_ty, store.span, expression_origin);
-                    let value_ty = self.lower_type(field.ty, substitution);
+                    let value_ty = self.lower_type(
+                        self.source.class_field_definition(store.field).ty,
+                        substitution,
+                    );
                     let value = concrete::Expr {
                         kind: concrete::ExprKind::ConstructorParam(
                             concrete::ConstructorParamId::from_raw(store.parameter.into_raw()),

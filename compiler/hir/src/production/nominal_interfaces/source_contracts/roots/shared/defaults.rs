@@ -11,13 +11,13 @@ impl SourceRoots {
         roots: &mut Roots,
     ) -> Result<(), Error> {
         let source = &export.export_default_sources[source];
-        let Some((expression, type_arguments)) = source.declared() else {
+        for ty in source.type_arguments() {
+            roots.require_field_type(export, index, *ty)?;
+        }
+        let Some((expression, _)) = source.declared() else {
             // Dependency declarations remain owned by their actual provider.
             return Ok(());
         };
-        for ty in type_arguments {
-            roots.require_field_type(export, index, *ty)?;
-        }
         if !insert(&mut self.defaults, expression)? {
             return Ok(());
         }

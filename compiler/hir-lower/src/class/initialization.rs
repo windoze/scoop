@@ -410,13 +410,16 @@ impl Lowerer {
         let lowered = lowered?;
 
         let effective_ty = lowered.value.ty;
-        let field = self.class_fields.alloc(hir::ClassField {
+        let field = self.allocate_class_field(
             owner,
-            property: property_id,
-            ty: effective_ty,
-            source: hir::ClassFieldSource::Body,
-            span: property.span,
-        });
+            property_id,
+            hir::Field {
+                name: property.name.text.clone(),
+                ty: effective_ty,
+            },
+            hir::ClassFieldSource::Body,
+            property.span,
+        );
         self.classes[owner].fields.push(field);
         let storage = self.delegate_storages.alloc(hir::DelegateStorage {
             property: property_id,

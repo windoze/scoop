@@ -543,7 +543,7 @@ impl Lowerer {
         match self.types[receiver_ty].clone() {
             Type::Class(application) => {
                 let class_id = self.class_applications[application].template;
-                let class_name = self.classes[self.class_id(class_id)].name.clone();
+                let class_name = self.nominal_template_name(class_id).to_owned();
                 match selector {
                     ast::FieldSelector::Name(field) => {
                         self.error(

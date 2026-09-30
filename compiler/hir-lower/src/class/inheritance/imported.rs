@@ -32,23 +32,22 @@ impl Lowerer {
             if !seen.insert(ty) {
                 break;
             }
-            let class = match self.types[ty].clone() {
-                Type::Class(application) => {
-                    let application = self.class_applications[application].clone();
-                    current = self.classes[self.class_id(application.template)]
-                        .base_class
-                        .map(|base| self.instantiate_ty(base, &application.arguments));
-                    continue;
-                }
-                Type::ImportedClass(class) => class,
-                _ => unreachable!("class inheritance follows class types"),
+            let Type::Class(application) = self.types[ty] else {
+                unreachable!("class inheritance follows class types")
             };
-            current = class.base_class;
+            let application = self.class_applications[application].clone();
+            current = self
+                .class_definition(application.template)
+                .base_class
+                .map(|base| self.instantiate_ty(base, &application.arguments));
+            if self.source_class_id(application.template).is_some() {
+                continue;
+            }
             let candidates = self
                 .dependencies
                 .as_ref()
                 .expect("dependency class has a catalog")
-                .member_callable_candidates(class.declaration.owner(), lookup);
+                .member_callable_candidates(application.template, lookup);
             let candidates = match candidates {
                 Ok(candidates) => candidates,
                 Err(error) => {
@@ -67,7 +66,7 @@ impl Lowerer {
                     continue;
                 }
                 let signature =
-                    self.imported_inheritance_signature(name, callable, &class.arguments);
+                    self.imported_inheritance_signature(name, callable, &application.arguments);
                 let Some(signature) = signature else {
                     self.error(span, format!("invalid inherited signature for `{name}`"));
                     continue;
@@ -188,9 +187,10 @@ impl Lowerer {
             }
         }
         self.override_default_sources.entry(id).or_default().push(
-            crate::defaults::DefaultOverrideSource::Imported(
-                inherited.declaration.interface().declaration(),
-            ),
+            crate::defaults::DefaultOverrideSource::Imported {
+                declaration: inherited.declaration.interface().declaration(),
+                owner: inherited.owner,
+            },
         );
     }
 }

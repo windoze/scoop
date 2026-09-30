@@ -1,0 +1,47 @@
+package consumer.classDefinitions
+import upstream.classDefinitions.*
+
+private open class Local<A, B>(left: A, right: B): Base<B, A>(right, left) {
+    public val inherited: A = this.second
+    public open override fun select(other: A): A = other
+}
+
+private class Leaf<X, Y>(first: X, second: Y): Local<Y, X>(second, first) {
+    public override fun select(other: Y): Y = other
+}
+
+private class Nested<T>(public val wrapper: Wrapper<T>, public val parent: Nested<T>?)
+
+private class Counter(public var value: Int) {
+    public operator fun getValue(thisRef: Host): Int = this.value
+    public operator fun setValue(thisRef: Host, next: Int) { this.value = next }
+}
+private class Host { public var number: Int by Counter(40) }
+private object State { val zero: Int = 0 }
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val local = Local<T, Unit>(value, Unit)
+    val base: Base<Unit, T> = local
+    val view: Readable<T> = local
+    if (read(local.inherited) != 42) { return 1 }
+    if (read(base.select()) != 42) { return 2 }
+    if (view.apply(read) != 42) { return 3 }
+    if (read(local.select()) != 42) { return 7 }
+    val leaf = Leaf<Unit, T>(Unit, value)
+    if (read(leaf.select()) != 42) { return 8 }
+    val head = Nested(Wrapper(make(value)), None)
+    val tail = Nested(Wrapper(make(value)), Some(head))
+    if (read(tail.parent!!.wrapper.head.value) != 42) { return 4 }
+    val host = Host()
+    host.number += 2
+    if (host.number != 42) { return 5 }
+    val remote = Remote(value)
+    if (read(remote.echoed) != 42) { return 6 }
+    return read(readLink(value, tail.wrapper.head)) + State.zero
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

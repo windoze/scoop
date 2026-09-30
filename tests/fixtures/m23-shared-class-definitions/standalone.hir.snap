@@ -1,0 +1,289 @@
+Module
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedGenericCall make<T0> : Link<T0>
+        Local $dependency.parameter.value : T0
+    val local7
+      Local value : T0
+    val local5
+      Local leaf : Link<T0>
+    val local6
+      Local $dependency.argument.0 : Link<T0>
+    val local8
+      VariantConstruct Option.Some<Link<T0>> : Option<Link<T0>>
+        Local $dependency.parameter._1 : Link<T0>
+    val local9
+      Local $dependency.argument.0 : T0
+    val local10
+      Local $dependency.argument.1 : Option<Link<T0>>
+    val local11
+      ImportedConstructorInit Link : Link<T0>
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.next : Option<Link<T0>>
+    val local12
+      Local leaf : Link<T0>
+    val local13
+      Local head : Link<T0>
+    val local14
+      Local $dependency.argument.0 : Link<T0>
+    ImportedGenericCall next<T0> : Unit
+      Local $place.0 : Link<T0>
+      VariantConstruct Option.Some<Link<T0>> : Option<Link<T0>>
+        Local $dependency.parameter._1 : Link<T0>
+    val local15
+      Local head : Link<T0>
+    val local16
+      Local $dependency.argument.0 : Link<T0>
+    val local17
+      ImportedConstructorInit Wrapper : Wrapper<T0>
+        Local $dependency.parameter.head : Link<T0>
+    val local18
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall value<T0> : T0
+          Unwrap trap=true : Link<T0>
+            ImportedGenericCall next<T0> : Option<Link<T0>>
+              FieldAccess field 0 : Link<T0>
+                Local wrapped : Wrapper<T0>
+    val local19
+      IntegerLiteral 42 : Int
+    val local20
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local21
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall value<T0> : T0
+          Unwrap trap=true : Link<T0>
+            ImportedGenericCall next<T0> : Option<Link<T0>>
+              Local leaf : Link<T0>
+    val local22
+      IntegerLiteral 42 : Int
+    val local23
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local24
+      Local value : T0
+    val local25
+      Local $dependency.argument.0 : T0
+    val local26
+      ImportedConstructorInit Remote : Remote<T0>
+        Local $dependency.parameter.value : T0
+    val local27
+      ReferenceUpcast : Base<Unit, T0>
+        Local remote : Remote<T0>
+    val local28
+      ReferenceUpcast : Readable<T0>
+        Local remote : Remote<T0>
+    val local29
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall echoed<T0> : T0
+          Local remote : Remote<T0>
+    val local30
+      IntegerLiteral 42 : Int
+    val local31
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local32
+      Local base : Base<Unit, T0>
+    val local33
+      ImportedGenericCall second<Unit, T0> : T0
+        Local $dependency.receiver : Base<Unit, T0>
+    val local34
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall select<Unit, T0> : T0
+          Local $dependency.receiver : Base<Unit, T0>
+          Local $dependency.parameter.other : T0
+    val local35
+      IntegerLiteral 42 : Int
+    val local36
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local37
+      Local view : Readable<T0>
+    val local38
+      Local read : (T0) -> Int
+    val local39
+      Local $dependency.argument.0 : (T0) -> Int
+    val local40
+      ImportedGenericCall apply<T0> : Int
+        Local $dependency.receiver : Readable<T0>
+        Local $dependency.parameter.convert : (T0) -> Int
+    val local41
+      IntegerLiteral 42 : Int
+    val local42
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 5 : Int
+    val local43
+      ArrayLiteral : Array<Link<T0>>
+        Local leaf : Link<T0>
+        Local head : Link<T0>
+    val local44
+      Local source : Array<Link<T0>>
+    val local45
+      Local $argument.0 : Array<Link<T0>>
+    val local46
+      ArrayClone : MutableArray<Link<T0>>
+        Local $parameter.source : Array<Link<T0>>
+    val local47
+      Local links : MutableArray<Link<T0>>
+    val local48
+      IntegerLiteral 0 : Long
+    val local49
+      Local head : Link<T0>
+    val local50
+      Local $dependency.argument.0 : Long
+    val local51
+      Local $dependency.argument.1 : Link<T0>
+    ArraySet MutableSet : Unit
+      Local $dependency.receiver : MutableArray<Link<T0>>
+      Local $dependency.parameter.index : Long
+      Local $dependency.parameter.value : Link<T0>
+    val local52
+      Local links : MutableArray<Link<T0>>
+    val local53
+      IntegerLiteral 0 : Long
+    val local54
+      Local $dependency.argument.0 : Long
+    val local55
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall value<T0> : T0
+          Index MutableGet : Link<T0>
+            Local $dependency.receiver : MutableArray<Link<T0>>
+            Local $dependency.parameter.index : Long
+    val local56
+      IntegerLiteral 42 : Int
+    val local57
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 6 : Int
+    val local58
+      Local value : T0
+    val local59
+      Local $dependency.argument.0 : T0
+    val local60
+      Local $dependency.parameter.value : T0
+    val local61
+      Local $default.local.1 : T0
+    val local62
+      ImportedGenericCall make<T0> : Link<T0>
+        Local $default.local.2 : T0
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall readLink<T0> : T0
+          Local $dependency.parameter.value : T0
+          Local $dependency.parameter.link : Link<T0>
+  fun result(): Int
+    val local0
+      StringLiteral "value" : String
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (String) -> Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : (String) -> Int
+    val local4
+      Call exercise<String> : Int
+        Local $parameter.value : String
+        Local $parameter.read : (String) -> Int
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local7
+      UnitLiteral : Unit
+    val local8
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Unit) -> Int
+    val local9
+      Local $argument.0 : Unit
+    val local10
+      Local $argument.1 : (Unit) -> Int
+    val local11
+      Call exercise<Unit> : Int
+        Local $parameter.value : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Local $dependency.argument.0 : Int
+    val local16
+      ImportedGenericCall make<Int> : Link<Int>
+        Local $dependency.parameter.value : Int
+    val local17
+      ImportedGenericCall value<Int> : Int
+        Local alias : Link<Int>
+    val local18
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local19
+      Local $argument.0 : Int
+    val local20
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<String>
+  instance exercise<Unit>
+  instance exercise<Int>

@@ -8,9 +8,15 @@ impl Lowerer {
         name: &str,
     ) -> Option<(hir::InitializingClassFieldRef, TypeId, bool)> {
         let application_value = self.class_applications[application].clone();
-        let class = application_value.template;
         let receiver = self.initializing_receiver_type()?;
-        if let Some(&property_id) = self.classes[self.class_id(class)]
+        let Some(class) = self.source_class_id(application_value.template) else {
+            return self.find_imported_initializing_field(
+                application_value.canonical_type,
+                receiver,
+                name,
+            );
+        };
+        if let Some(&property_id) = self.classes[class]
             .properties
             .iter()
             .find(|property| self.properties[**property].name == name)
@@ -39,11 +45,10 @@ impl Lowerer {
                 mutable,
             ));
         }
-        let base = self.classes[self.class_id(class)].base_class?;
+        let base = self.classes[class].base_class?;
         let base = self.instantiate_ty(base, &application_value.arguments);
         match self.types[base] {
             Type::Class(application) => self.find_initializing_class_field(application, name),
-            Type::ImportedClass(_) => self.find_imported_initializing_field(base, receiver, name),
             _ => unreachable!("resolved class bases have class types"),
         }
     }
@@ -76,12 +81,10 @@ impl Lowerer {
         let PropertyOwner::Property(property_id) = property.declaration() else {
             unreachable!("nominal fields belong to ordinary properties")
         };
-        let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) =
-            property.owner()
-        else {
-            unreachable!("a dependency class field has a concrete owner")
+        let hir::PublicDeclarationOwnerV1::Nominal(owner) = property.owner() else {
+            unreachable!("a dependency class field has a nominal owner")
         };
-        let declaration = dependencies.nominal(owner)?;
+        let declaration = dependencies.nominal_declaration(owner)?;
         let field = declaration
             .field_sources
             .iter()
@@ -96,16 +99,15 @@ impl Lowerer {
             self.imported_callable_is_accessible(setter.interface(), Some(receiver))
         });
         let owner = self
-            .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(owner))
-            .expect("an initialized base retains its concrete declaring type");
-        let Type::ImportedClass(class) = &self.types[owner] else {
+            .imported_member_owner_type(base, owner)
+            .expect("an initialized base retains its complete declaring application");
+        let Type::Class(application) = self.types[owner] else {
             unreachable!("a dependency backing field belongs to a class")
         };
-        let ty = class
-            .fields
-            .iter()
-            .find(|source| source.identity == field)?
-            .ty;
+        let application = self.class_applications[application].clone();
+        let class = &self.loaded_class_definitions[&application.template];
+        let ty = class.definition.fields[class.field_index(field)?].ty;
+        let ty = self.instantiate_ty(ty, &application.arguments);
         Some((hir::InitializingClassFieldRef { owner, field }, ty, mutable))
     }
 

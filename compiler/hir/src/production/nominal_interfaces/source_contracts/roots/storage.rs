@@ -22,12 +22,12 @@ pub(super) fn visit_fields(
         }
         LocalNominalId::Class(id) => {
             for field in &export.classes[id].fields {
-                visit(export.class_fields[*field].ty)?;
+                visit(export.class_field_definition(*field).ty)?;
             }
         }
         LocalNominalId::Object(id) => {
             for field in &export.classes[export.objects[id].backing_class].fields {
-                visit(export.class_fields[*field].ty)?;
+                visit(export.class_field_definition(*field).ty)?;
             }
         }
         LocalNominalId::Interface(_) => return Ok(()),
@@ -61,18 +61,6 @@ impl Roots {
             None => return Err(invalid("storage type has no source nominal identity")),
         }
         let children = match &export.types[ty] {
-            Type::ImportedClass(class) => {
-                for ty in class
-                    .fields
-                    .iter()
-                    .map(|field| field.ty)
-                    .chain(class.base_class)
-                    .chain(class.interfaces.iter().copied())
-                {
-                    self.require_field_type(export, index, ty)?;
-                }
-                return Ok(());
-            }
             Type::ImportedInterface(interface) => {
                 for ty in
                     interface

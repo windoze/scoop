@@ -107,22 +107,25 @@ impl Lowerer {
             span: decl.span,
         })?;
         let id = self.classes.alloc(ClassDecl {
-            modifier,
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
-            self_application,
-            type_params: type_params.clone(),
+            definition: hir::ClassDefinition {
+                modifier,
+                self_application,
+                type_params: type_params.clone(),
+                representation,
+                fields: Vec::new(),
+                base_class: None,
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+            },
             gc_free_pointee_requirements: Vec::new(),
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
-            representation,
             fields: Vec::new(),
             properties: Vec::new(),
             constructors: Vec::new(),
-            base_class: None,
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: decl.span,
         });

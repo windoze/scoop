@@ -178,10 +178,9 @@ impl Lowerer {
             crate::properties::ExtensionPropertyResolution::NoCandidate => {
                 match self.types[receiver_ty] {
                     Type::Class(application) => {
-                        let class = self.classes
-                            [self.class_id(self.class_applications[application].template)]
-                        .name
-                        .clone();
+                        let class = self
+                            .nominal_template_name(self.class_applications[application].template)
+                            .to_owned();
                         self.error(
                             name.span,
                             format!("class `{class}` has no property `{}`", name.text),

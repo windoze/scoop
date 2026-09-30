@@ -75,12 +75,14 @@ impl Lowerer {
             }
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
-                self.collect_application_pointee_parameters(
-                    &self.classes[self.class_id(application.template)].type_params,
-                    &self.classes[self.class_id(application.template)].gc_free_pointee_requirements,
-                    &application.arguments,
-                    out,
-                );
+                if let Some(id) = self.source_class_id(application.template) {
+                    self.collect_application_pointee_parameters(
+                        &self.classes[id].type_params,
+                        &self.classes[id].gc_free_pointee_requirements,
+                        &application.arguments,
+                        out,
+                    );
+                }
                 for &argument in &application.arguments {
                     self.collect_pointee_parameters(argument, visiting, out);
                 }
@@ -124,7 +126,7 @@ impl Lowerer {
                 }
                 self.collect_pointee_parameters(function.return_type, visiting, out);
             }
-            hir::Type::ImportedClass(_) | hir::Type::ImportedInterface(_) => {
+            hir::Type::ImportedInterface(_) => {
                 let (_, arguments) = self
                     .dependency_nominal_application(ty)
                     .expect("matched imported nominal");

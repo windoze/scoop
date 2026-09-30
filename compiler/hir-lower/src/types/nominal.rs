@@ -21,6 +21,18 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn class_definition(&self, template: hir::SourceNominalId) -> &hir::ClassDefinition {
+        match self.source_class_id(template) {
+            Some(id) => &self.classes[id].definition,
+            None => &self.loaded_class_definitions[&template].definition,
+        }
+    }
+
+    pub(crate) fn class_field_definition(&self, field: hir::ClassFieldId) -> &hir::Field {
+        let source = &self.class_fields[field];
+        &self.classes[source.owner].definition.fields[source.definition_index]
+    }
+
     pub(crate) fn dependency_nominal_application(
         &self,
         ty: TypeId,
@@ -28,6 +40,11 @@ impl Lowerer {
         if let Type::Struct(application) = self.types[ty] {
             let application = &self.struct_applications[application];
             let definition = self.loaded_struct_definitions.get(&application.template)?;
+            return Some((&definition.declaration, &application.arguments));
+        }
+        if let Type::Class(application) = self.types[ty] {
+            let application = &self.class_applications[application];
+            let definition = self.loaded_class_definitions.get(&application.template)?;
             return Some((&definition.declaration, &application.arguments));
         }
         if let Type::Enum(application) = self.types[ty] {

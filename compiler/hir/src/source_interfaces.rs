@@ -189,16 +189,15 @@ impl Module {
 
     fn source_context_type_name(&self, ty: TypeId) -> String {
         match self.types[ty] {
-            Type::ImportedClass(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedInterface(ref structure) => structure.declaration.name().to_owned(),
             Type::Struct(application) => self
                 .struct_name(self.struct_applications[application].template)
                 .to_owned(),
             Type::Class(application) => {
-                let class = self
-                    .nominal_identities
-                    .class_id(self.class_applications[application].template)
-                    .expect("a class application retains its declaration");
+                let template = self.class_applications[application].template;
+                let Some(class) = self.nominal_identities.class_id(template) else {
+                    return self.class_name(template).to_owned();
+                };
                 self.objects
                     .iter()
                     .find_map(|(_, object)| {
@@ -507,10 +506,20 @@ pub enum ExportDefaultSource {
     },
     Imported {
         template: std::sync::Arc<ExportDefaultTemplateV1>,
+        /// Ordered provider arguments in the consuming declaration's type scope.
+        type_arguments: Vec<TypeId>,
     },
 }
 
 impl ExportDefaultSource {
+    pub fn type_arguments(&self) -> &[TypeId] {
+        match self {
+            Self::Declared { type_arguments, .. } | Self::Imported { type_arguments, .. } => {
+                type_arguments
+            }
+        }
+    }
+
     pub fn declared(&self) -> Option<(ExportDefaultExprId, &[TypeId])> {
         match self {
             Self::Declared {

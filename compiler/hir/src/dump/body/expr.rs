@@ -144,6 +144,7 @@ pub(super) fn dump_expr(
                     &module.types,
                     &module.enum_applications,
                     &module.struct_applications,
+                    &module.class_applications,
                 )
                 .iter()
                 .map(|ty| type_name(module, *ty))
@@ -680,6 +681,7 @@ pub(super) fn dump_expr(
                     &module.types,
                     &module.enum_applications,
                     &module.struct_applications,
+                    &module.class_applications,
                 )
                 .iter()
                 .map(|ty| type_name(module, *ty))

@@ -553,8 +553,7 @@ pub(crate) fn type_contains_session_parameter(
             children
         }
         Type::Ptr(pointee) => vec![*pointee],
-        Type::ImportedClass(_)
-        | Type::ImportedInterface(_)
+        Type::ImportedInterface(_)
         | Type::Unit
         | Type::Integer(_)
         | Type::Boolean

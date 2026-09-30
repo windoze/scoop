@@ -36,7 +36,7 @@ Module
     val local15
       Local $dependency.argument.0 : Remote<T0>
     val local16
-      ImportedMethodCall Callable(Application(Idx::<ImportedGenericCallableApplication>(33))) : T0
+      ImportedMethodCall Callable(Application(Idx::<ImportedGenericCallableApplication>(7))) : T0
         Local $dependency.parameter.box : Remote<T0>
     val local17
       ImportedGenericCall defaultRead<T0, Remote<T0>> : T0

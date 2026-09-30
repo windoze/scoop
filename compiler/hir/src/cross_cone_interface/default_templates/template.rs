@@ -94,9 +94,14 @@ impl ExportDefaultTemplateV1 {
         self.key
     }
 
-    /// Associates the unchanged definition with an overriding parameter.
-    pub fn inherited_at(mut self, key: ExportDefaultTemplateKeyV1) -> Self {
+    /// Associates the unchanged definition with an overriding parameter's scope.
+    pub fn inherited_at(
+        mut self,
+        key: ExportDefaultTemplateKeyV1,
+        type_parameters: CanonicalBinderUseListV1,
+    ) -> Self {
         self.key = key;
+        self.type_parameters = type_parameters;
         self
     }
 

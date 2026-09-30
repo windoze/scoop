@@ -366,7 +366,10 @@ impl Lowerer {
                     unreachable!("a class backing field accessor has a class receiver")
                 };
                 let application_value = self.class_applications[application].clone();
-                let ty = self.instantiate_ty(physical.ty, &application_value.arguments);
+                let ty = self.instantiate_ty(
+                    self.class_field_definition(field).ty,
+                    &application_value.arguments,
+                );
                 let field_ref = self.class_field_reference(application, field);
                 let read = hir::Expr {
                     kind: hir::ExprKind::FieldAccess {

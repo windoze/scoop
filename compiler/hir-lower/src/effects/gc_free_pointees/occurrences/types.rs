@@ -353,6 +353,7 @@ pub(in super::super) fn collect_expr_types(
                         &lowerer.types,
                         &lowerer.enum_applications,
                         &lowerer.struct_applications,
+                        &lowerer.class_applications,
                     ),
             );
             if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
@@ -423,6 +424,7 @@ pub(in super::super) fn collect_expr_types(
                         &lowerer.types,
                         &lowerer.enum_applications,
                         &lowerer.struct_applications,
+                        &lowerer.class_applications,
                     ),
             );
             for capture in &closure.captures {

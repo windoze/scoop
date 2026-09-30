@@ -38,11 +38,8 @@ impl Lowerer {
                 failure.error(name.span, format!("invalid imported member: {error}"));
                 Box::new(failure)
             })?;
-        let class_super = kind == MemberCallKind::DirectSuper
-            && matches!(
-                self.types[receiver],
-                Type::Class(_) | Type::ImportedClass(_)
-            );
+        let class_super =
+            kind == MemberCallKind::DirectSuper && matches!(self.types[receiver], Type::Class(_));
         Ok(candidates
             .into_iter()
             .filter(|candidate| {

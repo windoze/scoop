@@ -124,7 +124,7 @@ fn vararg_declarations_use_exact_array_runtime_types() {
         .find(|(_, declaration)| declaration.name == "BoxedNumbers")
         .expect("BoxedNumbers class");
     assert_eq!(
-        hir::type_name(&module, module.class_fields[class.fields[0]].ty),
+        hir::type_name(&module, module.class_field_definition(class.fields[0]).ty),
         "Array<Int>"
     );
 

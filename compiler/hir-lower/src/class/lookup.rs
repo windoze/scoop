@@ -201,7 +201,7 @@ impl Lowerer {
                         }
                         // The dependency catalog contributes the same declared
                         // member kinds from the remaining declaration storage.
-                        Type::ImportedClass(_) | Type::ImportedInterface(_) => continue,
+                        Type::ImportedInterface(_) => continue,
                         _ => unreachable!("nominal bounds retain a class or interface type"),
                     }
                 }
@@ -223,42 +223,38 @@ impl Lowerer {
         let mut depth = 0;
         loop {
             let application_value = self.class_applications[application].clone();
-            let class = application_value.template;
+            let Some(class) = self.source_class_id(application_value.template) else {
+                break;
+            };
             let owner_application = self
                 .object_by_backing_class
-                .get(&self.class_id(class))
+                .get(&class)
                 .map_or(hir::MethodOwnerApplication::Class(application), |object| {
                     hir::MethodOwnerApplication::Object(self.objects[*object].object_type)
                 });
-            out.extend(
-                self.classes[self.class_id(class)]
-                    .methods
-                    .iter()
-                    .copied()
-                    .map(|function| {
-                        let source = match bound {
-                            Some((receiver_parameter, bound)) => {
-                                crate::CallableCandidateSource::ClassBound {
-                                    receiver_parameter,
-                                    bound,
-                                    member: function,
-                                }
-                            }
-                            None => crate::CallableCandidateSource::Direct,
-                        };
-                        (
-                            crate::CallableCandidate {
-                                function,
-                                owner: crate::CallableCandidateOwner::Method(owner_application),
-                                source,
-                            },
-                            depth,
-                            root,
-                        )
-                    }),
-            );
+            out.extend(self.classes[class].methods.iter().copied().map(|function| {
+                let source = match bound {
+                    Some((receiver_parameter, bound)) => {
+                        crate::CallableCandidateSource::ClassBound {
+                            receiver_parameter,
+                            bound,
+                            member: function,
+                        }
+                    }
+                    None => crate::CallableCandidateSource::Direct,
+                };
+                (
+                    crate::CallableCandidate {
+                        function,
+                        owner: crate::CallableCandidateOwner::Method(owner_application),
+                        source,
+                    },
+                    depth,
+                    root,
+                )
+            }));
             if let Some((receiver_parameter, _)) = bound {
-                for interface in self.classes[self.class_id(class)].interfaces.clone() {
+                for interface in self.classes[class].interfaces.clone() {
                     let interface = self.instantiate_ty(interface, &application_value.arguments);
                     let Type::Interface(interface) = self.types[interface] else {
                         continue;
@@ -273,13 +269,12 @@ impl Lowerer {
                     );
                 }
             }
-            let Some(base) = self.classes[self.class_id(class)].base_class else {
+            let Some(base) = self.classes[class].base_class else {
                 break;
             };
             let base = self.instantiate_ty(base, &application_value.arguments);
             let base_application = match self.types[base] {
                 Type::Class(application) => application,
-                Type::ImportedClass(_) => break,
                 _ => unreachable!("resolved class bases have class types"),
             };
             application = base_application;

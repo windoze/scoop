@@ -95,7 +95,7 @@ impl Lowerer {
     pub(crate) fn receiver_class(&self, ty: hir::TypeId) -> Option<hir::ClassId> {
         match self.types[ty] {
             hir::Type::Class(application) => {
-                Some(self.class_id(self.class_applications[application].template))
+                self.source_class_id(self.class_applications[application].template)
             }
             _ => None,
         }
@@ -193,9 +193,6 @@ impl Lowerer {
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
-            hir::Type::ImportedClass(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
             hir::Type::ImportedInterface(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
@@ -212,13 +209,9 @@ impl Lowerer {
             hir::Type::Enum(application) => {
                 Some(self.enum_access_domain(self.enum_applications[application].template))
             }
-            hir::Type::Class(application) => Some(
-                self.classes[self.class_id(self.class_applications[application].template)]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
-            ),
+            hir::Type::Class(application) => {
+                Some(self.class_access_domain(self.class_applications[application].template))
+            }
             hir::Type::Interface(application) => Some(
                 self.interfaces
                     [self.interface_id(self.interface_applications[application].template)]

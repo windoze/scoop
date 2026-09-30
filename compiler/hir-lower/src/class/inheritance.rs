@@ -130,11 +130,13 @@ impl Lowerer {
         while let Some(base_ty) = self.classes[current].base_class {
             let base_application = match self.types[base_ty] {
                 Type::Class(application) => application,
-                Type::ImportedClass(_) => break,
                 _ => unreachable!("resolved class bases have class types"),
             };
             let base = self.class_applications[base_application].template;
-            if seen.contains(&self.class_id(base)) {
+            let Some(base) = self.source_class_id(base) else {
+                break;
+            };
+            if seen.contains(&base) {
                 let name = self.classes[id].name.clone();
                 self.error(
                     span,
@@ -142,8 +144,8 @@ impl Lowerer {
                 );
                 return;
             }
-            seen.push(self.class_id(base));
-            current = self.class_id(base);
+            seen.push(base);
+            current = base;
         }
     }
 }

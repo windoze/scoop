@@ -21,6 +21,15 @@ impl Lowerer {
         }
     }
 
+    pub(super) fn class_access_domain(&self, template: hir::SourceNominalId) -> hir::AccessDomain {
+        match self.source_class_id(template) {
+            Some(id) => self.classes[id].access.lookup.0.clone(),
+            None => self.imported_nominal_access_domain(
+                &self.loaded_class_definitions[&template].declaration,
+            ),
+        }
+    }
+
     pub(super) fn intrinsic_type_access_domain(
         &self,
         kind: hir::IntrinsicTypeKind,
@@ -38,9 +47,6 @@ impl Lowerer {
         dependencies: &mut Vec<(hir::TypeId, hir::AccessDomain)>,
     ) {
         let provided = match self.types[ty] {
-            hir::Type::ImportedClass(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
             hir::Type::ImportedInterface(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
@@ -57,13 +63,9 @@ impl Lowerer {
             hir::Type::Enum(application) => {
                 Some(self.enum_access_domain(self.enum_applications[application].template))
             }
-            hir::Type::Class(application) => Some(
-                self.classes[self.class_id(self.class_applications[application].template)]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
-            ),
+            hir::Type::Class(application) => {
+                Some(self.class_access_domain(self.class_applications[application].template))
+            }
             hir::Type::Interface(application) => Some(
                 self.interfaces
                     [self.interface_id(self.interface_applications[application].template)]
@@ -124,8 +126,7 @@ impl Lowerer {
                 self.collect_type_dependencies(function.return_type, dependencies);
             }
             hir::Type::Ptr(pointee) => self.collect_type_dependencies(pointee, dependencies),
-            hir::Type::ImportedClass(_)
-            | hir::Type::ImportedInterface(_)
+            hir::Type::ImportedInterface(_)
             | hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
@@ -198,7 +199,13 @@ impl Lowerer {
     pub(crate) fn field_access_domain(&self, target: hir::FieldRef) -> hir::AccessDomain {
         match target {
             hir::FieldRef::ClassField { owner, field } => match self.types[owner] {
-                hir::Type::Class(_) => {
+                hir::Type::Class(application) => {
+                    if self
+                        .source_class_id(self.class_applications[application].template)
+                        .is_none()
+                    {
+                        return hir::AccessDomain::universal();
+                    }
                     let field = self
                         .field_identity_builder
                         .class_declaration(field)
@@ -209,7 +216,6 @@ impl Lowerer {
                         .0
                         .clone()
                 }
-                hir::Type::ImportedClass(_) => hir::AccessDomain::universal(),
                 _ => unreachable!("a class field retains its declaring class"),
             },
             hir::FieldRef::StructField { owner, .. } => match self.types[owner] {

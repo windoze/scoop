@@ -10,6 +10,11 @@ impl Module {
             let definition = self.loaded_struct_definitions.get(&application.template)?;
             return Some((&definition.declaration, &application.arguments));
         }
+        if let Type::Class(application) = self.types[ty] {
+            let application = &self.class_applications[application];
+            let definition = self.loaded_class_definitions.get(&application.template)?;
+            return Some((&definition.declaration, &application.arguments));
+        }
         if let Type::Enum(application) = self.types[ty] {
             let application = &self.enum_applications[application];
             let definition = self.loaded_enum_definitions.get(&application.template)?;

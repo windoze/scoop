@@ -421,10 +421,18 @@ impl Lowerer {
                     break;
                 }
             }
+            let hir::PublicDeclarationOwnerV1::Nominal(nominal) = declaration.interface().owner()
+            else {
+                unreachable!("an inherited interface method has a nominal owner")
+            };
+            let owner = self
+                .imported_member_owner_type(owner, nominal)
+                .expect("the inherited method retains its declaring application");
             self.override_default_sources.entry(id).or_default().push(
-                crate::defaults::DefaultOverrideSource::Imported(
-                    declaration.interface().declaration(),
-                ),
+                crate::defaults::DefaultOverrideSource::Imported {
+                    declaration: declaration.interface().declaration(),
+                    owner,
+                },
             );
         }
     }

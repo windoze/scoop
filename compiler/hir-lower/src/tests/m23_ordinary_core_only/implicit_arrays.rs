@@ -13,10 +13,9 @@ fn assert_lowers(name: &str) {
         let export = output.output().export.module();
         assert!(
             export.types.iter().any(|(_, ty)| {
-                matches!(ty, scoop_hir::Type::ImportedClass(class)
-                if matches!(class.declaration.interface.source_shape(),
-                    scoop_hir::NominalSourceShapeV1::Intrinsic(representation)
-                        if representation.family() == scoop_hir::IntrinsicTypeKind::Array))
+                matches!(ty, scoop_hir::Type::Class(application)
+                if matches!(export.class_definition(export.class_applications[*application].template).representation,
+                    scoop_hir::ClassRepresentation::Intrinsic(scoop_hir::IntrinsicTypeKind::Array)))
             }),
             "{name} must retain the actual imported array declaration"
         );

@@ -15,15 +15,16 @@ impl Lowerer {
         selected: &mut SelectedInterfaceSources,
     ) {
         let (declaration, mut pending) = match &self.types[ty] {
-            hir::Type::ImportedClass(value) => (
-                Arc::clone(&value.declaration),
-                value
-                    .interfaces
-                    .iter()
-                    .copied()
-                    .chain(value.base_class)
-                    .collect(),
-            ),
+            hir::Type::Class(application) => {
+                let Some(definition) = self
+                    .loaded_class_definitions
+                    .get(&self.class_applications[*application].template)
+                else {
+                    return;
+                };
+                let declaration = Arc::clone(&definition.declaration);
+                (declaration, self.direct_nominal_supertypes(ty))
+            }
             hir::Type::Struct(application) => {
                 let Some(definition) = self
                     .loaded_struct_definitions
@@ -68,9 +69,8 @@ impl Lowerer {
                 continue;
             }
             let interface = match &self.types[owner] {
-                hir::Type::ImportedClass(base) => {
-                    pending.extend(base.interfaces.iter().copied());
-                    pending.extend(base.base_class);
+                hir::Type::Class(_) => {
+                    pending.extend(self.direct_nominal_supertypes(owner));
                     continue;
                 }
                 hir::Type::ImportedInterface(interface) => interface,

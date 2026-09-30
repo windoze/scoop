@@ -1,0 +1,22 @@
+package upstream.classDefinitions
+
+public interface Readable<T> {
+    public fun read(): T
+    public fun apply(convert: (T) -> Int): Int = convert(this.read())
+}
+
+public open class Base<A, B> public constructor(public val first: A, public val second: B): Readable<B> {
+    public override fun read(): B = this.second
+    public open fun select(other: B = this.second): B = other
+}
+
+public class Remote<T> public constructor(value: T): Base<Unit, T>(Unit, value) {
+    public val echoed: T = this.second
+}
+
+public class Link<T> public constructor(public val value: T, public var next: Link<T>? = None)
+public typealias IntChain = Link<Int>
+public struct Wrapper<T>(val head: Link<T>)
+
+public fun <T> make(value: T): Link<T> = Link(value)
+public fun <T> readLink(value: T, link: Link<T> = make(value)): T = link.value

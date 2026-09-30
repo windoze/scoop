@@ -10,9 +10,11 @@ impl Projection<'_> {
             let class = match entry {
                 ClassChainEntry::Local(class) => class,
                 ClassChainEntry::Imported(ty) => {
-                    let Type::ImportedClass(class) = &self.export.types[ty] else {
+                    let Type::Class(application) = self.export.types[ty] else {
                         return Err(self.invalid("class base does not resolve to a class type"));
                     };
+                    let class = &self.export.loaded_class_definitions
+                        [&self.export.class_applications[application].template];
                     for method in &class.virtual_methods {
                         if seen.insert(method.slot) {
                             self.push(&mut slots, method.slot)?;

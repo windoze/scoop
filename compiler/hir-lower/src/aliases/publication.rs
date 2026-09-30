@@ -145,7 +145,8 @@ impl Lowerer {
             }
             Type::Class(application) => {
                 let application = self.class_applications[application].clone();
-                let parameters = self.classes[self.class_id(application.template)]
+                let parameters = self
+                    .class_definition(application.template)
                     .type_params
                     .clone();
                 self.check_type_argument_kinds(
@@ -200,8 +201,7 @@ impl Lowerer {
             Type::Ptr(pointee) => {
                 self.validate_type_alias_target_tree(pointee, span, description, visited);
             }
-            Type::ImportedClass(_)
-            | Type::ImportedInterface(_)
+            Type::ImportedInterface(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean

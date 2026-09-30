@@ -99,7 +99,7 @@ impl Lowerer {
                     let mut types = declaration
                         .fields
                         .iter()
-                        .map(|field| self.class_fields[*field].ty)
+                        .map(|field| self.class_field_definition(*field).ty)
                         .collect::<Vec<_>>();
                     types.extend(declaration.base_class);
                     types.extend(declaration.interfaces.iter().copied());

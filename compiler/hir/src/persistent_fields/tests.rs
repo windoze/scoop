@@ -60,20 +60,29 @@ fn structure(name: &str, fields: &[&str]) -> StructDecl {
 
 fn class(name: &str, fields: Vec<ClassFieldId>, properties: Vec<PropertyId>) -> ClassDecl {
     ClassDecl {
-        modifier: ClassModifier::Final,
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),
-        self_application: ClassApplicationId::from_raw(0_u32.into()),
-        type_params: Vec::new(),
+        definition: crate::ClassDefinition {
+            modifier: ClassModifier::Final,
+            self_application: ClassApplicationId::from_raw(0_u32.into()),
+            type_params: Vec::new(),
+            representation: ClassRepresentation::Declared,
+            fields: fields
+                .iter()
+                .map(|_| crate::Field {
+                    name: "value".to_owned(),
+                    ty: TypeId::from_raw(0_u32.into()),
+                })
+                .collect(),
+            base_class: None,
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+        },
         gc_free_pointee_requirements: Vec::new(),
-        representation: ClassRepresentation::Declared,
         fields,
         properties,
         constructors: Vec::new(),
-        base_class: None,
-        interfaces: Vec::new(),
-        interface_implementations: Vec::new(),
         methods: Vec::new(),
         span: Span::new(0, 0),
     }
@@ -163,7 +172,7 @@ fn relation_is_total_for_struct_and_source_class_fields() {
     class_fields.alloc(ClassField {
         owner: class_id,
         property: property_id,
-        ty: TypeId::from_raw(0_u32.into()),
+        definition_index: 0,
         source: crate::ClassFieldSource::Body,
         span: Span::new(0, 0),
     });
@@ -245,7 +254,7 @@ fn relation_rejects_a_class_field_without_physical_property_storage() {
     class_fields.alloc(ClassField {
         owner: class_id,
         property: property_id,
-        ty: TypeId::from_raw(0_u32.into()),
+        definition_index: 0,
         source: crate::ClassFieldSource::Body,
         span: Span::new(0, 0),
     });

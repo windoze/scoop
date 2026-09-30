@@ -149,11 +149,13 @@ impl Lowerer {
             }
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
-                self.application_pointee_is_valid(
-                    &self.classes[self.class_id(application.template)].type_params,
-                    &self.classes[self.class_id(application.template)].gc_free_pointee_requirements,
-                    &application.arguments,
-                ) && application
+                self.source_class_id(application.template).is_none_or(|id| {
+                    self.application_pointee_is_valid(
+                        &self.classes[id].type_params,
+                        &self.classes[id].gc_free_pointee_requirements,
+                        &application.arguments,
+                    )
+                }) && application
                     .arguments
                     .iter()
                     .all(|argument| self.pointee_type_is_valid(*argument, visiting))
@@ -476,7 +478,7 @@ impl Lowerer {
                     .fields
                     .iter()
                     .map(|field| PointeeApplicationOccurrence {
-                        ty: self.class_fields[*field].ty,
+                        ty: self.class_field_definition(*field).ty,
                         file,
                         span: declaration.span,
                         context,

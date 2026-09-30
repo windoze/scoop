@@ -25,10 +25,7 @@ impl Lowerer {
         }
         if !matches!(
             self.types[b],
-            Type::Class(_)
-                | Type::Interface(_)
-                | Type::ImportedClass(_)
-                | Type::ImportedInterface(_)
+            Type::Class(_) | Type::Interface(_) | Type::ImportedInterface(_)
         ) {
             return false;
         }
@@ -160,17 +157,9 @@ impl Lowerer {
         }
         match &self.types[a] {
             Type::Any | Type::Interface(..) | Type::ImportedInterface(_) => true,
-            Type::ImportedClass(class) => {
-                class.declaration.interface.declaration_details().modality()
-                    != hir::NominalInheritanceModalityV1::Final
-                    && matches!(
-                        self.types[b],
-                        Type::Interface(_) | Type::ImportedInterface(_)
-                    )
-            }
             &Type::Class(application) => {
                 let template = self.class_applications[application].template;
-                self.classes[self.class_id(template)].modifier != hir::ClassModifier::Final
+                self.class_definition(template).modifier != hir::ClassModifier::Final
                     && matches!(
                         self.types[b],
                         Type::Interface(..) | Type::ImportedInterface(_)

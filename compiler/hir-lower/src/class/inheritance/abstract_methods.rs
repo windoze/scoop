@@ -24,41 +24,14 @@ impl Lowerer {
                 break;
             }
             match class_type {
-                Type::Class(application) => {
-                    let application = self.class_applications[application].clone();
-                    let inherited = application.template
-                        != self
-                            .nominal_identity(crate::Owner::Class(class))
-                            .declaration_id();
-                    let class = self.classes[self.class_id(application.template)].clone();
-                    current = class.base_class.map(|base| {
-                        let base = self.instantiate_ty(base, &application.arguments);
-                        (base, self.types[base].clone())
-                    });
-                    for function in class.methods {
-                        let method = self.functions[function]
-                            .method
-                            .expect("class member has method metadata");
-                        let family = match method.dispatch {
-                            hir::MethodDispatch::Virtual(family)
-                            | hir::MethodDispatch::FinalOverride(family) => family,
-                            _ => continue,
-                        };
-                        if seen_families.insert(family)
-                            && inherited
-                            && method.modifier == hir::MethodModifier::Abstract
-                        {
-                            self.error(
-                                span,
-                                format!(
-                                    "{host} does not implement abstract method `{}`",
-                                    self.functions[function].name
-                                ),
-                            );
-                        }
-                    }
-                }
-                Type::ImportedClass(class) => {
+                Type::Class(application)
+                    if self
+                        .source_class_id(self.class_applications[application].template)
+                        .is_none() =>
+                {
+                    let class = self.loaded_class_definitions
+                        [&self.class_applications[application].template]
+                        .clone();
                     for method in &class.virtual_methods {
                         if !seen_families.insert(method.family) {
                             continue;
@@ -98,6 +71,40 @@ impl Lowerer {
                         }
                     }
                     break;
+                }
+                Type::Class(application) => {
+                    let application = self.class_applications[application].clone();
+                    let inherited = application.template
+                        != self
+                            .nominal_identity(crate::Owner::Class(class))
+                            .declaration_id();
+                    let class = self.classes[self.class_id(application.template)].clone();
+                    current = class.base_class.map(|base| {
+                        let base = self.instantiate_ty(base, &application.arguments);
+                        (base, self.types[base].clone())
+                    });
+                    for function in class.methods {
+                        let method = self.functions[function]
+                            .method
+                            .expect("class member has method metadata");
+                        let family = match method.dispatch {
+                            hir::MethodDispatch::Virtual(family)
+                            | hir::MethodDispatch::FinalOverride(family) => family,
+                            _ => continue,
+                        };
+                        if seen_families.insert(family)
+                            && inherited
+                            && method.modifier == hir::MethodModifier::Abstract
+                        {
+                            self.error(
+                                span,
+                                format!(
+                                    "{host} does not implement abstract method `{}`",
+                                    self.functions[function].name
+                                ),
+                            );
+                        }
+                    }
                 }
                 _ => unreachable!("class inheritance follows class types"),
             }

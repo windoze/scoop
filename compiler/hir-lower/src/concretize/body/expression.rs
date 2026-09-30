@@ -82,7 +82,7 @@ impl Concretizer<'_> {
                         ),
                         args,
                     },
-                    export::Type::ImportedClass(_) => concrete::ExprKind::ClassNew {
+                    export::Type::Class(_) => concrete::ExprKind::ClassNew {
                         constructor: self.lower_imported_class_constructor_application(
                             *application,
                             substitution,

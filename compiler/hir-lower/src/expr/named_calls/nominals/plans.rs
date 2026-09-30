@@ -296,11 +296,6 @@ impl Lowerer {
             {
                 Some(self.enum_applications[*b].arguments.clone())
             }
-            (Type::ImportedClass(a), Type::ImportedClass(b))
-                if a.declaration.owner() == b.declaration.owner() =>
-            {
-                Some(b.arguments.clone())
-            }
             _ => None,
         }
     }

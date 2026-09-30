@@ -56,10 +56,9 @@ impl Lowerer {
         let base = self.classes[class].base_class.as_ref()?;
         let application = match self.types[*base] {
             Type::Class(application) => application,
-            Type::ImportedClass(_) => return None,
             _ => unreachable!("resolved class bases have class types"),
         };
-        Some(self.class_id(self.class_applications[application].template))
+        self.source_class_id(self.class_applications[application].template)
     }
 
     /// Every interface implemented by class `c` or its base classes,
@@ -82,7 +81,6 @@ impl Lowerer {
             let base = self.instantiate_ty(base, &application.arguments);
             let base_application = match self.types[base] {
                 Type::Class(application) => application,
-                Type::ImportedClass(_) => break,
                 _ => unreachable!("resolved class bases have class types"),
             };
             if seen.contains(&base_application) {
@@ -90,18 +88,15 @@ impl Lowerer {
             }
             seen.push(base_application);
             let base = self.class_applications[base_application].clone();
-            result.extend(
-                self.classes[self.class_id(base.template)]
-                    .methods
-                    .iter()
-                    .copied()
-                    .map(|function| {
-                        crate::CallableCandidate::method(
-                            function,
-                            hir::MethodOwnerApplication::Class(base_application),
-                        )
-                    }),
-            );
+            let Some(class) = self.source_class_id(base.template) else {
+                break;
+            };
+            result.extend(self.classes[class].methods.iter().copied().map(|function| {
+                crate::CallableCandidate::method(
+                    function,
+                    hir::MethodOwnerApplication::Class(base_application),
+                )
+            }));
             current = base_application;
         }
         result
@@ -120,8 +115,8 @@ impl Lowerer {
             }
             seen.push(application);
             let application_value = self.class_applications[application].clone();
-            let class = application_value.template;
-            if let Some(&property) = self.classes[self.class_id(class)]
+            let class = self.source_class_id(application_value.template)?;
+            if let Some(&property) = self.classes[class]
                 .properties
                 .iter()
                 .find(|property| self.properties[**property].name == name)
@@ -131,11 +126,10 @@ impl Lowerer {
                     self.instantiate_ty(self.properties[property].ty, &application_value.arguments);
                 return Some((application, property, ty));
             }
-            let base = self.classes[self.class_id(class)].base_class?;
+            let base = self.classes[class].base_class?;
             let base = self.instantiate_ty(base, &application_value.arguments);
             let base_application = match self.types[base] {
                 Type::Class(application) => application,
-                Type::ImportedClass(_) => return None,
                 _ => unreachable!("resolved class bases have class types"),
             };
             application = base_application;

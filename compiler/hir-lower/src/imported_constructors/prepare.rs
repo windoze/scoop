@@ -105,7 +105,7 @@ impl Lowerer {
         }
         let (no_gc_type_params, gc_free_pointee_requirements) =
             self.imported_template_predicates(executable.predicates(), &bindings)?;
-        let evaluation_context = if matches!(self.types[owner], hir::Type::ImportedClass(_)) {
+        let evaluation_context = if matches!(self.types[owner], hir::Type::Class(_)) {
             let key = scoop_identity::SourceContextKey::Callable {
                 source: executable.definition_origin().origin().source().clone(),
                 owner: scoop_identity::CallableOwner::Constructor(declaration),

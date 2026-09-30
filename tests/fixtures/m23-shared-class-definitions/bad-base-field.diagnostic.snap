@@ -1,0 +1,3 @@
+span=151..162
+expression=this.second
+initializer of property `inherited` must be of type Int, found T

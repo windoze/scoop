@@ -11,7 +11,7 @@ impl Lowerer {
         match ty {
             Type::Class(application) => {
                 let application = self.class_applications[application].clone();
-                let declaration = self.classes[self.class_id(application.template)].clone();
+                let declaration = self.class_definition(application.template).clone();
                 let mut result = declaration
                     .base_class
                     .map(|base| self.instantiate_ty(base, &application.arguments))
@@ -72,11 +72,6 @@ impl Lowerer {
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
             Type::ImportedInterface(value) => value.parents.clone(),
-            Type::ImportedClass(value) => value
-                .base_class
-                .into_iter()
-                .chain(value.interfaces.iter().copied())
-                .collect(),
             Type::Unit
             | Type::Any
             | Type::Tuple(_)

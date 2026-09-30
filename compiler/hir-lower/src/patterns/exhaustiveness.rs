@@ -63,11 +63,9 @@ impl Lowerer {
         }
         match self.types[subject_ty] {
             Type::Enum(_) => Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty }),
-            Type::ImportedClass(_)
-            | Type::ImportedInterface(_)
-            | Type::Tuple(_)
-            | Type::Struct(_)
-            | Type::Integer(_) => Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty }),
+            Type::ImportedInterface(_) | Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
+                Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty })
+            }
             _ => {
                 unreachable!("a source pattern when has an enum, tuple, struct, or integer subject")
             }
@@ -244,7 +242,6 @@ impl Lowerer {
                 unreachable!("integer columns use symbolic singleton/other partitioning")
             }
             Type::Class(_)
-            | Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Interface(_)
             | Type::Any

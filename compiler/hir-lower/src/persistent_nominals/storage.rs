@@ -36,6 +36,17 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn source_class_id(
+        &self,
+        declaration: hir::SourceNominalId,
+    ) -> Option<hir::ClassId> {
+        match self.nominal_owners.get(&declaration) {
+            Some(Owner::Class(id)) => Some(*id),
+            Some(_) => unreachable!("a class application identifies a class declaration"),
+            None => None,
+        }
+    }
+
     pub(crate) fn class_id(&self, declaration: hir::SourceNominalId) -> hir::ClassId {
         match self.nominal_owners[&declaration] {
             Owner::Class(id) => id,

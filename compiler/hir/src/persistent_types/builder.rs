@@ -137,17 +137,6 @@ impl<'a> TypeIdentityBuilder<'a> {
                     .id(),
             )?,
             Type::Struct(application) => self.struct_application(ty, application)?,
-            Type::ImportedClass(structure) => self.nominal_application(
-                ty,
-                HirNominalIdentity::Source(structure.declaration.identity.clone()),
-                structure
-                    .declaration
-                    .interface
-                    .type_parameters()
-                    .binders()
-                    .len(),
-                &structure.arguments,
-            )?,
             Type::ImportedInterface(structure) => self.nominal_application(
                 ty,
                 HirNominalIdentity::Source(structure.declaration.identity.clone()),
@@ -266,15 +255,19 @@ impl<'a> TypeIdentityBuilder<'a> {
             return self.unknown(ty, HirTypeRelation::ClassApplication, id);
         }
         let application = self.inputs.class_applications[id].clone();
-        let template = self
+        let (identity, parameter_count) = self
             .inputs
-            .nominal_identities
-            .class_id(application.template)
+            .class_declaration(application.template)
             .ok_or(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) })?;
         if application.canonical_type != ty {
             return Err(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) });
         }
-        if let Some(&object) = self.object_by_backing_class.get(&template) {
+        if let Some(template) = self
+            .inputs
+            .nominal_identities
+            .class_id(application.template)
+            && let Some(&object) = self.object_by_backing_class.get(&template)
+        {
             return self.nominal_application(
                 ty,
                 self.inputs.nominal_identities[object].clone(),
@@ -282,12 +275,7 @@ impl<'a> TypeIdentityBuilder<'a> {
                 &application.arguments,
             );
         }
-        self.nominal_application(
-            ty,
-            self.inputs.nominal_identities[template].clone(),
-            self.inputs.classes[template].type_params.len(),
-            &application.arguments,
-        )
+        self.nominal_application(ty, identity, parameter_count, &application.arguments)
     }
 
     fn interface_application(

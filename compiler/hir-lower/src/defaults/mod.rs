@@ -42,7 +42,10 @@ enum InheritedDefaultSource {
         expression: hir::ExportDefaultExprId,
         type_arguments: Vec<hir::TypeId>,
     },
-    Imported(std::sync::Arc<hir::ExportDefaultTemplateV1>),
+    Imported {
+        template: std::sync::Arc<hir::ExportDefaultTemplateV1>,
+        type_arguments: Vec<hir::TypeId>,
+    },
 }
 
 #[derive(Clone)]
@@ -51,7 +54,10 @@ pub(crate) enum DefaultOverrideSource {
         function: hir::FunctionId,
         type_arguments: Vec<hir::TypeId>,
     },
-    Imported(scoop_identity::CallableTemplateOrigin),
+    Imported {
+        declaration: scoop_identity::CallableTemplateOrigin,
+        owner: hir::TypeId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -82,7 +82,7 @@ impl Lowerer {
             {
                 match source {
                     DefaultOverrideSource::Local { function, .. } => pending.push(*function),
-                    DefaultOverrideSource::Imported(declaration) => {
+                    DefaultOverrideSource::Imported { declaration, .. } => {
                         if self
                             .dependencies
                             .as_ref()

@@ -48,6 +48,7 @@ pub(in crate::effects::gc_free_pointees) fn collect_callable_target_types(
                     &lowerer.types,
                     &lowerer.enum_applications,
                     &lowerer.struct_applications,
+                    &lowerer.class_applications,
                 ),
         ),
         hir::CallableTarget::Dependency(_) => {}

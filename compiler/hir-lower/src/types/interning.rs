@@ -194,18 +194,22 @@ impl Lowerer {
         template: hir::ClassId,
         arguments: Vec<TypeId>,
     ) -> hir::ClassApplicationId {
-        let key = (
-            self.nominal_identity(crate::Owner::Class(template))
-                .declaration_id(),
-            arguments.clone(),
-        );
+        let template = self
+            .nominal_identity(crate::Owner::Class(template))
+            .declaration_id();
+        self.intern_class_application(template, arguments)
+    }
+
+    pub(crate) fn intern_class_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::ClassApplicationId {
+        let key = (template, arguments.clone());
         if let Some(&application) = self.class_application_by_key.get(&key) {
             return application;
         }
-        let intrinsic = match self.classes[template].representation {
-            hir::ClassRepresentation::Declared => None,
-            hir::ClassRepresentation::Intrinsic(intrinsic) => Some(intrinsic),
-        };
+        let intrinsic = self.nominal_intrinsic_kind(template);
         let representation =
             intrinsic.map_or(hir::ClassApplicationRepresentation::Declared, |intrinsic| {
                 hir::ClassApplicationRepresentation::Intrinsic(intrinsic.application(&arguments))

@@ -54,12 +54,7 @@ impl Lowerer {
             return self.classes[class]
                 .base_class
                 .map(|ty| match &self.types[ty] {
-                    hir::Type::Class(application) => self
-                        .nominal_identity(Owner::Class(
-                            self.class_id(self.class_applications[*application].template),
-                        ))
-                        .declaration_id(),
-                    hir::Type::ImportedClass(class) => class.declaration.owner(),
+                    hir::Type::Class(application) => self.class_applications[*application].template,
                     _ => unreachable!("resolved class bases are class applications"),
                 });
         }

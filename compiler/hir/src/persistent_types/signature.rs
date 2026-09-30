@@ -48,18 +48,6 @@ impl<'a> HirSignatureTypeMapper<'a> {
             return Err(HirSignatureTypeMappingError::RecursiveType(raw_index(ty)));
         }
         let key = match &self.inputs.types[ty] {
-            Type::ImportedClass(structure) => self.map_nominal(
-                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
-                structure
-                    .declaration
-                    .interface
-                    .type_parameters()
-                    .binders()
-                    .len(),
-                &structure.arguments,
-                binders,
-                visiting,
-            )?,
             Type::ImportedInterface(structure) => self.map_nominal(
                 &HirNominalIdentity::Source(structure.declaration.identity.clone()),
                 structure
@@ -135,19 +123,27 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.class_applications[*application];
-                let template = self
-                    .inputs
-                    .nominal_identities
-                    .class_id(application.template)
-                    .ok_or_else(|| {
-                        HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
-                    })?;
+
                 if application.canonical_type != ty {
                     return Err(HirSignatureTypeMappingError::InvalidApplication(raw_index(
                         ty,
                     )));
                 }
-                self.map_class(template, &application.arguments, binders, visiting)?
+                if let Some(template) = self
+                    .inputs
+                    .nominal_identities
+                    .class_id(application.template)
+                {
+                    self.map_class(template, &application.arguments, binders, visiting)?
+                } else {
+                    let (identity, arity) = self
+                        .inputs
+                        .class_declaration(application.template)
+                        .ok_or_else(|| {
+                            HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
+                        })?;
+                    self.map_nominal(&identity, arity, &application.arguments, binders, visiting)?
+                }
             }
             Type::Interface(application) => {
                 if local_index(*application) >= self.inputs.interface_applications.len() {

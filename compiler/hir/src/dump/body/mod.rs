@@ -34,17 +34,16 @@ fn class_field_name(
     field: scoop_identity::PersistentFieldId,
 ) -> &str {
     if let Some(declaration) = module.field_identities.class_declaration(field) {
-        return &module.properties[module.class_fields[declaration].property].name;
+        return &module.class_field_definition(declaration).name;
     }
-    let Type::ImportedClass(class) = &module.types[owner] else {
+    let Type::Class(application) = module.types[owner] else {
         unreachable!("a class field retains its declaring class")
     };
-    &class
-        .fields
-        .iter()
-        .find(|candidate| candidate.identity == field)
-        .expect("a resolved field belongs to its declaring class")
-        .name
+    let class = &module.loaded_class_definitions[&module.class_applications[application].template];
+    let index = class
+        .field_index(field)
+        .expect("a resolved field belongs to its declaring class");
+    &class.definition.fields[index].name
 }
 
 fn struct_field_index(

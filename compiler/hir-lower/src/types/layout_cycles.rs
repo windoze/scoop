@@ -172,8 +172,7 @@ impl Lowerer {
                     }
                 }
             }
-            Type::ImportedClass(_)
-            | Type::ImportedInterface(_)
+            Type::ImportedInterface(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean

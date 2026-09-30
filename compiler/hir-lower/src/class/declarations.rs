@@ -243,34 +243,12 @@ impl Lowerer {
                         continue;
                     }
                     let base_id = self.class_applications[application].template;
-                    if self.classes[self.class_id(base_id)].modifier == hir::ClassModifier::Final {
+                    if self.class_definition(base_id).modifier == hir::ClassModifier::Final {
                         self.error(
                             spec.ty.span,
                             format!(
                                 "class `{}` is final and cannot be inherited",
-                                self.classes[self.class_id(base_id)].name
-                            ),
-                        );
-                        continue;
-                    }
-                    base = Some(ty);
-                }
-                Type::ImportedClass(ref class) => {
-                    if base.is_some() {
-                        self.error(
-                            spec.span,
-                            format!("{host} may have only one direct base class"),
-                        );
-                        continue;
-                    }
-                    if class.declaration.interface.declaration_details().modality()
-                        == hir::NominalInheritanceModalityV1::Final
-                    {
-                        self.error(
-                            spec.ty.span,
-                            format!(
-                                "class `{}` is final and cannot be inherited",
-                                class.declaration.name()
+                                self.nominal_template_name(base_id)
                             ),
                         );
                         continue;

@@ -81,9 +81,11 @@ impl Projection<'_> {
             let class = match entry {
                 ClassChainEntry::Local(class) => class,
                 ClassChainEntry::Imported(ty) => {
-                    let Type::ImportedClass(class) = &self.export.types[ty] else {
+                    let Type::Class(application) = self.export.types[ty] else {
                         return Err(invalid("class base does not resolve to a class type"));
                     };
+                    let class = &self.export.loaded_class_definitions
+                        [&self.export.class_applications[application].template];
                     for selection in class
                         .declaration
                         .interface
