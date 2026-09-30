@@ -467,3 +467,9 @@
 - 新增 `m23-shared-declaration-views` 两组正例、六个反例、六份阶段快照与六份诊断快照，覆盖 generic／closed 重载、默认值与 vararg 的完整函数引用签名、泛型扩展、绑定／非绑定引用、宿主与方法参数、命名／spread／空 vararg，以及引用创建不执行默认表达式。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过；反例分别锁定默认参数 arity、vararg 数组签名和缺少泛型引用期望类型，均只有对应的一条诊断。
 - 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；88 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。最后精简反例后再次严格复验新增组通过，既有 HIR／MIR／LIR／诊断快照均未变化。初轮访问器迁移失败已修复，相关单元、扩展属性与委托产物回归均通过；证据前缀 `/tmp/scoop-m23-6a-declaration-views-`，最终结果见 `unit.log`、`all-verified-results.json` 和 `fixture-verified-results.json`，初轮证据为 `unit-before-accessors.log`。
 - 完整参数视图为 42 行，依赖存储适配约 160 行，函数引用共同检查约 200 行；普通重载主模块降至 414 行，引用依赖适配降至 378 行。确认所有验证完成且无文件占用后清理约 1676.5 MiB 闲置 `target/debug`，继续复用 `target/m23-6a`。wire payload 与 runtime ABI 不变；最终内存／wire 消费等价性、声明位置变化审计及 workspace／runtime 完成门继续执行，6a 尚未完成。
+
+## 同一导出图的内存／wire 消费等价
+
+- 新增正式消费对照测试，复用已有 core、provider 投影、身份注册、wire 编解码、HIR 与 MIR lowering；同一 provider 导出图在内存中直接导入，或经正式 foundation／interface 编解码恢复后导入。两次消费使用同一原 Cone 与实体身份、相同的 consumer 源码和依赖，不归一化身份，也不比较未导出的 provider 私有实现。
+- 四组真实 fixture 覆盖泛型正文与重载、两个构造器的公共初始化及捕获、Option 和指针默认值。逐项精确比较原导出 foundation、声明／正文接口、消费方 HIR dump、具体 MIR dump、重新发布的 foundation／interface 字节及 MIR foundation 字节，确认 wire 往返不改变选择、词法捕获或具体化身份。测试没有新增生产工厂、平行管线或重复语义验证。
+- 全仓 fmt／clippy 无警告，对照测试四组全部通过；证据为 `/tmp/scoop-m23-6a-wire-equivalence-verified.log`。本批只增加验证，生产行为与旧快照保持。声明位置审计及启用配套编译器的完整 workspace／runtime 验收继续执行。

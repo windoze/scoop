@@ -43,6 +43,7 @@ mod shared_singletons;
 mod source_calls;
 mod structs;
 mod value_layouts;
+mod wire_equivalence;
 
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
