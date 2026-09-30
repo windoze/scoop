@@ -5,41 +5,28 @@ use super::*;
 
 mod diagnostics;
 mod signature;
-use crate::call_resolution::applicability::{
-    DeclarationApplicabilityInput, DeclarationTypeArguments,
-};
-use crate::call_resolution::contextual::{
-    ArgumentExpression, ArgumentInferenceFailureKind, ArgumentPattern,
-};
+use crate::call_resolution::applicability::DeclarationTypeArguments;
+use crate::call_resolution::contextual::{ArgumentExpression, ArgumentInferenceFailureKind};
 use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
-pub(in crate::expr) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
+pub(in crate::expr) use signature::{ImportedGenericTarget, LoadedCallableSignature};
 
 impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn probe_imported_generic(
         mut self: Box<Self>,
         candidate: ImportedCallableCandidate,
+        declaration: super::signature::GenericCallDeclaration,
         name: &ast::Ident,
         call: ImportedProbeCall<'_>,
         expected: Option<hir::TypeId>,
         receiver: ImportedCallReceiver,
         argument_map: ImportedArgumentMap,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
-        let declaration = self
-            .dependencies
-            .as_ref()
-            .expect("ordinary calls have a dependency catalog")
-            .callable_declaration(candidate.interface().declaration())
-            .expect("candidate came from its declaration catalog");
-        let template = match ImportedGenericTarget::request(&mut self, declaration) {
-            Ok(template) => template,
-            Err(error) => {
-                self.error(call.span, error);
-                return Err(self);
-            }
-        };
-        let (signature, template_bindings) = template.signature(&self);
-        let signature = &signature;
+        let super::signature::GenericCallDeclaration {
+            template,
+            signature,
+            bindings: template_bindings,
+        } = declaration;
         let explicit = match self.resolve_call_type_args(call.type_args) {
             Some(arguments) => arguments,
             None => return Err(self),
@@ -48,7 +35,7 @@ impl Lowerer {
             template,
             ImportedGenericTarget::Constructor(_) | ImportedGenericTarget::Variant(_)
         );
-        let owner_arguments = if nominal || signature.owner_parameters.is_empty() {
+        let owner_arguments = if nominal || signature.signature.owner_parameters.is_empty() {
             Vec::new()
         } else {
             let ImportedCallReceiver::Member { value, .. } = &receiver else {
@@ -72,7 +59,7 @@ impl Lowerer {
         let expected_application = expected.and_then(|ty| self.nominal_application(ty));
         let type_arguments = if nominal {
             let result = self
-                .nominal_application(signature.return_type)
+                .nominal_application(signature.signature.return_type)
                 .expect("a nominal candidate retains its full result application");
             DeclarationTypeArguments::Nominal {
                 template: result.template,
@@ -86,22 +73,6 @@ impl Lowerer {
                 owner_arguments: &owner_arguments,
             }
         };
-        let mut source_patterns = Vec::new();
-        for (index, pattern) in argument_map.source_parameters().iter().enumerate() {
-            match self.imported_signature_type_with_bindings(pattern, &template_bindings) {
-                Ok(ty) => source_patterns.push(ArgumentPattern {
-                    ty,
-                    exact: argument_map.is_array_input(index),
-                }),
-                Err(error) => {
-                    self.error(
-                        call.span,
-                        format!("cannot resolve dependency parameter type: {error:?}"),
-                    );
-                    return Err(self);
-                }
-            }
-        }
         let address_place =
             if candidate.pointer_intrinsic() == Some(hir::PointerIntrinsic::AddressOf) {
                 let Some(source) = call.arguments.source(0) else {
@@ -128,12 +99,6 @@ impl Lowerer {
         } else {
             expressions
         };
-        let declared_parameters = signature
-            .parameters
-            .iter()
-            .skip(usize::from(signature.receiver.is_some()))
-            .map(|parameter| parameter.1)
-            .collect::<Vec<_>>();
         let InferredCall {
             types: solution,
             bindings,
@@ -143,24 +108,19 @@ impl Lowerer {
             return_type: result_type,
             integer_arguments,
         } = match self.infer_call_arguments(CallInferenceInput {
-            declaration: DeclarationApplicabilityInput {
-                owner_parameters: &signature.owner_parameters,
-                callable_parameters: &signature.type_parameters,
-                type_arguments,
-                explicit_arguments: &explicit,
-                bound_receiver,
-            },
-            parameter_types: &declared_parameters,
-            return_type: signature.return_type,
+            signature: &signature.signature,
+            argument_map: argument_map.mapping(),
+            type_arguments,
+            explicit_arguments: &explicit,
+            bound_receiver,
             expressions: &expressions,
-            patterns: &source_patterns,
             expected_result: if nominal { None } else { expected },
             forced_hint: None,
         }) {
             Ok(arguments) => arguments,
             Err(failure) => {
                 if let ArgumentInferenceFailureKind::Constraint(failure) = failure.kind {
-                    self.imported_generic_inference_error(name, call, signature, &failure);
+                    self.imported_generic_inference_error(name, call, &signature, &failure);
                 }
                 return Err(self);
             }
@@ -280,6 +240,8 @@ impl Lowerer {
             declaration_span: signature.span,
             state: self,
             candidate,
+            declared_receiver: signature.receiver,
+            signature: signature.signature,
             receiver,
             source_args,
             argument_sinks,

@@ -30,14 +30,15 @@ impl Lowerer {
                 }
             };
         let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
-        if !explicit_type_args.is_empty() && explicit_type_args.len() != view.owner_parameters.len()
+        if !explicit_type_args.is_empty()
+            && explicit_type_args.len() != view.signature.owner_parameters.len()
         {
             self.diagnose_nominal_shape_failure(
                 &view,
                 call.span,
                 format!(
                     "expects {} explicit type argument(s), but {} were supplied",
-                    view.owner_parameters.len(),
+                    view.signature.owner_parameters.len(),
                     explicit_type_args.len()
                 ),
             );

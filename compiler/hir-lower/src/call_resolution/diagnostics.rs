@@ -40,10 +40,13 @@ pub(crate) fn callable_source_signature(
     name: &str,
     view: &CallableView,
 ) -> String {
-    let mut all_parameters = view.owner_parameters.clone();
-    all_parameters.extend(view.callable_parameters.iter().cloned());
-    let callable_parameters =
-        render_type_parameters(lowerer, &view.callable_parameters, &all_parameters);
+    let mut all_parameters = view.signature.owner_parameters.clone();
+    all_parameters.extend(view.signature.callable_parameters.iter().cloned());
+    let callable_parameters = render_type_parameters(
+        lowerer,
+        &view.signature.callable_parameters,
+        &all_parameters,
+    );
     let declared_name = match view.target {
         CallableSource::Method(_) => {
             let function_name = &lowerer.functions[view.function()].name;
@@ -51,7 +54,7 @@ pub(crate) fn callable_source_signature(
                 .rsplit_once('.')
                 .unwrap_or((function_name.as_str(), name));
             let owner_parameters =
-                render_type_parameters(lowerer, &view.owner_parameters, &all_parameters);
+                render_type_parameters(lowerer, &view.signature.owner_parameters, &all_parameters);
             format!("{owner}{owner_parameters}.{name}{callable_parameters}")
         }
         CallableSource::Free(_) if let ReceiverShape::Extension(receiver) = view.receiver => {
@@ -65,6 +68,7 @@ pub(crate) fn callable_source_signature(
         }
     };
     let parameters = view
+        .signature
         .value_parameters
         .iter()
         .map(|parameter| {
@@ -76,7 +80,7 @@ pub(crate) fn callable_source_signature(
         })
         .collect::<Vec<_>>()
         .join(", ");
-    let return_type = lowerer.type_name_with_params(view.return_type, &all_parameters);
+    let return_type = lowerer.type_name_with_params(view.signature.return_type, &all_parameters);
     let suspend = if view.effects.is_suspend {
         "suspend "
     } else {
@@ -177,7 +181,7 @@ pub(crate) fn render_callable_constraint_failure(
                 .unwrap_or_else(|| render_type_term(lowerer, view, *left));
             format!(
                 "argument for `{}` has type {found}, which {} {}",
-                view.value_parameters[parameter_index].name,
+                view.signature.value_parameters[parameter_index].name,
                 relation_failure_phrase(*relation),
                 render_type_term(lowerer, view, *right),
             )
@@ -229,8 +233,8 @@ fn relation_failure_phrase(relation: super::constraints::RelationKind) -> &'stat
 fn render_type_term(lowerer: &Lowerer, view: &CallableView, term: TypeTerm) -> String {
     match term {
         TypeTerm::Type(ty) | TypeTerm::Rigid(ty) => {
-            let mut parameters = view.owner_parameters.clone();
-            parameters.extend(view.callable_parameters.iter().cloned());
+            let mut parameters = view.signature.owner_parameters.clone();
+            parameters.extend(view.signature.callable_parameters.iter().cloned());
             lowerer.type_name_with_params(ty, &parameters)
         }
         TypeTerm::Variable(variable) => inference_parameter(view, variable).name.clone(),
@@ -273,7 +277,9 @@ pub(crate) fn render_type_parameters(
 
 fn inference_parameter(view: &CallableView, variable: InferenceVariableId) -> &hir::TypeParamDecl {
     match variable {
-        InferenceVariableId::Owner(_) => &view.owner_parameters[variable.group_index()],
-        InferenceVariableId::Callable(_) => &view.callable_parameters[variable.group_index()],
+        InferenceVariableId::Owner(_) => &view.signature.owner_parameters[variable.group_index()],
+        InferenceVariableId::Callable(_) => {
+            &view.signature.callable_parameters[variable.group_index()]
+        }
     }
 }

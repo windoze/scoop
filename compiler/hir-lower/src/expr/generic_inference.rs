@@ -4,9 +4,7 @@ use super::*;
 
 mod context;
 
-use crate::call_resolution::applicability::{
-    DeclarationApplicabilityInput, DeclarationTypeArguments,
-};
+use crate::call_resolution::applicability::DeclarationTypeArguments;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::constraints::{ConstraintFailure, ConstraintOrigin};
 use crate::call_resolution::contextual::{ArgumentExpression, ArgumentInferenceFailureKind};
@@ -33,35 +31,24 @@ impl Lowerer {
             .iter()
             .map(|argument| ArgumentExpression::Source(&argument.expression))
             .collect::<Vec<_>>();
-        let patterns = argument_map.inference_patterns(&view.value_parameters);
-        let parameter_types = view
-            .value_parameters
-            .iter()
-            .map(|parameter| parameter.ty)
-            .collect::<Vec<_>>();
         let InferredCall {
             types,
             values,
             sinks,
             ..
         } = match self.infer_call_arguments(CallInferenceInput {
-            declaration: DeclarationApplicabilityInput {
-                owner_parameters: &view.owner_parameters,
-                callable_parameters: &[],
-                type_arguments: DeclarationTypeArguments::Nominal {
-                    template: self
-                        .nominal_application(view.result_type)
-                        .expect("a nominal candidate retains its full result application")
-                        .template,
-                    expected_arguments,
-                },
-                explicit_arguments,
-                bound_receiver: None,
+            signature: &view.signature,
+            argument_map,
+            type_arguments: DeclarationTypeArguments::Nominal {
+                template: self
+                    .nominal_application(view.signature.return_type)
+                    .expect("a nominal candidate retains its full result application")
+                    .template,
+                expected_arguments,
             },
-            parameter_types: &parameter_types,
-            return_type: view.result_type,
+            explicit_arguments,
+            bound_receiver: None,
             expressions: &expressions,
-            patterns: &patterns,
             expected_result: None,
             forced_hint: None,
         }) {
@@ -128,7 +115,7 @@ impl Lowerer {
             ) {
                 let fixed = explicit_arguments
                     .iter()
-                    .zip(&view.owner_parameters)
+                    .zip(&view.signature.owner_parameters)
                     .filter_map(|(argument, parameter)| {
                         let ResolvedCallTypeArgument::Explicit { ty, .. } = argument else {
                             return None;

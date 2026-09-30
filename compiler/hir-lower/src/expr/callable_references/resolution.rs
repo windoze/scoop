@@ -1,7 +1,7 @@
 //! Candidate layering and expected-type-driven callable-reference resolution.
 
 use super::*;
-use crate::call_resolution::specificity::OwnedDeclarationForwarding;
+use crate::call_resolution::specificity::{ApplicableDeclaration, OwnedDeclarationForwarding};
 use crate::imports::lookup::calls::{
     ExtensionCallTarget, NamedCallBinding, NamedCallOrigin, NamedCallTarget,
 };
@@ -184,32 +184,17 @@ impl Lowerer {
                     .iter()
                     .map(|candidate| candidate.declaration.forwarding(&mut comparison))
                     .collect::<Vec<_>>();
-                let forwards = declarations
+                let declarations = declarations
                     .iter()
-                    .map(|source| {
-                        declarations
-                            .iter()
-                            .map(|target| {
-                                comparison.declaration_forwards(source.as_view(), target.as_view())
-                            })
-                            .collect::<Vec<_>>()
+                    .zip(&applicable)
+                    .map(|(declaration, candidate)| ApplicableDeclaration {
+                        declaration: declaration.as_view(),
+                        parameterized: candidate.own_type_param_count != 0,
+                        defaults: 0,
+                        vararg: false,
                     })
                     .collect::<Vec<_>>();
-                let mut pool = (0..applicable.len())
-                    .filter(|&candidate| {
-                        !(0..applicable.len()).any(|other| {
-                            other != candidate
-                                && forwards[other][candidate]
-                                && !forwards[candidate][other]
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                if pool
-                    .iter()
-                    .any(|&index| applicable[index].own_type_param_count == 0)
-                {
-                    pool.retain(|&index| applicable[index].own_type_param_count == 0);
-                }
+                let pool = comparison.most_specific_declarations(&declarations);
                 if let [winner] = pool.as_slice() {
                     *winner
                 } else {

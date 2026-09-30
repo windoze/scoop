@@ -23,6 +23,7 @@ impl Lowerer {
                         .explicit_default_count(),
                     vararg: candidate
                         .view
+                        .signature
                         .value_parameters
                         .iter()
                         .any(|parameter| parameter.is_vararg()),

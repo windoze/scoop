@@ -9,7 +9,7 @@ impl Lowerer {
         index: usize,
         value_type: hir::TypeId,
         calling: &FnParamCalling,
-    ) -> SourceParameterCalling {
+    ) -> ValueParameterCalling {
         let key = SourceDefaultKey::new(owner, index);
         let inherited = matches!(owner, SourceParameterOwner::Function(function) if self.function_parameter_has_default(function, index));
         let existing = self.default_templates.get(&key.tuple()).copied();
@@ -19,22 +19,22 @@ impl Lowerer {
         );
         match calling {
             FnParamCalling::Required if existing.is_some() || inherited => {
-                SourceParameterCalling::Default(source)
+                ValueParameterCalling::Default(source)
             }
-            FnParamCalling::Required => SourceParameterCalling::Required,
-            FnParamCalling::Default { .. } => SourceParameterCalling::Default(source),
+            FnParamCalling::Required => ValueParameterCalling::Required,
+            FnParamCalling::Default { .. } => ValueParameterCalling::Default(source),
             FnParamCalling::Vararg {
                 element_ty,
                 omission,
-            } => SourceParameterCalling::Vararg {
+            } => ValueParameterCalling::Vararg {
                 element_type: *element_ty,
                 array_type: value_type,
                 omission: match omission {
-                    FnVarargOmission::Default { .. } => SourceVarargOmission::Default(source),
+                    FnVarargOmission::Default { .. } => VarargOmission::Default(source),
                     FnVarargOmission::EmptyArray if existing.is_some() || inherited => {
-                        SourceVarargOmission::Default(source)
+                        VarargOmission::Default(source)
                     }
-                    FnVarargOmission::EmptyArray => SourceVarargOmission::EmptyArray,
+                    FnVarargOmission::EmptyArray => VarargOmission::EmptyArray,
                 },
             },
         }

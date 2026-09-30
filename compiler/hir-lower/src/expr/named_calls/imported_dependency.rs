@@ -17,6 +17,9 @@ mod inputs;
 mod pattern;
 mod probe;
 mod properties;
+mod signature;
+
+pub(in crate::expr) use signature::DependencySignature;
 
 pub(in crate::expr) use arguments::ImportedArgumentMap;
 pub(in crate::expr) use candidate::ImportedCallableCandidate;
@@ -50,6 +53,8 @@ pub(crate) struct ImportedDependencyCallProbe {
     implementation: ImportedCallImplementation,
     state: Box<Lowerer>,
     candidate: ImportedCallableCandidate,
+    signature: DependencySignature,
+    declared_receiver: Option<hir::TypeId>,
     receiver: ImportedCallReceiver,
     source_args: Vec<hir::Expr>,
     argument_sinks: Vec<Vec<hir::Statement>>,
@@ -69,36 +74,38 @@ impl ImportedDependencyCallProbe {
     }
 
     pub(crate) fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
-        let (owner_parameters, callable_parameters, bindings) = match &self.implementation {
-            ImportedCallImplementation::Native => (Vec::new(), Vec::new(), Default::default()),
+        let (signature, receiver) = match &self.implementation {
+            ImportedCallImplementation::Native => {
+                let signature = state
+                    .imported_native_signature(&self.candidate)
+                    .expect("an applicable imported candidate has a resolved signature");
+                let receiver = self.candidate.interface().receiver().map(|ty| {
+                    state
+                        .imported_signature_type(ty)
+                        .expect("an applicable extension has a resolved receiver")
+                });
+                (signature, receiver)
+            }
             ImportedCallImplementation::Generic { template, .. }
             | ImportedCallImplementation::Intrinsic { template, .. } => {
                 let declaration = template.declaration(&self.state);
                 let template = generic::ImportedGenericTarget::request(state, declaration)
                     .expect("an applicable imported candidate has a resolved declaration");
-                let (signature, bindings) = template.signature(state);
-                (
-                    signature.owner_parameters,
-                    signature.type_parameters,
-                    bindings,
-                )
+                let (loaded, _) = template.signature(state);
+                let receiver = self.candidate.interface().receiver().and(loaded.receiver);
+                (loaded.signature, receiver)
             }
         };
-        let parameter_types = self
-            .candidate
-            .interface()
-            .receiver()
-            .into_iter()
-            .chain(self.argument_map.source_parameters())
-            .map(|signature| {
-                state
-                    .imported_signature_type_with_bindings(signature, &bindings)
-                    .expect("an applicable imported candidate has resolved input types")
-            })
-            .collect::<Vec<_>>();
+        let mut parameter_types = self
+            .argument_map
+            .mapping()
+            .forwarding_parameter_types(&signature.value_parameters);
+        if let Some(receiver) = receiver {
+            parameter_types.insert(0, receiver);
+        }
         DeclarationForwardingView::parameter_groups(
-            &owner_parameters,
-            &callable_parameters,
+            &signature.owner_parameters,
+            &signature.callable_parameters,
             &parameter_types,
         )
         .to_owned()
@@ -132,11 +139,11 @@ impl ImportedDependencyCallProbe {
         if let ImportedCallImplementation::Generic { template, .. }
         | ImportedCallImplementation::Intrinsic { template, .. } = &self.implementation
         {
-            let (signature, _) = template.signature(state);
+            let signature = &self.signature;
             let all_parameters = signature
                 .owner_parameters
                 .iter()
-                .chain(&signature.type_parameters)
+                .chain(&signature.callable_parameters)
                 .cloned()
                 .collect::<Vec<_>>();
             let binders = all_parameters.as_slice();
@@ -147,26 +154,25 @@ impl ImportedDependencyCallProbe {
             ) {
                 &signature.owner_parameters
             } else {
-                &signature.type_parameters
+                &signature.callable_parameters
             };
             let type_parameters = crate::call_resolution::diagnostics::render_type_parameters(
                 state,
                 explicit_parameters,
                 binders,
             );
-            let receiver = signature
-                .receiver
+            let receiver = self
+                .declared_receiver
                 .map(|ty| format!("{}.", state.type_name_with_params(ty, binders)))
                 .unwrap_or_default();
             let parameters = signature
-                .parameters
+                .value_parameters
                 .iter()
-                .skip(usize::from(signature.receiver.is_some()))
                 .map(|parameter| {
                     format!(
                         "{}: {}",
-                        parameter.0,
-                        state.type_name_with_params(parameter.1, binders)
+                        parameter.name,
+                        state.type_name_with_params(parameter.ty, binders)
                     )
                 })
                 .collect::<Vec<_>>()
@@ -177,16 +183,10 @@ impl ImportedDependencyCallProbe {
             );
         }
         let parameters = self
-            .candidate
-            .source_interface()
-            .expect("callable candidates retain their validated source interface")
-            .parameters()
-            .parameters()
+            .signature
+            .value_parameters
             .iter()
-            .zip(&self.parameter_types)
-            .map(|(parameter, ty)| {
-                format!("{}: {}", parameter.name().as_str(), state.type_name(*ty))
-            })
+            .map(|parameter| format!("{}: {}", parameter.name, state.type_name(parameter.ty)))
             .collect::<Vec<_>>()
             .join(", ");
         format!(

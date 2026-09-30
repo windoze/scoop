@@ -6,7 +6,7 @@ use scoop_identity::SignatureTypeKey;
 
 pub(in crate::expr) struct ImportedVariantSignature {
     pub(super) declaration: hir::ImportedCallableDeclaration,
-    pub(super) signature: ImportedInferenceSignature,
+    pub(super) signature: LoadedCallableSignature,
     pub(super) bindings: ImportedTypeBindings,
 }
 
@@ -58,14 +58,18 @@ impl ImportedVariantSignature {
             })
             .collect::<Result<Vec<_>, String>>()?;
         let return_type = state.imported_generic_type(interface.result(), &bindings)?;
+        let value_parameters =
+            state.imported_parameter_views(&declaration, parameters.iter().map(|(_, ty)| *ty));
         Ok(Self {
             declaration,
-            signature: ImportedInferenceSignature {
-                owner_parameters: type_parameters,
-                type_parameters: Vec::new(),
-                parameters,
+            signature: LoadedCallableSignature {
+                signature: crate::call_resolution::candidates::DeclarationSignature {
+                    owner_parameters: type_parameters,
+                    callable_parameters: Vec::new(),
+                    value_parameters,
+                    return_type,
+                },
                 receiver: None,
-                return_type,
                 origin,
                 span: origin.span,
             },

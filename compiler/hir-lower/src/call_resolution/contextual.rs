@@ -40,8 +40,11 @@ impl ArgumentPattern {
     }
 }
 
-impl CandidateArgumentMap {
-    pub(crate) fn inference_patterns(&self, parameters: &[ValueParameter]) -> Vec<ArgumentPattern> {
+impl<D> CandidateArgumentMap<D> {
+    pub(crate) fn inference_patterns(
+        &self,
+        parameters: &[ValueParameter<D>],
+    ) -> Vec<ArgumentPattern> {
         self.forwarding_parameter_types(parameters)
             .into_iter()
             .zip(&self.source_order)

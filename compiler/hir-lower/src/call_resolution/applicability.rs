@@ -11,6 +11,7 @@ use crate::Lowerer;
 use crate::expr::ResolvedCallTypeArgument;
 
 mod references;
+pub(crate) use references::CallableReferenceApplicabilityInput;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DeclarationApplicabilityInput<'a> {
@@ -39,18 +40,6 @@ pub(crate) struct NominalApplicabilityInput<'a> {
     pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
     pub(crate) expected_arguments: Option<&'a [hir::TypeId]>,
     pub(crate) argument_types: &'a [Option<hir::TypeId>],
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct CallableReferenceApplicabilityInput<'a> {
-    pub(crate) owner_parameters: &'a [hir::TypeParamDecl],
-    pub(crate) callable_parameters: &'a [hir::TypeParamDecl],
-    pub(crate) owner_arguments: &'a [hir::TypeId],
-    pub(crate) bound_receiver: Option<(hir::TypeId, hir::TypeId)>,
-    pub(crate) parameter_types: &'a [hir::TypeId],
-    pub(crate) return_type: hir::TypeId,
-    pub(crate) is_suspend: bool,
-    pub(crate) expected_type: hir::TypeId,
 }
 
 impl Lowerer {
@@ -167,11 +156,11 @@ impl Lowerer {
         debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
         let (mut session, environment) =
             self.declaration_applicability_session(DeclarationApplicabilityInput {
-                owner_parameters: &view.owner_parameters,
+                owner_parameters: &view.signature.owner_parameters,
                 callable_parameters: &[],
                 type_arguments: DeclarationTypeArguments::Nominal {
                     template: self
-                        .nominal_application(view.result_type)
+                        .nominal_application(view.signature.return_type)
                         .expect("a nominal candidate retains its full result application")
                         .template,
                     expected_arguments,
@@ -180,7 +169,7 @@ impl Lowerer {
                 bound_receiver: None,
             });
         for (index, (pattern, actual)) in argument_map
-            .inference_patterns(&view.value_parameters)
+            .inference_patterns(&view.signature.value_parameters)
             .into_iter()
             .zip(argument_types)
             .enumerate()

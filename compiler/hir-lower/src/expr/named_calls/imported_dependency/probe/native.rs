@@ -1,85 +1,26 @@
 //! Checked external signatures use the ordinary candidate argument engine.
 
-use hir::ImportedCallableSource;
 use scoop_ast as ast;
-use scoop_hir as hir;
 
 use super::super::{
     ImportedArgumentMap, ImportedCallImplementation, ImportedCallReceiver,
     ImportedCallableCandidate, ImportedDependencyCallProbe, ImportedProbeCall,
 };
 use crate::Lowerer;
-use crate::call_resolution::applicability::{
-    DeclarationApplicabilityInput, DeclarationTypeArguments,
-};
+use crate::call_resolution::applicability::DeclarationTypeArguments;
 use crate::call_resolution::constraints::ConstraintOrigin;
-use crate::call_resolution::contextual::{ArgumentInferenceFailureKind, ArgumentPattern};
+use crate::call_resolution::contextual::ArgumentInferenceFailureKind;
 use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
-use crate::imported_core::{ImportedSignatureTypeError, ImportedTypeBindings};
-
-struct ResolvedNativeSignature {
-    parameters: Vec<hir::TypeId>,
-    result: hir::TypeId,
-    patterns: Vec<ArgumentPattern>,
-}
-
-impl ResolvedNativeSignature {
-    fn resolve(
-        state: &mut Lowerer,
-        candidate: &ImportedCallableCandidate,
-        arguments: &ImportedArgumentMap,
-    ) -> Result<Self, ImportedSignatureTypeError> {
-        let interface = candidate.interface();
-        let parameters = interface.parameters().parameters();
-        let mut types = ImportedTypeBindings::new();
-        for signature in parameters
-            .iter()
-            .map(|parameter| parameter.value_type())
-            .chain(std::iter::once(interface.result()))
-            .chain(arguments.source_parameters())
-        {
-            if let std::collections::btree_map::Entry::Vacant(entry) =
-                types.entry(signature.clone())
-            {
-                entry.insert(state.imported_signature_type(signature)?);
-            }
-        }
-        Ok(Self {
-            parameters: parameters
-                .iter()
-                .map(|parameter| types[parameter.value_type()])
-                .collect(),
-            result: types[interface.result()],
-            patterns: arguments
-                .source_parameters()
-                .iter()
-                .enumerate()
-                .map(|(index, signature)| ArgumentPattern {
-                    ty: types[signature],
-                    exact: arguments.is_array_input(index),
-                })
-                .collect(),
-        })
-    }
-}
-
 impl Lowerer {
     pub(super) fn probe_imported_native(
         mut self: Box<Self>,
         candidate: ImportedCallableCandidate,
+        signature: super::super::signature::DependencySignature,
         name: &ast::Ident,
         call: ImportedProbeCall<'_>,
         receiver: ImportedCallReceiver,
         argument_map: ImportedArgumentMap,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
-        let signature = match ResolvedNativeSignature::resolve(&mut self, &candidate, &argument_map)
-        {
-            Ok(signature) => signature,
-            Err(error) => {
-                self.error(call.span, error.diagnostic("dependency callable signature"));
-                return Err(self);
-            }
-        };
         let InferredCall {
             values: source_args,
             sinks: argument_sinks,
@@ -88,19 +29,14 @@ impl Lowerer {
             integer_arguments,
             ..
         } = match self.infer_call_arguments(CallInferenceInput {
-            declaration: DeclarationApplicabilityInput {
-                owner_parameters: &[],
-                callable_parameters: &[],
-                type_arguments: DeclarationTypeArguments::Callable {
-                    owner_arguments: &[],
-                },
-                explicit_arguments: &[],
-                bound_receiver: None,
+            signature: &signature,
+            argument_map: argument_map.mapping(),
+            type_arguments: DeclarationTypeArguments::Callable {
+                owner_arguments: &[],
             },
-            parameter_types: &signature.parameters,
-            return_type: signature.result,
+            explicit_arguments: &[],
+            bound_receiver: None,
             expressions: &call.arguments.expressions(),
-            patterns: &signature.patterns,
             expected_result: None,
             forced_hint: None,
         }) {
@@ -121,7 +57,11 @@ impl Lowerer {
                         format!(
                             "dependency {} argument must be of type {}, found {}",
                             candidate.description(),
-                            self.type_name(signature.patterns[index].ty),
+                            self.type_name(
+                                argument_map
+                                    .mapping()
+                                    .forwarding_parameter_types(&signature.value_parameters)[index]
+                            ),
                             self.type_name(value.ty),
                         ),
                     );
@@ -151,6 +91,8 @@ impl Lowerer {
             declaration_span: name.span,
             state: self,
             candidate,
+            signature,
+            declared_receiver: None,
             receiver,
             source_args,
             argument_sinks,

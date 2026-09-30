@@ -164,12 +164,13 @@ impl Lowerer {
         call: &ast::CallExpr,
         expected_arguments: &[hir::TypeId],
     ) -> Option<(Vec<hir::HirConstantImage>, Vec<hir::TypeId>)> {
-        if expected_arguments.len() != view.owner_parameters.len() {
+        if expected_arguments.len() != view.signature.owner_parameters.len() {
             return None;
         }
         let argument_map = CandidateArgumentMap::source_nominal(view, &call.args).ok()?;
         let explicit_arguments = self.resolve_call_type_args(&call.type_args)?;
-        if !explicit_arguments.is_empty() && explicit_arguments.len() != view.owner_parameters.len()
+        if !explicit_arguments.is_empty()
+            && explicit_arguments.len() != view.signature.owner_parameters.len()
         {
             return None;
         }
@@ -186,6 +187,7 @@ impl Lowerer {
                 .collect()
         };
         let parameter_types = view
+            .signature
             .value_parameters
             .iter()
             .map(|parameter| self.instantiate_ty(parameter.ty, &seed))

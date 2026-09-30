@@ -12,12 +12,9 @@ pub(in crate::expr) enum ImportedGenericTarget {
 }
 
 #[derive(Clone)]
-pub(in crate::expr) struct ImportedInferenceSignature {
-    pub owner_parameters: Vec<hir::TypeParamDecl>,
-    pub type_parameters: Vec<hir::TypeParamDecl>,
-    pub parameters: Vec<(String, hir::TypeId)>,
+pub(in crate::expr) struct LoadedCallableSignature {
+    pub signature: DependencySignature,
     pub receiver: Option<hir::TypeId>,
-    pub return_type: hir::TypeId,
     pub origin: hir::DefinitionOrigin,
     pub span: hir::Span,
 }
@@ -71,7 +68,7 @@ impl ImportedGenericTarget {
         &self,
         state: &Lowerer,
     ) -> (
-        ImportedInferenceSignature,
+        LoadedCallableSignature,
         crate::imported_core::ImportedTypeBindings,
     ) {
         match self {
@@ -89,16 +86,21 @@ impl ImportedGenericTarget {
                     .declarations()
                     .split_at(owner_count);
                 (
-                    ImportedInferenceSignature {
-                        owner_parameters: owner.to_vec(),
-                        type_parameters: callable.to_vec(),
-                        parameters: template
-                            .params
-                            .iter()
-                            .map(|p| (p.name.clone(), p.ty))
-                            .collect(),
+                    LoadedCallableSignature {
+                        signature: crate::call_resolution::candidates::DeclarationSignature {
+                            owner_parameters: owner.to_vec(),
+                            callable_parameters: callable.to_vec(),
+                            value_parameters: state.imported_parameter_views(
+                                template.source.declaration(),
+                                template
+                                    .params
+                                    .iter()
+                                    .skip(usize::from(template.receiver.is_some()))
+                                    .map(|p| p.ty),
+                            ),
+                            return_type: template.return_ty,
+                        },
                         receiver: template.receiver,
-                        return_type: template.return_ty,
                         origin: template.origin,
                         span: template.span,
                     },
@@ -109,16 +111,17 @@ impl ImportedGenericTarget {
                 let template = &state.imported_constructor_templates[*id];
                 let signature = &template.signature;
                 (
-                    ImportedInferenceSignature {
-                        owner_parameters: signature.type_parameters.clone(),
-                        type_parameters: Vec::new(),
-                        parameters: signature
-                            .parameters
-                            .iter()
-                            .map(|p| (p.name.clone(), p.ty))
-                            .collect(),
+                    LoadedCallableSignature {
+                        signature: crate::call_resolution::candidates::DeclarationSignature {
+                            owner_parameters: signature.type_parameters.clone(),
+                            callable_parameters: Vec::new(),
+                            value_parameters: state.imported_parameter_views(
+                                &template.source,
+                                signature.parameters.iter().map(|p| p.ty),
+                            ),
+                            return_type: signature.owner,
+                        },
                         receiver: None,
-                        return_type: signature.owner,
                         origin: signature.origin,
                         span: signature.origin.span,
                     },

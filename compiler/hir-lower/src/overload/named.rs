@@ -48,6 +48,7 @@ impl NamedCallableProbe {
     pub(crate) fn vararg(&self) -> bool {
         self.prepared
             .view
+            .signature
             .value_parameters
             .iter()
             .any(|parameter| parameter.is_vararg())
@@ -237,8 +238,11 @@ impl Lowerer {
             }
         };
         let mut params = match &argument_map {
-            Ok(argument_map) => argument_map.forwarding_parameter_types(&view.value_parameters),
+            Ok(argument_map) => {
+                argument_map.forwarding_parameter_types(&view.signature.value_parameters)
+            }
             Err(_) => view
+                .signature
                 .value_parameters
                 .iter()
                 .map(|parameter| parameter.ty)
@@ -253,8 +257,8 @@ impl Lowerer {
             params.insert(0, receiver);
         }
         let owner_arguments = self.callable_candidate_owner_arguments(source);
-        debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
-        let own_type_param_count = view.callable_parameters.len();
+        debug_assert_eq!(view.signature.owner_parameters.len(), owner_arguments.len());
+        let own_type_param_count = view.signature.callable_parameters.len();
         Candidate {
             argument_map,
             function,

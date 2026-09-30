@@ -5,7 +5,8 @@ use crate::call_resolution::candidates::{
     ArgumentMode, CallableEffects, CallableSource, NominalConstructorSource, ReceiverShape,
     ValueParameter,
 };
-use crate::defaults::{DefaultExprTemplateRef, SourceParameterCalling, SourceVarargOmission};
+use crate::call_resolution::candidates::{ValueParameterCalling, VarargOmission};
+use crate::defaults::DefaultExprTemplateRef;
 use scoop_ast as ast;
 
 fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
@@ -25,11 +26,13 @@ fn callable(
 ) -> CallableView {
     CallableView {
         target: CallableSource::Free(hir::FunctionId::from_raw(0.into())),
+        signature: crate::call_resolution::candidates::DeclarationSignature {
+            owner_parameters: owners,
+            callable_parameters: parameters,
+            value_parameters: values,
+            return_type: result,
+        },
         receiver: ReceiverShape::None,
-        owner_parameters: owners,
-        callable_parameters: parameters,
-        value_parameters: values,
-        return_type: result,
         effects: CallableEffects {
             is_suspend: false,
             attributes: hir::FunctionAttributes::default(),
@@ -46,10 +49,13 @@ fn constructor(
 ) -> NominalConstructorView {
     NominalConstructorView {
         target: NominalConstructorSource::Struct(hir::StructConstructorId::from_raw(0.into())),
-        owner_parameters: owners,
-        value_parameters: values,
+        signature: crate::call_resolution::candidates::DeclarationSignature {
+            owner_parameters: owners,
+            callable_parameters: Vec::new(),
+            value_parameters: values,
+            return_type: result,
+        },
         argument_mode: ArgumentMode::Mixed,
-        result_type: result,
     }
 }
 
@@ -131,7 +137,7 @@ fn cross_kind_forwarding_checks_both_source_and_target_kind_bounds() {
         source.forwarding(&source_types),
         target.forwarding(&target_types)
     ));
-    target.callable_parameters[0].bounds = hir::TypeParamBounds::Value {
+    target.signature.callable_parameters[0].bounds = hir::TypeParamBounds::Value {
         span: ast::Span::new(0, 0),
     };
     assert!(state.declaration_forwards(
@@ -199,12 +205,12 @@ fn callable_and_constructor_mappings_share_default_and_named_source_order() {
     let parameters = vec![
         ValueParameter {
             name: "first".to_string(),
-            calling: SourceParameterCalling::Default(default),
+            calling: ValueParameterCalling::Default(default),
             ty: integer,
         },
         ValueParameter {
             name: "second".to_string(),
-            calling: SourceParameterCalling::Required,
+            calling: ValueParameterCalling::Required,
             ty: state.boolean,
         },
     ];
@@ -227,8 +233,10 @@ fn callable_and_constructor_mappings_share_default_and_named_source_order() {
     ] {
         let function_map = CandidateArgumentMap::source(&function, &args).unwrap();
         let nominal_map = CandidateArgumentMap::source_nominal(&nominal, &args).unwrap();
-        let function_types = function_map.forwarding_parameter_types(&function.value_parameters);
-        let nominal_types = nominal_map.forwarding_parameter_types(&nominal.value_parameters);
+        let function_types =
+            function_map.forwarding_parameter_types(&function.signature.value_parameters);
+        let nominal_types =
+            nominal_map.forwarding_parameter_types(&nominal.signature.value_parameters);
         assert_eq!(function_types, expected);
         assert_eq!(nominal_types, expected);
         assert_eq!(function_map.explicit_default_count(), defaults);
@@ -248,10 +256,10 @@ fn callable_and_constructor_vararg_mappings_preserve_element_and_array_inputs() 
     let array = hir::TypeId::from_raw(2.into());
     let parameters = vec![ValueParameter {
         name: "values".to_string(),
-        calling: SourceParameterCalling::Vararg {
+        calling: ValueParameterCalling::Vararg {
             element_type: element,
             array_type: array,
-            omission: SourceVarargOmission::EmptyArray,
+            omission: VarargOmission::EmptyArray,
         },
         ty: array,
     }];
@@ -272,11 +280,11 @@ fn callable_and_constructor_vararg_mappings_preserve_element_and_array_inputs() 
         let function_map = CandidateArgumentMap::source(&function, &args).unwrap();
         let nominal_map = CandidateArgumentMap::source_nominal(&nominal, &args).unwrap();
         assert_eq!(
-            function_map.forwarding_parameter_types(&function.value_parameters),
+            function_map.forwarding_parameter_types(&function.signature.value_parameters),
             expected
         );
         assert_eq!(
-            nominal_map.forwarding_parameter_types(&nominal.value_parameters),
+            nominal_map.forwarding_parameter_types(&nominal.signature.value_parameters),
             expected
         );
     }

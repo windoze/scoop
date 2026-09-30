@@ -210,15 +210,13 @@ impl Lowerer {
             )
             .collect::<Vec<_>>();
         let mut pool = comparison.most_specific_declarations(&candidates);
-        let ordinary = pool.clone();
-        pool.retain(|&candidate| {
-            !ordinary.iter().any(|&other| {
-                other != candidate
-                    && arguments.is_some_and(|arguments| {
-                        literal_dominates(&probes[other], &probes[candidate], arguments)
-                    })
-            })
-        });
+        if let Some(arguments) = arguments {
+            pool = super::specificity::prefer_literal_defaults(
+                &pool,
+                arguments,
+                |candidate, index| probes[candidate].source_argument_integer(index),
+            );
+        }
         if let [winner] = pool.as_slice() {
             return Some(*winner);
         }
@@ -246,32 +244,4 @@ impl Lowerer {
         );
         None
     }
-}
-
-fn literal_dominates(
-    preferred: &NamedFunctionLikeProbe,
-    other: &NamedFunctionLikeProbe,
-    arguments: &[ast::CallArgument],
-) -> bool {
-    let mut better = false;
-    for (index, argument) in arguments.iter().enumerate() {
-        let Some(default) = crate::expr::integer_literal_default_kind(&argument.expression) else {
-            continue;
-        };
-        let (Some(preferred), Some(other)) = (
-            preferred.source_argument_integer(index),
-            other.source_argument_integer(index),
-        ) else {
-            continue;
-        };
-        if preferred == other {
-            continue;
-        }
-        match (preferred == default, other == default) {
-            (true, false) => better = true,
-            (false, true) => return false,
-            _ => {}
-        }
-    }
-    better
 }

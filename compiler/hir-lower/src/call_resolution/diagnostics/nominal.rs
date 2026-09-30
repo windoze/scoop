@@ -12,16 +12,20 @@ use crate::call_resolution::constraints::{
 };
 
 pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstructorView) -> String {
-    let parameters =
-        render_type_parameters(lowerer, &view.owner_parameters, &view.owner_parameters);
+    let parameters = render_type_parameters(
+        lowerer,
+        &view.signature.owner_parameters,
+        &view.signature.owner_parameters,
+    );
     let fields = view
+        .signature
         .value_parameters
         .iter()
         .map(|field| {
             format!(
                 "{}: {}",
                 field.name,
-                lowerer.type_name_with_params(field.ty, &view.owner_parameters)
+                lowerer.type_name_with_params(field.ty, &view.signature.owner_parameters)
             )
         })
         .collect::<Vec<_>>()
@@ -152,7 +156,7 @@ pub(crate) fn render_nominal_constraint_failure(
                 .unwrap_or_else(|| render_type_term(lowerer, view, *left));
             format!(
                 "argument for `{}` has type {found}, which {} {}",
-                view.value_parameters[parameter_index].name,
+                view.signature.value_parameters[parameter_index].name,
                 relation_failure_phrase(*relation),
                 render_type_term(lowerer, view, *right),
             )
@@ -202,7 +206,7 @@ fn relation_failure_phrase(relation: RelationKind) -> &'static str {
 fn render_type_term(lowerer: &Lowerer, view: &NominalConstructorView, term: TypeTerm) -> String {
     match term {
         TypeTerm::Type(ty) | TypeTerm::Rigid(ty) => {
-            lowerer.type_name_with_params(ty, &view.owner_parameters)
+            lowerer.type_name_with_params(ty, &view.signature.owner_parameters)
         }
         TypeTerm::Variable(variable) => inference_parameter(view, variable).name.clone(),
     }
@@ -213,7 +217,7 @@ fn inference_parameter(
     variable: InferenceVariableId,
 ) -> &hir::TypeParamDecl {
     match variable {
-        InferenceVariableId::Owner(_) => &view.owner_parameters[variable.group_index()],
+        InferenceVariableId::Owner(_) => &view.signature.owner_parameters[variable.group_index()],
         InferenceVariableId::Callable(_) => {
             unreachable!("nominal constructors have no callable type parameters")
         }

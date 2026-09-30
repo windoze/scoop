@@ -73,6 +73,7 @@ impl Lowerer {
     ) -> Option<Vec<hir::Expr>> {
         let bindings = request
             .view
+            .signature
             .owner_parameters
             .iter()
             .zip(request.type_args)
@@ -80,6 +81,7 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let parameters = request
             .view
+            .signature
             .value_parameters
             .iter()
             .map(|parameter| {

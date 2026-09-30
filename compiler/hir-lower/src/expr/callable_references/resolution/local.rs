@@ -15,8 +15,8 @@ pub(super) struct LocalReferenceDeclaration {
 impl LocalReferenceDeclaration {
     pub(super) fn forwarding(&self) -> OwnedDeclarationForwarding {
         DeclarationForwardingView::parameter_groups(
-            &self.view.owner_parameters,
-            &self.view.callable_parameters,
+            &self.view.signature.owner_parameters,
+            &self.view.signature.callable_parameters,
             &self.forwarding_parameter_types,
         )
         .to_owned()
@@ -69,63 +69,36 @@ impl Lowerer {
             layer: callable_layer_name(state, std::slice::from_ref(&view)),
             reason,
         };
-        if view.owner_parameters.len() != owner_type_args.len() {
-            return Err(fail(
-                &state,
-                "receiver does not provide complete owner type arguments".into(),
-            ));
-        }
-        let own_type_param_count = view.callable_parameters.len();
-        if context.expected.is_none() && own_type_param_count != 0 {
-            return Err(fail(
-                &state,
-                "generic callable references require an expected function type".into(),
-            ));
-        }
-        if view.effects.attributes.safety == hir::Safety::Unsafe {
-            return Err(fail(&state, "unsafe functions cannot be stored in a managed function type because safety is not part of function-type identity".into()));
-        }
-        let mut reference_params = view
-            .value_parameters
-            .iter()
-            .map(|parameter| parameter.ty)
-            .collect::<Vec<_>>();
-        let mut forwarding_parameter_types = reference_params.clone();
-        if let Some(receiver) = extension_receiver {
-            forwarding_parameter_types.insert(0, receiver);
-            if matches!(
-                context.extension_mode,
-                ReferenceExtensionMode::IncludeUnbound
-            ) {
-                reference_params.insert(0, receiver);
-            }
-        }
-        let expected_type = context.expected.map_or_else(
-            || {
-                let parameters = reference_params
+        let own_type_param_count = view.signature.callable_parameters.len();
+        let forwarding_parameter_types = extension_receiver
+            .into_iter()
+            .chain(
+                view.signature
+                    .value_parameters
                     .iter()
-                    .map(|&parameter| state.instantiate_ty(parameter, &owner_type_args))
-                    .collect();
-                let return_type = state.instantiate_ty(view.return_type, &owner_type_args);
-                state.intern_function_type(view.effects.is_suspend, parameters, return_type)
-            },
-            |(ty, _)| *ty,
-        );
-        let type_args = state
+                    .map(|parameter| parameter.ty),
+            )
+            .collect();
+        let application = state
             .solve_callable_reference_applicability(CallableReferenceApplicabilityInput {
-                owner_parameters: &view.owner_parameters,
-                callable_parameters: &view.callable_parameters,
+                signature: &view.signature,
                 owner_arguments: &owner_type_args,
                 bound_receiver,
-                parameter_types: &reference_params,
-                return_type: view.return_type,
-                is_suspend: view.effects.is_suspend,
-                expected_type,
+                unbound_receiver: matches!(
+                    context.extension_mode,
+                    ReferenceExtensionMode::IncludeUnbound
+                )
+                .then_some(extension_receiver)
+                .flatten(),
+                effects: view.effects,
+                expected_type: context.expected.map(|(ty, _)| *ty),
             })
-            .map_err(|constraint| {
+            .map_err(|failure| {
                 fail(
                     &state,
-                    render_callable_constraint_failure(&state, &view, None, &[], &constraint),
+                    failure.describe(|constraint| {
+                        render_callable_constraint_failure(&state, &view, None, &[], constraint)
+                    }),
                 )
             })?;
         Ok(Some(ApplicableReference {
@@ -135,8 +108,8 @@ impl Lowerer {
                 view,
                 forwarding_parameter_types,
             }),
-            type_args,
-            ty: expected_type,
+            type_args: application.type_args,
+            ty: application.ty,
             own_type_param_count,
         }))
     }

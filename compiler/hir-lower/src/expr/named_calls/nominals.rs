@@ -187,8 +187,8 @@ impl Lowerer {
             );
         }
         for plan in plans {
-            let arguments =
-                self.named_nominal_expected_arguments(plan.view.result_type, plan.expected);
+            let arguments = self
+                .named_nominal_expected_arguments(plan.view.signature.return_type, plan.expected);
             match self.probe_named_nominal(
                 plan.view,
                 NominalConstructorCall {

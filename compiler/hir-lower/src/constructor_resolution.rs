@@ -127,10 +127,11 @@ impl Lowerer {
             .iter()
             .map(|candidate| ApplicableDeclaration {
                 declaration: candidate.view.forwarding(&candidate.parameter_types),
-                parameterized: !candidate.view.owner_parameters.is_empty(),
+                parameterized: !candidate.view.signature.owner_parameters.is_empty(),
                 defaults: candidate.argument_map.explicit_default_count(),
                 vararg: candidate
                     .view
+                    .signature
                     .value_parameters
                     .iter()
                     .any(|parameter| parameter.is_vararg()),

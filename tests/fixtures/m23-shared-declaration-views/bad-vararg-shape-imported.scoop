@@ -1,0 +1,8 @@
+package consumer.declarationviews
+
+import upstream.declarationviews.*
+
+public fun invalid(): Int {
+    val packed: (Int, Int) -> Array<Int> = ::collect
+    return 0
+}

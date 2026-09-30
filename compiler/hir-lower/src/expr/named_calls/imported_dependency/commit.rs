@@ -54,6 +54,7 @@ impl Lowerer {
             implementation,
             state,
             candidate,
+            signature,
             receiver,
             source_args,
             argument_sinks,
@@ -118,14 +119,11 @@ impl Lowerer {
             .as_ref()
             .filter(|receiver| matches!(self.types[receiver.ty], hir::Type::Param(_)))
             .map(|_| candidate.interface().clone());
-        let parameters = candidate
-            .source_interface()
-            .expect("callable candidates retain their validated source interface")
-            .parameters()
-            .parameters()
+        let parameters = signature
+            .value_parameters
             .iter()
             .zip(parameter_types.iter().copied())
-            .map(|(parameter, ty)| (parameter.name().as_str().to_owned(), ty))
+            .map(|(parameter, ty)| (parameter.name.clone(), ty))
             .collect::<Vec<_>>();
         let (receiver, parameter_values) = self.materialize_argument_inputs(
             ResolvedArgumentMaterialization {

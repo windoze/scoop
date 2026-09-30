@@ -3,10 +3,10 @@
 use scoop_ast as ast;
 
 use super::*;
+use crate::call_resolution::candidates::VarargOmission;
 use crate::call_resolution::candidates::{
     ArgumentMode, CallableView, NominalConstructorView, ReceiverShape,
 };
-use crate::defaults::SourceVarargOmission;
 
 impl CandidateArgumentMap {
     pub(crate) fn source(
@@ -14,7 +14,7 @@ impl CandidateArgumentMap {
         arguments: &[ast::CallArgument],
     ) -> Result<Self, ArgumentShapeFailure> {
         Self::map(
-            &parameter_shapes(&view.value_parameters),
+            &parameter_shapes(&view.signature.value_parameters),
             ArgumentMode::Mixed,
             &arguments
                 .iter()
@@ -29,7 +29,7 @@ impl CandidateArgumentMap {
         arguments: &[ast::CallArgument],
     ) -> Result<Self, ArgumentShapeFailure> {
         Self::operator_set(
-            &parameter_shapes(&view.value_parameters),
+            &parameter_shapes(&view.signature.value_parameters),
             &arguments
                 .iter()
                 .map(ArgumentShape::from)
@@ -43,7 +43,7 @@ impl CandidateArgumentMap {
         arguments: &[ast::CallArgument],
     ) -> Result<Self, ArgumentShapeFailure> {
         Self::map(
-            &parameter_shapes(&view.value_parameters),
+            &parameter_shapes(&view.signature.value_parameters),
             view.argument_mode,
             &arguments
                 .iter()
@@ -57,7 +57,7 @@ impl CandidateArgumentMap {
         view: &CallableView,
         supplied: usize,
     ) -> Result<Self, ArgumentShapeFailure> {
-        let expected = view.value_parameters.len();
+        let expected = view.signature.value_parameters.len();
         if expected != supplied {
             return Err(ArgumentShapeFailure::Arity { expected, supplied });
         }
@@ -88,20 +88,35 @@ fn receiver_input(receiver: ReceiverShape) -> ReceiverInput {
     }
 }
 
-fn parameter_shapes(
-    parameters: &[ValueParameter],
-) -> Vec<ParameterShape<'_, DefaultArgumentSource>> {
+impl<D: Copy> CandidateArgumentMap<D> {
+    pub(crate) fn declaration(
+        parameters: &[ValueParameter<D>],
+        mode: ArgumentMode,
+        arguments: &[ArgumentShape<'_>],
+        receiver: ReceiverInput,
+        operator_set: bool,
+    ) -> Result<Self, ArgumentShapeFailure> {
+        let shapes = parameter_shapes(parameters);
+        if operator_set {
+            Self::operator_set(&shapes, arguments, receiver)
+        } else {
+            Self::map(&shapes, mode, arguments, receiver)
+        }
+    }
+}
+
+fn parameter_shapes<D: Copy>(parameters: &[ValueParameter<D>]) -> Vec<ParameterShape<'_, D>> {
     parameters
         .iter()
         .map(|parameter| ParameterShape {
             name: &parameter.name,
             calling: match parameter.calling {
-                SourceParameterCalling::Required => ParameterCalling::Required,
-                SourceParameterCalling::Default(template) => ParameterCalling::Default(template),
-                SourceParameterCalling::Vararg { omission, .. } => ParameterCalling::Vararg {
+                ValueParameterCalling::Required => ParameterCalling::Required,
+                ValueParameterCalling::Default(template) => ParameterCalling::Default(template),
+                ValueParameterCalling::Vararg { omission, .. } => ParameterCalling::Vararg {
                     default: match omission {
-                        SourceVarargOmission::EmptyArray => None,
-                        SourceVarargOmission::Default(template) => Some(template),
+                        VarargOmission::EmptyArray => None,
+                        VarargOmission::Default(template) => Some(template),
                     },
                 },
             },

@@ -6,7 +6,9 @@ use super::candidates::{CallableView, NominalConstructorView};
 use super::constraints::{Constraint, ConstraintOrigin, InferenceSession, TypeTerm};
 use crate::Lowerer;
 
+mod literals;
 mod selection;
+pub(crate) use literals::prefer_literal_defaults;
 pub(crate) use selection::ApplicableDeclaration;
 
 #[cfg(test)]
@@ -79,8 +81,8 @@ impl CallableView {
         parameter_types: &'a [hir::TypeId],
     ) -> DeclarationForwardingView<'a> {
         DeclarationForwardingView {
-            owner_parameters: &self.owner_parameters,
-            callable_parameters: &self.callable_parameters,
+            owner_parameters: &self.signature.owner_parameters,
+            callable_parameters: &self.signature.callable_parameters,
             parameter_types,
         }
     }
@@ -92,7 +94,7 @@ impl NominalConstructorView {
         parameter_types: &'a [hir::TypeId],
     ) -> DeclarationForwardingView<'a> {
         DeclarationForwardingView {
-            owner_parameters: &self.owner_parameters,
+            owner_parameters: &self.signature.owner_parameters,
             callable_parameters: &[],
             parameter_types,
         }

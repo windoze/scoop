@@ -27,6 +27,7 @@ impl NamedNominalProbe {
     pub(crate) fn vararg(&self) -> bool {
         self.candidate
             .view
+            .signature
             .value_parameters
             .iter()
             .any(|parameter| parameter.is_vararg())
@@ -87,14 +88,14 @@ impl Lowerer {
     ) -> Result<NamedNominalProbe, Box<Lowerer>> {
         let mut state = self.clone();
         if !call.explicit_type_args.is_empty()
-            && call.explicit_type_args.len() != view.owner_parameters.len()
+            && call.explicit_type_args.len() != view.signature.owner_parameters.len()
         {
             state.diagnose_nominal_shape_failure(
                 &view,
                 call.span,
                 format!(
                     "expects {} explicit type argument(s), but {} were supplied",
-                    view.owner_parameters.len(),
+                    view.signature.owner_parameters.len(),
                     call.explicit_type_args.len()
                 ),
             );
@@ -122,9 +123,10 @@ impl Lowerer {
         if state.diagnostics.len() != before {
             return Err(Box::new(state));
         }
-        let parameter_types = argument_map.forwarding_parameter_types(&view.value_parameters);
+        let parameter_types =
+            argument_map.forwarding_parameter_types(&view.signature.value_parameters);
         Ok(NamedNominalProbe {
-            comparison_owners: view.owner_parameters.clone(),
+            comparison_owners: view.signature.owner_parameters.clone(),
             comparison_parameters: parameter_types.clone(),
             candidate: ApplicableConstructor {
                 state: Box::new(state),

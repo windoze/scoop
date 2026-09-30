@@ -459,3 +459,11 @@
 - 新增 `m23-shared-call-probes` 两组正例、四个反例、六份阶段快照与四份诊断快照，覆盖无实参构造的期望类型、完整宿主／方法参数、`_`、延迟 lambda、函数值与匿名函数、失败重载事务、generic variant 和 kind bound。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过。
 - 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；87 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。既有 HIR／MIR／LIR／诊断快照均未变化。最终证据前缀 `/tmp/scoop-m23-6a-call-probes-`，结果见 `unit.log`、`generate-results.json` 和 `all-verified-results.json`。
 - 共同探测器 115 行，声明约束模块 225 行；函数引用签名检查与依赖诊断分别拆为 130、144 行，依赖泛型探测模块降至 294 行。确认全部验证结束且无文件占用后清理约 1484.0 MiB 闲置 `target/debug`。wire payload 与 runtime ABI 不变；完整声明参数视图、引用适用性与最终内存／wire 等价及 workspace／runtime 完成门仍需落实。
+
+## 完整声明参数视图与共同函数引用适用性
+
+- 当前 callable、nominal 与已读取依赖共用完整声明视图，保存有序 owner／callable binder、参数名、完整参数及结果类型、Required／Default／Vararg 协议和原默认来源。实参映射、共同推断与声明 MSC 直接消费这一视图；删除依赖分支按源码位置重复保存的 wire 参数类型及另一套 variant 参数映射。getter／setter 从真实访问器签名取得隐式 Required 参数，普通函数继续使用完整源码参数表。
+- 函数引用共用完整宿主绑定、期望签名、效果限制和约束检查，声明 MSC 使用共同比较过程，保留绑定／非绑定 receiver 与原函数目标。引用不使用调用点的默认参数或 vararg tie-break；普通调用的整数 literal 偏好统一在 MSC 后作逐实参 Pareto 比较。默认来源、具体目标和 dispatch 均保持原身份，没有新增语义验证边界。
+- 新增 `m23-shared-declaration-views` 两组正例、六个反例、六份阶段快照与六份诊断快照，覆盖 generic／closed 重载、默认值与 vararg 的完整函数引用签名、泛型扩展、绑定／非绑定引用、宿主与方法参数、命名／spread／空 vararg，以及引用创建不执行默认表达式。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过；反例分别锁定默认参数 arity、vararg 数组签名和缺少泛型引用期望类型，均只有对应的一条诊断。
+- 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；88 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。最后精简反例后再次严格复验新增组通过，既有 HIR／MIR／LIR／诊断快照均未变化。初轮访问器迁移失败已修复，相关单元、扩展属性与委托产物回归均通过；证据前缀 `/tmp/scoop-m23-6a-declaration-views-`，最终结果见 `unit.log`、`all-verified-results.json` 和 `fixture-verified-results.json`，初轮证据为 `unit-before-accessors.log`。
+- 完整参数视图为 42 行，依赖存储适配约 160 行，函数引用共同检查约 200 行；普通重载主模块降至 414 行，引用依赖适配降至 378 行。确认所有验证完成且无文件占用后清理约 1676.5 MiB 闲置 `target/debug`，继续复用 `target/m23-6a`。wire payload 与 runtime ABI 不变；最终内存／wire 消费等价性、声明位置变化审计及 workspace／runtime 完成门继续执行，6a 尚未完成。

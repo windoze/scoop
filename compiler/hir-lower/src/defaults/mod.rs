@@ -4,6 +4,7 @@ use la_arena::Idx;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
+use crate::call_resolution::candidates::{ValueParameterCalling, VarargOmission};
 use crate::{FnParamCalling, Lowerer, Owner};
 
 mod access;
@@ -66,23 +67,6 @@ pub(crate) enum SourceParameterOwner {
     StructConstructor(hir::StructConstructorId),
     ClassConstructor(hir::ClassConstructorId),
     VariantConstructor(hir::EnumVariantRef),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SourceParameterCalling {
-    Required,
-    Default(DefaultArgumentSource),
-    Vararg {
-        element_type: hir::TypeId,
-        array_type: hir::TypeId,
-        omission: SourceVarargOmission,
-    },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SourceVarargOmission {
-    EmptyArray,
-    Default(DefaultArgumentSource),
 }
 
 #[derive(Clone)]

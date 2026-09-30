@@ -1,5 +1,6 @@
 use super::ImportedArgumentMap;
-use crate::call_resolution::arguments::ArgumentShapeFailure;
+use crate::call_resolution::arguments::{ArgumentShape, ArgumentShapeFailure};
+use crate::call_resolution::candidates::{ArgumentMode, ValueParameter};
 use crate::call_resolution::contextual::ArgumentExpression;
 use crate::expr::CallSite;
 use scoop_ast as ast;
@@ -46,44 +47,23 @@ impl<'a> ImportedCallArguments<'a> {
         }
     }
 
-    pub(super) fn check_variant_style(
-        self,
-        style: hir::EnumSourceVariantStyleV1,
-    ) -> Result<(), ArgumentShapeFailure> {
-        let (positional, named) = match self {
-            Self::Source(arguments) => (
-                arguments
-                    .iter()
-                    .any(|argument| matches!(argument.name, ast::CallArgumentName::Positional)),
-                arguments
-                    .iter()
-                    .any(|argument| matches!(argument.name, ast::CallArgumentName::Named(_))),
-            ),
-            Self::Lowered(arguments) => (!arguments.is_empty(), false),
-        };
-        match style {
-            hir::EnumSourceVariantStyleV1::Named if positional => {
-                Err(ArgumentShapeFailure::PositionalForNamedOnly)
-            }
-            hir::EnumSourceVariantStyleV1::Positional if named => {
-                Err(ArgumentShapeFailure::NamedForPositionalOnly)
-            }
-            _ => Ok(()),
-        }
-    }
-
     pub(super) fn map(
         self,
-        parameters: &[hir::CallableSourceParameterV1],
+        parameters: &[ValueParameter<hir::ExportDefaultTemplateKeyV1>],
+        mode: ArgumentMode,
         operator_set: bool,
     ) -> Result<ImportedArgumentMap, ArgumentShapeFailure> {
-        match self {
-            Self::Source(arguments) if operator_set => {
-                ImportedArgumentMap::source_operator_set(parameters, arguments)
-            }
-            Self::Source(arguments) => ImportedArgumentMap::source(parameters, arguments),
-            Self::Lowered(arguments) => ImportedArgumentMap::lowered(parameters, arguments.len()),
-        }
+        let arguments = match self {
+            Self::Source(arguments) => arguments.iter().map(ArgumentShape::from).collect(),
+            Self::Lowered(arguments) => vec![
+                ArgumentShape {
+                    name: None,
+                    spread: false
+                };
+                arguments.len()
+            ],
+        };
+        ImportedArgumentMap::map(parameters, &arguments, mode, operator_set)
     }
 
     pub(super) fn expressions(self) -> Vec<ArgumentExpression<'a>> {

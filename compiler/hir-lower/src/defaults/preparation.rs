@@ -116,9 +116,9 @@ impl Lowerer {
         for (index, source) in recipe.sources.iter().enumerate() {
             if matches!(
                 self.source_parameter_calling(owner, index, source.ty, &source.calling),
-                SourceParameterCalling::Default(_)
-                    | SourceParameterCalling::Vararg {
-                        omission: SourceVarargOmission::Default(_),
+                ValueParameterCalling::Default(_)
+                    | ValueParameterCalling::Vararg {
+                        omission: VarargOmission::Default(_),
                         ..
                     }
             ) {

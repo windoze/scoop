@@ -3,7 +3,8 @@ use crate::call_resolution::candidates::{
     ArgumentMode, CallableEffects, CallableSource, CallableView, NominalConstructorSource,
     NominalConstructorView, ReceiverShape, SourceDispatch, ValueParameter,
 };
-use crate::defaults::{DefaultArgumentSource, SourceParameterCalling, SourceVarargOmission};
+use crate::call_resolution::candidates::{ValueParameterCalling, VarargOmission};
+use crate::defaults::DefaultArgumentSource;
 use scoop_ast::{self as ast, Span};
 use scoop_hir as hir;
 
@@ -29,17 +30,19 @@ fn argument(name: Option<&str>, spread: bool) -> ast::CallArgument {
 fn view(parameter_count: usize, receiver: ReceiverShape) -> CallableView {
     CallableView {
         target: CallableSource::Free(hir::FunctionId::from_raw(0_u32.into())),
+        signature: crate::call_resolution::candidates::DeclarationSignature {
+            owner_parameters: Vec::new(),
+            callable_parameters: Vec::new(),
+            value_parameters: (0..parameter_count)
+                .map(|index| ValueParameter {
+                    name: format!("p{index}"),
+                    calling: ValueParameterCalling::Required,
+                    ty: hir::TypeId::from_raw((index as u32).into()),
+                })
+                .collect(),
+            return_type: hir::TypeId::from_raw(0_u32.into()),
+        },
         receiver,
-        owner_parameters: Vec::new(),
-        callable_parameters: Vec::new(),
-        value_parameters: (0..parameter_count)
-            .map(|index| ValueParameter {
-                name: format!("p{index}"),
-                calling: SourceParameterCalling::Required,
-                ty: hir::TypeId::from_raw((index as u32).into()),
-            })
-            .collect(),
-        return_type: hir::TypeId::from_raw(0_u32.into()),
         effects: CallableEffects {
             is_suspend: false,
             attributes: hir::FunctionAttributes::default(),
@@ -95,21 +98,24 @@ fn exact_mapping_reports_candidate_arity() {
 fn exact_nominal_mapping_uses_constructor_fields() {
     let view = NominalConstructorView {
         target: NominalConstructorSource::Struct(hir::StructConstructorId::from_raw(0_u32.into())),
-        owner_parameters: Vec::new(),
-        value_parameters: vec![
-            ValueParameter {
-                name: "left".to_string(),
-                calling: SourceParameterCalling::Required,
-                ty: hir::TypeId::from_raw(0_u32.into()),
-            },
-            ValueParameter {
-                name: "right".to_string(),
-                calling: SourceParameterCalling::Required,
-                ty: hir::TypeId::from_raw(0_u32.into()),
-            },
-        ],
+        signature: crate::call_resolution::candidates::DeclarationSignature {
+            owner_parameters: Vec::new(),
+            callable_parameters: Vec::new(),
+            value_parameters: vec![
+                ValueParameter {
+                    name: "left".to_string(),
+                    calling: ValueParameterCalling::Required,
+                    ty: hir::TypeId::from_raw(0_u32.into()),
+                },
+                ValueParameter {
+                    name: "right".to_string(),
+                    calling: ValueParameterCalling::Required,
+                    ty: hir::TypeId::from_raw(0_u32.into()),
+                },
+            ],
+            return_type: hir::TypeId::from_raw(0_u32.into()),
+        },
         argument_mode: ArgumentMode::Mixed,
-        result_type: hir::TypeId::from_raw(0_u32.into()),
     };
 
     let args = [argument(None, false), argument(None, false)];
@@ -133,29 +139,29 @@ fn source_mapping_supports_ordered_named_defaults_and_varargs() {
     let ty = hir::TypeId::from_raw(0_u32.into());
     let element = hir::TypeId::from_raw(1_u32.into());
     let mut view = view(0, ReceiverShape::None);
-    view.value_parameters = vec![
+    view.signature.value_parameters = vec![
         ValueParameter {
             name: "first".to_string(),
-            calling: SourceParameterCalling::Required,
+            calling: ValueParameterCalling::Required,
             ty,
         },
         ValueParameter {
             name: "middle".to_string(),
-            calling: SourceParameterCalling::Default(template(0)),
+            calling: ValueParameterCalling::Default(template(0)),
             ty,
         },
         ValueParameter {
             name: "values".to_string(),
-            calling: SourceParameterCalling::Vararg {
+            calling: ValueParameterCalling::Vararg {
                 element_type: element,
                 array_type: ty,
-                omission: SourceVarargOmission::EmptyArray,
+                omission: VarargOmission::EmptyArray,
             },
             ty,
         },
         ValueParameter {
             name: "last".to_string(),
-            calling: SourceParameterCalling::Default(template(1)),
+            calling: ValueParameterCalling::Default(template(1)),
             ty,
         },
     ];

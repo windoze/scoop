@@ -8,12 +8,12 @@ impl Lowerer {
         &mut self,
         name: &ast::Ident,
         call: ImportedProbeCall<'_>,
-        signature: &ImportedInferenceSignature,
+        signature: &LoadedCallableSignature,
         failure: &crate::call_resolution::constraints::ConstraintFailure,
     ) {
         let message = self.render_imported_constraint_failure(
-            &signature.owner_parameters,
-            &signature.type_parameters,
+            &signature.signature.owner_parameters,
+            &signature.signature.callable_parameters,
             failure,
         );
         let span = match failure.origin {

@@ -1,7 +1,8 @@
 //! Candidate-specific source-to-parameter mapping.
 
 use super::candidates::ValueParameter;
-use crate::defaults::{DefaultArgumentSource, SourceParameterCalling};
+use crate::call_resolution::candidates::ValueParameterCalling;
+use crate::defaults::DefaultArgumentSource;
 
 mod mapping;
 mod source;
@@ -145,7 +146,7 @@ impl<D> CandidateArgumentMap<D> {
     /// type while spread/named-array inputs retain the array parameter type.
     pub(crate) fn forwarding_parameter_types(
         &self,
-        parameters: &[ValueParameter],
+        parameters: &[ValueParameter<D>],
     ) -> Vec<scoop_hir::TypeId> {
         self.source_order
             .iter()
@@ -154,12 +155,12 @@ impl<D> CandidateArgumentMap<D> {
                 let parameter = &parameters[parameter.index()];
                 match (&parameter.calling, kind) {
                     (
-                        SourceParameterCalling::Vararg { element_type, .. },
+                        ValueParameterCalling::Vararg { element_type, .. },
                         SourceInputKind::VarargElement,
                     ) => *element_type,
-                    (SourceParameterCalling::Vararg { .. }, SourceInputKind::VarargArray)
+                    (ValueParameterCalling::Vararg { .. }, SourceInputKind::VarargArray)
                     | (
-                        SourceParameterCalling::Required | SourceParameterCalling::Default(_),
+                        ValueParameterCalling::Required | ValueParameterCalling::Default(_),
                         SourceInputKind::Value,
                     ) => parameter.ty,
                     _ => unreachable!("argument mapping fixes each input shape"),

@@ -196,7 +196,7 @@ fn render_candidate_failure(
                     );
                     parameter.index()
                 })
-                .and_then(|index| candidate.view.value_parameters.get(index))
+                .and_then(|index| candidate.view.signature.value_parameters.get(index))
                 .map(|parameter| format!("argument for `{}`", parameter.name))
                 .unwrap_or_else(|| format!("argument {}", source_index + 1));
             match expected {
@@ -238,7 +238,7 @@ fn render_candidate_failure(
     }
     let fixed = explicit_type_args
         .iter()
-        .zip(&candidate.view.callable_parameters)
+        .zip(&candidate.view.signature.callable_parameters)
         .filter_map(|(argument, parameter)| {
             let ResolvedCallTypeArgument::Explicit { ty, .. } = argument else {
                 return None;

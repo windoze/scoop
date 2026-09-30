@@ -17,18 +17,13 @@ impl Lowerer {
         receiver: hir::Expr,
         name: &ast::Ident,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
-        let static_type = receiver.ty;
-        Box::new(self.clone()).probe_imported_generic(
-            ImportedCallableCandidate::Declaration(Box::new(declaration)),
+        self.probe_imported_member_callable(
+            declaration,
+            ImportedMemberReceiver::Value(receiver),
             name,
             ImportedProbeCall::lowered(&[], name.span),
             None,
-            ImportedCallReceiver::Member {
-                value: ImportedMemberReceiver::Value(receiver),
-                static_type,
-            },
-            ImportedArgumentMap::lowered(&[], 0)
-                .expect("a property getter accepts no explicit source arguments"),
+            false,
         )
     }
 

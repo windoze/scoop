@@ -6,7 +6,7 @@ use scoop_identity::SignatureTypeKey;
 
 pub(in crate::expr) struct ImportedIntrinsicSignature {
     pub(super) declaration: hir::ImportedCallableDeclaration,
-    pub(super) signature: ImportedInferenceSignature,
+    pub(super) signature: LoadedCallableSignature,
     pub(super) bindings: ImportedTypeBindings,
 }
 
@@ -70,9 +70,6 @@ impl ImportedIntrinsicSignature {
                 .transpose()?,
         };
         let mut value_parameters = Vec::new();
-        if let Some(receiver) = receiver {
-            value_parameters.push(("this".to_owned(), receiver));
-        }
         for parameter in interface.parameters().parameters() {
             value_parameters.push((
                 parameter.name().as_str().to_owned(),
@@ -80,14 +77,18 @@ impl ImportedIntrinsicSignature {
             ));
         }
         let return_type = state.imported_generic_type(interface.result(), &bindings)?;
+        let value_parameters = state
+            .imported_parameter_views(&declaration, value_parameters.iter().map(|(_, ty)| *ty));
         Ok(Self {
             declaration,
-            signature: ImportedInferenceSignature {
-                owner_parameters: parameters,
-                type_parameters,
-                parameters: value_parameters,
+            signature: LoadedCallableSignature {
+                signature: crate::call_resolution::candidates::DeclarationSignature {
+                    owner_parameters: parameters,
+                    callable_parameters: type_parameters,
+                    value_parameters,
+                    return_type,
+                },
                 receiver,
-                return_type,
                 origin,
                 span: origin.span,
             },

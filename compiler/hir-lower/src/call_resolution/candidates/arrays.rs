@@ -53,14 +53,17 @@ impl Lowerer {
         let source_type = self.array_type(source_kind, array.element);
         NominalConstructorView {
             target,
-            owner_parameters,
-            value_parameters: vec![ValueParameter {
-                name: "source".to_owned(),
-                calling: SourceParameterCalling::Required,
-                ty: source_type,
-            }],
+            signature: crate::call_resolution::candidates::DeclarationSignature {
+                owner_parameters,
+                callable_parameters: Vec::new(),
+                value_parameters: vec![ValueParameter {
+                    name: "source".to_owned(),
+                    calling: ValueParameterCalling::Required,
+                    ty: source_type,
+                }],
+                return_type: result_type,
+            },
             argument_mode: ArgumentMode::Mixed,
-            result_type,
         }
     }
 }

@@ -119,7 +119,7 @@ impl Lowerer {
             };
 
         let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        let type_param_count = view.owner_parameters.len();
+        let type_param_count = view.signature.owner_parameters.len();
         if !explicit_type_args.is_empty() && explicit_type_args.len() != type_param_count {
             self.diagnose_nominal_shape_failure(
                 &view,

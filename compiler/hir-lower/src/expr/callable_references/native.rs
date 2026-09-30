@@ -120,7 +120,7 @@ impl Lowerer {
                 Some(NativeReferenceFailureKind::Member)
             } else if extension {
                 Some(NativeReferenceFailureKind::Extension)
-            } else if !view.callable_parameters.is_empty() {
+            } else if !view.signature.callable_parameters.is_empty() {
                 Some(NativeReferenceFailureKind::Generic)
             } else if view.effects.is_suspend {
                 Some(NativeReferenceFailureKind::Suspend)
@@ -140,6 +140,7 @@ impl Lowerer {
                 continue;
             }
             let parameters = view
+                .signature
                 .value_parameters
                 .iter()
                 .map(|parameter| parameter.ty)
@@ -148,7 +149,7 @@ impl Lowerer {
                 CallableCategory::Native,
                 view.effects.is_suspend,
                 &parameters,
-                view.return_type,
+                view.signature.return_type,
                 expected,
             ) {
                 Ok(()) => matching.push(ApplicableNativeReference {

@@ -2,12 +2,14 @@ use hir::ImportedCallableSource;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
+use super::signature::ImportedCallDeclaration;
 use super::{
     ImportedCallableCandidate, ImportedDependencyCallProbe, ImportedMemberReceiver,
     ImportedProbeCall,
 };
 use crate::Lowerer;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
+use crate::call_resolution::candidates::ArgumentMode;
 use crate::expr::CallSite;
 
 mod native;
@@ -221,16 +223,7 @@ impl Lowerer {
             );
             return Err(Box::new(state));
         }
-        let Some(source) = candidate.source_interface() else {
-            state.error(
-                name.span,
-                format!(
-                    "invalid imported dependency callable `{}`: source interface is missing",
-                    name.text
-                ),
-            );
-            return Err(Box::new(state));
-        };
+        let mut argument_mode = ArgumentMode::Mixed;
         if let scoop_identity::CallableTemplateOrigin::VariantConstructor(variant) =
             interface.declaration()
         {
@@ -258,15 +251,26 @@ impl Lowerer {
                 ));
                 return Err(Box::new(state));
             }
-            if let Err(error) = call.arguments.check_variant_style(variant.style()) {
-                state.imported_dependency_shape_error(name, call, error, kind);
-                return Err(Box::new(state));
-            }
+            argument_mode = match variant.style() {
+                hir::EnumSourceVariantStyleV1::Named => ArgumentMode::NamedOnly,
+                hir::EnumSourceVariantStyleV1::Positional => ArgumentMode::PositionalOnly,
+                hir::EnumSourceVariantStyleV1::Constructor => ArgumentMode::Mixed,
+                hir::EnumSourceVariantStyleV1::Unit => unreachable!("unit variants were rejected"),
+            };
         }
-        let argument_map = match call
-            .arguments
-            .map(source.parameters().parameters(), operator_set)
-        {
+        let declaration =
+            match state.imported_call_declaration(&candidate, constructor_owner.is_some()) {
+                Ok(declaration) => declaration,
+                Err(error) => {
+                    state.error(call.span, error);
+                    return Err(Box::new(state));
+                }
+            };
+        let argument_map = match call.arguments.map(
+            &declaration.signature().value_parameters,
+            argument_mode,
+            operator_set,
+        ) {
             Ok(map) => map,
             Err(error) => {
                 state.imported_dependency_shape_error(name, call, error, kind);
@@ -281,34 +285,26 @@ impl Lowerer {
             receiver_source,
             argument_map.has_vararg(),
         )?;
-        if constructor_owner.is_some()
-            || candidate.pointer_intrinsic().is_some()
-            || candidate.array_intrinsic().is_some()
-            || (interface.modality() == hir::CallableModalityV1::Abstract
-                && matches!(
-                    interface.owner(),
-                    hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(
-                        _
-                    ))
-                ))
-            || (candidate.callable_body().is_some()
-                && matches!(
-                    candidate.interface().owner(),
-                    hir::PublicDeclarationOwnerV1::TopLevel
-                        | hir::PublicDeclarationOwnerV1::Extension
-                        | hir::PublicDeclarationOwnerV1::Nominal(_)
-                ))
-        {
-            return Box::new(state).probe_imported_generic(
+        match declaration {
+            ImportedCallDeclaration::Generic(declaration) => Box::new(state)
+                .probe_imported_generic(
+                    candidate,
+                    *declaration,
+                    name,
+                    call,
+                    expected,
+                    receiver,
+                    argument_map,
+                ),
+            ImportedCallDeclaration::Native(signature) => Box::new(state).probe_imported_native(
                 candidate,
+                signature,
                 name,
                 call,
-                expected,
                 receiver,
                 argument_map,
-            );
+            ),
         }
-        Box::new(state).probe_imported_native(candidate, name, call, receiver, argument_map)
     }
 
     fn imported_dependency_shape_error(

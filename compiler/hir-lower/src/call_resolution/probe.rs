@@ -2,20 +2,24 @@
 
 use scoop_hir as hir;
 
-use super::applicability::DeclarationApplicabilityInput;
+use super::applicability::{DeclarationApplicabilityInput, DeclarationTypeArguments};
+use super::arguments::CandidateArgumentMap;
+use super::candidates::DeclarationSignature;
 use super::contextual::{
     ArgumentExpression, ArgumentExpressionFailure, ArgumentInferenceFailure,
-    ArgumentInferenceFailureKind, ArgumentInferenceInput, ArgumentPattern, InferredArguments,
+    ArgumentInferenceFailureKind, ArgumentInferenceInput, InferredArguments,
 };
 use super::solver::ConcreteInferenceArguments;
 use crate::Lowerer;
+use crate::expr::ResolvedCallTypeArgument;
 
-pub(crate) struct CallInferenceInput<'a> {
-    pub(crate) declaration: DeclarationApplicabilityInput<'a>,
-    pub(crate) parameter_types: &'a [hir::TypeId],
-    pub(crate) return_type: hir::TypeId,
+pub(crate) struct CallInferenceInput<'a, D> {
+    pub(crate) signature: &'a DeclarationSignature<D>,
+    pub(crate) argument_map: &'a CandidateArgumentMap<D>,
+    pub(crate) type_arguments: DeclarationTypeArguments<'a>,
+    pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
+    pub(crate) bound_receiver: Option<(hir::TypeId, hir::TypeId)>,
     pub(crate) expressions: &'a [ArgumentExpression<'a>],
-    pub(crate) patterns: &'a [ArgumentPattern],
     pub(crate) expected_result: Option<hir::TypeId>,
     pub(crate) forced_hint: Option<(usize, hir::TypeId)>,
 }
@@ -31,31 +35,41 @@ pub(crate) struct InferredCall {
 }
 
 impl Lowerer {
-    pub(crate) fn infer_call_arguments(
+    pub(crate) fn infer_call_arguments<D>(
         &mut self,
-        input: CallInferenceInput<'_>,
+        input: CallInferenceInput<'_, D>,
     ) -> Result<InferredCall, Box<ArgumentInferenceFailure>> {
         let parameters = input
-            .declaration
+            .signature
             .owner_parameters
             .iter()
-            .chain(input.declaration.callable_parameters)
+            .chain(&input.signature.callable_parameters)
             .map(|parameter| parameter.id)
             .collect::<Vec<_>>();
-        let (mut session, environment) = self.declaration_applicability_session(input.declaration);
+        let patterns = input
+            .argument_map
+            .inference_patterns(&input.signature.value_parameters);
+        let (mut session, environment) =
+            self.declaration_applicability_session(DeclarationApplicabilityInput {
+                owner_parameters: &input.signature.owner_parameters,
+                callable_parameters: &input.signature.callable_parameters,
+                type_arguments: input.type_arguments,
+                explicit_arguments: input.explicit_arguments,
+                bound_receiver: input.bound_receiver,
+            });
         let InferredArguments {
             types,
             values,
             sinks,
         } = self.infer_contextual_arguments(ArgumentInferenceInput {
             expressions: input.expressions,
-            patterns: input.patterns,
+            patterns: &patterns,
             parameters: &parameters,
             session: &mut session,
             environment,
             expected_result: input
                 .expected_result
-                .map(|expected| (input.return_type, expected)),
+                .map(|expected| (input.signature.return_type, expected)),
             forced_hint: input.forced_hint,
         })?;
         let bindings = parameters
@@ -70,7 +84,7 @@ impl Lowerer {
             })
             .collect();
         let mut adapted = Vec::with_capacity(values.len());
-        for (index, (value, pattern)) in values.into_iter().zip(input.patterns).enumerate() {
+        for (index, (value, pattern)) in values.into_iter().zip(&patterns).enumerate() {
             let forced = input.forced_hint.filter(|(source, _)| *source == index);
             let expected = forced.map_or_else(
                 || self.instantiate_method_ty(pattern.ty, &bindings),
@@ -97,11 +111,12 @@ impl Lowerer {
             adapted.push(self.adapt_to(value, expected));
         }
         let parameter_types = input
-            .parameter_types
+            .signature
+            .value_parameters
             .iter()
-            .map(|&ty| self.instantiate_method_ty(ty, &bindings))
+            .map(|parameter| self.instantiate_method_ty(parameter.ty, &bindings))
             .collect();
-        let return_type = self.instantiate_method_ty(input.return_type, &bindings);
+        let return_type = self.instantiate_method_ty(input.signature.return_type, &bindings);
         Ok(InferredCall {
             types,
             bindings,

@@ -14,6 +14,7 @@ mod constructor_applications;
 mod constructor_bodies;
 mod constructor_requests;
 mod constructors;
+mod declaration_views;
 mod delegates;
 mod demanded_initialization;
 mod equality;

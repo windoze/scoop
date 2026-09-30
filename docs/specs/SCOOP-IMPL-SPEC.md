@@ -371,6 +371,8 @@ M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR�
 
 候选的类型探测同样只执行一次共同过程：完整声明签名、源码实参映射、宿主绑定与调用上下文共同建立独立约束环境，再完成上下文固定点、完整代换和实参适配。普通函数的显式类型实参绑定 callable 参数；构造器与 variant 的显式类型实参绑定 nominal owner 参数，并从同一 nominal 的期望 application 取得等式约束。两种参数协议按实际声明种类区分，不能按当前／依赖来源区分。存储适配负责恢复原声明和签名，不自行组织另一轮推断；探测失败保留原事务及失败原因，诊断不得重新执行该候选。构造结果的完整 application 检查、函数引用的精确签名检查及 intrinsic 的真实特殊输入沿共同约束规则处理。
 
+完整声明参数视图同时保留有序的 owner／callable binder、源码参数名、完整类型、Required／Default／Vararg 协议和原默认来源；当前 builder 与已读取声明只适配实际存储。getter／setter 的隐式参数直接来自其访问器签名，使用 Required 协议，不要求普通函数的命名参数表。实参映射、推断输入与 MSC 的声明类型从同一视图取得，不能在依赖分支另存一份按源码实参展开的 wire 类型。函数引用按既定绑定／非绑定 receiver 规则构造精确签名后，共用 owner 完整性、期望函数类型、效果限制及适用性检查；MSC 共用声明比较，引用不使用调用点的默认参数和 vararg tie-break。普通调用的整数 literal 偏好在 MSC 后统一执行，仍采用逐实参的 Pareto 比较。
+
 struct/enum 的派生 equality 条件签名必须在继承与源码签名检查完成后、默认参数正文和 constructor 表达式 lowering 之前登记。默认参数可按普通规则选择派生 equality；生成完整应用正文仍由实际调用需求触发，不能将其限制为普通函数 body 阶段才能使用，也不能覆盖已有的同型用户 equals。
 
 默认值lowering先登记全部export源码参数的定义输入，包含function、method、各类constructor与variant，再准备typed正文。候选参数调用形式只持有声明owner与参数位置组成的独立typed引用或已经完成的template引用，不通过尚未登记的正文arena索引推断Default/VarargDefault。winner实际省略参数时按依赖准备目标正文，始终切回目标定义文件、词法路径、receiver、类型参数及capture环境，结束后恢复调用方上下文；local default保存其真实声明点环境。继承default仍沿唯一override来源及真实类型代换取得provider。按照语言8.5.1，对正在准备的同一参数再次发生缺省展开时发出定义处环诊断；参数调用形式的查询和显式传参不触发该诊断。失败的参数不产生残缺source interface或伪造typed body，全部声明准备完成后才输出完备Export HIR。

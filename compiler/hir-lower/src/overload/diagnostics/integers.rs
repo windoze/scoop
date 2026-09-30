@@ -31,7 +31,7 @@ pub(super) fn render_literal_exact_commits(
             };
             let input = crate::call_resolution::arguments::SourceInputId::from_index(source_index);
             let (parameter, _) = argument_map.source_binding(input);
-            let parameter = &candidate.view.value_parameters[parameter.index()];
+            let parameter = &candidate.view.signature.value_parameters[parameter.index()];
             let mut kinds = Vec::new();
             if let Some(sink) = transaction.argument_sinks.get(source_index) {
                 collect_statement_integer_literal_kinds(&transaction.state, sink, &mut kinds);

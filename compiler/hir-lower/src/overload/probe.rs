@@ -1,8 +1,6 @@
 use super::*;
 
-use crate::call_resolution::applicability::{
-    DeclarationApplicabilityInput, DeclarationTypeArguments,
-};
+use crate::call_resolution::applicability::DeclarationTypeArguments;
 use crate::call_resolution::contextual::{ArgumentExpression, ArgumentInferenceFailureKind};
 use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
 use crate::expr::ResolvedCallTypeArgument;
@@ -119,13 +117,6 @@ impl Lowerer {
                 .map(ArgumentExpression::Lowered)
                 .collect::<Vec<_>>(),
         };
-        let patterns = argument_map.inference_patterns(&candidate.view.value_parameters);
-        let parameter_types = candidate
-            .view
-            .value_parameters
-            .iter()
-            .map(|parameter| parameter.ty)
-            .collect::<Vec<_>>();
         let bound_receiver = receiver.map(|receiver| {
             let crate::call_resolution::candidates::ReceiverShape::Extension(expected) =
                 candidate.view.receiver
@@ -142,19 +133,14 @@ impl Lowerer {
             return_type: return_ty,
             ..
         } = match state.infer_call_arguments(CallInferenceInput {
-            declaration: DeclarationApplicabilityInput {
-                owner_parameters: &candidate.view.owner_parameters,
-                callable_parameters: &candidate.view.callable_parameters,
-                type_arguments: DeclarationTypeArguments::Callable {
-                    owner_arguments: &candidate.owner_arguments,
-                },
-                explicit_arguments: explicit_type_args,
-                bound_receiver,
+            signature: &candidate.view.signature,
+            argument_map,
+            type_arguments: DeclarationTypeArguments::Callable {
+                owner_arguments: &candidate.owner_arguments,
             },
-            parameter_types: &parameter_types,
-            return_type: candidate.view.return_type,
+            explicit_arguments: explicit_type_args,
+            bound_receiver,
             expressions: &expressions,
-            patterns: &patterns,
             expected_result,
             forced_hint: intrinsic_argument_expected,
         }) {

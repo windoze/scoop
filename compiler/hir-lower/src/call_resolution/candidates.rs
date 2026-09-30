@@ -5,10 +5,14 @@ use scoop_hir as hir;
 
 use crate::{
     CallableCandidate, CallableCandidateOwner, CallableCandidateSource, Lowerer,
-    defaults::{SourceParameterCalling, SourceParameterOwner},
+    defaults::SourceParameterOwner,
 };
 
 mod arrays;
+mod parameters;
+pub(crate) use parameters::{
+    DeclarationSignature, ValueParameter, ValueParameterCalling, VarargOmission,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CallableSource {
@@ -25,19 +29,6 @@ pub(crate) enum ReceiverShape {
     None,
     Instance,
     Extension(hir::TypeId),
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct ValueParameter {
-    pub(crate) name: String,
-    pub(crate) calling: SourceParameterCalling,
-    pub(crate) ty: hir::TypeId,
-}
-
-impl ValueParameter {
-    pub(crate) fn is_vararg(&self) -> bool {
-        matches!(self.calling, SourceParameterCalling::Vararg { .. })
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,10 +61,8 @@ pub(crate) enum NominalConstructorSource {
 #[derive(Debug, Clone)]
 pub(crate) struct NominalConstructorView {
     pub(crate) target: NominalConstructorSource,
-    pub(crate) owner_parameters: Vec<hir::TypeParamDecl>,
-    pub(crate) value_parameters: Vec<ValueParameter>,
+    pub(crate) signature: DeclarationSignature,
     pub(crate) argument_mode: ArgumentMode,
-    pub(crate) result_type: hir::TypeId,
 }
 
 /// Complete declaration-side information consumed by call resolution. It is
@@ -84,10 +73,7 @@ pub(crate) struct NominalConstructorView {
 pub(crate) struct CallableView {
     pub(crate) target: CallableSource,
     pub(crate) receiver: ReceiverShape,
-    pub(crate) owner_parameters: Vec<hir::TypeParamDecl>,
-    pub(crate) callable_parameters: Vec<hir::TypeParamDecl>,
-    pub(crate) value_parameters: Vec<ValueParameter>,
-    pub(crate) return_type: hir::TypeId,
+    pub(crate) signature: DeclarationSignature,
     pub(crate) effects: CallableEffects,
     pub(crate) dispatch: SourceDispatch,
     pub(crate) declaration_span: Span,
@@ -135,25 +121,27 @@ impl Lowerer {
         let source_owner = SourceParameterOwner::Function(function);
         CallableView {
             target,
+            signature: crate::call_resolution::candidates::DeclarationSignature {
+                owner_parameters: signature.type_params[..owner_count].to_vec(),
+                callable_parameters: signature.type_params[owner_count..].to_vec(),
+                value_parameters: signature
+                    .params
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| ValueParameter {
+                        name: parameter.name.text.clone(),
+                        calling: self.source_parameter_calling(
+                            source_owner,
+                            index,
+                            parameter.ty,
+                            &parameter.calling,
+                        ),
+                        ty: parameter.ty,
+                    })
+                    .collect(),
+                return_type: signature.return_ty,
+            },
             receiver,
-            owner_parameters: signature.type_params[..owner_count].to_vec(),
-            callable_parameters: signature.type_params[owner_count..].to_vec(),
-            value_parameters: signature
-                .params
-                .iter()
-                .enumerate()
-                .map(|(index, parameter)| ValueParameter {
-                    name: parameter.name.text.clone(),
-                    calling: self.source_parameter_calling(
-                        source_owner,
-                        index,
-                        parameter.ty,
-                        &parameter.calling,
-                    ),
-                    ty: parameter.ty,
-                })
-                .collect(),
-            return_type: signature.return_ty,
             effects: CallableEffects {
                 is_suspend: signature.is_suspend,
                 attributes: signature.attributes,
@@ -181,26 +169,29 @@ impl Lowerer {
                     .unwrap_or_default();
                 NominalConstructorView {
                     target,
-                    owner_parameters: declaration.type_params.clone(),
-                    value_parameters: constructor
-                        .parameters
-                        .iter()
-                        .zip(&calling)
-                        .enumerate()
-                        .map(|(index, (parameter, calling))| ValueParameter {
-                            name: parameter.name.clone(),
-                            calling: self.source_parameter_calling(
-                                source_owner,
-                                index,
-                                parameter.ty,
-                                calling,
-                            ),
-                            ty: parameter.ty,
-                        })
-                        .collect(),
+                    signature: crate::call_resolution::candidates::DeclarationSignature {
+                        owner_parameters: declaration.type_params.clone(),
+                        callable_parameters: Vec::new(),
+                        value_parameters: constructor
+                            .parameters
+                            .iter()
+                            .zip(&calling)
+                            .enumerate()
+                            .map(|(index, (parameter, calling))| ValueParameter {
+                                name: parameter.name.clone(),
+                                calling: self.source_parameter_calling(
+                                    source_owner,
+                                    index,
+                                    parameter.ty,
+                                    calling,
+                                ),
+                                ty: parameter.ty,
+                            })
+                            .collect(),
+                        return_type: self.struct_applications[declaration.self_application]
+                            .canonical_type,
+                    },
                     argument_mode: ArgumentMode::Mixed,
-                    result_type: self.struct_applications[declaration.self_application]
-                        .canonical_type,
                 }
             }
             NominalConstructorSource::Class(constructor_id) => {
@@ -215,26 +206,29 @@ impl Lowerer {
                     .unwrap_or_default();
                 NominalConstructorView {
                     target,
-                    owner_parameters: declaration.type_params.clone(),
-                    value_parameters: constructor
-                        .parameters
-                        .iter()
-                        .zip(&calling)
-                        .enumerate()
-                        .map(|(index, (parameter, calling))| ValueParameter {
-                            name: parameter.name.clone(),
-                            calling: self.source_parameter_calling(
-                                source_owner,
-                                index,
-                                parameter.ty,
-                                calling,
-                            ),
-                            ty: parameter.ty,
-                        })
-                        .collect(),
+                    signature: crate::call_resolution::candidates::DeclarationSignature {
+                        owner_parameters: declaration.type_params.clone(),
+                        callable_parameters: Vec::new(),
+                        value_parameters: constructor
+                            .parameters
+                            .iter()
+                            .zip(&calling)
+                            .enumerate()
+                            .map(|(index, (parameter, calling))| ValueParameter {
+                                name: parameter.name.clone(),
+                                calling: self.source_parameter_calling(
+                                    source_owner,
+                                    index,
+                                    parameter.ty,
+                                    calling,
+                                ),
+                                ty: parameter.ty,
+                            })
+                            .collect(),
+                        return_type: self.class_applications[declaration.self_application]
+                            .canonical_type,
+                    },
                     argument_mode: ArgumentMode::Mixed,
-                    result_type: self.class_applications[declaration.self_application]
-                        .canonical_type,
                 }
             }
             NominalConstructorSource::IntrinsicClass(class) => {
@@ -263,26 +257,29 @@ impl Lowerer {
                 };
                 NominalConstructorView {
                     target,
-                    owner_parameters: declaration.type_params.clone(),
-                    value_parameters: declaration.variants[variant_index as usize]
-                        .fields
-                        .iter()
-                        .zip(calling)
-                        .enumerate()
-                        .map(|(index, (field, calling))| ValueParameter {
-                            name: field.name.clone(),
-                            calling: self.source_parameter_calling(
-                                source_owner,
-                                index,
-                                field.ty,
-                                calling,
-                            ),
-                            ty: field.ty,
-                        })
-                        .collect(),
+                    signature: crate::call_resolution::candidates::DeclarationSignature {
+                        owner_parameters: declaration.type_params.clone(),
+                        callable_parameters: Vec::new(),
+                        value_parameters: declaration.variants[variant_index as usize]
+                            .fields
+                            .iter()
+                            .zip(calling)
+                            .enumerate()
+                            .map(|(index, (field, calling))| ValueParameter {
+                                name: field.name.clone(),
+                                calling: self.source_parameter_calling(
+                                    source_owner,
+                                    index,
+                                    field.ty,
+                                    calling,
+                                ),
+                                ty: field.ty,
+                            })
+                            .collect(),
+                        return_type: self.enum_applications[declaration.self_application]
+                            .canonical_type,
+                    },
                     argument_mode,
-                    result_type: self.enum_applications[declaration.self_application]
-                        .canonical_type,
                 }
             }
         }
