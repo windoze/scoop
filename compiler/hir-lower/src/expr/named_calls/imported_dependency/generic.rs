@@ -87,6 +87,23 @@ impl Lowerer {
                 );
             }
         }
+        let expected_result = expected.map(|expected| (signature.return_type, expected));
+        let expected_result = if matches!(
+            template,
+            ImportedGenericTarget::Constructor(_) | ImportedGenericTarget::Variant(_)
+        ) && let Some((result, expected)) = expected_result
+            && let Some(result_application) = self.nominal_application(result)
+            && let Some(expected_application) = self.nominal_application(expected)
+            && result_application.template == expected_application.template
+        {
+            session.push(
+                Constraint::Equal(TypeTerm::Type(result), TypeTerm::Rigid(expected)),
+                ConstraintOrigin::ExpectedResult,
+            );
+            None
+        } else {
+            expected_result
+        };
         if let (Some(expected), ImportedCallReceiver::Member { value, .. }) =
             (signature.receiver, &receiver)
         {
@@ -153,7 +170,7 @@ impl Lowerer {
             parameters: &parameters,
             session: &mut session,
             environment,
-            expected_result: expected.map(|expected| (signature.return_type, expected)),
+            expected_result,
             forced_hint: None,
         }) {
             Ok(arguments) => arguments,

@@ -1,0 +1,5 @@
+package consumer.options
+
+import dependency.options.Packet
+
+public fun result(): Packet<Int> = Packet.Item("wrong")

@@ -193,3 +193,10 @@
 - 删除保存 Class／Interface／Struct／Enum／Object arena ID 的 `VisibilityOwner`，成员 private 约束统一保存原 `SourceNominalId`。词法包含、定义文件和 protected 词法上下文继续通过既有声明索引定位；域正规化直接按完整约束排序，删除手写的 arena 排序键。相关实现净减少 55 行，没有扩展依赖可见性或增加身份映射表。
 - 全仓 fmt／clippy、856 项 HIR 和 1312 项 HIR lowering 单元测试全部通过；既有 private setter 结构断言同步验证原 class 声明身份。4 项真实产物回归全部通过，覆盖泛型 protected／private、嵌套词法作用域、函数引用、继承访问及错误诊断；快照无需改动。
 - 日志前缀 `/tmp/scoop-m23-6a-private-owners-`，结果见 `unit.log` 和 `artifacts.log`。nominal application 与完整声明／正文中的其余来源表示继续迁移，本批不宣告 6a 完成。
+
+## 构造调用保留完整期望 application
+
+- 修复真实 Option 回归发现的别名目标丢失：依赖构造器和 variant 在检查实参前，将同一原 nominal 的完整期望 application 加入既有等式约束。与当前声明构造保持一致，不再把别名固定实参当成可被 payload 推断覆盖的普通函数结果提示；普通泛型函数的延期结果推断保持。
+- 新增四个独立反例，连同既有错误 payload 反例，覆盖别名链、命名 payload、结果转为 Any、直接期望 application 和 class 构造器。诊断定位错误实参；原反例快照无需改动，新诊断快照关闭更新开关复验通过。
+- 全仓 fmt／clippy、1314 项 HIR lowering 单元测试通过。Option 完整组和泛型构造器完整组的真实发布、源码移走、再发布及运行均通过；同时执行的 enum／接口成员等九项不同真实产物测试均已覆盖成功。日志前缀 `/tmp/scoop-m23-6a-constructor-applications-`，结果见 `unit.log`、`options-verified.log` 和 `verified-artifacts.log`。
+- 未增加推断器、wire 字段或 runtime ABI；修改后的泛型调用主模块为 470 行。确认没有 cargo／rustc 占用后清理约 0.72 GiB 旧增量缓存，继续复用 `target/m23-6a`。

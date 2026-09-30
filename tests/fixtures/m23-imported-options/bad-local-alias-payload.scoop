@@ -1,0 +1,7 @@
+package consumer.options
+
+import dependency.options.IntPacket
+
+private typealias LocalPacket = IntPacket
+
+public fun result(): Any = LocalPacket.Named(value = "wrong")

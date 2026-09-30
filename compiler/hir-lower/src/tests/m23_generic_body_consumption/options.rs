@@ -1,5 +1,31 @@
 use super::*;
 
+#[test]
+fn nominal_constructor_arguments_retain_the_complete_expected_application() {
+    for (case, expression) in [
+        ("bad-alias-payload", "\"wrong\""),
+        ("bad-alias-erased", "\"wrong\""),
+        ("bad-local-alias-payload", "value = \"wrong\""),
+        ("bad-contextual-payload", "\"wrong\""),
+        ("bad-constructor-alias-payload", "\"wrong\""),
+    ] {
+        let source = fixture(case);
+        let errors = with_provider_consumer(&fixture("provider"), &source, |_, _, _, _, _| ())
+            .expect_err("the fixed Int payload rejects a String argument");
+        let error = errors
+            .iter()
+            .find(|error| error.message.contains("String is not a subtype of Int"))
+            .unwrap_or_else(|| panic!("{case}: {errors:?}"));
+        let span = error.span.unwrap();
+        assert_eq!(error.file, 0, "{case}");
+        assert_eq!(
+            &source[span.start as usize..span.end as usize],
+            expression,
+            "{case}",
+        );
+    }
+}
+
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

@@ -168,6 +168,8 @@ Scoop 的类型分为两大类：
 
 跨 Cone 的 `Alias(...)` 与本地别名遵循相同规则：先按真实 typed target 展开，再对目标声明的构造器执行普通候选决议。外来 alias、本地指向外来类型的 alias 及其链式组合保留目标的构造器身份、默认参数、访问域与 GC effect，不生成转发构造器。
 
+别名限定的构造调用保留目标 application 的全部固定实参，包括 `Alias.Variant(...)`；实参表达式不能重新推断并替换这些类型实参。即使调用结果被赋给 `Any` 或没有显式结果类型，payload 与构造参数仍按别名展开后的目标类型检查。
+
 当前语言子集支持top-level、非generic透明alias，例如`public typealias UserId = UInt64`、`typealias Names = Array<String>`。右侧必须是声明点可访问、参数完整的普通类型，可以是nominal application、tuple或函数类型；alias不能声明type parameter、捕获外层type parameter或出现在nested/local位置。alias可以引用其他alias，但展开依赖图必须无环；直接或间接递归均为定义处错误。
 
 alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。类型检查与codegen一律使用完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。visibility默认仍为`internal`；完全展开目标type tree中每个被引用声明的effective access domain必须覆盖alias自身的effective domain。因此internal alias也不能暴露file-private目标，public alias只是同一signature-exposure规则的更宽特例。M22定义的这一top-level、non-generic alias在M23起可写入`.slib`并经普通import、`public import` re-export与链式re-export跨Cone使用；它的alias identity保持origin Cone，使用处仍展开到同一typed target。声明type parameter的generic alias以及nested/local alias仍不在当前语言子集中，不因M23的跨Cone打包能力而获得半成品形态。
