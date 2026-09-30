@@ -1,5 +1,17 @@
 use super::*;
 
+pub(super) fn lexical_function_name(
+    module: &Module,
+    definition: LexicalFunctionDefinition,
+) -> &str {
+    match definition {
+        LexicalFunctionDefinition::Source { function, .. } => &module.functions[function].name,
+        LexicalFunctionDefinition::Template(template) => {
+            &module.imported_generic_templates[template].name
+        }
+    }
+}
+
 pub(super) fn callable_target_name(module: &Module, callee: CallableTarget) -> String {
     match callee {
         CallableTarget::Local(callable) => {

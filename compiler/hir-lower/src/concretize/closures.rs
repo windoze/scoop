@@ -34,45 +34,6 @@ pub(super) fn finish_callable_references(
 }
 
 impl Concretizer<'_> {
-    pub(super) fn lower_imported_closure(
-        &mut self,
-        source: &export::ImportedClosure,
-        span: scoop_ast::Span,
-        substitution: &[concrete::TypeId],
-        locals: &[concrete::LocalId],
-    ) -> concrete::ExprKind {
-        let application = self.source.imported_generic_applications[source.application].clone();
-        let function = self.lower_imported_callable_application(&application, substitution);
-        let function_type = self.lower_function_type(source.function_type, substitution);
-        let captures = source
-            .captures
-            .iter()
-            .map(|capture| self.lower_capture(capture, substitution, locals))
-            .collect();
-        match source.kind {
-            export::ImportedClosureKind::Lambda => {
-                concrete::ExprKind::Lambda(self.lambdas.alloc(concrete::Lambda {
-                    definition_path: source.definition_path.clone(),
-                    function,
-                    function_type,
-                    captures,
-                    span,
-                }))
-            }
-            export::ImportedClosureKind::AnonymousFunction => {
-                concrete::ExprKind::AnonymousFunction(self.anonymous_functions.alloc(
-                    concrete::AnonymousFunction {
-                        definition_path: source.definition_path.clone(),
-                        function,
-                        function_type,
-                        captures,
-                        span,
-                    },
-                ))
-            }
-        }
-    }
-
     pub(super) fn ensure_lambda(
         &mut self,
         source_id: export::LambdaId,
@@ -93,7 +54,7 @@ impl Concretizer<'_> {
         };
         let value = concrete::Lambda {
             definition_path: source.definition_path,
-            function: self.request_function(source.function, body_arguments),
+            function: self.request_lexical_function(source.definition, body_arguments),
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
                 .captures
@@ -127,7 +88,7 @@ impl Concretizer<'_> {
         };
         let value = concrete::AnonymousFunction {
             definition_path: source.definition_path,
-            function: self.request_function(source.function, body_arguments),
+            function: self.request_lexical_function(source.definition, body_arguments),
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
                 .captures
@@ -147,7 +108,7 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::LocalFunctionId {
         let source = self.source.local_functions[source_id].clone();
-        let function = self.request_function(source.source_function(), substitution.to_vec());
+        let function = self.request_lexical_function(source.definition, substitution.to_vec());
         let function_type =
             self.lower_function_type(source.declaration_function_type, substitution);
         self.intern_local_function(function, source.definition_path, function_type)

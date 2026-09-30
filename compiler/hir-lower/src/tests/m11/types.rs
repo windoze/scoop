@@ -92,9 +92,12 @@ fn callable_literal_inherits_the_enclosing_generic_namespace() {
 
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
     assert_eq!(lambda.owner_type_param_count, 1);
-    assert_eq!(module.functions[lambda.function].type_params()[0].name, "T");
+    assert_eq!(
+        module.functions[lambda.definition.source_function()].type_params()[0].name,
+        "T"
+    );
     assert!(matches!(
-        module.functions[lambda.function].genericity,
+        module.functions[lambda.definition.source_function()].genericity,
         hir::FunctionGenericity::Generic { .. }
     ));
     assert!(matches!(

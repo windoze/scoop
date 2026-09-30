@@ -236,9 +236,11 @@ impl Lowerer {
             self.function_files.insert(function, self.current_file);
             let captures = self.finish_current_captures(literal_origin);
             let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
-                definition_root: self.current_definition_root(),
+                definition: hir::LexicalFunctionDefinition::Source {
+                    function,
+                    root: self.current_definition_root(),
+                },
                 definition_path: definition_path.clone(),
-                function,
                 function_type,
                 owner_type_param_count: type_params.len(),
                 body_type_arguments: hir::CallableBodyTypeArguments::Lexical,

@@ -80,11 +80,11 @@ impl Lowerer {
 
     pub(in crate::effects) fn callable_body_generic_call(
         &self,
-        function: hir::FunctionId,
+        definition: hir::LexicalFunctionDefinition,
         body_type_arguments: &hir::CallableBodyTypeArguments,
         span: Span,
     ) -> Option<GenericCall> {
-        let parameters = self.functions[function].type_params();
+        let parameters = self.lexical_body_type_parameters(definition);
         if parameters.is_empty() {
             return None;
         }
@@ -95,7 +95,7 @@ impl Lowerer {
                     self.types
                         .iter()
                         .find_map(|(ty, candidate)| {
-                            matches!(candidate, hir::Type::Param(id) if *id == parameter.id)
+                            matches!(candidate, hir::Type::Param(id) if *id == *parameter)
                                 .then_some(ty)
                         })
                         .expect("every callable body parameter has a canonical parameter type")
@@ -105,12 +105,15 @@ impl Lowerer {
         };
         assert_eq!(parameters.len(), argument_types.len());
         Some(GenericCall {
-            callee: GenericCallable::Function(function),
-            arguments: parameters
-                .into_iter()
-                .zip(argument_types)
-                .map(|(parameter, argument)| (parameter.id, argument))
-                .collect(),
+            callee: match definition {
+                hir::LexicalFunctionDefinition::Source { function, .. } => {
+                    GenericCallable::Function(function)
+                }
+                hir::LexicalFunctionDefinition::Template(template) => {
+                    GenericCallable::Imported(template)
+                }
+            },
+            arguments: parameters.into_iter().zip(argument_types).collect(),
             span,
         })
     }

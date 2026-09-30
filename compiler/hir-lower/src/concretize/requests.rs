@@ -32,6 +32,23 @@ pub(super) enum FunctionSource {
 }
 
 impl Concretizer<'_> {
+    pub(super) fn request_lexical_function(
+        &mut self,
+        definition: export::LexicalFunctionDefinition,
+        arguments: Vec<concrete::TypeId>,
+    ) -> concrete::FunctionId {
+        let source = match definition {
+            export::LexicalFunctionDefinition::Source { function, .. } => {
+                FunctionSource::Local(function)
+            }
+            export::LexicalFunctionDefinition::Template(template) => {
+                FunctionSource::Imported(template)
+            }
+        };
+        let key = self.function_key(source, None, arguments);
+        self.request_function_key(key, source)
+    }
+
     pub(super) fn function_key(
         &self,
         source: FunctionSource,

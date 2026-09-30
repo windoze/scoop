@@ -31,12 +31,22 @@ pub(super) fn project(
     let captures = export
         .lambdas
         .iter()
-        .map(|(_, lambda)| (lambda.function, lambda.captures.as_slice()))
+        .filter_map(|(_, lambda)| {
+            lambda
+                .definition
+                .source()
+                .map(|(function, _)| (function, lambda.captures.as_slice()))
+        })
         .chain(
             export
                 .anonymous_functions
                 .iter()
-                .map(|(_, anonymous)| (anonymous.function, anonymous.captures.as_slice())),
+                .filter_map(|(_, anonymous)| {
+                    anonymous
+                        .definition
+                        .source()
+                        .map(|(function, _)| (function, anonymous.captures.as_slice()))
+                }),
         )
         .find_map(|(body, captures)| (body == function).then_some(captures));
     let Some(captures) = captures else {

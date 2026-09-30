@@ -232,29 +232,31 @@ impl DefaultEntityProjector<'_> {
                 });
             }
         };
-        let sites = self
-            .export
-            .local_functions
-            .values()
-            .filter_map(|declaration| {
-                declaration
-                    .source()
-                    .map(|(function, root)| (function, root, &declaration.definition_path))
-            })
-            .chain(self.export.lambdas.values().map(|declaration| {
-                (
-                    declaration.function,
-                    declaration.definition_root,
-                    &declaration.definition_path,
-                )
-            }))
-            .chain(self.export.anonymous_functions.values().map(|declaration| {
-                (
-                    declaration.function,
-                    declaration.definition_root,
-                    &declaration.definition_path,
-                )
-            }));
+        let sites =
+            self.export
+                .local_functions
+                .values()
+                .filter_map(|declaration| {
+                    declaration
+                        .source()
+                        .map(|(function, root)| (function, root, &declaration.definition_path))
+                })
+                .chain(self.export.lambdas.values().filter_map(|declaration| {
+                    declaration
+                        .definition
+                        .source()
+                        .map(|(function, root)| (function, root, &declaration.definition_path))
+                }))
+                .chain(
+                    self.export
+                        .anonymous_functions
+                        .values()
+                        .filter_map(|declaration| {
+                            declaration.definition.source().map(|(function, root)| {
+                                (function, root, &declaration.definition_path)
+                            })
+                        }),
+                );
         let parent = sites
             .filter(|(_, candidate_root, candidate_path)| {
                 *candidate_root == root

@@ -91,22 +91,28 @@ impl<'a> CallableIdentityBuilder<'a> {
             );
         }
         for (_, declaration) in concretizer.source.lambdas.iter() {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
             insert_lexical_site(
                 &mut lexical_sites,
-                declaration.function,
+                source_function,
                 LexicalSite {
-                    root: declaration.definition_root,
+                    root: source_root,
                     path: declaration.definition_path.clone(),
                     owner_type_parameter_count: declaration.owner_type_param_count,
                 },
             );
         }
         for (_, declaration) in concretizer.source.anonymous_functions.iter() {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
             insert_lexical_site(
                 &mut lexical_sites,
-                declaration.function,
+                source_function,
                 LexicalSite {
-                    root: declaration.definition_root,
+                    root: source_root,
                     path: declaration.definition_path.clone(),
                     owner_type_parameter_count: declaration.owner_type_param_count,
                 },

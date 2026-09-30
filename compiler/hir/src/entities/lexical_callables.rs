@@ -13,10 +13,9 @@ pub enum LexicalDefinitionRoot {
 
 #[derive(Debug, Clone)]
 pub struct Lambda {
-    pub definition_root: LexicalDefinitionRoot,
+    pub definition: LexicalFunctionDefinition,
     /// Stable lexical definition path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
-    pub function: FunctionId,
     pub function_type: FunctionTypeId,
     /// Type parameters inherited from the enclosing generic callable. The
     /// generated invoke body is instantiated with this complete prefix.
@@ -30,10 +29,9 @@ pub struct Lambda {
 
 #[derive(Debug, Clone)]
 pub struct AnonymousFunction {
-    pub definition_root: LexicalDefinitionRoot,
+    pub definition: LexicalFunctionDefinition,
     /// Stable lexical definition path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
-    pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub owner_type_param_count: usize,
     pub body_type_arguments: CallableBodyTypeArguments,
@@ -45,8 +43,8 @@ pub struct AnonymousFunction {
 pub enum CallableBodyTypeArguments {
     /// Substitute the type arguments of the ordinary enclosing body.
     Lexical,
-    /// A hygienically expanded default fixes the generated body's original
-    /// lexical parameters even though the expression now belongs to a
+    /// A decoded or expanded body keeps the original lexical parameters in
+    /// its current binder frame, even when the expression belongs to a
     /// different caller body.
     Explicit(Vec<TypeId>),
 }
@@ -56,7 +54,7 @@ pub enum CallableBodyTypeArguments {
 /// materializes a closure over the same body.
 #[derive(Debug, Clone)]
 pub struct LocalFunction {
-    pub definition: LocalFunctionDefinition,
+    pub definition: LexicalFunctionDefinition,
     /// Stable lexical declaration path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     /// Source signature in the lifted declaration's own binder frame.
@@ -71,10 +69,10 @@ pub struct LocalFunction {
     pub span: Span,
 }
 
-/// Storage location of a named lexical body. Its source identity and binder
+/// Storage location of a lexical body. Its source identity and binder
 /// frame remain attached to that definition, independently of occurrences.
 #[derive(Debug, Clone, Copy)]
-pub enum LocalFunctionDefinition {
+pub enum LexicalFunctionDefinition {
     Source {
         function: FunctionId,
         root: LexicalDefinitionRoot,
@@ -82,18 +80,28 @@ pub enum LocalFunctionDefinition {
     Template(ImportedGenericCallableTemplateId),
 }
 
-impl LocalFunction {
-    pub fn source(&self) -> Option<(FunctionId, LexicalDefinitionRoot)> {
-        match self.definition {
-            LocalFunctionDefinition::Source { function, root } => Some((function, root)),
-            LocalFunctionDefinition::Template(_) => None,
+impl LexicalFunctionDefinition {
+    pub fn source(self) -> Option<(FunctionId, LexicalDefinitionRoot)> {
+        match self {
+            LexicalFunctionDefinition::Source { function, root } => Some((function, root)),
+            LexicalFunctionDefinition::Template(_) => None,
         }
     }
 
-    pub fn source_function(&self) -> FunctionId {
+    pub fn source_function(self) -> FunctionId {
         self.source()
             .expect("source lookup retains its current declaration")
             .0
+    }
+}
+
+impl LocalFunction {
+    pub fn source(&self) -> Option<(FunctionId, LexicalDefinitionRoot)> {
+        self.definition.source()
+    }
+
+    pub fn source_function(&self) -> FunctionId {
+        self.definition.source_function()
     }
 }
 

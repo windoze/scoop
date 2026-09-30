@@ -136,39 +136,12 @@ pub(super) fn dump_expr(
                 binding.into_raw()
             ));
         }
-        ExprKind::ImportedClosure(closure) => {
-            let application = &module.imported_generic_applications[closure.application];
-            let arguments = application
-                .arguments
-                .substitution(
-                    &module.types,
-                    &module.enum_applications,
-                    &module.struct_applications,
-                    &module.class_applications,
-                    &module.interface_applications,
-                )
-                .iter()
-                .map(|ty| type_name(module, *ty))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let kind = match closure.kind {
-                crate::ImportedClosureKind::Lambda => "ImportedLambda",
-                crate::ImportedClosureKind::AnonymousFunction => "ImportedAnonymousFunction",
-            };
-            out.push_str(&format!(
-                "{pad}{kind}<{arguments}> captures={} : {ty}\n",
-                closure.captures.len()
-            ));
-            for capture in &closure.captures {
-                dump_expr(module, locals, &capture.source, indent + 1, out);
-            }
-        }
         ExprKind::Lambda(id) => {
             let lambda = &module.lambdas[*id];
             out.push_str(&format!(
                 "{pad}Lambda lambda{} invoke={} captures={} : {ty}\n",
                 id.into_raw(),
-                module.functions[lambda.function].name,
+                lexical_function_name(module, lambda.definition),
                 lambda.captures.len()
             ));
             for capture in &lambda.captures {
@@ -186,7 +159,7 @@ pub(super) fn dump_expr(
             out.push_str(&format!(
                 "{pad}AnonymousFunction anonymous{} invoke={} captures={} : {ty}\n",
                 id.into_raw(),
-                module.functions[anonymous.function].name,
+                lexical_function_name(module, anonymous.definition),
                 anonymous.captures.len()
             ));
             for capture in &anonymous.captures {

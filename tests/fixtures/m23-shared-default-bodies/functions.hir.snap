@@ -48,8 +48,8 @@ Module
     val local14
       Local $dependency.argument.0 : T0
     val local15
-      ImportedLambda<T0> captures=1 : () -> T0
-        Local $dependency.parameter.value : T0
+      Lambda lambda1 invoke=$lambda captures=1 : () -> T0
+        capture $capture.0 binding17 : T0
     val local16
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
@@ -72,8 +72,8 @@ Module
     val local20
       Local $dependency.argument.0 : T0
     val local21
-      ImportedAnonymousFunction<T0> captures=1 : () -> T0
-        Local $dependency.parameter.value : T0
+      AnonymousFunction anonymous1 invoke=$anonymous captures=1 : () -> T0
+        capture $capture.0 binding27 : T0
     val local22
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
@@ -96,8 +96,8 @@ Module
     val local26
       Local $dependency.argument.0 : T0
     val local27
-      ImportedLambda<T0> captures=1 : () -> T0
-        Local $dependency.parameter.value : T0
+      Lambda lambda3 invoke=$lambda captures=1 : () -> T0
+        capture $capture.0 binding38 : T0
     val local28
       Local $dependency.parameter.first : () -> T0
     val local29
@@ -123,8 +123,8 @@ Module
     val local33
       Local $dependency.argument.0 : T0
     val local34
-      ImportedLambda<T0> captures=1 : () -> T0
-        Local $dependency.parameter.value : T0
+      Lambda lambda5 invoke=$lambda captures=1 : () -> T0
+        capture $capture.0 binding51 : T0
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
@@ -137,8 +137,8 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedLambda<> captures=1 : () -> Int
-        Local $dependency.parameter.value : Int
+      Lambda lambda7 invoke=$lambda captures=1 : () -> Int
+        capture $capture.0 binding58 : Int
     val local3
       Call external #4 : Int
         Local $dependency.parameter.value : Int
@@ -157,8 +157,8 @@ Module
     val local6
       IntegerLiteral 40 : Int
     val local7
-      ImportedLambda<> captures=1 : () -> Int
-        Local $dependency.parameter.value : Int
+      Lambda lambda8 invoke=$lambda captures=1 : () -> Int
+        capture $capture.0 binding58 : Int
     val local8
       Call external #4 : Int
         Local $dependency.parameter.value : Int
@@ -196,7 +196,7 @@ Module
     val local16
       IntegerLiteral 42 : Int
     val local17
-      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+      Lambda lambda9 invoke=$lambda.0 captures=0 : (Int) -> Int
     val local18
       Local $argument.0 : Int
     val local19

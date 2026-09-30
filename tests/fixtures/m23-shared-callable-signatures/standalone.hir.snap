@@ -34,7 +34,7 @@ Module
     val local7
       Local $dependency.argument.0 : T0
     val local8
-      ImportedLambda<T0> captures=0 : (T0) -> T0
+      Lambda lambda1 invoke=$lambda captures=0 : (T0) -> T0
     val local9
       Call defaulted<T0> : T0
         Local $dependency.parameter.value : T0
@@ -88,7 +88,7 @@ Module
       Call nativeNumber : Int
         Local $parameter.value : Int
     val local13
-      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+      Lambda lambda2 invoke=$lambda.0 captures=0 : (Int) -> Int
     val local14
       Local $argument.0 : Int
     val local15

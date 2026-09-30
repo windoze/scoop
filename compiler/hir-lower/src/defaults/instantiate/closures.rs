@@ -74,26 +74,6 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn instantiate_default_imported_closure(
-        &mut self,
-        source: &hir::ImportedClosure,
-        context: &mut InstantiationContext,
-    ) -> hir::ImportedClosure {
-        let application =
-            self.instantiate_default_imported_application(source.application, context);
-        hir::ImportedClosure {
-            kind: source.kind,
-            application,
-            definition_path: source.definition_path.clone(),
-            function_type: self.instantiate_default_function_type(source.function_type, context),
-            captures: source
-                .captures
-                .iter()
-                .map(|capture| self.instantiate_default_capture(capture, context))
-                .collect(),
-        }
-    }
-
     pub(super) fn instantiate_default_local_function(
         &mut self,
         source: hir::LocalFunctionId,
@@ -122,7 +102,7 @@ impl Lowerer {
     ) -> hir::LambdaId {
         let source = self.lambdas[source].clone();
         let body_type_arguments = self.instantiate_callable_body_arguments(
-            source.function,
+            source.definition,
             &source.body_type_arguments,
             context,
         );
@@ -133,9 +113,8 @@ impl Lowerer {
             .map(|capture| self.instantiate_default_capture(capture, context))
             .collect();
         self.lambdas.alloc(hir::Lambda {
-            definition_root: source.definition_root,
+            definition: source.definition,
             definition_path: source.definition_path,
-            function: source.function,
             function_type,
             owner_type_param_count: source.owner_type_param_count,
             body_type_arguments,
@@ -151,7 +130,7 @@ impl Lowerer {
     ) -> hir::AnonymousFunctionId {
         let source = self.anonymous_functions[source].clone();
         let body_type_arguments = self.instantiate_callable_body_arguments(
-            source.function,
+            source.definition,
             &source.body_type_arguments,
             context,
         );
@@ -162,9 +141,8 @@ impl Lowerer {
             .map(|capture| self.instantiate_default_capture(capture, context))
             .collect();
         self.anonymous_functions.alloc(hir::AnonymousFunction {
-            definition_root: source.definition_root,
+            definition: source.definition,
             definition_path: source.definition_path,
-            function: source.function,
             function_type,
             owner_type_param_count: source.owner_type_param_count,
             body_type_arguments,
@@ -238,16 +216,13 @@ impl Lowerer {
 
     fn instantiate_callable_body_arguments(
         &mut self,
-        function: hir::FunctionId,
+        definition: hir::LexicalFunctionDefinition,
         source: &hir::CallableBodyTypeArguments,
         context: &InstantiationContext,
     ) -> hir::CallableBodyTypeArguments {
         let arguments = match source {
-            hir::CallableBodyTypeArguments::Lexical => self.functions[function]
-                .type_params()
-                .into_iter()
-                .map(|parameter| parameter.id)
-                .collect::<Vec<_>>()
+            hir::CallableBodyTypeArguments::Lexical => self
+                .lexical_body_type_parameters(definition)
                 .into_iter()
                 .map(|parameter| self.intern_type(Type::Param(parameter)))
                 .collect(),

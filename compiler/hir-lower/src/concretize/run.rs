@@ -75,24 +75,23 @@ impl Concretizer<'_> {
                 self.lower_class_application(declaration.self_application, &[]);
             }
         }
-        let lexical_functions = self
-            .source
-            .local_functions
-            .iter()
-            .filter_map(|(_, local)| local.source().map(|(function, _)| function))
-            .chain(
-                self.source
-                    .lambdas
-                    .iter()
-                    .map(|(_, lambda)| lambda.function),
-            )
-            .chain(
-                self.source
-                    .anonymous_functions
-                    .iter()
-                    .map(|(_, anonymous)| anonymous.function),
-            )
-            .collect::<std::collections::HashSet<_>>();
+        let lexical_functions =
+            self.source
+                .local_functions
+                .iter()
+                .filter_map(|(_, local)| local.source().map(|(function, _)| function))
+                .chain(self.source.lambdas.iter().filter_map(|(_, lambda)| {
+                    lambda.definition.source().map(|(function, _)| function)
+                }))
+                .chain(
+                    self.source
+                        .anonymous_functions
+                        .iter()
+                        .filter_map(|(_, anonymous)| {
+                            anonymous.definition.source().map(|(function, _)| function)
+                        }),
+                )
+                .collect::<std::collections::HashSet<_>>();
         for (id, function) in self.source.functions.iter() {
             if !lexical_functions.contains(&id)
                 && function.method.is_none()

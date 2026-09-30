@@ -394,21 +394,7 @@ pub(in super::super) fn collect_expr_types(
             {
                 out.extend(arguments.iter().copied());
             }
-        }
-        ExprKind::ImportedClosure(closure) => {
-            collect_function_type_types(lowerer, closure.function_type, out);
-            out.extend(
-                lowerer.imported_generic_applications[closure.application]
-                    .arguments
-                    .substitution(
-                        &lowerer.types,
-                        &lowerer.enum_applications,
-                        &lowerer.struct_applications,
-                        &lowerer.class_applications,
-                        &lowerer.interface_applications,
-                    ),
-            );
-            for capture in &closure.captures {
+            for capture in &lambda.captures {
                 out.push(capture.ty);
                 collect_expr_types(lowerer, &capture.source, out);
             }
@@ -420,6 +406,10 @@ pub(in super::super) fn collect_expr_types(
                 &function.body_type_arguments
             {
                 out.extend(arguments.iter().copied());
+            }
+            for capture in &function.captures {
+                out.push(capture.ty);
+                collect_expr_types(lowerer, &capture.source, out);
             }
         }
         ExprKind::CallableReference(reference) => {

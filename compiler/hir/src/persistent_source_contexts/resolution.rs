@@ -322,10 +322,14 @@ fn validate_generated_function_source(
     let root = inputs
         .lambdas
         .iter()
-        .find_map(|(_, literal)| (literal.function == function).then_some(literal.definition_root))
+        .find_map(|(_, literal)| {
+            let (source, root) = literal.definition.source()?;
+            (source == function).then_some(root)
+        })
         .or_else(|| {
             inputs.anonymous_functions.iter().find_map(|(_, literal)| {
-                (literal.function == function).then_some(literal.definition_root)
+                let (source, root) = literal.definition.source()?;
+                (source == function).then_some(root)
             })
         })
         .ok_or(HirSourceContextIdentityError::InvalidFunctionSubject {
@@ -347,16 +351,16 @@ fn lexical_callable_identity(
             .lambdas
             .iter()
             .filter_map(|(_, literal)| {
-                (literal.definition_root == root && literal.definition_path == *path)
-                    .then_some(literal.function)
+                let (function, source_root) = literal.definition.source()?;
+                (source_root == root && literal.definition_path == *path).then_some(function)
             })
             .collect::<Vec<_>>(),
         scoop_identity::LexicalCallableRole::AnonymousFunctionBody => inputs
             .anonymous_functions
             .iter()
             .filter_map(|(_, literal)| {
-                (literal.definition_root == root && literal.definition_path == *path)
-                    .then_some(literal.function)
+                let (function, source_root) = literal.definition.source()?;
+                (source_root == root && literal.definition_path == *path).then_some(function)
             })
             .collect::<Vec<_>>(),
     };

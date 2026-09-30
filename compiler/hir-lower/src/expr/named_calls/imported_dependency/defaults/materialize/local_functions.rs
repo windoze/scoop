@@ -76,7 +76,7 @@ impl Lowerer {
             context,
         )?;
         Ok(self.local_functions.alloc(hir::LocalFunction {
-            definition: hir::LocalFunctionDefinition::Template(template),
+            definition: hir::LexicalFunctionDefinition::Template(template),
             definition_path: descriptor.definition_path().clone(),
             declaration_function_type,
             function_type,

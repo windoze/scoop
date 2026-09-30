@@ -1,6 +1,23 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn lexical_body_type_parameters(
+        &self,
+        definition: hir::LexicalFunctionDefinition,
+    ) -> Vec<hir::TypeParamId> {
+        match definition {
+            hir::LexicalFunctionDefinition::Source { function, .. } => self.functions[function]
+                .type_params()
+                .into_iter()
+                .map(|parameter| parameter.id)
+                .collect(),
+            hir::LexicalFunctionDefinition::Template(template) => self.imported_generic_templates
+                [template]
+                .type_parameters
+                .ids(),
+        }
+    }
+
     /// Register a generic definition once and return its typed id.
     pub(crate) fn register_generic(
         &mut self,

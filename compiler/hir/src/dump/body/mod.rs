@@ -3,7 +3,7 @@ use super::*;
 mod calls;
 mod expr;
 mod variants;
-use calls::{callable_target_name, method_callee_name};
+use calls::{callable_target_name, lexical_function_name, method_callee_name};
 use expr::dump_expr;
 use variants::{enum_field_name, enum_variant_names};
 
@@ -87,10 +87,10 @@ pub(super) fn dump_statements(
             StatementKind::LocalFunction(id) => {
                 let local = &module.local_functions[*id];
                 let name = match local.definition {
-                    LocalFunctionDefinition::Source { function, .. } => {
+                    LexicalFunctionDefinition::Source { function, .. } => {
                         &module.functions[function].name
                     }
-                    LocalFunctionDefinition::Template(template) => {
+                    LexicalFunctionDefinition::Template(template) => {
                         &module.imported_generic_templates[template].name
                     }
                 };

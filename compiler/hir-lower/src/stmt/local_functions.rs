@@ -112,7 +112,7 @@ impl Lowerer {
             self.register_generic(function, type_params.clone());
         }
         let local = self.local_functions.alloc(hir::LocalFunction {
-            definition: hir::LocalFunctionDefinition::Source {
+            definition: hir::LexicalFunctionDefinition::Source {
                 function,
                 root: self.current_definition_root(),
             },

@@ -34,7 +34,7 @@ impl DefaultEntityProjector<'_> {
             local_function: raw_index(id),
         };
         let parameters = match local.definition {
-            crate::LocalFunctionDefinition::Source { function, .. } => {
+            crate::LexicalFunctionDefinition::Source { function, .. } => {
                 let function = arena_get(&self.export.functions, function).ok_or(
                     DefaultEntityProjectionError::Unknown {
                         kind: "function",
@@ -47,7 +47,7 @@ impl DefaultEntityProjector<'_> {
                     .map(|parameter| parameter.id)
                     .collect::<Vec<_>>()
             }
-            crate::LocalFunctionDefinition::Template(template) => {
+            crate::LexicalFunctionDefinition::Template(template) => {
                 self.export.imported_generic_templates[template]
                     .type_parameters
                     .ids()

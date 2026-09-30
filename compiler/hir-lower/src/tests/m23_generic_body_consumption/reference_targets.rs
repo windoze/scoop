@@ -38,7 +38,7 @@ fn local_reference_instances_reuse_definitions_and_preserve_capture_signatures()
                             ))
                     );
                     assert!(export.local_functions.iter().any(|(_, declaration)| {
-                        let hir::LocalFunctionDefinition::Template(template) =
+                        let hir::LexicalFunctionDefinition::Template(template) =
                             declaration.definition
                         else {
                             return false;

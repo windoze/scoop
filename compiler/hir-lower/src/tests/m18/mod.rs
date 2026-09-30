@@ -1373,7 +1373,7 @@ fn class_binding_plan_keeps_one_complete_lambda_parameter() {
     .expect("a lambda class pattern must share the irrefutable planner");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
     let signature = &module.function_types[lambda.function_type];
-    let invoke = &module.functions[lambda.function];
+    let invoke = &module.functions[lambda.definition.source_function()];
     assert_eq!(
         signature.parameter_types,
         vec![invoke.params[1].ty],
@@ -1628,8 +1628,9 @@ fn class_binding_plan_checks_suspend_components_in_the_lambda_context() {
     ]))
     .expect("a suspend lambda may invoke a suspend component");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    assert!(module.functions[lambda.function].is_suspend);
-    let hir::FunctionKind::User(body) = &module.functions[lambda.function].kind else {
+    assert!(module.functions[lambda.definition.source_function()].is_suspend);
+    let hir::FunctionKind::User(body) = &module.functions[lambda.definition.source_function()].kind
+    else {
         panic!("lambda invoke body")
     };
     assert!(body.statements.iter().any(|statement| matches!(

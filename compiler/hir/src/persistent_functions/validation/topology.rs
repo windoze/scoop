@@ -48,23 +48,29 @@ fn immediate_parent_function(
         )?;
     }
     for (_, declaration) in inputs.lambdas.iter() {
+        let Some((source_function, source_root)) = declaration.definition.source() else {
+            continue;
+        };
         consider_parent(
             function,
             root,
             path,
-            declaration.function,
-            declaration.definition_root,
+            source_function,
+            source_root,
             &declaration.definition_path,
             &mut candidate,
         )?;
     }
     for (_, declaration) in inputs.anonymous_functions.iter() {
+        let Some((source_function, source_root)) = declaration.definition.source() else {
+            continue;
+        };
         consider_parent(
             function,
             root,
             path,
-            declaration.function,
-            declaration.definition_root,
+            source_function,
+            source_root,
             &declaration.definition_path,
             &mut candidate,
         )?;

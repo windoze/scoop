@@ -150,10 +150,6 @@ impl Concretizer<'_> {
             export::ExprKind::Capture(binding) => {
                 concrete::ExprKind::Capture(concrete::BindingId::from_raw(binding.into_raw()))
             }
-            export::ExprKind::ImportedClosure(closure) => {
-                self.lower_imported_closure(closure, source.span, substitution, locals)
-            }
-
             export::ExprKind::Lambda(id) => {
                 concrete::ExprKind::Lambda(self.ensure_lambda(*id, substitution, locals))
             }

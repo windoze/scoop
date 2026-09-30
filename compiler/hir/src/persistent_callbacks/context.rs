@@ -241,21 +241,27 @@ impl<'a, 'input> CallbackContextResolver<'a, 'input> {
             )?;
         }
         for (_, declaration) in self.inputs.lambdas.iter() {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
             consider_parent(
                 root,
                 path,
-                declaration.function,
-                declaration.definition_root,
+                source_function,
+                source_root,
                 &declaration.definition_path,
                 &mut candidate,
             )?;
         }
         for (_, declaration) in self.inputs.anonymous_functions.iter() {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
             consider_parent(
                 root,
                 path,
-                declaration.function,
-                declaration.definition_root,
+                source_function,
+                source_root,
                 &declaration.definition_path,
                 &mut candidate,
             )?;
@@ -287,20 +293,17 @@ impl<'a, 'input> CallbackContextResolver<'a, 'input> {
                 .lambdas
                 .iter()
                 .filter_map(|(_, declaration)| {
-                    (declaration.function == function).then_some((
-                        declaration.definition_root,
-                        declaration.definition_path.clone(),
-                    ))
+                    let (source, root) = declaration.definition.source()?;
+                    (source == function).then_some((root, declaration.definition_path.clone()))
                 })
                 .chain(
                     self.inputs
                         .anonymous_functions
                         .iter()
                         .filter_map(|(_, declaration)| {
-                            (declaration.function == function).then_some((
-                                declaration.definition_root,
-                                declaration.definition_path.clone(),
-                            ))
+                            let (source, root) = declaration.definition.source()?;
+                            (source == function)
+                                .then_some((root, declaration.definition_path.clone()))
                         }),
                 ),
         )

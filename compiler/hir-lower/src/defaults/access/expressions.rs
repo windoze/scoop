@@ -161,29 +161,6 @@ impl ReferenceCollector<'_> {
                 self.singleton_value(hir::ExportDefaultSingletonTarget::Imported(*value), origin)
             }
             hir::ExprKind::Lambda(lambda) => self.lambda_descriptor(*lambda, origin),
-            hir::ExprKind::ImportedClosure(closure) => {
-                self.record_callable(
-                    hir::ExportDefaultCallableTarget::ImportedGeneric(closure.application),
-                    origin,
-                );
-                self.function_type_reference(closure.function_type, origin);
-                let arguments = self.lowerer.imported_generic_applications[closure.application]
-                    .arguments
-                    .substitution(
-                        &self.lowerer.types,
-                        &self.lowerer.enum_applications,
-                        &self.lowerer.struct_applications,
-                        &self.lowerer.class_applications,
-                        &self.lowerer.interface_applications,
-                    );
-                for ty in arguments {
-                    self.type_reference(ty, origin);
-                }
-                for capture in &closure.captures {
-                    self.type_reference(capture.ty, origin);
-                    self.expression(&capture.source);
-                }
-            }
             hir::ExprKind::AnonymousFunction(function) => {
                 self.anonymous_function_descriptor(*function, origin);
             }

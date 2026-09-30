@@ -150,7 +150,7 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
         .find(|(_, function)| function.name == "factory")
         .expect("factory function");
     assert!(output.export.lambdas.iter().all(|(_, lambda)| {
-        lambda.definition_root == hir::LexicalDefinitionRoot::Function(factory)
+        lambda.definition.source().unwrap().1 == hir::LexicalDefinitionRoot::Function(factory)
             && definition_path(&lambda.definition_path) == expected_path
     }));
     assert!(
@@ -207,7 +207,7 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
     assert_eq!(
         context.subject(),
         &hir::SourceContextSubject::LexicalCallable {
-            root: source_lambda.definition_root,
+            root: source_lambda.definition.source().unwrap().1,
             path: source_lambda.definition_path.clone(),
             role: scoop_identity::LexicalCallableRole::LambdaBody,
         }

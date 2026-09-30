@@ -197,7 +197,6 @@ impl Lowerer {
                 }
             }
             ExprKind::Lambda(_)
-            | ExprKind::ImportedClosure(_)
             | ExprKind::AnonymousFunction(_)
             | ExprKind::CallableReference(_)
             | ExprKind::FunctionCoercion { .. } => out.push((

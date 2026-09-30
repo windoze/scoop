@@ -164,7 +164,8 @@ fn loop_targets_remain_globally_unique_across_nested_callable_bodies() {
         .iter()
         .next()
         .expect("the nested lambda has an entity");
-    let hir::FunctionKind::User(lambda_body) = &output.export.functions[lambda.function].kind
+    let hir::FunctionKind::User(lambda_body) =
+        &output.export.functions[lambda.definition.source_function()].kind
     else {
         panic!("the nested lambda has a body")
     };

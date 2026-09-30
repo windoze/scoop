@@ -89,9 +89,19 @@ impl<'a> GenericBodyProducer<'a> {
             }
             for reference in &export.export_default_exprs[id].references.callables {
                 let function = match reference.target {
-                    crate::ExportDefaultCallableTarget::Lambda(id) => export.lambdas[id].function,
+                    crate::ExportDefaultCallableTarget::Lambda(id) => {
+                        let Some((function, _)) = export.lambdas[id].definition.source() else {
+                            continue;
+                        };
+                        function
+                    }
                     crate::ExportDefaultCallableTarget::AnonymousFunction(id) => {
-                        export.anonymous_functions[id].function
+                        let Some((function, _)) =
+                            export.anonymous_functions[id].definition.source()
+                        else {
+                            continue;
+                        };
+                        function
                     }
                     crate::ExportDefaultCallableTarget::LocalFunction(id) => {
                         let Some((function, _)) = export.local_functions[id].source() else {

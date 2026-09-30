@@ -136,10 +136,19 @@ impl LocalFunctionCallPatcher<'_> {
         let span = expr.span;
         let origin = expr.origin;
         match &mut expr.kind {
-            hir::ExprKind::ImportedClosure(closure) => {
+            hir::ExprKind::Lambda(id) => {
+                let mut closure = self.lowerer.lambdas[*id].clone();
                 for capture in &mut closure.captures {
                     self.expression(&mut capture.source);
                 }
+                self.lowerer.lambdas[*id] = closure;
+            }
+            hir::ExprKind::AnonymousFunction(id) => {
+                let mut closure = self.lowerer.anonymous_functions[*id].clone();
+                for capture in &mut closure.captures {
+                    self.expression(&mut capture.source);
+                }
+                self.lowerer.anonymous_functions[*id] = closure;
             }
             hir::ExprKind::CallableReference(id) => {
                 let mut reference = self.lowerer.callable_references[*id].clone();
@@ -346,8 +355,6 @@ impl LocalFunctionCallPatcher<'_> {
             | hir::ExprKind::SingletonValue(_)
             | hir::ExprKind::ImportedSingletonValue(_)
             | hir::ExprKind::Capture(_)
-            | hir::ExprKind::Lambda(_)
-            | hir::ExprKind::AnonymousFunction(_)
             | hir::ExprKind::NoneLiteral
             | hir::ExprKind::AddressOf(_)
             | hir::ExprKind::SizeOf(_)

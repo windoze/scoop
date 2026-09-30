@@ -1,0 +1,7 @@
+package consumer.closures
+import upstream.closures.*
+
+public fun result(): Int {
+    val read = readers<Int, Unit>(42, Unit, { first, second -> first })
+    return read()
+}

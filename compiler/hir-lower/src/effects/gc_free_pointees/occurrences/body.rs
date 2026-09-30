@@ -288,26 +288,16 @@ pub(in super::super) fn collect_expr_type_occurrences(
             push_type_at_expression(field.variant.owner, expression, out);
             collect_expr_type_occurrences(lowerer, operand, out);
         }
-        ExprKind::Lambda(lambda) => {
-            for capture in &lowerer.lambdas[*lambda].captures {
-                collect_expr_type_occurrences(lowerer, &capture.source, out);
-            }
-        }
-        ExprKind::ImportedClosure(closure) => {
+        ExprKind::Lambda(id) => {
+            let closure = &lowerer.lambdas[*id];
             push_types_at_expression(
                 expression,
                 |types| {
-                    types.extend(
-                        lowerer.imported_generic_applications[closure.application]
-                            .arguments
-                            .substitution(
-                                &lowerer.types,
-                                &lowerer.enum_applications,
-                                &lowerer.struct_applications,
-                                &lowerer.class_applications,
-                                &lowerer.interface_applications,
-                            ),
-                    );
+                    if let hir::CallableBodyTypeArguments::Explicit(arguments) =
+                        &closure.body_type_arguments
+                    {
+                        types.extend(arguments.iter().copied());
+                    }
                     types.extend(closure.captures.iter().map(|capture| capture.ty));
                 },
                 out,
@@ -316,8 +306,21 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }
-        ExprKind::AnonymousFunction(function) => {
-            for capture in &lowerer.anonymous_functions[*function].captures {
+        ExprKind::AnonymousFunction(id) => {
+            let closure = &lowerer.anonymous_functions[*id];
+            push_types_at_expression(
+                expression,
+                |types| {
+                    if let hir::CallableBodyTypeArguments::Explicit(arguments) =
+                        &closure.body_type_arguments
+                    {
+                        types.extend(arguments.iter().copied());
+                    }
+                    types.extend(closure.captures.iter().map(|capture| capture.ty));
+                },
+                out,
+            );
+            for capture in &closure.captures {
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }

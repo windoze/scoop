@@ -2,6 +2,28 @@
 use super::DefaultEntityProjector;
 use crate::{ExportDefaultCallableTarget, ExportDefaultCallableTargetV1, HirSignatureBinder};
 impl DefaultEntityProjector<'_> {
+    pub(in crate::production::default_templates) fn generated_lexical_body(
+        &self,
+        definition: crate::LexicalFunctionDefinition,
+    ) -> Result<
+        scoop_identity::PersistentGeneratedCallableId,
+        super::super::DefaultEntityProjectionError,
+    > {
+        match definition {
+            crate::LexicalFunctionDefinition::Source { function, .. } => {
+                self.generated_function_id(function)
+            }
+            crate::LexicalFunctionDefinition::Template(template) => {
+                let crate::ImportedCallableTemplateOrigin::Closure { body, .. } =
+                    self.export().imported_generic_templates[template].declaration
+                else {
+                    unreachable!("a closure definition retains its generated body")
+                };
+                Ok(body)
+            }
+        }
+    }
+
     pub(in crate::production::default_templates) fn local_function_declaration(
         &self,
         id: crate::LocalFunctionId,
@@ -14,10 +36,10 @@ impl DefaultEntityProjector<'_> {
             },
         )?;
         match local.definition {
-            crate::LocalFunctionDefinition::Source { function, .. } => {
+            crate::LexicalFunctionDefinition::Source { function, .. } => {
                 self.source_callable_declaration(function)
             }
-            crate::LocalFunctionDefinition::Template(template) => {
+            crate::LexicalFunctionDefinition::Template(template) => {
                 Ok(self.export().imported_generic_templates[template]
                     .declaration
                     .declaration())
@@ -75,7 +97,7 @@ impl DefaultEntityProjector<'_> {
                     },
                 )?;
                 ExportDefaultCallableTargetV1::Lambda {
-                    body: entities.generated_function_id(lambda.function)?,
+                    body: entities.generated_lexical_body(lambda.definition)?,
                 }
             }
             ExportDefaultCallableTarget::AnonymousFunction(id) => {
@@ -86,7 +108,7 @@ impl DefaultEntityProjector<'_> {
                     },
                 )?;
                 ExportDefaultCallableTargetV1::AnonymousFunction {
-                    body: entities.generated_function_id(function.function)?,
+                    body: entities.generated_lexical_body(function.definition)?,
                 }
             }
             ExportDefaultCallableTarget::CallableReference(id) => {

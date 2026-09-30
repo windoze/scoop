@@ -297,9 +297,11 @@ fn repeated_default_instantiations_must_preserve_the_same_lexical_site() {
     let generated = fixture.functions.alloc(function("lambda"));
     let definition_path = path(0);
     let lambda = Lambda {
-        definition_root: crate::LexicalDefinitionRoot::Function(root),
+        definition: crate::LexicalFunctionDefinition::Source {
+            function: generated,
+            root: crate::LexicalDefinitionRoot::Function(root),
+        },
         definition_path: definition_path.clone(),
-        function: generated,
         function_type: crate::FunctionTypeId::from_raw(0_u32.into()),
         owner_type_param_count: 0,
         body_type_arguments: CallableBodyTypeArguments::Lexical,

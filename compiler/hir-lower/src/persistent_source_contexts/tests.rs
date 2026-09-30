@@ -177,7 +177,7 @@ fn stable_context_ids(module: &hir::Module) -> [scoop_identity::PersistentSource
         .lambdas
         .iter()
         .find(|(_, literal)| {
-            literal.definition_root == hir::LexicalDefinitionRoot::Function(factory)
+            literal.definition.source().unwrap().1 == hir::LexicalDefinitionRoot::Function(factory)
         })
         .expect("factory lambda")
         .1;
@@ -187,7 +187,7 @@ fn stable_context_ids(module: &hir::Module) -> [scoop_identity::PersistentSource
         .find_map(|(context, value)| {
             (value.subject()
                 == &hir::SourceContextSubject::LexicalCallable {
-                    root: lambda.definition_root,
+                    root: lambda.definition.source().unwrap().1,
                     path: lambda.definition_path.clone(),
                     role: scoop_identity::LexicalCallableRole::LambdaBody,
                 })
@@ -225,7 +225,7 @@ fn stable_context_ids(module: &hir::Module) -> [scoop_identity::PersistentSource
         .1;
     let initialization_context = context_for_function(module, initialization.initializer);
     let constructor_context = context_for_constructor(module, constructor);
-    let lambda_identity = module.function_identities[lambda.function]
+    let lambda_identity = module.function_identities[lambda.definition.source_function()]
         .generated_record()
         .expect("lambda generated identity");
     let constructor_identity = module.constructor_identities[constructor]

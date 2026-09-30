@@ -8,20 +8,20 @@ impl Lowerer {
         creation: hir::ExpressionOrigin,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        let (body, path, body_arguments, captures, kind) = match source {
+        let (body, path, body_arguments, captures, role) = match source {
             hir::DefaultExpressionKindV1::Lambda(lambda) => (
                 lambda.body(),
                 lambda.definition_path(),
                 lambda.body_type_arguments(),
                 lambda.captures(),
-                hir::ImportedClosureKind::Lambda,
+                scoop_identity::LexicalCallableRole::LambdaBody,
             ),
             hir::DefaultExpressionKindV1::AnonymousFunction(function) => (
                 function.body(),
                 function.definition_path(),
                 function.body_type_arguments(),
                 function.captures(),
-                hir::ImportedClosureKind::AnonymousFunction,
+                scoop_identity::LexicalCallableRole::AnonymousFunctionBody,
             ),
             _ => unreachable!("closure materialization receives a lexical closure descriptor"),
         };
@@ -45,7 +45,7 @@ impl Lowerer {
             .map(|capture| self.materialize_capture_binding(capture, context))
             .collect::<Result<_, _>>()?;
         let template = self
-            .request_imported_closure(parent, body, kind, capture_bindings)
+            .request_imported_closure(parent, body, role, capture_bindings)
             .map_err(ImportedDefaultMaterializationError::Plan)?;
         let arguments = match body_arguments.explicit_arguments() {
             Some(arguments) => arguments
@@ -54,12 +54,6 @@ impl Lowerer {
                 .collect::<Result<Vec<_>, _>>()?,
             None => context.lexical_arguments.clone(),
         };
-        let application =
-            self.imported_generic_applications
-                .alloc(hir::ImportedGenericCallableApplication {
-                    template,
-                    arguments: hir::ImportedCallableArguments::Function(arguments),
-                });
         let hir::ImportedCallableTemplateOrigin::Closure {
             capture_bindings, ..
         } = &self.imported_generic_templates[template].declaration
@@ -74,15 +68,36 @@ impl Lowerer {
                 "dependency closure has a non-function type".into(),
             ));
         };
-        Ok(hir::ExprKind::ImportedClosure(Box::new(
-            hir::ImportedClosure {
-                kind,
-                application,
-                definition_path: path.clone(),
-                function_type,
-                captures,
-            },
-        )))
+        let definition = hir::LexicalFunctionDefinition::Template(template);
+        let owner_type_param_count = arguments.len();
+        let body_type_arguments = hir::CallableBodyTypeArguments::Explicit(arguments);
+        let span = creation.concrete().definition.span;
+        Ok(match role {
+            scoop_identity::LexicalCallableRole::LambdaBody => {
+                hir::ExprKind::Lambda(self.lambdas.alloc(hir::Lambda {
+                    definition,
+                    definition_path: path.clone(),
+                    function_type,
+                    owner_type_param_count,
+                    body_type_arguments,
+                    captures,
+                    span,
+                }))
+            }
+            scoop_identity::LexicalCallableRole::AnonymousFunctionBody => {
+                hir::ExprKind::AnonymousFunction(self.anonymous_functions.alloc(
+                    hir::AnonymousFunction {
+                        definition,
+                        definition_path: path.clone(),
+                        function_type,
+                        owner_type_param_count,
+                        body_type_arguments,
+                        captures,
+                        span,
+                    },
+                ))
+            }
+        })
     }
 
     pub(super) fn materialize_imported_function_type(

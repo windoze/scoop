@@ -226,7 +226,7 @@ fn lambda_parameters_share_recursive_irrefutable_named_lowering() {
     ]);
     let module = lower_user(source).expect("nested named lambda parameter must lower");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    let invoke = &module.functions[lambda.function];
+    let invoke = &module.functions[lambda.definition.source_function()];
     assert_eq!(
         invoke.params.len(),
         2,

@@ -237,7 +237,8 @@ fn bare_enum_variant_names_bind_in_composite_lambda_parameters() {
 
     let module = lower_user(source).expect("lambda patterns use binding-context name lookup");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    let hir::FunctionKind::User(body) = &module.functions[lambda.function].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[lambda.definition.source_function()].kind
+    else {
         panic!("lambda invoke must have a user body")
     };
     let names = local_names(body);

@@ -1,0 +1,335 @@
+Module
+  fun readers<T, U>(seed: T0, marker: T1, inspect: (T0) -> Int): () -> Int
+    val local3
+      Lambda lambda2 invoke=$lambda.2 captures=1 : () -> T0
+        capture seed binding10 : T0
+    val local4
+      AnonymousFunction anonymous2 invoke=$anonymous.2 captures=1 : () -> T0
+        capture seed binding10 : T0
+    return
+      Lambda lambda3 invoke=$lambda.3 captures=4 : () -> Int
+        capture inspect binding12 : (T0) -> Int
+        capture first binding14 : () -> T0
+        capture second binding16 : () -> T0
+        capture seed binding10 : T0
+  fun defaultLambda<T, U>(seed: T0, marker: T1, read: () -> T0): T0
+    return
+      CallableCall function_type2 : T0
+        Local read : () -> T0
+  fun defaultAnonymous<T, U>(seed: T0, marker: T1, read: () -> T0): T0
+    return
+      CallableCall function_type3 : T0
+        Local read : () -> T0
+  fun nested<T, U>(seed: T0, marker: T1): () -> () -> T0
+    return
+      Lambda lambda4 invoke=$lambda.4 captures=1 : () -> () -> T0
+        capture seed binding30 : T0
+  fun nestedDefault<T, U>(seed: T0, marker: T1, read: () -> () -> T0): T0
+    val local3
+      CallableCall function_type7 : () -> T0
+        Local read : () -> () -> T0
+    return
+      CallableCall function_type6 : T0
+        Local inner : () -> T0
+  fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
+    val local2
+      CallableCall function_type8 : Int
+        Local inspect : (T0) -> Int
+        Local seed : T0
+    val local3
+      Local seed : T0
+    val local4
+      IntegerLiteral 0 : Int
+    val local5
+      Local inspect : (T0) -> Int
+    val local6
+      Local $argument.0 : T0
+    val local7
+      Local $argument.1 : Int
+    val local8
+      Local $argument.2 : (T0) -> Int
+    val local9
+      Call readers<T0, Int> : () -> Int
+        Local $parameter.seed : T0
+        Local $parameter.marker : Int
+        Local $parameter.inspect : (T0) -> Int
+    val local10
+      Local seed : T0
+    val local11
+      UnitLiteral : Unit
+    val local12
+      Local inspect : (T0) -> Int
+    val local13
+      Local $argument.0 : T0
+    val local14
+      Local $argument.1 : Unit
+    val local15
+      Local $argument.2 : (T0) -> Int
+    val local16
+      Call readers<T0, Unit> : () -> Int
+        Local $parameter.seed : T0
+        Local $parameter.marker : Unit
+        Local $parameter.inspect : (T0) -> Int
+    val local17
+      IntegerLiteral 43 : Int
+    val local18
+      Local seed : T0
+    val local19
+      Lambda lambda5 invoke=$lambda.5 captures=0 : (Int) -> Int
+    val local20
+      Local $argument.0 : Int
+    val local21
+      Local $argument.1 : T0
+    val local22
+      Local $argument.2 : (Int) -> Int
+    val local23
+      Call readers<Int, T0> : () -> Int
+        Local $parameter.seed : Int
+        Local $parameter.marker : T0
+        Local $parameter.inspect : (Int) -> Int
+    val local24
+      CallableCall function_type1 : Int
+        Local first : () -> Int
+    val local25
+      Local expected : Int
+    val local26
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local30
+        BoolLiteral true : Boolean
+    else
+      val local27
+        CallableCall function_type1 : Int
+          Local repeated : () -> Int
+      val local28
+        Local expected : Int
+      val local29
+        Local $dependency.argument.0 : Int
+      val local30
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      val local34
+        BoolLiteral true : Boolean
+    else
+      val local31
+        CallableCall function_type1 : Int
+          Local different : () -> Int
+      val local32
+        IntegerLiteral 43 : Int
+      val local33
+        Local $dependency.argument.0 : Int
+      val local34
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local35
+      Local seed : T0
+    val local36
+      UnitLiteral : Unit
+    val local37
+      Local $argument.0 : T0
+    val local38
+      Local $argument.1 : Unit
+    val local39
+      Lambda lambda6 invoke=$lambda.0 captures=1 : () -> T0
+        capture seed binding0 : T0
+    val local40
+      CallableCall function_type8 : Int
+        Local inspect : (T0) -> Int
+        Call defaultLambda<T0, Unit> : T0
+          Local $parameter.seed : T0
+          Local $parameter.marker : Unit
+          Local $parameter.read : () -> T0
+    val local41
+      Local expected : Int
+    val local42
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local43
+      Local seed : T0
+    val local44
+      IntegerLiteral 0 : Int
+    val local45
+      Local $argument.0 : T0
+    val local46
+      Local $argument.1 : Int
+    val local47
+      AnonymousFunction anonymous4 invoke=$anonymous.0 captures=1 : () -> T0
+        capture seed binding3 : T0
+    val local48
+      CallableCall function_type8 : Int
+        Local inspect : (T0) -> Int
+        Call defaultAnonymous<T0, Int> : T0
+          Local $parameter.seed : T0
+          Local $parameter.marker : Int
+          Local $parameter.read : () -> T0
+    val local49
+      Local expected : Int
+    val local50
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local51
+      IntegerLiteral 42 : Int
+    val local52
+      UnitLiteral : Unit
+    val local53
+      Local $argument.0 : Int
+    val local54
+      Local $argument.1 : Unit
+    val local55
+      AnonymousFunction anonymous5 invoke=$anonymous.0 captures=1 : () -> Int
+        capture seed binding3 : Int
+    val local56
+      Call defaultAnonymous<Int, Unit> : Int
+        Local $parameter.seed : Int
+        Local $parameter.marker : Unit
+        Local $parameter.read : () -> Int
+    val local57
+      IntegerLiteral 42 : Int
+    val local58
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local59
+      IntegerLiteral 43 : Int
+    val local60
+      UnitLiteral : Unit
+    val local61
+      Local $argument.0 : Int
+    val local62
+      Local $argument.1 : Unit
+    val local63
+      AnonymousFunction anonymous6 invoke=$anonymous.0 captures=1 : () -> Int
+        capture seed binding3 : Int
+    val local64
+      Call defaultAnonymous<Int, Unit> : Int
+        Local $parameter.seed : Int
+        Local $parameter.marker : Unit
+        Local $parameter.read : () -> Int
+    val local65
+      IntegerLiteral 43 : Int
+    val local66
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 5 : Int
+    val local67
+      Local seed : T0
+    val local68
+      UnitLiteral : Unit
+    val local69
+      Local $argument.0 : T0
+    val local70
+      Local $argument.1 : Unit
+    val local71
+      Call nested<T0, Unit> : () -> () -> T0
+        Local $parameter.seed : T0
+        Local $parameter.marker : Unit
+    val local72
+      CallableCall function_type12 : () -> T0
+        Local outer : () -> () -> T0
+    val local73
+      CallableCall function_type8 : Int
+        Local inspect : (T0) -> Int
+        CallableCall function_type11 : T0
+          Local inner : () -> T0
+    val local74
+      Local expected : Int
+    val local75
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 6 : Int
+    val local76
+      Local seed : T0
+    val local77
+      IntegerLiteral 0 : Int
+    val local78
+      Local $argument.0 : T0
+    val local79
+      Local $argument.1 : Int
+    val local80
+      Lambda lambda7 invoke=$lambda.1 captures=1 : () -> () -> T0
+        capture seed binding6 : T0
+    val local81
+      CallableCall function_type8 : Int
+        Local inspect : (T0) -> Int
+        Call nestedDefault<T0, Int> : T0
+          Local $parameter.seed : T0
+          Local $parameter.marker : Int
+          Local $parameter.read : () -> () -> T0
+    val local82
+      Local expected : Int
+    val local83
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 7 : Int
+    return
+      CallableCall function_type1 : Int
+        Local first : () -> Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda8 invoke=$lambda.6 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+  output library
+  instance readers<T0, Int>
+  instance readers<T0, Unit>
+  instance readers<Int, T0>
+  instance defaultLambda<T0, Unit>
+  instance defaultAnonymous<T0, Int>
+  instance defaultAnonymous<Int, Unit>
+  instance nested<T0, Unit>
+  instance nestedDefault<T0, Int>
+  instance exercise<Int>

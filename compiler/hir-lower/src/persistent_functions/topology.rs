@@ -43,22 +43,28 @@ impl FunctionIdentityBuilder<'_> {
     ) -> Result<Option<LexicalSite>, PersistentFunctionIdentityError> {
         let mut found = None;
         for (_, declaration) in self.lowerer.lambdas.iter() {
-            if declaration.function == function {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
+            if source_function == function {
                 self.set_unique_lexical_site(
                     function,
                     &mut found,
-                    declaration.definition_root,
+                    source_root,
                     declaration.definition_path.clone(),
                     LexicalCallableRole::LambdaBody,
                 )?;
             }
         }
         for (_, declaration) in self.lowerer.anonymous_functions.iter() {
-            if declaration.function == function {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
+            if source_function == function {
                 self.set_unique_lexical_site(
                     function,
                     &mut found,
-                    declaration.definition_root,
+                    source_root,
                     declaration.definition_path.clone(),
                     LexicalCallableRole::AnonymousFunctionBody,
                 )?;
@@ -116,23 +122,29 @@ impl FunctionIdentityBuilder<'_> {
             )?;
         }
         for (_, declaration) in self.lowerer.lambdas.iter() {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
             self.consider_parent(
                 function,
                 root,
                 path,
-                declaration.function,
-                declaration.definition_root,
+                source_function,
+                source_root,
                 &declaration.definition_path,
                 &mut candidate,
             )?;
         }
         for (_, declaration) in self.lowerer.anonymous_functions.iter() {
+            let Some((source_function, source_root)) = declaration.definition.source() else {
+                continue;
+            };
             self.consider_parent(
                 function,
                 root,
                 path,
-                declaration.function,
-                declaration.definition_root,
+                source_function,
+                source_root,
                 &declaration.definition_path,
                 &mut candidate,
             )?;

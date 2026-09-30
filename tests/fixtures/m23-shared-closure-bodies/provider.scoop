@@ -1,0 +1,30 @@
+package upstream.closures
+
+public fun <T, U> readers(seed: T, marker: U, inspect: (T) -> Int): () -> Int {
+    val first: () -> T = { seed }
+    val second: () -> T = fun (): T { return seed }
+    return { inspect(first()) + inspect(second()) - inspect(seed) }
+}
+
+public fun <T, U> defaultLambda(seed: T, marker: U, read: () -> T = { seed }): T = read()
+
+public fun <T, U> defaultAnonymous(
+    seed: T,
+    marker: U,
+    read: () -> T = fun (): T { return seed }
+): T = read()
+
+public fun <T, U> nested(seed: T, marker: U): () -> () -> T {
+    return { fun (): T { return seed } }
+}
+
+public fun <T, U> nestedDefault(
+    seed: T,
+    marker: U,
+    read: () -> () -> T = { fun (): T { return seed } }
+): T {
+    val inner = read()
+    return inner()
+}
+
+public class Box<T> public constructor(public val value: T)

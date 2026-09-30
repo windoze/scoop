@@ -1,0 +1,6 @@
+span=123..126
+expression=Int
+anonymous-function return type is Int, but the expected type is T
+span=152..156
+expression=read
+unknown function `read`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

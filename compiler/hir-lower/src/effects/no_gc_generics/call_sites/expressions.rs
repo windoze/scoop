@@ -75,7 +75,7 @@ impl Lowerer {
             ExprKind::Lambda(lambda) => {
                 let lambda = &self.lambdas[*lambda];
                 if let Some(call) = self.callable_body_generic_call(
-                    lambda.function,
+                    lambda.definition,
                     &lambda.body_type_arguments,
                     expr.span,
                 ) {
@@ -88,7 +88,7 @@ impl Lowerer {
             ExprKind::AnonymousFunction(function) => {
                 let function = &self.anonymous_functions[*function];
                 if let Some(call) = self.callable_body_generic_call(
-                    function.function,
+                    function.definition,
                     &function.body_type_arguments,
                     expr.span,
                 ) {
@@ -295,12 +295,6 @@ impl Lowerer {
                 });
                 for argument in args {
                     self.collect_generic_calls_in_expr(argument, out);
-                }
-            }
-            ExprKind::ImportedClosure(closure) => {
-                out.push(self.imported_body_generic_call(closure.application, expr.span));
-                for capture in &closure.captures {
-                    self.collect_generic_calls_in_expr(&capture.source, out);
                 }
             }
             ExprKind::LocalFunctionCall {

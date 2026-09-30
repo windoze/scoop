@@ -390,3 +390,11 @@
 - 扩展 `m23-shared-reference-targets` 的普通递归和泛型递归正例：引用之后首次使用外层绑定、不同类型的多项捕获、同一泛型局部函数的 Int／Unit 外部实例，以及原宿主实参均保留。复用既有捕获 ABI 单元断言，修复前明确失败为 0 对 1；修复后源码与产物路径均通过，六份阶段快照同步更新。
 - 全仓 fmt／clippy 无警告，2308 项 HIR／HIR lowering／MIR lowering 单元测试通过；15 项相关真实产物回归关闭更新开关全部通过，覆盖再次发布、普通／移动 GC、默认值、局部函数、closure、bound 与函数引用。既有其它快照和四个引用反例保持。证据前缀 `/tmp/scoop-m23-6a-recursive-references-`，结果见 `before.log`、`focused-verified.log`、`unit.log` 与 `all-verified-results.json`。
 - 捕获补齐模块 358 行。本批检查闲置增量目录为空，继续复用 `target/m23-6a`；wire 和 runtime ABI 保持，后续继续统一 closure 正文与完整候选。
+
+## lambda 与匿名函数共用正文和创建点记录
+
+- 删除 `ImportedClosure`、对应表达式及独立的默认替换、效果遍历、投影和具体化分支。源码与解码后的 lambda／匿名函数分别进入同一 arena，并与局部函数共用 `LexicalFunctionDefinition` 存储定位；创建点保留原定义、完整正文实参、函数类型与捕获。解码实参显式保存已恢复的 binder 映射，不再额外创建导入 application。
+- 默认值、GC／pointee 条件和捕获来源表达式使用共同遍历，具体化直接进入原定义与完整实参的共同请求队列。当前声明身份、词法 parent 和导出根只登记当前正文；读入闭包继续引用原生成声明，没有复制普通实现或把读入声明伪装成本地函数。
+- 新增 `m23-shared-closure-bodies` 两组正例、四个反例、六份阶段快照和四份诊断快照。覆盖多层 lambda／匿名函数、默认闭包重复创建与不同捕获值、完整且未使用的宿主实参、本地／外来类型组合，以及源码移走后的再次发布和普通／移动 GC 运行。单元检查源码对照只使用当前声明、读入默认值复用原正文、两种闭包均保留完整实参。
+- 全仓 fmt／clippy 无警告，2309 项 HIR／HIR lowering／MIR lowering 单元测试通过；源码存储断言加强后单独严格复验通过。80 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖成功。六份旧 HIR 快照的 39 行变化仅为共同闭包标签、arena 编号与捕获显示；既有 MIR／LIR／诊断快照保持不变。证据前缀 `/tmp/scoop-m23-6a-shared-closures-`，结果见 `unit.log`、`source-storage-verified.log`、`all-verified-results.json` 与 `snapshot-review.json`。
+- 共同词法实体 209 行、默认 closure／引用替换 238 行、closure 具体化 240 行、closure 读取 202 行、词法正文投影 280 行。确认无 cargo／rustc 占用后清理约 1026.7 MiB 旧 `target/debug`，继续复用 `target/m23-6a`。wire 和 runtime ABI 保持；剩余 singleton／构造操作与完整候选继续按 6a 设计迁移。

@@ -40,28 +40,34 @@ pub(super) fn claim_lexical_functions(
     claims: &mut [Option<Claim>],
 ) -> Result<(), HirFunctionIdentityError> {
     for (lambda, declaration) in inputs.lambdas.iter() {
+        let Some((source_function, source_root)) = declaration.definition.source() else {
+            continue;
+        };
         claim(
             inputs,
             claims,
-            declaration.function,
+            source_function,
             FunctionIdentityRelation::Lambda,
             raw_index(lambda),
             ClaimKind::Lexical {
-                root: declaration.definition_root,
+                root: source_root,
                 role: LexicalCallableRole::LambdaBody,
                 path: declaration.definition_path.clone(),
             },
         )?;
     }
     for (anonymous, declaration) in inputs.anonymous_functions.iter() {
+        let Some((source_function, source_root)) = declaration.definition.source() else {
+            continue;
+        };
         claim(
             inputs,
             claims,
-            declaration.function,
+            source_function,
             FunctionIdentityRelation::AnonymousFunction,
             raw_index(anonymous),
             ClaimKind::Lexical {
-                root: declaration.definition_root,
+                root: source_root,
                 role: LexicalCallableRole::AnonymousFunctionBody,
                 path: declaration.definition_path.clone(),
             },

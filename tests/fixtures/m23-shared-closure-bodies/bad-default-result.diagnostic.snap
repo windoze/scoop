@@ -1,0 +1,3 @@
+span=110..158
+expression=readers<Int, Unit>(42, Unit, { value -> value })
+initializer of `read` must be of type () -> String, found () -> Int

@@ -34,6 +34,7 @@ mod reference_targets;
 mod references;
 mod requests;
 mod selection;
+mod shared_closures;
 mod shared_defaults;
 mod source_calls;
 mod structs;

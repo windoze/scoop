@@ -216,6 +216,9 @@ impl ReferenceCollector<'_> {
             }
         }
         self.capture_shapes(captures);
+        for capture in captures {
+            self.expression(&capture.source);
+        }
     }
 
     fn capture_shapes(&mut self, captures: &[hir::Capture]) {

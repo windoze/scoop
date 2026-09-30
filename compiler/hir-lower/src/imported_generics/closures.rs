@@ -5,7 +5,7 @@ impl Lowerer {
         &mut self,
         parent: scoop_identity::CallableTemplateOwner,
         body: scoop_identity::PersistentGeneratedCallableId,
-        kind: hir::ImportedClosureKind,
+        role: scoop_identity::LexicalCallableRole,
         capture_bindings: Vec<hir::BindingId>,
     ) -> Result<hir::ImportedGenericCallableTemplateId, String> {
         if let Some(&id) = self.imported_generic_templates.closures.get(&body) {
@@ -22,9 +22,9 @@ impl Lowerer {
             body,
             capture_bindings,
         };
-        let name = match kind {
-            hir::ImportedClosureKind::Lambda => "$lambda",
-            hir::ImportedClosureKind::AnonymousFunction => "$anonymous",
+        let name = match role {
+            scoop_identity::LexicalCallableRole::LambdaBody => "$lambda",
+            scoop_identity::LexicalCallableRole::AnonymousFunctionBody => "$anonymous",
         };
         let prepared = self.prepare_imported_lexical_callable(
             origin,

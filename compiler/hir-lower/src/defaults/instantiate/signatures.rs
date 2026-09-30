@@ -9,12 +9,12 @@ impl Lowerer {
         let function = &self.local_functions[source];
         let signature = self.function_types[function.function_type].canonical_type;
         let parameters = match function.definition {
-            hir::LocalFunctionDefinition::Source { function, .. } => self.functions[function]
+            hir::LexicalFunctionDefinition::Source { function, .. } => self.functions[function]
                 .type_params()
                 .into_iter()
                 .map(|parameter| parameter.id)
                 .collect::<Vec<_>>(),
-            hir::LocalFunctionDefinition::Template(template) => self.imported_generic_templates
+            hir::LexicalFunctionDefinition::Template(template) => self.imported_generic_templates
                 [template]
                 .type_parameters
                 .ids(),

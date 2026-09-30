@@ -72,7 +72,7 @@ Module
     val local17
       Local $dependency.argument.0 : T0
     val local18
-      ImportedLambda<T0> captures=0 : (T0) -> T0
+      Lambda lambda1 invoke=$lambda captures=0 : (T0) -> T0
     val local19
       Call defaulted<T0> : T0
         Local $dependency.parameter.value : T0
@@ -82,7 +82,7 @@ Module
     val local21
       UnitLiteral : Unit
     val local22
-      Lambda lambda0 invoke=$lambda.0 captures=1 : (T0, Unit) -> Int
+      Lambda lambda2 invoke=$lambda.0 captures=1 : (T0, Unit) -> Int
         capture read binding17 : (T0) -> Int
     val local23
       Local $dependency.argument.0 : Unit
@@ -118,7 +118,7 @@ Module
     val local32
       IntegerLiteral 0 : Int
     val local33
-      Lambda lambda1 invoke=$lambda.1 captures=1 : (T0, Int) -> Int
+      Lambda lambda3 invoke=$lambda.1 captures=1 : (T0, Int) -> Int
         capture read binding17 : (T0) -> Int
     val local34
       Local $dependency.argument.0 : Int
@@ -138,7 +138,7 @@ Module
       Call nativeNumber : Int
         Local $parameter.value : Int
     val local3
-      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+      Lambda lambda4 invoke=$lambda.2 captures=0 : (Int) -> Int
     val local4
       Local $argument.0 : Int
     val local5

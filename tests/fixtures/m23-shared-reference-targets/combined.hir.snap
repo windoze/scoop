@@ -223,8 +223,8 @@ Module
         Local $default.local.3 : () -> T0
     else
       val local66
-        ImportedLambda<T0, Int> captures=1 : () -> T0
-          Local $dependency.parameter.seed : T0
+        Lambda lambda3 invoke=$lambda captures=1 : () -> T0
+          capture $capture.0 binding100 : T0
       assign $default.local.5
         Local $default.local.4 : () -> T0
     val local68
@@ -255,8 +255,8 @@ Module
         Local $default.local.3 : () -> T0
     else
       val local76
-        ImportedLambda<T0, Unit> captures=1 : () -> T0
-          Local $dependency.parameter.seed : T0
+        Lambda lambda4 invoke=$lambda captures=1 : () -> T0
+          capture $capture.0 binding100 : T0
       assign $default.local.5
         Local $default.local.4 : () -> T0
     val local78
@@ -406,8 +406,8 @@ Module
         Local $default.local.3 : () -> T0
     else
       val local119
-        ImportedLambda<T0, Unit> captures=1 : () -> T0
-          Local $dependency.parameter.seed : T0
+        Lambda lambda5 invoke=$lambda captures=1 : () -> T0
+          capture $capture.0 binding100 : T0
       assign $default.local.5
         Local $default.local.4 : () -> T0
     val local121
@@ -443,7 +443,7 @@ Module
     val local0
       IntegerLiteral 42 : Int
     val local1
-      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+      Lambda lambda6 invoke=$lambda.2 captures=0 : (Int) -> Int
     val local2
       Local $argument.0 : Int
     val local3

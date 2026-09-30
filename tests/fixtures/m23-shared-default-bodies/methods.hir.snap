@@ -8,8 +8,8 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedLambda<T0> captures=1 : () -> T0
-        Local $dependency.parameter.value : T0
+      Lambda lambda2 invoke=$lambda captures=1 : () -> T0
+        capture $capture.0 binding7 : T0
     val local5
       ImportedConstructorInit Box : Box<T0>
         Local $dependency.parameter.value : T0
@@ -19,8 +19,8 @@ Module
     val local7
       Local $dependency.argument.0 : T0
     val local8
-      ImportedLambda<T0> captures=1 : () -> T0
-        Local $dependency.parameter.value : T0
+      Lambda lambda3 invoke=$lambda captures=1 : () -> T0
+        capture $capture.0 binding7 : T0
     val local9
       ImportedConstructorInit Box : Box<T0>
         Local $dependency.parameter.value : T0
@@ -71,7 +71,7 @@ Module
       ClassInit Local<T0> : Local<T0>
         Local $parameter.value : T0
     val local19
-      Lambda lambda1 invoke=$lambda.0 captures=1 : () -> T0
+      Lambda lambda4 invoke=$lambda.0 captures=1 : () -> T0
         capture this binding1 : Local<T0>
     val local20
       CallableCall function_type0 : Int
@@ -95,8 +95,8 @@ Module
     val local23
       Local first : Box<T0>
     val local24
-      ImportedLambda<T0> captures=1 : () -> T0
-        Local $dependency.receiver : Box<T0>
+      Lambda lambda6 invoke=$lambda captures=1 : () -> T0
+        capture $capture.0 binding33 : Box<T0>
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
@@ -107,7 +107,7 @@ Module
     val local0
       IntegerLiteral 42 : Int
     val local1
-      Lambda lambda2 invoke=$lambda.1 captures=0 : (Int) -> Int
+      Lambda lambda7 invoke=$lambda.1 captures=0 : (Int) -> Int
     val local2
       Local $argument.0 : Int
     val local3

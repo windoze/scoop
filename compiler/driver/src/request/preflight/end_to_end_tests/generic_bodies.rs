@@ -35,6 +35,7 @@ mod references;
 mod selection;
 mod shared_bounds;
 mod shared_classes;
+mod shared_closures;
 mod shared_defaults;
 mod shared_enums;
 mod shared_interfaces;

@@ -118,7 +118,7 @@ fn local_source_identity_uses_own_binders_and_nearest_callable_owner() {
     ));
 
     let hir::HirFunctionIdentity::LexicalGenerated(closure_identity) =
-        &module.function_identities[closure.function]
+        &module.function_identities[closure.definition.source_function()]
     else {
         panic!("lambda body has a generated identity")
     };
@@ -212,10 +212,10 @@ fn nested_generated_callable_uses_the_nearest_template_parent() {
     let [outer, inner] = declarations.as_slice() else {
         panic!("fixture has exactly two lambda declarations")
     };
-    let outer = module.function_identities[outer.function]
+    let outer = module.function_identities[outer.definition.source_function()]
         .generated_record()
         .expect("outer generated identity");
-    let inner = module.function_identities[inner.function]
+    let inner = module.function_identities[inner.definition.source_function()]
         .generated_record()
         .expect("inner generated identity");
     let expected_parent =
