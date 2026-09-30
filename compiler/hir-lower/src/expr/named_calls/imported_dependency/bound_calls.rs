@@ -44,7 +44,7 @@ impl Lowerer {
         let interface = self
             .imported_member_owner_type(receiver_type, owner)
             .ok_or("a selected bound member retains its declaring owner")?;
-        let hir::Type::ImportedInterface(source) = &self.types[interface] else {
+        let Some(source) = self.dependency_interface_definition(interface) else {
             return Ok(None);
         };
         let member = declaration.declaration();

@@ -41,8 +41,7 @@ impl Concretizer<'_> {
 
     pub(super) fn automatic_type(&self, ty: export::TypeId) -> bool {
         match &self.source.types[ty] {
-            export::Type::ImportedInterface(_)
-            | export::Type::Unit
+            export::Type::Unit
             | export::Type::Integer(_)
             | export::Type::Boolean
             | export::Type::String
@@ -79,13 +78,13 @@ impl Concretizer<'_> {
             export::Type::Interface(application) => {
                 let application = &self.source.interface_applications[*application];
                 (!application.arguments.is_empty()
-                    || self.automatic_nominal(
-                        &self.source.nominal_identities[self
-                            .source
-                            .nominal_identities
-                            .interface_id(application.template)
-                            .expect("an application retains its declaration")],
-                    ))
+                    || self
+                        .source
+                        .nominal_identities
+                        .interface_id(application.template)
+                        .is_none_or(|id| {
+                            self.automatic_nominal(&self.source.nominal_identities[id])
+                        }))
                     && application
                         .arguments
                         .iter()

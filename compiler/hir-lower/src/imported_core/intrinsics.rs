@@ -7,7 +7,7 @@ impl Lowerer {
         &mut self,
         interface: hir::TypeId,
     ) -> Result<(), ImportedSignatureTypeError> {
-        let hir::Type::ImportedInterface(interface) = &self.types[interface] else {
+        let Some(interface) = self.dependency_interface_definition(interface) else {
             return Err(ImportedSignatureTypeError::Structural);
         };
         if self
@@ -111,8 +111,11 @@ impl Lowerer {
         let source = &self.imported_intrinsic_types[&kind];
         if !source.interface_implementations.is_empty()
             || !source.interfaces.iter().any(|interface| {
-                matches!(&self.types[*interface], hir::Type::ImportedInterface(interface)
-                if self.imported_bound_interfaces.contains(&interface.declaration.owner()))
+                self.dependency_interface_definition(*interface)
+                    .is_some_and(|interface| {
+                        self.imported_bound_interfaces
+                            .contains(&interface.declaration.owner())
+                    })
             })
         {
             return Ok(());

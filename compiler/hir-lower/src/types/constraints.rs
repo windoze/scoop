@@ -108,10 +108,7 @@ impl Lowerer {
                     return;
                 };
                 let bound_name = self.type_name(ty);
-                if !matches!(
-                    self.types[ty],
-                    Type::Class(_) | Type::Interface(_) | Type::ImportedInterface(_)
-                ) {
+                if !matches!(self.types[ty], Type::Class(_) | Type::Interface(_)) {
                     self.error(
                         reference.span,
                         format!(
@@ -152,7 +149,7 @@ impl Lowerer {
                             bounds.class = Some(hir::ClassUpperBound { ty, span });
                         }
                     }
-                    Type::Interface(_) | Type::ImportedInterface(_) => {
+                    Type::Interface(_) => {
                         let duplicate = bounds
                             .interfaces
                             .iter()
@@ -238,16 +235,15 @@ impl Lowerer {
                         }
                         Type::Interface(application) => {
                             let application = self.interface_applications[application].clone();
+                            let Some(source_id) = self.source_interface_id(application.template)
+                            else {
+                                continue;
+                            };
                             (
-                                self.interfaces[self.interface_id(application.template)]
-                                    .type_params
-                                    .clone(),
+                                self.interfaces[source_id].type_params.clone(),
                                 application.arguments,
                             )
                         }
-                        // Source references to dependency applications have already
-                        // checked their complete declaration constraints on entry.
-                        Type::ImportedInterface(_) => continue,
                         _ => unreachable!("nominal bounds retain a class or interface type"),
                     };
                     self.check_type_argument_kinds(

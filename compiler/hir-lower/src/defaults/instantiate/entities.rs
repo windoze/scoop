@@ -288,7 +288,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.interface_application_id(self.interface_id(source.template), arguments)
+        self.intern_interface_application(source.template, arguments)
     }
 
     pub(super) fn instantiate_default_function_type(

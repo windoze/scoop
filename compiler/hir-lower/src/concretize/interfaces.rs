@@ -3,8 +3,7 @@ use super::*;
 mod definition;
 mod members;
 
-use definition::{InterfaceMembers, ResolvedInterfaceDefinition, ResolvedInterfaceMethod};
-use members::InterfaceMethodInstance;
+use definition::{ResolvedInterfaceDefinition, ResolvedInterfaceMethod};
 
 impl Concretizer<'_> {
     pub(super) fn ensure_interface(
@@ -13,56 +12,55 @@ impl Concretizer<'_> {
         arguments: Vec<concrete::TypeId>,
     ) -> concrete::InterfaceId {
         let origin = self.source.nominal_identities[source_id].declaration_id();
+        self.ensure_interface_definition(origin, arguments)
+    }
+
+    pub(super) fn ensure_interface_definition(
+        &mut self,
+        origin: export::SourceNominalId,
+        arguments: Vec<concrete::TypeId>,
+    ) -> concrete::InterfaceId {
         if let Some(&id) = self.interface_by_key.get(&(origin, arguments.clone())) {
             return id;
         }
-        let source = &self.source.interfaces[source_id];
-        let definition = ResolvedInterfaceDefinition {
-            origin: self.source.nominal_identities[source_id].clone(),
-            name: self.source_nominal_name(&source.name, source.owner),
-            owner: self.lower_nominal_owner(source.owner),
-            parents: &source.parents,
-            members: InterfaceMembers::Declared(
-                self.source.interface_applications[source.self_application].canonical_type,
-            ),
-            automatic_methods: if source.type_params.is_empty() {
-                &source.methods
-            } else {
-                &[]
-            },
-            span: source.span,
+        let source = self.source;
+        let definition = if let Some(id) = source.nominal_identities.interface_id(origin) {
+            let declaration = &source.interfaces[id];
+            ResolvedInterfaceDefinition {
+                origin: source.nominal_identities[id].clone(),
+                name: self.source_nominal_name(&declaration.name, declaration.owner),
+                owner: self.lower_nominal_owner(declaration.owner),
+                parents: &declaration.parents,
+                members: source.interface_applications[declaration.self_application].canonical_type,
+                automatic_methods: if declaration.type_params.is_empty() {
+                    &declaration.methods
+                } else {
+                    &[]
+                },
+                span: declaration.span,
+            }
+        } else {
+            let declaration = &source.loaded_interface_definitions[&origin];
+            let definition = &declaration.definition;
+            let span = declaration.declaration.origin.origin().span();
+            ResolvedInterfaceDefinition {
+                origin: export::HirNominalIdentity::Source(
+                    declaration.declaration.identity.clone(),
+                ),
+                name: declaration.declaration.name().to_owned(),
+                owner: None,
+                parents: &definition.parents,
+                members: source.interface_applications[definition.self_application].canonical_type,
+                automatic_methods: &[],
+                span: scoop_ast::Span::new(
+                    u32::try_from(span.start_byte()).expect("decoded source spans fit HIR"),
+                    u32::try_from(span.end_byte()).expect("decoded source spans fit HIR"),
+                ),
+            }
         };
         let id = self.allocate_interface_definition(&definition, arguments.clone());
         self.complete_interface_definition(id, definition, &arguments);
         id
-    }
-
-    pub(super) fn lower_imported_interface(
-        &mut self,
-        source: &export::ImportedInterfaceType,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::TypeId {
-        let arguments = source
-            .arguments
-            .iter()
-            .map(|argument| self.lower_type(*argument, substitution))
-            .collect::<Vec<_>>();
-        let key = (source.declaration.owner(), arguments.clone());
-        if let Some(id) = self.interface_by_key.get(&key) {
-            return self.interface_type[id];
-        }
-        let definition = ResolvedInterfaceDefinition {
-            origin: export::HirNominalIdentity::Source(source.declaration.identity.clone()),
-            name: source.declaration.name().to_owned(),
-            owner: None,
-            parents: &source.parents,
-            members: InterfaceMembers::Resolved(&source.methods),
-            automatic_methods: &[],
-            span: scoop_ast::Span::new(0, 0),
-        };
-        let id = self.allocate_interface_definition(&definition, arguments);
-        self.complete_interface_definition(id, definition, substitution);
-        self.interface_type[&id]
     }
 
     fn allocate_interface_definition(
@@ -111,16 +109,7 @@ impl Concretizer<'_> {
             .iter()
             .map(|parent| self.lower_type(*parent, substitution))
             .collect();
-        let methods = match definition.members {
-            InterfaceMembers::Declared(ty) => self.interface_method_instances(ty, substitution),
-            InterfaceMembers::Resolved(methods) => methods
-                .iter()
-                .map(|method| InterfaceMethodInstance {
-                    method: ResolvedInterfaceMethod::from_dependency(method),
-                    arguments: substitution.to_vec(),
-                })
-                .collect(),
-        };
+        let methods = self.interface_method_instances(definition.members, substitution);
         self.interfaces[id].methods = methods
             .iter()
             .enumerate()

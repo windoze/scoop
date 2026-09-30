@@ -193,9 +193,6 @@ impl Lowerer {
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
-            hir::Type::ImportedInterface(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
             hir::Type::Integer(kind) => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
             }
@@ -213,12 +210,7 @@ impl Lowerer {
                 Some(self.class_access_domain(self.class_applications[application].template))
             }
             hir::Type::Interface(application) => Some(
-                self.interfaces
-                    [self.interface_id(self.interface_applications[application].template)]
-                .access
-                .lookup
-                .0
-                .clone(),
+                self.interface_access_domain(self.interface_applications[application].template),
             ),
             hir::Type::Ptr(_) => self
                 .ffi_ptr

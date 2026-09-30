@@ -249,10 +249,7 @@ impl Lowerer {
             return None;
         };
         let qualifier_ty = self.resolve_type_ref(qualifier)?;
-        if !matches!(
-            self.types[qualifier_ty],
-            Type::Interface(_) | Type::ImportedInterface(_)
-        ) {
+        if !matches!(self.types[qualifier_ty], Type::Interface(_)) {
             self.error(
                 qualifier.span,
                 "qualified `super` type must be an interface".into(),

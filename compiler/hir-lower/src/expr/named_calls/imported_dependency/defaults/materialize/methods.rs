@@ -25,7 +25,7 @@ impl Lowerer {
                     member,
                 } => {
                     let interface = self.materialize_imported_default_type(interface, context)?;
-                    let hir::Type::ImportedInterface(declaration) = &self.types[interface] else {
+                    let Some(declaration) = self.dependency_interface_definition(interface) else {
                         return Err(ImportedDefaultMaterializationError::Plan(
                             "an interface bound retains its declared interface application".into(),
                         ));

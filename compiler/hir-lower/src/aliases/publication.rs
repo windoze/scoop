@@ -164,7 +164,8 @@ impl Lowerer {
             }
             Type::Interface(application) => {
                 let application = self.interface_applications[application].clone();
-                let parameters = self.interfaces[self.interface_id(application.template)]
+                let parameters = self
+                    .interface_definition(application.template)
                     .type_params
                     .clone();
                 self.check_type_argument_kinds(
@@ -201,8 +202,7 @@ impl Lowerer {
             Type::Ptr(pointee) => {
                 self.validate_type_alias_target_tree(pointee, span, description, visited);
             }
-            Type::ImportedInterface(_)
-            | Type::Unit
+            Type::Unit
             | Type::Integer(_)
             | Type::Boolean
             | Type::String

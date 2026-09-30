@@ -199,9 +199,6 @@ impl Lowerer {
                                 &mut declared,
                             );
                         }
-                        // The dependency catalog contributes the same declared
-                        // member kinds from the remaining declaration storage.
-                        Type::ImportedInterface(_) => continue,
                         _ => unreachable!("nominal bounds retain a class or interface type"),
                     }
                 }
@@ -359,15 +356,13 @@ impl Lowerer {
         }
         seen.push(application);
         let application_value = self.interface_applications[application].clone();
-        if depth == 0
-            && bound.is_none()
-            && self.current_owner
-                == Some(Owner::Interface(
-                    self.interface_id(application_value.template),
-                ))
+        let Some(source_id) = self.source_interface_id(application_value.template) else {
+            return;
+        };
+        if depth == 0 && bound.is_none() && self.current_owner == Some(Owner::Interface(source_id))
         {
             out.extend(
-                self.interfaces[self.interface_id(application_value.template)]
+                self.interfaces[source_id]
                     .private_methods
                     .iter()
                     .copied()
@@ -386,7 +381,7 @@ impl Lowerer {
                     }),
             );
         }
-        for &member in &self.interfaces[self.interface_id(application_value.template)].methods {
+        for &member in &self.interfaces[source_id].methods {
             let function = self.interface_method_entities[member].function;
             let source = match bound {
                 Some((receiver_parameter, bound)) => {
@@ -410,10 +405,7 @@ impl Lowerer {
                 root,
             ));
         }
-        for parent in self.interfaces[self.interface_id(application_value.template)]
-            .parents
-            .clone()
-        {
+        for parent in self.interfaces[source_id].parents.clone() {
             let parent = self.instantiate_ty(parent, &application_value.arguments);
             if let Type::Interface(parent) = self.types[parent] {
                 self.collect_interface_method_candidates(parent, depth + 1, root, bound, seen, out);

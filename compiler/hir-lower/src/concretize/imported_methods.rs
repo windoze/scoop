@@ -77,28 +77,28 @@ impl Concretizer<'_> {
         &self,
         target: export::ImportedDependencyCallableRef,
     ) -> Option<concrete::InterfaceId> {
-        self.source.types.iter().find_map(|(_, ty)| {
-            let export::Type::ImportedInterface(interface) = ty else {
-                return None;
-            };
-            let owner = interface.declaration.owner();
-            if interface.arguments.is_empty()
-                && interface.methods.iter().any(|method| {
-                    method.declaration.declaration() == target.declaration()
-                        && method.declaration.owner()
-                            == export::PublicDeclarationOwnerV1::Nominal(owner)
-                })
-            {
-                Some(
-                    *self
-                        .interface_by_key
-                        .get(&(owner, Vec::new()))
-                        .expect("a default implementation retains its declaring interface"),
-                )
-            } else {
-                None
-            }
-        })
+        self.source
+            .loaded_interface_definitions
+            .values()
+            .find_map(|interface| {
+                let owner = interface.declaration.owner();
+                if interface.definition.type_params.is_empty()
+                    && interface.methods.iter().any(|method| {
+                        method.declaration.declaration() == target.declaration()
+                            && method.declaration.owner()
+                                == export::PublicDeclarationOwnerV1::Nominal(owner)
+                    })
+                {
+                    Some(
+                        *self
+                            .interface_by_key
+                            .get(&(owner, Vec::new()))
+                            .expect("a default implementation retains its declaring interface"),
+                    )
+                } else {
+                    None
+                }
+            })
     }
 
     fn concrete_bound_conformances(

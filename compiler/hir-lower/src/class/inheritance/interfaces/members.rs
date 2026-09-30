@@ -83,10 +83,19 @@ impl Lowerer {
         for member in &members {
             match member.member {
                 hir::InterfaceMethodReference::Local(id) => {
-                    suppressed.extend(self.interface_method_entities[id].overrides.iter().copied());
+                    for overridden in &self.interface_method_entities[id].overrides {
+                        match *overridden {
+                            hir::InterfaceMethodReference::Local(id) => {
+                                suppressed.insert(id);
+                            }
+                            hir::InterfaceMethodReference::Imported { slot, .. } => {
+                                imported_suppressed.insert(slot);
+                            }
+                        }
+                    }
                 }
                 hir::InterfaceMethodReference::Imported { owner, slot } => {
-                    let Type::ImportedInterface(interface) = &self.types[owner] else {
+                    let Some(interface) = self.dependency_interface_definition(owner) else {
                         unreachable!("an imported slot retains its declaring interface");
                     };
                     let method = interface
@@ -100,10 +109,12 @@ impl Lowerer {
         }
         let mut seen = std::collections::HashSet::new();
         members.retain(|member| {
-            !suppressed.contains(&member.member)
-                && !matches!(member.member, hir::InterfaceMethodReference::Imported { slot, .. }
-                    if imported_suppressed.contains(&slot))
-                && seen.insert((member.member, member.owner))
+            !match member.member {
+                hir::InterfaceMethodReference::Local(id) => suppressed.contains(&id),
+                hir::InterfaceMethodReference::Imported { slot, .. } => {
+                    imported_suppressed.contains(&slot)
+                }
+            } && seen.insert((member.member, member.owner))
         });
         members
     }
@@ -121,8 +132,12 @@ impl Lowerer {
         let members = match self.types[ty].clone() {
             Type::Interface(application) => {
                 let application = self.interface_applications[application].clone();
-                let declaration = self.interfaces[self.interface_id(application.template)].clone();
-                for parent in declaration.parents {
+                let Some(source_id) = self.source_interface_id(application.template) else {
+                    self.collect_loaded_conformance_members(ty, &application.arguments, out);
+                    return;
+                };
+                let declaration = self.interfaces[source_id].clone();
+                for parent in declaration.definition.parents {
                     let parent = self.instantiate_ty(parent, &application.arguments);
                     self.collect_conformance_members(parent, seen, out);
                 }
@@ -139,7 +154,7 @@ impl Lowerer {
                         let declaration = self.interface_method_entities[member].clone();
                         let signature = self.instantiated_signature(function, &arguments, &[]);
                         let name = self.functions[function].name.clone();
-                        let owner = self.intern_interface_application(declaration.owner, arguments);
+                        let owner = self.source_interface_type(declaration.owner, arguments);
                         Some(InterfaceMemberInstance {
                             member: hir::InterfaceMethodReference::Local(member),
                             owner,
@@ -155,64 +170,81 @@ impl Lowerer {
                     })
                     .collect::<Vec<_>>()
             }
-            Type::ImportedInterface(interface) => interface
-                .methods
-                .iter()
-                .map(|method| {
-                    let hir::PublicDeclarationOwnerV1::Nominal(owner) = method.declaration.owner()
-                    else {
-                        unreachable!("interface members have nominal declaration owners")
-                    };
-                    let owner = self
-                        .imported_member_owner_type(ty, owner)
-                        .expect("the imported member owner was resolved with its interface");
-                    let effects = method.declaration.effects();
-                    let mutable_property = match method.declaration.declaration() {
-                        scoop_identity::CallableTemplateOrigin::Accessor(accessor) => self
-                            .dependencies
-                            .as_ref()
-                            .and_then(|dependencies| dependencies.property_for_accessor(accessor))
-                            .filter(|property| property.accessors().setter() == Some(accessor))
-                            .map(|_| method.name.clone()),
-                        _ => None,
-                    };
-                    InterfaceMemberInstance {
-                        member: hir::InterfaceMethodReference::Imported {
-                            owner,
-                            slot: method.slot.id(),
-                        },
-                        owner,
-                        signature: InterfaceSignature {
-                            name: match method.slot.key().role() {
-                                scoop_identity::DispatchRole::PropertyGetter => {
-                                    format!("$get${}", method.name)
-                                }
-                                scoop_identity::DispatchRole::PropertySetter => {
-                                    format!("$set${}", method.name)
-                                }
-                                _ => method.name.clone(),
-                            },
-                            parameters: method.parameters.iter().map(|(_, ty)| *ty).collect(),
-                            result: method.return_type,
-                            is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
-                            safety: effects.safety(),
-                            gc_effect: effects.gc_effect(),
-                            operator: effects.operator_role(),
-                            infix: effects.infix(),
-                        },
-                        implementation: if method.declaration.modality()
-                            == hir::CallableModalityV1::Abstract
-                        {
-                            hir::InterfaceMemberImplementation::AbstractSlot
-                        } else {
-                            hir::InterfaceMemberImplementation::Body
-                        },
-                        mutable_property,
-                    }
-                })
-                .collect(),
             _ => unreachable!("conformance members belong to an interface"),
         };
+        out.extend(members);
+    }
+
+    fn collect_loaded_conformance_members(
+        &mut self,
+        ty: TypeId,
+        arguments: &[TypeId],
+        out: &mut Vec<InterfaceMemberInstance>,
+    ) {
+        let methods = self
+            .dependency_interface_definition(ty)
+            .expect("a loaded interface has its slot definitions")
+            .methods
+            .clone();
+        let members = methods
+            .iter()
+            .map(|method| {
+                let hir::PublicDeclarationOwnerV1::Nominal(owner) = method.declaration.owner()
+                else {
+                    unreachable!("interface members have nominal declaration owners")
+                };
+                let owner = self
+                    .imported_member_owner_type(ty, owner)
+                    .expect("the imported member owner was resolved with its interface");
+                let effects = method.declaration.effects();
+                let mutable_property = match method.declaration.declaration() {
+                    scoop_identity::CallableTemplateOrigin::Accessor(accessor) => self
+                        .dependencies
+                        .as_ref()
+                        .and_then(|dependencies| dependencies.property_for_accessor(accessor))
+                        .filter(|property| property.accessors().setter() == Some(accessor))
+                        .map(|_| method.name.clone()),
+                    _ => None,
+                };
+                InterfaceMemberInstance {
+                    member: hir::InterfaceMethodReference::Imported {
+                        owner,
+                        slot: method.slot.id(),
+                    },
+                    owner,
+                    signature: InterfaceSignature {
+                        name: match method.slot.key().role() {
+                            scoop_identity::DispatchRole::PropertyGetter => {
+                                format!("$get${}", method.name)
+                            }
+                            scoop_identity::DispatchRole::PropertySetter => {
+                                format!("$set${}", method.name)
+                            }
+                            _ => method.name.clone(),
+                        },
+                        parameters: method
+                            .parameters
+                            .iter()
+                            .map(|(_, ty)| self.instantiate_ty(*ty, arguments))
+                            .collect(),
+                        result: self.instantiate_ty(method.return_type, arguments),
+                        is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
+                        safety: effects.safety(),
+                        gc_effect: effects.gc_effect(),
+                        operator: effects.operator_role(),
+                        infix: effects.infix(),
+                    },
+                    implementation: if method.declaration.modality()
+                        == hir::CallableModalityV1::Abstract
+                    {
+                        hir::InterfaceMemberImplementation::AbstractSlot
+                    } else {
+                        hir::InterfaceMemberImplementation::Body
+                    },
+                    mutable_property,
+                }
+            })
+            .collect::<Vec<_>>();
         out.extend(members);
     }
 
@@ -267,7 +299,7 @@ impl Lowerer {
                 })
             }
             hir::InterfaceMethodReference::Imported { owner, slot } => {
-                let Type::ImportedInterface(interface) = &self.types[owner] else {
+                let Some(interface) = self.dependency_interface_definition(owner) else {
                     unreachable!("imported interface member has an imported owner")
                 };
                 let declaration = self

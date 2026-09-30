@@ -127,7 +127,8 @@ impl Lowerer {
         }
         let mut implementations = Vec::new();
         for interface_ty in interfaces {
-            let hir::Type::ImportedInterface(interface) = self.types[interface_ty].clone() else {
+            let Some(interface) = self.dependency_interface_definition(interface_ty).cloned()
+            else {
                 return Err(ImportedSignatureTypeError::Structural);
             };
             let mut methods = Vec::new();

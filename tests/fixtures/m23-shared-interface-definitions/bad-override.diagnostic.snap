@@ -1,0 +1,15 @@
+span=139..197
+expression=public override val second: String
+        get() = "wrong"
+property `second` must have the exact inherited type Int, found String
+span=159..165
+expression=second
+`$get$second` is marked `override` but does not override any method
+span=39..199
+expression=private class Wrong: Swap<Int, Unit> {
+    public override val first: Unit
+        get() = Unit
+    public override val second: String
+        get() = "wrong"
+}
+class `Wrong` does not implement interface method `View<Unit, Int>.$get$second`

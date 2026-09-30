@@ -43,16 +43,15 @@ impl Lowerer {
         if self.dependencies.is_none() {
             return Ok(Vec::new());
         }
-        let effective = match &self.types[receiver] {
-            hir::Type::ImportedInterface(interface) => Some(
+        let effective = self
+            .dependency_interface_definition(receiver)
+            .map(|interface| {
                 interface
                     .methods
                     .iter()
                     .map(|method| method.declaration.declaration())
-                    .collect::<std::collections::BTreeSet<_>>(),
-            ),
-            _ => None,
-        };
+                    .collect::<std::collections::BTreeSet<_>>()
+            });
         let mut pending = vec![receiver];
         let mut seen = std::collections::BTreeSet::new();
         let mut suppressed_slots = std::collections::BTreeSet::new();
@@ -108,21 +107,20 @@ impl Lowerer {
                     pending.extend(self.direct_nominal_supertypes(ty).into_iter().rev());
                 }
                 hir::Type::Interface(application) => {
-                    let declaration = &self.interfaces
-                        [self.interface_id(self.interface_applications[*application].template)];
-                    pending.extend(declaration.parents.iter().rev().copied());
-                    for reference in declaration
-                        .methods
-                        .iter()
-                        .flat_map(|method| &self.interface_method_entities[*method].overrides)
-                    {
-                        if let hir::InterfaceMethodReference::Imported { slot, .. } = reference {
-                            suppressed_slots.insert(*slot);
+                    let template = self.interface_applications[*application].template;
+                    if let Some(id) = self.source_interface_id(template) {
+                        for reference in self.interfaces[id]
+                            .methods
+                            .iter()
+                            .flat_map(|method| &self.interface_method_entities[*method].overrides)
+                        {
+                            if let hir::InterfaceMethodReference::Imported { slot, .. } = reference
+                            {
+                                suppressed_slots.insert(*slot);
+                            }
                         }
                     }
-                }
-                hir::Type::ImportedInterface(interface) => {
-                    pending.extend(interface.parents.iter().rev().copied())
+                    pending.extend(self.direct_nominal_supertypes(ty).into_iter().rev());
                 }
                 hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String => {
                     let kind = match self.types[ty] {
@@ -154,7 +152,7 @@ impl Lowerer {
             let Some(owner) = self.imported_nominal_owner(ty) else {
                 continue;
             };
-            if let hir::Type::ImportedInterface(interface) = &self.types[ty] {
+            if let Some(interface) = self.dependency_interface_definition(ty) {
                 suppressed_slots.extend(
                     interface
                         .methods

@@ -89,13 +89,14 @@ impl Lowerer {
             }
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
-                self.collect_application_pointee_parameters(
-                    &self.interfaces[self.interface_id(application.template)].type_params,
-                    &self.interfaces[self.interface_id(application.template)]
-                        .gc_free_pointee_requirements,
-                    &application.arguments,
-                    out,
-                );
+                if let Some(id) = self.source_interface_id(application.template) {
+                    self.collect_application_pointee_parameters(
+                        &self.interfaces[id].type_params,
+                        &self.interfaces[id].gc_free_pointee_requirements,
+                        &application.arguments,
+                        out,
+                    );
+                }
                 for &argument in &application.arguments {
                     self.collect_pointee_parameters(argument, visiting, out);
                 }
@@ -125,14 +126,6 @@ impl Lowerer {
                     self.collect_pointee_parameters(parameter, visiting, out);
                 }
                 self.collect_pointee_parameters(function.return_type, visiting, out);
-            }
-            hir::Type::ImportedInterface(_) => {
-                let (_, arguments) = self
-                    .dependency_nominal_application(ty)
-                    .expect("matched imported nominal");
-                for &argument in arguments {
-                    self.collect_pointee_parameters(argument, visiting, out);
-                }
             }
             hir::Type::Unit
             | hir::Type::Integer(_)

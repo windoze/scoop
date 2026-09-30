@@ -96,22 +96,21 @@ impl Lowerer {
         }
         seen.push(application);
         let value = self.interface_applications[application].clone();
-        if let Some(property) = self.interfaces[self.interface_id(value.template)]
-            .properties
-            .iter()
-            .copied()
-            .find(|&property| {
-                self.properties[property].name == name
-                    && self.property_is_accessible(property, Some(receiver_ty))
-            })
+        let source_id = self.source_interface_id(value.template)?;
+        if let Some(property) =
+            self.interfaces[source_id]
+                .properties
+                .iter()
+                .copied()
+                .find(|&property| {
+                    self.properties[property].name == name
+                        && self.property_is_accessible(property, Some(receiver_ty))
+                })
         {
             let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
             return Some((property, application, ty));
         }
-        for parent in self.interfaces[self.interface_id(value.template)]
-            .parents
-            .clone()
-        {
+        for parent in self.interfaces[source_id].parents.clone() {
             let parent_ty = self.instantiate_ty(parent, &value.arguments);
             let hir::Type::Interface(parent) = self.types[parent_ty] else {
                 continue;

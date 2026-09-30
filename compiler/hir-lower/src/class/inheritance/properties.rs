@@ -187,70 +187,77 @@ impl Lowerer {
             match self.types[interface_ty].clone() {
                 Type::Interface(application) => {
                     let value = self.interface_applications[application].clone();
-                    for property in self.interfaces[self.interface_id(value.template)]
-                        .properties
-                        .clone()
-                    {
-                        let declaration = &self.properties[property];
-                        if declaration.name != name
-                            || !self.property_is_accessible(property, Some(receiver_ty))
-                        {
-                            continue;
+                    if let Some(source_id) = self.source_interface_id(value.template) {
+                        for property in self.interfaces[source_id].properties.clone() {
+                            let declaration = &self.properties[property];
+                            if declaration.name != name
+                                || !self.property_is_accessible(property, Some(receiver_ty))
+                            {
+                                continue;
+                            }
+                            let ty =
+                                self.instantiate_ty(self.properties[property].ty, &value.arguments);
+                            let candidate = self.local_inherited_property(property, ty);
+                            if !result.iter().any(|existing| {
+                                existing.reference == candidate.reference
+                                    && self.types_equal(existing.ty, ty)
+                            }) {
+                                result.push(candidate);
+                            }
                         }
-                        let ty =
-                            self.instantiate_ty(self.properties[property].ty, &value.arguments);
-                        let candidate = self.local_inherited_property(property, ty);
-                        if !result.iter().any(|existing| {
-                            existing.reference == candidate.reference
-                                && self.types_equal(existing.ty, ty)
-                        }) {
-                            result.push(candidate);
-                        }
-                    }
-                }
-                Type::ImportedInterface(interface) => {
-                    for method in &interface.methods {
-                        if method.name != name
-                            || method.slot.key().role()
-                                != scoop_identity::DispatchRole::PropertyGetter
-                        {
-                            continue;
-                        }
-                        let scoop_identity::CallableTemplateOrigin::Accessor(accessor) =
-                            method.declaration.declaration()
-                        else {
-                            unreachable!("a property slot references its actual accessor")
-                        };
-                        let property = self
-                            .dependencies
-                            .as_ref()
-                            .and_then(|dependencies| dependencies.property_for_accessor(accessor))
-                            .expect("an imported property accessor has a declaration");
-                        let hir::PropertyDeclarationId::Property(declaration) =
-                            property.declaration()
-                        else {
-                            unreachable!("interface properties are nominal declarations")
-                        };
-                        let hir::PublicDeclarationOwnerV1::Nominal(owner) = property.owner() else {
-                            unreachable!("interface properties have nominal owners")
-                        };
-                        let mutable = property.accessors().setter().is_some();
-                        let owner = self
-                            .imported_member_owner_type(interface_ty, owner)
-                            .expect("the imported property owner is resolved with its interface");
-                        let reference = hir::PropertyReference::Imported { owner, declaration };
-                        if !result
-                            .iter()
-                            .any(|existing| existing.reference == reference)
-                        {
-                            result.push(InheritedProperty {
-                                reference,
-                                ty: method.return_type,
-                                mutable,
-                                is_final: method.declaration.modality()
-                                    == hir::CallableModalityV1::Final,
-                                slot: Some(hir::SlotContractDomain(hir::AccessDomain::universal())),
-                            });
+                    } else {
+                        let methods = self.loaded_interface_definitions[&value.template]
+                            .methods
+                            .clone();
+                        for method in &methods {
+                            if method.name != name
+                                || method.slot.key().role()
+                                    != scoop_identity::DispatchRole::PropertyGetter
+                            {
+                                continue;
+                            }
+                            let scoop_identity::CallableTemplateOrigin::Accessor(accessor) =
+                                method.declaration.declaration()
+                            else {
+                                unreachable!("a property slot references its actual accessor")
+                            };
+                            let property = self
+                                .dependencies
+                                .as_ref()
+                                .and_then(|dependencies| {
+                                    dependencies.property_for_accessor(accessor)
+                                })
+                                .expect("an imported property accessor has a declaration");
+                            let hir::PropertyDeclarationId::Property(declaration) =
+                                property.declaration()
+                            else {
+                                unreachable!("interface properties are nominal declarations")
+                            };
+                            let hir::PublicDeclarationOwnerV1::Nominal(owner) = property.owner()
+                            else {
+                                unreachable!("interface properties have nominal owners")
+                            };
+                            let mutable = property.accessors().setter().is_some();
+                            let owner =
+                                self.imported_member_owner_type(interface_ty, owner).expect(
+                                    "the imported property owner is resolved with its interface",
+                                );
+                            let reference = hir::PropertyReference::Imported { owner, declaration };
+                            if !result
+                                .iter()
+                                .any(|existing| existing.reference == reference)
+                            {
+                                result.push(InheritedProperty {
+                                    reference,
+                                    ty: self.instantiate_ty(method.return_type, &value.arguments),
+                                    mutable,
+                                    is_final: method.declaration.modality()
+                                        == hir::CallableModalityV1::Final,
+                                    slot: Some(hir::SlotContractDomain(
+                                        hir::AccessDomain::universal(),
+                                    )),
+                                });
+                            }
                         }
                     }
                 }

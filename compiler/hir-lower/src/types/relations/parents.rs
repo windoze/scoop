@@ -49,7 +49,8 @@ impl Lowerer {
             }
             Type::Interface(application) => {
                 let application = self.interface_applications[application].clone();
-                let parents = self.interfaces[self.interface_id(application.template)]
+                let parents = self
+                    .interface_definition(application.template)
                     .parents
                     .clone();
                 parents
@@ -71,7 +72,6 @@ impl Lowerer {
             }
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::ImportedInterface(value) => value.parents.clone(),
             Type::Unit
             | Type::Any
             | Type::Tuple(_)

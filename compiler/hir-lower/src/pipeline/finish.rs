@@ -396,6 +396,7 @@ impl Lowerer {
             loaded_enum_definitions: self.loaded_enum_definitions,
             loaded_struct_definitions: self.loaded_struct_definitions,
             loaded_class_definitions: self.loaded_class_definitions,
+            loaded_interface_definitions: self.loaded_interface_definitions,
             enum_applications: self.enum_applications,
             classes: self.classes,
             class_fields: self.class_fields,

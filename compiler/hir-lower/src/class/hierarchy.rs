@@ -41,9 +41,10 @@ impl Lowerer {
                             == self
                                 .nominal_identity(crate::Owner::Interface(target))
                                 .declaration_id()
-                            || self.interface_reaches(self.interface_id(parent), target, visiting)
+                            || self.source_interface_id(parent).is_some_and(|parent| {
+                                self.interface_reaches(parent, target, visiting)
+                            })
                     }
-                    Type::ImportedInterface(_) => false,
                     _ => unreachable!("resolved interface parents are interface types"),
                 });
         visiting.pop();

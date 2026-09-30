@@ -35,20 +35,7 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
     let enums = &lowerer.enums;
     let classes = &lowerer.classes;
     let interfaces = &lowerer.interfaces;
-    let imported_name = |declaration: &hir::ImportedNominalDeclaration, arguments: &[TypeId]| {
-        let name = declaration.name();
-        if arguments.is_empty() {
-            name.to_owned()
-        } else {
-            let arguments = arguments
-                .iter()
-                .map(|argument| type_name(lowerer, type_params, *argument))
-                .collect::<Vec<_>>();
-            format!("{name}<{}>", arguments.join(", "))
-        }
-    };
     match &types[ty] {
-        Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),
@@ -112,17 +99,22 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
         }
         Type::Interface(application) => {
             let application = &lowerer.interface_applications[*application];
-            let id = lowerer.interface_id(application.template);
             let args = &application.arguments;
-            let name = nominal_name(
-                structs,
-                enums,
-                classes,
-                interfaces,
-                &lowerer.objects,
-                &interfaces[id].name,
-                interfaces[id].owner,
-            );
+            let name = match lowerer.source_interface_id(application.template) {
+                Some(id) => nominal_name(
+                    structs,
+                    enums,
+                    classes,
+                    interfaces,
+                    &lowerer.objects,
+                    &interfaces[id].name,
+                    interfaces[id].owner,
+                ),
+                None => lowerer.loaded_interface_definitions[&application.template]
+                    .declaration
+                    .name()
+                    .to_owned(),
+            };
             if args.is_empty() {
                 name
             } else {

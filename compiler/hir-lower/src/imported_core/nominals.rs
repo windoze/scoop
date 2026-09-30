@@ -40,13 +40,11 @@ impl Lowerer {
         {
             return Ok(self.class_applications[*application].canonical_type);
         }
-        if let Some((id, _)) = self.types.iter().find(|(_, ty)| {
-            ty.imported_nominal_application()
-                .is_some_and(|(declaration, existing)| {
-                    declaration.owner() == owner && existing == arguments
-                })
-        }) {
-            return Ok(id);
+        if let Some(application) = self
+            .interface_application_by_key
+            .get(&(owner, arguments.clone()))
+        {
+            return Ok(self.interface_applications[*application].canonical_type);
         }
         let declaration = self
             .dependencies
@@ -57,25 +55,12 @@ impl Lowerer {
         if arguments.len() != declaration.interface.type_parameters().binders().len() {
             return Err(ImportedSignatureTypeError::Structural);
         }
-        let bindings = arguments
-            .iter()
-            .enumerate()
-            .map(|(index, ty)| {
-                (
-                    SignatureTypeKey::Binder {
-                        depth: 0,
-                        index: index as u32,
-                    },
-                    *ty,
-                )
-            })
-            .collect();
         match declaration.interface.source_shape() {
             hir::NominalSourceShapeV1::Class(_) | hir::NominalSourceShapeV1::Object(_) => {
                 self.imported_class_type(declaration, arguments)
             }
             hir::NominalSourceShapeV1::Interface => {
-                self.imported_interface_type(declaration, arguments, &bindings)
+                self.imported_interface_type(declaration, arguments)
             }
             hir::NominalSourceShapeV1::Struct(_) => {
                 self.imported_struct_type(declaration, arguments)

@@ -5,14 +5,9 @@ pub(super) struct ResolvedInterfaceDefinition<'a> {
     pub name: String,
     pub owner: Option<concrete::NominalOwner>,
     pub parents: &'a [export::TypeId],
-    pub members: InterfaceMembers<'a>,
+    pub members: export::TypeId,
     pub automatic_methods: &'a [export::InterfaceMethodId],
     pub span: scoop_ast::Span,
-}
-
-pub(super) enum InterfaceMembers<'a> {
-    Declared(export::TypeId),
-    Resolved(&'a [export::ImportedInterfaceMethod]),
 }
 
 pub(super) struct ResolvedInterfaceMethod<'a> {
@@ -28,7 +23,7 @@ pub(super) struct ResolvedInterfaceMethod<'a> {
 }
 
 impl<'a> ResolvedInterfaceMethod<'a> {
-    pub(super) fn from_dependency(method: &'a export::ImportedInterfaceMethod) -> Self {
+    pub(super) fn from_dependency(method: &'a export::LoadedInterfaceMethod) -> Self {
         let effects = method.declaration.effects();
         Self {
             slot: method.slot.id(),
@@ -59,7 +54,7 @@ impl<'a> ResolvedInterfaceMethod<'a> {
                 })
                 .collect(),
             return_type: method.return_type,
-            span: scoop_ast::Span::new(0, 0),
+            span: method.span,
         }
     }
 }

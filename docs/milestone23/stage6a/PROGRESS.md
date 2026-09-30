@@ -301,3 +301,12 @@
 - 新增 `m23-shared-class-definitions` 的两组正例、三个诊断反例与 HIR／MIR／LIR 快照，覆盖递归 class、struct 包装、类型别名、泛型基类初始化、多层交换参数与默认值、接口默认方法、数组、普通委托存储及 singleton。源码移走后再次发布、consumer-local 类型、String／Int／Unit 与普通／移动 GC 运行均通过；反例准确定位 final 基类、错误字段实参与泛型基类字段初始化。
 - 全仓 fmt／clippy 无警告；859 项 HIR、1321 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。20 组不同真实产物回归均覆盖通过，包括完整 core MIR／LIR 闭包、class／struct／enum／interface、构造、成员、属性、默认值、数组、继承初始化、抽象 conformance、companion 与 singleton。默认映射修复后，使用最终配套编译器关闭更新开关复验相关八组全部通过；既有快照仅三份 HIR 中的四处 arena 编号改变。日志前缀 `/tmp/scoop-m23-6a-shared-class-types-`，结果见 `unit.log`、`build.log`、`default-mapping.log` 与 `verified-results.json`。
 - 属性声明主文件由 1225 行降至 186 行，拆出的 class、访问器规则和函数构造模块分别为 350、399、324 行；新 class 解码为 148 行，继承默认映射为 103 行。确认没有 cargo／rustc 占用后清理 1777.6 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未改变 wire payload 或 runtime ABI；interface 类型、完整 nominal 条件与成员、候选和正文存储继续按 6a 设计迁移。
+
+
+## interface 共用 application 与带形参的父类型、递归签名
+
+- 删除 `Type::ImportedInterface`、`ImportedInterfaceType` 及每个实际应用上预替换的方法表。当前和依赖接口共用原身份加完整实参的 `InterfaceApplication`，形参与父接口保存在共同 `InterfaceDefinition`；依赖方法签名只在原声明域内解码一次。继承签名先组合到当前声明域，查询和具体化再代入本次实参，递归参数和结果复用同一 application。
+- 父类型、约束、属性、conformance、默认来源及具体化读取共同定义；loaded 方法保留真实定义位置和原槽身份。修复本地泛型接口覆写外来槽时按未替换宿主比较造成的漏消除：既定覆写关系按原槽声明身份应用，与具体化槽表保持一致，没有重新选择 override、复制普通外部实现或扩大物化根。
+- 新增 `m23-shared-interface-definitions` 两组正例、四个诊断反例及六份阶段快照，覆盖递归签名、交换／恢复参数的多层继承、菱形、默认参数、class／struct 实现、bound、装箱、Array／MutableArray、别名和引用／Int／Unit／复合值。源码移走后再次发布和普通／移动 GC 运行通过，关闭全部更新开关复验通过；单元同时验证 loaded 定义唯一、递归 self application 和继承签名仍在原 binder 域。
+- 全仓 fmt／clippy 无警告；859 项 HIR、1322 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。17 组不同真实产物回归全部覆盖成功，包括完整 core 三组 MIR／LIR 导出闭包、四类名义定义、成员、构造、默认值、属性、数组、抽象实现、本地接口继承与限定 super。仅一份旧 HIR 快照的两处函数类型 arena 编号变化，核对更新后完整组严格复验通过。日志前缀 `/tmp/scoop-m23-6a-shared-interface-types-`，结果见 `unit.log`、`build.log` 和 `verified-artifacts.json`。
+- 接口解码、具体化主流程、继承查询和声明模块分别为 185、158、89、154 行。确认没有 cargo／rustc 占用后清理 740.6 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未改变 wire payload 或 runtime ABI；完整名义条件、成员候选和正文存储继续按 6a 设计迁移。

@@ -109,7 +109,9 @@ impl Lowerer {
                     slot: u32::try_from(position).map_err(|_| invalid())?,
                 })
             }
-            hir::Type::ImportedInterface(interface) => {
+            hir::Type::Interface(application) => {
+                let interface = &self.loaded_interface_definitions
+                    [&self.interface_applications[*application].template];
                 let position = interface
                     .methods
                     .iter()

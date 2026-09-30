@@ -16,10 +16,12 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params,
+            definition: hir::InterfaceDefinition {
+                self_application,
+                type_params,
+                parents: Vec::new(),
+            },
             gc_free_pointee_requirements: Vec::new(),
-            parents: Vec::new(),
             methods: Vec::new(),
             private_methods: Vec::new(),
             properties: Vec::new(),
@@ -68,7 +70,7 @@ impl Harness {
         if !declaration.type_params.is_empty() {
             self.functions[function].genericity =
                 hir::FunctionGenericity::OwnerParameterizedMethod {
-                    owner_parameters: declaration.type_params,
+                    owner_parameters: declaration.definition.type_params,
                     no_gc_type_params: Vec::new(),
                     gc_free_pointee_requirements: Vec::new(),
                 };

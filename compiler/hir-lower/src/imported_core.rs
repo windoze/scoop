@@ -62,8 +62,7 @@ impl Lowerer {
             hir::Type::Any => scoop_identity::CoreBuiltinNominal::Any
                 .identity_record()
                 .id(),
-            hir::Type::ImportedInterface(_)
-            | hir::Type::Struct(_)
+            hir::Type::Struct(_)
             | hir::Type::Class(_)
             | hir::Type::Interface(_)
             | hir::Type::Tuple(_)

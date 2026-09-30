@@ -104,6 +104,7 @@ fn rebuild(module: &hir::Module) -> Result<hir::HirTypeIdentities, hir::HirTypeI
         loaded_enum_definitions: &module.loaded_enum_definitions,
         loaded_struct_definitions: &module.loaded_struct_definitions,
         loaded_class_definitions: &module.loaded_class_definitions,
+        loaded_interface_definitions: &module.loaded_interface_definitions,
         enum_applications: &module.enum_applications,
         classes: &module.classes,
         class_applications: &module.class_applications,

@@ -20,6 +20,13 @@ impl Module {
             let definition = self.loaded_enum_definitions.get(&application.template)?;
             return Some((&definition.declaration, &application.arguments));
         }
-        self.types[ty].imported_nominal_application()
+        if let Type::Interface(application) = self.types[ty] {
+            let application = &self.interface_applications[application];
+            let definition = self
+                .loaded_interface_definitions
+                .get(&application.template)?;
+            return Some((&definition.declaration, &application.arguments));
+        }
+        None
     }
 }

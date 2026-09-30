@@ -26,30 +26,28 @@ impl Projection<'_> {
         for ty in self.interface_postorder(ty)? {
             match &self.export.types[ty] {
                 Type::Interface(application) => {
-                    let owner = self
-                        .export
-                        .nominal_identities
-                        .interface_id(self.export.interface_applications[*application].template)
-                        .expect("an interface application retains its declaration");
-                    for member in &self.export.interfaces[owner].methods {
-                        self.push(&mut members, InterfaceMethodReference::Local(*member))?;
-                        for reference in &self.export.interface_methods[*member].overrides {
-                            suppressed.insert(self.interface_slot(*reference)?);
+                    let template = self.export.interface_applications[*application].template;
+                    if let Some(owner) = self.export.nominal_identities.interface_id(template) {
+                        for member in &self.export.interfaces[owner].methods {
+                            self.push(&mut members, InterfaceMethodReference::Local(*member))?;
+                            for reference in &self.export.interface_methods[*member].overrides {
+                                suppressed.insert(self.interface_slot(*reference)?);
+                            }
                         }
-                    }
-                }
-                Type::ImportedInterface(interface) => {
-                    let owner = PublicDeclarationOwnerV1::Nominal(interface.declaration.owner());
-                    for method in &interface.methods {
-                        if method.declaration.owner() == owner {
-                            self.push(
-                                &mut members,
-                                InterfaceMethodReference::Imported {
-                                    owner: ty,
-                                    slot: method.slot.id(),
-                                },
-                            )?;
-                            suppressed.extend(method.overrides.iter().copied());
+                    } else {
+                        let interface = &self.export.loaded_interface_definitions[&template];
+                        let owner = PublicDeclarationOwnerV1::Nominal(template);
+                        for method in &interface.methods {
+                            if method.declaration.owner() == owner {
+                                self.push(
+                                    &mut members,
+                                    InterfaceMethodReference::Imported {
+                                        owner: ty,
+                                        slot: method.slot.id(),
+                                    },
+                                )?;
+                                suppressed.extend(method.overrides.iter().copied());
+                            }
                         }
                     }
                 }
@@ -80,14 +78,9 @@ impl Projection<'_> {
             }
             let parents = match &self.export.types[ty] {
                 Type::Interface(application) => {
-                    let owner = self
-                        .export
-                        .nominal_identities
-                        .interface_id(self.export.interface_applications[*application].template)
-                        .expect("an interface application retains its declaration");
-                    &self.export.interfaces[owner].parents
+                    let template = self.export.interface_applications[*application].template;
+                    &self.export.interface_definition(template).parents
                 }
-                Type::ImportedInterface(interface) => &interface.parents,
                 _ => return Err(invalid("interface parent has a non-interface type")),
             };
             self.push(&mut pending, (ty, true))?;

@@ -63,7 +63,7 @@ impl Lowerer {
         }
         match self.types[subject_ty] {
             Type::Enum(_) => Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty }),
-            Type::ImportedInterface(_) | Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
+            Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
                 Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty })
             }
             _ => {
@@ -242,7 +242,6 @@ impl Lowerer {
                 unreachable!("integer columns use symbolic singleton/other partitioning")
             }
             Type::Class(_)
-            | Type::ImportedInterface(_)
             | Type::Interface(_)
             | Type::Any
             | Type::Function(_)

@@ -1,0 +1,7 @@
+import upstream.interfaceDefinitions.*
+private class Wrong: Swap<Int, Unit> {
+    public override val first: Unit
+        get() = Unit
+    public override val second: String
+        get() = "wrong"
+}

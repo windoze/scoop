@@ -46,55 +46,44 @@ impl<'input> Concretizer<'input> {
         out: &mut Vec<InterfaceMethodInstance<'input>>,
     ) {
         let source = self.source;
-        match &source.types[ty] {
-            export::Type::Interface(application) => {
-                let application = &source.interface_applications[*application];
-                let arguments = application
-                    .arguments
-                    .iter()
-                    .map(|argument| self.lower_type(*argument, substitution))
-                    .collect::<Vec<_>>();
-                let declaration = &source.interfaces[source
-                    .nominal_identities
-                    .interface_id(application.template)
-                    .expect("an application retains its declaration")];
-                let origin = application.template;
-                if !seen.insert((origin, arguments.clone())) {
-                    return;
-                }
-                for &parent in &declaration.parents {
-                    self.collect_interface_method_instances(parent, &arguments, seen, out);
-                }
-                out.extend(
-                    declaration
-                        .methods
-                        .iter()
-                        .map(|&member| InterfaceMethodInstance {
-                            method: self.source_interface_method(member),
-                            arguments: arguments.clone(),
-                        }),
-                );
+        let export::Type::Interface(application) = source.types[ty] else {
+            unreachable!("interface members are reached through interface types")
+        };
+        let application = &source.interface_applications[application];
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect::<Vec<_>>();
+        if !seen.insert((application.template, arguments.clone())) {
+            return;
+        }
+        if let Some(id) = source.nominal_identities.interface_id(application.template) {
+            let declaration = &source.interfaces[id];
+            for &parent in &declaration.parents {
+                self.collect_interface_method_instances(parent, &arguments, seen, out);
             }
-            export::Type::ImportedInterface(interface) => {
-                let arguments = interface
-                    .arguments
+            out.extend(
+                declaration
+                    .methods
                     .iter()
-                    .map(|argument| self.lower_type(*argument, substitution))
-                    .collect::<Vec<_>>();
-                if !seen.insert((interface.declaration.owner(), arguments)) {
-                    return;
-                }
-                out.extend(
-                    interface
-                        .methods
-                        .iter()
-                        .map(|method| InterfaceMethodInstance {
-                            method: ResolvedInterfaceMethod::from_dependency(method),
-                            arguments: substitution.to_vec(),
-                        }),
-                );
-            }
-            _ => unreachable!("interface members are reached through interface types"),
+                    .map(|&member| InterfaceMethodInstance {
+                        method: self.source_interface_method(member),
+                        arguments: arguments.clone(),
+                    }),
+            );
+        } else {
+            // Loaded members already contain the checked inherited slot prefix.
+            let declaration = &source.loaded_interface_definitions[&application.template];
+            out.extend(
+                declaration
+                    .methods
+                    .iter()
+                    .map(|method| InterfaceMethodInstance {
+                        method: ResolvedInterfaceMethod::from_dependency(method),
+                        arguments: arguments.clone(),
+                    }),
+            );
         }
     }
 }

@@ -43,6 +43,7 @@ pub(crate) fn identity_inputs<'a>(
         loaded_enum_definitions: &lowerer.loaded_enum_definitions,
         loaded_struct_definitions: &lowerer.loaded_struct_definitions,
         loaded_class_definitions: &lowerer.loaded_class_definitions,
+        loaded_interface_definitions: &lowerer.loaded_interface_definitions,
         enum_applications: &lowerer.enum_applications,
         classes: &lowerer.classes,
         class_applications: &lowerer.class_applications,

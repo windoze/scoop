@@ -68,15 +68,14 @@ impl Lowerer {
             if !seen.insert(owner) {
                 continue;
             }
-            let interface = match &self.types[owner] {
-                hir::Type::Class(_) => {
-                    pending.extend(self.direct_nominal_supertypes(owner));
-                    continue;
-                }
-                hir::Type::ImportedInterface(interface) => interface,
-                _ => unreachable!("dependency parents retain their complete nominal types"),
-            };
-            pending.extend(interface.parents.iter().copied());
+            if matches!(self.types[owner], hir::Type::Class(_)) {
+                pending.extend(self.direct_nominal_supertypes(owner));
+                continue;
+            }
+            pending.extend(self.direct_nominal_supertypes(owner));
+            let interface = self
+                .dependency_interface_definition(owner)
+                .expect("dependency parents retain their complete nominal types");
             for method in &interface.methods {
                 let slot = method.slot.id();
                 let target = selections

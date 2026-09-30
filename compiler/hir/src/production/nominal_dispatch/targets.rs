@@ -111,9 +111,11 @@ impl Projection<'_> {
         let member = match member {
             InterfaceMethodReference::Local(member) => member,
             InterfaceMethodReference::Imported { owner, slot } => {
-                let Type::ImportedInterface(interface) = &self.export.types[owner] else {
+                let Type::Interface(application) = &self.export.types[owner] else {
                     return Err(invalid("imported slot has no interface owner"));
                 };
+                let interface = &self.export.loaded_interface_definitions
+                    [&self.export.interface_applications[*application].template];
                 let method = interface
                     .methods
                     .iter()

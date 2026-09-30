@@ -133,13 +133,7 @@ impl Concretizer<'_> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_interface(
-            self.source
-                .nominal_identities
-                .interface_id(application.template)
-                .expect("an application retains its declaration"),
-            arguments,
-        )
+        self.ensure_interface_definition(application.template, arguments)
     }
 
     pub(super) fn lower_type(
@@ -154,9 +148,6 @@ impl Concretizer<'_> {
             }
             export::Type::Boolean => self.intern_type(concrete::TypeKind::Boolean, true),
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
-            export::Type::ImportedInterface(interface) => {
-                self.lower_imported_interface(&interface, substitution)
-            }
             export::Type::Struct(application) => {
                 let value = self.source.struct_applications[application].clone();
                 if matches!(

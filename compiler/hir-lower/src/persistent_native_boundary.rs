@@ -34,6 +34,7 @@ pub(crate) fn build(
             loaded_enum_definitions: &export.loaded_enum_definitions,
             loaded_struct_definitions: &export.loaded_struct_definitions,
             loaded_class_definitions: &export.loaded_class_definitions,
+            loaded_interface_definitions: &export.loaded_interface_definitions,
             enum_applications: &export.enum_applications,
             classes: &export.classes,
             class_applications: &export.class_applications,

@@ -23,10 +23,7 @@ impl Lowerer {
                     .all(|(target, source)| self.is_subtype(target, source))
                 && self.is_subtype(source.return_type, target.return_type);
         }
-        if !matches!(
-            self.types[b],
-            Type::Class(_) | Type::Interface(_) | Type::ImportedInterface(_)
-        ) {
+        if !matches!(self.types[b], Type::Class(_) | Type::Interface(_)) {
             return false;
         }
         let mut pending = vec![a];
@@ -63,10 +60,7 @@ impl Lowerer {
         let mut result = Vec::new();
         let mut pending = Vec::new();
         for root in roots {
-            if matches!(
-                self.types[root],
-                Type::Interface(_) | Type::ImportedInterface(_)
-            ) {
+            if matches!(self.types[root], Type::Interface(_)) {
                 self.append_interface_closure(root, &mut result);
             } else {
                 pending.push(root);
@@ -78,20 +72,14 @@ impl Lowerer {
             if !seen.insert(ty) {
                 continue;
             }
-            if matches!(
-                self.types[ty],
-                Type::Interface(_) | Type::ImportedInterface(_)
-            ) {
+            if matches!(self.types[ty], Type::Interface(_)) {
                 self.append_interface_closure(ty, &mut result);
                 continue;
             }
             let parents = self.direct_nominal_supertypes(ty);
             let mut bases = Vec::new();
             for parent in parents {
-                if matches!(
-                    self.types[parent],
-                    Type::Interface(_) | Type::ImportedInterface(_)
-                ) {
+                if matches!(self.types[parent], Type::Interface(_)) {
                     self.append_interface_closure(parent, &mut result);
                 } else {
                     bases.push(parent);
@@ -131,11 +119,8 @@ impl Lowerer {
                             ))
                             .declaration_id()
                 }
-                (
-                    crate::CoreLoweringAuthority::Imported(core),
-                    Type::ImportedInterface(application),
-                ) => {
-                    application.declaration.owner()
+                (crate::CoreLoweringAuthority::Imported(core), Type::Interface(application)) => {
+                    self.interface_applications[*application].template
                         == hir::SourceNominalId::GenericTemplate(
                             core.iteration().iterator().persistent(),
                         )
@@ -156,14 +141,11 @@ impl Lowerer {
             return true;
         }
         match &self.types[a] {
-            Type::Any | Type::Interface(..) | Type::ImportedInterface(_) => true,
+            Type::Any | Type::Interface(..) => true,
             &Type::Class(application) => {
                 let template = self.class_applications[application].template;
                 self.class_definition(template).modifier != hir::ClassModifier::Final
-                    && matches!(
-                        self.types[b],
-                        Type::Interface(..) | Type::ImportedInterface(_)
-                    )
+                    && matches!(self.types[b], Type::Interface(..))
             }
             _ => false,
         }

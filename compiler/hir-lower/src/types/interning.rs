@@ -305,11 +305,18 @@ impl Lowerer {
         template: hir::InterfaceId,
         arguments: Vec<TypeId>,
     ) -> hir::InterfaceApplicationId {
-        let key = (
-            self.nominal_identity(crate::Owner::Interface(template))
-                .declaration_id(),
-            arguments.clone(),
-        );
+        let template = self
+            .nominal_identity(crate::Owner::Interface(template))
+            .declaration_id();
+        self.intern_interface_application(template, arguments)
+    }
+
+    pub(crate) fn intern_interface_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::InterfaceApplicationId {
+        let key = (template, arguments.clone());
         if let Some(&application) = self.interface_application_by_key.get(&key) {
             return application;
         }
@@ -327,7 +334,7 @@ impl Lowerer {
         application
     }
 
-    pub(crate) fn intern_interface_application(
+    pub(crate) fn source_interface_type(
         &mut self,
         template: hir::InterfaceId,
         arguments: Vec<TypeId>,

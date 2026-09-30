@@ -48,18 +48,6 @@ impl<'a> HirSignatureTypeMapper<'a> {
             return Err(HirSignatureTypeMappingError::RecursiveType(raw_index(ty)));
         }
         let key = match &self.inputs.types[ty] {
-            Type::ImportedInterface(structure) => self.map_nominal(
-                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
-                structure
-                    .declaration
-                    .interface
-                    .type_parameters()
-                    .binders()
-                    .len(),
-                &structure.arguments,
-                binders,
-                visiting,
-            )?,
             Type::Unit => SignatureTypeKey::Nominal(
                 self.inputs
                     .nominal_identities
@@ -152,10 +140,9 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.interface_applications[*application];
-                let template = self
+                let (identity, parameter_count) = self
                     .inputs
-                    .nominal_identities
-                    .interface_id(application.template)
+                    .interface_declaration(application.template)
                     .ok_or_else(|| {
                         HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
                     })?;
@@ -165,8 +152,8 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 self.map_nominal(
-                    &self.inputs.nominal_identities[template],
-                    self.inputs.interfaces[template].type_params.len(),
+                    &identity,
+                    parameter_count,
                     &application.arguments,
                     binders,
                     visiting,

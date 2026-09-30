@@ -162,15 +162,18 @@ impl Lowerer {
             }
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
-                self.application_pointee_is_valid(
-                    &self.interfaces[self.interface_id(application.template)].type_params,
-                    &self.interfaces[self.interface_id(application.template)]
-                        .gc_free_pointee_requirements,
-                    &application.arguments,
-                ) && application
-                    .arguments
-                    .iter()
-                    .all(|argument| self.pointee_type_is_valid(*argument, visiting))
+                self.source_interface_id(application.template)
+                    .is_none_or(|id| {
+                        self.application_pointee_is_valid(
+                            &self.interfaces[id].type_params,
+                            &self.interfaces[id].gc_free_pointee_requirements,
+                            &application.arguments,
+                        )
+                    })
+                    && application
+                        .arguments
+                        .iter()
+                        .all(|argument| self.pointee_type_is_valid(*argument, visiting))
             }
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];

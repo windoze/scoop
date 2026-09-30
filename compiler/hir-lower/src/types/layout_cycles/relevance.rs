@@ -124,8 +124,7 @@ impl Lowerer {
             // particular, pointer pointees and reference type arguments are
             // not stored inline and therefore do not make parameters layout
             // relevant.
-            Type::ImportedInterface(_)
-            | Type::Unit
+            Type::Unit
             | Type::Integer(_)
             | Type::Boolean
             | Type::String

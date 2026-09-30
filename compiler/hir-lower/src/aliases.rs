@@ -335,17 +335,12 @@ impl Lowerer {
                         .map_or(NominalTarget::Class(class), NominalTarget::Object),
                 )
             }
-            Type::Interface(application) => Some(NominalTarget::Interface(
-                self.interface_id(self.interface_applications[application].template),
-            )),
+            Type::Interface(application) => self
+                .source_interface_id(self.interface_applications[application].template)
+                .map(NominalTarget::Interface),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
-            Type::ImportedInterface(_)
-            | Type::Unit
-            | Type::Any
-            | Type::Tuple(_)
-            | Type::Function(_)
-            | Type::Param(_) => None,
+            Type::Unit | Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
         }
     }
 }

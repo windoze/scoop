@@ -29,8 +29,7 @@ impl Lowerer {
                     fields,
                 })
             }
-            hir::Type::ImportedInterface(_)
-            | hir::Type::Unit
+            hir::Type::Unit
             | hir::Type::String
             | hir::Type::Class(_)
             | hir::Type::Interface(_)

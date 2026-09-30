@@ -110,7 +110,7 @@ impl Lowerer {
         }
         let mut imported = Vec::new();
         for interface in interfaces {
-            if matches!(self.types[interface], Type::ImportedInterface(_)) {
+            if self.dependency_interface_definition(interface).is_some() {
                 for member in self.conformance_members(interface) {
                     if !imported
                         .iter()
@@ -398,7 +398,7 @@ impl Lowerer {
             let hir::InterfaceMethodReference::Imported { owner, slot } = member.member else {
                 unreachable!("imported candidates retain imported slots")
             };
-            let Type::ImportedInterface(interface) = &self.types[owner] else {
+            let Some(interface) = self.dependency_interface_definition(owner) else {
                 unreachable!("imported slot owner is an interface")
             };
             let declaration = self

@@ -60,7 +60,6 @@ impl Lowerer {
         };
         let arguments = match &self.types[iterator_type] {
             Type::Interface(application) => &self.interface_applications[*application].arguments,
-            Type::ImportedInterface(application) => &application.arguments,
             _ => unreachable!("iteration conformance names an exact interface application"),
         };
         let [element_type] = arguments.as_slice() else {

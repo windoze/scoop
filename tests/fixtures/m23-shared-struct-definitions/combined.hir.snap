@@ -132,7 +132,7 @@ Module
     val local41
       Local $result.7 : T0
     val local42
-      CallableCall function_type3 : Int
+      CallableCall function_type2 : Int
         Local read : (T0) -> Int
         Local tail : T0
     val local43
@@ -163,7 +163,7 @@ Module
       return
         IntegerLiteral 3 : Int
     return
-      CallableCall function_type3 : Int
+      CallableCall function_type2 : Int
         Local read : (T0) -> Int
         FieldAccess field 0 : T0
           Local reset : Cell<T0>

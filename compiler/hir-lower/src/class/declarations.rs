@@ -255,7 +255,7 @@ impl Lowerer {
                     }
                     base = Some(ty);
                 }
-                Type::Interface(_) | Type::ImportedInterface(_) => {
+                Type::Interface(_) => {
                     if spec.constructor_arguments.is_some() {
                         self.error(
                             spec.span,
@@ -284,10 +284,7 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(ty_ref) else {
                 continue;
             };
-            if !matches!(
-                self.types[ty],
-                Type::Interface(..) | Type::ImportedInterface(_)
-            ) {
+            if !matches!(self.types[ty], Type::Interface(..)) {
                 self.error(
                     ty_ref.span,
                     format!("`{}` is not an interface", self.type_name(ty)),
@@ -317,10 +314,7 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&spec.ty) else {
                 continue;
             };
-            if !matches!(
-                self.types[ty],
-                Type::Interface(..) | Type::ImportedInterface(_)
-            ) {
+            if !matches!(self.types[ty], Type::Interface(..)) {
                 self.error(
                     spec.ty.span,
                     format!("`{}` is not an interface", self.type_name(ty)),

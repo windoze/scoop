@@ -137,17 +137,6 @@ impl<'a> TypeIdentityBuilder<'a> {
                     .id(),
             )?,
             Type::Struct(application) => self.struct_application(ty, application)?,
-            Type::ImportedInterface(structure) => self.nominal_application(
-                ty,
-                HirNominalIdentity::Source(structure.declaration.identity.clone()),
-                structure
-                    .declaration
-                    .interface
-                    .type_parameters()
-                    .binders()
-                    .len(),
-                &structure.arguments,
-            )?,
             Type::Enum(application) => self.enum_application(ty, application)?,
             Type::Class(application) => self.class_application(ty, application)?,
             Type::Interface(application) => self.interface_application(ty, application)?,
@@ -287,20 +276,14 @@ impl<'a> TypeIdentityBuilder<'a> {
             return self.unknown(ty, HirTypeRelation::InterfaceApplication, id);
         }
         let application = self.inputs.interface_applications[id].clone();
-        let template = self
-            .inputs
-            .nominal_identities
-            .interface_id(application.template)
-            .ok_or(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) })?;
+        let (identity, parameter_count) =
+            self.inputs
+                .interface_declaration(application.template)
+                .ok_or(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) })?;
         if application.canonical_type != ty {
             return Err(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) });
         }
-        self.nominal_application(
-            ty,
-            self.inputs.nominal_identities[template].clone(),
-            self.inputs.interfaces[template].type_params.len(),
-            &application.arguments,
-        )
+        self.nominal_application(ty, identity, parameter_count, &application.arguments)
     }
 
     fn nominal_application(

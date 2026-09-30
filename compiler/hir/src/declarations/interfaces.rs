@@ -1,15 +1,14 @@
 use super::*;
 
+mod queries;
+
 #[derive(Debug, Clone)]
 pub struct InterfaceDecl {
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
-    pub self_application: InterfaceApplicationId,
-    pub type_params: Vec<TypeParamDecl>,
+    pub definition: InterfaceDefinition,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
-    /// Actual local or dependency parent types in declaration order.
-    pub parents: Vec<TypeId>,
     /// Methods declared directly by this interface, in itable order after
     /// inherited methods. Inheritance traversal follows `parents` and these
     /// typed ids; consumers never reconstruct ownership from function names.
@@ -18,6 +17,49 @@ pub struct InterfaceDecl {
     /// have no itable slot and are callable only from the declaring interface.
     pub private_methods: Vec<FunctionId>,
     pub properties: Vec<PropertyId>,
+    pub span: Span,
+}
+
+/// Checked parameters and direct parents in the original declaration's scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceDefinition {
+    pub self_application: InterfaceApplicationId,
+    pub type_params: Vec<TypeParamDecl>,
+    pub parents: Vec<TypeId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedInterfaceDefinition {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub definition: InterfaceDefinition,
+    pub methods: Vec<LoadedInterfaceMethod>,
+}
+
+impl std::ops::Deref for InterfaceDecl {
+    type Target = InterfaceDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.definition
+    }
+}
+
+impl std::ops::DerefMut for InterfaceDecl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.definition
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedInterfaceMethod {
+    pub slot: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchSlotId,
+        scoop_identity::DispatchSlotKey,
+    >,
+    pub overrides: Vec<scoop_identity::PersistentDispatchSlotId>,
+    pub declaration: CallableDeclarationRecordV1,
+    pub name: String,
+    pub parameters: Vec<(String, TypeId)>,
+    pub return_type: TypeId,
     pub span: Span,
 }
 

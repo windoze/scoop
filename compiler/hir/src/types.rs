@@ -12,8 +12,6 @@ pub enum Type {
     /// non-generic structs). Keeping the arguments in the type itself
     /// makes every `TypeId` structurally complete.
     Struct(StructApplicationId),
-    /// A dependency interface with complete inherited method signatures.
-    ImportedInterface(std::sync::Arc<ImportedInterfaceType>),
     /// A reference type declared with `class` (spec 9.1).
     /// A class application with complete host arguments (empty for a
     /// non-generic class). M14 gives generic classes the same nominal
@@ -45,18 +43,6 @@ pub enum Type {
     Param(TypeParamId),
 }
 
-impl Type {
-    /// The original dependency declaration and the complete application arguments.
-    pub fn imported_nominal_application(
-        &self,
-    ) -> Option<(&std::sync::Arc<ImportedNominalDeclaration>, &[TypeId])> {
-        match self {
-            Self::ImportedInterface(value) => Some((&value.declaration, &value.arguments)),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedIntrinsicType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
@@ -69,27 +55,6 @@ pub struct ImportedVirtualMethod {
     pub slot: scoop_identity::PersistentDispatchSlotId,
     pub family: VirtualMethodId,
     pub callable: ImportedDispatchCallable,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedInterfaceType {
-    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
-    pub arguments: Vec<TypeId>,
-    pub parents: Vec<TypeId>,
-    pub methods: Vec<ImportedInterfaceMethod>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedInterfaceMethod {
-    pub slot: scoop_identity::CborIdentityRecord<
-        scoop_identity::PersistentDispatchSlotId,
-        scoop_identity::DispatchSlotKey,
-    >,
-    pub overrides: Vec<scoop_identity::PersistentDispatchSlotId>,
-    pub declaration: CallableDeclarationRecordV1,
-    pub name: String,
-    pub parameters: Vec<(String, TypeId)>,
-    pub return_type: TypeId,
 }
 
 /// Canonical structural identity of an ordinary or suspend function type.
@@ -115,9 +80,6 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::String, Type::String) => true,
         (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
-        (Type::ImportedInterface(x), Type::ImportedInterface(y)) => {
-            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
-        }
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Any, Type::Any) => true,
@@ -147,20 +109,7 @@ pub(crate) fn type_name_with_params(
     ty: TypeId,
     params: &[TypeParamDecl],
 ) -> String {
-    let imported_name = |declaration: &ImportedNominalDeclaration, arguments: &[TypeId]| {
-        let name = declaration.name();
-        if arguments.is_empty() {
-            name.to_owned()
-        } else {
-            let arguments = arguments
-                .iter()
-                .map(|argument| type_name_with_params(module, *argument, params))
-                .collect::<Vec<_>>();
-            format!("{name}<{}>", arguments.join(", "))
-        }
-    };
     match &module.types[ty] {
-        Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),
@@ -209,15 +158,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Interface(application) => {
             let application = &module.interface_applications[*application];
-            let template = module
-                .nominal_identities
-                .interface_id(application.template)
-                .expect("a resolved application retains its declaration");
-            let name = nominal_declaration_name(
-                module,
-                &module.interfaces[template].name,
-                module.interfaces[template].owner,
-            );
+            let name = match module.nominal_identities.interface_id(application.template) {
+                Some(template) => nominal_declaration_name(
+                    module,
+                    &module.interfaces[template].name,
+                    module.interfaces[template].owner,
+                ),
+                None => module.interface_name(application.template).to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name

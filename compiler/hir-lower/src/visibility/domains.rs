@@ -30,6 +30,18 @@ impl Lowerer {
         }
     }
 
+    pub(super) fn interface_access_domain(
+        &self,
+        template: hir::SourceNominalId,
+    ) -> hir::AccessDomain {
+        match self.source_interface_id(template) {
+            Some(id) => self.interfaces[id].access.lookup.0.clone(),
+            None => self.imported_nominal_access_domain(
+                &self.loaded_interface_definitions[&template].declaration,
+            ),
+        }
+    }
+
     pub(super) fn intrinsic_type_access_domain(
         &self,
         kind: hir::IntrinsicTypeKind,
@@ -47,9 +59,6 @@ impl Lowerer {
         dependencies: &mut Vec<(hir::TypeId, hir::AccessDomain)>,
     ) {
         let provided = match self.types[ty] {
-            hir::Type::ImportedInterface(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
             hir::Type::Integer(kind) => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
             }
@@ -67,12 +76,7 @@ impl Lowerer {
                 Some(self.class_access_domain(self.class_applications[application].template))
             }
             hir::Type::Interface(application) => Some(
-                self.interfaces
-                    [self.interface_id(self.interface_applications[application].template)]
-                .access
-                .lookup
-                .0
-                .clone(),
+                self.interface_access_domain(self.interface_applications[application].template),
             ),
             hir::Type::Ptr(_) => self
                 .ffi_ptr
@@ -126,8 +130,7 @@ impl Lowerer {
                 self.collect_type_dependencies(function.return_type, dependencies);
             }
             hir::Type::Ptr(pointee) => self.collect_type_dependencies(pointee, dependencies),
-            hir::Type::ImportedInterface(_)
-            | hir::Type::Unit
+            hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
             | hir::Type::String

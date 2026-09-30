@@ -18,6 +18,7 @@ impl ImportedCallableArguments {
         enums: &la_arena::Arena<crate::EnumApplication>,
         structs: &la_arena::Arena<crate::StructApplication>,
         classes: &la_arena::Arena<crate::ClassApplication>,
+        interfaces: &la_arena::Arena<crate::InterfaceApplication>,
     ) -> Vec<TypeId> {
         match self {
             Self::Function(arguments) => arguments.clone(),
@@ -30,12 +31,8 @@ impl ImportedCallableArguments {
                     Type::Enum(application) => &enums[*application].arguments,
                     Type::Struct(application) => &structs[*application].arguments,
                     Type::Class(application) => &classes[*application].arguments,
-                    owner => {
-                        owner
-                            .imported_nominal_application()
-                            .expect("an imported method retains its complete nominal owner")
-                            .1
-                    }
+                    Type::Interface(application) => &interfaces[*application].arguments,
+                    _ => unreachable!("an imported method retains a nominal owner"),
                 };
                 owner_arguments
                     .iter()

@@ -192,6 +192,7 @@ impl Lowerer {
                         &self.enum_applications,
                         &self.struct_applications,
                         &self.class_applications,
+                        &self.interface_applications,
                     ))
                     .filter_map(|(parameter, argument)| {
                         matches!(parameter.bounds, hir::TypeParamBounds::Nominal(_))

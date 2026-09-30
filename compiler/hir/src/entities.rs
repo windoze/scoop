@@ -176,6 +176,8 @@ pub struct Module {
         std::collections::HashMap<SourceNominalId, LoadedStructDefinition>,
 
     pub loaded_class_definitions: std::collections::HashMap<SourceNominalId, LoadedClassDefinition>,
+    pub loaded_interface_definitions:
+        std::collections::HashMap<SourceNominalId, LoadedInterfaceDefinition>,
     pub enum_applications: Arena<EnumApplication>,
     pub classes: Arena<ClassDecl>,
     pub class_fields: Arena<ClassField>,

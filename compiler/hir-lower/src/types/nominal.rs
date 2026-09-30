@@ -11,6 +11,17 @@ pub(crate) struct NominalApplication {
 }
 
 impl Lowerer {
+    pub(crate) fn dependency_interface_definition(
+        &self,
+        ty: TypeId,
+    ) -> Option<&hir::LoadedInterfaceDefinition> {
+        let Type::Interface(application) = self.types[ty] else {
+            return None;
+        };
+        self.loaded_interface_definitions
+            .get(&self.interface_applications[application].template)
+    }
+
     pub(crate) fn struct_definition(
         &self,
         template: hir::SourceNominalId,
@@ -25,6 +36,16 @@ impl Lowerer {
         match self.source_class_id(template) {
             Some(id) => &self.classes[id].definition,
             None => &self.loaded_class_definitions[&template].definition,
+        }
+    }
+
+    pub(crate) fn interface_definition(
+        &self,
+        template: hir::SourceNominalId,
+    ) -> &hir::InterfaceDefinition {
+        match self.source_interface_id(template) {
+            Some(id) => &self.interfaces[id].definition,
+            None => &self.loaded_interface_definitions[&template].definition,
         }
     }
 
@@ -52,7 +73,14 @@ impl Lowerer {
             let definition = self.loaded_enum_definitions.get(&application.template)?;
             return Some((&definition.declaration, &application.arguments));
         }
-        self.types[ty].imported_nominal_application()
+        if let Type::Interface(application) = self.types[ty] {
+            let application = &self.interface_applications[application];
+            let definition = self
+                .loaded_interface_definitions
+                .get(&application.template)?;
+            return Some((&definition.declaration, &application.arguments));
+        }
+        None
     }
 
     pub(crate) fn nominal_intrinsic_kind(
@@ -91,19 +119,12 @@ impl Lowerer {
             Owner::Struct(id) => self.struct_application(id, arguments),
             Owner::Class(id) => self.class_application(id, arguments),
             Owner::Enum(id) => self.enum_application(id, arguments),
-            Owner::Interface(id) => self.intern_interface_application(id, arguments),
+            Owner::Interface(id) => self.source_interface_type(id, arguments),
             Owner::Object(id) => self.class_application(self.objects[id].backing_class, arguments),
         })
     }
 
     pub(crate) fn nominal_application(&self, ty: TypeId) -> Option<NominalApplication> {
-        if let Some((declaration, arguments)) = self.types[ty].imported_nominal_application() {
-            return Some(NominalApplication {
-                ty,
-                template: declaration.owner(),
-                arguments: arguments.to_vec(),
-            });
-        }
         let (template, arguments) = match self.types[ty] {
             Type::Struct(application) => {
                 let application = &self.struct_applications[application];

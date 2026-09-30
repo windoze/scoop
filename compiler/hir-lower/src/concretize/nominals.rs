@@ -34,12 +34,8 @@ impl Concretizer<'_> {
             .records()
             .chain(
                 self.source
-                    .types
-                    .iter()
-                    .filter_map(|(_, ty)| match ty {
-                        export::Type::ImportedInterface(interface) => Some(interface),
-                        _ => None,
-                    })
+                    .loaded_interface_definitions
+                    .values()
                     .flat_map(|interface| interface.methods.iter().map(|method| &method.slot)),
             )
             .map(|record| (record.id(), record))

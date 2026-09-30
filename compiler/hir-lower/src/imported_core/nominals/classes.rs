@@ -104,9 +104,7 @@ impl Lowerer {
             let parent = self.imported_signature_type_with_bindings(parent, &bindings)?;
             match &self.types[parent] {
                 hir::Type::Class(_) => base_class = Some(parent),
-                hir::Type::Interface(_) | hir::Type::ImportedInterface(_) => {
-                    interfaces.push(parent)
-                }
+                hir::Type::Interface(_) => interfaces.push(parent),
                 _ => return Err(ImportedSignatureTypeError::Structural),
             }
         }

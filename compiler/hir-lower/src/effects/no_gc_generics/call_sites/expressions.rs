@@ -19,6 +19,7 @@ impl Lowerer {
                     &self.enum_applications,
                     &self.struct_applications,
                     &self.class_applications,
+                    &self.interface_applications,
                 ))
                 .collect(),
             span,

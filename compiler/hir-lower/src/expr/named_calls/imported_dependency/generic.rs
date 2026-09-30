@@ -197,7 +197,7 @@ impl Lowerer {
                     candidate.interface().owner(),
                     hir::PublicDeclarationOwnerV1::Nominal(_)
                 ) && matches!(self.types[value.ty], hir::Type::Param(_))
-                    && matches!(self.types[ty], hir::Type::ImportedInterface(_))
+                    && matches!(self.types[ty], hir::Type::Interface(_))
                 {
                     value
                 } else {

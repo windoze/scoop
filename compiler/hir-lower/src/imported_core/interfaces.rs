@@ -9,42 +9,108 @@ impl Lowerer {
         &mut self,
         declaration: Arc<hir::ImportedNominalDeclaration>,
         arguments: Vec<hir::TypeId>,
-        bindings: &ImportedTypeBindings,
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
+        let owner = declaration.owner();
+        if !self.loaded_interface_definitions.contains_key(&owner) {
+            self.load_interface_definition(declaration)?;
+        }
+        let application = self.intern_interface_application(owner, arguments);
+        Ok(self.interface_applications[application].canonical_type)
+    }
+
+    fn load_interface_definition(
+        &mut self,
+        declaration: Arc<hir::ImportedNominalDeclaration>,
+    ) -> Result<(), ImportedSignatureTypeError> {
         let hir::NominalDispatchOrderV1::Interface { parents, members } =
             declaration.interface.declaration_details().dispatch_order()
         else {
             return Err(ImportedSignatureTypeError::Structural);
         };
-        let mut interface = hir::ImportedInterfaceType {
-            declaration: Arc::clone(&declaration),
-            arguments,
-            parents: Vec::new(),
-            methods: Vec::new(),
+        let owner = declaration.owner();
+        let source_span = declaration.origin.origin().span();
+        let span = Span {
+            start: u32::try_from(source_span.start_byte())
+                .map_err(|_| ImportedSignatureTypeError::Structural)?,
+            end: u32::try_from(source_span.end_byte())
+                .map_err(|_| ImportedSignatureTypeError::Structural)?,
         };
-        // Method signatures may refer back to this interface. Finish the record
-        // before returning the complete HIR product.
-        let ty = self.intern_type(hir::Type::ImportedInterface(Arc::new(interface.clone())));
+        let mut bindings = ImportedTypeBindings::new();
+        let mut type_params = Vec::new();
+        let mut arguments = Vec::new();
+        for (index, binder) in declaration
+            .interface
+            .type_parameters()
+            .binders()
+            .iter()
+            .enumerate()
+        {
+            let id = self.fresh_type_param(index);
+            let ty = self.intern_type(hir::Type::Param(id));
+            bindings.insert(
+                SignatureTypeKey::Binder {
+                    depth: 0,
+                    index: index as u32,
+                },
+                ty,
+            );
+            arguments.push(ty);
+            type_params.push(hir::TypeParamDecl {
+                id,
+                name: binder.name().as_str().to_owned(),
+                bounds: hir::TypeParamBounds::Unconstrained,
+                span,
+            });
+        }
+        let self_application = self.intern_interface_application(owner, arguments);
+        self.loaded_interface_definitions.insert(
+            owner,
+            hir::LoadedInterfaceDefinition {
+                declaration: Arc::clone(&declaration),
+                definition: hir::InterfaceDefinition {
+                    self_application,
+                    type_params: type_params.clone(),
+                    parents: Vec::new(),
+                },
+                methods: Vec::new(),
+            },
+        );
+        for (parameter, binder) in type_params
+            .iter_mut()
+            .zip(declaration.interface.type_parameters().binders())
+        {
+            *parameter = self
+                .resolve_imported_type_parameter(binder, parameter.id, &bindings, span)
+                .map_err(|_| ImportedSignatureTypeError::Structural)?;
+        }
+        let mut parent_types = Vec::new();
+        let mut methods = Vec::<hir::LoadedInterfaceMethod>::new();
         for parent in parents {
-            let parent_ty = self.imported_signature_type_with_bindings(parent, bindings)?;
-            let hir::Type::ImportedInterface(parent) = &self.types[parent_ty] else {
+            let parent_ty = self.imported_signature_type_with_bindings(parent, &bindings)?;
+            let hir::Type::Interface(application) = self.types[parent_ty] else {
                 return Err(ImportedSignatureTypeError::Structural);
             };
-            for method in &parent.methods {
-                if !interface
-                    .methods
+            let application = self.interface_applications[application].clone();
+            let parent_methods = self.loaded_interface_definitions[&application.template]
+                .methods
+                .clone();
+            for mut method in parent_methods {
+                if !methods
                     .iter()
                     .any(|existing| existing.slot.id() == method.slot.id())
                 {
-                    interface.methods.push(method.clone());
+                    for (_, ty) in &mut method.parameters {
+                        *ty = self.instantiate_ty(*ty, &application.arguments);
+                    }
+                    method.return_type =
+                        self.instantiate_ty(method.return_type, &application.arguments);
+                    methods.push(method);
                 }
             }
-            interface.parents.push(parent_ty);
+            parent_types.push(parent_ty);
         }
         for member in members {
-            interface
-                .methods
-                .retain(|method| !member.overrides().values().contains(&method.slot.id()));
+            methods.retain(|method| !member.overrides().values().contains(&method.slot.id()));
             let candidate = self
                 .dependencies
                 .as_ref()
@@ -73,14 +139,15 @@ impl Lowerer {
                         name,
                         self.imported_signature_type_with_bindings(
                             parameter.value_type(),
-                            bindings,
+                            &bindings,
                         )?,
                     ))
                 })
                 .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
             let return_type =
-                self.imported_signature_type_with_bindings(callable.result(), bindings)?;
-            interface.methods.push(hir::ImportedInterfaceMethod {
+                self.imported_signature_type_with_bindings(callable.result(), &bindings)?;
+            let origin = candidate.definition_origin().origin().span();
+            methods.push(hir::LoadedInterfaceMethod {
                 slot: declaration
                     .dispatch_slots
                     .iter()
@@ -92,18 +159,27 @@ impl Lowerer {
                 name: candidate.name().to_owned(),
                 parameters,
                 return_type,
+                span: Span {
+                    start: u32::try_from(origin.start_byte())
+                        .map_err(|_| ImportedSignatureTypeError::Structural)?,
+                    end: u32::try_from(origin.end_byte())
+                        .map_err(|_| ImportedSignatureTypeError::Structural)?,
+                },
             });
         }
-        let suppressed = interface
-            .methods
+        let suppressed = methods
             .iter()
             .flat_map(|method| &method.overrides)
             .copied()
             .collect::<std::collections::BTreeSet<_>>();
-        interface
-            .methods
-            .retain(|method| !suppressed.contains(&method.slot.id()));
-        self.types[ty] = hir::Type::ImportedInterface(Arc::new(interface));
-        Ok(ty)
+        methods.retain(|method| !suppressed.contains(&method.slot.id()));
+        let loaded = self
+            .loaded_interface_definitions
+            .get_mut(&owner)
+            .expect("the interface builder registered its identity");
+        loaded.definition.type_params = type_params;
+        loaded.definition.parents = parent_types;
+        loaded.methods = methods;
+        Ok(())
     }
 }

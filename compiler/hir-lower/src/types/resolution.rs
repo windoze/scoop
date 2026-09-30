@@ -219,7 +219,7 @@ impl Lowerer {
             NominalTarget::Struct(id) => self.struct_application(id, resolved),
             NominalTarget::Enum(id) => self.enum_application(id, resolved),
             NominalTarget::Class(id) => self.class_application(id, resolved),
-            NominalTarget::Interface(id) => self.intern_interface_application(id, resolved),
+            NominalTarget::Interface(id) => self.source_interface_type(id, resolved),
             NominalTarget::Object(id) => {
                 self.object_types[self.objects[id].object_type].canonical_type
             }
@@ -400,7 +400,7 @@ impl Lowerer {
                     ) {
                         return None;
                     }
-                    return Some(self.intern_interface_application(interface_id, resolved));
+                    return Some(self.source_interface_type(interface_id, resolved));
                 }
                 if let Some((class_id, _)) = self.top_level_class_named(&name.text) {
                     let arity = self.classes[class_id].type_params.len();

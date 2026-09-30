@@ -68,10 +68,12 @@ impl Lowerer {
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
-            self_application,
-            type_params: type_params.clone(),
+            definition: hir::InterfaceDefinition {
+                self_application,
+                type_params: type_params.clone(),
+                parents: Vec::new(),
+            },
             gc_free_pointee_requirements: Vec::new(),
-            parents: Vec::new(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
             private_methods: Vec::new(),
@@ -87,7 +89,7 @@ impl Lowerer {
             .into_iter()
             .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
-        let ty = self.intern_interface_application(id, type_args);
+        let ty = self.source_interface_type(id, type_args);
         assert_eq!(self.types[ty], Type::Interface(self_application));
         match owner {
             Some(owner) => {
