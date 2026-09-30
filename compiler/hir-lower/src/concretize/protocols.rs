@@ -106,7 +106,10 @@ impl Concretizer<'_> {
                 concrete::ZeroArgClassConstructor {
                     class,
                     callable: self.class_constructor_by_key[&(
-                        constructor_work::ClassConstructorSource::Local(exception.callable()),
+                        self.class_constructor_origin(export::ClassConstructorDefinition::Local(
+                            exception.callable(),
+                        ))
+                        .0,
                         class,
                     )],
                 }

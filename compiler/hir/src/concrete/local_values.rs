@@ -16,9 +16,9 @@ use super::{
 mod builder;
 mod captures;
 mod constructors;
-mod defaults;
 mod references;
-pub use defaults::{DefaultLocalValueDefinition, DefaultLocalValueScope};
+mod scopes;
+pub use scopes::{LexicalLocalValueDefinition, LexicalLocalValueScope};
 
 mod error;
 pub use error::LocalValueIdentityError;
@@ -35,7 +35,7 @@ pub struct LocalValueIdentityInputs<'a> {
     pub functions: &'a Arena<Function>,
     pub lambdas: &'a Arena<Lambda>,
     pub anonymous_functions: &'a Arena<AnonymousFunction>,
-    pub default_local_values: &'a [DefaultLocalValueScope],
+    pub lexical_local_values: &'a [LexicalLocalValueScope],
     pub callable_references: &'a Arena<CallableReference>,
     pub class_constructors: &'a Arena<ClassConstructor>,
     pub struct_constructors: &'a Arena<StructConstructor>,
@@ -246,7 +246,7 @@ pub enum LocalValueLocation {
     StructArgumentLocal { constructor: u32, local: u32 },
     StructBodyLocal { constructor: u32, local: u32 },
     CallableReferenceReceiver { reference: u32 },
-    DefaultLocal { scope: u32, local: u32 },
+    LexicalLocal { scope: u32, local: u32 },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -263,6 +263,7 @@ struct CaptureAlias {
 }
 
 enum LocalValueBinding {
+    Lexical(PersistentLocalValueId),
     Definition(PersistentLocalValueId),
     Capture(BindingId),
 }
@@ -376,45 +377,6 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             .entry(BindingKey { context, binding })
             .or_default()
             .push(LocalValueBinding::Definition(identity));
-    }
-
-    fn find_captured_value(
-        &self,
-        mut context: CallableMaterializationContext,
-        mut binding: BindingId,
-    ) -> Option<PersistentLocalValueId> {
-        let mut visited = HashSet::new();
-        loop {
-            let key = BindingKey { context, binding };
-            if !visited.insert(key) {
-                return None;
-            }
-            if let Some(identities) = self.values_by_binding.get(&key) {
-                match identities.as_slice() {
-                    [LocalValueBinding::Definition(identity)] => return Some(*identity),
-                    [LocalValueBinding::Capture(source)] => {
-                        binding = *source;
-                        continue;
-                    }
-                    [] => unreachable!("a binding index entry is non-empty"),
-                    _ => return None,
-                }
-            }
-            let CallableMaterializationContext::Application(application) = context else {
-                return None;
-            };
-            let record = self.inputs.callable_applications.get(application)?;
-            context = match record.key().instantiation_owner() {
-                CallableInstantiationOwner::EnclosingCallableApplication(parent) => {
-                    CallableMaterializationContext::Application(parent)
-                }
-                CallableInstantiationOwner::EnclosingInitializationApplication(unit) => {
-                    CallableMaterializationContext::InitializationApplication(unit)
-                }
-                CallableInstantiationOwner::NoOwner
-                | CallableInstantiationOwner::ExactNominalOwner(_) => return None,
-            };
-        }
     }
 }
 

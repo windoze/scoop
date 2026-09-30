@@ -8,6 +8,7 @@ impl Concretizer<'_> {
         source: &export::Expr,
         substitution: &[concrete::TypeId],
         ty: concrete::TypeId,
+        origin: export::ConcreteExpressionOrigin,
     ) -> Option<concrete::Expr> {
         let export::CoreProtocols::Defined(protocols) = self.core else {
             return None;
@@ -26,7 +27,6 @@ impl Concretizer<'_> {
             return None;
         }
 
-        let origin = source.origin.concrete();
         let evaluation = origin.evaluation;
         let file = &self.source.source_files[evaluation.file as usize];
         assert_eq!(

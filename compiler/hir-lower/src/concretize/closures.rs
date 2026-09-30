@@ -8,7 +8,7 @@ pub(super) struct PendingCallableReference {
     pub(super) owner_arguments: Vec<concrete::TypeId>,
     target: concrete::CallableReferenceTarget,
     function_type: concrete::FunctionTypeId,
-    captures: Vec<concrete::Capture>,
+    pub(super) captures: Vec<concrete::Capture>,
     origin: export::DefinitionOrigin,
     span: scoop_ast::Span,
 }
@@ -34,16 +34,12 @@ pub(super) fn finish_callable_references(
 }
 
 impl Concretizer<'_> {
-    pub(super) fn ensure_lambda(
+    pub(super) fn lower_lambda(
         &mut self,
         source_id: export::LambdaId,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
     ) -> concrete::LambdaId {
-        let key = (source_id, substitution.to_vec());
-        if let Some(&id) = self.lambda_by_key.get(&key) {
-            return id;
-        }
         let source = self.source.lambdas[source_id].clone();
         let body_arguments = match &source.body_type_arguments {
             export::CallableBodyTypeArguments::Lexical => substitution.to_vec(),
@@ -63,21 +59,15 @@ impl Concretizer<'_> {
                 .collect(),
             span: source.span,
         };
-        let id = self.lambdas.alloc(value);
-        self.lambda_by_key.insert(key, id);
-        id
+        self.lambdas.alloc(value)
     }
 
-    pub(super) fn ensure_anonymous(
+    pub(super) fn lower_anonymous(
         &mut self,
         source_id: export::AnonymousFunctionId,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
     ) -> concrete::AnonymousFunctionId {
-        let key = (source_id, substitution.to_vec());
-        if let Some(&id) = self.anonymous_by_key.get(&key) {
-            return id;
-        }
         let source = self.source.anonymous_functions[source_id].clone();
         let body_arguments = match &source.body_type_arguments {
             export::CallableBodyTypeArguments::Lexical => substitution.to_vec(),
@@ -97,9 +87,7 @@ impl Concretizer<'_> {
                 .collect(),
             span: source.span,
         };
-        let id = self.anonymous_functions.alloc(value);
-        self.anonymous_by_key.insert(key, id);
-        id
+        self.anonymous_functions.alloc(value)
     }
 
     pub(super) fn ensure_local_function(
@@ -135,16 +123,12 @@ impl Concretizer<'_> {
         id
     }
 
-    pub(super) fn ensure_reference(
+    pub(super) fn lower_reference(
         &mut self,
         source_id: export::CallableReferenceId,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
     ) -> concrete::CallableReferenceId {
-        let key = (source_id, substitution.to_vec());
-        if let Some(&id) = self.reference_by_key.get(&key) {
-            return id;
-        }
         let source = self.source.callable_references[source_id].clone();
         let function_type = self.lower_function_type(source.function_type, substitution);
         let target =
@@ -170,7 +154,6 @@ impl Concretizer<'_> {
             (self.callable_reference_slots.len() as u32).into(),
         );
         self.callable_reference_slots.push(value);
-        self.reference_by_key.insert(key, id);
         id
     }
 

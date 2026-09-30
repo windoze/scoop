@@ -1,0 +1,5 @@
+span=103..123
+expression=Shell<Int>(42, true)
+no applicable candidate for `Shell` in star import layer:
+  - dependency constructor `Shell` expects 2 type argument(s), found 1
+  - dependency constructor `Shell` expects 2 type argument(s), found 1

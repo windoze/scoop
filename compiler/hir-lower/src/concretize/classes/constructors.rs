@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod initialization;
+
 impl Concretizer<'_> {
     pub(in crate::concretize) fn lower_class_constructor(
         &mut self,
@@ -150,7 +152,8 @@ impl Concretizer<'_> {
         let (target, target_ty) = match target {
             export::BaseInitializerTarget::Local(target) => {
                 let target = self.lower_class_constructor_application(*target, substitution);
-                let (_, class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
+                let (_, class) =
+                    self.class_constructor_definitions[target.into_raw().into_u32() as usize];
                 (
                     concrete::ClassInitializerTarget::Local(target),
                     self.class_type[&class],
@@ -178,48 +181,6 @@ impl Concretizer<'_> {
             }),
             span,
         });
-    }
-
-    fn append_common_initialization(
-        &mut self,
-        body: &mut concrete::Body,
-        common: &[export::ClassInitializationStep],
-        substitution: &[concrete::TypeId],
-        origin: export::ConcreteExpressionOrigin,
-    ) {
-        for step in common {
-            match step {
-                export::ClassInitializationStep::Field {
-                    field,
-                    initializer,
-                    span,
-                } => {
-                    let locals = self.append_source_locals(body, &initializer.locals, substitution);
-                    body.statements.extend(self.lower_statement_region(
-                        &initializer.statements,
-                        substitution,
-                        &locals,
-                    ));
-                    let value = self.lower_expr(&initializer.value, substitution, &locals);
-                    let (receiver_ty, field) =
-                        self.lower_initializing_class_field(*field, substitution);
-                    let receiver = self.constructor_receiver(receiver_ty, *span, origin);
-                    body.statements.push(concrete::Statement {
-                        kind: concrete::StatementKind::Assign {
-                            target: concrete::AssignTarget::Field {
-                                receiver: Box::new(receiver),
-                                field,
-                            },
-                            value,
-                        },
-                        span: *span,
-                    });
-                }
-                export::ClassInitializationStep::InitBlock {
-                    body: source_body, ..
-                } => self.append_source_body(body, source_body, substitution),
-            }
-        }
     }
 
     pub(in crate::concretize) fn append_constructor_arguments(

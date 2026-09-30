@@ -423,3 +423,13 @@
 - 新组合复现初始化中的匿名函数／局部函数 `return` 被误当作退出构造器。按既有函数边界规则修复：初始化体自身仍拒绝返回，嵌套函数返回自身；lambda 裸返回和捕获未完成 `this` 仍拒绝。新增 `m23-shared-constructor-bodies` 两组正例、五个反例、六份阶段快照及五份诊断快照，检查 struct 委托、class 主／次构造、多个公共片段、委托字段、局部函数和多层闭包的顺序与捕获。
 - 全仓 fmt／clippy 无警告，2895 项 HIR／HIR lowering／MIR lowering／slib 单元测试通过。83 项真实泛型产物与完整 core 回归全部关闭更新开关覆盖成功，包括新增源码移走、再次发布、消费方本地 class／String／Int／Unit 及普通／moving GC 运行。16 份旧 MIR／LIR 快照的 90 行变化仅是片段内局部变量显示名称；寄存器、机器指令、原身份以及旧 HIR／诊断快照保持。
 - 证据前缀 `/tmp/scoop-m23-6a-shared-constructor-bodies-`，失败复现为 `before.log`，最终结果见 `unit.log`、`generate-results.json`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`。共同 class 构造降低、存储视图和解码模块分别为 293、109、352 行；确认缓存闲置后清理约 2370.2 MiB `target/debug`，继续复用 `target/m23-6a`。完整请求和候选决议继续迁移，尚未完成 6a。
+
+
+## 构造请求与公共初始化共用原词法身份
+
+- class／struct 构造请求按原构造声明和完整 concrete owner 去重；源码 class 构造和生成零参数适配器保留不同 typed 身份。当前／解码位置仅用于读取正文，不进入请求 key。构造发射与词法 parent 查询共用 application 身份计算，查询从原名义声明取得归属，不要求加载或发射未使用的父构造器正文。
+- 公共初始化实际捕获的局部值与默认值共用词法值记录；初始化在不同构造器中的运行时存储使用独立 `Initializer` 路径。原定义位置、选择器与完整宿主实参保持，求值上下文绑定实际执行构造器。已读入公共片段的绑定按原定义关联，修复再次发布后模板加载顺序改变导致捕获绑定缺失的问题，不增加构造发射需求。
+- 删除 lambda、匿名函数和函数引用按原节点／类型实参缓存整条创建记录的路径。每个实际创建点使用自己的局部映射和捕获表达式；原函数正文、invoke 和环境类型继续按同一身份复用。真实双构造器用例在修复前由 MIR 明确拒绝错误的捕获字段类型，修复后完整产物闭环通过。
+- 新增 `m23-shared-constructor-requests` 四组正例、一个反例、12 份阶段快照及一份诊断快照。覆盖只调用后置构造器、同时调用两个终止构造器、条件委托、公共初始化中的局部函数／引用／匿名函数／lambda、完整且未使用的 owner 参数、重复与别名请求、本地继承依赖以及声明顺序变化。两项单元核对构造去重、词法父构造器不发射和实际捕获 ABI；源码移走后的再次发布、本地 class／String／Int／Unit 及普通／moving GC 运行通过。
+- 全仓 fmt／clippy 无警告，2897 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；84 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。既有 HIR／MIR／LIR／诊断快照均保持不变，wire payload 与 runtime ABI 不变。证据前缀 `/tmp/scoop-m23-6a-constructor-requests-`，最终结果见 `unit.log`、`generate-results.json`、`all-verified-results.json`；失败复现保存在 `before.log`、`fragment-selectors-before.log`、`capture-creation-before.log`、`evaluation-context-before.log` 和 `binding-order-before.log`。
+- 公共初始化降低、词法值查询、构造身份和 closure 具体化模块分别为 86、188、159、223 行，构造正文主模块 254 行。确认无文件占用后清理闲置 `target/debug` 与 `compiler/target` 共约 2706.8 MiB，继续复用 `target/m23-6a`。局部调用节点与完整候选决议仍需继续统一，6a 尚未完成。

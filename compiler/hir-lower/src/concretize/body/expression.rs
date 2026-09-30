@@ -10,11 +10,24 @@ impl Concretizer<'_> {
         let previous = self.type_use_site;
         self.type_use_site = self
             .instantiation_site
-            .or_else(|| self.current_source_site(source.origin.concrete().evaluation))
+            .or_else(|| {
+                self.current_source_site(self.concrete_expression_origin(source.origin).evaluation)
+            })
             .or(previous);
         let expression = self.lower_expr_at_site(source, substitution, locals);
         self.type_use_site = previous;
         expression
+    }
+
+    fn concrete_expression_origin(
+        &self,
+        source: export::ExpressionOrigin,
+    ) -> export::ConcreteExpressionOrigin {
+        let mut origin = source.concrete();
+        if let Some(context) = self.evaluation_context {
+            origin.evaluation.context = context;
+        }
+        origin
     }
 
     fn lower_expr_at_site(
@@ -24,7 +37,9 @@ impl Concretizer<'_> {
         locals: &[concrete::LocalId],
     ) -> concrete::Expr {
         let ty = self.lower_type(source.ty, substitution);
-        if let Some(location) = self.lower_current_source_location(source, substitution, ty) {
+        let origin = self.concrete_expression_origin(source.origin);
+        if let Some(location) = self.lower_current_source_location(source, substitution, ty, origin)
+        {
             return location;
         }
         let kind = match &source.kind {
@@ -131,13 +146,13 @@ impl Concretizer<'_> {
                 concrete::ExprKind::Capture(concrete::BindingId::from_raw(binding.into_raw()))
             }
             export::ExprKind::Lambda(id) => {
-                concrete::ExprKind::Lambda(self.ensure_lambda(*id, substitution, locals))
+                concrete::ExprKind::Lambda(self.lower_lambda(*id, substitution, locals))
             }
             export::ExprKind::AnonymousFunction(id) => concrete::ExprKind::AnonymousFunction(
-                self.ensure_anonymous(*id, substitution, locals),
+                self.lower_anonymous(*id, substitution, locals),
             ),
             export::ExprKind::CallableReference(id) => concrete::ExprKind::CallableReference(
-                self.ensure_reference(*id, substitution, locals),
+                self.lower_reference(*id, substitution, locals),
             ),
             export::ExprKind::FunctionCoercion {
                 source,
@@ -249,7 +264,7 @@ impl Concretizer<'_> {
                         kind: concrete::ExprKind::ConstructorReceiver,
                         ty: receiver_ty,
                         span: source.span,
-                        origin: source.origin.concrete(),
+                        origin,
                     }),
                     field,
                 }
@@ -268,7 +283,7 @@ impl Concretizer<'_> {
                         kind: concrete::ExprKind::ConstructorReceiver,
                         ty: receiver_ty,
                         span: source.span,
-                        origin: source.origin.concrete(),
+                        origin,
                     }),
                     field,
                 }
@@ -527,7 +542,7 @@ impl Concretizer<'_> {
             kind,
             ty,
             span: source.span,
-            origin: source.origin.concrete(),
+            origin,
         }
     }
 }

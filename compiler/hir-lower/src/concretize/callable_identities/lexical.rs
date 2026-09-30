@@ -116,15 +116,7 @@ impl CallableIdentityBuilder<'_> {
             return self.variant_definition_materialization(variant, arguments);
         }
         if let CallableTemplateOwner::Constructor(declaration) = parent {
-            let template = self
-                .concretizer
-                .source
-                .imported_constructor_templates
-                .iter()
-                .find(|(_, template)| template.declaration == declaration)
-                .expect("a lexical constructor retains its original definition")
-                .0;
-            return self.imported_constructor_materialization(template, arguments);
+            return self.constructor_declaration_materialization(declaration, arguments);
         }
         self.function_definition_materialization(parent, arguments)
     }

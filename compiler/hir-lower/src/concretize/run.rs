@@ -173,7 +173,7 @@ impl Concretizer<'_> {
                 functions: &functions,
                 lambdas: &self.lambdas,
                 anonymous_functions: &self.anonymous_functions,
-                default_local_values: &identities.default_local_values,
+                lexical_local_values: &identities.lexical_local_values,
                 callable_references: &callable_references,
                 class_constructors: &class_constructors,
                 struct_constructors: &struct_constructors,

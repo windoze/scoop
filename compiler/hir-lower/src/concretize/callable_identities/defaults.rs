@@ -5,7 +5,7 @@ use super::*;
 impl CallableIdentityBuilder<'_> {
     pub(super) fn materialize_default_local_values(
         &mut self,
-    ) -> Vec<concrete::DefaultLocalValueScope> {
+    ) -> Vec<concrete::LexicalLocalValueScope> {
         let mut scopes = Vec::new();
         let mut seen = HashSet::new();
         for key in &self.concretizer.function_keys {
@@ -73,7 +73,7 @@ impl CallableIdentityBuilder<'_> {
         path: &StructuralDefinitionPath,
         arguments: &[concrete::TypeId],
         seen: &mut HashSet<(export::DefaultLocalValueScopeId, CallableMaterialization)>,
-        output: &mut Vec<concrete::DefaultLocalValueScope>,
+        output: &mut Vec<concrete::LexicalLocalValueScope>,
     ) {
         let definition_root = self.source_default_root(root);
         for (id, scope) in self.concretizer.source.default_local_value_scopes.iter() {
@@ -90,12 +90,12 @@ impl CallableIdentityBuilder<'_> {
             if !seen.insert((id, owner)) {
                 continue;
             }
-            output.push(concrete::DefaultLocalValueScope {
+            output.push(concrete::LexicalLocalValueScope {
                 owner,
                 values: scope
                     .values
                     .iter()
-                    .map(|value| concrete::DefaultLocalValueDefinition {
+                    .map(|value| concrete::LexicalLocalValueDefinition {
                         binding: concrete::BindingId::from_raw(value.binding.into_raw()),
                         selector: value.selector.clone(),
                         definition: value.definition,
@@ -138,7 +138,7 @@ impl CallableIdentityBuilder<'_> {
         parent: CallableTemplateOwner,
         arguments: &[concrete::TypeId],
         seen: &mut HashSet<(export::DefaultLocalValueScopeId, CallableMaterialization)>,
-        output: &mut Vec<concrete::DefaultLocalValueScope>,
+        output: &mut Vec<concrete::LexicalLocalValueScope>,
     ) {
         let scopes = self
             .concretizer
@@ -155,12 +155,12 @@ impl CallableIdentityBuilder<'_> {
             if !seen.insert((id, owner)) {
                 continue;
             }
-            output.push(concrete::DefaultLocalValueScope {
+            output.push(concrete::LexicalLocalValueScope {
                 owner,
                 values: scope
                     .values
                     .iter()
-                    .map(|value| concrete::DefaultLocalValueDefinition {
+                    .map(|value| concrete::LexicalLocalValueDefinition {
                         binding: concrete::BindingId::from_raw(value.binding.into_raw()),
                         selector: value.selector.clone(),
                         definition: value.definition,

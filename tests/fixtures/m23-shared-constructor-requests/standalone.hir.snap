@@ -1,0 +1,190 @@
+Module
+  typealias Fixed = Shell<Int, Unit>
+  struct Carrier<T, U>
+    field0 value: T0
+    property0 val value: T0 getter0=storage <stored struct0-field0>
+  open class Base<T, U>(value: T0)
+    field0 property1: T0
+    property1 val value: T0 getter1=body(Base.$get$value) <stored field0 init=parameter1>
+  open class Shell<T, U>()
+    field1 property2: T0
+    property2 val output: T0 getter2=body(Shell.$get$output) <stored field1 init=expression>
+  class Current<T, U>(value: T0)
+  fun make<T, U>(seed: T0): Shell<T0, T1>
+    val local1
+      Local seed : T0
+    val local2
+      BoolLiteral true : Boolean
+    val local3
+      Local $argument.0 : T0
+    val local4
+      Local $argument.1 : Boolean
+    return
+      ClassInit Shell<T0, T1> : Shell<T0, T1>
+        Local $parameter.value : T0
+        Local $parameter.flag : Boolean
+  fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $argument.0 : T0
+    val local4
+      Call make<T0, Unit> : Shell<T0, Unit>
+        Local $parameter.seed : T0
+    val local5
+      Local seed : T0
+    val local6
+      BoolLiteral false : Boolean
+    val local7
+      Local $argument.0 : T0
+    val local8
+      Local $argument.1 : Boolean
+    val local9
+      ClassInit Shell<T0, Unit> : Shell<T0, Unit>
+        Local $parameter.value : T0
+        Local $parameter.flag : Boolean
+    val local10
+      Local seed : T0
+    val local11
+      BoolLiteral true : Boolean
+    val local12
+      Local $argument.0 : T0
+    val local13
+      Local $argument.1 : Boolean
+    val local14
+      ClassInit Shell<T0, String> : Shell<T0, String>
+        Local $parameter.value : T0
+        Local $parameter.flag : Boolean
+    val local15
+      Local seed : T0
+    val local16
+      Local $argument.0 : T0
+    val local17
+      ClassInit Current<T0, Unit> : Current<T0, Unit>
+        Local $parameter.value : T0
+    val local18
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        MethodCall Shell.$get$output : T0
+          Local first : Shell<T0, Unit>
+    val local19
+      IntegerLiteral 42 : Int
+    val local20
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local24
+        BoolLiteral true : Boolean
+    else
+      val local21
+        CallableCall function_type0 : Int
+          Local inspect : (T0) -> Int
+          MethodCall Shell.$get$output : T0
+            Local repeated : Shell<T0, Unit>
+      val local22
+        IntegerLiteral 42 : Int
+      val local23
+        Local $dependency.argument.0 : Int
+      val local24
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local25
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        MethodCall Shell.$get$output : T0
+          Local phantom : Shell<T0, String>
+    val local26
+      IntegerLiteral 42 : Int
+    val local27
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local31
+        BoolLiteral true : Boolean
+    else
+      val local28
+        CallableCall function_type0 : Int
+          Local inspect : (T0) -> Int
+          MethodCall Shell.$get$output : T0
+            Local current : Current<T0, Unit>
+      val local29
+        IntegerLiteral 42 : Int
+      val local30
+        Local $dependency.argument.0 : Int
+      val local31
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.3 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local32
+      Local first : Shell<T0, Unit>
+    val local33
+      Local $argument.0 : Shell<T0, Unit>
+    val local34
+      StructInit Carrier : Carrier<Shell<T0, Unit>, String>
+        Local $parameter.value : Shell<T0, Unit>
+    return
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        MethodCall Shell.$get$output : T0
+          FieldAccess field 0 : Shell<T0, Unit>
+            Local wrapper : Carrier<Shell<T0, Unit>, String>
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      BoolLiteral true : Boolean
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : Boolean
+    val local4
+      ClassInit Shell<Int, Unit> : Shell<Int, Unit>
+        Local $parameter.value : Int
+        Local $parameter.flag : Boolean
+    val local5
+      MethodCall Shell.$get$output : Int
+        Local alias : Shell<Int, Unit>
+    val local6
+      IntegerLiteral 42 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local10
+      Local $argument.0 : Int
+    val local11
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+  output library
+  instance $local.0.read<T0, T1>
+  instance make<T0, Unit>
+  instance exercise<Int>

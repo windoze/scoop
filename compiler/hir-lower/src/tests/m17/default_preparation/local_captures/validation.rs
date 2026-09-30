@@ -20,7 +20,7 @@ fn inputs<'a>(
         functions,
         lambdas: &module.lambdas,
         anonymous_functions: &module.anonymous_functions,
-        default_local_values: &[],
+        lexical_local_values: &[],
         callable_references: &module.callable_references,
         class_constructors: &module.class_constructors,
         struct_constructors: &module.struct_constructors,

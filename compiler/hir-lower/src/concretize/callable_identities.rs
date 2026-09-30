@@ -9,6 +9,7 @@ use scoop_identity::{
 
 use super::*;
 
+mod common_values;
 mod constructors;
 mod defaults;
 mod lexical;
@@ -40,7 +41,7 @@ impl Concretizer<'_> {
 }
 
 pub(super) struct BuiltCallableIdentities {
-    pub(super) default_local_values: Vec<concrete::DefaultLocalValueScope>,
+    pub(super) lexical_local_values: Vec<concrete::LexicalLocalValueScope>,
     pub(super) callable_applications: concrete::CallableApplicationIdentities,
     pub(super) generated_callable_identities: Vec<concrete::GeneratedCallableRecord>,
     pub(super) callback_applications: concrete::CallbackApplicationIdentities,
@@ -125,11 +126,13 @@ impl<'a> CallableIdentityBuilder<'a> {
             materializations: vec![None; concretizer.function_keys.len()],
             class_constructor_materializations: vec![
                 None;
-                concretizer.class_constructor_keys.len()
+                concretizer.class_constructor_definitions.len()
             ],
             struct_constructor_materializations: vec![
                 None;
-                concretizer.struct_constructor_keys.len()
+                concretizer
+                    .struct_constructor_definitions
+                    .len()
             ],
             visiting: vec![false; concretizer.function_keys.len()],
             applications: Vec::new(),
@@ -145,10 +148,10 @@ impl<'a> CallableIdentityBuilder<'a> {
         for index in 0..self.concretizer.function_keys.len() {
             self.resolve_function(index);
         }
-        for index in 0..self.concretizer.class_constructor_keys.len() {
+        for index in 0..self.concretizer.class_constructor_definitions.len() {
             self.resolve_class_constructor(index);
         }
-        for index in 0..self.concretizer.struct_constructor_keys.len() {
+        for index in 0..self.concretizer.struct_constructor_definitions.len() {
             self.resolve_struct_constructor(index);
         }
         let callable_reference_identities = (0..self.concretizer.callable_reference_slots.len())
@@ -157,7 +160,8 @@ impl<'a> CallableIdentityBuilder<'a> {
         for index in 0..self.concretizer.foreign_callback_slots.len() {
             self.resolve_foreign_callback(index);
         }
-        let default_local_values = self.materialize_default_local_values();
+        let mut lexical_local_values = self.materialize_default_local_values();
+        lexical_local_values.extend(self.materialize_common_initialization_values());
         let function_materializations = std::mem::take(&mut self.materializations)
             .into_iter()
             .enumerate()
@@ -199,7 +203,7 @@ impl<'a> CallableIdentityBuilder<'a> {
         let foreign_callback_applications =
             complete_callback_applications(&mut self.foreign_callback_applications);
         BuiltCallableIdentities {
-            default_local_values,
+            lexical_local_values,
             callable_applications,
             generated_callable_identities: self
                 .generated_callable_identities

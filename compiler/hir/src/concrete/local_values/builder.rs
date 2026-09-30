@@ -45,7 +45,7 @@ impl<'a> LocalValueIdentityBuilder<'a> {
         let class_constructors = self.collect_class_constructors()?;
         let struct_constructors = self.collect_struct_constructors()?;
         let callable_references = self.collect_callable_references()?;
-        self.collect_default_local_values()?;
+        self.collect_lexical_local_values()?;
 
         for ((function, local), alias) in &self.capture_aliases {
             let context = self.inputs.functions[*function].materialization.context();

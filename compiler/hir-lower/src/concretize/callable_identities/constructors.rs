@@ -1,4 +1,4 @@
-//! Constructor identities distinguish lexical origins from emitted bodies.
+//! Constructor identities use the same original-definition requests as bodies.
 
 use super::*;
 
@@ -7,16 +7,9 @@ impl CallableIdentityBuilder<'_> {
         if let Some(materialization) = self.class_constructor_materializations[index] {
             return materialization;
         }
-        let (source, class) = self.concretizer.class_constructor_keys[index];
+        let (definition, class) = self.concretizer.class_constructor_definitions[index];
         let arguments = self.concretizer.classes[class].type_arguments.clone();
-        let materialization = match source {
-            constructor_work::ClassConstructorSource::Local(source) => {
-                self.class_constructor_materialization(source, &arguments)
-            }
-            constructor_work::ClassConstructorSource::Template(source) => {
-                self.imported_constructor_materialization(source, &arguments)
-            }
-        };
+        let materialization = self.class_definition_materialization(definition, class, &arguments);
         self.class_constructor_materializations[index] = Some(materialization);
         materialization
     }
@@ -25,44 +18,112 @@ impl CallableIdentityBuilder<'_> {
         if let Some(materialization) = self.struct_constructor_materializations[index] {
             return materialization;
         }
-        let (source, structure) = self.concretizer.struct_constructor_keys[index];
+        let (definition, structure) = self.concretizer.struct_constructor_definitions[index];
         let arguments = self.concretizer.structs[structure].type_arguments.clone();
-        let materialization = match source {
-            constructor_work::StructConstructorSource::Local(source) => {
-                self.struct_constructor_materialization(source, &arguments)
-            }
-            constructor_work::StructConstructorSource::Template(source) => {
-                self.imported_constructor_materialization(source, &arguments)
-            }
-        };
+        let materialization =
+            self.struct_definition_materialization(definition, structure, &arguments);
         self.struct_constructor_materializations[index] = Some(materialization);
         materialization
     }
 
-    pub(super) fn imported_constructor_materialization(
+    fn class_definition_materialization(
         &mut self,
-        constructor: export::ImportedConstructorTemplateId,
+        definition: export::ClassConstructorDefinition,
+        class: concrete::ClassId,
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
-        let template = &self.concretizer.source.imported_constructor_templates[constructor];
-        let ty = match &self.concretizer.source.types[template.owner] {
-            export::Type::Struct(owner) => {
-                let origin = self.concretizer.source.struct_applications[*owner].template;
-                let owner = self.concretizer.struct_by_key[&(origin, arguments.to_vec())];
-                self.concretizer.struct_type[&owner]
+        let (identity, source) = self.concretizer.class_constructor_origin(definition);
+        let template = match identity {
+            export::DefaultClassConstructorIdV1::Source(id) => {
+                CallableTemplateOwner::Constructor(id)
             }
-            export::Type::Class(owner) => {
-                let origin = self.concretizer.source.class_applications[*owner].template;
-                let owner = self.concretizer.class_by_key[&(origin, arguments.to_vec())];
-                self.concretizer.class_type[&owner]
+            export::DefaultClassConstructorIdV1::Generated(id) => {
+                CallableTemplateOwner::Generated(id)
             }
-            _ => unreachable!("imported constructors retain their nominal owner"),
         };
-        let exact_owner = self.exact_types[ty].id();
-        let origin = template.declaration;
-        CallableMaterialization::new(
+        self.constructor_materialization(
+            template,
+            source,
+            self.concretizer.class_type[&class],
+            arguments,
+        )
+    }
+
+    fn struct_definition_materialization(
+        &mut self,
+        definition: export::StructConstructorDefinition,
+        structure: concrete::StructId,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
+        let origin = self.concretizer.struct_constructor_origin(definition);
+        self.constructor_materialization(
             CallableTemplateOwner::Constructor(origin),
-            self.constructor_application_context(origin, exact_owner, arguments),
+            origin,
+            self.concretizer.struct_type[&structure],
+            arguments,
+        )
+    }
+
+    pub(super) fn constructor_materialization(
+        &mut self,
+        template: CallableTemplateOwner,
+        source: scoop_identity::PersistentConstructorId,
+        owner: concrete::TypeId,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
+        let owner = self.exact_types[owner].id();
+        CallableMaterialization::new(
+            template,
+            self.constructor_application_context(source, owner, arguments),
+        )
+    }
+
+    pub(super) fn constructor_declaration_materialization(
+        &mut self,
+        constructor: scoop_identity::PersistentConstructorId,
+        arguments: &[concrete::TypeId],
+    ) -> CallableMaterialization {
+        let class = self.concretizer.classes.iter().find(|(id, class)| {
+            class.type_arguments == arguments
+                && self
+                    .class_constructor_declarations(*id)
+                    .contains(&constructor)
+        });
+        let owner = if let Some((class, _)) = class {
+            self.concretizer.class_type[&class]
+        } else {
+            let source = self.concretizer.source;
+            let (structure, _) = self
+                .concretizer
+                .structs
+                .iter()
+                .find(|(_, structure)| {
+                    if structure.type_arguments != arguments {
+                        return false;
+                    }
+                    let origin = structure.origin.declaration_id();
+                    match source.nominal_identities.struct_id(origin) {
+                        Some(id) => source.structs[id]
+                            .constructors
+                            .iter()
+                            .any(|id| source.constructor_identities[*id].id() == constructor),
+                        None => source.loaded_struct_definitions[&origin]
+                            .declaration
+                            .interface
+                            .declaration_details()
+                            .constructors()
+                            .values()
+                            .contains(&constructor),
+                    }
+                })
+                .expect("a lexical constructor retains its original nominal declaration");
+            self.concretizer.struct_type[&structure]
+        };
+        self.constructor_materialization(
+            CallableTemplateOwner::Constructor(constructor),
+            constructor,
+            owner,
+            arguments,
         )
     }
 
@@ -72,31 +133,12 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
         let declaration = &self.concretizer.source.class_constructors[constructor];
-        assert_eq!(
-            self.concretizer.source.classes[declaration.owner]
-                .type_params
-                .len(),
-            arguments.len()
-        );
         let origin = self.concretizer.source.nominal_identities[declaration.owner].declaration_id();
         let owner = self.concretizer.class_by_key[&(origin, arguments.to_vec())];
-        let exact_owner = self.exact_types[self.concretizer.class_type[&owner]].id();
-        let identity = &self.concretizer.source.constructor_identities[constructor];
-        let (template, origin) = match identity {
-            export::HirClassConstructorIdentity::Source(record) => {
-                (CallableTemplateOwner::Constructor(record.id()), record.id())
-            }
-            export::HirClassConstructorIdentity::ZeroArgumentAdapter { source, record } => {
-                let origin = self.concretizer.source.constructor_identities[*source]
-                    .source_record()
-                    .expect("a zero-argument adapter references a source constructor")
-                    .id();
-                (CallableTemplateOwner::Generated(record.id()), origin)
-            }
-        };
-        CallableMaterialization::new(
-            template,
-            self.constructor_application_context(origin, exact_owner, arguments),
+        self.class_definition_materialization(
+            export::ClassConstructorDefinition::Local(constructor),
+            owner,
+            arguments,
         )
     }
 
@@ -106,19 +148,12 @@ impl CallableIdentityBuilder<'_> {
         arguments: &[concrete::TypeId],
     ) -> CallableMaterialization {
         let declaration = &self.concretizer.source.struct_constructors[constructor];
-        assert_eq!(
-            self.concretizer.source.structs[declaration.owner]
-                .type_params
-                .len(),
-            arguments.len()
-        );
         let origin = self.concretizer.source.nominal_identities[declaration.owner].declaration_id();
         let owner = self.concretizer.struct_by_key[&(origin, arguments.to_vec())];
-        let exact_owner = self.exact_types[self.concretizer.struct_type[&owner]].id();
-        let origin = self.concretizer.source.constructor_identities[constructor].id();
-        CallableMaterialization::new(
-            CallableTemplateOwner::Constructor(origin),
-            self.constructor_application_context(origin, exact_owner, arguments),
+        self.struct_definition_materialization(
+            export::StructConstructorDefinition::Local(constructor),
+            owner,
+            arguments,
         )
     }
 }

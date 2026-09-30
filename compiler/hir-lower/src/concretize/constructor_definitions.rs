@@ -13,6 +13,50 @@ pub(super) struct ConstructorBodyView<'a, K> {
 }
 
 impl<'a> Concretizer<'a> {
+    pub(super) fn class_constructor_origin(
+        &self,
+        definition: export::ClassConstructorDefinition,
+    ) -> (
+        export::DefaultClassConstructorIdV1,
+        scoop_identity::PersistentConstructorId,
+    ) {
+        use export::DefaultClassConstructorIdV1 as Origin;
+        match definition {
+            export::ClassConstructorDefinition::Local(id) => {
+                match &self.source.constructor_identities[id] {
+                    export::HirClassConstructorIdentity::Source(record) => {
+                        (Origin::Source(record.id()), record.id())
+                    }
+                    export::HirClassConstructorIdentity::ZeroArgumentAdapter { source, record } => {
+                        let source = self.source.constructor_identities[*source]
+                            .source_record()
+                            .expect("a zero-argument adapter retains its source constructor")
+                            .id();
+                        (Origin::Generated(record.id()), source)
+                    }
+                }
+            }
+            export::ClassConstructorDefinition::Template(id) => {
+                let source = self.source.imported_constructor_templates[id].declaration;
+                (Origin::Source(source), source)
+            }
+        }
+    }
+
+    pub(super) fn struct_constructor_origin(
+        &self,
+        definition: export::StructConstructorDefinition,
+    ) -> scoop_identity::PersistentConstructorId {
+        match definition {
+            export::StructConstructorDefinition::Local(id) => {
+                self.source.constructor_identities[id].id()
+            }
+            export::StructConstructorDefinition::Template(id) => {
+                self.source.imported_constructor_templates[id].declaration
+            }
+        }
+    }
+
     pub(super) fn class_constructor_definition(
         &self,
         definition: export::ClassConstructorDefinition,

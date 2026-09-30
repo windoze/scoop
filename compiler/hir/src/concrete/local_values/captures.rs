@@ -54,4 +54,52 @@ impl LocalValueIdentityBuilder<'_> {
         }
         Ok(())
     }
+
+    pub(super) fn find_captured_value(
+        &self,
+        mut context: CallableMaterializationContext,
+        mut binding: BindingId,
+    ) -> Option<PersistentLocalValueId> {
+        let mut visited = HashSet::new();
+        loop {
+            let key = BindingKey { context, binding };
+            if !visited.insert(key) {
+                return None;
+            }
+            if let Some(identities) = self.values_by_binding.get(&key) {
+                let mut lexical = identities.iter().filter_map(|value| match value {
+                    LocalValueBinding::Lexical(identity) => Some(*identity),
+                    LocalValueBinding::Definition(_) | LocalValueBinding::Capture(_) => None,
+                });
+                if let Some(identity) = lexical.next() {
+                    return lexical
+                        .all(|candidate| candidate == identity)
+                        .then_some(identity);
+                }
+                match identities.as_slice() {
+                    [LocalValueBinding::Definition(identity)] => return Some(*identity),
+                    [LocalValueBinding::Capture(source)] => {
+                        binding = *source;
+                        continue;
+                    }
+                    [] => unreachable!("a binding index entry is non-empty"),
+                    _ => return None,
+                }
+            }
+            let CallableMaterializationContext::Application(application) = context else {
+                return None;
+            };
+            let record = self.inputs.callable_applications.get(application)?;
+            context = match record.key().instantiation_owner() {
+                CallableInstantiationOwner::EnclosingCallableApplication(parent) => {
+                    CallableMaterializationContext::Application(parent)
+                }
+                CallableInstantiationOwner::EnclosingInitializationApplication(unit) => {
+                    CallableMaterializationContext::InitializationApplication(unit)
+                }
+                CallableInstantiationOwner::NoOwner
+                | CallableInstantiationOwner::ExactNominalOwner(_) => return None,
+            };
+        }
+    }
 }
