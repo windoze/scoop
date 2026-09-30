@@ -223,7 +223,12 @@ fn rigid_outer_parameters_survive_nested_application_inference() {
     let callable = parameter(52, 0);
     let outer = parameter(53, 0);
     lowerer.type_params_in_scope = vec![outer.clone()];
-    let structure = add_generic_struct(&mut lowerer, "Box", callable.clone());
+    let structure = add_generic_struct(
+        &mut lowerer,
+        "Box",
+        callable.clone(),
+        hir::StructRepresentation::Declared(Vec::new()),
+    );
     let expected = lowerer.structs[structure].self_application;
     let expected = lowerer.struct_applications[expected].canonical_type;
     let outer_ty = lowerer.intern_type(Type::Param(outer.id));
@@ -323,7 +328,12 @@ fn exact_solution_still_has_to_satisfy_interface_bounds() {
 fn concrete_application_materializes_every_argument() {
     let mut lowerer = nominals::lowerer();
     let callable = parameter(62, 0);
-    let structure = add_generic_struct(&mut lowerer, "Box", callable.clone());
+    let structure = add_generic_struct(
+        &mut lowerer,
+        "Box",
+        callable.clone(),
+        hir::StructRepresentation::Declared(Vec::new()),
+    );
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
@@ -335,10 +345,12 @@ fn concrete_application_materializes_every_argument() {
         ConstraintOrigin::Receiver,
     );
     session.push(
-        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
-            structure,
-            vec![variable.into()],
-        )),
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(structure))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
         ConstraintOrigin::Specificity,
     );
 
@@ -359,8 +371,12 @@ fn concrete_application_materializes_every_argument() {
 fn pointer_concrete_application_uses_the_typed_pointer_representation() {
     let mut lowerer = nominals::lowerer();
     let callable = parameter(63, 0);
-    let pointer = add_generic_struct(&mut lowerer, "Ptr", callable.clone());
-    lowerer.ffi_ptr = Some(pointer);
+    let pointer = add_generic_struct(
+        &mut lowerer,
+        "Ptr",
+        callable.clone(),
+        hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeKind::Ptr),
+    );
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
@@ -372,10 +388,12 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
         ConstraintOrigin::Receiver,
     );
     session.push(
-        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
-            pointer,
-            vec![variable.into()],
-        )),
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
         ConstraintOrigin::Specificity,
     );
 
@@ -390,7 +408,7 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
                 if *pointee == lowerer.integer_type(hir::IntegerKind::SIGNED_32)))
     );
     assert!(
-        !lowerer.struct_application_by_key.contains_key(&(
+        lowerer.struct_application_by_key.contains_key(&(
             lowerer
                 .nominal_identity(crate::Owner::Struct(pointer))
                 .declaration_id(),
@@ -403,8 +421,12 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
 fn function_pointer_concrete_application_requires_a_function_type() {
     let mut lowerer = nominals::lowerer();
     let callable = parameter(64, 0);
-    let pointer = add_generic_struct(&mut lowerer, "FunPtr", callable.clone());
-    lowerer.ffi_fun_ptr = Some(pointer);
+    let pointer = add_generic_struct(
+        &mut lowerer,
+        "FunPtr",
+        callable.clone(),
+        hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeKind::FunPtr),
+    );
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let function = lowerer.intern_function_type(false, vec![int], int);
     let mut session = InferenceSession::new();
@@ -415,10 +437,12 @@ fn function_pointer_concrete_application_requires_a_function_type() {
         ConstraintOrigin::Receiver,
     );
     session.push(
-        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
-            pointer,
-            vec![variable.into()],
-        )),
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
         ConstraintOrigin::Specificity,
     );
 
@@ -434,6 +458,30 @@ fn function_pointer_concrete_application_requires_a_function_type() {
             .iter()
             .any(|(_, ty)| matches!(ty, Type::FunPtr(found) if *found == signature))
     );
+
+    let mut invalid = InferenceSession::new();
+    let environment = invalid.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = invalid.callable_variables(environment)[0];
+    invalid.push(
+        Constraint::Equal(variable.into(), int.into()),
+        ConstraintOrigin::Receiver,
+    );
+    invalid.push(
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
+        ConstraintOrigin::Specificity,
+    );
+    let failure = lowerer
+        .solve_constraints(&invalid)
+        .expect_err("FunPtr<Int> has no function signature");
+    assert!(matches!(
+        failure.kind,
+        ConstraintFailureKind::NonConcreteApplication(_)
+    ));
 }
 
 #[test]

@@ -56,50 +56,19 @@ impl Lowerer {
     /// Return the exact array family application carried by a class type.
     /// Ordinary classes and fixed intrinsic classes return `None`.
     pub(crate) fn array_type_info(&self, ty: TypeId) -> Option<ArrayType> {
-        if let Type::ImportedClass(class) = &self.types[ty] {
-            let hir::NominalSourceShapeV1::Intrinsic(representation) =
-                class.declaration.interface.source_shape()
-            else {
-                return None;
-            };
-            let kind = match representation.family() {
-                hir::IntrinsicTypeKind::Array => ArrayKind::Immutable,
-                hir::IntrinsicTypeKind::MutableArray => ArrayKind::Mutable,
-                _ => return None,
-            };
-            let [element] = class.arguments.as_slice() else {
-                unreachable!("a checked array application has one element type")
-            };
-            return Some(ArrayType {
-                kind,
-                element: *element,
-            });
-        }
-        let Type::Class(application) = self.types[ty] else {
-            return None;
+        let application = self.nominal_application(ty)?;
+        let kind = match self.nominal_intrinsic_kind(application.template)? {
+            hir::IntrinsicTypeKind::Array => ArrayKind::Immutable,
+            hir::IntrinsicTypeKind::MutableArray => ArrayKind::Mutable,
+            _ => return None,
         };
-        match self.class_applications[application].representation {
-            hir::ClassApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::Array { element },
-            ) => Some(ArrayType {
-                kind: ArrayKind::Immutable,
-                element,
-            }),
-            hir::ClassApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::MutableArray { element },
-            ) => Some(ArrayType {
-                kind: ArrayKind::Mutable,
-                element,
-            }),
-            hir::ClassApplicationRepresentation::Declared
-            | hir::ClassApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::Integer(_)
-                | hir::IntrinsicTypeRepresentation::Boolean
-                | hir::IntrinsicTypeRepresentation::String
-                | hir::IntrinsicTypeRepresentation::Ptr { .. }
-                | hir::IntrinsicTypeRepresentation::FunPtr { .. },
-            ) => None,
-        }
+        let [element] = application.arguments.as_slice() else {
+            unreachable!("a checked array application has one element type")
+        };
+        Some(ArrayType {
+            kind,
+            element: *element,
+        })
     }
 
     pub(crate) fn array_element_ty(&self, ty: TypeId) -> Option<TypeId> {

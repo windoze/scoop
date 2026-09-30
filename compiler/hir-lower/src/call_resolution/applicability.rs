@@ -318,24 +318,28 @@ impl Lowerer {
             .copied()
             .map(TypeTerm::from)
             .collect();
-        let application = match view.target {
-            NominalConstructorSource::Struct(constructor) => NominalApplication::Struct(
-                self.struct_constructors[constructor].owner,
-                application_arguments,
-            ),
-            NominalConstructorSource::Class(constructor) => NominalApplication::Class(
-                self.class_constructors[constructor].owner,
-                application_arguments,
-            ),
-            NominalConstructorSource::IntrinsicClass(class) => {
-                NominalApplication::Class(class, application_arguments)
-            }
-            NominalConstructorSource::ImportedArray(owner) => {
-                NominalApplication::Imported(owner, application_arguments)
-            }
-            NominalConstructorSource::Variant(variant) => {
-                NominalApplication::Enum(variant.enumeration(), application_arguments)
-            }
+        let template = match view.target {
+            NominalConstructorSource::Struct(constructor) => self
+                .nominal_identity(crate::Owner::Struct(
+                    self.struct_constructors[constructor].owner,
+                ))
+                .declaration_id(),
+            NominalConstructorSource::Class(constructor) => self
+                .nominal_identity(crate::Owner::Class(
+                    self.class_constructors[constructor].owner,
+                ))
+                .declaration_id(),
+            NominalConstructorSource::IntrinsicClass(class) => self
+                .nominal_identity(crate::Owner::Class(class))
+                .declaration_id(),
+            NominalConstructorSource::ImportedArray(owner) => owner,
+            NominalConstructorSource::Variant(variant) => self
+                .nominal_identity(crate::Owner::Enum(variant.enumeration()))
+                .declaration_id(),
+        };
+        let application = NominalApplication {
+            template,
+            arguments: application_arguments,
         };
         session.push(
             Constraint::ConcreteApplication(application),

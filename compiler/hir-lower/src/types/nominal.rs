@@ -11,6 +11,30 @@ pub(crate) struct NominalApplication {
 }
 
 impl Lowerer {
+    pub(crate) fn nominal_intrinsic_kind(
+        &self,
+        template: hir::SourceNominalId,
+    ) -> Option<hir::IntrinsicTypeKind> {
+        if let Some(owner) = self.nominal_owners.get(&template) {
+            return match *owner {
+                Owner::Struct(id) => match self.structs[id].representation {
+                    hir::StructRepresentation::Intrinsic(kind) => Some(kind),
+                    hir::StructRepresentation::Declared(_) => None,
+                },
+                Owner::Class(id) => match self.classes[id].representation {
+                    hir::ClassRepresentation::Intrinsic(kind) => Some(kind),
+                    hir::ClassRepresentation::Declared => None,
+                },
+                Owner::Enum(_) | Owner::Interface(_) | Owner::Object(_) => None,
+            };
+        }
+        let declaration = self.dependencies.as_ref()?.nominal_declaration(template)?;
+        match declaration.interface.source_shape() {
+            hir::NominalSourceShapeV1::Intrinsic(representation) => Some(representation.family()),
+            _ => None,
+        }
+    }
+
     pub(crate) fn apply_nominal_type(
         &mut self,
         template: hir::SourceNominalId,

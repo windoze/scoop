@@ -257,3 +257,9 @@
 - 原 1500 行左右的 nominal 声明文件按 struct、enum、class、字段、成员、构造、intrinsic 和测试职责拆分，生产子模块均不超过 325 行。MIR 测试构造器使用相同的原声明关系，未增加另一套编译或身份生成路径。
 - 全仓 fmt／clippy、859 项 HIR、1318 项 HIR lowering 和 114 项 MIR lowering 单元测试全部通过。13 组真实产物回归全部关闭快照更新开关通过，覆盖四类 nominal、构造、指针、函数引用、默认值、数组、bound、属性及完整 core 的三组 MIR／LIR 导出闭包；既有快照无需改动。日志前缀 `/tmp/scoop-m23-6a-application-origins-`，结果见 `unit.log`、`build.log` 与 `artifacts.json`。
 - 确认没有 cargo／rustc 占用后清理 1764.0 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批完成 application 原身份和共同替换；其余来源专用类型及完整声明存储继续迁移，不据此宣告 6a 完成。
+
+## 求解器共用原声明应用与 intrinsic 表示
+
+- 删除求解器 `NominalApplication` 的 Struct／Class／Enum／Imported 分支，约束统一保存原声明和完整类型项；求解后的类型应用使用现有共同入口。构造器与 variant 的目标 ID 保持独立，未把构造目标改成普通函数。
+- Ptr／FunPtr 的表示从真实声明取得，删除求解器中的另一套指针应用分配。数组类型信息按原声明的 intrinsic 类别和实际元素实参查询，移除当前／依赖的重复数组判定。既有求解器测试改用真实 intrinsic 声明表示，并验证非法 `FunPtr<Int>` 被拒绝。
+- 全仓 fmt／clippy、2291 项相关单元测试与 6 组真实产物回归全部通过；覆盖指针及下游 pointee、数组／vararg、泛型构造、bound 和完整 core 三组 MIR／LIR 导出闭包。快照无需修改，wire 和 runtime ABI 保持。日志前缀 `/tmp/scoop-m23-6a-nominal-constraints-`，结果见 `unit.log`、`build.log` 与 `artifacts.json`。

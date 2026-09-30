@@ -78,6 +78,7 @@ pub(super) fn add_generic_struct(
     lowerer: &mut Lowerer,
     name: &str,
     parameter: hir::TypeParamDecl,
+    representation: hir::StructRepresentation,
 ) -> hir::StructId {
     let structure = hir::StructId::from_raw(
         u32::try_from(lowerer.structs.len())
@@ -98,7 +99,7 @@ pub(super) fn add_generic_struct(
         type_params: vec![parameter],
         gc_free_pointee_requirements: Vec::new(),
         attributes: hir::StructAttributes::default(),
-        representation: hir::StructRepresentation::Declared(Vec::new()),
+        representation,
         constructors: Vec::new(),
         interfaces: Vec::new(),
         interface_implementations: Vec::new(),

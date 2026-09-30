@@ -137,11 +137,9 @@ pub(crate) enum CallableCategory {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum NominalApplication {
-    Struct(hir::StructId, Vec<TypeTerm>),
-    Class(hir::ClassId, Vec<TypeTerm>),
-    Enum(hir::EnumId, Vec<TypeTerm>),
-    Imported(hir::SourceNominalId, Vec<TypeTerm>),
+pub(crate) struct NominalApplication {
+    pub(crate) template: hir::SourceNominalId,
+    pub(crate) arguments: Vec<TypeTerm>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

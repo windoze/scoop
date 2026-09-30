@@ -68,11 +68,9 @@ impl Lowerer {
             else {
                 return Ok(None);
             };
-            if self.ffi_fun_ptr.is_some_and(|id| {
-                self.nominal_identity(crate::Owner::Struct(id))
-                    .declaration_id()
-                    == application.template
-            }) && !matches!(arguments.as_slice(), [function] if matches!(self.types[*function], Type::Function(_)))
+            if self.nominal_intrinsic_kind(application.template)
+                == Some(hir::IntrinsicTypeKind::FunPtr)
+                && !matches!(arguments.as_slice(), [function] if matches!(self.types[*function], Type::Function(_)))
             {
                 return Ok(None);
             }
@@ -188,12 +186,7 @@ impl Lowerer {
         application: &NominalApplication,
         origin: ConstraintOrigin,
     ) -> Result<hir::TypeId, ConstraintFailure> {
-        let terms = match application {
-            NominalApplication::Struct(_, terms)
-            | NominalApplication::Class(_, terms)
-            | NominalApplication::Enum(_, terms)
-            | NominalApplication::Imported(_, terms) => terms,
-        };
+        let terms = &application.arguments;
         let mut arguments = Vec::with_capacity(terms.len());
         for &term in terms {
             let Some(argument) = self.materialize_term(session, bindings, term, origin)? else {
@@ -204,42 +197,18 @@ impl Lowerer {
             };
             arguments.push(argument);
         }
-        Ok(match application {
-            NominalApplication::Struct(template, _) if Some(*template) == self.ffi_ptr => {
-                let [pointee] = arguments.as_slice() else {
-                    return Err(ConstraintFailure {
-                        origin,
-                        kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
-                    });
-                };
-                self.intern_type(Type::Ptr(*pointee))
-            }
-            NominalApplication::Struct(template, _) if Some(*template) == self.ffi_fun_ptr => {
-                let [function] = arguments.as_slice() else {
-                    return Err(ConstraintFailure {
-                        origin,
-                        kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
-                    });
-                };
-                let Type::Function(function) = self.types[*function] else {
-                    return Err(ConstraintFailure {
-                        origin,
-                        kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
-                    });
-                };
-                self.intern_type(Type::FunPtr(function))
-            }
-            NominalApplication::Struct(template, _) => {
-                self.struct_application(*template, arguments)
-            }
-            NominalApplication::Class(template, _) => self.class_application(*template, arguments),
-            NominalApplication::Enum(template, _) => self.enum_application(*template, arguments),
-            NominalApplication::Imported(owner, _) => self
-                .imported_nominal_application(*owner, arguments)
-                .map_err(|_| ConstraintFailure {
-                    origin,
-                    kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
-                })?,
-        })
+        if self.nominal_intrinsic_kind(application.template) == Some(hir::IntrinsicTypeKind::FunPtr)
+            && !matches!(arguments.as_slice(), [function] if matches!(self.types[*function], Type::Function(_)))
+        {
+            return Err(ConstraintFailure {
+                origin,
+                kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
+            });
+        }
+        self.apply_nominal_type(application.template, arguments)
+            .map_err(|_| ConstraintFailure {
+                origin,
+                kind: ConstraintFailureKind::NonConcreteApplication(application.clone()),
+            })
     }
 }
