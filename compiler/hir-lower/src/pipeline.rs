@@ -350,6 +350,7 @@ impl Lowerer {
             ffi_core: None,
             foreign_callback_core: None,
             allow_deferred_fun_ptr: false,
+            nominal_type_uses: Vec::new(),
             pointer_type_uses: Vec::new(),
             fun_ptr_type_uses: Vec::new(),
             interface_methods: HashMap::new(),

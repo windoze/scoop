@@ -47,7 +47,7 @@ impl Concretizer<'_> {
         self.class_constructor_keys.push((source, owner));
         self.class_constructor_by_key.insert((source, owner), id);
         self.pending_constructors
-            .push_back(ConstructorWork::Class(id));
+            .push_back((ConstructorWork::Class(id), self.type_use_site));
         id
     }
 
@@ -78,7 +78,7 @@ impl Concretizer<'_> {
         self.struct_constructor_keys.push((source, owner));
         self.struct_constructor_by_key.insert((source, owner), id);
         self.pending_constructors
-            .push_back(ConstructorWork::Struct(id));
+            .push_back((ConstructorWork::Struct(id), self.type_use_site));
         id
     }
 

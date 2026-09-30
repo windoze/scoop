@@ -68,19 +68,20 @@ impl Lowerer {
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
-            gc_free_pointee_requirements: Vec::new(),
-            no_gc,
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: decl.span,
 
             definition: hir::EnumDefinition {
+                no_gc,
                 self_application,
                 type_params,
                 variants: Vec::new(),
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
             },
         });
         self.register_nominal_identity(Owner::Enum(id), identity);

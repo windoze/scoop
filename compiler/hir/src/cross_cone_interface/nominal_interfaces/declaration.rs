@@ -1,7 +1,9 @@
 use super::*;
 use crate::{DeclaredVisibilityV1, NominalInheritanceModalityV1};
 
+mod conditions;
 mod decode;
+pub use conditions::{DecodedNominalInstantiationConditionsV1, NominalInstantiationConditionsV1};
 mod inventory;
 mod references;
 pub use decode::{DecodedNominalDeclarationDetailsV1, NominalDeclarationDetailsResolutionError};
@@ -20,6 +22,7 @@ pub struct NominalDeclarationDetailsV1 {
     dispatch_order: NominalDispatchOrderV1,
     dispatch_selections: CanonicalNominalDispatchSelectionsV1,
     primary_value_constructor: Option<PersistentConstructorId>,
+    instantiation_conditions: NominalInstantiationConditionsV1,
 }
 
 impl NominalDeclarationDetailsV1 {
@@ -33,6 +36,7 @@ impl NominalDeclarationDetailsV1 {
         dispatch_order: NominalDispatchOrderV1,
         dispatch_selections: CanonicalNominalDispatchSelectionsV1,
         primary_value_constructor: Option<PersistentConstructorId>,
+        instantiation_conditions: NominalInstantiationConditionsV1,
     ) -> Self {
         Self {
             modality,
@@ -43,7 +47,12 @@ impl NominalDeclarationDetailsV1 {
             dispatch_order,
             dispatch_selections,
             primary_value_constructor,
+            instantiation_conditions,
         }
+    }
+
+    pub const fn instantiation_conditions(&self) -> &NominalInstantiationConditionsV1 {
+        &self.instantiation_conditions
     }
 
     pub const fn primary_value_constructor(&self) -> Option<PersistentConstructorId> {
@@ -152,7 +161,7 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
+        encoder.map(9)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -172,7 +181,8 @@ impl WireEncode for NominalDeclarationDetailsV1 {
         if let Some(primary) = self.primary_value_constructor {
             primary.encode(encoder)?;
         }
-        Ok(())
+        encoder.field(9)?;
+        self.instantiation_conditions.encode(encoder)
     }
 }
 

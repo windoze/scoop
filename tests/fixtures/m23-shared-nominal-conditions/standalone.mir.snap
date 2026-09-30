@@ -1,0 +1,653 @@
+Module
+  struct Native (value: Int) <c-layout aligned=natural packed=natural>
+  struct Pointer<Native> (value: Ptr<Native>) <c-layout aligned=natural packed=natural>
+  struct Scalar<Choice<Int>> (value: Choice<Int>)
+  struct Scalar<Scalar<Choice<Int>>> (value: Scalar<Choice<Int>>)
+  struct Scalar<Unit> (value: Unit)
+  struct Wrapped<Unit> (scalar: Scalar<Unit>)
+  struct Phantom<String> ()
+  struct Scalar<Phantom<String>> (value: Phantom<String>)
+  struct Scalar<Int> (value: Int)
+  struct Wrapped<Int> (scalar: Scalar<Int>)
+  struct Scalar<Scalar<Phantom<String>>> (value: Scalar<Phantom<String>>)
+  enum Choice<Int>
+    Empty()
+    Item(_0: Int)
+  enum Choice<Unit>
+    Empty()
+    Item(_0: Unit)
+  enum CoroutineStep<Native>
+    Completed(value: Native)
+    Suspended()
+  enum CoroutineSlot<Native>
+    Empty()
+    Value(value: Native)
+  class Cursor<Native> vtable=0 itables=0
+  class Carrier<Unit> vtable=0 itables=0
+  class Carrier<Int> vtable=0 itables=0
+  class box<Native> vtable=0 itables=0
+  interface PointerView<Native>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=0
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn8 captures=0
+  generated_exact_type get0 location=enum2 nominal_id=91656b5117c2afaa5219849eb709d23f65f16e94bd05749a677bfeb8111a0e7a exact_id=33db388b75d13ca8c4152e0cbfcc51391a3504a3bccc2b23724aa6dda355f64e
+  generated_exact_type get1 location=enum3 nominal_id=56f70e593a8d87c844350312e09b9f5fe2ed4ee914354059bc94765c87f9628e exact_id=342527cc44aa221ff8c30903b58a5cb2b8e2f70c199bf9a31f5d2234653aab99
+  generated_exact_type get2 location=class3 nominal_id=6a2a13cbeb71ce92a378de24ce791038a96212411e2262b07907d076e54f59be exact_id=5ae24f0ce31e2c63585bd708ad0755b13ad49dba787ae2fd35b6d2f2a7625647
+  generated_exact_type get3 location=closure1 nominal_id=860c3120626ce10e3e9687d46e1f51528a713b9347741a33ce6d5bd75fd74a5c exact_id=b9c3a4981f171eadadb388d03f615692550e8cfd8245e49d12cbf8c82b82a856
+  generated_exact_type get4 location=closure0 nominal_id=4e2df6698f149f411a16534e3311c63fb857e99841d30a9b96d7e3ab95a2b147 exact_id=f0a537fde7c42c5e152f59ce7326a6532747708776d053b1dd76b8fbfb35d57c
+  fun pointer @fn0(value: Pointer<Native>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun cursor @fn1(value: Cursor<Native>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun view @fn2(value: PointerView<Native>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun result @fn3() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Choice<Int>
+        Type Choice<Int>
+        VariantConstruct Choice<Int> v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.parameter.value: Choice<Int>
+        Type Choice<Int>
+        Local $dependency.argument.0
+      call safe: Scalar<Choice<Int>> = @fn18 direct
+        Type Choice<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Scalar<Choice<Int>>
+        Type Scalar<Choice<Int>>
+        Local safe
+      val $dependency.parameter.value: Scalar<Choice<Int>>
+        Type Scalar<Choice<Int>>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Scalar<Choice<Int>>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn5 direct
+        Type Unit
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      val $parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn7 direct
+        Type Unit
+        Local $parameter.value
+        Type (Unit) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn9 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun hidden @fn4(value: Scalar<Choice<Int>>) -> Int
+    bb0 entry
+      val $dependency.local.2: Scalar<Choice<Int>>
+        Type Scalar<Choice<Int>>
+        Local value
+      val $dependency.local.3: Scalar<Choice<Int>>
+        Type Scalar<Choice<Int>>
+        Local $dependency.local.2
+      call $dependency.local.1: Scalar<Scalar<Choice<Int>>> = @fn19 direct
+        Type Scalar<Choice<Int>>
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun hiddenChoice @fn5(value: Unit) -> Int
+    bb0 entry
+      val $dependency.local.2: Unit
+        Type Unit
+        Local value
+      val $dependency.local.3: Unit
+        Type Unit
+        Local $dependency.local.2
+      val $dependency.local.1: Choice<Unit>
+        Type Choice<Unit>
+        VariantConstruct Choice<Unit> v1
+          Type Unit
+          Local $dependency.local.3
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $lambda.0 @fn6($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn7(value: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $default.local.1: Unit
+        Type Unit
+        Local $dependency.parameter.value
+      val $default.local.2: Unit
+        Type Unit
+        Local $default.local.1
+      call $dependency.parameter.scalar: Scalar<Unit> = @fn20 direct
+        Type Unit
+        Local $default.local.2
+      call $dependency.argument.0: Scalar<Unit> = @fn10 direct
+        Type Unit
+        Local $dependency.parameter.value
+        Type Scalar<Unit>
+        Local $dependency.parameter.scalar
+      val $dependency.parameter.scalar: Scalar<Unit>
+        Type Scalar<Unit>
+        Local $dependency.argument.0
+      call wrapped: Wrapped<Unit> = @fn21 direct
+        Type Scalar<Unit>
+        Local $dependency.parameter.scalar
+      val $dependency.argument.0: Scalar<Unit>
+        Type Scalar<Unit>
+        FieldAccess 0
+          Type Wrapped<Unit>
+          Local wrapped
+      val $dependency.parameter.scalar: Scalar<Unit>
+        Type Scalar<Unit>
+        Local $dependency.argument.0
+      assign $new.1
+        Type Carrier<Unit>
+        ClassAlloc Carrier<Unit>
+      call @fn15 direct
+        Type Carrier<Unit>
+        Local $new.1
+        Type Scalar<Unit>
+        Local $dependency.parameter.scalar
+      val carrier: Carrier<Unit>
+        Type Carrier<Unit>
+        Local $new.1
+      call $call.2: Scalar<Unit> = @fn11 direct
+        Type Carrier<Unit>
+        Local carrier
+      val $dependency.argument.0: Unit
+        Type Unit
+        FieldAccess 0
+          Type Scalar<Unit>
+          Local $call.2
+      val $dependency.parameter._1: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val choice: Choice<Unit>
+        Type Choice<Unit>
+        VariantConstruct Choice<Unit> v1
+          Type Unit
+          Local $dependency.parameter._1
+      call $dependency.argument.0: Phantom<String> = @fn22 direct
+      val $dependency.parameter.value: Phantom<String>
+        Type Phantom<String>
+        Local $dependency.argument.0
+      call phantom: Scalar<Phantom<String>> = @fn23 direct
+        Type Phantom<String>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Scalar<Phantom<String>>
+        Type Scalar<Phantom<String>>
+        Local phantom
+      val $dependency.parameter.value: Scalar<Phantom<String>>
+        Type Scalar<Phantom<String>>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn12 direct
+        Type Scalar<Phantom<String>>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $when.1: Choice<Unit>
+        Type Choice<Unit>
+        Local choice
+      val $pattern.subject.2: Choice<Unit>
+        Type Choice<Unit>
+        Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Choice<Unit> v0
+          Type Choice<Unit>
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb5
+    bb4 pattern.else.4
+      val $pattern.subject.3: Choice<Unit>
+        Type Choice<Unit>
+        Local $when.1
+      branch bb6 bb7
+        Type Boolean
+        VariantTest Choice<Unit> v1
+          Type Choice<Unit>
+          Local $pattern.subject.3
+    bb5 pattern.merge.5
+      return
+        Type Int
+        Local $result.0
+    bb6 pattern.pass.6
+      val item: Unit
+        Type Unit
+        VariantPayloadProject Choice<Unit> v1 f0
+          Type Choice<Unit>
+          Local $pattern.subject.3
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        Local item
+      assign $result.0
+        Type Int
+        Local $call.3
+      goto bb8
+    bb7 pattern.else.7
+      unreachable
+    bb8 pattern.merge.8
+      goto bb5
+  fun $lambda.1 @fn8($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn9(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.1: Int
+        Type Int
+        Local $dependency.parameter.value
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      call $dependency.parameter.scalar: Scalar<Int> = @fn24 direct
+        Type Int
+        Local $default.local.2
+      call $dependency.argument.0: Scalar<Int> = @fn13 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Scalar<Int>
+        Local $dependency.parameter.scalar
+      val $dependency.parameter.scalar: Scalar<Int>
+        Type Scalar<Int>
+        Local $dependency.argument.0
+      call wrapped: Wrapped<Int> = @fn25 direct
+        Type Scalar<Int>
+        Local $dependency.parameter.scalar
+      val $dependency.argument.0: Scalar<Int>
+        Type Scalar<Int>
+        FieldAccess 0
+          Type Wrapped<Int>
+          Local wrapped
+      val $dependency.parameter.scalar: Scalar<Int>
+        Type Scalar<Int>
+        Local $dependency.argument.0
+      assign $new.1
+        Type Carrier<Int>
+        ClassAlloc Carrier<Int>
+      call @fn16 direct
+        Type Carrier<Int>
+        Local $new.1
+        Type Scalar<Int>
+        Local $dependency.parameter.scalar
+      val carrier: Carrier<Int>
+        Type Carrier<Int>
+        Local $new.1
+      call $call.2: Scalar<Int> = @fn14 direct
+        Type Carrier<Int>
+        Local carrier
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Scalar<Int>
+          Local $call.2
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val choice: Choice<Int>
+        Type Choice<Int>
+        VariantConstruct Choice<Int> v1
+          Type Int
+          Local $dependency.parameter._1
+      call $dependency.argument.0: Phantom<String> = @fn22 direct
+      val $dependency.parameter.value: Phantom<String>
+        Type Phantom<String>
+        Local $dependency.argument.0
+      call phantom: Scalar<Phantom<String>> = @fn23 direct
+        Type Phantom<String>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Scalar<Phantom<String>>
+        Type Scalar<Phantom<String>>
+        Local phantom
+      val $dependency.parameter.value: Scalar<Phantom<String>>
+        Type Scalar<Phantom<String>>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn12 direct
+        Type Scalar<Phantom<String>>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $when.1: Choice<Int>
+        Type Choice<Int>
+        Local choice
+      val $pattern.subject.2: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Choice<Int> v0
+          Type Choice<Int>
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb5
+    bb4 pattern.else.4
+      val $pattern.subject.3: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb6 bb7
+        Type Boolean
+        VariantTest Choice<Int> v1
+          Type Choice<Int>
+          Local $pattern.subject.3
+    bb5 pattern.merge.5
+      return
+        Type Int
+        Local $result.0
+    bb6 pattern.pass.6
+      val item: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v1 f0
+          Type Choice<Int>
+          Local $pattern.subject.3
+      call $call.3: Int = <closure:function_type1> closure[function_type1]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local item
+      assign $result.0
+        Type Int
+        Local $call.3
+      goto bb8
+    bb7 pattern.else.7
+      unreachable
+    bb8 pattern.merge.8
+      goto bb5
+  fun pack @fn10(value: Unit, scalar: Scalar<Unit>) -> Scalar<Unit>
+    bb0 entry
+      return
+        Type Scalar<Unit>
+        Local scalar
+  fun scalar @fn11(this: Carrier<Unit>) -> Scalar<Unit>
+    bb0 entry
+      return
+        Type Scalar<Unit>
+        FieldAccess 0
+          Type Carrier<Unit>
+          Local this
+  fun hidden @fn12(value: Scalar<Phantom<String>>) -> Int
+    bb0 entry
+      val $dependency.local.2: Scalar<Phantom<String>>
+        Type Scalar<Phantom<String>>
+        Local value
+      val $dependency.local.3: Scalar<Phantom<String>>
+        Type Scalar<Phantom<String>>
+        Local $dependency.local.2
+      call $dependency.local.1: Scalar<Scalar<Phantom<String>>> = @fn26 direct
+        Type Scalar<Phantom<String>>
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun pack @fn13(value: Int, scalar: Scalar<Int>) -> Scalar<Int>
+    bb0 entry
+      return
+        Type Scalar<Int>
+        Local scalar
+  fun scalar @fn14(this: Carrier<Int>) -> Scalar<Int>
+    bb0 entry
+      return
+        Type Scalar<Int>
+        FieldAccess 0
+          Type Carrier<Int>
+          Local this
+  fun init.Carrier.$c2 @fn15(this: Carrier<Unit>, scalar: Scalar<Unit>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Carrier<Unit>
+        Local this
+        Type Scalar<Unit>
+        Local scalar
+      return
+  fun init.Carrier.$c2 @fn16(this: Carrier<Int>, scalar: Scalar<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Carrier<Int>
+        Local this
+        Type Scalar<Int>
+        Local scalar
+      return
+  fun ctor.Native.$c0 @fn17(value: Int) -> Native <no-gc>
+    bb0 entry
+      return
+        Type Native
+        StructInit Native
+          Type Int
+          Local value
+  fun ctor.Scalar.$c1 @fn18(value: Choice<Int>) -> Scalar<Choice<Int>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Choice<Int>>
+        StructInit Scalar<Choice<Int>>
+          Type Choice<Int>
+          Local value
+  fun ctor.Scalar.$c1 @fn19(value: Scalar<Choice<Int>>) -> Scalar<Scalar<Choice<Int>>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Choice<Int>>>
+        StructInit Scalar<Scalar<Choice<Int>>>
+          Type Scalar<Choice<Int>>
+          Local value
+  fun ctor.Scalar.$c1 @fn20(value: Unit) -> Scalar<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Unit>
+        StructInit Scalar<Unit>
+          Type Unit
+          Local value
+  fun ctor.Wrapped.$c0 @fn21(scalar: Scalar<Unit>) -> Wrapped<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Wrapped<Unit>
+        StructInit Wrapped<Unit>
+          Type Scalar<Unit>
+          Local scalar
+  fun ctor.Phantom.$c3 @fn22() -> Phantom<String> <no-gc>
+    bb0 entry
+      return
+        Type Phantom<String>
+        StructInit Phantom<String>
+  fun ctor.Scalar.$c1 @fn23(value: Phantom<String>) -> Scalar<Phantom<String>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Phantom<String>>
+        StructInit Scalar<Phantom<String>>
+          Type Phantom<String>
+          Local value
+  fun ctor.Scalar.$c1 @fn24(value: Int) -> Scalar<Int> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Int>
+        StructInit Scalar<Int>
+          Type Int
+          Local value
+  fun ctor.Wrapped.$c0 @fn25(scalar: Scalar<Int>) -> Wrapped<Int> <no-gc>
+    bb0 entry
+      return
+        Type Wrapped<Int>
+        StructInit Wrapped<Int>
+          Type Scalar<Int>
+          Local scalar
+  fun ctor.Scalar.$c1 @fn26(value: Scalar<Phantom<String>>) -> Scalar<Scalar<Phantom<String>>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Phantom<String>>>
+        StructInit Scalar<Scalar<Phantom<String>>>
+          Type Scalar<Phantom<String>>
+          Local value
+  coroutine_step cs0 CoroutineStep<Native> result=Native
+  coroutine_slot cl0 CoroutineSlot<Native> value=Native
+  instance mi0 function=@fn4 <- hidden
+  instance mi1 function=@fn5 <- hiddenChoice
+  instance mi2 function=@fn7 <- exercise
+  instance mi3 function=@fn9 <- exercise
+  instance mi4 function=@fn10 <- pack
+  instance mi5 function=@fn11 <- scalar
+  instance mi6 function=@fn12 <- hidden
+  instance mi7 function=@fn13 <- pack
+  instance mi8 function=@fn14 <- scalar
+  output library

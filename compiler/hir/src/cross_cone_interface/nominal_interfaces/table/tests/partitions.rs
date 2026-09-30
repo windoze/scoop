@@ -86,6 +86,7 @@ fn restricted_nominal_cannot_be_promoted_to_public_partition() {
             details.dispatch_order().clone(),
             details.dispatch_selections().clone(),
             details.primary_value_constructor(),
+            details.instantiation_conditions().clone(),
         ),
     )
     .unwrap();

@@ -119,8 +119,9 @@ impl Lowerer {
                 base_class: None,
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
             },
-            gc_free_pointee_requirements: Vec::new(),
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
             fields: Vec::new(),

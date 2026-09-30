@@ -211,8 +211,6 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            gc_free_pointee_requirements: Vec::new(),
-            no_gc: false,
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
@@ -224,6 +222,9 @@ impl Harness {
                 variants,
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+                no_gc: false,
             },
         });
         let actual = self.enum_application(enumeration, self_arguments);

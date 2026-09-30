@@ -66,6 +66,7 @@ pub(super) fn project(
         dispatch_order::project(export, local)?,
         crate::production::nominal_dispatch::project(export, local.owner())?,
         primary,
+        instantiation_conditions(export, local, parameters)?,
     );
     NominalInterfaceRecordV1::try_new(
         owner,
@@ -120,4 +121,47 @@ fn modality(export: &ExportHir, local: LocalNominalId) -> NominalInheritanceModa
             NominalInheritanceModalityV1::Final
         }
     }
+}
+
+fn instantiation_conditions(
+    export: &ExportHir,
+    local: LocalNominalId,
+    parameters: &[TypeParamDecl],
+) -> Result<crate::NominalInstantiationConditionsV1, Error> {
+    let (no_gc, requirements): (_, &[crate::RequiresGcFreePointee]) = match local {
+        LocalNominalId::Struct(id) => (
+            export.structs[id].attributes.no_gc,
+            &export.structs[id].gc_free_pointee_requirements,
+        ),
+        LocalNominalId::Enum(id) => (
+            export.enums[id].no_gc,
+            &export.enums[id].gc_free_pointee_requirements,
+        ),
+        LocalNominalId::Class(id) => (false, &export.classes[id].gc_free_pointee_requirements),
+        LocalNominalId::Interface(id) => {
+            (false, &export.interfaces[id].gc_free_pointee_requirements)
+        }
+        LocalNominalId::Object(_) => (false, &[]),
+    };
+    let mut indices = requirements
+        .iter()
+        .map(|requirement| {
+            parameters
+                .iter()
+                .position(|parameter| parameter.id == requirement.type_param)
+                .and_then(|index| u32::try_from(index).ok())
+                .ok_or_else(|| {
+                    invalid("nominal pointee condition must name its original parameter")
+                })
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    indices.sort_unstable();
+    let arguments = indices
+        .into_iter()
+        .map(|index| scoop_identity::SignatureTypeKey::Binder { depth: 0, index })
+        .collect();
+    Ok(crate::NominalInstantiationConditionsV1::new(
+        no_gc,
+        crate::CanonicalBinderUseListV1::try_new(arguments).map_err(invalid)?,
+    ))
 }

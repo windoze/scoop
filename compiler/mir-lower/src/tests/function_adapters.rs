@@ -36,7 +36,8 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
     ));
 
     let export = executable_output(source_module, entry);
-    let concrete = scoop_hir_lower::concretize_output(&export);
+    let concrete =
+        scoop_hir_lower::concretize_output(&export).expect("concrete type applications are valid");
     let target_function = scoop_hir::concrete::FunctionTypeId::from_raw(target.0.into_raw());
     let target_exact = concrete.module().exact_type_identities
         [concrete.module().function_types[target_function].canonical_type]
@@ -287,7 +288,8 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
     ));
 
     let export = executable_output(source, entry);
-    let concrete = scoop_hir_lower::concretize_output(&export);
+    let concrete =
+        scoop_hir_lower::concretize_output(&export).expect("concrete type applications are valid");
     let module = super::super::lower(&concrete)
         .expect("test LocalConcrete HIR carries locally defined core protocols");
     let bridge = module

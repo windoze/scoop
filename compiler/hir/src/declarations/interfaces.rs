@@ -8,7 +8,6 @@ pub struct InterfaceDecl {
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub definition: InterfaceDefinition,
-    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     /// Methods declared directly by this interface, in itable order after
     /// inherited methods. Inheritance traversal follows `parents` and these
     /// typed ids; consumers never reconstruct ownership from function names.
@@ -23,6 +22,7 @@ pub struct InterfaceDecl {
 /// Checked parameters and direct parents in the original declaration's scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceDefinition {
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub parents: Vec<TypeId>,

@@ -23,6 +23,8 @@ impl Concretizer<'_> {
         if let Some(&id) = self.enum_by_key.get(&key) {
             return id;
         }
+        let previous_site = self.type_use_site;
+        self.type_use_site = previous_site.or_else(|| self.source_nominal_site(origin));
         let source = self.source.nominal_identities.enum_id(origin);
         let definition = match source {
             Some(source) => self.source_enum_definition(source),
@@ -35,6 +37,7 @@ impl Concretizer<'_> {
             self.enum_source.insert(id, source);
         }
         self.complete_enum_definition(id, definition, &arguments);
+        self.type_use_site = previous_site;
         id
     }
 
@@ -101,6 +104,7 @@ impl Concretizer<'_> {
         self.enums[id].variants = variants;
         self.enums[id].gc_free = gc_free;
         self.types[self.enum_type[&id]].gc_free = gc_free;
+        self.check_completed_no_gc_type("enum", &definition.name, definition.no_gc, gc_free);
         let methods =
             self.request_concrete_methods(definition.methods, concrete::MethodOwner::Enum(id));
         let direct_interfaces = definition

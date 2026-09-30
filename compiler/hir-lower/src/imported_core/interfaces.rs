@@ -68,6 +68,10 @@ impl Lowerer {
             hir::LoadedInterfaceDefinition {
                 declaration: Arc::clone(&declaration),
                 definition: hir::InterfaceDefinition {
+                    gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
+                        &declaration,
+                        &type_params,
+                    ),
                     self_application,
                     type_params: type_params.clone(),
                     parents: Vec::new(),

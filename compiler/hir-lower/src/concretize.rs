@@ -34,6 +34,7 @@ mod requests;
 mod run;
 mod runtime_exceptions;
 mod structs;
+mod type_conditions;
 mod types;
 mod variants;
 
@@ -46,14 +47,27 @@ use constructor_slots::{
 };
 use functions::PendingFunction;
 use initialization::{InitializationKey, InitializationRequest};
+use type_conditions::SourceSite;
 
 fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
     la_arena::Idx::from_raw(id.into_raw())
 }
 
-pub(crate) fn lower(module: &export::Module) -> concrete::Module {
+fn nominal_root_diagnostic(
+    error: export::PublicNominalShapeProjectionError,
+) -> Vec<scoop_ast::Diagnostic> {
+    vec![scoop_ast::Diagnostic::without_span(
+        scoop_ast::DiagnosticSeverity::Error,
+        0,
+        format!("failed to project automatic nominal roots: {error}"),
+    )]
+}
+
+pub(crate) fn lower(
+    module: &export::Module,
+) -> Result<concrete::Module, Vec<scoop_ast::Diagnostic>> {
     Concretizer::new(module)
-        .expect("validated declaration roots have a complete materialization closure")
+        .map_err(nominal_root_diagnostic)?
         .run()
 }
 
@@ -62,19 +76,14 @@ pub(crate) fn lower_output(
     requirements: &export::PublicNominalShapeRequirementsV1,
 ) -> Result<export::LocalConcreteHirOutput, Vec<scoop_ast::Diagnostic>> {
     let module = output.module();
-    let concretizer = Concretizer::new(module).map_err(|error| {
-        vec![scoop_ast::Diagnostic::at(
-            scoop_ast::Span::new(0, 0),
-            format!("failed to project automatic nominal roots: {error}"),
-        )]
-    })?;
+    let concretizer = Concretizer::new(module).map_err(nominal_root_diagnostic)?;
     let (module, output_kind) = match output.output_kind() {
         export::ConeOutputKind::Library => {
-            (concretizer.run(), export::LocalConeOutputKind::Library)
+            (concretizer.run()?, export::LocalConeOutputKind::Library)
         }
         export::ConeOutputKind::Executable { local_entry } => {
             let (module, entry) =
-                concretizer.run_with_entry(local_entry.local_function().function());
+                concretizer.run_with_entry(local_entry.local_function().function())?;
             let entry = export::ConcreteExecutableEntry::try_new(&module, local_entry, entry)
                 .expect("concretization preserves the validated executable entry");
             (
@@ -190,8 +199,11 @@ struct Concretizer<'a> {
     /// applications before their function key enters the emission queue.
     derived_bodies: HashMap<FunctionKey, (concrete::Body, Vec<concrete::LocalId>)>,
     derived_functions: HashMap<concrete::TypeId, concrete::FunctionId>,
-    pending_functions: VecDeque<(FunctionKey, concrete::FunctionId)>,
-    pending_constructors: VecDeque<constructor_work::ConstructorWork>,
+    type_use_site: Option<SourceSite>,
+    instantiation_site: Option<SourceSite>,
+    type_condition_errors: Vec<scoop_ast::Diagnostic>,
+    pending_functions: VecDeque<(FunctionKey, concrete::FunctionId, Option<SourceSite>)>,
+    pending_constructors: VecDeque<(constructor_work::ConstructorWork, Option<SourceSite>)>,
     emitted_functions: Vec<concrete::FunctionId>,
     lambdas: Arena<concrete::Lambda>,
     lambda_by_key: HashMap<(export::LambdaId, Vec<concrete::TypeId>), concrete::LambdaId>,
@@ -366,6 +378,9 @@ impl<'a> Concretizer<'a> {
             function_by_key: HashMap::new(),
             derived_bodies: HashMap::new(),
             derived_functions: HashMap::new(),
+            type_use_site: None,
+            instantiation_site: None,
+            type_condition_errors: Vec::new(),
             pending_functions: VecDeque::new(),
             pending_constructors: VecDeque::new(),
             emitted_functions: Vec::new(),

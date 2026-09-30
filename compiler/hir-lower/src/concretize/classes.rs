@@ -16,6 +16,8 @@ impl Concretizer<'_> {
         if let Some(&id) = self.class_by_key.get(&key) {
             return id;
         }
+        let previous_site = self.type_use_site;
+        self.type_use_site = previous_site.or_else(|| self.source_nominal_site(origin));
         let source = self.source.nominal_identities.class_id(origin);
         let definition = match source {
             Some(source) => self.source_class_definition(source, application),
@@ -39,6 +41,7 @@ impl Concretizer<'_> {
             concrete::MethodOwner::Class(id)
         };
         self.complete_class_definition(id, definition, &arguments, method_owner);
+        self.type_use_site = previous_site;
         id
     }
 

@@ -10,6 +10,28 @@ mod source;
 mod structs;
 
 impl Lowerer {
+    pub(super) fn decoded_nominal_pointee_requirements(
+        declaration: &hir::ImportedNominalDeclaration,
+        parameters: &[hir::TypeParamDecl],
+    ) -> Vec<hir::RequiresGcFreePointee> {
+        declaration
+            .interface
+            .declaration_details()
+            .instantiation_conditions()
+            .gc_free_pointees()
+            .arguments()
+            .iter()
+            .map(|argument| {
+                let SignatureTypeKey::Binder { depth: 0, index } = *argument else {
+                    unreachable!("decoded nominal conditions name original binders")
+                };
+                hir::RequiresGcFreePointee {
+                    type_param: parameters[index as usize].id,
+                }
+            })
+            .collect()
+    }
+
     pub(super) fn imported_nominal_type(
         &mut self,
         identity: PersistentTypeId,

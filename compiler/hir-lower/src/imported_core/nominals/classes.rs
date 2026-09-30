@@ -76,6 +76,10 @@ impl Lowerer {
             hir::LoadedClassDefinition {
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
+                    gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
+                        &declaration,
+                        &type_params,
+                    ),
                     modifier,
                     self_application,
                     type_params: type_params.clone(),

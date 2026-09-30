@@ -47,8 +47,9 @@ pub(super) fn add_interface(
             self_application: application,
             type_params: Vec::new(),
             parents,
+
+            gc_free_pointee_requirements: Vec::new(),
         },
-        gc_free_pointee_requirements: Vec::new(),
         methods: Vec::new(),
         private_methods: Vec::new(),
         properties: Vec::new(),
@@ -97,8 +98,6 @@ pub(super) fn add_generic_struct(
         owner: None,
         name: name.to_string(),
         access: hir::NominalAccess::public(),
-        gc_free_pointee_requirements: Vec::new(),
-        attributes: hir::StructAttributes::default(),
         constructors: Vec::new(),
         methods: Vec::new(),
         properties: Vec::new(),
@@ -110,6 +109,9 @@ pub(super) fn add_generic_struct(
             representation,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
+
+            gc_free_pointee_requirements: Vec::new(),
+            attributes: hir::StructAttributes::default(),
         },
     });
     assert_eq!(allocated, structure);

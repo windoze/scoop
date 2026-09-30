@@ -8,7 +8,6 @@ pub struct ClassDecl {
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub definition: ClassDefinition,
-    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     /// Source initialization metadata, in the common field table's order.
     pub fields: Vec<ClassFieldId>,
     pub properties: Vec<PropertyId>,
@@ -20,6 +19,7 @@ pub struct ClassDecl {
 /// Checked fields and parents in the original declaration's binder domain.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassDefinition {
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub modifier: ClassModifier,
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,

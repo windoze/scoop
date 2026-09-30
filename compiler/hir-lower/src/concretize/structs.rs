@@ -17,6 +17,8 @@ impl Concretizer<'_> {
         if let Some(&id) = self.struct_by_key.get(&key) {
             return id;
         }
+        let previous_site = self.type_use_site;
+        self.type_use_site = previous_site.or_else(|| self.source_nominal_site(origin));
         let source = self.source.nominal_identities.struct_id(origin);
         let definition = match source {
             Some(source) => self.source_struct_definition(source, application),
@@ -29,6 +31,7 @@ impl Concretizer<'_> {
             self.struct_source.insert(id, source);
         }
         self.complete_struct_definition(id, definition, &arguments);
+        self.type_use_site = previous_site;
         id
     }
 
@@ -128,6 +131,16 @@ impl Concretizer<'_> {
             self.structs[id].gc_free = gc_free;
             self.types[self.struct_type[&id]].gc_free = gc_free;
         }
+        let no_gc = match &self.structs[id].representation {
+            concrete::StructRepresentation::Declared { attributes, .. } => attributes.no_gc,
+            concrete::StructRepresentation::Intrinsic { .. } => false,
+        };
+        self.check_completed_no_gc_type(
+            "struct",
+            &definition.name,
+            no_gc,
+            self.structs[id].gc_free,
+        );
         let methods =
             self.request_concrete_methods(definition.methods, concrete::MethodOwner::Struct(id));
         let direct_interfaces: Vec<_> = definition

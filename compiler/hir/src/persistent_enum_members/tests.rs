@@ -32,8 +32,6 @@ fn enum_declaration() -> EnumDecl {
         name: "Choice".to_string(),
         owner: None,
         access: NominalAccess::public(),
-        gc_free_pointee_requirements: Vec::new(),
-        no_gc: false,
         methods: Vec::new(),
         properties: Vec::new(),
         derived_equality: None,
@@ -52,6 +50,9 @@ fn enum_declaration() -> EnumDecl {
             }],
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
+
+            gc_free_pointee_requirements: Vec::new(),
+            no_gc: false,
         },
     }
 }

@@ -14,6 +14,11 @@ impl Concretizer<'_> {
                         .then_some(function_id)
                 })
                 .expect("every extern declaration has one source function owner");
+            let previous_site = self.type_use_site;
+            self.type_use_site = self.source_context_site(
+                export::SourceContextSubject::Function(owner),
+                self.source.functions[owner].span,
+            );
             let source_contract = self
                 .source
                 .source_native_contracts
@@ -39,6 +44,7 @@ impl Concretizer<'_> {
                 return_type,
             });
             self.extern_map.insert(source_id, id);
+            self.type_use_site = previous_site;
         }
     }
 
@@ -46,6 +52,11 @@ impl Concretizer<'_> {
         // Allocate ids first because expressions in function bodies may refer
         // to any global regardless of declaration order.
         for (source_id, source) in self.source.globals.iter() {
+            let previous_site = self.type_use_site;
+            self.type_use_site = self.source_context_site(
+                export::SourceContextSubject::Property(source.property),
+                source.span,
+            );
             let ty = self.lower_type(source.ty, &[]);
             let storage = self.lower_global_storage(source_id, &source.storage);
             let storage_owner = self.property_storage_owner(source_id, source);
@@ -58,6 +69,7 @@ impl Concretizer<'_> {
                 span: source.span,
             });
             self.global_map.insert(source_id, id);
+            self.type_use_site = previous_site;
         }
     }
 

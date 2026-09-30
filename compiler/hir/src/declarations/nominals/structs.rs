@@ -8,10 +8,6 @@ pub struct StructDecl {
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub definition: StructDefinition,
-    /// Owner parameters that must be recursively GC-free because this
-    /// template contains a `Ptr` pointee dependency.
-    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
-    pub attributes: StructAttributes,
     pub constructors: Vec<StructConstructorId>,
     /// Member declarations in source order. Consumers follow this typed
     /// relation and never recover ownership by scanning `Module::functions`.
@@ -28,6 +24,8 @@ pub struct StructDecl {
 /// Applications retain the original declaration and substitute these fields.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructDefinition {
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
+    pub attributes: StructAttributes,
     pub self_application: StructApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub representation: StructRepresentation,

@@ -88,6 +88,9 @@ impl NominalInterfaceRecordV1 {
         validate_member_partition(&members)?;
         details.validate(kind, &constructors, &members)?;
         details
+            .instantiation_conditions()
+            .validate(kind, type_parameters.binders().len())?;
+        details
             .dispatch_order()
             .validate_kind(kind)
             .map_err(NominalInterfaceRecordBuildError::DispatchOrder)?;

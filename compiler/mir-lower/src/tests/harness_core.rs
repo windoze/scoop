@@ -24,8 +24,6 @@ impl Harness {
             owner: None,
             name: "Option".to_string(),
             access: hir::NominalAccess::public(),
-            gc_free_pointee_requirements: Vec::new(),
-            no_gc: false,
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
@@ -51,6 +49,9 @@ impl Harness {
                 ],
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+                no_gc: false,
             },
         });
         let option_self_type = hir::TypeId::from_raw((types.len() as u32).into());

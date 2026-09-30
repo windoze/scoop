@@ -20,8 +20,9 @@ impl Harness {
                 self_application,
                 type_params,
                 parents: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
             },
-            gc_free_pointee_requirements: Vec::new(),
             methods: Vec::new(),
             private_methods: Vec::new(),
             properties: Vec::new(),

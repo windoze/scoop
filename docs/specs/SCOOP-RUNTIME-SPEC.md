@@ -1,6 +1,6 @@
 # Scoop Runtime 规范
 
-字面量模式与普通正文共用完整的 typed 表达式，保存字面量的类型、原定义位置和求值位置；共有模式的 Literal field 1 改为表达式记录，当前格式为 `hir/cross-cone-interface/42`。旧 `/41` 及更早产物与缓存重建；默认值捕获的原绑定规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
+共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，当前格式为 `hir/cross-cone-interface/43`。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
 `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 

@@ -154,6 +154,7 @@ impl Loaded {
                 details.dispatch_order().clone(),
                 details.dispatch_selections().clone(),
                 primary,
+                details.instantiation_conditions().clone(),
             ),
         )
         .unwrap();

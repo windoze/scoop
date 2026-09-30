@@ -63,8 +63,6 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            gc_free_pointee_requirements: Vec::new(),
-            attributes: hir::StructAttributes::default(),
             constructors: vec![constructor],
             methods: Vec::new(),
             properties: Vec::new(),
@@ -84,6 +82,9 @@ impl Harness {
                 ),
                 interfaces,
                 interface_implementations,
+
+                gc_free_pointee_requirements: Vec::new(),
+                attributes: hir::StructAttributes::default(),
             },
         });
         let actual = self.struct_application(strukt, self_arguments);
@@ -104,8 +105,6 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            gc_free_pointee_requirements: Vec::new(),
-            attributes: hir::StructAttributes::default(),
             constructors: Vec::new(),
             methods: Vec::new(),
             properties: Vec::new(),
@@ -117,6 +116,9 @@ impl Harness {
                 representation: hir::StructRepresentation::Intrinsic(declaration),
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+                attributes: hir::StructAttributes::default(),
             },
         });
         let representation = kind.application(&[]);
@@ -157,8 +159,9 @@ impl Harness {
                 base_class: None,
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
             },
-            gc_free_pointee_requirements: Vec::new(),
             fields: Vec::new(),
             properties: Vec::new(),
             constructors: Vec::new(),

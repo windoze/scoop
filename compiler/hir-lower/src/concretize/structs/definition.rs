@@ -89,15 +89,6 @@ impl<'input> Concretizer<'input> {
 
 impl<'a> ResolvedStructDefinition<'a> {
     pub(super) fn from_dependency(source: &'a export::LoadedStructDefinition) -> Self {
-        let export::NominalSourceShapeV1::Struct(shape) =
-            source.declaration.interface.source_shape()
-        else {
-            unreachable!("a struct retains its actual declaration shape")
-        };
-        let c_layout = match shape.c_layout_policy() {
-            export::NominalCLayoutPolicyV1::Ordinary => None,
-            export::NominalCLayoutPolicyV1::CLayout { contract } => Some(contract),
-        };
         let c_abi = match source.declaration.c_abi {
             export::NativeBoundaryCAbiV1::SourceRepresentation => {
                 concrete::StructCAbi::SourceRepresentation
@@ -123,11 +114,7 @@ impl<'a> ResolvedStructDefinition<'a> {
         Self::dependency(
             &source.declaration,
             ResolvedStructRepresentation::Declared {
-                attributes: export::StructAttributes {
-                    no_gc: false,
-                    c_layout,
-                    interior_mutable: shape.interior_mutable(),
-                },
+                attributes: source.definition.attributes,
                 c_abi,
                 fields,
             },

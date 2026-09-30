@@ -1,6 +1,6 @@
 # Scoop 语言规范
 
-字面量模式与普通正文共用完整的 typed 表达式，保存字面量的类型、原定义位置和求值位置；共有模式的 Literal field 1 改为表达式记录，当前格式为 `hir/cross-cone-interface/42`。旧 `/41` 及更早产物与缓存重建；默认值捕获的原绑定规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
+共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，当前格式为 `hir/cross-cone-interface/43`。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
 `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 
@@ -1807,7 +1807,7 @@ annotation class NoGC
 
 - 用于function/method及9.1.5允许的explicit accessor/struct secondary constructor：指明该callable不会/不应与GC有任何交互——有body的callable中不读写任何ref value，也不创建任何ref type实例。唯一无body的组合是`abi = "scoop"`的top-level `@Extern` function：此时`@NoGC`是由FFI作者承担的callee contract assertion，并使其`GcEffect`取`NoGc`；省略时取`Managed`。C ABI extern本身已由C边界契约固定为GC leaf，不接受`@NoGC`这一重复且易混淆的拼写。
 - struct secondary constructor的`@NoGC`要求完整参数、构造结果、委托求值与body中的运行时值均为GC-free，`this`只能委托primary或另一个`@NoGC` secondary constructor；未标注的secondary即使body看似纯净也保持Managed合同。primary struct与enum variant的直接值组装可出现在`@NoGC`代码中，但实参求值与完整结果表示仍须满足GC-free约束。参数缺省表达式在caller求值，遵守caller的GC effect，不因callee的`@NoGC`而自动获得GC-free资格。
-- 也可用于`struct`或`enum`，作为“该concrete value type必须GC-free”的静态契约。非generic声明在字段类型解析后立即验证；generic声明本身没有GC-free真假值，每个type parameter全部resolve后的实际类型分别验证。对fully specialized enum，契约同时要求enum整体及每个variant均为GC-free。`@NoGC`不能用于class/interface，因为它们是ref type。
+- 也可用于`struct`或`enum`，作为“该concrete value type必须GC-free”的静态契约。非generic声明在字段类型解析后立即验证；generic声明本身没有GC-free真假值，每个type parameter全部resolve后的实际类型分别验证。对fully specialized enum，契约同时要求enum整体及每个variant均为GC-free。`@NoGC`不能用于class/interface，因为它们是ref type。 当前声明与依赖声明的契约相同；完整 application 只出现在签名、别名、父类型或嵌套类型中也必须满足，不能等到访问字段或执行构造才检查。泛型使用把实际影响该契约的形参条件沿既有实例化关系传播，phantom 参数不因此成为 GC-free 条件。
 - 编译期检查；不符合约束是编译错误。
 - 无自定义正文、无需初始化 ensure 且值类型为 GC-free 的普通顶层存储访问器，只有读取或写入既有存储的操作，编译器生成的 callable 使用 NoGc 合同；这使同一属性的直接访问与跨 Cone 泛型访问保留相同 GC effect。带运行时初始化、含 managed ref 或有自定义正文的访问器不据此推导 NoGc；显式正文仍按其声明的 annotation 检查。
 - generic `@NoGC` callable 可以在签名或 body 中使用类型参数；未特化的generic本身不被判为GC-free或非GC-free。每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会形成“实例化实参必须GC-free”的类型化条件，并经generic调用链向外传播；只有type parameter全部解析后的具体实例才能用concrete type的GC-free flag验证并成为`@NoGC`实例。未参与运行时表示的phantom type parameter不产生条件。

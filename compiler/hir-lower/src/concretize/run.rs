@@ -1,14 +1,14 @@
 use super::*;
 
 impl Concretizer<'_> {
-    pub(super) fn run(self) -> concrete::Module {
-        self.run_with(|_| ()).0
+    pub(super) fn run(self) -> Result<concrete::Module, Vec<scoop_ast::Diagnostic>> {
+        self.run_with(|_| ()).map(|(module, ())| module)
     }
 
     pub(super) fn run_with_entry(
         self,
         entry: export::FunctionId,
-    ) -> (concrete::Module, concrete::FunctionId) {
+    ) -> Result<(concrete::Module, concrete::FunctionId), Vec<scoop_ast::Diagnostic>> {
         self.run_with(|concretizer| {
             concretizer.intern_type(concrete::TypeKind::Any, false);
             concretizer.function_by_key
@@ -19,7 +19,7 @@ impl Concretizer<'_> {
     fn run_with<Extra>(
         mut self,
         finish: impl FnOnce(&mut Self) -> Extra,
-    ) -> (concrete::Module, Extra) {
+    ) -> Result<(concrete::Module, Extra), Vec<scoop_ast::Diagnostic>> {
         let unit = self.lower_type(self.source.unit, &[]);
         match self.core {
             export::CoreProtocols::Defined(protocols) => {
@@ -122,6 +122,9 @@ impl Concretizer<'_> {
             self.intern_type(concrete::TypeKind::Any, false);
         }
         let extra = finish(&mut self);
+        if !self.type_condition_errors.is_empty() {
+            return Err(self.type_condition_errors);
+        }
         let core_types = match &core_protocols {
             concrete::ConcreteCoreProtocols::Defined(protocols) => {
                 concrete::ConcreteCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)
@@ -218,19 +221,31 @@ impl Concretizer<'_> {
             string,
             core_protocols,
         };
-        (module, extra)
+        Ok((module, extra))
     }
 
     pub(super) fn drain_pending_callables(&mut self) {
         loop {
             if let Some(unit) = self.pending_initializations.pop_front() {
                 self.require_initialization_dependencies(unit);
-            } else if let Some((key, id)) = self.pending_functions.pop_front() {
+            } else if let Some((key, id, site)) = self.pending_functions.pop_front() {
+                let previous = self.instantiation_site;
+                let previous_use = self.type_use_site;
+                self.instantiation_site = site;
+                self.type_use_site = site;
                 let function = self.lower_function(&key);
+                self.instantiation_site = previous;
+                self.type_use_site = previous_use;
                 let slot = id.into_raw().into_u32() as usize;
                 assert!(self.function_slots[slot].replace(function).is_none());
-            } else if let Some(constructor) = self.pending_constructors.pop_front() {
+            } else if let Some((constructor, site)) = self.pending_constructors.pop_front() {
+                let previous = self.instantiation_site;
+                let previous_use = self.type_use_site;
+                self.instantiation_site = site;
+                self.type_use_site = site;
                 self.lower_pending_constructor(constructor);
+                self.instantiation_site = previous;
+                self.type_use_site = previous_use;
             } else {
                 break;
             }

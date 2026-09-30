@@ -1,0 +1,4 @@
+package consumer.nominalConditions
+import upstream.nominalConditions.*
+
+public class Invalid public constructor(public val value: Carrier<String>)

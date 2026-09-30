@@ -202,6 +202,7 @@ impl Fixture {
                 scoop_hir::NominalDispatchOrderV1::empty(PublicNominalKindV1::Class),
                 scoop_hir::CanonicalNominalDispatchSelectionsV1::empty(),
                 None,
+                scoop_hir::NominalInstantiationConditionsV1::empty(),
             ),
         )
         .unwrap();

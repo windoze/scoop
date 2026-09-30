@@ -33,8 +33,6 @@ fn structure(name: &str, fields: &[&str]) -> StructDecl {
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),
-        gc_free_pointee_requirements: Vec::new(),
-        attributes: StructAttributes::default(),
         constructors: Vec::new(),
         methods: Vec::new(),
         properties: Vec::new(),
@@ -54,6 +52,9 @@ fn structure(name: &str, fields: &[&str]) -> StructDecl {
             ),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
+
+            gc_free_pointee_requirements: Vec::new(),
+            attributes: StructAttributes::default(),
         },
     }
 }
@@ -78,8 +79,9 @@ fn class(name: &str, fields: Vec<ClassFieldId>, properties: Vec<PropertyId>) -> 
             base_class: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
+
+            gc_free_pointee_requirements: Vec::new(),
         },
-        gc_free_pointee_requirements: Vec::new(),
         fields,
         properties,
         constructors: Vec::new(),

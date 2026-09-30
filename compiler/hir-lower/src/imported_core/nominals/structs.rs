@@ -62,6 +62,22 @@ impl Lowerer {
             hir::LoadedStructDefinition {
                 declaration: Arc::clone(&declaration),
                 definition: hir::StructDefinition {
+                    gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
+                        &declaration,
+                        &type_params,
+                    ),
+                    attributes: hir::StructAttributes {
+                        no_gc: declaration
+                            .interface
+                            .declaration_details()
+                            .instantiation_conditions()
+                            .no_gc(),
+                        c_layout: match shape.c_layout_policy() {
+                            hir::NominalCLayoutPolicyV1::Ordinary => None,
+                            hir::NominalCLayoutPolicyV1::CLayout { contract } => Some(contract),
+                        },
+                        interior_mutable: shape.interior_mutable(),
+                    },
                     self_application,
                     type_params: type_params.clone(),
                     representation: hir::StructRepresentation::Declared(Vec::new()),

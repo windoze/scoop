@@ -88,8 +88,6 @@ impl Lowerer {
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
-            gc_free_pointee_requirements: Vec::new(),
-            attributes: checked.attributes,
             constructors: Vec::new(),
             methods: Vec::new(),
             properties: Vec::new(),
@@ -101,6 +99,9 @@ impl Lowerer {
                 representation,
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+                attributes: checked.attributes,
             },
         });
         self.register_nominal_identity(Owner::Struct(id), identity);

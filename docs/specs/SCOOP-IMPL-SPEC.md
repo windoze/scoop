@@ -1,6 +1,6 @@
 # Scoop 实现大纲
 
-字面量模式与普通正文共用完整的 typed 表达式，保存字面量的类型、原定义位置和求值位置；共有模式的 Literal field 1 改为表达式记录，当前格式为 `hir/cross-cone-interface/42`。旧 `/41` 及更早产物与缓存重建；默认值捕获的原绑定规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
+共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，当前格式为 `hir/cross-cone-interface/43`。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
 `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 
@@ -48,7 +48,7 @@ Strong producer 的两种产物表示从完整 LIR 各计算一次类型、safep
 
 canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。MIR callable 的 GC 检查沿结构类型递归使用已有 nominal facts；tuple 的完整参数、receiver 与结果按实际组成保留，不要求 nominal 导出。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。
 
-字段布局以完整 `ValueLayoutConstituentV1` 传递 exact 身份、目标、存储、对齐与 scan；嵌套 tuple 从实际元素递归计算并复用结果，不要求独立 layout definition。C-layout 的嵌套合同、enum niche 的真实指针种类分别随实际表示传入。字段与实例中的布局数据是内嵌值，不构成 Link 符号引用；语义依赖图只沿实际 descriptor、dispatch、shape-support 和机器 relocation 引用闭合，读取边界继续核对完整字段身份、顺序、布局与 GC 事实。
+字段布局以完整 `ValueLayoutConstituentV1` 传递 exact 身份、目标、存储、对齐与 scan；嵌套 tuple 从实际元素递归计算并复用结果，不要求独立 layout definition。C-layout 的嵌套合同、enum niche 的真实指针种类分别随实际表示传入。C-layout 只为实际嵌套 struct 查询对应的 C 布局；整数、布尔、数据指针与函数指针字段直接使用目标标量布局，不要求结构化指针拥有独立布局记录。字段与实例中的布局数据是内嵌值，不构成 Link 符号引用；语义依赖图只沿实际 descriptor、dispatch、shape-support 和机器 relocation 引用闭合，读取边界继续核对完整字段身份、顺序、布局与 GC 事实。
 
 依赖默认值的 tuple 字面量与字段投影直接实例化为完整 HIR，类型沿同一共有签名查询取得。读取边界已核对的字段索引、元素类型和默认正文在实例化时直接使用，不另以 core 类型或单一 nominal 形式限制参数。
 
@@ -233,6 +233,10 @@ struct 的字段、直接接口与既定接口实现同样保存在声明形参�
 class 同样只使用原声明身份加完整实参的 `Class` application。字段名与类型、基类、直接接口及既定接口实现保存在声明形参域的共同定义中，递归引用先取得同一 application，再完成该定义；依赖应用不复制已经替换的字段或父类型。源码的属性与构造初始化关系仅引用共同字段的位置，初始化分析追加的委托字段也进入同一字段表。String／Array／MutableArray 的既定表示、object 的原 backing class 关系及外部虚方法的定义归属按已有合同保留，类型来源不构成新的 class 种类。
 
 interface 也只使用原声明与完整实参的 `Interface` application，形参与直接父接口保存在共同定义中。依赖接口在原声明域内解码一次；继承槽的参数和结果类型按父 application 组合到该域，实际查询和具体化再代入本次完整实参，不为每个应用复制一套预替换的方法。槽身份、覆写关系与默认实现选择复用原声明记录；覆写消除按原槽声明身份进行，不直接比较定义域中未替换的宿主与使用点的实际宿主。递归签名先取得同一 application。声明位置不决定接口类型的种类，不因读取或具体化重新选择槽，也不增加普通外部实现的发射根。
+
+四类名义定义共同保存已推导的 GC-free pointee 形参条件；struct 属性和 enum 的 `@NoGC` 标记也属于共同定义。产物读取只恢复原条件，消费方在实际完整应用上代入实参，使用既有 GC 属性分析与条件传播；签名、别名、父类型、嵌套类型和默认值均遵守同一规则。字段或方法是否被访问不决定类型应用是否合法，不重新分析提供方正文，也不重放已经完成的声明检查。仅在具体化代换后形成的完整值应用，在同一次字段／payload 具体化计算出 GC 属性后检查原 `@NoGC` 契约；复用该 GC 属性，不展开第二次布局分析。普通源码位置及泛型请求的实际触发位置随既有函数／构造队列传递，诊断定位当前 Cone 的使用点；位置不参与实例身份或去重。
+
+`hir/cross-cone-interface/43` 在 `NominalDeclarationDetailsV1` 增加必需的 field 9：两字段 product，field 1 为 `@NoGC` 标记（unsigned 0=false、1=true），field 2 为 GC-free pointee 条件的 binder-use 数组。该数组只允许 depth 0 的原名义形参，按 index 严格递增且不越界；标记只允许 struct／enum 为真。普通无条件声明也保存 false 与空数组。producer 投影已检查的原条件，reader 验证格式、种类和 binder 引用；不从使用点或布局重建原 annotation，不增加来源资格。旧 `/42` payload 缺少这些必要事实，明确拒绝并重建产物及缓存；MIR／LIR 格式与 runtime ABI 保持。
 
 具体化队列的函数请求以原函数、泛型函数、访问器或生成正文身份和完整宿主／callable 实参为 key；派生相等以既定生成规则与完整宿主区分。词法 callable 的原正文身份保留其定义处 parent／path，完整实参包括继承 binder。当前或依赖的 arena 位置只用于定位记录，不进入 key；相同请求在同一队列复用。方法的宿主实参与自身实参按同一顺序组合，`Ptr<T>` 的 pointee 也属于真实宿主实参。
 

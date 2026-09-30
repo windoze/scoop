@@ -227,6 +227,18 @@ impl Lowerer {
     }
 
     pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+        let ty = self.resolve_type_ref_shape(ty_ref)?;
+        if matches!(
+            self.types[ty],
+            Type::Struct(_) | Type::Class(_) | Type::Enum(_) | Type::Interface(_)
+        ) {
+            self.nominal_type_uses
+                .push((ty, self.current_file, ty_ref.span));
+        }
+        Some(ty)
+    }
+
+    fn resolve_type_ref_shape(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         let ty = self.resolve_type_ref_unchecked(ty_ref)?;
         if !self.nominal_is_accessible(ty) {
             let name = self.type_name(ty);

@@ -61,56 +61,52 @@ impl Lowerer {
             }
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                if let Some(id) = self.source_struct_id(application.template) {
-                    self.collect_application_pointee_parameters(
-                        &self.structs[id].type_params,
-                        &self.structs[id].gc_free_pointee_requirements,
-                        &application.arguments,
-                        out,
-                    );
-                }
+                let definition = self.struct_definition(application.template);
+                self.collect_application_pointee_parameters(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                    out,
+                );
                 for &argument in &application.arguments {
                     self.collect_pointee_parameters(argument, visiting, out);
                 }
             }
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
-                if let Some(id) = self.source_class_id(application.template) {
-                    self.collect_application_pointee_parameters(
-                        &self.classes[id].type_params,
-                        &self.classes[id].gc_free_pointee_requirements,
-                        &application.arguments,
-                        out,
-                    );
-                }
+                let definition = self.class_definition(application.template);
+                self.collect_application_pointee_parameters(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                    out,
+                );
                 for &argument in &application.arguments {
                     self.collect_pointee_parameters(argument, visiting, out);
                 }
             }
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
-                if let Some(id) = self.source_interface_id(application.template) {
-                    self.collect_application_pointee_parameters(
-                        &self.interfaces[id].type_params,
-                        &self.interfaces[id].gc_free_pointee_requirements,
-                        &application.arguments,
-                        out,
-                    );
-                }
+                let definition = self.interface_definition(application.template);
+                self.collect_application_pointee_parameters(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                    out,
+                );
                 for &argument in &application.arguments {
                     self.collect_pointee_parameters(argument, visiting, out);
                 }
             }
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                if let Some(id) = self.source_enum_id(application.template) {
-                    self.collect_application_pointee_parameters(
-                        &self.enums[id].type_params,
-                        &self.enums[id].gc_free_pointee_requirements,
-                        &application.arguments,
-                        out,
-                    );
-                }
+                let definition = self.enum_definition(application.template);
+                self.collect_application_pointee_parameters(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                    out,
+                );
                 for &argument in &application.arguments {
                     self.collect_pointee_parameters(argument, visiting, out);
                 }

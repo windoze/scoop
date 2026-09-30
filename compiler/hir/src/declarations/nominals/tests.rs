@@ -69,8 +69,6 @@ fn enum_declaration(
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),
-        gc_free_pointee_requirements: Vec::new(),
-        no_gc: false,
         methods: Vec::new(),
         properties: Vec::new(),
         derived_equality: None,
@@ -82,6 +80,9 @@ fn enum_declaration(
             variants,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
+
+            gc_free_pointee_requirements: Vec::new(),
+            no_gc: false,
         },
     }
 }
@@ -95,8 +96,6 @@ fn struct_declaration(
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),
-        gc_free_pointee_requirements: Vec::new(),
-        attributes: StructAttributes::default(),
         constructors: Vec::new(),
         methods: Vec::new(),
         properties: Vec::new(),
@@ -108,6 +107,9 @@ fn struct_declaration(
             representation,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
+
+            gc_free_pointee_requirements: Vec::new(),
+            attributes: StructAttributes::default(),
         },
     }
 }

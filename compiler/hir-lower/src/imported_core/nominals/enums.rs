@@ -62,6 +62,15 @@ impl Lowerer {
             hir::LoadedEnumDefinition {
                 declaration: Arc::clone(&declaration),
                 definition: hir::EnumDefinition {
+                    gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
+                        &declaration,
+                        &type_params,
+                    ),
+                    no_gc: declaration
+                        .interface
+                        .declaration_details()
+                        .instantiation_conditions()
+                        .no_gc(),
                     self_application,
                     type_params: type_params.clone(),
                     variants: Vec::new(),

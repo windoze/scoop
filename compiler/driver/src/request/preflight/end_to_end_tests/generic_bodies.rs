@@ -16,6 +16,7 @@ mod iteration;
 mod machine;
 mod members;
 mod native_calls;
+mod nominal_conditions;
 mod nominals;
 mod options;
 mod parents;

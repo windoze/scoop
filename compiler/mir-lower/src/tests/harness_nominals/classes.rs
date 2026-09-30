@@ -172,8 +172,9 @@ impl Harness {
                 base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
                 interfaces,
                 interface_implementations,
+
+                gc_free_pointee_requirements: Vec::new(),
             },
-            gc_free_pointee_requirements: Vec::new(),
             fields,
             properties,
             constructors: vec![constructor_id],

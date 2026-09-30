@@ -1,0 +1,3 @@
+span=72..146
+expression=public class Invalid public constructor(public val value: Carrier<String>)
+`@NoGC` struct `Scalar` specialization is not GC-free because it directly or indirectly contains a ref type

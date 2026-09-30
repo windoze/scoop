@@ -44,7 +44,8 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
     )));
 
     let export = executable_output(source, entry);
-    let concrete = scoop_hir_lower::concretize_output(&export);
+    let concrete =
+        scoop_hir_lower::concretize_output(&export).expect("concrete type applications are valid");
     let module = crate::lower(&concrete)
         .expect("test LocalConcrete HIR carries locally defined core protocols");
     let (_, bridge) = module
@@ -295,7 +296,8 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     .unwrap();
 
     let source = executable_output(source, entry);
-    let concrete = scoop_hir_lower::concretize_output(&source);
+    let concrete =
+        scoop_hir_lower::concretize_output(&source).expect("concrete type applications are valid");
     let concrete_reference = concrete
         .module()
         .callable_references

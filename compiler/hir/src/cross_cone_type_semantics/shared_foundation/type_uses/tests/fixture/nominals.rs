@@ -85,6 +85,7 @@ impl Artifact {
             dispatch,
             CanonicalNominalDispatchSelectionsV1::empty(),
             None,
+            crate::NominalInstantiationConditionsV1::empty(),
         );
         let nominal = NominalInterfaceRecordV1::try_new(
             SourceNominalId::Concrete(owner),

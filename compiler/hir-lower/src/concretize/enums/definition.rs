@@ -3,6 +3,7 @@ use super::*;
 pub(super) struct ResolvedEnumDefinition<'a> {
     pub origin: export::HirNominalIdentity,
     pub name: String,
+    pub no_gc: bool,
     pub owner: Option<concrete::NominalOwner>,
     pub variants: Vec<ResolvedEnumVariant<'a>>,
     pub interfaces: &'a [export::TypeId],
@@ -68,6 +69,7 @@ impl<'input> Concretizer<'input> {
         ResolvedEnumDefinition {
             origin: self.source.nominal_identities[id].clone(),
             name: self.source_nominal_name(&declaration.name, declaration.owner),
+            no_gc: declaration.no_gc,
             owner: self.lower_nominal_owner(declaration.owner),
             variants,
             interfaces: &declaration.interfaces,
@@ -83,6 +85,7 @@ impl<'a> ResolvedEnumDefinition<'a> {
         Self {
             origin: export::HirNominalIdentity::Source(source.declaration.identity.clone()),
             name: source.declaration.name().to_owned(),
+            no_gc: source.definition.no_gc,
             owner: None,
             variants: source
                 .definition
@@ -107,7 +110,12 @@ impl<'a> ResolvedEnumDefinition<'a> {
             interfaces: &source.definition.interfaces,
             interface_implementations: &source.definition.interface_implementations,
             methods: &[],
-            span: scoop_ast::Span::new(0, 0),
+            span: scoop_ast::Span::new(
+                u32::try_from(source.declaration.origin.origin().span().start_byte())
+                    .expect("decoded spans fit HIR"),
+                u32::try_from(source.declaration.origin.origin().span().end_byte())
+                    .expect("decoded spans fit HIR"),
+            ),
         }
     }
 }

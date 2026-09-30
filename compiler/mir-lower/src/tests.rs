@@ -50,7 +50,8 @@ impl TestExecutableEntry for hir::LocalConcreteHirOutput {
 }
 
 fn lower(module: &hir::ExportHirOutput) -> mir::Module {
-    let concrete = scoop_hir_lower::concretize_output(module);
+    let concrete =
+        scoop_hir_lower::concretize_output(module).expect("concrete type applications are valid");
     let output_kind = concrete.output_kind().clone();
     let materialization = concrete.materialization().clone();
     let mut concrete_module = concrete.into_module();

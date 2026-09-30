@@ -59,7 +59,7 @@ pub(super) fn verify(
     assert!(matches!(
         error.kind(),
         WireErrorKind::InvalidLength {
-            expected: 8,
+            expected: 9,
             actual: 6
         }
     ));

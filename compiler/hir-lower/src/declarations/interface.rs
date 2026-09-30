@@ -72,8 +72,9 @@ impl Lowerer {
                 self_application,
                 type_params: type_params.clone(),
                 parents: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
             },
-            gc_free_pointee_requirements: Vec::new(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
             private_methods: Vec::new(),

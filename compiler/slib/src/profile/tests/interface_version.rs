@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v42_preserves_literal_expression_origins() {
+fn source_interface_v43_retains_nominal_instantiation_conditions() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        42,
+        43,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,

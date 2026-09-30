@@ -211,7 +211,7 @@ fn concretization_rebinds_setup_and_body_jumps_to_its_fresh_target() {
         span: sp(),
     });
 
-    let concrete = concretize_export(&export);
+    let concrete = concretize_export(&export).expect("concrete type applications are valid");
     let hir::concrete::StatementKind::While {
         target,
         condition_setup,
@@ -269,7 +269,7 @@ fn concretization_rejects_a_non_innermost_loop_target() {
         span: sp(),
     });
 
-    let _ = concretize_export(&export);
+    let _ = concretize_export(&export).expect("concrete type applications are valid");
 }
 
 #[test]

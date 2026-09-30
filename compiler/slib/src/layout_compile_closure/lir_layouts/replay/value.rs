@@ -63,8 +63,14 @@ impl Replay<'_> {
                             return Err(Error::CLayout(source.exact()));
                         }
                         let mut dependencies = self.reserve(fields.len())?;
-                        for field in &fields {
-                            dependencies.push(self.value_dependency(field.value.exact())?);
+                        for field in contract.layout().fields() {
+                            if let scoop_identity::CanonicalCStorageType::Struct {
+                                exact_type,
+                                ..
+                            } = field.storage()
+                            {
+                                dependencies.push(self.value_dependency(exact_type)?);
+                            }
                         }
                         let mut nested = self.reserve(dependencies.len())?;
                         nested.extend(dependencies.iter().map(AsRef::as_ref));

@@ -8,8 +8,6 @@ pub struct EnumDecl {
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
     pub definition: EnumDefinition,
-    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
-    pub no_gc: bool,
     pub methods: Vec<FunctionId>,
     pub properties: Vec<PropertyId>,
     pub derived_equality: Option<FunctionId>,
@@ -20,6 +18,8 @@ pub struct EnumDecl {
 /// binder domain. Every application substitutes this same definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumDefinition {
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
+    pub no_gc: bool,
     pub self_application: EnumApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub variants: Vec<Variant>,

@@ -149,7 +149,8 @@ impl Concretizer<'_> {
         self.function_keys.push(key.clone());
         self.function_sources.push(source);
         self.function_by_key.insert(key.clone(), id);
-        self.pending_functions.push_back((key, id));
+        self.pending_functions
+            .push_back((key, id, self.type_use_site));
         if emittable {
             self.emitted_functions.push(id);
         }

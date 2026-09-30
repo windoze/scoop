@@ -1,0 +1,4 @@
+package consumer.nominalConditions
+import upstream.nominalConditions.*
+
+public fun wrong(value: Phantom<Pointer<Managed>>): Unit = Unit

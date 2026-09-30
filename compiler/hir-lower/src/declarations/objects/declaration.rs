@@ -144,8 +144,9 @@ impl Lowerer {
                 base_class: None,
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
             },
-            gc_free_pointee_requirements: Vec::new(),
             fields: Vec::new(),
             properties: Vec::new(),
             constructors: Vec::new(),

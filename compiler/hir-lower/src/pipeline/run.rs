@@ -517,8 +517,8 @@ impl Lowerer {
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
         self.check_generic_recursion();
-        self.validate_gc_free_pointee_requirements();
-        self.check_no_gc_types();
+        let type_sites = self.validate_gc_free_pointee_requirements();
+        self.check_no_gc_types(type_sites);
         self.check_no_gc_functions();
 
         self.warnings.sort_by_key(|diagnostic| {

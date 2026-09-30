@@ -15,7 +15,9 @@ use super::occurrences::{
 use super::{PointeeApplicationOccurrence, PointeeRequirementCallSite, RequirementContext};
 
 impl Lowerer {
-    pub(crate) fn validate_gc_free_pointee_requirements(&mut self) {
+    pub(crate) fn validate_gc_free_pointee_requirements(
+        &mut self,
+    ) -> Vec<(hir::TypeId, usize, scoop_ast::Span)> {
         let default_occurrences = self.default_pointee_application_occurrences();
         let concrete_default_occurrences = self.default_concrete_pointee_application_occurrences();
         let call_sites = self.pointee_requirement_call_sites();
@@ -31,7 +33,7 @@ impl Lowerer {
         }
         self.validate_callable_gc_free_pointee_requirements(&call_sites);
         self.validate_pointer_type_uses();
-        self.validate_concrete_pointee_applications(concrete_default_occurrences);
+        self.validate_concrete_pointee_applications(concrete_default_occurrences)
     }
 
     fn validate_callable_gc_free_pointee_requirements(
@@ -67,8 +69,12 @@ impl Lowerer {
     fn validate_concrete_pointee_applications(
         &mut self,
         mut occurrences: Vec<PointeeApplicationOccurrence>,
-    ) {
+    ) -> Vec<(hir::TypeId, usize, scoop_ast::Span)> {
         occurrences.extend(self.pointee_application_occurrences());
+        let type_sites = occurrences
+            .iter()
+            .map(|occurrence| (occurrence.ty, occurrence.file, occurrence.span))
+            .collect();
         let mut reported = HashSet::new();
         for PointeeApplicationOccurrence {
             ty,
@@ -121,6 +127,7 @@ impl Lowerer {
                 ),
             );
         }
+        type_sites
     }
 
     fn pointee_type_is_valid(&self, ty: hir::TypeId, visiting: &mut HashSet<hir::TypeId>) -> bool {
@@ -134,56 +141,48 @@ impl Lowerer {
             hir::Type::Ptr(pointee) => self.pointee_type_is_valid(*pointee, visiting),
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                self.source_struct_id(application.template)
-                    .is_none_or(|id| {
-                        self.application_pointee_is_valid(
-                            &self.structs[id].type_params,
-                            &self.structs[id].gc_free_pointee_requirements,
-                            &application.arguments,
-                        )
-                    })
-                    && application
-                        .arguments
-                        .iter()
-                        .all(|argument| self.pointee_type_is_valid(*argument, visiting))
+                let definition = self.struct_definition(application.template);
+                self.application_pointee_is_valid(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                ) && application
+                    .arguments
+                    .iter()
+                    .all(|argument| self.pointee_type_is_valid(*argument, visiting))
             }
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
-                self.source_class_id(application.template).is_none_or(|id| {
-                    self.application_pointee_is_valid(
-                        &self.classes[id].type_params,
-                        &self.classes[id].gc_free_pointee_requirements,
-                        &application.arguments,
-                    )
-                }) && application
+                let definition = self.class_definition(application.template);
+                self.application_pointee_is_valid(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                ) && application
                     .arguments
                     .iter()
                     .all(|argument| self.pointee_type_is_valid(*argument, visiting))
             }
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
-                self.source_interface_id(application.template)
-                    .is_none_or(|id| {
-                        self.application_pointee_is_valid(
-                            &self.interfaces[id].type_params,
-                            &self.interfaces[id].gc_free_pointee_requirements,
-                            &application.arguments,
-                        )
-                    })
-                    && application
-                        .arguments
-                        .iter()
-                        .all(|argument| self.pointee_type_is_valid(*argument, visiting))
+                let definition = self.interface_definition(application.template);
+                self.application_pointee_is_valid(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                ) && application
+                    .arguments
+                    .iter()
+                    .all(|argument| self.pointee_type_is_valid(*argument, visiting))
             }
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                self.source_enum_id(application.template).is_none_or(|id| {
-                    self.application_pointee_is_valid(
-                        &self.enums[id].type_params,
-                        &self.enums[id].gc_free_pointee_requirements,
-                        &application.arguments,
-                    )
-                }) && application
+                let definition = self.enum_definition(application.template);
+                self.application_pointee_is_valid(
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
+                    &application.arguments,
+                ) && application
                     .arguments
                     .iter()
                     .all(|argument| self.pointee_type_is_valid(*argument, visiting))

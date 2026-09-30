@@ -1,6 +1,7 @@
 use super::*;
 mod expression;
 mod pattern;
+mod source_location;
 
 #[derive(Default)]
 pub(super) struct LoopRemap {
@@ -26,6 +27,14 @@ impl Concretizer<'_> {
         let mut locals = Arena::new();
         let mut local_map = Vec::with_capacity(source.len());
         for (source_id, source_local) in source.iter() {
+            let previous = self.type_use_site;
+            let site = match source_local.definition {
+                export::LocalValueDefinitionSite::Source(origin) => {
+                    self.current_source_site(origin.into())
+                }
+                export::LocalValueDefinitionSite::Synthetic => None,
+            };
+            self.type_use_site = self.instantiation_site.or(site).or(previous);
             let id = locals.alloc(concrete::Local {
                 binding: concrete::BindingId::from_raw(source_local.binding.into_raw()),
                 selector: source_local.selector.clone(),
@@ -34,6 +43,7 @@ impl Concretizer<'_> {
                 ty: self.lower_type(source_local.ty, substitution),
                 mutable: source_local.mutable,
             });
+            self.type_use_site = previous;
             assert_eq!(id.into_raw(), source_id.into_raw());
             local_map.push(id);
         }

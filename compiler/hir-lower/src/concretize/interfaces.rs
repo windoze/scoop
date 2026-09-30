@@ -23,6 +23,8 @@ impl Concretizer<'_> {
         if let Some(&id) = self.interface_by_key.get(&(origin, arguments.clone())) {
             return id;
         }
+        let previous_site = self.type_use_site;
+        self.type_use_site = previous_site.or_else(|| self.source_nominal_site(origin));
         let source = self.source;
         let definition = if let Some(id) = source.nominal_identities.interface_id(origin) {
             let declaration = &source.interfaces[id];
@@ -60,6 +62,7 @@ impl Concretizer<'_> {
         };
         let id = self.allocate_interface_definition(&definition, arguments.clone());
         self.complete_interface_definition(id, definition, &arguments);
+        self.type_use_site = previous_site;
         id
     }
 

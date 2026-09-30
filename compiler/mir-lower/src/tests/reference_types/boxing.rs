@@ -23,7 +23,8 @@ fn boxing_only_materializes_the_payload_class() {
         },
     );
     let export = h.finish(main);
-    let concrete = scoop_hir_lower::concretize_output(&export);
+    let concrete =
+        scoop_hir_lower::concretize_output(&export).expect("concrete type applications are valid");
     let module = lower(&export);
 
     let boxed = boxed_class(&module, "box<S>");
@@ -321,7 +322,8 @@ fn generic_nominal_and_tuple_boxes_use_their_exact_odr_roots() {
         },
     );
     let export = h.finish(main);
-    let concrete = scoop_hir_lower::concretize_output(&export);
+    let concrete =
+        scoop_hir_lower::concretize_output(&export).expect("concrete type applications are valid");
     let module = lower(&export);
 
     let boxed_for = |predicate: fn(&mir::Type) -> bool| {

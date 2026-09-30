@@ -61,6 +61,14 @@ impl Concretizer<'_> {
     }
 
     pub(super) fn lower_function(&mut self, key: &FunctionKey) -> PendingFunction {
+        if self.type_use_site.is_none()
+            && let FunctionSource::Local(id) = self.function_source(key)
+        {
+            self.type_use_site = self.source_context_site(
+                export::SourceContextSubject::Function(id),
+                self.source.functions[id].span,
+            );
+        }
         let definition = self.resolved_function_definition(key);
         let arguments = self.function_key_arguments(key);
         let (kind, local_map) = match definition.implementation {

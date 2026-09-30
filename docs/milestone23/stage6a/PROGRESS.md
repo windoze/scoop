@@ -310,3 +310,12 @@
 - 新增 `m23-shared-interface-definitions` 两组正例、四个诊断反例及六份阶段快照，覆盖递归签名、交换／恢复参数的多层继承、菱形、默认参数、class／struct 实现、bound、装箱、Array／MutableArray、别名和引用／Int／Unit／复合值。源码移走后再次发布和普通／移动 GC 运行通过，关闭全部更新开关复验通过；单元同时验证 loaded 定义唯一、递归 self application 和继承签名仍在原 binder 域。
 - 全仓 fmt／clippy 无警告；859 项 HIR、1322 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。17 组不同真实产物回归全部覆盖成功，包括完整 core 三组 MIR／LIR 导出闭包、四类名义定义、成员、构造、默认值、属性、数组、抽象实现、本地接口继承与限定 super。仅一份旧 HIR 快照的两处函数类型 arena 编号变化，核对更新后完整组严格复验通过。日志前缀 `/tmp/scoop-m23-6a-shared-interface-types-`，结果见 `unit.log`、`build.log` 和 `verified-artifacts.json`。
 - 接口解码、具体化主流程、继承查询和声明模块分别为 185、158、89、154 行。确认没有 cargo／rustc 占用后清理 740.6 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未改变 wire payload 或 runtime ABI；完整名义条件、成员候选和正文存储继续按 6a 设计迁移。
+
+## 共同名义定义保留 NoGC 与 pointee 条件
+
+- struct／enum／class／interface 的共同定义保留原声明的 GC-free pointee 条件，struct 的完整属性与 enum 的 NoGC 标记不再依赖来源记录。读入时在原 binder 域中解码一次，前端按实际类型使用检查；仅在泛型代换后形成的应用复用具体化已经计算的 GC 属性，错误沿原请求队列定位实际调用或类型使用，没有重算布局或增加通用条件框架。
+- 名义声明 wire 新增必需的 NoGC 与原 binder 条件记录，HIR `cross-cone-interface` 从 `/42` 升至 `/43`，同步三份 spec、required profile、固定向量及旧版本拒绝测试。条件往返保留原 binder，并拒绝错误深度、越界、重复、非 binder 及缺失字段；runtime／MIR／LIR ABI 未改变。
+- 新增 `m23-shared-nominal-conditions` 两组正例、16 个反例、六份阶段快照与 16 份诊断快照，覆盖默认值、局部与泛型正文、别名、嵌套包装、class／enum 根、Phantom、指针、NoGC 与 consumer-local 类型。源码移走后的再次发布和普通／移动 GC 运行通过，所有新快照关闭更新开关复验通过。
+- 真实 CLayout 指针组合揭示 producer 与 reader 对每个字段强求独立布局的错误。两端改为按既有 C ABI 合同仅收集实际嵌套 C struct 的布局；标量与指针沿原字段布局处理，保留原有边界核对。修复后新增组合及四组既有指针／构造回归均严格通过。
+- 全仓 fmt／clippy 无警告；862 项 HIR、1324 项 HIR lowering、114 项 MIR lowering、584 项 slib、466 项 LIR 与 142 项 LIR lowering 单元测试均已覆盖通过。34 组不同真实产物回归全部关闭更新开关成功，其中包含完整 core 的 22 组；43 份既有快照经核对只修改 `artifact=` 摘要，机器代码、runtime 和布局输出均保持。最终证据前缀 `/tmp/scoop-m23-6a-shared-nominal-conditions-`，严格产物汇总为 `verified-artifacts.json`。
+- 从原 813 行的具体化表达式模块拆出 116 行的来源位置处理，主文件降至 700 行；新的具体化条件、前端 NoGC、wire 条件模块分别为 76、119、126 行。确认没有 cargo／rustc 占用后清理约 2220.4 MiB 旧增量缓存，继续复用 `target/m23-6a`。共同可调用签名、完整候选与正文存储继续按 6a 设计迁移。

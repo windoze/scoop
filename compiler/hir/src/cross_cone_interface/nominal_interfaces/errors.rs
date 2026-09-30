@@ -10,6 +10,10 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalInterfaceRecordBuildError {
+    NoGcKind(PublicNominalKindV1),
+    PointeeConditionBinder {
+        position: usize,
+    },
     DispatchOrder(super::NominalDispatchOrderError),
     Modality {
         kind: PublicNominalKindV1,
@@ -32,6 +36,14 @@ pub enum NominalInterfaceRecordBuildError {
 impl fmt::Display for NominalInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NoGcKind(kind) => write!(
+                formatter,
+                "{kind:?} cannot carry a NoGC value-type contract"
+            ),
+            Self::PointeeConditionBinder { position } => write!(
+                formatter,
+                "nominal pointee condition {position} must name an original parameter in strictly increasing order"
+            ),
             Self::DispatchOrder(error) => error.fmt(formatter),
             Self::Modality { kind, modality } => write!(
                 formatter,

@@ -493,17 +493,20 @@ pub(crate) struct SourceFunctionDeclaration {
 /// Convert an already checked export-side graph into the local concrete graph.
 /// Kept public so stage-boundary tests can feed handcrafted checked HIR through
 /// the same fixed-point pass as the production pipeline.
-pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
+pub fn concretize_export(
+    export: &hir::ExportHir,
+) -> Result<hir::LocalConcreteHir, Vec<ast::Diagnostic>> {
     concretize::lower(export)
 }
 
 /// Concretize a checked, output-sealed Export HIR graph while translating the
 /// output branch into the LocalConcrete HIR id domain.
-pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHirOutput {
+pub fn concretize_output(
+    export: &hir::ExportHirOutput,
+) -> Result<hir::LocalConcreteHirOutput, Vec<ast::Diagnostic>> {
     let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(export)
         .expect("checked HIR public bindings have valid nominal identities");
     concretize::lower_output(export, &requirements)
-        .expect("validated Export HIR has complete automatic nominal roots")
 }
 
 #[derive(Clone)]
@@ -736,6 +739,7 @@ pub(crate) struct Lowerer {
     pub(crate) ffi_core: Option<hir::FfiCore>,
     pub(crate) foreign_callback_core: Option<hir::ForeignCallbackCore>,
     pub(crate) allow_deferred_fun_ptr: bool,
+    pub(crate) nominal_type_uses: Vec<(TypeId, usize, Span)>,
     pub(crate) pointer_type_uses: Vec<(TypeId, usize, Span)>,
     pub(crate) fun_ptr_type_uses: Vec<(TypeId, usize, Span)>,
     /// Interface member functions in declaration order. Class/struct/enum
