@@ -1,0 +1,29 @@
+package consumer.interfaces
+import upstream.interfaces.Values
+
+private interface Reversed<A, B>: Values<B, A> {}
+private interface Restored<A, B>: Reversed<B, A> {}
+private interface Diamond<A, B>: Restored<A, B>, Values<A, B> {}
+
+private class Local<A, B>(private val a: A, private var b: B): Diamond<A, B> {
+    public override val first: A
+        get() = this.a
+    public override var second: B
+        get() = this.b
+        set(value) { this.b = value }
+}
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val local: Diamond<T, Unit> = Local(value, Unit)
+    local.second = Unit
+    val restored: Restored<T, Unit> = local
+    if (restored.total(read, { unused -> 0 }) != 42) { return 1 }
+    val reversed: Reversed<Unit, T> = local
+    return reversed.total(read, { unused -> 0 })
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

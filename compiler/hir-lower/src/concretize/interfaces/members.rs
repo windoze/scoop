@@ -1,48 +1,27 @@
+use std::collections::HashSet;
+
 use super::*;
 
-pub(super) enum InterfaceMethodInstance {
-    Local {
-        member: export::InterfaceMethodId,
-        arguments: Vec<concrete::TypeId>,
-    },
-    Imported(Box<export::ImportedInterfaceMethod>),
+pub(super) struct InterfaceMethodInstance<'a> {
+    pub method: ResolvedInterfaceMethod<'a>,
+    pub arguments: Vec<concrete::TypeId>,
 }
 
-impl InterfaceMethodInstance {
-    pub(super) fn slot(&self, source: &export::Module) -> scoop_identity::PersistentDispatchSlotId {
-        match self {
-            Self::Local { member, .. } => source.dispatch_slot_identities[*member].id(),
-            Self::Imported(method) => method.slot.id(),
-        }
-    }
-}
-
-impl Concretizer<'_> {
+impl<'input> Concretizer<'input> {
     pub(super) fn interface_method_instances(
         &mut self,
         ty: export::TypeId,
         substitution: &[concrete::TypeId],
-    ) -> Vec<InterfaceMethodInstance> {
+    ) -> Vec<InterfaceMethodInstance<'input>> {
         let mut result = Vec::new();
-        let mut seen = Vec::new();
-        self.collect_interface_method_instances(ty, substitution, &mut seen, &mut result);
-        let mut suppressed = std::collections::HashSet::new();
-        for member in &result {
-            match member {
-                InterfaceMethodInstance::Local { member, .. } => {
-                    for reference in &self.source.interface_methods[*member].overrides {
-                        suppressed.insert(self.interface_reference_slot(*reference));
-                    }
-                }
-                InterfaceMethodInstance::Imported(method) => {
-                    suppressed.extend(method.overrides.iter().copied());
-                }
-            }
-        }
-        let mut slots = std::collections::HashSet::new();
-        result.retain(|member| {
-            let slot = member.slot(self.source);
-            !suppressed.contains(&slot) && slots.insert(slot)
+        self.collect_interface_method_instances(ty, substitution, &mut HashSet::new(), &mut result);
+        let suppressed = result
+            .iter()
+            .flat_map(|instance| instance.method.overrides.iter().copied())
+            .collect::<HashSet<_>>();
+        let mut slots = HashSet::new();
+        result.retain(|instance| {
+            !suppressed.contains(&instance.method.slot) && slots.insert(instance.method.slot)
         });
         result
     }
@@ -63,48 +42,53 @@ impl Concretizer<'_> {
         &mut self,
         ty: export::TypeId,
         substitution: &[concrete::TypeId],
-        seen: &mut Vec<(export::TypeId, Vec<concrete::TypeId>)>,
-        out: &mut Vec<InterfaceMethodInstance>,
+        seen: &mut HashSet<(export::SourceNominalId, Vec<concrete::TypeId>)>,
+        out: &mut Vec<InterfaceMethodInstance<'input>>,
     ) {
-        match self.source.types[ty].clone() {
+        let source = self.source;
+        match &source.types[ty] {
             export::Type::Interface(application) => {
-                let application = self.source.interface_applications[application].clone();
+                let application = &source.interface_applications[*application];
                 let arguments = application
                     .arguments
                     .iter()
                     .map(|argument| self.lower_type(*argument, substitution))
                     .collect::<Vec<_>>();
-                let declaration = self.source.interfaces[application.template].clone();
-                let key = (
-                    self.source.interface_applications[declaration.self_application].canonical_type,
-                    arguments.clone(),
-                );
-                if seen.contains(&key) {
+                let declaration = &source.interfaces[application.template];
+                let origin = source.nominal_identities[application.template].declaration_id();
+                if !seen.insert((origin, arguments.clone())) {
                     return;
                 }
-                seen.push(key);
-                for parent in declaration.parents {
+                for &parent in &declaration.parents {
                     self.collect_interface_method_instances(parent, &arguments, seen, out);
                 }
-                out.extend(declaration.methods.into_iter().map(|member| {
-                    InterfaceMethodInstance::Local {
-                        member,
-                        arguments: arguments.clone(),
-                    }
-                }));
+                out.extend(
+                    declaration
+                        .methods
+                        .iter()
+                        .map(|&member| InterfaceMethodInstance {
+                            method: self.source_interface_method(member),
+                            arguments: arguments.clone(),
+                        }),
+                );
             }
             export::Type::ImportedInterface(interface) => {
-                let key = (ty, Vec::new());
-                if seen.contains(&key) {
+                let arguments = interface
+                    .arguments
+                    .iter()
+                    .map(|argument| self.lower_type(*argument, substitution))
+                    .collect::<Vec<_>>();
+                if !seen.insert((interface.declaration.owner(), arguments)) {
                     return;
                 }
-                seen.push(key);
                 out.extend(
                     interface
                         .methods
                         .iter()
-                        .cloned()
-                        .map(|method| InterfaceMethodInstance::Imported(Box::new(method))),
+                        .map(|method| InterfaceMethodInstance {
+                            method: ResolvedInterfaceMethod::from_dependency(method),
+                            arguments: substitution.to_vec(),
+                        }),
                 );
             }
             _ => unreachable!("interface members are reached through interface types"),

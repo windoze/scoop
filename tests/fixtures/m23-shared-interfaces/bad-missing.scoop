@@ -1,0 +1,8 @@
+import upstream.interfaces.Values
+
+private class Missing: Values<Int, Unit> {
+    public override val first: Int
+        get() = 42
+}
+
+public fun result(): Int = 0

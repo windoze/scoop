@@ -7,15 +7,15 @@ Module
         Local $dependency.receiver : DefaultOwner
     val local2
       ImportedDependencyCall #2 : Long
-        Local $dependency.default.local.1 : FirstChoice
+        Local $default.local.1 : FirstChoice
     val local3
       IntegerLiteral 1 : Long
     val local4
-      Local $dependency.default.local.3 : Long
+      Local $default.local.3 : Long
     val local5
       IntegerOperation long.add <no-gc> : Long
-        Local $dependency.default.local.2 : Long
-        Local $dependency.default.local.4 : Long
+        Local $default.local.2 : Long
+        Local $default.local.4 : Long
     val local6
       ImportedDependencyCall #3 : Long
         Local $dependency.receiver : DefaultOwner

@@ -224,3 +224,11 @@
 - 再次发布组合揭示同一静态存储在本地与依赖重定位中编码不同，导致机器对象相同却被 ODR 比较拒绝。按三份 spec 与 Stage 7 设计先修合同：所有 Strong shape 重定位共用实体与定义角色编码，provider 仍保留在普通依赖引用和符号连接中；没有放宽 ODR 合并或复制状态。复用已有 `definition_parts`，删除旧 tag 12 分支；link-identity-closure 从 `/6` 升至 `/7`，更新 required profile 与固定向量，保留旧版本明确拒绝测试。
 - 全仓 fmt／clippy 通过，1316 项 HIR lowering、466 项 LIR、584 项 slib 单元测试均已覆盖成功。14 项不同非 core 真实产物回归及完整 core 22 项均关闭更新开关通过，覆盖继承、成员、构造、初始化、委托、数组与 Link 损坏产物。core 新变化的 47 份快照只含 artifact／Code／runtime 摘要；函数顺序、共同字段显示和默认局部值名称的既有快照也已按完整组复验。
 - 最终日志前缀 `/tmp/scoop-m23-6a-class-odr-`，结果见 `unit-verified.log`、`updated-verified.log`、`other-verified.log` 和 `core-verified.log`；原 HIR lowering 验证见 `/tmp/scoop-m23-6a-class-definitions-`。确认没有 cargo／rustc 占用后清理约 375.5 MiB 旧增量缓存，继续复用 `target/m23-6a`。完整 nominal application、候选与正文存储继续迁移，本批不代表 6a 完成。
+
+## 共同 interface 具体化与继承参数替换
+
+- interface 实例按原声明和完整实参复用，family 按原声明复用。当前与依赖定义共用父类型、原槽、覆写去重和具体方法签名生成；声明读取只适配已有记录，保留普通外部默认实现的定义归属。删除依赖 interface 具体化及空的来源专用 nominal 模块，主流程、声明读取、继承查询分别为 169、112、97 行。
+- 继承遍历保存到达各方法声明时的完整实参，修复本地父接口交换参数后仍以最外层实参替换外来方法的错误。父链和菱形去重使用原 slot 与完整 application，不重做 override 选择，也不新增物化根。
+- 新增 `m23-shared-interfaces` 两组正例、六份阶段快照及两个反例，覆盖父接口参数交换、恢复顺序、菱形继承、默认方法、getter／setter、缺失实现与错误返回类型。源码移走后再次发布，下游本地类型、引用／Int／Unit 和普通／移动 GC 均通过；新快照关闭更新开关复验通过。
+- 全仓 fmt／clippy、1317 项 HIR lowering 单元测试及 13 项不同真实产物回归全部覆盖成功，包括普通值／primitive 接口、抽象访问器、限定 super、泛型成员、三类 nominal 实例及实际重建 core 声明。四份旧 super 快照仅同步共同字段显示和默认局部值名称，完整组关闭更新开关复验通过。
+- 日志前缀 `/tmp/scoop-m23-6a-interface-definitions-`，结果见 `unit.log`、`shared-verified.log`、`artifacts.log` 与 `super-verified.log`。本批统一接口的实际具体化算法；完整前端声明／application 和正文的来源存储继续按设计迁移，wire payload 与 runtime ABI 未改变。

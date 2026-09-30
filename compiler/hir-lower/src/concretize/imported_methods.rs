@@ -94,7 +94,7 @@ impl Concretizer<'_> {
             {
                 Some(
                     *self
-                        .imported_interfaces
+                        .interface_by_key
                         .get(&(owner, Vec::new()))
                         .expect("a default implementation retains its declaring interface"),
                 )

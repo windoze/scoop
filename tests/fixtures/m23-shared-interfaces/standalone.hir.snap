@@ -1,0 +1,98 @@
+Module
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      Local value : T0
+    val local3
+      UnitLiteral : Unit
+    val local4
+      Local $dependency.argument.0 : T0
+    val local5
+      Local $dependency.argument.1 : Unit
+    val local6
+      ReferenceUpcast : Values<T0, Unit>
+        ImportedConstructorInit Remote : Remote<T0, Unit>
+          Local $dependency.parameter.a : T0
+          Local $dependency.parameter.b : Unit
+    val local7
+      Local remote : Values<T0, Unit>
+    ImportedGenericCall Values.$set$second<T0, Unit> : Unit
+      Local $place.0 : Values<T0, Unit>
+      UnitLiteral : Unit
+    val local8
+      Local remote : Values<T0, Unit>
+    val local9
+      Local read : (T0) -> Int
+    val local10
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Unit) -> Int
+    val local11
+      Local $dependency.argument.0 : (T0) -> Int
+    val local12
+      Local $dependency.argument.1 : (Unit) -> Int
+    return
+      ImportedGenericCall total<T0, Unit> : Int
+        Local $dependency.receiver : Values<T0, Unit>
+        Local $dependency.parameter.left : (T0) -> Int
+        Local $dependency.parameter.right : (Unit) -> Int
+  fun result(): Int
+    val local0
+      StringLiteral "value" : String
+    val local1
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (String) -> Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : (String) -> Int
+    val local4
+      Call exercise<String> : Int
+        Local $parameter.value : String
+        Local $parameter.read : (String) -> Int
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local7
+      UnitLiteral : Unit
+    val local8
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Unit) -> Int
+    val local9
+      Local $argument.0 : Unit
+    val local10
+      Local $argument.1 : (Unit) -> Int
+    val local11
+      Call exercise<Unit> : Int
+        Local $parameter.value : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Lambda lambda3 invoke=$lambda.3 captures=0 : (Int) -> Int
+    val local16
+      Local $argument.0 : Int
+    val local17
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<String>
+  instance exercise<Unit>
+  instance exercise<Int>

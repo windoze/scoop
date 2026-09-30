@@ -14,6 +14,7 @@ mod contextual;
 mod delegates;
 mod equality;
 mod interface_members;
+mod interfaces;
 mod machine;
 mod members;
 mod metadata;

@@ -1,0 +1,12 @@
+import consumer.interfaces.exercise
+import consumer.interfaces.result
+
+private class Payload(public val value: Int)
+
+public fun check(): Int {
+    val stored = Payload(result())
+    if (exercise<Payload>(stored, { item -> item.value }) != 42) { return 1 }
+    if (exercise<Int>(42, { item -> item }) != 42) { return 2 }
+    val allocation = Payload(0)
+    return stored.value + allocation.value
+}

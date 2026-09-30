@@ -24,7 +24,6 @@ mod functions;
 mod globals;
 mod imported_constructors;
 mod imported_methods;
-mod imported_nominals;
 mod initialization;
 mod initializing_fields;
 mod interfaces;
@@ -114,9 +113,6 @@ struct Concretizer<'a> {
         HashMap<(bool, Vec<concrete::TypeId>, concrete::TypeId), concrete::FunctionTypeId>,
     structs: Arena<concrete::StructDef>,
     struct_by_key: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::StructId>,
-    imported_interface_families: HashMap<export::SourceNominalId, concrete::InterfaceFamilyId>,
-    imported_interfaces:
-        HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::InterfaceId>,
     struct_type: HashMap<concrete::StructId, concrete::TypeId>,
     struct_source: HashMap<concrete::StructId, export::StructId>,
     enums: Arena<concrete::EnumDef>,
@@ -124,7 +120,9 @@ struct Concretizer<'a> {
     enum_type: HashMap<concrete::EnumId, concrete::TypeId>,
     enum_source: HashMap<concrete::EnumId, export::EnumId>,
     interfaces: Arena<concrete::InterfaceDef>,
-    interface_by_key: HashMap<(export::InterfaceId, Vec<concrete::TypeId>), concrete::InterfaceId>,
+    interface_by_key:
+        HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::InterfaceId>,
+    interface_families: HashMap<export::SourceNominalId, concrete::InterfaceFamilyId>,
     interface_type: HashMap<concrete::InterfaceId, concrete::TypeId>,
     interface_slot_by_source: HashMap<
         (
@@ -295,6 +293,16 @@ impl<'a> Concretizer<'a> {
                 (source_id, target)
             })
             .collect();
+        let interface_families = source
+            .interfaces
+            .iter()
+            .map(|(id, _)| {
+                (
+                    source.nominal_identities[id].declaration_id(),
+                    concrete::InterfaceFamilyId::from_raw(id.into_raw().into_u32()),
+                )
+            })
+            .collect();
         Ok(Self {
             source,
             automatic,
@@ -305,8 +313,6 @@ impl<'a> Concretizer<'a> {
             function_type_by_signature: HashMap::new(),
             structs: Arena::new(),
             struct_by_key: HashMap::new(),
-            imported_interfaces: HashMap::new(),
-            imported_interface_families: HashMap::new(),
             struct_type: HashMap::new(),
             struct_source: HashMap::new(),
             enums: Arena::new(),
@@ -315,6 +321,7 @@ impl<'a> Concretizer<'a> {
             enum_source: HashMap::new(),
             interfaces: Arena::new(),
             interface_by_key: HashMap::new(),
+            interface_families,
             interface_type: HashMap::new(),
             interface_slot_by_source: HashMap::new(),
             virtual_method_by_source: HashMap::new(),
