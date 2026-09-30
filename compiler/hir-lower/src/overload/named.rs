@@ -303,42 +303,36 @@ impl Lowerer {
             .argument_map
             .as_ref()
             .expect("the winner has a complete argument map");
-        let (instance_receiver, args) = if source_arguments {
-            let receiver = if extension {
-                Some(args.remove(0))
-            } else {
-                evaluation_receiver
-            };
-            let (materialized_receiver, mut args) = self.materialize_callable_arguments(
-                crate::argument_materialization::CallableArgumentMaterialization {
-                    function: candidate.function,
-                    argument_map,
-                    type_args: &type_args,
-                    receiver,
-                    source_args: args,
-                    argument_sinks,
-                    call_span: candidate.call_span,
-                },
-                sink,
-            )?;
-            if extension {
-                args.insert(
-                    0,
-                    materialized_receiver.expect("an extension receiver is materialized"),
-                );
-                (None, args)
-            } else {
-                (materialized_receiver, args)
-            }
+        let receiver = if extension {
+            Some(args.remove(0))
         } else {
-            for mut argument_sink in argument_sinks {
-                sink.append(&mut argument_sink);
-            }
-            if extension {
-                (None, args)
-            } else {
-                (evaluation_receiver, args)
-            }
+            evaluation_receiver
+        };
+        let (materialized_receiver, mut args) = self.materialize_callable_arguments(
+            crate::argument_materialization::CallableArgumentMaterialization {
+                function: candidate.function,
+                argument_map,
+                type_args: &type_args,
+                receiver,
+                source_args: args,
+                argument_sinks,
+                call_span: candidate.call_span,
+                evaluation: if source_arguments {
+                    crate::argument_materialization::ArgumentEvaluation::Source
+                } else {
+                    crate::argument_materialization::ArgumentEvaluation::Lowered
+                },
+            },
+            sink,
+        )?;
+        let instance_receiver = if extension {
+            args.insert(
+                0,
+                materialized_receiver.expect("an extension receiver is materialized"),
+            );
+            None
+        } else {
+            materialized_receiver
         };
         Some(ResolvedCallee {
             target: CallableCandidate {

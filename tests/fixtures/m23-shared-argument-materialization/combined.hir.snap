@@ -1,0 +1,774 @@
+Module
+  fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
+    val local2
+      Call external #0 : Tape
+    val local15
+      Local tape : Tape
+    val local16
+      Local seed : T0
+    val local3
+      Local tape : Tape
+    val local4
+      IntegerLiteral 2 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    val local17
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local6
+      Local tape : Tape
+    val local7
+      IntegerLiteral 1 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    val local18
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local9
+      Local tape : Tape
+    val local10
+      IntegerLiteral 5 : Int
+    val local11
+      Local $dependency.argument.0 : Int
+    val local12
+      Local tape : Tape
+    val local13
+      IntegerLiteral 6 : Int
+    val local14
+      Local $dependency.argument.0 : Int
+    val local19
+      ArrayLiteral : Array<Int>
+        Call external #1 : Int
+          Local $dependency.receiver : Tape
+          Local $dependency.parameter.value : Int
+        Call external #1 : Int
+          Local $dependency.receiver : Tape
+          Local $dependency.parameter.value : Int
+    val local20
+      Local $dependency.argument.0 : Tape
+    val local21
+      Local $dependency.argument.1 : T0
+    val local22
+      Local $dependency.argument.3 : Int
+    val local23
+      Local $dependency.argument.2 : Int
+    val local24
+      Local $dependency.argument.4 : Array<Int>
+    val local25
+      Call gather<T0> : Int
+        Local $dependency.parameter.tape : Tape
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+        Local $dependency.parameter.parts : Array<Int>
+    val local26
+      IntegerLiteral 14 : Int
+    val local27
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local31
+        BoolLiteral true : Boolean
+    else
+      val local28
+        Call external #2 : Int
+          Local tape : Tape
+      val local29
+        IntegerLiteral 2156 : Int
+      val local30
+        Local $dependency.argument.0 : Int
+      val local31
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local32
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local33
+      Local tape : Tape
+    val local34
+      Local seed : T0
+    val local35
+      Local $dependency.argument.0 : Tape
+    val local36
+      Local $dependency.argument.1 : T0
+    val local37
+      Local $dependency.parameter.tape : Tape
+    val local38
+      IntegerLiteral 3 : Int
+    val local39
+      Local $default.local.3 : Int
+    val local40
+      Call external #1 : Int
+        Local $default.local.2 : Tape
+        Local $default.local.4 : Int
+    val local44
+      Local $dependency.parameter.first : Int
+    val local41
+      Local $dependency.parameter.tape : Tape
+    val local42
+      IntegerLiteral 4 : Int
+    val local43
+      Local $default.local.4 : Int
+    val local45
+      Call external #1 : Int
+        Local $default.local.3 : Tape
+        Local $default.local.5 : Int
+    val local46
+      Local $default.local.7 : Int
+    val local47
+      IntegerOperation int.add <no-gc> : Int
+        Local $default.local.6 : Int
+        Local $default.local.8 : Int
+    val local48
+      ArrayAssembly : Array<Int>
+    val local49
+      Call gather<T0> : Int
+        Local $dependency.parameter.tape : Tape
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+        Local $dependency.parameter.parts : Array<Int>
+    val local50
+      IntegerLiteral 10 : Int
+    val local51
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local55
+        BoolLiteral true : Boolean
+    else
+      val local52
+        Call external #2 : Int
+          Local tape : Tape
+      val local53
+        IntegerLiteral 34 : Int
+      val local54
+        Local $dependency.argument.0 : Int
+      val local55
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local56
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local69
+      Local tape : Tape
+    val local70
+      Local seed : T0
+    val local57
+      Local tape : Tape
+    val local58
+      IntegerLiteral 1 : Int
+    val local59
+      Local $dependency.argument.0 : Int
+    val local71
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local60
+      Local tape : Tape
+    val local61
+      IntegerLiteral 2 : Int
+    val local62
+      Local $dependency.argument.0 : Int
+    val local72
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local63
+      Local tape : Tape
+    val local64
+      IntegerLiteral 5 : Int
+    val local65
+      Local $dependency.argument.0 : Int
+    val local73
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local66
+      Local tape : Tape
+    val local67
+      IntegerLiteral 6 : Int
+    val local68
+      Local $dependency.argument.0 : Int
+    val local74
+      ArrayLiteral : Array<Int>
+        Call external #1 : Int
+          Local $dependency.receiver : Tape
+          Local $dependency.parameter.value : Int
+    val local75
+      Local $dependency.argument.0 : Tape
+    val local76
+      Local $dependency.argument.1 : T0
+    val local77
+      Local $dependency.argument.2 : Int
+    val local78
+      Local $dependency.argument.3 : Int
+    val local79
+      ArrayAssembly : Array<Int>
+        Element
+          Local $dependency.argument.4 : Int
+        CopyArray
+          Local $dependency.argument.5 : Array<Int>
+    val local80
+      Call gather<T0> : Int
+        Local $dependency.parameter.tape : Tape
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+        Local $dependency.parameter.parts : Array<Int>
+    val local81
+      IntegerLiteral 14 : Int
+    val local82
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local86
+        BoolLiteral true : Boolean
+    else
+      val local83
+        Call external #2 : Int
+          Local tape : Tape
+      val local84
+        IntegerLiteral 1256 : Int
+      val local85
+        Local $dependency.argument.0 : Int
+      val local86
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local87
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local91
+      Local seed : T0
+    val local92
+      Local tape : Tape
+    val local88
+      Local tape : Tape
+    val local89
+      IntegerLiteral 2 : Int
+    val local90
+      Local $dependency.argument.0 : Int
+    val local93
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local94
+      Local $dependency.argument.0 : T0
+    val local95
+      Local $dependency.argument.1 : Tape
+    val local96
+      Local $dependency.parameter.tape : Tape
+    val local97
+      IntegerLiteral 3 : Int
+    val local98
+      Local $default.local.3 : Int
+    val local99
+      Call external #1 : Int
+        Local $default.local.2 : Tape
+        Local $default.local.4 : Int
+    val local100
+      Local $dependency.argument.2 : Int
+    val local101
+      ClassInit Calculator<T0> : Calculator<T0>
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.tape : Tape
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+    val local102
+      MethodCall first<T0> : Int
+        Local calculator : Calculator<T0>
+    val local103
+      MethodCall second<T0> : Int
+        Local calculator : Calculator<T0>
+    val local104
+      Local $dependency.argument.0 : Int
+    val local105
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local106
+      IntegerLiteral 5 : Int
+    val local107
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local111
+        BoolLiteral true : Boolean
+    else
+      val local108
+        Call external #2 : Int
+          Local tape : Tape
+      val local109
+        IntegerLiteral 23 : Int
+      val local110
+        Local $dependency.argument.0 : Int
+      val local111
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.3 : Boolean
+      val local115
+        BoolLiteral true : Boolean
+    else
+      val local112
+        CallableCall function_type0 : Int
+          Local inspect : (T0) -> Int
+          MethodCall value<T0> : T0
+            Local calculator : Calculator<T0>
+      val local113
+        IntegerLiteral 42 : Int
+      val local114
+        Local $dependency.argument.0 : Int
+      val local115
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.4 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    val local116
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local117
+      Local tape : Tape
+    val local118
+      Local calculator : Calculator<T0>
+    val local119
+      Local $dependency.argument.0 : Tape
+    val local120
+      Local $dependency.argument.1 : Calculator<T0>
+    val local124
+      Call receiver<T0> : Calculator<T0>
+        Local $dependency.parameter.tape : Tape
+        Local $dependency.parameter.value : Calculator<T0>
+    val local121
+      Local tape : Tape
+    val local122
+      IntegerLiteral 2 : Int
+    val local123
+      Local $dependency.argument.0 : Int
+    val local125
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local126
+      MethodCall tape<T0> : Tape
+        Local $dependency.receiver : Calculator<T0>
+    val local127
+      IntegerLiteral 3 : Int
+    val local128
+      Local $default.local.2 : Int
+    val local129
+      Call external #1 : Int
+        Local $default.local.1 : Tape
+        Local $default.local.3 : Int
+    val local130
+      Local $dependency.argument.0 : Int
+    val local131
+      MethodCall run<T0> : Int
+        Local $dependency.receiver : Calculator<T0>
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+    val local132
+      IntegerLiteral 5 : Int
+    val local133
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local137
+        BoolLiteral true : Boolean
+    else
+      val local134
+        Call external #2 : Int
+          Local tape : Tape
+      val local135
+        IntegerLiteral 123 : Int
+      val local136
+        Local $dependency.argument.0 : Int
+      val local137
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.5 : Boolean
+      return
+        IntegerLiteral 5 : Int
+    val local138
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local142
+      Local calculator : Calculator<T0>
+    val local139
+      Local tape : Tape
+    val local140
+      IntegerLiteral 2 : Int
+    val local141
+      Local $dependency.argument.0 : Int
+    val local143
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local144
+      MethodCall tape<T0> : Tape
+        Local $dependency.receiver : Calculator<T0>
+    val local145
+      IntegerLiteral 5 : Int
+    val local146
+      Local $default.local.2 : Int
+    val local147
+      Call external #1 : Int
+        Local $default.local.1 : Tape
+        Local $default.local.3 : Int
+    val local148
+      Local $dependency.argument.0 : Int
+    val local149
+      MethodCall invoke<T0> : Int
+        Local $dependency.receiver : Calculator<T0>
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+    val local150
+      IntegerLiteral 7 : Int
+    val local151
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local155
+        BoolLiteral true : Boolean
+    else
+      val local152
+        Call external #2 : Int
+          Local tape : Tape
+      val local153
+        IntegerLiteral 25 : Int
+      val local154
+        Local $dependency.argument.0 : Int
+      val local155
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.6 : Boolean
+      return
+        IntegerLiteral 6 : Int
+    val local156
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local157
+      Local seed : T0
+    val local158
+      Local tape : Tape
+    val local159
+      Local $dependency.argument.0 : T0
+    val local160
+      Local $dependency.argument.1 : Tape
+    val local161
+      ClassInit ExtensionCalculator<T0> : ExtensionCalculator<T0>
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.tape : Tape
+    val local165
+      Local extension : ExtensionCalculator<T0>
+    val local162
+      Local tape : Tape
+    val local163
+      IntegerLiteral 2 : Int
+    val local164
+      Local $dependency.argument.0 : Int
+    val local166
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local167
+      MethodCall tape<T0> : Tape
+        Local $dependency.receiver : ExtensionCalculator<T0>
+    val local168
+      IntegerLiteral 7 : Int
+    val local169
+      Local $default.local.2 : Int
+    val local170
+      Call external #1 : Int
+        Local $default.local.1 : Tape
+        Local $default.local.3 : Int
+    val local171
+      Local $dependency.argument.0 : Int
+    val local172
+      Call invoke<T0> : Int
+        Local $dependency.receiver : ExtensionCalculator<T0>
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+    val local173
+      IntegerLiteral 9 : Int
+    val local174
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local178
+        BoolLiteral true : Boolean
+    else
+      val local175
+        Call external #2 : Int
+          Local tape : Tape
+      val local176
+        IntegerLiteral 27 : Int
+      val local177
+        Local $dependency.argument.0 : Int
+      val local178
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.7 : Boolean
+      return
+        IntegerLiteral 9 : Int
+    val local179
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local183
+      Local tape : Tape
+    val local180
+      Local tape : Tape
+    val local181
+      IntegerLiteral 2 : Int
+    val local182
+      Local $dependency.argument.0 : Int
+    val local184
+      Call external #1 : Int
+        Local $dependency.receiver : Tape
+        Local $dependency.parameter.value : Int
+    val local185
+      Local $dependency.argument.0 : Tape
+    val local186
+      Local $dependency.parameter.tape : Tape
+    val local187
+      IntegerLiteral 3 : Int
+    val local188
+      Local $default.local.2 : Int
+    val local189
+      Call external #1 : Int
+        Local $default.local.1 : Tape
+        Local $default.local.3 : Int
+    val local190
+      Local $dependency.argument.1 : Int
+    val local191
+      ArrayAssembly : Array<Int>
+    val local192
+      VariantConstruct Packet.Item : Packet
+        Local $dependency.parameter.tape : Tape
+        Local $dependency.parameter.first : Int
+        Local $dependency.parameter.second : Int
+        Local $dependency.parameter.parts : Array<Int>
+    when
+      Local packet : Packet
+      arm variant0(0: _, 1: local193, 2: local194, 3: local195)
+        val local196
+          ArrayLen : Long
+            Local parts : Array<Int>
+        val local197
+          IntegerLiteral 0 : Long
+        val local198
+          Local $dependency.argument.0 : Long
+        if
+          IntegerOperation long.equals <no-gc> : Boolean
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+          val local199
+            Local first : Int
+          val local200
+            Local second : Int
+          val local201
+            Local $dependency.argument.0 : Int
+          assign $result.8
+            IntegerOperation int.add <no-gc> : Int
+              Local $dependency.receiver : Int
+              Local $dependency.parameter.other : Int
+        else
+          assign $result.8
+            IntegerLiteral 0 : Int
+        assign $result.9
+          Local $result.8 : Int
+      impossible <enum pattern matrix for Packet>
+    val local204
+      Local $result.9 : Int
+    val local205
+      Local packed : Int
+    val local206
+      IntegerLiteral 5 : Int
+    val local207
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local211
+        BoolLiteral true : Boolean
+    else
+      val local208
+        Call external #2 : Int
+          Local tape : Tape
+      val local209
+        IntegerLiteral 23 : Int
+      val local210
+        Local $dependency.argument.0 : Int
+      val local211
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.10 : Boolean
+      return
+        IntegerLiteral 7 : Int
+    val local212
+      Local tape : Tape
+    Call external #3 : Unit
+      Local $dependency.receiver : Tape
+    val local213
+      IntegerLiteral 0 : Int
+    while
+      condition setup
+        val local214
+          Local tape : Tape
+        val local215
+          Local $dependency.argument.0 : Tape
+        val local216
+          Local $dependency.parameter.tape : Tape
+        val local217
+          IntegerLiteral 1 : Int
+        val local218
+          Local $default.local.2 : Int
+        val local219
+          Call external #1 : Int
+            Local $default.local.1 : Tape
+            Local $default.local.3 : Int
+      Call external #4 : Boolean
+        Local $dependency.parameter.tape : Tape
+        Local $dependency.parameter.ignored : Int
+      val local220
+        Local iterations : Int
+      val local221
+        IntegerLiteral 1 : Int
+      val local222
+        Local $dependency.argument.0 : Int
+      assign iterations
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    val local223
+      Local iterations : Int
+    val local224
+      IntegerLiteral 2 : Int
+    val local225
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local229
+        BoolLiteral true : Boolean
+    else
+      val local226
+        Call external #5 : Int
+          Local tape : Tape
+      val local227
+        IntegerLiteral 3 : Int
+      val local228
+        Local $dependency.argument.0 : Int
+      val local229
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.11 : Boolean
+      val local233
+        BoolLiteral true : Boolean
+    else
+      val local230
+        Call external #2 : Int
+          Local tape : Tape
+      val local231
+        IntegerLiteral 111 : Int
+      val local232
+        Local $dependency.argument.0 : Int
+      val local233
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.12 : Boolean
+      return
+        IntegerLiteral 8 : Int
+    return
+      IntegerLiteral 42 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+  output library
+  instance exercise<Int>

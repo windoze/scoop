@@ -63,21 +63,47 @@ impl Lowerer {
         if matches!(self.types[ty], Type::Function(_)) {
             return !require_infix;
         }
-        let matching = |modifiers: hir::CallableModifiers| {
-            modifiers.operator == Some(hir::OperatorKind::Invoke)
-                && (!require_infix || modifiers.is_infix)
+        let required = RequiredCallableModifiers {
+            operator: Some(hir::OperatorKind::Invoke),
+            infix: require_infix,
+            ..Default::default()
         };
         if self
             .methods_by_name(ty, "invoke")
             .into_iter()
-            .any(|candidate| matching(self.signatures[&candidate.function].modifiers))
+            .any(|candidate| {
+                Self::matches_required_modifiers(
+                    self.signatures[&candidate.function].modifiers,
+                    required,
+                )
+            })
         {
             return true;
         }
-        self.named_extension_operator_layers(hir::OperatorKind::Invoke)
+        // Lookup failures enter ordinary member resolution for their diagnostic.
+        if self.resolve_imported_member_receiver_type(ty).is_err()
+            || self
+                .imported_member_candidates(
+                    ty,
+                    hir::ImportedMemberLookup::Operator(hir::CallableOperatorRoleV1::Language(
+                        crate::imports::lookup::calls::wire_operator(hir::OperatorKind::Invoke),
+                    )),
+                )
+                .map_or(true, |candidates| {
+                    use hir::ImportedCallableSource;
+                    candidates.iter().any(|candidate| {
+                        !require_infix
+                            || candidate.interface().effects().infix()
+                                == hir::CallableInfixV1::Infix
+                    })
+                })
+        {
+            return true;
+        }
+        self.named_executable_extension_operator_layers(hir::OperatorKind::Invoke)
             .into_iter()
             .flat_map(|layer| layer.candidates)
-            .any(|function| matching(self.signatures[&function].modifiers))
+            .any(|target| self.extension_call_target_matches_required(&target, required))
     }
 
     /// `Name(args...)` in call position: a variant or struct

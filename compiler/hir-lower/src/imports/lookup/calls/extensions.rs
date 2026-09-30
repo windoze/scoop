@@ -159,21 +159,6 @@ impl Lowerer {
         layers
     }
 
-    pub(crate) fn named_extension_operator_layers(
-        &self,
-        operator: hir::OperatorKind,
-    ) -> Vec<LookupLayer<hir::FunctionId>> {
-        self.named_extension_role_layers()
-            .into_iter()
-            .map(|mut layer| {
-                layer.candidates.retain(|function| {
-                    self.signatures[function].modifiers.operator == Some(operator)
-                });
-                layer
-            })
-            .collect()
-    }
-
     pub(crate) fn named_executable_extension_operator_layers(
         &self,
         operator: hir::OperatorKind,

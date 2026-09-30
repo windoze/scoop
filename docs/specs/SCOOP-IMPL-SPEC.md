@@ -367,6 +367,8 @@ M23把import层具体化为typed binding source。无显式receiver的顺序为l
 
 M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR按候选分别映射而不先公共重排。目标选定后，receiver先求值，所有显式实参各自保存独立desugaring sink并按源码顺序拼接；随后按形参声明顺序构造vararg值及实例化实际使用的缺省表达式，最后才产生按形参顺序排列的call arguments。类型检查/constraint求解顺序不得改变这套运行期顺序。若这些temporary/sink位于`while`条件，HIR必须把它们保存在随条件重复执行的typed condition-setup区域，MIR在每次条件检查前执行该区域；不得把它提升到循环外，也不得因sink非空而拒绝普通调用或空安全脱糖。跨挂起点存活的已求值显式实参和部分物化参数使用普通M10 frame规则，不能在恢复后重新求值。
 
+当前声明与依赖声明的 winner 提交共用同一参数物化过程。输入是已选签名的完整形参类型、源码索引映射、各实参的 setup 语句及实际默认来源；声明存储适配只负责取得这些数据和默认正文，不重复组织求值。接收者与显式值先按源码顺序保存，默认值和 vararg 再按形参顺序产生，默认值可以读取此前已物化的参数。已经降低的内部调用保留已有求值结果，不额外创建求值临时变量。函数、成员、构造和 variant 的最终节点仍使用各自 typed 目标；指针取地址等已正规化 intrinsic 保留原 place 与既定出口。可调用性预查询沿同一可见成员和扩展候选读取真实 `operator invoke` 角色，包含本地值与捕获值的依赖类型；它只决定进入值调用决议，不以本地方法 arena 的存在决定合法性。最终适用性、访问域、infix 要求和选择仍由普通成员／扩展决议完成。
+
 struct/enum 的派生 equality 条件签名必须在继承与源码签名检查完成后、默认参数正文和 constructor 表达式 lowering 之前登记。默认参数可按普通规则选择派生 equality；生成完整应用正文仍由实际调用需求触发，不能将其限制为普通函数 body 阶段才能使用，也不能覆盖已有的同型用户 equals。
 
 默认值lowering先登记全部export源码参数的定义输入，包含function、method、各类constructor与variant，再准备typed正文。候选参数调用形式只持有声明owner与参数位置组成的独立typed引用或已经完成的template引用，不通过尚未登记的正文arena索引推断Default/VarargDefault。winner实际省略参数时按依赖准备目标正文，始终切回目标定义文件、词法路径、receiver、类型参数及capture环境，结束后恢复调用方上下文；local default保存其真实声明点环境。继承default仍沿唯一override来源及真实类型代换取得provider。按照语言8.5.1，对正在准备的同一参数再次发生缺省展开时发出定义处环诊断；参数调用形式的查询和显式传参不触发该诊断。失败的参数不产生残缺source interface或伪造typed body，全部声明准备完成后才输出完备Export HIR。

@@ -443,3 +443,11 @@
 - 新增 `m23-shared-local-calls` 两组正例、三个反例、六份阶段快照及三份诊断快照。覆盖递归后首次发现捕获、泛型局部函数、自身引用、局部默认参数与前置形参、命名实参源码求值顺序、空及 spread vararg；源码移走后的再次发布、本地 class／String／Int／Unit 及普通／moving GC 运行通过。单元核对实际直调的捕获数量和参数类型，既有词法值身份与未使用宿主实参断言改为检查真实被调用函数。
 - 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；85 项真实泛型产物与完整 core 回归均已关闭快照更新开关通过。18 份旧 HIR 快照的 43 行只改共同调用标签，两份 MIR 快照的 12 行仅调整删除多余函数类型记录后的显示编号；LIR、原函数身份、调用参数和既有诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-local-calls-`，最终结果见 `unit.log`、`generate-results.json`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`；初轮快照差异保存在 `all-before-snapshot-results.json`。
 - 调用投影模块 181 行，递归捕获补齐 367 行，新增单元模块 60 行，其余语义消费者均删除重复分支。确认无文件占用后清理约 2347.2 MiB 闲置 `target/debug`，继续复用 `target/m23-6a`。完整候选、参数物化与 probe／commit 调度仍需统一，6a 尚未完成。
+
+## 共同参数物化与依赖值的 invoke 查询
+
+- 当前函数、成员、构造、variant 与依赖候选的 winner 共用参数物化：接收者先保存，各显式实参及 setup 按源码顺序执行，再按形参顺序展开实际默认值、空／整数组／元素与 spread vararg。默认值取得此前已物化参数；已经降低的内部调用复用原求值结果。源码 recipe 与已读取默认正文只适配真实存储，删除两套重复求值循环，原 typed 目标和 intrinsic place 出口保持。
+- 新组合复现依赖类型的局部值被 `operator invoke` 预查询漏掉。预查询现沿已有可见成员与扩展候选读取真实角色，再交普通决议完成访问域、infix 和适用性检查；普通同名方法仍被拒绝。修复前诊断保存在 `invoke-before.log`，没有新增另一套 invoke 选择算法。
+- 新增 `m23-shared-argument-materialization` 两组正例、四个反例、六份阶段快照与四份诊断快照。覆盖接收者副作用、逆序命名实参、前置参数默认值、成员／扩展 invoke、泛型构造与 variant、vararg 组合，以及随循环条件重复执行的默认值 setup。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过。
+- 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；86 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。既有 HIR／MIR／LIR／诊断快照均未变化。证据前缀 `/tmp/scoop-m23-6a-argument-materialization-`，结果见 `unit.log`、`generate-results.json`、`all-verified-results.json` 和 `invoke-before.log`。
+- 参数协议、声明适配、共同求值模块分别为 103、117、119 行，依赖提交模块降为 373 行；wire payload 与 runtime ABI 保持。确认无文件占用后清理约 1483.8 MiB 闲置 `target/debug`，继续复用 `target/m23-6a`。完整候选和 probe／commit 调度仍需统一，6a 尚未完成。

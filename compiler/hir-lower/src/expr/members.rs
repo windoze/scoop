@@ -276,7 +276,7 @@ impl Lowerer {
         )
     }
 
-    fn matches_required_modifiers(
+    pub(in crate::expr) fn matches_required_modifiers(
         modifiers: hir::CallableModifiers,
         required: RequiredCallableModifiers,
     ) -> bool {

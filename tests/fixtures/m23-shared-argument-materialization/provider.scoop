@@ -1,0 +1,63 @@
+package upstream.argumentmaterialization
+
+public class Tape public constructor() {
+    public var log: Int = 0
+    public var calls: Int = 0
+
+    public fun mark(value: Int): Int {
+        log = log * 10 + value
+        calls = calls + 1
+        return value
+    }
+    public fun reset(): Unit { log = 0; calls = 0 }
+}
+
+public fun <T> gather(
+    tape: Tape,
+    value: T,
+    first: Int = tape.mark(3),
+    second: Int = first + tape.mark(4),
+    vararg parts: Int
+): Int {
+    var result = first + second
+    var index: Long = 0
+    while (index < parts.size) {
+        result = result + parts[index]
+        index = index + 1
+    }
+    return result
+}
+
+public class Calculator<T> public constructor(
+    public val value: T,
+    public val tape: Tape,
+    public val first: Int = tape.mark(3),
+    public val second: Int = first + tape.mark(4)
+) {
+    public fun run(first: Int = tape.mark(3), second: Int = first + tape.mark(4)): Int =
+        first + second
+    public operator fun invoke(first: Int = tape.mark(5), second: Int = first + tape.mark(6)): Int =
+        first + second
+}
+
+public fun <T> receiver(tape: Tape, value: Calculator<T>): Calculator<T> {
+    tape.mark(1)
+    return value
+}
+
+public enum Packet {
+    Item(val tape: Tape, val first: Int = tape.mark(3), val second: Int = first + tape.mark(4), vararg val parts: Int)
+}
+
+public fun more(tape: Tape, ignored: Int = tape.mark(1)): Boolean = tape.calls < 3
+
+public class ExtensionCalculator<T> public constructor(public val value: T, public val tape: Tape)
+
+public operator fun <T> ExtensionCalculator<T>.invoke(
+    first: Int = tape.mark(7),
+    second: Int = first + tape.mark(8)
+): Int = first + second
+
+public class Ordinary public constructor() {
+    public fun invoke(): Int = 42
+}

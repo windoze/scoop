@@ -1,0 +1,4 @@
+package consumer.argumentmaterialization
+import upstream.argumentmaterialization.*
+
+public fun fail(): Int = gather<Unit>(Tape(), Unit, first = 1, first = 2)
