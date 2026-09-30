@@ -285,3 +285,10 @@
 - 新增 `m23-shared-struct-definitions` 两组正例、三组反例及六份阶段快照，覆盖 struct／class 递归字段、接口默认方法、当前／依赖拷贝更新、具副作用的逆序更新、原值保持、泛型默认值、closure 和再次发布。消费方本地类型及 String／Int／Unit 在普通／移动 GC 场景运行通过；重复字段、未知字段和错误字段类型保留消费方准确位置。新快照与诊断全部关闭更新开关复验通过。
 - 全仓 fmt／clippy 无警告，859 项 HIR、1319 项 HIR lowering、114 项 MIR lowering 单元测试通过。15 组不同真实产物回归均已覆盖通过，包含既有 struct、递归 enum、默认值、完整成员与构造、派生相等、bound、指针、数组、Option 及完整 core 三组 MIR／LIR 导出闭包。既有 bound 默认值 HIR 快照只调整新增声明形参带来的一个临时 TypeId（23→25），完整组已严格重跑。日志前缀 `/tmp/scoop-m23-6a-shared-struct-types-`，结果见 `unit.log`、`build.log`、`new-verified.log` 与 `verified-artifacts.json`。
 - struct 声明、依赖定义解码、具体化和拷贝更新主文件分别为 150、124、166、237 行；正文解码主文件为 471 行。确认没有 cargo／rustc 占用后清理 1076.3 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批没有改变 wire payload 或 runtime ABI；其余 nominal 类型、完整声明条件／成员、候选及正文存储仍按 6a 设计继续统一。
+
+## 跨依赖泛型包装器的按值循环检查
+
+- 共同 struct／enum 定义提供实际参与内联布局的形参关系；字段检查把依赖包装器的完整实参代入当前声明图，拒绝直接、间接、混合及不断增长实参的按值循环。提供方已检查的声明不重复成为本地 SCC 顶点；Phantom 参数、class／interface／函数引用及指针继续构成实际布局边界，没有展开无限应用或引入资源预算。
+- 新增 `m23-shared-value-layouts` 两组正例、四个反例及六份阶段快照，覆盖依赖与本地包装器组合、Phantom、经 class 的合法递归、接口装箱和嵌套模式。修复前真实源码单元已复现非法布局被接受；修复后四个诊断均准确定位消费方声明，源码移走后再次发布及普通／移动 GC 运行通过。新快照与诊断全部关闭更新开关复验通过。
+- 全仓 fmt／clippy 无警告，859 项 HIR、1320 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。七组不同真实产物回归通过，包括新布局规则、共同 struct／enum、bound、泛型构造与完整 core 三组 MIR／LIR 导出闭包；既有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-shared-value-layouts-`，结果见 `before.log`、`unit.log`、`new-verified.log` 与 `verified-artifacts.json`。
+- 循环检查主文件缩至 244 行，内联参数分析为 141 行。确认没有 cargo／rustc 占用后清理约 1122.7 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未改变 wire payload 或 runtime ABI；完整 nominal、条件与成员、候选和正文存储继续按 6a 设计推进。

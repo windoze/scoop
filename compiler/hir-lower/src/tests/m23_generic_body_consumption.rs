@@ -31,6 +31,7 @@ mod requests;
 mod selection;
 mod shared_defaults;
 mod structs;
+mod value_layouts;
 
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

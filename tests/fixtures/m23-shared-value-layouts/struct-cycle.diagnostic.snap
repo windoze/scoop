@@ -1,0 +1,3 @@
+span=68..122
+expression=public struct Recursive(val value: Wrapper<Recursive>)
+recursive value layout does not cross a reference boundary: Recursive -> Recursive

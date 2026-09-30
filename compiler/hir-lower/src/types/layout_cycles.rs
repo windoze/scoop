@@ -16,6 +16,7 @@ use crate::{Lowerer, Owner, Type, ValueLayoutTemplate};
 use self::graph::{find_component_cycle, strongly_connected_components};
 
 mod graph;
+mod relevance;
 
 impl Lowerer {
     /// Reject every strongly connected component in the declaration-level
@@ -114,110 +115,10 @@ impl Lowerer {
         nodes
     }
 
-    fn value_layout_parameter_relevance(
-        &self,
-        nodes: &[ValueLayoutTemplate],
-    ) -> HashMap<ValueLayoutTemplate, HashSet<hir::TypeParamId>> {
-        let mut relevance = nodes
-            .iter()
-            .copied()
-            .map(|node| (node, HashSet::new()))
-            .collect::<HashMap<_, _>>();
-
-        loop {
-            let mut changed = false;
-            for &node in nodes {
-                let mut discovered = HashSet::new();
-                for ty in self.value_layout_field_types(node) {
-                    self.collect_inline_type_parameters(ty, &relevance, &mut discovered);
-                }
-                let known = relevance
-                    .get_mut(&node)
-                    .expect("every value template has a relevance entry");
-                let previous_len = known.len();
-                known.extend(discovered);
-                changed |= known.len() != previous_len;
-            }
-            if !changed {
-                return relevance;
-            }
-        }
-    }
-
-    fn collect_inline_type_parameters(
-        &self,
-        ty: hir::TypeId,
-        relevance: &HashMap<ValueLayoutTemplate, HashSet<hir::TypeParamId>>,
-        out: &mut HashSet<hir::TypeParamId>,
-    ) {
-        match &self.types[ty] {
-            Type::Param(parameter) => {
-                out.insert(*parameter);
-            }
-            Type::Tuple(elements) => {
-                for &element in elements {
-                    self.collect_inline_type_parameters(element, relevance, out);
-                }
-            }
-            Type::Struct(application) => {
-                let application = &self.struct_applications[*application];
-                let Some(id) = self.source_struct_id(application.template) else {
-                    return;
-                };
-                let target = ValueLayoutTemplate::Struct(id);
-                let Some(relevant) = relevance.get(&target) else {
-                    return;
-                };
-                for (parameter, &argument) in self.structs[id]
-                    .type_params
-                    .iter()
-                    .zip(&application.arguments)
-                {
-                    if relevant.contains(&parameter.id) {
-                        self.collect_inline_type_parameters(argument, relevance, out);
-                    }
-                }
-            }
-            Type::Enum(application) => {
-                let application = &self.enum_applications[*application];
-                let Some(id) = self.source_enum_id(application.template) else {
-                    return;
-                };
-                let target = ValueLayoutTemplate::Enum(id);
-                let relevant = &relevance[&target];
-                for (parameter, &argument) in self.enums[id]
-                    .type_params
-                    .iter()
-                    .zip(&application.arguments)
-                {
-                    if relevant.contains(&parameter.id) {
-                        self.collect_inline_type_parameters(argument, relevance, out);
-                    }
-                }
-            }
-            // Every item below is a scalar or an indirection boundary. In
-            // particular, pointer pointees and reference type arguments are
-            // not stored inline and therefore do not make parameters layout
-            // relevant.
-            Type::ImportedClass(_)
-            | Type::ImportedInterface(_)
-            | Type::Unit
-            | Type::Integer(_)
-            | Type::Boolean
-            | Type::String
-            | Type::Class(_)
-            | Type::Interface(_)
-            | Type::Any
-            | Type::Function(_)
-            | Type::Ptr(_)
-            | Type::FunPtr(_) => {}
-        }
-    }
-
     fn collect_value_layout_dependencies(
         &self,
         ty: hir::TypeId,
-        relevance: &HashMap<ValueLayoutTemplate, HashSet<hir::TypeParamId>>,
+        relevance: &HashMap<hir::SourceNominalId, HashSet<hir::TypeParamId>>,
         out: &mut Vec<ValueLayoutTemplate>,
         seen: &mut HashSet<ValueLayoutTemplate>,
     ) {
@@ -229,17 +130,17 @@ impl Lowerer {
             }
             Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                let Some(id) = self.source_struct_id(application.template) else {
+                let Some(relevant) = relevance.get(&application.template) else {
                     return;
                 };
-                let target = ValueLayoutTemplate::Struct(id);
-                let Some(relevant) = relevance.get(&target) else {
-                    return;
-                };
-                if seen.insert(target) {
-                    out.push(target);
+                if let Some(id) = self.source_struct_id(application.template) {
+                    let target = ValueLayoutTemplate::Struct(id);
+                    if seen.insert(target) {
+                        out.push(target);
+                    }
                 }
-                for (parameter, &argument) in self.structs[id]
+                for (parameter, &argument) in self
+                    .struct_definition(application.template)
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -251,15 +152,17 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                let Some(id) = self.source_enum_id(application.template) else {
+                let Some(relevant) = relevance.get(&application.template) else {
                     return;
                 };
-                let target = ValueLayoutTemplate::Enum(id);
-                if seen.insert(target) {
-                    out.push(target);
+                if let Some(id) = self.source_enum_id(application.template) {
+                    let target = ValueLayoutTemplate::Enum(id);
+                    if seen.insert(target) {
+                        out.push(target);
+                    }
                 }
-                let relevant = &relevance[&target];
-                for (parameter, &argument) in self.enums[id]
+                for (parameter, &argument) in self
+                    .enum_definition(application.template)
                     .type_params
                     .iter()
                     .zip(&application.arguments)

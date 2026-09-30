@@ -1,0 +1,1029 @@
+Module
+  struct Mixed (value: Local<Wrapper<Phantom<Mixed>>>)
+  struct Phantom<Mixed> ()
+  struct Wrapper<Phantom<Mixed>> (value: Phantom<Mixed>)
+  struct Local<Wrapper<Phantom<Mixed>>> (payload: Wrapper<Phantom<Mixed>>)
+  struct Reference<Nested> (link: Link<Nested>)
+  struct Local<Reference<Nested>> (payload: Reference<Nested>)
+  struct Wrapper<String> (value: String)
+  struct Local<Wrapper<String>> (payload: Wrapper<String>)
+  struct Wrapper<Unit> (value: Unit)
+  struct Local<Wrapper<Unit>> (payload: Wrapper<Unit>)
+  struct Wrapper<Int> (value: Int)
+  struct Local<Wrapper<Int>> (payload: Wrapper<Int>)
+  enum Nested
+    End()
+    Next(_1: Local<Reference<Nested>>)
+  enum CoroutineStep<Mixed>
+    Completed(value: Mixed)
+    Suspended()
+  enum CoroutineSlot<Mixed>
+    Empty()
+    Value(value: Mixed)
+  enum CoroutineStep<Nested>
+    Completed(value: Nested)
+    Suspended()
+  enum CoroutineSlot<Nested>
+    Empty()
+    Value(value: Nested)
+  class Link<Nested> vtable=0 itables=0
+  class box<Wrapper<String>> vtable=0 itables=1
+  class box<Wrapper<Unit>> vtable=0 itables=1
+  class box<Wrapper<Int>> vtable=0 itables=1
+  class box<Mixed> vtable=0 itables=0
+  class box<Nested> vtable=0 itables=0
+  interface Readable<Phantom<Mixed>>
+  interface Readable<String>
+  interface Readable<Unit>
+  interface Readable<Int>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn5 captures=0
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn7 captures=0
+  generated_exact_type get0 location=closure0 nominal_id=1e9cd6bd756793db9ce899b7858a992ce9792cda9ff3b69b18c13da76a847920 exact_id=01169a564068bec4f83306a21edb6fb1742075eead51ed17851a42c7a0be78bd
+  generated_exact_type get1 location=class4 nominal_id=9f4cd2462b2bfdfbdf954e5985c13b6712025981f79db5c516f41bab1709d6fd exact_id=18371271c5c47804c1fa1a3419faa8ff70a31ae1dcf6343a87ee0c74f7b4a584
+  generated_exact_type get2 location=enum4 nominal_id=3be4b18eb6f2f50029f53b80925edb051739ce9fd0c92861c97c483e0c4c9f23 exact_id=1ef20bf0693461bd9c127db4f16770526304db8b128fefcafbdb59b611faec2d
+  generated_exact_type get3 location=closure1 nominal_id=af3d32633ddd81fbb38ecf57ccba61f2e776bdfafac933f0e3cd054fff0ed1d6 exact_id=2bb49a6813bd59076d11e383b0f91492fc086767b600e4e047cf65f3bd388c77
+  generated_exact_type get4 location=class3 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
+  generated_exact_type get5 location=class1 nominal_id=9711e7a1e9bb3a93d6795a346be0dc2fa25af0cfbd365483e21c1d864347b120 exact_id=5a5cecfdd6db9dc7699d461fc272266c0b72c81cf3859d0594d6619c8a18f2f2
+  generated_exact_type get6 location=enum2 nominal_id=1e0e1d5179faf7c4828b15a1ce10ce3b59712591a79fdcea15bc3372a462bb7f exact_id=5bf279ebfa36eaf5a55514d1762c2176288c2491d5e3d843f139d810a337c0a5
+  generated_exact_type get7 location=class2 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
+  generated_exact_type get8 location=class5 nominal_id=112b10a9a92a49802b9b379a1781e180ee43c95af6414ba7888e8486b9922bf5 exact_id=7c6a3a2fa2740eabcc4979620fc1a7bba7cd43fe64901bf03e6d88c7468605b4
+  generated_exact_type get9 location=closure2 nominal_id=a01fd5dc89f2f6fbb7547c1ff9163f27b1172adefa2e774810b366cb661b3f18 exact_id=ae2e2c86a44e67285fa743926b1d5d7226542431c43846acdee30173f133d2c1
+  generated_exact_type get10 location=enum1 nominal_id=26b391ba7e1568b76751e874f24004f2019c8f72b551480fc74362f369d4fbf1 exact_id=d7b759f818de00fb731c805b01519f6fed973fa2f867b2d84323c4bd276ea97c
+  generated_exact_type get11 location=enum3 nominal_id=507604de783e72c71899e53ad867830f00bb8c2fb7730e82d6b5114bb25fb28b exact_id=dcc70cb5433c5bc0341a306ee2f55ac41257785c140737938d97b34b64c42d1c
+  generated_callable gc0 function=@fn30 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
+  generated_callable gc1 function=@fn29 id=29ee3f53954bc724fbe5a0b8368ee55f8c9ec95505e46a6d3026c74ac7f37344
+  generated_callable gc2 function=@fn31 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
+  fun get @fn0(this: Wrapper<Phantom<Mixed>>) -> Phantom<Mixed>
+    bb0 entry
+      return
+        Type Phantom<Mixed>
+        FieldAccess 0
+          Type Wrapper<Phantom<Mixed>>
+          Local this
+  fun consume @fn1(value: Mixed) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun result @fn2() -> Int
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: (String) -> Int
+        Type (String) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.read: (String) -> Int
+        Type (String) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type String
+        Local $parameter.seed
+        Type (String) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.seed: Unit
+        Type Unit
+        Local $argument.0
+      val $parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type Unit
+        Local $parameter.seed
+        Type (Unit) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn8 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn3($closure: (String) -> Int, item: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn4(seed: String, read: (String) -> Int) -> Int
+    bb0 entry
+      call $dependency.argument.0: Phantom<Mixed> = @fn18 direct
+      val $dependency.parameter.value: Phantom<Mixed>
+        Type Phantom<Mixed>
+        Local $dependency.argument.0
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn19 direct
+        Type Phantom<Mixed>
+        Local $dependency.parameter.value
+      val $parameter.payload: Wrapper<Phantom<Mixed>>
+        Type Wrapper<Phantom<Mixed>>
+        Local $argument.0
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn20 direct
+        Type Wrapper<Phantom<Mixed>>
+        Local $parameter.payload
+      val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
+        Type Local<Wrapper<Phantom<Mixed>>>
+        Local $argument.0
+      call mixed: Mixed = @fn17 direct
+        Type Local<Wrapper<Phantom<Mixed>>>
+        Local $parameter.value
+      val $argument.0: Mixed
+        Type Mixed
+        Local mixed
+      val $parameter.value: Mixed
+        Type Mixed
+        Local $argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type Mixed
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val tail: Nested
+        Type Nested
+        VariantConstruct Nested v0
+      val $dependency.argument.0: Nested
+        Type Nested
+        Local tail
+      val $dependency.parameter.value: Nested
+        Type Nested
+        Local $dependency.argument.0
+      assign $new.1
+        Type Link<Nested>
+        ClassAlloc Link<Nested>
+      call @fn16 direct
+        Type Link<Nested>
+        Local $new.1
+        Type Nested
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Link<Nested>
+        Type Link<Nested>
+        Local $new.1
+      val $dependency.parameter.link: Link<Nested>
+        Type Link<Nested>
+        Local $dependency.argument.0
+      call $argument.0: Reference<Nested> = @fn21 direct
+        Type Link<Nested>
+        Local $dependency.parameter.link
+      val $parameter.payload: Reference<Nested>
+        Type Reference<Nested>
+        Local $argument.0
+      call $argument.0: Local<Reference<Nested>> = @fn22 direct
+        Type Reference<Nested>
+        Local $parameter.payload
+      val $parameter._1: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        Local $argument.0
+      val nested: Nested
+        Type Nested
+        VariantConstruct Nested v1
+          Type Local<Reference<Nested>>
+          Local $parameter._1
+      val $when.1: Nested
+        Type Nested
+        Local nested
+      val $pattern.subject.2: Nested
+        Type Nested
+        Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Nested v1
+          Type Nested
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      val local: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        VariantPayloadProject Nested v1 f0
+          Type Nested
+          Local $pattern.subject.2
+      call $when.3: Nested = @fn10 direct
+        Type Link<Nested>
+        FieldAccess 0
+          Type Reference<Nested>
+          FieldAccess 0
+            Type Local<Reference<Nested>>
+            Local local
+      val $pattern.subject.4: Nested
+        Type Nested
+        Local $when.3
+      branch bb6 bb7
+        Type Boolean
+        VariantTest Nested v0
+          Type Nested
+          Local $pattern.subject.4
+    bb4 pattern.else.4
+      val $pattern.subject.6: Nested
+        Type Nested
+        Local $when.1
+      branch bb12 bb13
+        Type Boolean
+        VariantTest Nested v0
+          Type Nested
+          Local $pattern.subject.6
+    bb5 pattern.merge.5
+      val ended: Boolean
+        Type Boolean
+        Local $result.1
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local ended
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb6 pattern.pass.6
+      assign $result.0
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 pattern.else.7
+      val $pattern.subject.5: Nested
+        Type Nested
+        Local $when.3
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Nested v1
+          Type Nested
+          Local $pattern.subject.5
+    bb8 pattern.merge.8
+      assign $result.1
+        Type Boolean
+        Local $result.0
+      goto bb5
+    bb9 pattern.pass.9
+      val next: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        VariantPayloadProject Nested v1 f0
+          Type Nested
+          Local $pattern.subject.5
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb11
+    bb10 pattern.else.10
+      unreachable
+    bb11 pattern.merge.11
+      goto bb8
+    bb12 pattern.pass.12
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb14
+    bb13 pattern.else.13
+      unreachable
+    bb14 pattern.merge.14
+      goto bb5
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb16 if.merge.16
+      val $dependency.argument.0: String
+        Type String
+        Local seed
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Wrapper<String> = @fn23 direct
+        Type String
+        Local $dependency.parameter.value
+      val $parameter.payload: Wrapper<String>
+        Type Wrapper<String>
+        Local $argument.0
+      call $call.2: Local<Wrapper<String>> = @fn24 direct
+        Type Wrapper<String>
+        Local $parameter.payload
+      val receiver: Readable<String>
+        Type Readable<String>
+        Box
+          Type Wrapper<String>
+          FieldAccess 0
+            Type Local<Wrapper<String>>
+            Local $call.2
+      val $dependency.receiver: Readable<String>
+        Type Readable<String>
+        Local receiver
+      call $call.3: String = @fn11 interface Readable<String>[0]
+        Type Readable<String>
+        Local $dependency.receiver
+      call $call.4: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local read
+        Type String
+        Local $call.3
+      return
+        Type Int
+        Local $call.4
+  fun $lambda.1 @fn5($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      call $dependency.argument.0: Phantom<Mixed> = @fn18 direct
+      val $dependency.parameter.value: Phantom<Mixed>
+        Type Phantom<Mixed>
+        Local $dependency.argument.0
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn19 direct
+        Type Phantom<Mixed>
+        Local $dependency.parameter.value
+      val $parameter.payload: Wrapper<Phantom<Mixed>>
+        Type Wrapper<Phantom<Mixed>>
+        Local $argument.0
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn20 direct
+        Type Wrapper<Phantom<Mixed>>
+        Local $parameter.payload
+      val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
+        Type Local<Wrapper<Phantom<Mixed>>>
+        Local $argument.0
+      call mixed: Mixed = @fn17 direct
+        Type Local<Wrapper<Phantom<Mixed>>>
+        Local $parameter.value
+      val $argument.0: Mixed
+        Type Mixed
+        Local mixed
+      val $parameter.value: Mixed
+        Type Mixed
+        Local $argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type Mixed
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val tail: Nested
+        Type Nested
+        VariantConstruct Nested v0
+      val $dependency.argument.0: Nested
+        Type Nested
+        Local tail
+      val $dependency.parameter.value: Nested
+        Type Nested
+        Local $dependency.argument.0
+      assign $new.1
+        Type Link<Nested>
+        ClassAlloc Link<Nested>
+      call @fn16 direct
+        Type Link<Nested>
+        Local $new.1
+        Type Nested
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Link<Nested>
+        Type Link<Nested>
+        Local $new.1
+      val $dependency.parameter.link: Link<Nested>
+        Type Link<Nested>
+        Local $dependency.argument.0
+      call $argument.0: Reference<Nested> = @fn21 direct
+        Type Link<Nested>
+        Local $dependency.parameter.link
+      val $parameter.payload: Reference<Nested>
+        Type Reference<Nested>
+        Local $argument.0
+      call $argument.0: Local<Reference<Nested>> = @fn22 direct
+        Type Reference<Nested>
+        Local $parameter.payload
+      val $parameter._1: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        Local $argument.0
+      val nested: Nested
+        Type Nested
+        VariantConstruct Nested v1
+          Type Local<Reference<Nested>>
+          Local $parameter._1
+      val $when.1: Nested
+        Type Nested
+        Local nested
+      val $pattern.subject.2: Nested
+        Type Nested
+        Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Nested v1
+          Type Nested
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      val local: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        VariantPayloadProject Nested v1 f0
+          Type Nested
+          Local $pattern.subject.2
+      call $when.3: Nested = @fn10 direct
+        Type Link<Nested>
+        FieldAccess 0
+          Type Reference<Nested>
+          FieldAccess 0
+            Type Local<Reference<Nested>>
+            Local local
+      val $pattern.subject.4: Nested
+        Type Nested
+        Local $when.3
+      branch bb6 bb7
+        Type Boolean
+        VariantTest Nested v0
+          Type Nested
+          Local $pattern.subject.4
+    bb4 pattern.else.4
+      val $pattern.subject.6: Nested
+        Type Nested
+        Local $when.1
+      branch bb12 bb13
+        Type Boolean
+        VariantTest Nested v0
+          Type Nested
+          Local $pattern.subject.6
+    bb5 pattern.merge.5
+      val ended: Boolean
+        Type Boolean
+        Local $result.1
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local ended
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb6 pattern.pass.6
+      assign $result.0
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 pattern.else.7
+      val $pattern.subject.5: Nested
+        Type Nested
+        Local $when.3
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Nested v1
+          Type Nested
+          Local $pattern.subject.5
+    bb8 pattern.merge.8
+      assign $result.1
+        Type Boolean
+        Local $result.0
+      goto bb5
+    bb9 pattern.pass.9
+      val next: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        VariantPayloadProject Nested v1 f0
+          Type Nested
+          Local $pattern.subject.5
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb11
+    bb10 pattern.else.10
+      unreachable
+    bb11 pattern.merge.11
+      goto bb8
+    bb12 pattern.pass.12
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb14
+    bb13 pattern.else.13
+      unreachable
+    bb14 pattern.merge.14
+      goto bb5
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb16 if.merge.16
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local seed
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call $argument.0: Wrapper<Unit> = @fn25 direct
+        Type Unit
+        Local $dependency.parameter.value
+      val $parameter.payload: Wrapper<Unit>
+        Type Wrapper<Unit>
+        Local $argument.0
+      call $call.2: Local<Wrapper<Unit>> = @fn26 direct
+        Type Wrapper<Unit>
+        Local $parameter.payload
+      val receiver: Readable<Unit>
+        Type Readable<Unit>
+        Box
+          Type Wrapper<Unit>
+          FieldAccess 0
+            Type Local<Wrapper<Unit>>
+            Local $call.2
+      val $dependency.receiver: Readable<Unit>
+        Type Readable<Unit>
+        Local receiver
+      call @fn13 interface Readable<Unit>[0]
+        Type Readable<Unit>
+        Local $dependency.receiver
+      call $call.3: Int = <closure:function_type1> closure[function_type1]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.3
+  fun $lambda.2 @fn7($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn8(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      call $dependency.argument.0: Phantom<Mixed> = @fn18 direct
+      val $dependency.parameter.value: Phantom<Mixed>
+        Type Phantom<Mixed>
+        Local $dependency.argument.0
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn19 direct
+        Type Phantom<Mixed>
+        Local $dependency.parameter.value
+      val $parameter.payload: Wrapper<Phantom<Mixed>>
+        Type Wrapper<Phantom<Mixed>>
+        Local $argument.0
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn20 direct
+        Type Wrapper<Phantom<Mixed>>
+        Local $parameter.payload
+      val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
+        Type Local<Wrapper<Phantom<Mixed>>>
+        Local $argument.0
+      call mixed: Mixed = @fn17 direct
+        Type Local<Wrapper<Phantom<Mixed>>>
+        Local $parameter.value
+      val $argument.0: Mixed
+        Type Mixed
+        Local mixed
+      val $parameter.value: Mixed
+        Type Mixed
+        Local $argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type Mixed
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val tail: Nested
+        Type Nested
+        VariantConstruct Nested v0
+      val $dependency.argument.0: Nested
+        Type Nested
+        Local tail
+      val $dependency.parameter.value: Nested
+        Type Nested
+        Local $dependency.argument.0
+      assign $new.1
+        Type Link<Nested>
+        ClassAlloc Link<Nested>
+      call @fn16 direct
+        Type Link<Nested>
+        Local $new.1
+        Type Nested
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Link<Nested>
+        Type Link<Nested>
+        Local $new.1
+      val $dependency.parameter.link: Link<Nested>
+        Type Link<Nested>
+        Local $dependency.argument.0
+      call $argument.0: Reference<Nested> = @fn21 direct
+        Type Link<Nested>
+        Local $dependency.parameter.link
+      val $parameter.payload: Reference<Nested>
+        Type Reference<Nested>
+        Local $argument.0
+      call $argument.0: Local<Reference<Nested>> = @fn22 direct
+        Type Reference<Nested>
+        Local $parameter.payload
+      val $parameter._1: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        Local $argument.0
+      val nested: Nested
+        Type Nested
+        VariantConstruct Nested v1
+          Type Local<Reference<Nested>>
+          Local $parameter._1
+      val $when.1: Nested
+        Type Nested
+        Local nested
+      val $pattern.subject.2: Nested
+        Type Nested
+        Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Nested v1
+          Type Nested
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      val local: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        VariantPayloadProject Nested v1 f0
+          Type Nested
+          Local $pattern.subject.2
+      call $when.3: Nested = @fn10 direct
+        Type Link<Nested>
+        FieldAccess 0
+          Type Reference<Nested>
+          FieldAccess 0
+            Type Local<Reference<Nested>>
+            Local local
+      val $pattern.subject.4: Nested
+        Type Nested
+        Local $when.3
+      branch bb6 bb7
+        Type Boolean
+        VariantTest Nested v0
+          Type Nested
+          Local $pattern.subject.4
+    bb4 pattern.else.4
+      val $pattern.subject.6: Nested
+        Type Nested
+        Local $when.1
+      branch bb12 bb13
+        Type Boolean
+        VariantTest Nested v0
+          Type Nested
+          Local $pattern.subject.6
+    bb5 pattern.merge.5
+      val ended: Boolean
+        Type Boolean
+        Local $result.1
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local ended
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb6 pattern.pass.6
+      assign $result.0
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 pattern.else.7
+      val $pattern.subject.5: Nested
+        Type Nested
+        Local $when.3
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Nested v1
+          Type Nested
+          Local $pattern.subject.5
+    bb8 pattern.merge.8
+      assign $result.1
+        Type Boolean
+        Local $result.0
+      goto bb5
+    bb9 pattern.pass.9
+      val next: Local<Reference<Nested>>
+        Type Local<Reference<Nested>>
+        VariantPayloadProject Nested v1 f0
+          Type Nested
+          Local $pattern.subject.5
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb11
+    bb10 pattern.else.10
+      unreachable
+    bb11 pattern.merge.11
+      goto bb8
+    bb12 pattern.pass.12
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb14
+    bb13 pattern.else.13
+      unreachable
+    bb14 pattern.merge.14
+      goto bb5
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb16 if.merge.16
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Wrapper<Int> = @fn27 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.payload: Wrapper<Int>
+        Type Wrapper<Int>
+        Local $argument.0
+      call $call.2: Local<Wrapper<Int>> = @fn28 direct
+        Type Wrapper<Int>
+        Local $parameter.payload
+      val receiver: Readable<Int>
+        Type Readable<Int>
+        Box
+          Type Wrapper<Int>
+          FieldAccess 0
+            Type Local<Wrapper<Int>>
+            Local $call.2
+      val $dependency.receiver: Readable<Int>
+        Type Readable<Int>
+        Local receiver
+      call $call.3: Int = @fn15 interface Readable<Int>[0]
+        Type Readable<Int>
+        Local $dependency.receiver
+      call $call.4: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.3
+      return
+        Type Int
+        Local $call.4
+  fun get @fn9(this: Wrapper<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Wrapper<String>
+          Local this
+  fun value @fn10(this: Link<Nested>) -> Nested
+    bb0 entry
+      return
+        Type Nested
+        FieldAccess 0
+          Type Link<Nested>
+          Local this
+  fun Readable.get @fn11(this: Readable<String>) -> String
+    bb0 entry
+      trap "call to abstract method `Readable.get`"
+  fun get @fn12(this: Wrapper<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Wrapper<Unit>
+        Local this
+      return
+  fun Readable.get @fn13(this: Readable<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Readable.get`"
+  fun get @fn14(this: Wrapper<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Wrapper<Int>
+          Local this
+  fun Readable.get @fn15(this: Readable<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Readable.get`"
+  fun init.Link.$c3 @fn16(this: Link<Nested>, value: Nested) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Nested>
+        Local this
+        Type Nested
+        Local value
+      return
+  fun ctor.Mixed.$c1 @fn17(value: Local<Wrapper<Phantom<Mixed>>>) -> Mixed <no-gc>
+    bb0 entry
+      return
+        Type Mixed
+        StructInit Mixed
+          Type Local<Wrapper<Phantom<Mixed>>>
+          Local value
+  fun ctor.Phantom.$c1 @fn18() -> Phantom<Mixed> <no-gc>
+    bb0 entry
+      return
+        Type Phantom<Mixed>
+        StructInit Phantom<Mixed>
+  fun ctor.Wrapper.$c0 @fn19(value: Phantom<Mixed>) -> Wrapper<Phantom<Mixed>> <no-gc>
+    bb0 entry
+      return
+        Type Wrapper<Phantom<Mixed>>
+        StructInit Wrapper<Phantom<Mixed>>
+          Type Phantom<Mixed>
+          Local value
+  fun ctor.Local.$c0 @fn20(payload: Wrapper<Phantom<Mixed>>) -> Local<Wrapper<Phantom<Mixed>>> <no-gc>
+    bb0 entry
+      return
+        Type Local<Wrapper<Phantom<Mixed>>>
+        StructInit Local<Wrapper<Phantom<Mixed>>>
+          Type Wrapper<Phantom<Mixed>>
+          Local payload
+  fun ctor.Reference.$c2 @fn21(link: Link<Nested>) -> Reference<Nested> <no-gc>
+    bb0 entry
+      return
+        Type Reference<Nested>
+        StructInit Reference<Nested>
+          Type Link<Nested>
+          Local link
+  fun ctor.Local.$c0 @fn22(payload: Reference<Nested>) -> Local<Reference<Nested>> <no-gc>
+    bb0 entry
+      return
+        Type Local<Reference<Nested>>
+        StructInit Local<Reference<Nested>>
+          Type Reference<Nested>
+          Local payload
+  fun ctor.Wrapper.$c0 @fn23(value: String) -> Wrapper<String> <no-gc>
+    bb0 entry
+      return
+        Type Wrapper<String>
+        StructInit Wrapper<String>
+          Type String
+          Local value
+  fun ctor.Local.$c0 @fn24(payload: Wrapper<String>) -> Local<Wrapper<String>> <no-gc>
+    bb0 entry
+      return
+        Type Local<Wrapper<String>>
+        StructInit Local<Wrapper<String>>
+          Type Wrapper<String>
+          Local payload
+  fun ctor.Wrapper.$c0 @fn25(value: Unit) -> Wrapper<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Wrapper<Unit>
+        StructInit Wrapper<Unit>
+          Type Unit
+          Local value
+  fun ctor.Local.$c0 @fn26(payload: Wrapper<Unit>) -> Local<Wrapper<Unit>> <no-gc>
+    bb0 entry
+      return
+        Type Local<Wrapper<Unit>>
+        StructInit Local<Wrapper<Unit>>
+          Type Wrapper<Unit>
+          Local payload
+  fun ctor.Wrapper.$c0 @fn27(value: Int) -> Wrapper<Int> <no-gc>
+    bb0 entry
+      return
+        Type Wrapper<Int>
+        StructInit Wrapper<Int>
+          Type Int
+          Local value
+  fun ctor.Local.$c0 @fn28(payload: Wrapper<Int>) -> Local<Wrapper<Int>> <no-gc>
+    bb0 entry
+      return
+        Type Local<Wrapper<Int>>
+        StructInit Local<Wrapper<Int>>
+          Type Wrapper<Int>
+          Local payload
+  fun thunk<Wrapper<String>> Readable.get() @fn29(this: Readable<String>) -> String
+    bb0 entry
+      call $call.1: String = @fn9 direct
+        Type Wrapper<String>
+        Unbox
+          Type Readable<String>
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Wrapper<Unit>> Readable.get() @fn30(this: Readable<Unit>) -> Unit
+    bb0 entry
+      call @fn12 direct
+        Type Wrapper<Unit>
+        Unbox
+          Type Readable<Unit>
+          Local this
+      return
+  fun thunk<Wrapper<Int>> Readable.get() @fn31(this: Readable<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn14 direct
+        Type Wrapper<Int>
+        Unbox
+          Type Readable<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Mixed> result=Mixed
+  coroutine_step cs1 CoroutineStep<Nested> result=Nested
+  coroutine_slot cl0 CoroutineSlot<Mixed> value=Mixed
+  coroutine_slot cl1 CoroutineSlot<Nested> value=Nested
+  instance mi0 function=@fn0 <- get
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn8 <- exercise
+  instance mi4 function=@fn9 <- get
+  instance mi5 function=@fn10 <- value
+  instance mi6 function=@fn11 <- Readable.get
+  instance mi7 function=@fn12 <- get
+  instance mi8 function=@fn13 <- Readable.get
+  instance mi9 function=@fn14 <- get
+  instance mi10 function=@fn15 <- Readable.get
+  str @str0 "value"
+  output library

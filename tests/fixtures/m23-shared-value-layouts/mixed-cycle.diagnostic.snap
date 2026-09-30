@@ -1,0 +1,3 @@
+span=62..106
+expression=public struct Left(val value: Choice<Right>)
+recursive value layout does not cross a reference boundary: Left -> Right -> Left

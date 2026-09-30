@@ -140,6 +140,7 @@ Scoop 的类型分为两大类：
 声明来自当前 Cone、普通依赖或 core 产物，不改变类型 application、bound、调用推断、默认值、成员或模式的语言规则；源码名称可达性与可见性仍按 12.4、9.1.5 检查。泛型正文在定义处绑定名称、重载和成员契约，实际类型替换不能重新选择定义处未选中的重载。普通声明中的封闭 application（如 `Box<Int>`、`I<Int>`）是完整类型，不因其原定义为泛型而成为不可物化的 source-only 声明。实现边界及共同 HIR 见实现规范 2.2 与 [M23-6a](../milestone23/stage6a/DESIGN.md)。
 
 - 泛型在编译期**单态化**实例化：每个具体类型实参生成一份专门的代码。
+- struct、enum 和 tuple 的内联值布局必须有限。字段或 payload 经实际内联的泛型形参返回同一值类型声明、且途中没有引用或指针边界时，在声明处报错；改变环上的类型实参不能消除此错误。此规则同样适用于来自依赖的泛型包装器。没有存入字段／payload 的 Phantom 参数以及仅位于引用或指针之后的参数，不构成内联布局依赖。
 - function、class、struct、enum与interface都可以声明类型参数。generic class/struct/enum的constructor或variant、base/interface application、字段与成员都可以使用宿主类型参数，generic interface的父interface与成员也可以使用宿主类型参数。每个fully specialized nominal application生成独立的concrete identity和成员实现；class还生成对象布局、TypeDescriptor与分派表，struct/enum生成完整value layout与GC-free/扫描信息，interface生成独立TypeDescriptor与itable key identity。
 - Scoop没有预定义`Self`类型、associated type或“当前实现者类型”的隐式占位符；`Self`也不是关键字，若出现在源码中只按普通名称解析。generic/interface契约若需要表达某个类型关系，必须用显式nominal type application或显式type parameter表示，编译器不执行`Self := 实现类型`替换。
 - 泛型调用与泛型值构造的类型实参由整组实参共同约束，推导结果不得依赖实参声明顺序。依赖期望类型的实参（如 `None`、空数组或嵌套泛型构造）可以由任意其他实参先绑定类型参数后再完成检查；类型检查顺序不决定运行期求值顺序，显式实参与缺省表达式严格按 8.5.3 求值。

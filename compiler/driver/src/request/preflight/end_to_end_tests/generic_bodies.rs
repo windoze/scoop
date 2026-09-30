@@ -36,6 +36,7 @@ mod shared_literals;
 mod shared_requests;
 mod shared_structs;
 mod siblings;
+mod value_layouts;
 
 #[test]
 fn ordinary_reader_retains_generic_bodies_from_actual_published_libraries() {

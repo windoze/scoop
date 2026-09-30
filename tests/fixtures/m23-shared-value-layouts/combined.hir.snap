@@ -1,0 +1,187 @@
+Module
+  struct Local<T>
+    field0 payload: T0
+    property0 val payload: T0 getter0=storage <stored struct0-field0>
+  struct Mixed
+    field0 value: Local<Wrapper<Phantom<Mixed>>>
+    property1 val value: Local<Wrapper<Phantom<Mixed>>> getter1=storage <stored struct1-field0>
+  enum Nested
+    End()
+    Next(_1: Local<Reference<Nested>>)
+  fun consume(value: Mixed): Int
+    return
+      IntegerLiteral 42 : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      ImportedConstructorInit Phantom : Phantom<Mixed>
+    val local3
+      Local $dependency.argument.0 : Phantom<Mixed>
+    val local4
+      ImportedConstructorInit Wrapper : Wrapper<Phantom<Mixed>>
+        Local $dependency.parameter.value : Phantom<Mixed>
+    val local5
+      Local $argument.0 : Wrapper<Phantom<Mixed>>
+    val local6
+      StructInit Local : Local<Wrapper<Phantom<Mixed>>>
+        Local $parameter.payload : Wrapper<Phantom<Mixed>>
+    val local7
+      Local $argument.0 : Local<Wrapper<Phantom<Mixed>>>
+    val local8
+      StructInit Mixed : Mixed
+        Local $parameter.value : Local<Wrapper<Phantom<Mixed>>>
+    val local9
+      Local mixed : Mixed
+    val local10
+      Local $argument.0 : Mixed
+    val local11
+      Call consume : Int
+        Local $parameter.value : Mixed
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local14
+      VariantConstruct Nested.End : Nested
+    val local15
+      Local tail : Nested
+    val local16
+      Local $dependency.argument.0 : Nested
+    val local17
+      ImportedConstructorInit Link : Link<Nested>
+        Local $dependency.parameter.value : Nested
+    val local18
+      Local $dependency.argument.0 : Link<Nested>
+    val local19
+      ImportedConstructorInit Reference : Reference<Nested>
+        Local $dependency.parameter.link : Link<Nested>
+    val local20
+      Local $argument.0 : Reference<Nested>
+    val local21
+      StructInit Local : Local<Reference<Nested>>
+        Local $parameter.payload : Reference<Nested>
+    val local22
+      Local $argument.0 : Local<Reference<Nested>>
+    val local23
+      VariantConstruct Nested.Next : Nested
+        Local $parameter._1 : Local<Reference<Nested>>
+    when
+      Local nested : Nested
+      arm variant1(0: local24)
+        when
+          ImportedGenericCall value<Nested> : Nested
+            FieldAccess field 0 : Link<Nested>
+              FieldAccess field 0 : Reference<Nested>
+                Local local : Local<Reference<Nested>>
+          arm variant0()
+            assign $result.0
+              BoolLiteral true : Boolean
+          arm variant1(0: local25)
+            assign $result.0
+              BoolLiteral false : Boolean
+          impossible <enum pattern matrix for Nested>
+        assign $result.1
+          Local $result.0 : Boolean
+      arm variant0()
+        assign $result.1
+          BoolLiteral false : Boolean
+      impossible <enum pattern matrix for Nested>
+    val local28
+      Local $result.1 : Boolean
+    val local29
+      Local ended : Boolean
+    if
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local30
+      Local seed : T0
+    val local31
+      Local $dependency.argument.0 : T0
+    val local32
+      ImportedConstructorInit Wrapper : Wrapper<T0>
+        Local $dependency.parameter.value : T0
+    val local33
+      Local $argument.0 : Wrapper<T0>
+    val local34
+      Box : Readable<T0>
+        FieldAccess field 0 : Wrapper<T0>
+          StructInit Local : Local<Wrapper<T0>>
+            Local $parameter.payload : Wrapper<T0>
+    val local35
+      Local receiver : Readable<T0>
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall Readable.get<T0> : T0
+          Local $dependency.receiver : Readable<T0>
+  fun result(): Int
+    val local0
+      StringLiteral "value" : String
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (String) -> Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : (String) -> Int
+    val local4
+      Call exercise<String> : Int
+        Local $parameter.seed : String
+        Local $parameter.read : (String) -> Int
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local7
+      UnitLiteral : Unit
+    val local8
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Unit) -> Int
+    val local9
+      Local $argument.0 : Unit
+    val local10
+      Local $argument.1 : (Unit) -> Int
+    val local11
+      Call exercise<Unit> : Int
+        Local $parameter.seed : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local16
+      Local $argument.0 : Int
+    val local17
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<String>
+  instance exercise<Unit>
+  instance exercise<Int>

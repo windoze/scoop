@@ -1,0 +1,162 @@
+Module
+  struct Empty
+    field0 marker: Phantom<Empty>
+    property0 val marker: Phantom<Empty> getter0=storage <stored struct0-field0>
+  enum Chain
+    End()
+    Next(_1: Reference<Chain>)
+  fun consume(value: Empty): Int
+    return
+      IntegerLiteral 42 : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      ImportedConstructorInit Phantom : Phantom<Empty>
+    val local3
+      Local $argument.0 : Phantom<Empty>
+    val local4
+      StructInit Empty : Empty
+        Local $parameter.marker : Phantom<Empty>
+    val local5
+      Local empty : Empty
+    val local6
+      Local $argument.0 : Empty
+    val local7
+      Call consume : Int
+        Local $parameter.value : Empty
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local10
+      VariantConstruct Chain.End : Chain
+    val local11
+      Local tail : Chain
+    val local12
+      Local $dependency.argument.0 : Chain
+    val local13
+      ImportedConstructorInit Link : Link<Chain>
+        Local $dependency.parameter.value : Chain
+    val local14
+      Local $dependency.argument.0 : Link<Chain>
+    val local15
+      ImportedConstructorInit Reference : Reference<Chain>
+        Local $dependency.parameter.link : Link<Chain>
+    val local16
+      Local $argument.0 : Reference<Chain>
+    val local17
+      VariantConstruct Chain.Next : Chain
+        Local $parameter._1 : Reference<Chain>
+    when
+      Local chain : Chain
+      arm variant1(0: local18)
+        when
+          ImportedGenericCall value<Chain> : Chain
+            FieldAccess field 0 : Link<Chain>
+              Local reference : Reference<Chain>
+          arm variant0()
+            assign $result.0
+              BoolLiteral true : Boolean
+          arm variant1(0: local19)
+            assign $result.0
+              BoolLiteral false : Boolean
+          impossible <enum pattern matrix for Chain>
+        assign $result.1
+          Local $result.0 : Boolean
+      arm variant0()
+        assign $result.1
+          BoolLiteral false : Boolean
+      impossible <enum pattern matrix for Chain>
+    val local22
+      Local $result.1 : Boolean
+    val local23
+      Local ended : Boolean
+    if
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local24
+      Local seed : T0
+    val local25
+      Local $dependency.argument.0 : T0
+    val local26
+      Box : Readable<T0>
+        ImportedConstructorInit Wrapper : Wrapper<T0>
+          Local $dependency.parameter.value : T0
+    val local27
+      Local receiver : Readable<T0>
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall Readable.get<T0> : T0
+          Local $dependency.receiver : Readable<T0>
+  fun result(): Int
+    val local0
+      UnitLiteral : Unit
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Unit) -> Int
+    val local2
+      Local $argument.0 : Unit
+    val local3
+      Local $argument.1 : (Unit) -> Int
+    val local4
+      Call exercise<Unit> : Int
+        Local $parameter.seed : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local7
+      StringLiteral "value" : String
+    val local8
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (String) -> Int
+    val local9
+      Local $argument.0 : String
+    val local10
+      Local $argument.1 : (String) -> Int
+    val local11
+      Call exercise<String> : Int
+        Local $parameter.seed : String
+        Local $parameter.read : (String) -> Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local16
+      Local $argument.0 : Int
+    val local17
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Unit>
+  instance exercise<String>
+  instance exercise<Int>

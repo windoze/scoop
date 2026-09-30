@@ -1,0 +1,5 @@
+package consumer.valuelayouts
+import upstream.valuelayouts.*
+
+public struct Left(val value: Choice<Right>)
+public enum Right { Value(Wrapper<Left>) }
