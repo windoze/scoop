@@ -216,3 +216,11 @@
 - 新增 `m23-shared-structs` 两组正例及两个反例，覆盖本地／依赖字段、嵌套 Option、别名、接口默认方法与继承、C 布局、引用／Int／Unit 和下游本地 class。真实发布、源码移走、再次发布及普通／移动 GC 运行全部通过；六份阶段快照和两份诊断快照关闭更新开关复验通过。
 - 全仓 fmt／clippy、1315 项 HIR lowering 单元测试及 11 项不同真实产物回归全部通过，包含泛型构造器、接口成员、解构、指针、interior mutability、装箱与普通 C ABI、派生相等及完整 core 源码三组导出闭包。既有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-struct-definitions-`，结果见 `unit.log`、`shared-verified.log` 和 `artifacts.log`。
 - struct 具体化、声明读取和 primitive 请求分别为 179、177、67 行；原 nominal 文件降至 156 行。完整声明／application 的前端来源表示与 class／interface 具体化继续迁移，wire 与 runtime ABI 未改变。
+
+## 共同 class 具体化与对象重定位身份
+
+- class 使用原声明和完整实参复用实例，当前与依赖声明在读取后共用字段、基类、既定虚方法和接口记录的具体化。String／Array／MutableArray 保留既定表示；当前 object 的 backing class 在递归前登记，外部普通虚方法保留原 family 和定义方实现。删除 134 行的依赖 class 具体化，主文件从 454 行降至 295 行，声明读取和全局实体分别为 149、213 行。
+- 新增 `m23-shared-classes` 两组正例与两个反例，覆盖封闭与泛型继承、字段、虚方法、接口、Array 转换、object 状态及引用／Int／Unit。真实发布后移走源码，下游使用本地 Payload 再次实例化；六份阶段快照、两个诊断及普通／移动 GC 运行均关闭更新开关复验通过。
+- 再次发布组合揭示同一静态存储在本地与依赖重定位中编码不同，导致机器对象相同却被 ODR 比较拒绝。按三份 spec 与 Stage 7 设计先修合同：所有 Strong shape 重定位共用实体与定义角色编码，provider 仍保留在普通依赖引用和符号连接中；没有放宽 ODR 合并或复制状态。复用已有 `definition_parts`，删除旧 tag 12 分支；link-identity-closure 从 `/6` 升至 `/7`，更新 required profile 与固定向量，保留旧版本明确拒绝测试。
+- 全仓 fmt／clippy 通过，1316 项 HIR lowering、466 项 LIR、584 项 slib 单元测试均已覆盖成功。14 项不同非 core 真实产物回归及完整 core 22 项均关闭更新开关通过，覆盖继承、成员、构造、初始化、委托、数组与 Link 损坏产物。core 新变化的 47 份快照只含 artifact／Code／runtime 摘要；函数顺序、共同字段显示和默认局部值名称的既有快照也已按完整组复验。
+- 最终日志前缀 `/tmp/scoop-m23-6a-class-odr-`，结果见 `unit-verified.log`、`updated-verified.log`、`other-verified.log` 和 `core-verified.log`；原 HIR lowering 验证见 `/tmp/scoop-m23-6a-class-definitions-`。确认没有 cargo／rustc 占用后清理约 375.5 MiB 旧增量缓存，继续复用 `target/m23-6a`。完整 nominal application、候选与正文存储继续迁移，本批不代表 6a 完成。

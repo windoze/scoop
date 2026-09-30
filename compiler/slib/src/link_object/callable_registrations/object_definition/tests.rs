@@ -11,6 +11,73 @@ use scoop_wire::encode_runtime;
 use super::*;
 
 #[test]
+fn storage_and_initialization_targets_preserve_the_original_definition_identity() {
+    use scoop_identity::{InitializationUnitKey, PersistentInitializationUnitId, StaticStorageKey};
+
+    let provider = ConeCoordinate::new("test", "provider", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let site = SourceDeclarationSite::new(
+        provider,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let object = PersistentTypeId::from_source_declaration(&SourceDeclarationKey::nominal(
+        site,
+        CanonicalIdentifier::new("State").unwrap(),
+        SourceNominalKind::Object,
+        0,
+    ))
+    .unwrap();
+    let storage =
+        PersistentStaticStorageId::from_key(&StaticStorageKey::singleton_published_root(object))
+            .unwrap();
+    let unit =
+        PersistentInitializationUnitId::from_key(&InitializationUnitKey::Object(object)).unwrap();
+    for (subject, entity_tag, identity, role_tag) in [
+        (
+            ExternalStrongShapeSubjectV1::StaticStorage(storage),
+            2_u32,
+            storage.as_array(),
+            2_u32,
+        ),
+        (
+            ExternalStrongShapeSubjectV1::StaticStorageRegistration(storage),
+            2,
+            storage.as_array(),
+            11,
+        ),
+        (
+            ExternalStrongShapeSubjectV1::InitializationCell(unit),
+            9,
+            unit.as_array(),
+            9,
+        ),
+        (
+            ExternalStrongShapeSubjectV1::InitializationDescriptor(unit),
+            9,
+            unit.as_array(),
+            10,
+        ),
+    ] {
+        let mut expected = 1_u32.to_le_bytes().to_vec();
+        expected.extend_from_slice(&entity_tag.to_le_bytes());
+        expected.extend_from_slice(identity);
+        expected.extend_from_slice(&role_tag.to_le_bytes());
+        let requirement =
+            CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { provider, subject };
+        assert_eq!(
+            encode_runtime(&requirement).unwrap(),
+            expected,
+            "{subject:?}"
+        );
+    }
+}
+
+#[test]
 fn local_and_dependency_callable_targets_have_the_same_runtime_encoding() {
     let provider = ConeCoordinate::new("test", "provider", "1.0.0")
         .unwrap()

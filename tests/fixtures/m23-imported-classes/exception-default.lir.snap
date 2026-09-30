@@ -1,8 +1,8 @@
 Module
   fun @scoop$1$cb$532240ff47432312e05278ed9c9853b64a8365f4e0806f7d7e1001c77abfb369() -> ptr<managed>
     local %0 code: i64
-    local %1 $dependency.default.local.0: i64
-    local %2 $dependency.default.local.1: i64
+    local %1 $default.local.0: i64
+    local %2 $default.local.1: i64
     local %3 $dependency.parameter.value: ptr<managed>
     local %4 error: ptr<managed>
     local %5 $dependency.receiver: i64

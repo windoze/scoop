@@ -103,21 +103,13 @@ impl RuntimeEncode for CanonicalObjectDefinitionRequirementV1 {
             } => {
                 return encode_callable_target(encoder, target);
             }
-            CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
-                subject: scoop_lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
-                ..
-            } => {
-                let owner = StrongDefinitionOwnerV1::new(
-                    StrongDefinitionEntity::exact_type(exact),
-                    StrongDefinitionRole::TypeDescriptor,
-                )
-                .expect("a type descriptor has an exact type definition owner");
+            CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { subject, .. } => {
+                let (entity, role, _) = subject
+                    .definition_parts()
+                    .expect("a resolved shape has a complete definition identity");
+                let owner = StrongDefinitionOwnerV1::new(entity, role)
+                    .expect("a shape subject has a matching definition role");
                 FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner }
-            }
-            CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { provider, subject } => {
-                encoder.u32(12)?;
-                encoder.fixed(provider.as_array())?;
-                return subject.runtime_encode(encoder);
             }
         };
         encode_legacy_requirement(encoder, requirement)

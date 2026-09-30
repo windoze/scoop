@@ -1,0 +1,4 @@
+package consumer.classes
+import upstream.classes.Remote
+
+public fun result(): Remote<Int> = Remote(42, "wrong")

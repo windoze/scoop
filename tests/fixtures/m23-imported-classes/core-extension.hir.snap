@@ -11,10 +11,10 @@ Module
       ImportedDependencyCall #0 : Long
         Local $dependency.receiver : RebuiltCounter
     val local4
-      ImportedVariantConstruct RebuiltFlag.Ready : RebuiltFlag
+      VariantConstruct RebuiltFlag.Ready : RebuiltFlag
     when
       Local flag : RebuiltFlag
-      arm dependency variant b9442b02de4ad0c98b210d65a7b58ce4365da2e7715dc188123ebe0f62c2daea()
+      arm variant0()
         val local5
           Local value : Long
         val local6
@@ -30,7 +30,7 @@ Module
         assign $result.0
           ImportedDependencyCall #2 : Counter
             Local $dependency.parameter.value : Long
-      arm dependency variant 7daffa4f49272c511d77408887c4792e3ae1ce91e21ef3f5d7bb1ae480bddcdb()
+      arm variant1()
         val local10
           IntegerLiteral 0 : Long
         val local11
@@ -38,7 +38,7 @@ Module
         assign $result.0
           ImportedDependencyCall #2 : Counter
             Local $dependency.parameter.value : Long
-      impossible <pattern matrix for RebuiltFlag>
+      impossible <enum pattern matrix for RebuiltFlag>
     return
       Local $result.0 : Counter
   output library

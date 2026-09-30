@@ -1,0 +1,27 @@
+package consumer.classes
+import upstream.classes.*
+
+private class Local<T>(value: T, public val remote: Remote<T>): Base<T>(value) {
+    public override fun select(other: T): T = this.remote.alternate
+}
+
+private object State { val delta: Int = 0 }
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val local = Local(value, create(value))
+    val base: Base<T> = local
+    val receiver: ValueSource<T> = local
+    if (read(base.value) != 42) { return 1 }
+    if (read(base.select(value)) != 42) { return 2 }
+    if (read(receiver.read()) != 42) { return 3 }
+    val source: Array<Local<T>> = [local]
+    val values = MutableArray(source)
+    values[0L] = local
+    return read(values[0L].remote.alternate) + State.delta
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

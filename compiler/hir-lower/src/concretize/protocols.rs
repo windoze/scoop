@@ -67,8 +67,10 @@ impl Concretizer<'_> {
             callback_failure_none,
         )
         .expect("the validated foreign callback failure protocol survives concretization");
-        let callback_throwable =
-            self.class_by_key[&(protocols.exceptions.throwable.class(), Vec::new())];
+        let callback_throwable = self.class_by_key[&(
+            self.source.nominal_identities[protocols.exceptions.throwable.class()].declaration_id(),
+            Vec::new(),
+        )];
         let callback_failure_result = concrete::ForeignCallbackFailureResult::checked(
             &self.enums,
             &self.types,
@@ -89,12 +91,18 @@ impl Concretizer<'_> {
                     .declaration_id(),
                 Vec::new(),
             )],
-            string: self.class_by_key[&(protocols.fundamental_types.string, Vec::new())],
+            string: self.class_by_key[&(
+                self.source.nominal_identities[protocols.fundamental_types.string].declaration_id(),
+                Vec::new(),
+            )],
         };
 
         let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
             constructor: {
-                let class = self.class_by_key[&(exception.class(), Vec::new())];
+                let class = self.class_by_key[&(
+                    self.source.nominal_identities[exception.class()].declaration_id(),
+                    Vec::new(),
+                )];
                 concrete::ZeroArgClassConstructor {
                     class,
                     callable: self.class_constructor_by_key[&(

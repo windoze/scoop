@@ -85,7 +85,7 @@ fn dependencies_for_strong(
 }
 
 #[test]
-fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
+fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definition() {
     let consumer_id = ConeIdentity::SINGLE_FILE;
     let provider = Provider::new();
     let layout = provider.consumer(consumer_id);
@@ -213,10 +213,10 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
             subject: ExternalStrongShapeSubjectV1::Layout(provider.layout),
         }
     );
-    let mut expected = 12_u32.to_le_bytes().to_vec();
-    expected.extend_from_slice(provider.foundation.producer().as_array());
-    expected.extend_from_slice(&2_u32.to_le_bytes());
+    let mut expected = 1_u32.to_le_bytes().to_vec();
+    expected.extend_from_slice(&5_u32.to_le_bytes());
     expected.extend_from_slice(provider.layout.as_array());
+    expected.extend_from_slice(&5_u32.to_le_bytes());
     assert_eq!(encode_runtime(&requirement).unwrap(), expected);
 
     let old_requirement = requirements

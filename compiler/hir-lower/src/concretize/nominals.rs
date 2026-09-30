@@ -1,5 +1,11 @@
 use super::*;
 
+pub(super) struct ResolvedField<'a> {
+    pub identity: scoop_identity::PersistentFieldId,
+    pub name: &'a str,
+    pub ty: export::TypeId,
+}
+
 impl Concretizer<'_> {
     pub(super) fn build_dispatch_slot_identities(&self) -> concrete::DispatchSlotIdentities {
         let mut virtual_slots = vec![None; self.virtual_method_by_source.len()];

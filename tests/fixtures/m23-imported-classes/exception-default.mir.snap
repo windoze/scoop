@@ -65,12 +65,12 @@ Module
         Type Counter
         Local $new.3
     bb8 try.body.8 unwind bb1
-      val $dependency.default.local.0: Long
+      val $default.local.0: Long
         Type Long
         IntegerLiteral Long value=21 bits=0x0000000000000015
-      val $dependency.default.local.1: Long
+      val $default.local.1: Long
         Type Long
-        Local $dependency.default.local.0
+        Local $default.local.0
       assign $new.1
         Type RebuiltFailure
         ClassAlloc RebuiltFailure
@@ -78,7 +78,7 @@ Module
         Type RebuiltFailure
         Local $new.1
         Type Long
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.value: Throwable
         Type Throwable
         Retype Throwable

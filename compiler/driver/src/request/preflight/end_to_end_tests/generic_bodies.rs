@@ -27,6 +27,7 @@ mod reexported_namespaces;
 mod references;
 mod selection;
 mod shared_bounds;
+mod shared_classes;
 mod shared_defaults;
 mod shared_enums;
 mod shared_requests;

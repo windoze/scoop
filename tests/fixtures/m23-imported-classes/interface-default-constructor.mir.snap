@@ -4,12 +4,12 @@ Module
   interface Readable
   fun primary @fn0() -> Counter
     bb0 entry
-      val $dependency.default.local.0: Long
+      val $default.local.0: Long
         Type Long
         IntegerLiteral Long value=21 bits=0x0000000000000015
-      val $dependency.default.local.1: Long
+      val $default.local.1: Long
         Type Long
-        Local $dependency.default.local.0
+        Local $default.local.0
       assign $new.1
         Type Reader
         ClassAlloc Reader
@@ -17,7 +17,7 @@ Module
         Type Reader
         Local $new.1
         Type Long
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $dependency.parameter.value: Readable
         Type Readable
         Retype Readable

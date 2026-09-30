@@ -67,7 +67,8 @@ impl ExternalStrongShapeSubjectV1 {
         ))
     }
 
-    fn definition_parts(
+    /// The entity, role, and symbol of this already selected target.
+    pub fn definition_parts(
         self,
     ) -> Result<
         (

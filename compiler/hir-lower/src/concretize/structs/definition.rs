@@ -1,4 +1,5 @@
 use super::*;
+use crate::concretize::nominals::ResolvedField;
 
 pub(super) struct ResolvedStructDefinition<'a> {
     pub origin: export::HirNominalIdentity,
@@ -16,18 +17,12 @@ pub(super) enum ResolvedStructRepresentation<'a> {
     Declared {
         attributes: export::StructAttributes,
         c_abi: concrete::StructCAbi,
-        fields: Vec<ResolvedStructField<'a>>,
+        fields: Vec<ResolvedField<'a>>,
     },
     Intrinsic {
         declaration: export::IntrinsicTypeKind,
         application: concrete::IntrinsicTypeRepresentation,
     },
-}
-
-pub(super) struct ResolvedStructField<'a> {
-    pub identity: scoop_identity::PersistentFieldId,
-    pub name: &'a str,
-    pub ty: export::TypeId,
 }
 
 impl<'input> Concretizer<'input> {
@@ -52,7 +47,7 @@ impl<'input> Concretizer<'input> {
                             u32::try_from(index).expect("source field indices fit u32"),
                         )
                         .expect("a declared struct retains each field");
-                        ResolvedStructField {
+                        ResolvedField {
                             identity: self.source.field_identities[reference].id(),
                             name: &field.name,
                             ty: field.ty,
@@ -117,7 +112,7 @@ impl<'a> ResolvedStructDefinition<'a> {
         let fields = source
             .fields
             .iter()
-            .map(|field| ResolvedStructField {
+            .map(|field| ResolvedField {
                 identity: field.identity,
                 name: &field.name,
                 ty: field.ty,

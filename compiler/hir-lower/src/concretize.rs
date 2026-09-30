@@ -21,6 +21,7 @@ mod constructor_slots;
 mod constructor_work;
 mod enums;
 mod functions;
+mod globals;
 mod imported_constructors;
 mod imported_methods;
 mod imported_nominals;
@@ -113,7 +114,6 @@ struct Concretizer<'a> {
         HashMap<(bool, Vec<concrete::TypeId>, concrete::TypeId), concrete::FunctionTypeId>,
     structs: Arena<concrete::StructDef>,
     struct_by_key: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::StructId>,
-    imported_classes: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::ClassId>,
     imported_interface_families: HashMap<export::SourceNominalId, concrete::InterfaceFamilyId>,
     imported_interfaces:
         HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::InterfaceId>,
@@ -135,7 +135,7 @@ struct Concretizer<'a> {
     >,
     virtual_method_by_source: HashMap<export::VirtualMethodId, concrete::VirtualMethodId>,
     classes: Arena<concrete::ClassDef>,
-    class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,
+    class_by_key: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     class_source: HashMap<concrete::ClassId, export::ClassId>,
     object_by_backing_class: HashMap<export::ClassId, export::ObjectId>,
@@ -305,7 +305,6 @@ impl<'a> Concretizer<'a> {
             function_type_by_signature: HashMap::new(),
             structs: Arena::new(),
             struct_by_key: HashMap::new(),
-            imported_classes: HashMap::new(),
             imported_interfaces: HashMap::new(),
             imported_interface_families: HashMap::new(),
             struct_type: HashMap::new(),

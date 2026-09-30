@@ -29,14 +29,22 @@ Module
   generated_exact_type get3 location=enum3 nominal_id=04b8443f35d84a70f03598410e0b7c52351954b49ba4edc84311114adf1df2e4 exact_id=863fc454a25aeb23495f476ee494a95c0cb8fdf60d4bcd4201f342c1e2056990
   generated_exact_type get4 location=enum5 nominal_id=40a4483d41d9161892b6178ce64160d12196e49897e7b29896bfdacaf89c6cf1 exact_id=8e8312df4679d392c1134cfbac689d2ad4ebcbb55e0e2eb4bddb09fd34cc1738
   generated_exact_type get5 location=enum1 nominal_id=073e0f3e896e25d0ece4b7a46fad05b36596fa1c8e8e55c982f01dbf078d255e exact_id=baefd068d6dd23463fb44062744bb616ad9fb8ff6914fbbbbcaf5c0c198ee04e
-  fun Child.read @fn0(this: Child) -> Int
+  fun read @fn0(this: Base<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type Base<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Child.read @fn1(this: Child) -> Int
     bb0 entry
       val $dependency.receiver: Base<Int>
         Type Base<Int>
         Retype Base<Int>
           Type Child
           Local this
-      call $dependency.receiver: Int = @fn1 direct
+      call $dependency.receiver: Int = @fn0 direct
         Type Base<Int>
         Local $dependency.receiver
       val $dependency.argument.0: Int
@@ -52,22 +60,22 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun read @fn1(this: Base<Int>) -> Int
+  fun LocalBase.read @fn2(this: LocalBase<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn5 direct
-        Type Base<Int>
+      call $call.1: Int = @fn6 direct
+        Type LocalBase<Int>
         Local this
       return
         Type Int
         Local $call.1
-  fun LocalChild.read @fn2(this: LocalChild) -> Int
+  fun LocalChild.read @fn3(this: LocalChild) -> Int
     bb0 entry
       val $receiver: LocalBase<Int>
         Type LocalBase<Int>
         Retype LocalBase<Int>
           Type LocalChild
           Local this
-      call $dependency.receiver: Int = @fn3 direct
+      call $dependency.receiver: Int = @fn2 direct
         Type LocalBase<Int>
         Local $receiver
       val $dependency.argument.0: Int
@@ -83,14 +91,6 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun LocalBase.read @fn3(this: LocalBase<Int>) -> Int
-    bb0 entry
-      call $call.1: Int = @fn6 direct
-        Type LocalBase<Int>
-        Local this
-      return
-        Type Int
-        Local $call.1
   fun result @fn4() -> Int
     bb0 entry
       val $argument.0: Int
@@ -134,7 +134,7 @@ Module
       val $receiver: LocalBase<Int>
         Type LocalBase<Int>
         Local local
-      call $dependency.receiver: Int = @fn3 virtual[0]
+      call $dependency.receiver: Int = @fn2 virtual[0]
         Type LocalBase<Int>
         Local $receiver
       val $dependency.argument.0: Int
@@ -161,7 +161,7 @@ Module
       val $dependency.receiver: Base<Int>
         Type Base<Int>
         Local external
-      call $dependency.receiver: Int = @fn1 virtual[0]
+      call $dependency.receiver: Int = @fn0 virtual[0]
         Type Base<Int>
         Local $dependency.receiver
       val $dependency.argument.0: Int
@@ -247,7 +247,7 @@ Module
         Retype Base<Int>
           Type PrivateChild
           Local $new.4
-      call $call.5: Int = @fn1 virtual[0]
+      call $call.5: Int = @fn0 virtual[0]
         Type Base<Int>
         Local $dependency.receiver
       return
@@ -353,8 +353,8 @@ Module
   coroutine_slot cl0 CoroutineSlot<InheritedLocalChild> value=InheritedLocalChild
   coroutine_slot cl1 CoroutineSlot<LocalChild> value=LocalChild
   coroutine_slot cl2 CoroutineSlot<Child> value=Child
-  instance mi0 function=@fn1 <- read
-  instance mi1 function=@fn3 <- LocalBase.read
+  instance mi0 function=@fn0 <- read
+  instance mi1 function=@fn2 <- LocalBase.read
   instance mi2 function=@fn5 <- value
   instance mi3 function=@fn6 <- LocalBase.$get$value
   output library

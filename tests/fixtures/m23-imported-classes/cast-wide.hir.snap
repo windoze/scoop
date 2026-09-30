@@ -23,7 +23,7 @@ Module
         Cast WideValue optional=false : WideValue
           Local boxed : Any
     val local8
-      FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
+      FieldAccess field 0 : Long
         Local value : WideValue
     val local9
       Local $dependency.argument.0 : Long

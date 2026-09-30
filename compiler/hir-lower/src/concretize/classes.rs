@@ -1,47 +1,90 @@
 use super::*;
 
 mod constructors;
+mod definition;
+
+use definition::{ResolvedClassDefinition, ResolvedClassRepresentation};
 
 impl Concretizer<'_> {
     pub(super) fn ensure_class(
         &mut self,
-        source_id: export::ClassId,
+        source: export::ClassId,
         arguments: Vec<concrete::TypeId>,
         application: ConcreteApplicationRepresentation,
     ) -> concrete::ClassId {
-        let key = (source_id, arguments.clone());
+        let origin = self.source.nominal_identities[source].declaration_id();
+        let key = (origin, arguments.clone());
         if let Some(&id) = self.class_by_key.get(&key) {
             return id;
         }
-        let source = self.source.classes[source_id].clone();
-        assert_eq!(source.type_params.len(), arguments.len());
-        let representation = match (&source.representation, application) {
-            (
-                export::ClassRepresentation::Declared,
-                ConcreteApplicationRepresentation::Declared,
-            ) => concrete::ClassRepresentation::Declared {
-                fields: Vec::new(),
-                base_class: None,
-            },
-            (
-                export::ClassRepresentation::Intrinsic(declaration),
-                ConcreteApplicationRepresentation::Intrinsic(application),
-            ) => concrete::ClassRepresentation::Intrinsic {
-                declaration: *declaration,
-                application,
-            },
-            _ => unreachable!("ExportHir declaration and application representations agree"),
+        let definition = self.source_class_definition(source, application);
+        let id = self.allocate_class_definition(&definition, arguments.clone());
+        self.class_source.insert(id, source);
+        let method_owner = if let Some(object) = self.object_by_backing_class.get(&source).copied()
+        {
+            self.register_object(object, id, self.class_type[&id]);
+            concrete::MethodOwner::Object(
+                self.object_type_map[&self.source.objects[object].object_type],
+            )
+        } else {
+            concrete::MethodOwner::Class(id)
         };
+        self.complete_class_definition(id, definition, &arguments, method_owner);
+        id
+    }
+
+    pub(super) fn lower_imported_class(
+        &mut self,
+        source: &export::ImportedClassType,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::TypeId {
+        let arguments = source
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect::<Vec<_>>();
+        let key = (source.declaration.owner(), arguments.clone());
+        if let Some(id) = self.class_by_key.get(&key) {
+            return self.class_type[id];
+        }
+        let definition = ResolvedClassDefinition::from_dependency(source, &arguments);
+        let id = self.allocate_class_definition(&definition, arguments);
+        self.complete_class_definition(
+            id,
+            definition,
+            substitution,
+            concrete::MethodOwner::Class(id),
+        );
+        self.class_type[&id]
+    }
+
+    fn allocate_class_definition(
+        &mut self,
+        definition: &ResolvedClassDefinition<'_>,
+        arguments: Vec<concrete::TypeId>,
+    ) -> concrete::ClassId {
+        let key = (definition.origin.declaration_id(), arguments.clone());
         let id = concrete::ClassId::from_raw(
             u32::try_from(self.classes.len())
                 .expect("concrete class ids fit in u32")
                 .into(),
         );
-        let type_kind = match &representation {
-            concrete::ClassRepresentation::Intrinsic {
-                application: concrete::IntrinsicTypeRepresentation::String,
-                ..
-            } => concrete::TypeKind::String,
+        let representation = match &definition.representation {
+            ResolvedClassRepresentation::Declared { .. } => {
+                concrete::ClassRepresentation::Declared {
+                    fields: Vec::new(),
+                    base_class: None,
+                }
+            }
+            ResolvedClassRepresentation::Intrinsic {
+                declaration,
+                application,
+            } => concrete::ClassRepresentation::Intrinsic {
+                declaration: *declaration,
+                application: application.clone(),
+            },
+        };
+        let kind = match &representation {
             concrete::ClassRepresentation::Declared { .. }
             | concrete::ClassRepresentation::Intrinsic {
                 application:
@@ -49,98 +92,104 @@ impl Concretizer<'_> {
                     | concrete::IntrinsicTypeRepresentation::MutableArray { .. },
                 ..
             } => concrete::TypeKind::Class(id),
-            concrete::ClassRepresentation::Intrinsic { .. } => {
-                unreachable!("the registry fixes intrinsic declaration targets")
-            }
+            concrete::ClassRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::String,
+                ..
+            } => concrete::TypeKind::String,
+            _ => unreachable!("the registry fixes intrinsic class representations"),
         };
-        let ty = self.intern_type(type_kind, false);
+        let ty = self.intern_type(kind, false);
         let allocated = self.classes.alloc(concrete::ClassDef {
-            origin: self.source.nominal_identities[source_id].clone(),
+            origin: definition.origin.clone(),
             canonical_type: ty,
-            modifier: source.modifier,
-            name: self.source_nominal_name(&source.name, source.owner),
-            owner: self.lower_nominal_owner(source.owner),
-            type_arguments: arguments.clone(),
+            modifier: definition.modifier,
+            name: definition.name.clone(),
+            owner: definition.owner.clone(),
+            type_arguments: arguments,
             representation,
             direct_interfaces: Vec::new(),
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
-            span: source.span,
+            span: definition.span,
         });
         assert_eq!(allocated, id);
         self.class_by_key.insert(key, id);
-        self.class_source.insert(id, source_id);
         self.class_type.insert(id, ty);
+        id
+    }
 
-        if let Some(object) = self.object_by_backing_class.get(&source_id).copied() {
-            self.register_object(object, id, ty);
+    fn complete_class_definition(
+        &mut self,
+        id: concrete::ClassId,
+        definition: ResolvedClassDefinition<'_>,
+        substitution: &[concrete::TypeId],
+        method_owner: concrete::MethodOwner,
+    ) {
+        if let ResolvedClassRepresentation::Declared { fields, base_class } =
+            definition.representation
+        {
+            let fields = fields
+                .into_iter()
+                .map(|field| concrete::Field {
+                    identity: field.identity,
+                    name: field.name.to_owned(),
+                    ty: self.lower_type(field.ty, substitution),
+                })
+                .collect();
+            let base_class = base_class.map(|base| {
+                let ty = self.lower_type(base, substitution);
+                let concrete::TypeKind::Class(base) = self.types[ty].kind else {
+                    unreachable!("a resolved class base retains its class type")
+                };
+                base
+            });
+            self.classes[id].representation =
+                concrete::ClassRepresentation::Declared { fields, base_class };
         }
-
-        let fields: Vec<concrete::Field> = source
-            .fields
+        let mut methods = self
+            .request_concrete_methods(definition.methods, method_owner)
+            .into_iter()
+            .map(concrete::ClassMethod::Local)
+            .collect::<Vec<_>>();
+        let direct_interfaces = definition
+            .interfaces
             .iter()
-            .map(|field| concrete::Field {
-                identity: self.source.field_identities[*field].id(),
-                name: self.source.properties[self.source.class_fields[*field].property]
-                    .name
-                    .clone(),
-                ty: self.lower_type(self.source.class_fields[*field].ty, &arguments),
-            })
+            .map(|interface| self.lower_type(*interface, substitution))
             .collect();
-        let method_owner = self.object_by_backing_class.get(&source_id).map_or(
-            concrete::MethodOwner::Class(id),
-            |object| {
-                concrete::MethodOwner::Object(
-                    self.object_type_map[&self.source.objects[*object].object_type],
-                )
-            },
+        methods.extend(
+            definition
+                .virtual_methods
+                .iter()
+                .map(|method| match method.callable {
+                    export::ImportedDispatchCallable::External(callable) => {
+                        concrete::ClassMethod::Imported {
+                            family: self.lower_virtual_method(method.family),
+                            callable: self.imported_dependency_callable_map[&callable],
+                        }
+                    }
+                    export::ImportedDispatchCallable::Template(application) => {
+                        concrete::ClassMethod::Local(self.lower_imported_callable_application(
+                            &self.source.imported_generic_applications[application],
+                            substitution,
+                        ))
+                    }
+                }),
         );
-        let methods = self.request_concrete_methods(&source.methods, method_owner);
-        let interface_implementations =
-            self.lower_interface_implementations(&source.interface_implementations, &arguments);
-        let interfaces = interface_implementations
+        let interface_implementations = self
+            .lower_interface_implementations(definition.interface_implementations, substitution);
+        self.classes[id].interfaces = interface_implementations
             .iter()
             .map(|implementation| self.interface_type[&implementation.interface])
             .collect();
-        let base_class = source.base_class.map(|base| {
-            let base = self.lower_type(base, &arguments);
-            let concrete::TypeKind::Class(base) = self.types[base].kind else {
-                unreachable!("class bases concretize to class identities")
-            };
-            base
-        });
-        self.classes[id].direct_interfaces = source
-            .interfaces
-            .iter()
-            .map(|interface| self.lower_type(*interface, &arguments))
-            .collect();
-        self.classes[id].interfaces = interfaces;
         self.classes[id].interface_implementations = interface_implementations;
-        match &mut self.classes[id].representation {
-            concrete::ClassRepresentation::Declared {
-                fields: concrete_fields,
-                base_class: concrete_base,
-            } => {
-                *concrete_fields = fields;
-                *concrete_base = base_class;
-            }
-            concrete::ClassRepresentation::Intrinsic { .. } => {
-                debug_assert!(fields.is_empty() && base_class.is_none());
+        self.classes[id].direct_interfaces = direct_interfaces;
+        self.classes[id].methods = methods;
+        for &constructor in definition.constructors {
+            if self.automatic_class_constructor(constructor) {
+                self.request_class_constructor(constructor, id);
             }
         }
-        self.classes[id].methods = methods
-            .into_iter()
-            .map(concrete::ClassMethod::Local)
-            .collect();
-        if source.type_params.is_empty() {
-            for &constructor in &source.constructors {
-                if self.automatic_class_constructor(constructor) {
-                    self.request_class_constructor(constructor, id);
-                }
-            }
-        }
-        id
     }
 
     pub(super) fn request_concrete_methods(
@@ -242,213 +291,5 @@ impl Concretizer<'_> {
             unreachable!("interface type lowers to an interface")
         };
         interface
-    }
-
-    pub(super) fn lower_extern_functions(&mut self) {
-        for (source_id, source) in self.source.extern_functions.iter() {
-            let owner = self
-                .source
-                .functions
-                .iter()
-                .find_map(|(function_id, function)| {
-                    matches!(&function.kind, export::FunctionKind::Extern(id) if *id == source_id)
-                        .then_some(function_id)
-                })
-                .expect("every extern declaration has one source function owner");
-            let source_contract = self
-                .source
-                .source_native_contracts
-                .get(export::HirSourceNativeContractOwner::Function(owner))
-                .expect("every extern function has a source-native contract")
-                .clone();
-            let params = source
-                .params
-                .iter()
-                .map(|ty| self.lower_type(*ty, &[]))
-                .collect();
-            let return_type = self.lower_type(source.return_type, &[]);
-            let id = self.extern_functions.alloc(concrete::ExternFunction {
-                source_contract,
-                source_name: source.source_name.clone(),
-                native_symbol: source.native_symbol.clone(),
-                library: source.library.clone(),
-                abi: source.abi,
-                calling_convention: source.calling_convention,
-                gc_effect: source.gc_effect,
-                safety: source.safety,
-                params,
-                return_type,
-            });
-            self.extern_map.insert(source_id, id);
-        }
-    }
-
-    pub(super) fn lower_globals(&mut self) {
-        // Allocate ids first because expressions in function bodies may refer
-        // to any global regardless of declaration order.
-        for (source_id, source) in self.source.globals.iter() {
-            let ty = self.lower_type(source.ty, &[]);
-            let storage = self.lower_global_storage(source_id, &source.storage);
-            let storage_owner = self.property_storage_owner(source_id, source);
-            let id = self.globals.alloc(concrete::Global {
-                name: source.name.clone(),
-                storage_owner,
-                ty,
-                mutable: source.mutable,
-                storage,
-                span: source.span,
-            });
-            self.global_map.insert(source_id, id);
-        }
-    }
-
-    fn property_storage_owner(
-        &self,
-        global_id: export::GlobalId,
-        global: &export::Global,
-    ) -> concrete::PropertyStorageOwner {
-        let property = &self.source.properties[global.property];
-        let owner = self.source.property_identities[global.property].property_owner();
-        match &property.representation {
-            export::PropertyRepresentation::Stored(export::StoredProperty {
-                backing: export::PropertyBacking::TopLevelGlobal { storage, .. },
-            }) if *storage == global_id => concrete::PropertyStorageOwner::Backing(owner),
-            export::PropertyRepresentation::Delegated { storage }
-                if matches!(
-                    self.source.delegate_storages[*storage].location,
-                    export::DelegateStorageLocation::ManagedGlobal(id) if id == global_id
-                ) =>
-            {
-                concrete::PropertyStorageOwner::Delegate(owner)
-            }
-            export::PropertyRepresentation::NativeStorage { storage } if *storage == global_id => {
-                concrete::PropertyStorageOwner::Backing(owner)
-            }
-            export::PropertyRepresentation::Stored(_)
-            | export::PropertyRepresentation::AccessorOnly
-            | export::PropertyRepresentation::Delegated { .. }
-            | export::PropertyRepresentation::GenericDelegated { .. }
-            | export::PropertyRepresentation::Const { .. }
-            | export::PropertyRepresentation::NativeStorage { .. } => {
-                unreachable!(
-                    "validated Export HIR binds every global to its physical property role"
-                )
-            }
-        }
-    }
-
-    pub(super) fn lower_global_storage(
-        &mut self,
-        global: export::GlobalId,
-        storage: &export::GlobalStorage,
-    ) -> concrete::GlobalStorage {
-        match storage {
-            export::GlobalStorage::Managed { state } => concrete::GlobalStorage::Managed {
-                state: match state {
-                    export::HirStaticInitialState::EncodedStaticValue { payload } => {
-                        concrete::HirStaticInitialState::EncodedStaticValue {
-                            payload: self.lower_constant(payload),
-                        }
-                    }
-                    export::HirStaticInitialState::ZeroedForRuntimeUnit { unit } => {
-                        concrete::HirStaticInitialState::ZeroedForRuntimeUnit {
-                            unit: self.request_initialization_unit(*unit),
-                        }
-                    }
-                },
-            },
-            export::GlobalStorage::Local {
-                thread_local,
-                initializer,
-            } => concrete::GlobalStorage::Local {
-                thread_local: *thread_local,
-                initializer: self.lower_constant(initializer),
-            },
-            export::GlobalStorage::Extern {
-                library,
-                native_symbol,
-                thread_local,
-            } => concrete::GlobalStorage::Extern {
-                source_contract: Box::new(
-                    self.source
-                        .source_native_contracts
-                        .get(export::HirSourceNativeContractOwner::Global(global))
-                        .expect("every extern global has a source-native contract")
-                        .clone(),
-                ),
-                library: library.clone(),
-                native_symbol: native_symbol.clone(),
-                thread_local: *thread_local,
-            },
-        }
-    }
-
-    pub(super) fn lower_constant(
-        &mut self,
-        value: &export::HirConstantImage,
-    ) -> concrete::HirConstantImage {
-        match value {
-            export::HirConstantImage::ImportedEnumUnit { ty, variant } => {
-                let ty = self.lower_type(*ty, &[]);
-                let concrete::TypeKind::Enum(enumeration) = self.types[ty].kind else {
-                    unreachable!("an imported enum constant retains its enum type")
-                };
-                let index = self.enums[enumeration]
-                    .variants
-                    .iter()
-                    .position(|value| value.identity == *variant)
-                    .expect("an imported enum constant retains its declared unit variant");
-                concrete::HirConstantImage::EnumUnit {
-                    variant: concrete::EnumVariantRef::checked(
-                        &self.enums,
-                        enumeration,
-                        concrete::VariantId::from_raw(index as u32),
-                    )
-                    .expect("the unit variant belongs to the resolved enum"),
-                }
-            }
-            export::HirConstantImage::ImportedStruct { ty, fields } => {
-                let ty = self.lower_type(*ty, &[]);
-                let concrete::TypeKind::Struct(struct_id) = self.types[ty].kind else {
-                    unreachable!("an imported struct constant retains its struct type")
-                };
-                concrete::HirConstantImage::Struct {
-                    struct_id,
-                    fields: fields
-                        .iter()
-                        .map(|field| self.lower_constant(field))
-                        .collect(),
-                }
-            }
-            export::HirConstantImage::Integer(value) => concrete::HirConstantImage::Integer(*value),
-            export::HirConstantImage::Boolean(value) => concrete::HirConstantImage::Boolean(*value),
-            export::HirConstantImage::String(value) => {
-                concrete::HirConstantImage::String(value.clone())
-            }
-            export::HirConstantImage::NullPointer(kind) => {
-                concrete::HirConstantImage::NullPointer(match kind {
-                    export::HirPointerNullKind::Raw => concrete::HirPointerNullKind::Raw,
-                    export::HirPointerNullKind::Code => concrete::HirPointerNullKind::Code,
-                })
-            }
-            export::HirConstantImage::EnumUnit { variant } => {
-                concrete::HirConstantImage::EnumUnit {
-                    variant: self.lower_applied_enum_variant_ref(*variant, &[]),
-                }
-            }
-            export::HirConstantImage::Struct {
-                application,
-                fields,
-            } => {
-                let struct_id = self.lower_struct_application(*application, &[]);
-                concrete::HirConstantImage::Struct {
-                    struct_id,
-                    fields: fields
-                        .iter()
-                        .map(|field| self.lower_constant(field))
-                        .collect(),
-                }
-            }
-        }
     }
 }

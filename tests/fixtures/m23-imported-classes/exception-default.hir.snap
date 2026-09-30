@@ -6,11 +6,11 @@ Module
       val local1
         IntegerLiteral 21 : Long
       val local2
-        Local $dependency.default.local.0 : Long
+        Local $default.local.0 : Long
       val local3
         ReferenceUpcast : Throwable
           ImportedDependencyCall #0 : RebuiltFailure
-            Local $dependency.default.local.1 : Long
+            Local $default.local.1 : Long
       ImportedDependencyCall #1 : Unit
         Local $dependency.parameter.value : Throwable
     catch error: Throwable

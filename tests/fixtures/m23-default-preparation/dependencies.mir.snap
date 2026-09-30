@@ -16,12 +16,12 @@
       return
         Type Int
         Local value
-  fun PrepGenericChild.choose @fn25(this: PrepGenericChild, seed: Int, value: Int) -> Int
+  fun PrepGeneric.choose @fn25(this: PrepGeneric<Int>, seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun PrepGeneric.choose @fn26(this: PrepGeneric<Int>, seed: Int, value: Int) -> Int
+  fun PrepGenericChild.choose @fn26(this: PrepGenericChild, seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -217,7 +217,7 @@
       val $parameter.value: Int
         Type Int
         Local $parameter.seed
-      call $parameter.value: Int = @fn25 direct
+      call $parameter.value: Int = @fn26 direct
         Type PrepGenericChild
         Local $receiver
         Type Int
@@ -333,4 +333,4 @@
         StructInit PrepValue
           Type Int
           Local value
-  instance mi0 function=@fn26 <- PrepGeneric.choose
+  instance mi0 function=@fn25 <- PrepGeneric.choose
