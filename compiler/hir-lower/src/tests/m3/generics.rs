@@ -189,7 +189,11 @@ fn generic_unit_return_preserves_call_before_bare_return() {
         panic!("the Unit-valued producer remains an expression statement")
     };
     assert_eq!(value.ty, output.local.unit);
-    let hir::concrete::ExprKind::Call { callee, .. } = &value.kind else {
+    let hir::concrete::ExprKind::Call {
+        callee: hir::concrete::CallableTarget::Local(callee),
+        ..
+    } = &value.kind
+    else {
         panic!("the Unit-valued generic call is preserved")
     };
     assert_eq!(

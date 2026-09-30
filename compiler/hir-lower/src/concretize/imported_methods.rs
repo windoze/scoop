@@ -170,8 +170,8 @@ impl Concretizer<'_> {
             concrete::CallableTarget::Imported(callee) => {
                 let receiver_type = receiver.ty;
                 args.insert(0, receiver);
-                concrete::ExprKind::ImportedDependencyCall {
-                    callee,
+                concrete::ExprKind::Call {
+                    callee: concrete::CallableTarget::Imported(callee),
                     binding: None,
                     args,
                     receiver: export::SourceCallReceiver::Receiver {

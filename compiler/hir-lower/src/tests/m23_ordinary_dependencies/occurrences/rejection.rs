@@ -28,7 +28,10 @@ fn second_call(module: &mut hir::concrete::Module) -> &mut hir::concrete::Expr {
     };
     assert!(matches!(
         expression.kind,
-        hir::concrete::ExprKind::ImportedDependencyCall { .. }
+        hir::concrete::ExprKind::Call {
+            callee: hir::concrete::CallableTarget::Imported(_),
+            ..
+        }
     ));
     expression
 }
@@ -82,8 +85,10 @@ fn body_occurrences_require_unique_materialization_roots() {
 fn actual_expressions_cannot_reference_a_missing_callable_or_closure() {
     let missing = la_arena::RawIdx::from_u32(u32::MAX);
     let failure = change(lower(&fixture("standalone")), |module| {
-        let hir::concrete::ExprKind::ImportedDependencyCall { callee, .. } =
-            &mut second_call(module).kind
+        let hir::concrete::ExprKind::Call {
+            callee: hir::concrete::CallableTarget::Imported(callee),
+            ..
+        } = &mut second_call(module).kind
         else {
             unreachable!()
         };

@@ -228,7 +228,10 @@ fn concrete_callee_name<'module>(
     expr: &hir::concrete::Expr,
 ) -> &'module str {
     let function = match &expr.kind {
-        hir::concrete::ExprKind::Call { callee, .. } => module.callable_function(*callee),
+        hir::concrete::ExprKind::Call {
+            callee: hir::concrete::CallableTarget::Local(callee),
+            ..
+        } => module.callable_function(*callee),
         hir::concrete::ExprKind::MethodCall { callee, .. } => module.callable_function(*callee),
         other => panic!("expected a concrete call, found {other:?}"),
     };

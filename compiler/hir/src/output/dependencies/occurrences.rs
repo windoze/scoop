@@ -104,12 +104,22 @@ pub(super) fn visit<'a>(
     ) -> Result<(), DependencyCallOccurrenceError>,
 ) -> Result<(), DependencyCallOccurrenceError> {
     let local = output.local.module();
+    let dependency_templates = output
+        .export
+        .module()
+        .imported_generic_templates
+        .values()
+        .filter_map(|template| match template.declaration {
+            crate::ImportedCallableTemplateOrigin::Generic(declaration) => Some(declaration),
+            _ => None,
+        })
+        .collect::<std::collections::HashSet<_>>();
     local
         .visit_executable_expressions(|occurrence| {
             let position = occurrence.position;
             let (target, binding, args, receiver) = match &occurrence.expression.kind {
-                concrete::ExprKind::ImportedDependencyCall {
-                    callee,
+                concrete::ExprKind::Call {
+                    callee: concrete::CallableTarget::Imported(callee),
                     binding,
                     args,
                     receiver,
@@ -133,8 +143,8 @@ pub(super) fn visit<'a>(
                         receiver,
                     )
                 }
-                concrete::ExprKind::ImportedGenericCall {
-                    callee,
+                concrete::ExprKind::Call {
+                    callee: concrete::CallableTarget::Local(concrete::Callable::Function(callee)),
                     binding,
                     args,
                     receiver,
@@ -143,6 +153,14 @@ pub(super) fn visit<'a>(
                         return Err(DependencyCallOccurrenceError::MissingUse(position));
                     }
                     let materialization = local.functions[*callee].materialization;
+                    let scoop_identity::CallableTemplateOwner::GenericFunction(declaration) =
+                        materialization.template()
+                    else {
+                        return Ok(());
+                    };
+                    if !dependency_templates.contains(&declaration) {
+                        return Ok(());
+                    }
                     let scoop_identity::CallableMaterializationContext::Application(id) =
                         materialization.context()
                     else {

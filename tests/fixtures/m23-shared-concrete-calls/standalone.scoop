@@ -1,0 +1,16 @@
+package consumer.calls
+import upstream.calls.identity as first
+import upstream.calls.identity as second
+import upstream.calls.nested
+
+public fun <T> localIdentity(value: T): T = value
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int =
+    read(localIdentity<T>(first<T>(nested<T>(second<T>(seed)))))
+
+public fun result(): Int {
+    if (first<String>("call") != localIdentity<String>("call")) { return 1 }
+    first<Unit>(Unit)
+    localIdentity<Unit>(Unit)
+    return exercise<Int>(first<Int>(40) + second<Int>(2), { value -> value })
+}

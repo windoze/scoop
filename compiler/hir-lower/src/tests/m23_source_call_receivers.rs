@@ -50,6 +50,7 @@ fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
             local
                 .visit_executable_expressions(|occurrence| {
                     if let hir::concrete::ExprKind::Call {
+                        callee: hir::concrete::CallableTarget::Local(_),
                         args,
                         receiver: hir::SourceCallReceiver::Receiver { static_type },
                         ..

@@ -670,14 +670,12 @@ impl BodyLowerer<'_> {
                 return self.lower_cast(operand, *check_ty, *optional, expr.ty, expr.span);
             }
             hir::ExprKind::Call { callee, args, .. } => {
-                return self.lower_call(*callee, args, expr.ty);
-            }
-
-            hir::ExprKind::ImportedGenericCall { callee, args, .. } => {
-                return self.lower_call(hir::Callable::Function(*callee), args, expr.ty);
-            }
-            hir::ExprKind::ImportedDependencyCall { callee, args, .. } => {
-                return self.lower_imported_call(*callee, args, expr.ty);
+                return match callee {
+                    hir::CallableTarget::Local(callee) => self.lower_call(*callee, args, expr.ty),
+                    hir::CallableTarget::Imported(callee) => {
+                        self.lower_imported_call(*callee, args, expr.ty)
+                    }
+                };
             }
             hir::ExprKind::LocalFunctionCall {
                 callee,

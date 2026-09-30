@@ -1,0 +1,204 @@
+Module
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=0
+  generated_exact_type get0 location=closure0 nominal_id=50d84ab72bda21301c520f91b5178b8a0de28e84345400f0e0e35e473faadd00 exact_id=977b751fc7e18d3260c8894afc1d4ba385ed27069cb7748ced95e85c8b284c28
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $equality.lhs: String = @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $dependency.receiver: String
+        Type String
+        Local $equality.lhs
+      call $dependency.argument.0: String = @fn2 direct
+        Type String
+        Local $parameter.value
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Unit
+        Local $dependency.parameter.value
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      call @fn4 direct
+        Type Unit
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.2: Int = @fn7 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.2
+  fun identity @fn1(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun localIdentity @fn2(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun identity @fn3(value: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun localIdentity @fn4(value: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun identity @fn5(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $lambda.0 @fn6($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn7(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn9 direct
+        Type Int
+        Local $parameter.value
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun nested @fn8(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      call $call.1: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun localIdentity @fn9(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  instance mi0 function=@fn1 <- identity
+  instance mi1 function=@fn2 <- localIdentity
+  instance mi2 function=@fn3 <- identity
+  instance mi3 function=@fn4 <- localIdentity
+  instance mi4 function=@fn5 <- identity
+  instance mi5 function=@fn7 <- exercise
+  instance mi6 function=@fn8 <- nested
+  instance mi7 function=@fn9 <- localIdentity
+  str @str0 "call"
+  str @str1 "call"
+  output library

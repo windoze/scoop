@@ -299,18 +299,8 @@ pub enum ExprKind {
     ArrayLen(Box<Expr>),
     ArrayClone(Box<Expr>),
     Call {
-        callee: Callable,
-        args: Vec<Expr>,
-        receiver: crate::SourceCallReceiver<TypeId>,
-    },
-    ImportedGenericCall {
-        callee: FunctionId,
-        binding: Option<std::sync::Arc<crate::DirectImportedTargetBinding>>,
-        args: Vec<Expr>,
-        receiver: crate::SourceCallReceiver<TypeId>,
-    },
-    ImportedDependencyCall {
-        callee: ImportedDependencyCallableUseId,
+        callee: CallableTarget,
+        /// Original namespace binding, when this use selected an imported name.
         binding: Option<std::sync::Arc<crate::DirectImportedTargetBinding>>,
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,
