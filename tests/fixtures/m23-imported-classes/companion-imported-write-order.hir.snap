@@ -1,10 +1,10 @@
 Module
   fun primary(): Counter
     val local0
-      ImportedSingletonValue c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89 : Companion
+      SingletonValue external c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89 : Companion
     val local1
       Call external #0 : Long
-        ImportedSingletonValue 1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5 : CompanionTrace
+        SingletonValue external 1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5 : CompanionTrace
     val local2
       IntegerLiteral 1 : Long
     val local3
@@ -23,7 +23,7 @@ Module
       Local $result.1 : Long
     val local5
       Call external #0 : Long
-        ImportedSingletonValue 1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5 : CompanionTrace
+        SingletonValue external 1bd835861b656169798af78424e3665b22cb190bcf68cc1561584a62e0d935e5 : CompanionTrace
     val local6
       IntegerLiteral 123 : Long
     val local7
@@ -34,7 +34,7 @@ Module
         Local $dependency.parameter.other : Long
       assign $result.2
         Call external #3 : Long
-          ImportedSingletonValue c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89 : Companion
+          SingletonValue external c9f2ec9b94d8b5b3f67c4575d912533d7712969fe66811e50e639a7b65884a89 : Companion
     else
       assign $result.2
         IntegerLiteral 0 : Long

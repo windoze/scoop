@@ -109,11 +109,11 @@ Module
         Local $dependency.parameter.value : Counter
         Local $dependency.parameter.marker : Token
     val local36
-      FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
+      FieldAccess field 0 : Long
         Call external #10 : WideValue
           Local cells : ValueCells
     val local37
-      FieldAccess dependency field a154bc246556a30baee37980783da76c9a3268cb6d1c4e7d505aefd389466a83 : Long
+      FieldAccess field 1 : Long
         Call external #10 : WideValue
           Local cells : ValueCells
     val local38

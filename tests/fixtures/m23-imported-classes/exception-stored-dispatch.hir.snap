@@ -30,13 +30,13 @@ Module
       val local8
         Local $dependency.argument.0 : Long
       val local10
-        Call external #4 : StructReader
-          Local $dependency.parameter.value : Long
+        Box : Readable
+          Call external #4 : StructReader
+            Local $dependency.parameter.value : Long
       val local11
         Local $argument.0 : RebuiltFailure
       val local12
-        Box : Readable
-          Local $argument.1 : StructReader
+        Local $argument.1 : Readable
       assign $result.0
         ClassInit Saved : Saved
           Local $parameter.error : RebuiltFailure
@@ -49,13 +49,13 @@ Module
       val local14
         Local $dependency.argument.0 : Long
       val local16
-        Call external #4 : StructReader
-          Local $dependency.parameter.value : Long
+        Box : Readable
+          Call external #4 : StructReader
+            Local $dependency.parameter.value : Long
       val local17
         Local $argument.0 : RebuiltFailure
       val local18
-        Box : Readable
-          Local $argument.1 : StructReader
+        Local $argument.1 : Readable
       assign $result.0
         ClassInit Saved : Saved
           Local $parameter.error : RebuiltFailure

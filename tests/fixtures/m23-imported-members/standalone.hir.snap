@@ -34,10 +34,10 @@ Module
         Local $dependency.parameter.delta : Long
   fun fieldSum(value: Wide): Long <no-gc cdecl>
     val local1
-      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
+      FieldAccess field 0 : Long
         Local value : Wide
     val local2
-      FieldAccess dependency field 6afc04e0050bcfe6e2e9c89e67745664a13cccdce2934e458a7b29d7a9a0a10a : Long
+      FieldAccess field 1 : Long
         Local value : Wide
     val local3
       Local $dependency.argument.0 : Long
@@ -46,7 +46,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local5
-      FieldAccess dependency field 21233201ed8f0d9420a38df7bf221699b719a3881a149367f4131f7000729ec9 : Long
+      FieldAccess field 2 : Long
         Local value : Wide
     val local6
       Local $dependency.argument.0 : Long
@@ -76,16 +76,16 @@ Module
         Local $dependency.parameter.other : Long
   fun first(value: Wide): Long <no-gc cdecl>
     return
-      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
+      FieldAccess field 0 : Long
         Local value : Wide
   fun marker(value: Nested): Token <no-gc cdecl>
     return
-      FieldAccess dependency field bc90c80ba77f9b4a98c9d5ca9eb3e157147a45d1ccd98b263e7917accfc8d504 : Token
+      FieldAccess field 1 : Token
         Local value : Nested
   fun nestedFirst(value: Nested): Long <no-gc cdecl>
     return
-      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
-        FieldAccess dependency field e455bae1b6cb089412338e6835adbfe9ac0747431f07dee9b5447bd240a828a6 : Wide
+      FieldAccess field 0 : Long
+        FieldAccess field 0 : Wide
           Local value : Nested
   fun fromField(value: Wide): Long <no-gc cdecl>
     val local1
@@ -93,7 +93,7 @@ Module
     val local2
       Local $dependency.argument.0 : Wide
     val local3
-      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
+      FieldAccess field 0 : Long
         Local $dependency.parameter.value : Wide
     return
       Call external #4 : Long
@@ -109,11 +109,11 @@ Module
     val local4
       IntegerLiteral 7 : Long
     val local5
-      Local $dependency.default.local.2 : Long
+      Local $default.local.2 : Long
     val local6
       Call external #2 : Long
-        Local $dependency.default.local.1 : Wide
-        Local $dependency.default.local.3 : Long
+        Local $default.local.1 : Wide
+        Local $default.local.3 : Long
     return
       Call external #5 : Long
         Local $dependency.parameter.value : Wide
@@ -136,7 +136,7 @@ Module
     val local2
       Local $dependency.argument.0 : Nested
     val local3
-      FieldAccess dependency field bc90c80ba77f9b4a98c9d5ca9eb3e157147a45d1ccd98b263e7917accfc8d504 : Token
+      FieldAccess field 1 : Token
         Local $dependency.parameter.value : Nested
     return
       Call external #7 : Token

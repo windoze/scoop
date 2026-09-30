@@ -113,9 +113,9 @@ Module
   fun @scoop$1$cb$ac88129379b0513ce28425adea351a204f013cbfca15bce972aa823c0a492525(indirect<struct1 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 $dependency.argument.0: struct1
     local %1 $dependency.parameter.value: struct1
-    local %2 $dependency.default.local.1: struct1
-    local %3 $dependency.default.local.2: i64
-    local %4 $dependency.default.local.3: i64
+    local %2 $default.local.1: struct1
+    local %3 $default.local.2: i64
+    local %4 $default.local.3: i64
     local %5 $dependency.parameter.selected: i64
     local %6 $call.1: i64
     local %7 $sc.1: struct1

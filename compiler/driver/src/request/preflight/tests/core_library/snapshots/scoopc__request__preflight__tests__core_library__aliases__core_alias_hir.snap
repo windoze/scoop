@@ -9,7 +9,7 @@ Module
       Local value : Int
   fun main(): Unit
     val local0
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local1
       TupleLiteral : (Int, Boolean)
         Local initial : Int

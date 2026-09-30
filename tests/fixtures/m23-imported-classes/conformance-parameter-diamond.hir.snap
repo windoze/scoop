@@ -8,15 +8,15 @@ Module
         Local $receiver : LocalDefaults
     val local2
       Call external #0 interface[0] : Long
-        Local $dependency.default.local.1 : ParameterSource
+        Local $default.local.1 : ParameterSource
     val local3
       IntegerLiteral 1 : Long
     val local4
-      Local $dependency.default.local.3 : Long
+      Local $default.local.3 : Long
     val local5
       IntegerOperation long.add <no-gc> : Long
-        Local $dependency.default.local.2 : Long
-        Local $dependency.default.local.4 : Long
+        Local $default.local.2 : Long
+        Local $default.local.4 : Long
     val local6
       MethodCall LocalDefaults.answer : Long
         Local $receiver : LocalDefaults

@@ -11,21 +11,21 @@ Module
   class Throwable vtable=0 itables=0
   fun main @fn0() -> Unit
     bb0 entry
-      val $dependency.default.local.0: Int
+      val $default.local.0: Int
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-      val $dependency.default.local.2: Int
+      val $default.local.2: Int
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       val $div.1: Int
         Type Int
-        Local $dependency.default.local.0
+        Local $default.local.0
       val $div.2: Int
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       branch bb1 bb2
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean

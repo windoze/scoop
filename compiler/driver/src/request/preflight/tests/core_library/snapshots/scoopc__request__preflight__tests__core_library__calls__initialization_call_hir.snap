@@ -14,7 +14,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     assign global initialized
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.value : Int
   fun $init$ensure$0(): Unit
   fun $get$initialized(): Int

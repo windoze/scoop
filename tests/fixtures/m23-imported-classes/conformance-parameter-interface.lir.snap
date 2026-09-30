@@ -10,10 +10,10 @@ Module
   fun @scoop$1$cb$47fe1233acf9a0d07f431b49fb0e2710f47363abb0509d256ef6311071a2b799() -> ptr<managed>
     local %0 target: ptr<managed>
     local %1 $receiver: ptr<managed>
-    local %2 $dependency.default.local.1: ptr<managed>
-    local %3 $dependency.default.local.2: i64
-    local %4 $dependency.default.local.3: i64
-    local %5 $dependency.default.local.4: i64
+    local %2 $default.local.1: ptr<managed>
+    local %3 $default.local.2: i64
+    local %4 $default.local.3: i64
+    local %5 $default.local.4: i64
     local %6 $parameter.value: i64
     local %7 $dependency.argument.0: i64
     local %8 $dependency.parameter.value: i64

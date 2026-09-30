@@ -7,19 +7,19 @@ Module
   fun @scoop$1$cb$0d849ce94979d4b7702f06612bcf2ac4afb3cc37937d4275e6ebf3b1bad07962(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.seed: i32
-    local %2 $dependency.default.local.1: i32
-    local %3 $dependency.default.local.2: i32
-    local %4 $dependency.default.local.3: i32
-    local %5 $dependency.default.local.4: i32
-    local %6 $dependency.default.local.5: i32
-    local %7 $dependency.default.local.6: i32
-    local %8 $dependency.default.local.7: i32
-    local %9 $dependency.default.local.8: i32
-    local %10 $dependency.default.local.9: i32
+    local %2 $default.local.1: i32
+    local %3 $default.local.2: i32
+    local %4 $default.local.3: i32
+    local %5 $default.local.4: i32
+    local %6 $default.local.5: i32
+    local %7 $default.local.6: i32
+    local %8 $default.local.7: i32
+    local %9 $default.local.8: i32
+    local %10 $default.local.9: i32
     local %11 $dependency.parameter.value: i32
     local %12 $dependency.argument.0: i32
     local %13 $dependency.parameter.seed: i32
-    local %14 $dependency.default.local.1: i32
+    local %14 $default.local.1: i32
     local %15 $dependency.parameter.value: i32
     local %16 $dependency.receiver: i32
     local %17 $dependency.argument.0: i32

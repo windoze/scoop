@@ -11,10 +11,10 @@ Module
     ret param1
   fun @scoop$1$cb$13513c857756cd6b0501f5f5d3897341452366b198acb19655c70c9d5218ded4() -> ptr<managed>
     local %0 $receiver: struct0 <logical-zst cc52dee3493bb91d44ba01993c3a16edfb247123bbd6fcc3053193261dd21e04>
-    local %1 $dependency.default.local.1: ptr<managed>
-    local %2 $dependency.default.local.2: i64
-    local %3 $dependency.default.local.3: i64
-    local %4 $dependency.default.local.4: i64
+    local %1 $default.local.1: ptr<managed>
+    local %2 $default.local.2: i64
+    local %3 $default.local.3: i64
+    local %4 $default.local.4: i64
     local %5 $parameter.value: i64
     local %6 $dependency.argument.0: i64
     local %7 $dependency.parameter.value: i64

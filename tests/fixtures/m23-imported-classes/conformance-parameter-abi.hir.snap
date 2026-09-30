@@ -8,25 +8,25 @@ Module
     val local2
       IntegerLiteral 10 : Long
     val local3
-      Local $dependency.default.local.2 : Long
+      Local $default.local.2 : Long
     val local4
       Call external #1 : Counter
-        Local $dependency.default.local.3 : Long
+        Local $default.local.3 : Long
     val local5
       Local $parameter.input : Counter
     val local6
       Call external #2 : Long
-        Local $dependency.default.local.3 : Counter
+        Local $default.local.3 : Counter
     val local7
       IntegerLiteral 1 : Long
     val local8
-      Local $dependency.default.local.5 : Long
+      Local $default.local.5 : Long
     val local9
       IntegerOperation long.add <no-gc> : Long
-        Local $dependency.default.local.4 : Long
-        Local $dependency.default.local.6 : Long
+        Local $default.local.4 : Long
+        Local $default.local.6 : Long
     val local10
-      FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
+      FieldAccess field 0 : Long
         MethodCall LocalDefaults.answer : WideValue
           Local $receiver : LocalDefaults
           Local $parameter.marker : Token

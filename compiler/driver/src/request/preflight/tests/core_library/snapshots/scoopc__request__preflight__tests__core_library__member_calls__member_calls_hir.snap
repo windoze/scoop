@@ -195,6 +195,6 @@ Module
     val local14
       Local $dependency.argument.0 : Int
     val local15
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.value : Int
   output executable main

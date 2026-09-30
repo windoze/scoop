@@ -19,54 +19,54 @@ Module
           Type Int
           IntegerLiteral Int value=0 bits=0x00000000
     bb1 if.then.1
-      val $dependency.default.local.3: Int
+      val $default.local.3: Int
         Type Int
         Local $dependency.parameter.seed
-      val $dependency.default.local.4: Int
+      val $default.local.4: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.default.local.5: Int
+      val $default.local.5: Int
         Type Int
-        Local $dependency.default.local.4
-      val $dependency.default.local.1: Int
+        Local $default.local.4
+      val $default.local.1: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.default.local.3
+          Local $default.local.3
           Type Int
-          Local $dependency.default.local.5
-      assign $dependency.default.local.9
+          Local $default.local.5
+      assign $default.local.9
         Type Int
-        Local $dependency.default.local.1
+        Local $default.local.1
       goto bb3
     bb2 if.else.2
-      var $dependency.default.local.2: Int
+      var $default.local.2: Int
         Type Int
         Local $dependency.parameter.seed
-      val $dependency.default.local.6: Int
+      val $default.local.6: Int
         Type Int
-        Local $dependency.default.local.2
-      val $dependency.default.local.7: Int
+        Local $default.local.2
+      val $default.local.7: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-      val $dependency.default.local.8: Int
+      val $default.local.8: Int
         Type Int
-        Local $dependency.default.local.7
-      assign $dependency.default.local.2
+        Local $default.local.7
+      assign $default.local.2
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.default.local.6
+          Local $default.local.6
           Type Int
-          Local $dependency.default.local.8
-      assign $dependency.default.local.9
+          Local $default.local.8
+      assign $default.local.9
         Type Int
-        Local $dependency.default.local.2
+        Local $default.local.2
       goto bb3
     bb3 if.merge.3
       val $dependency.parameter.value: Int
         Type Int
-        Local $dependency.default.local.9
+        Local $default.local.9
       call $dependency.receiver: Int = external0 direct
         Type Int
         Local $dependency.parameter.seed
@@ -78,14 +78,14 @@ Module
       val $dependency.parameter.seed: Int
         Type Int
         Local $dependency.argument.0
-      val $dependency.default.local.1: Int
+      val $default.local.1: Int
         Type Int
         Local $dependency.parameter.seed
       val $dependency.parameter.value: Int
         Type Int
         IntegerUnary increment kind=Int
           Type Int
-          Local $dependency.default.local.1
+          Local $default.local.1
       call $dependency.argument.0: Int = external1 direct
         Type Int
         Local $dependency.parameter.seed

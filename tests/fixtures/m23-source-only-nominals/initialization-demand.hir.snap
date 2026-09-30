@@ -21,7 +21,7 @@ Module
   fun $init$ensure$1(): Unit
   fun $init$body$2(): Unit
     assign singleton-root#2
-      ClassInit ReadyFactory : DeferredHost.ReadyFactory
+      ClassInit DeferredHost.ReadyFactory : DeferredHost.ReadyFactory
   fun $init$ensure$2(): Unit
   fun $init$body$3(): Unit
     val local0

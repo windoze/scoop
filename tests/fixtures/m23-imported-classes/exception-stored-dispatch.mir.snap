@@ -85,40 +85,43 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call $argument.1: StructReader = external2 direct
+      call $call.3: StructReader = external2 direct
         Type Long
         Local $dependency.parameter.value
+      val $argument.1: Readable
+        Type Readable
+        Box
+          Type StructReader
+          Local $call.3
       val $parameter.error: RebuiltFailure
         Type RebuiltFailure
         Local $argument.0
       val $parameter.reader: Readable
         Type Readable
-        Box
-          Type StructReader
-          Local $argument.1
-      assign $new.3
+        Local $argument.1
+      assign $new.4
         Type Saved
         ClassAlloc Saved
       call @fn2 direct
         Type Saved
-        Local $new.3
+        Local $new.4
         Type RebuiltFailure
         Local $parameter.error
         Type Readable
         Local $parameter.reader
       assign $result.0
         Type Saved
-        Local $new.3
+        Local $new.4
       goto bb7
     bb9 try.catch.9
-      call $catch.4: Any = @scoop_rt_materialize_exception direct
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: RebuiltFailure
         Type RebuiltFailure
         Retype RebuiltFailure
           Type Any
-          Local $catch.4
+          Local $catch.5
       goto bb11
     bb10 try.next.10
       rethrow unwind bb5
@@ -132,30 +135,33 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call $argument.1: StructReader = external2 direct
+      call $call.6: StructReader = external2 direct
         Type Long
         Local $dependency.parameter.value
+      val $argument.1: Readable
+        Type Readable
+        Box
+          Type StructReader
+          Local $call.6
       val $parameter.error: RebuiltFailure
         Type RebuiltFailure
         Local $argument.0
       val $parameter.reader: Readable
         Type Readable
-        Box
-          Type StructReader
-          Local $argument.1
-      assign $new.5
+        Local $argument.1
+      assign $new.7
         Type Saved
         ClassAlloc Saved
       call @fn2 direct
         Type Saved
-        Local $new.5
+        Local $new.7
         Type RebuiltFailure
         Local $parameter.error
         Type Readable
         Local $parameter.reader
       assign $result.0
         Type Saved
-        Local $new.5
+        Local $new.7
       end_catch
       goto bb12
     bb12 scope.12

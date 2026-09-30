@@ -5,11 +5,11 @@ Module
     val local1
       IntegerLiteral 2 : Long
     val local2
-      Local $dependency.default.local.1 : Long
+      Local $default.local.1 : Long
     val local3
       IntegerOperation long.div <managed> : Long
-        Local $dependency.default.local.0 : Long
-        Local $dependency.default.local.2 : Long
+        Local $default.local.0 : Long
+        Local $default.local.2 : Long
     val local4
       Call external #0 : Long
         Local $dependency.parameter.value : Long

@@ -1,12 +1,12 @@
 Module
   fun primary(): Counter
     val local0
-      ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
+      SingletonValue external 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
     Call external #2 : Unit
       Local $property_receiver.0 : Factory
       IntegerLiteral 18 : Long
     val local1
-      ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
+      SingletonValue external 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
     val local2
       Call external #3 : Long
         Local $property_receiver.1 : Factory
@@ -21,7 +21,7 @@ Module
     val local5
       Local $old.2 : Long
     val local6
-      ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
+      SingletonValue external 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
     val local7
       Call external #3 : Long
         Local $property_receiver.4 : Factory
@@ -36,7 +36,7 @@ Module
     val local10
       Local $new.6 : Long
     val local11
-      ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
+      SingletonValue external 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
     val local12
       Call external #3 : Long
         Local $property_receiver.7 : Factory
@@ -78,7 +78,7 @@ Module
       Local $shortCircuit.9 : Boolean
       assign $result.10
         Call external #3 : Long
-          ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
+          SingletonValue external 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
     else
       assign $result.10
         IntegerLiteral 0 : Long

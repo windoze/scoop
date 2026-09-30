@@ -49,12 +49,12 @@ Module
     bb0 entry
       call $receiver: LocalDefaults = @fn2 direct
       call $parameter.marker: Token = external0 direct
-      val $dependency.default.local.2: Long
+      val $default.local.2: Long
         Type Long
         IntegerLiteral Long value=10 bits=0x000000000000000a
-      val $dependency.default.local.3: Long
+      val $default.local.3: Long
         Type Long
-        Local $dependency.default.local.2
+        Local $default.local.2
       assign $new.1
         Type Counter
         ClassAlloc Counter
@@ -62,29 +62,29 @@ Module
         Type Counter
         Local $new.1
         Type Long
-        Local $dependency.default.local.3
+        Local $default.local.3
       val $parameter.input: Counter
         Type Counter
         Local $new.1
-      val $dependency.default.local.3: Counter
+      val $default.local.3: Counter
         Type Counter
         Local $parameter.input
-      call $dependency.default.local.4: Long = external2 direct
+      call $default.local.4: Long = external2 direct
         Type Counter
-        Local $dependency.default.local.3
-      val $dependency.default.local.5: Long
+        Local $default.local.3
+      val $default.local.5: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.default.local.6: Long
+      val $default.local.6: Long
         Type Long
-        Local $dependency.default.local.5
+        Local $default.local.5
       val $parameter.extra: Long
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.default.local.4
+          Local $default.local.4
           Type Long
-          Local $dependency.default.local.6
+          Local $default.local.6
       call $call.2: WideValue = @fn0 direct
         Type LocalDefaults
         Local $receiver

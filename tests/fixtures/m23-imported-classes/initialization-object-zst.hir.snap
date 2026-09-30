@@ -1,7 +1,7 @@
 Module
   fun primary(): Counter
     val local0
-      ImportedSingletonValue d69ebf4d707d2b06b37afcfb470bcab38a61eae9d6bb2d02df62d86a0a7db5f2 : SharedMethods
+      SingletonValue external d69ebf4d707d2b06b37afcfb470bcab38a61eae9d6bb2d02df62d86a0a7db5f2 : SharedMethods
     val local1
       Call external #0 : Token
     val local2

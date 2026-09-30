@@ -379,8 +379,10 @@ Module
         Type () -> HeapEmpty
         Local readEmpty
       call @fn3 direct
-        Type HeapDerived
-        Local derived
+        Type HeapBase
+        Retype HeapBase
+          Type HeapDerived
+          Local derived
         Type HeapEmpty
         Local $call.6
       call @fn11 direct

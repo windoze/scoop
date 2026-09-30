@@ -278,20 +278,20 @@ Module
       val $dependency.parameter.value: Wide
         Type Wide
         Local $dependency.argument.0
-      val $dependency.default.local.1: Wide
+      val $default.local.1: Wide
         Type Wide
         Local $dependency.parameter.value
-      val $dependency.default.local.2: Long
+      val $default.local.2: Long
         Type Long
         IntegerLiteral Long value=7 bits=0x0000000000000007
-      val $dependency.default.local.3: Long
+      val $default.local.3: Long
         Type Long
-        Local $dependency.default.local.2
+        Local $default.local.2
       call $dependency.parameter.selected: Long = external3 direct
         Type Wide
-        Local $dependency.default.local.1
+        Local $default.local.1
         Type Long
-        Local $dependency.default.local.3
+        Local $default.local.3
       call $call.1: Long = external7 direct
         Type Wide
         Local $dependency.parameter.value

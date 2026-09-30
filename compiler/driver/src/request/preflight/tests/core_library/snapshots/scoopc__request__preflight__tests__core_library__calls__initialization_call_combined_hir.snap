@@ -21,7 +21,7 @@ Module
       val local2
         Local $dependency.argument.0 : Int
       assign $result.0
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local $dependency.parameter.value : Int
     else
       val local3
@@ -29,7 +29,7 @@ Module
       val local4
         Local $dependency.argument.0 : Int
       assign $result.0
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
           Local $dependency.parameter.value : Int
     return
       Local $result.0 : Int
@@ -47,7 +47,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     assign global eager
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local $dependency.parameter.value : Int
   fun $init$ensure$1(): Unit
   fun $get$eager(): Int

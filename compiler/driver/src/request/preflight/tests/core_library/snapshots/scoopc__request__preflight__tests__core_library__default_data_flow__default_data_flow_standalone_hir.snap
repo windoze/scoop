@@ -17,32 +17,32 @@ Module
       val local5
         IntegerLiteral 1 : Int
       val local6
-        Local $dependency.default.local.4 : Int
+        Local $default.local.4 : Int
       val local2
         IntegerOperation int.add <no-gc> : Int
-          Local $dependency.default.local.3 : Int
-          Local $dependency.default.local.5 : Int
-      assign $dependency.default.local.9
-        Local $dependency.default.local.1 : Int
+          Local $default.local.3 : Int
+          Local $default.local.5 : Int
+      assign $default.local.9
+        Local $default.local.1 : Int
     else
       val local3
         Local $dependency.parameter.seed : Int
       val local7
-        Local $dependency.default.local.2 : Int
+        Local $default.local.2 : Int
       val local8
         IntegerLiteral 2 : Int
       val local9
-        Local $dependency.default.local.7 : Int
-      assign $dependency.default.local.2
+        Local $default.local.7 : Int
+      assign $default.local.2
         IntegerOperation int.add <no-gc> : Int
-          Local $dependency.default.local.6 : Int
-          Local $dependency.default.local.8 : Int
-      assign $dependency.default.local.9
-        Local $dependency.default.local.2 : Int
+          Local $default.local.6 : Int
+          Local $default.local.8 : Int
+      assign $default.local.9
+        Local $default.local.2 : Int
     val local11
-      Local $dependency.default.local.9 : Int
+      Local $default.local.9 : Int
     return
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.seed : Int
         Local $dependency.parameter.value : Int
   fun main(): Unit

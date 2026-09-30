@@ -33,27 +33,27 @@ Module
       val $receiver: LocalDefaults
         Type LocalDefaults
         Local $new.1
-      val $dependency.default.local.1: ParameterSource
+      val $default.local.1: ParameterSource
         Type ParameterSource
         Retype ParameterSource
           Type LocalDefaults
           Local $receiver
-      call $dependency.default.local.2: Long = external0 interface ParameterSource[0]
+      call $default.local.2: Long = external0 interface ParameterSource[0]
         Type ParameterSource
-        Local $dependency.default.local.1
-      val $dependency.default.local.3: Long
+        Local $default.local.1
+      val $default.local.3: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.default.local.4: Long
+      val $default.local.4: Long
         Type Long
-        Local $dependency.default.local.3
+        Local $default.local.3
       val $parameter.value: Long
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.default.local.2
+          Local $default.local.2
           Type Long
-          Local $dependency.default.local.4
+          Local $default.local.4
       call $dependency.argument.0: Long = @fn1 direct
         Type LocalDefaults
         Local $receiver

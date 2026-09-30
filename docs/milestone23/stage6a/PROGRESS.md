@@ -499,3 +499,10 @@
 - 使用正式 CLI 从真实 core 源码发布三 Cone 对照：本地 `@NoGC increment(Int): Int` 取 `FunPtr<(Int) -> Int>` 地址成功，消费方对同一外来函数的普通调用成功，消费方首次直接取其 C 地址尚失败。提供方 LIR 没有 callback/storage bridge，本地取地址的 LIR 则包含真实 C trampoline 与 storage bridge。
 - 当前静态桥按原 source materialization 派生身份，参数自由源码桥归提供方 Strong；MIR／LIR 的取地址记录关联本次生成的函数和桥，尚无完整的跨 Cone C 地址发布／引用服务。仅删除 HIR 名称过滤不能提供缺失机器定义，复制 Strong 或伪造本地源码 wrapper 也不符合既定归属规则。按 6a 设计第 1／8 节已明确的机器实体边界，将这一具体服务及其真实 C 调用验收补入 M23-7 设计，保留已有本地 C 地址与跨 Cone 普通调用回归。
 - 证据为 `/tmp/scoop-m23-6a-native-address-audit.json`、`native-address-direct-control.log`、`native-address-provider.lir` 与 `native-address-local.lir`（后三者同属 `/tmp/scoop-m23-6a-` 前缀）。这一记录明确尚未交付的机器能力，不将其记作通过，也不新增语言限制、替代调用管线或额外验证机制。
+
+## 完整 workspace 回归与旧 golden 同步
+
+- 最终配套编译器的完整 workspace 首轮为 5294 passed、17 failed、0 ignored，runtime 的九项 C collector／GC／EH 检查和完整 core 初始化／损坏产物回归实际执行通过。逐项提取失败后确认，16 项停在旧快照，另一项是普通 class 的封闭泛型父类型已经物化后仍只期望 Boolean 的旧类型使用断言。正式 CLI 的 MIR 已确认新增的正常 Deferred 构造初始化返回 Unit，未执行默认值不引入 String 使用，原独立性检查保持。
+- 核对并同步 75 份快照：39 HIR、15 MIR、13 LIR、5 份归档指纹、2 份诊断和 1 份类型使用列表。变化对应共同调用／单例／字段表示、默认值局部名称、接收者适配和此前求值修复；声明头除显示编号外保持，五份归档的 Code／Runtime 指纹不变。两条属性赋值反例保留原 span 和表达式，改为直接说明属性类型不匹配，删除重复的导入构造候选信息。
+- 本批先全仓 fmt／clippy，再更新快照；更新后再次 fmt／clippy 无警告。关闭全部 Scoop／Insta 更新开关后，17 项完整测试均严格复验通过，产物、真实运行和负例检查没有被禁用。首轮与复验的生产 scoopc 文件 SHA-256 完全相同，只有测试二进制同步了上述 Unit 预期；因此 5311 项全部覆盖通过，不把首轮日志改记为一次全绿运行。
+- 证据保留于 `/tmp/scoop-m23-6a-workspace-tests.log`、`first-results.json`、`summary.json`、`compiler-pairs.json`、`snapshot-review.json`（同 workspace 前缀），以及 `/tmp/scoop-m23-6a-workspace-repair-verified-results.json`。本批未改生产实现、wire 结构或 runtime ABI；类型使用测试为 66 行。确认无文件占用后清理 1479.4 MiB 闲置 `target/debug`，保留正在复用的 `target/m23-6a`，清理证据为同 workspace 前缀的 `cleanup.json`。
