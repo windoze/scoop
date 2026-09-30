@@ -493,3 +493,9 @@
 - 核对实际 core 源码和 LIR 确认旧断言已过时：四个整数范围族各自实现完整 `Iterable<T>`／`Iterator<T>`，其迭代结果使用对应 `Option<T>`，再加既有 `Option<String>`，共 13 个真实泛型应用。原测试只允许一个 application、固定七个 ODR member，并试图按旧诊断名称排除 iterator，不能验证已经实现的共同父类型与迭代能力。
 - 测试现在按实际 exact ID 关联 MIR 与 LIR，对全部预期应用核对原 specialization group、HIR 归属、OdrWeak linkage 和匹配布局，保留 HIR foundation 的角色边界检查。删除过时数量和 iterator 排除断言，没有只把常量七改成九十一。检查独立放入 `bootstrap/application_shapes.rs`，主 bootstrap 模块同步缩短；生产代码不变。
 - 全仓 fmt／clippy 无警告，最终配套编译器上的 core bootstrap 检查通过，证据为 `/tmp/scoop-m23-6a-workspace-bootstrap-verified.log`。完整 `cargo test --workspace --no-fail-fast` 已启动，快照更新开关全部关闭，继续完成 runtime 与其余 workspace 检查。
+
+## C 函数地址的实际机器闭包边界
+
+- 使用正式 CLI 从真实 core 源码发布三 Cone 对照：本地 `@NoGC increment(Int): Int` 取 `FunPtr<(Int) -> Int>` 地址成功，消费方对同一外来函数的普通调用成功，消费方首次直接取其 C 地址尚失败。提供方 LIR 没有 callback/storage bridge，本地取地址的 LIR 则包含真实 C trampoline 与 storage bridge。
+- 当前静态桥按原 source materialization 派生身份，参数自由源码桥归提供方 Strong；MIR／LIR 的取地址记录关联本次生成的函数和桥，尚无完整的跨 Cone C 地址发布／引用服务。仅删除 HIR 名称过滤不能提供缺失机器定义，复制 Strong 或伪造本地源码 wrapper 也不符合既定归属规则。按 6a 设计第 1／8 节已明确的机器实体边界，将这一具体服务及其真实 C 调用验收补入 M23-7 设计，保留已有本地 C 地址与跨 Cone 普通调用回归。
+- 证据为 `/tmp/scoop-m23-6a-native-address-audit.json`、`native-address-direct-control.log`、`native-address-provider.lir` 与 `native-address-local.lir`（后三者同属 `/tmp/scoop-m23-6a-` 前缀）。这一记录明确尚未交付的机器能力，不将其记作通过，也不新增语言限制、替代调用管线或额外验证机制。

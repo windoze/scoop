@@ -338,6 +338,8 @@ ODR 定义引用的空 span、空 scan 等非 null sentinel 也按所属 group �
 
 generated-C bridge 继续以 producer-independent unit 表达 recipe，实际对象引用当前 producer 的 bridge atom；既有 verifier 核对后将 relocation 规范化回 unit。此例外不扩展到任意 consumer-local helper 或 native symbol。
 
+跨 Cone 首次取得参数自由 `@NoGC` 函数的 C ABI 地址必须闭合真实 storage bridge、trampoline 及它们对原函数的引用。M23-6a 的实际 CLI 对照中，本地 `FunPtr<(Int) -> Int> = ::increment` 和消费方普通 `increment(41)` 都可发布；提供方只定义 `increment` 时没有 C storage bridge，消费方直接取其地址尚不能发布。本阶段应补齐实际机器地址的发布、需求与引用关系，保留原源码函数和桥的 typed identity／ABI／归属；不得复制外来 Strong 函数体或以假源码 wrapper 代替这一关系。验收覆盖提供方已经取地址与消费方首次取地址、再导出与源码移走、默认／泛型正文使用，以及真实 C 调用该地址的返回值。
+
 ## 8. ODR 摘要、检查与合并
 
 ### 8.1 逐 member 记录
@@ -574,6 +576,7 @@ ReleaseHook role 16 仍只由 M24 启用，本阶段完整 profile 继续拒绝�
 | hidden support | private non-generic helper、private generic helper、内部类型/属性、definition-site overload；直接 import hidden 和 public default 引用 hidden 必须失败 |
 | exact values and ABI | consumer-local type、ZST、24-byte 大值、含引用 struct/enum、tuple、Option/niche、array/vararg、exact cast/type test、boxing 与返回值再次传入 |
 | generated functions | lambda/capture、local recursion、callable reference、static/dynamic adapter、generic coroutine 与返回类型 helper、异常/finally、移动 GC |
+| native function addresses | 外来参数自由 NoGC 函数的首次 C 地址需求、已存在的 storage bridge、再导出与模板引用、真实 C callback 调用 |
 | delegate read/write | val/var、provide、多个 receiver 对象共享、不同 application 隔离、re-export、setter 与复合赋值顺序、ZST/大值/引用 delegate |
 | delegate failures | 第一次失败、跨 Cone 再访问同一失败、initializer 副作用只一次、直接/间接 cycle、现有 coordinator 的并发等待 |
 | core generic use | 修改并重建 core 后的 Option/array/协程协议与新增泛型声明；普通目录的 core 与其他 provider 走同一路径 |
