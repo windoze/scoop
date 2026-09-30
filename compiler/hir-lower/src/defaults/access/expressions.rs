@@ -154,12 +154,7 @@ impl ReferenceCollector<'_> {
             }
             hir::ExprKind::GlobalRead(global) => self.global(*global, origin),
             hir::ExprKind::GenericDelegateStorageRead(_) => self.direct_delegate_storage(origin),
-            hir::ExprKind::SingletonValue(value) => {
-                self.singleton_value(hir::ExportDefaultSingletonTarget::Local(*value), origin)
-            }
-            hir::ExprKind::ImportedSingletonValue(value) => {
-                self.singleton_value(hir::ExportDefaultSingletonTarget::Imported(*value), origin)
-            }
+            hir::ExprKind::SingletonValue(value) => self.singleton_value(*value, origin),
             hir::ExprKind::Lambda(lambda) => self.lambda_descriptor(*lambda, origin),
             hir::ExprKind::AnonymousFunction(function) => {
                 self.anonymous_function_descriptor(*function, origin);

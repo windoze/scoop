@@ -1,10 +1,10 @@
 Module
   fun receiver<T>(value: T0): Receiver<T0>
     val local1
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local2
       Call external #0 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local3
       IntegerLiteral 10 : Int
     val local4
@@ -31,10 +31,10 @@ Module
         Local $dependency.parameter.value : T0
   fun rhs(value: Int): Int
     val local1
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local2
       Call external #0 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local3
       IntegerLiteral 10 : Int
     val local4
@@ -64,7 +64,7 @@ Module
         Local allocated : Payload
   fun exercise<T>(value: T0): Int
     val local1
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     Call external #1 : Unit
       Local $property_receiver.2 : Trace
       IntegerLiteral 0 : Int
@@ -83,7 +83,7 @@ Module
         Local $parameter.value : Int
     val local6
       Call external #0 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local7
       IntegerLiteral 12345 : Int
     val local8
@@ -96,7 +96,7 @@ Module
       return
         IntegerLiteral 1 : Int
     val local9
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     Call external #1 : Unit
       Local $property_receiver.3 : Trace
       IntegerLiteral 0 : Int
@@ -128,7 +128,7 @@ Module
         Local $dependency.parameter.other : Int
     val local19
       Call external #0 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local20
       IntegerLiteral 134625 : Int
     val local21
@@ -141,7 +141,7 @@ Module
       return
         IntegerLiteral 2 : Int
     val local22
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     Call external #1 : Unit
       Local $property_receiver.6 : Trace
       IntegerLiteral 0 : Int
@@ -167,7 +167,7 @@ Module
       Local $old.8 : Int
     val local30
       Call external #0 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local31
       IntegerLiteral 165 : Int
     val local32
@@ -196,7 +196,7 @@ Module
       return
         IntegerLiteral 3 : Int
     val local37
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     Call external #1 : Unit
       Local $property_receiver.11 : Trace
       IntegerLiteral 0 : Int
@@ -222,7 +222,7 @@ Module
       Local $new.14 : Int
     val local45
       Call external #0 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local46
       IntegerLiteral 165 : Int
     val local47
@@ -251,7 +251,7 @@ Module
       return
         IntegerLiteral 4 : Int
     val local52
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     Call external #1 : Unit
       Local $property_receiver.16 : Trace
       IntegerLiteral 0 : Int
@@ -265,7 +265,7 @@ Module
           Local $parameter.value : T0
     val local56
       Call external #0 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local57
       IntegerLiteral 16 : Int
     val local58

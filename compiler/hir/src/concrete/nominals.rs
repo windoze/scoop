@@ -52,6 +52,14 @@ pub struct ObjectType {
     pub canonical_type: TypeId,
 }
 
+/// A selected singleton value retains this IR's declaration handle or its
+/// original dependency identity. Initialization and storage stay with that owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SingletonValueTarget {
+    Local(SingletonValueId),
+    Dependency(scoop_identity::PersistentObjectValueId),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SingletonValue {
     pub identity: scoop_identity::PersistentObjectValueId,

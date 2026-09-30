@@ -2,7 +2,7 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       Call external #0 : Int
-        ImportedSingletonValue fe35bdb595f00ecd37544603e244cd6f4d633824079c387c9c2d69d2c7623d18 : TraceMore
+        SingletonValue external fe35bdb595f00ecd37544603e244cd6f4d633824079c387c9c2d69d2c7623d18 : TraceMore
     val local2
       Local value : T0
     val local3
@@ -67,7 +67,7 @@ Module
     else
       val local22
         Call external #0 : Int
-          ImportedSingletonValue fe35bdb595f00ecd37544603e244cd6f4d633824079c387c9c2d69d2c7623d18 : TraceMore
+          SingletonValue external fe35bdb595f00ecd37544603e244cd6f4d633824079c387c9c2d69d2c7623d18 : TraceMore
       val local19
         Local before : Int
       val local20

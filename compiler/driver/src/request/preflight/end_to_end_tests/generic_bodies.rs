@@ -41,6 +41,7 @@ mod shared_enums;
 mod shared_interfaces;
 mod shared_literals;
 mod shared_requests;
+mod shared_singletons;
 mod shared_structs;
 mod siblings;
 mod source_calls;

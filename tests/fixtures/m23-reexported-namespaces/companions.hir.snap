@@ -1,10 +1,10 @@
 Module
   fun exercise<T>(value: T0, read: (T0) -> Int): Int
     val local2
-      ImportedSingletonValue f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec : Companion
+      SingletonValue external f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec : Companion
     val local3
       Call external #0 : Int
-        ImportedSingletonValue f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec : Companion
+        SingletonValue external f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec : Companion
     val local4
       Local $dependency.argument.0 : Int
     val local5
@@ -17,7 +17,7 @@ Module
       Call external #2 : CompanionLeaf
         Local $dependency.parameter.number : Int
     val local8
-      ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
+      SingletonValue external 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
     val local9
       Local value : T0
     val local10

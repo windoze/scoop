@@ -136,9 +136,6 @@ impl BodyProjection<'_, '_> {
             ExprKind::SingletonValue(value) => {
                 DefaultExpressionKindV1::SingletonValue(self.entities.singleton_id(*value)?)
             }
-            ExprKind::ImportedSingletonValue(value) => {
-                DefaultExpressionKindV1::SingletonValue(*value)
-            }
             ExprKind::Capture(binding) => match self.locals.capture_source(*binding)? {
                 crate::DefaultCaptureSourceV1::Local(selector) => {
                     DefaultExpressionKindV1::Local(selector)

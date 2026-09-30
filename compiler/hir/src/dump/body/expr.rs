@@ -121,14 +121,14 @@ pub(super) fn dump_expr(
             module.globals[*global].name
         )),
         ExprKind::SingletonValue(value) => {
-            let declaration = module.singleton_values[*value].declaration;
-            out.push_str(&format!(
-                "{pad}SingletonValue {} : {ty}\n",
-                module.objects[declaration].name
-            ));
-        }
-        ExprKind::ImportedSingletonValue(value) => {
-            out.push_str(&format!("{pad}ImportedSingletonValue {value} : {ty}\n"));
+            let name = match *value {
+                SingletonValueTarget::Local(value) => {
+                    let declaration = module.singleton_values[value].declaration;
+                    module.objects[declaration].name.clone()
+                }
+                SingletonValueTarget::Dependency(value) => format!("external {value}"),
+            };
+            out.push_str(&format!("{pad}SingletonValue {name} : {ty}\n"));
         }
         ExprKind::Capture(binding) => {
             out.push_str(&format!(

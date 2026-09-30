@@ -368,7 +368,9 @@ impl Lowerer {
             }
         }
         Some(hir::Expr {
-            kind: hir::ExprKind::SingletonValue(declaration.singleton_value),
+            kind: hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(
+                declaration.singleton_value,
+            )),
             ty: self.object_types[declaration.object_type].canonical_type,
             span,
             origin: self.expression_origin(span),

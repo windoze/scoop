@@ -44,7 +44,7 @@ impl Lowerer {
             }
         };
         Some(hir::Expr {
-            kind: ExprKind::ImportedSingletonValue(value),
+            kind: ExprKind::SingletonValue(hir::SingletonValueTarget::Dependency(value)),
             ty,
             span,
             origin: self.expression_origin(span),

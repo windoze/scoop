@@ -1,0 +1,5 @@
+package consumer.singletons
+import upstream.singletons.*
+
+private object Other { val state: State = State(42) }
+public fun result(): Int = selected<Int>(42, { value -> value }, Other)

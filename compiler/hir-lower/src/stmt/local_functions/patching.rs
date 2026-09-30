@@ -353,7 +353,6 @@ impl LocalFunctionCallPatcher<'_> {
             | hir::ExprKind::GlobalRead(_)
             | hir::ExprKind::GenericDelegateStorageRead(_)
             | hir::ExprKind::SingletonValue(_)
-            | hir::ExprKind::ImportedSingletonValue(_)
             | hir::ExprKind::Capture(_)
             | hir::ExprKind::NoneLiteral
             | hir::ExprKind::AddressOf(_)

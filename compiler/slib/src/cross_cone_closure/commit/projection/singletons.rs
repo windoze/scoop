@@ -17,7 +17,9 @@ impl ValidatedCrossConeSemanticClosure {
         let mut objects = Vec::new();
         module
             .visit_executable_expressions(|occurrence| {
-                let ExprKind::ImportedSingletonValue(value) = occurrence.expression.kind else {
+                let ExprKind::SingletonValue(hir::SingletonValueTarget::Dependency(value)) =
+                    occurrence.expression.kind
+                else {
                     return Ok(());
                 };
                 if !seen.insert(value) {

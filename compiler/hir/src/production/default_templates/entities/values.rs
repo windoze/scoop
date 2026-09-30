@@ -155,9 +155,13 @@ impl DefaultEntityProjector<'_> {
 
     pub(in crate::production::default_templates) fn singleton_id(
         &self,
-        value: crate::SingletonValueId,
+        target: crate::SingletonValueTarget,
     ) -> Result<scoop_identity::PersistentObjectValueId, super::super::DefaultEntityProjectionError>
     {
+        let value = match target {
+            crate::SingletonValueTarget::Local(value) => value,
+            crate::SingletonValueTarget::Dependency(value) => return Ok(value),
+        };
         arena_get(&self.export.singleton_values, value).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
                 kind: "singleton value",

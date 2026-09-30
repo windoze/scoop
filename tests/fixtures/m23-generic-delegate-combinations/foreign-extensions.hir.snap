@@ -2,7 +2,7 @@ Module
   property0 var <T> Receiver<T>.foreign: Int getter0=body($get$foreign) setter0=body($set$foreign) <generic-delegated template0 type=ExtensionSlot init0>
   fun exercise<T>(value: T0): Int
     val local1
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     Call external #2 : Unit
       Local $property_receiver.0 : Trace
       IntegerLiteral 0 : Int
@@ -18,7 +18,7 @@ Module
       IntegerLiteral 42 : Int
     val local5
       Call external #3 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local6
       IntegerLiteral 45 : Int
     val local7
@@ -48,7 +48,7 @@ Module
         Local $receiver : Receiver<T0>
     val local14
       Call external #3 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local15
       IntegerLiteral 456 : Int
     val local16

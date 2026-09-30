@@ -142,10 +142,14 @@ impl Concretizer<'_> {
                 )
             }
             export::ExprKind::SingletonValue(value) => {
-                concrete::ExprKind::SingletonValue(self.lower_singleton_value(*value))
-            }
-            export::ExprKind::ImportedSingletonValue(value) => {
-                concrete::ExprKind::ImportedSingletonValue(*value)
+                concrete::ExprKind::SingletonValue(match *value {
+                    export::SingletonValueTarget::Local(value) => {
+                        concrete::SingletonValueTarget::Local(self.lower_singleton_value(value))
+                    }
+                    export::SingletonValueTarget::Dependency(value) => {
+                        concrete::SingletonValueTarget::Dependency(value)
+                    }
+                })
             }
             export::ExprKind::Capture(binding) => {
                 concrete::ExprKind::Capture(concrete::BindingId::from_raw(binding.into_raw()))

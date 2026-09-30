@@ -107,7 +107,9 @@ impl Lowerer {
             | Kind::AddressOf(_)
             | Kind::SizeOf(_)
             | Kind::AlignOf(_)) => self.materialize_imported_pointer_expression(kind, context)?,
-            Kind::SingletonValue(value) => hir::ExprKind::ImportedSingletonValue(*value),
+            Kind::SingletonValue(value) => {
+                hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Dependency(*value))
+            }
             Kind::SomeWrap(value) => hir::ExprKind::SomeWrap(Box::new(
                 self.materialize_imported_default_expression(value, context)?,
             )),

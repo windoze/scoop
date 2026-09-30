@@ -196,30 +196,27 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::GlobalRead(self.global_map[global])
             }
             hir::ExprKind::SingletonValue(value) => {
-                let singleton = self.module.singleton_values[*value];
-                let unit = &self.module.initialization_units[singleton.initialization];
+                let (ensure, global) = match *value {
+                    hir::SingletonValueTarget::Local(value) => {
+                        let singleton = self.module.singleton_values[value];
+                        let unit = &self.module.initialization_units[singleton.initialization];
+                        let root = self.singleton_root_map[&singleton.published_root];
+                        (
+                            mir::Callee::User(self.function_map[&unit.ensure]),
+                            self.singleton_published_roots[root].global,
+                        )
+                    }
+                    hir::SingletonValueTarget::Dependency(value) => {
+                        let (ensure, global) = self.imported_singleton_map[&value];
+                        (mir::Callee::External(ensure), global)
+                    }
+                };
                 self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
                     mir::Type::Unit,
                     smir::ExprKind::Call(smir::Call {
                         target: mir::CallTarget {
                             kind: mir::CallKind::Direct,
-                            callee: mir::Callee::User(self.function_map[&unit.ensure]),
-                        },
-                        args: Vec::new(),
-                        return_ty: mir::Type::Unit,
-                    }),
-                )));
-                let root = self.singleton_root_map[&singleton.published_root];
-                smir::ExprKind::GlobalRead(self.singleton_published_roots[root].global)
-            }
-            hir::ExprKind::ImportedSingletonValue(value) => {
-                let (ensure, global) = self.imported_singleton_map[value];
-                self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
-                    mir::Type::Unit,
-                    smir::ExprKind::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: mir::Callee::External(ensure),
+                            callee: ensure,
                         },
                         args: Vec::new(),
                         return_ty: mir::Type::Unit,

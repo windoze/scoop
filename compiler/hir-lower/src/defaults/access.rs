@@ -223,7 +223,7 @@ impl ReferenceCollector<'_> {
 
     pub(super) fn singleton_value(
         &mut self,
-        target: hir::ExportDefaultSingletonTarget,
+        target: hir::SingletonValueTarget,
         origin: hir::DefinitionOrigin,
     ) {
         // The expression's type reference already covers the object's shared visibility.

@@ -1,7 +1,7 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+      SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     Call external #0 : Unit
       Local $property_receiver.0 : Trace
       IntegerLiteral 0 : Int
@@ -29,7 +29,7 @@ Module
           Local $dependency.parameter.value : T0
     val local10
       Call external #2 : Int
-        ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
+        SingletonValue external 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local11
       IntegerLiteral 3466 : Int
     val local12

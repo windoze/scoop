@@ -65,7 +65,6 @@ impl Lowerer {
             | ExprKind::GlobalRead(_)
             | ExprKind::GenericDelegateStorageRead(_)
             | ExprKind::SingletonValue(_)
-            | ExprKind::ImportedSingletonValue(_)
             | ExprKind::Capture(_)
             | ExprKind::NoneLiteral
             | ExprKind::AddressOf(_)

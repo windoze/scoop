@@ -1,0 +1,9 @@
+span=76..119
+expression=@NoGC private fun read(): Current = Current
+`@NoGC` function `read` has non-GC-free return type Current
+span=112..119
+expression=Current
+value of non-GC-free type Current is not allowed in `@NoGC` code
+span=112..119
+expression=Current
+singleton access may initialize, allocate, and throw in `@NoGC` code

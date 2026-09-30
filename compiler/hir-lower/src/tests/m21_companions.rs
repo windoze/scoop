@@ -55,7 +55,7 @@ fn companion_receiver(function: &hir::Function) -> hir::SingletonValueId {
         panic!("companion access must lower to a method call")
     };
     match receiver.kind {
-        hir::ExprKind::SingletonValue(value) => value,
+        hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(value)) => value,
         hir::ExprKind::Local(local) => body
             .statements
             .iter()
@@ -69,7 +69,9 @@ fn companion_receiver(function: &hir::Function) -> hir::SingletonValueId {
                 if *candidate != local {
                     return None;
                 }
-                let hir::ExprKind::SingletonValue(value) = init.kind else {
+                let hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(value)) =
+                    init.kind
+                else {
                     return None;
                 };
                 Some(value)

@@ -1,0 +1,191 @@
+Module
+  object Current <object0 type0 value0 root0 init0>
+    field0 property0: State
+    property0 val state: State getter0=storage <stored field0 init=expression>
+  property1 var starts: Int getter1=body($get$starts) setter0=body($set$starts) <stored global0 image>
+  var starts: Int <global0 managed>
+  fun initialized(): Int
+    val local0
+      Call $get$starts : Int
+    val local1
+      IntegerLiteral 1 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    Call $set$starts : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    return
+      IntegerLiteral 42 : Int
+  fun $init$body$0(): Unit
+    assign singleton-root#0
+      ClassInit Current : Current
+  fun $init$ensure$0(): Unit
+  fun readCurrent(): Current
+    return
+      SingletonValue Current : Current
+  fun selectedCurrent<T>(seed: T0, inspect: (T0) -> Int, registry: Current): Int
+    val local3
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        Local seed : T0
+    val local4
+      Call external #1 : Int
+        FieldAccess class field state : State
+          Local registry : Current
+    val local5
+      Local $dependency.argument.0 : Int
+    val local6
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local7
+      IntegerLiteral 42 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.sub <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
+    val local2
+      SingletonValue Current : Current
+    val local3
+      FieldAccess class field state : State
+        Local registry : Current
+    val local4
+      Lambda lambda0 invoke=$lambda.0 captures=0 : () -> Int
+    val local5
+      AnonymousFunction anonymous0 invoke=$anonymous.0 captures=0 : () -> Int
+    if
+      Binary RefNe : Boolean
+        Local registry : Current
+        Call readCurrent : Current
+      val local9
+        BoolLiteral true : Boolean
+    else
+      val local6
+        Call $get$starts : Int
+      val local7
+        IntegerLiteral 1 : Int
+      val local8
+        Local $dependency.argument.0 : Int
+      val local9
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local10
+      IntegerLiteral 1 : Int
+    val local11
+      Local $dependency.argument.0 : Int
+    val local12
+      Call external #0 : State
+        Local $dependency.parameter.value : Int
+    val local13
+      Call external #1 : Int
+        Local fresh : State
+    val local14
+      IntegerLiteral 1 : Int
+    val local15
+      Local $dependency.argument.0 : Int
+    if
+      Binary Or : Boolean
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+        Binary RefNe : Boolean
+          Local retained : State
+          FieldAccess class field state : State
+            SingletonValue Current : Current
+      val local19
+        BoolLiteral true : Boolean
+    else
+      val local16
+        Call $get$starts : Int
+      val local17
+        IntegerLiteral 1 : Int
+      val local18
+        Local $dependency.argument.0 : Int
+      val local19
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local20
+      CallableCall function_type2 : Int
+        Local read : () -> Int
+    val local21
+      IntegerLiteral 42 : Int
+    val local22
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local26
+        BoolLiteral true : Boolean
+    else
+      val local23
+        CallableCall function_type2 : Int
+          Local again : () -> Int
+      val local24
+        IntegerLiteral 42 : Int
+      val local25
+        Local $dependency.argument.0 : Int
+      val local26
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local27
+      Local seed : T0
+    val local28
+      Local inspect : (T0) -> Int
+    val local29
+      Local $argument.0 : T0
+    val local30
+      Local $argument.1 : (T0) -> Int
+    val local31
+      SingletonValue Current : Current
+    return
+      Call selectedCurrent<T0> : Int
+        Local $parameter.seed : T0
+        Local $parameter.inspect : (T0) -> Int
+        Local $parameter.registry : Current
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+  fun $get$starts(): Int <no-gc cdecl>
+    return
+      GlobalRead starts : Int
+  fun $set$starts(value: Int): Unit <no-gc cdecl>
+    assign global starts
+      Local value : Int
+  output library
+  instance selectedCurrent<T0>
+  instance exercise<Int>

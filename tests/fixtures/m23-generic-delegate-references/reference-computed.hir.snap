@@ -2,10 +2,10 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       Call external #0 : Int
-        ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
+        SingletonValue external 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
     val local2
       Call external #1 : Int
-        ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
+        SingletonValue external 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
     val local3
       Local value : T0
     val local4
@@ -70,7 +70,7 @@ Module
     else
       val local23
         Call external #0 : Int
-          ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
+          SingletonValue external 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
       val local20
         Local before : Int
       val local21
@@ -96,7 +96,7 @@ Module
         IntegerLiteral 2 : Int
     val local31
       Call external #1 : Int
-        ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
+        SingletonValue external 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
     val local28
       Local beforeReceivers : Int
     val local29

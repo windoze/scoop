@@ -1,0 +1,5 @@
+package consumer.singletons
+
+private object Current { val value: Int = 42 }
+@NoGC private fun read(): Current = Current
+public fun result(): Int = 42

@@ -1,7 +1,7 @@
 Module
   fun exercise<T>(value: T0, read: (T0) -> Int): Int
     val local2
-      ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
+      SingletonValue external 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
     val local3
       Local value : T0
     val local4
@@ -23,10 +23,10 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
       val local9
-        ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
+        SingletonValue external 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
       val local10
         Call external #0 : Int
-          ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
+          SingletonValue external 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
       val local11
         Local $dependency.argument.0 : Int
       val local12

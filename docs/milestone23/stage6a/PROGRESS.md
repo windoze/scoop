@@ -398,3 +398,10 @@
 - 新增 `m23-shared-closure-bodies` 两组正例、四个反例、六份阶段快照和四份诊断快照。覆盖多层 lambda／匿名函数、默认闭包重复创建与不同捕获值、完整且未使用的宿主实参、本地／外来类型组合，以及源码移走后的再次发布和普通／移动 GC 运行。单元检查源码对照只使用当前声明、读入默认值复用原正文、两种闭包均保留完整实参。
 - 全仓 fmt／clippy 无警告，2309 项 HIR／HIR lowering／MIR lowering 单元测试通过；源码存储断言加强后单独严格复验通过。80 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖成功。六份旧 HIR 快照的 39 行变化仅为共同闭包标签、arena 编号与捕获显示；既有 MIR／LIR／诊断快照保持不变。证据前缀 `/tmp/scoop-m23-6a-shared-closures-`，结果见 `unit.log`、`source-storage-verified.log`、`all-verified-results.json` 与 `snapshot-review.json`。
 - 共同词法实体 209 行、默认 closure／引用替换 238 行、closure 具体化 240 行、closure 读取 202 行、词法正文投影 280 行。确认无 cargo／rustc 占用后清理约 1026.7 MiB 旧 `target/debug`，继续复用 `target/m23-6a`。wire 和 runtime ABI 保持；剩余 singleton／构造操作与完整候选继续按 6a 设计迁移。
+
+## 单例读取共用节点与初始化顺序
+
+- 删除 Export HIR 与 LocalConcrete HIR 的 `ImportedSingletonValue`，两者分别以共同 `SingletonValue` 节点保存当前记录或依赖原 object value 身份。默认替换、引用投影、效果与类型遍历消费同一目标；MIR 取得实际 ensure 和已发布根后，共用先初始化、再读取的降低过程。实际依赖根选择保留原提供方，不复制单例状态与存储。
+- 新增 `m23-shared-singleton-reads` 两组正例、三个反例、六份阶段快照和三份诊断快照，覆盖当前／依赖 object、默认参数、泛型、lambda／匿名函数、初始化一次与对象身份。源码移走后再次发布，下游本地 class／String／Int／Unit 在普通和 moving GC 下运行通过；以实际对象分配触发压力收集，运行夹具核对 GC epoch。单元使用同一源码检查共同节点及未复制外部存储。
+- 全仓 fmt／clippy 无警告，2894 项 HIR／HIR lowering／MIR lowering／slib 单元已覆盖成功。81 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖通过。31 份既有 HIR 快照的 82 行变化仅为单例节点标签，MIR／LIR／诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-shared-singletons-`，结果见 `unit.log`、`source-verified.log`、`remaining-unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`。
+- 新单元模块 60 行，MIR 删除重复初始化／读根分支；wire 与 runtime ABI 保持。确认无 cargo／rustc 占用后清理约 1454.4 MiB 闲置 `target/debug`，继续复用阶段构建缓存。构造 application／正文和完整候选继续按 6a 设计迁移。

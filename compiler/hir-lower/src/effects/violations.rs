@@ -134,7 +134,7 @@ impl Lowerer {
             | ExprKind::Capture(_)
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::NoneLiteral => {}
-            ExprKind::SingletonValue(_) | ExprKind::ImportedSingletonValue(_) => out.push((
+            ExprKind::SingletonValue(_) => out.push((
                 expr.span,
                 "singleton access may initialize, allocate, and throw in `@NoGC` code".to_string(),
             )),

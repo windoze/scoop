@@ -36,6 +36,7 @@ mod requests;
 mod selection;
 mod shared_closures;
 mod shared_defaults;
+mod shared_singletons;
 mod source_calls;
 mod structs;
 mod value_layouts;

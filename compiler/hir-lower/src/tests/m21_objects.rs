@@ -140,7 +140,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     ));
     assert!(matches!(
         function_result(user_function(module, "readRegistry")).kind,
-        hir::ExprKind::SingletonValue(value) if value == object.singleton_value
+        hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(value)) if value == object.singleton_value
     ));
     assert!(matches!(
         function_result(user_function(module, "readVersion")).kind,
@@ -166,7 +166,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     assert_eq!(template.references.singleton_values.len(), 1);
     assert_eq!(
         template.references.singleton_values[0].target,
-        hir::ExportDefaultSingletonTarget::Local(object.singleton_value)
+        hir::SingletonValueTarget::Local(object.singleton_value)
     );
     assert!(template.references.types.iter().any(|reference| {
         reference.target == hir::ExportDefaultTypeTarget::Type(object_type.canonical_type)

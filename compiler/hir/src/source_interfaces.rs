@@ -474,14 +474,8 @@ pub struct ExportDefaultGlobalRef {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultSingletonValueRef {
-    pub target: ExportDefaultSingletonTarget,
+    pub target: SingletonValueTarget,
     pub origin: DefinitionOrigin,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExportDefaultSingletonTarget {
-    Local(SingletonValueId),
-    Imported(scoop_identity::PersistentObjectValueId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

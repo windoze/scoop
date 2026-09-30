@@ -1,0 +1,9 @@
+span=58..102
+expression=@NoGC public fun read(): Registry = Registry
+`@NoGC` function `read` has non-GC-free return type Registry
+span=94..102
+expression=Registry
+value of non-GC-free type Registry is not allowed in `@NoGC` code
+span=94..102
+expression=Registry
+singleton access may initialize, allocate, and throw in `@NoGC` code
