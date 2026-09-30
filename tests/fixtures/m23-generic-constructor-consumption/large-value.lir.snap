@@ -139,9 +139,9 @@ Module
   fun @scoop$1$cb$41e8804c8c8d27ff3ad29da221e800e91931708b5a10632ae09e3fccc7aedc8d(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
     local %0 $dependency.constructor.local.0: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %1 $dependency.constructor.local.1: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
-    local %2 $dependency.constructor.local.2: i32
-    local %3 $dependency.constructor.local.3: i32
-    local %4 $dependency.constructor.local.4: i32
+    local %2 $dependency.constructor.local.0: i32
+    local %3 $dependency.constructor.local.1: i32
+    local %4 $dependency.constructor.local.2: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
@@ -161,9 +161,9 @@ Module
   fun @scoop$1$cb$5712f9861f48f7b68361be90b2857ebbc87d7fa446df725082ba7402581bfd58(ptr<managed>, indirect<struct0 size=12 align=4 scan=none>) -> void
     local %0 $dependency.constructor.local.0: struct0
     local %1 $dependency.constructor.local.1: struct0
-    local %2 $dependency.constructor.local.2: i32
-    local %3 $dependency.constructor.local.3: i32
-    local %4 $dependency.constructor.local.4: i32
+    local %2 $dependency.constructor.local.0: i32
+    local %3 $dependency.constructor.local.1: i32
+    local %4 $dependency.constructor.local.2: i32
     local %5 $call.1: struct0
     local %6 $sc.1: struct0
     local %7 $sc.2: struct0

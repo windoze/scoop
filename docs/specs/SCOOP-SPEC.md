@@ -890,7 +890,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - base initializer正常返回后base storage就绪；primary property在对应compiler store后就绪；body stored/optional/delegate property只在其initializer与storage write正常完成后就绪。initializer与`init`只能direct读写已经就绪的inherited/primary/earlier backing field；self/forward read、通过`this`绕过顺序及提前写later `var`都是定义处错误。computed/delegated accessor不能以initializing receiver调用，分配时的全零payload不是合法源码默认值；
 - class/struct constructor、class property initializer与`init`中的`this`是受限initializing receiver：只可用于已经就绪字段的direct read与mutable write。它不能作为普通值传参、返回、存储、捕获、装箱、转换、比较、取址或形成callable reference，也不能作为ordinary/extension/virtual/interface/`super` method receiver。读取field后得到的值是普通值，可以正常参与调用；
 - 上述限制对base constructor同样成立，因而构造期间不能通过virtual dispatch观察derived未初始化字段，也不能依赖whole-program escape analysis判断某个final helper“可能安全”。需要init-safe callable时必须另行引入typed effect；
-- `return`不能退出property initializer、`init`或constructor body；`throw`合法。所有这些体及delegation都是ordinary、safe、non-suspend上下文；可以调用普通函数、分配、触发GC，也可以构造尚未执行的suspend task，但不能立即调用suspend函数。`startCoroutine`本身是同步普通builder，其启动计算不成为尚未完成的初始化步骤。
+- `return`不能退出property initializer、`init`或constructor body；`throw`合法。其中声明的局部函数与匿名函数按8.1.2建立自身的返回边界，`return`只返回该函数；lambda中的裸`return`仍非法，嵌套callable也不能捕获initializing receiver。所有这些体及delegation都是ordinary、safe、non-suspend上下文；可以调用普通函数、分配、触发GC，也可以构造尚未执行的suspend task，但不能立即调用suspend函数。`startCoroutine`本身是同步普通builder，其启动计算不成为尚未完成的初始化步骤。
 
 **`super`成员调用：**
 

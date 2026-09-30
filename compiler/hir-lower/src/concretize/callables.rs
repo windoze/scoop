@@ -298,33 +298,6 @@ impl Concretizer<'_> {
         }
     }
 
-    pub(super) fn source_class_field_layout_index(&self, field: export::ClassFieldId) -> u32 {
-        let declaration = &self.source.class_fields[field];
-        let own = self.source.classes[declaration.owner]
-            .fields
-            .iter()
-            .position(|candidate| *candidate == field)
-            .expect("a class field is listed by its typed owner") as u32;
-        let mut base_count = 0_u32;
-        let mut current = self.source.classes[declaration.owner].base_class;
-        while let Some(base) = current {
-            let fields = match &self.source.types[base] {
-                export::Type::Class(application) => {
-                    let class = self
-                        .source
-                        .class_definition(self.source.class_applications[*application].template);
-                    current = class.base_class;
-                    class.fields.len()
-                }
-                _ => unreachable!("validated class bases have class types"),
-            };
-            base_count = base_count
-                .checked_add(u32::try_from(fields).expect("class field indices fit in u32"))
-                .expect("class field indices fit in u32");
-        }
-        base_count + own
-    }
-
     pub(super) fn lower_local(
         &self,
         source: export::LocalId,

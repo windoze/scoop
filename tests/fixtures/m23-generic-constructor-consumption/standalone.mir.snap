@@ -128,26 +128,26 @@ Module
         Local this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.constructor.local.2: Int
+      val $dependency.constructor.local.0: Int
         Type Int
         FieldAccess 2
           Type Box<Int>
           Local this
-      val $dependency.constructor.local.3: Int
+      val $dependency.constructor.local.1: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.constructor.local.4: Int
+      val $dependency.constructor.local.2: Int
         Type Int
-        Local $dependency.constructor.local.3
+        Local $dependency.constructor.local.1
       field_set 2
         Type Box<Int>
         Local this
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.constructor.local.2
+          Local $dependency.constructor.local.0
           Type Int
-          Local $dependency.constructor.local.4
+          Local $dependency.constructor.local.2
       return
   fun ctor.Pair.$c0 @fn5(first: Int, second: Int) -> Pair<Int> <no-gc>
     bb0 entry

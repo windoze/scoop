@@ -106,8 +106,7 @@ impl Lowerer {
     ) {
         for step in initialization {
             match step {
-                hir::ClassInitializationStep::StoredProperty { initializer, .. }
-                | hir::ClassInitializationStep::DelegatedProperty { initializer, .. } => {
+                hir::ClassInitializationStep::Field { initializer, .. } => {
                     self.collect_generic_calls_in_statements(&initializer.statements, out);
                     self.collect_generic_calls_in_expr(&initializer.value, out);
                 }

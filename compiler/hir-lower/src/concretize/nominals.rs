@@ -66,23 +66,13 @@ impl Concretizer<'_> {
 
     pub(super) fn lower_struct_constructor(
         &mut self,
-        source_id: export::StructConstructorId,
+        source_id: export::StructConstructorDefinition,
         structure: concrete::StructId,
         substitution: &[concrete::TypeId],
     ) -> PendingStructConstructor {
-        let source = self.source.struct_constructors[source_id].clone();
-        let parameters = source
-            .parameters
-            .iter()
-            .map(|parameter| concrete::ConstructorParameter {
-                id: concrete::ConstructorParamId::from_raw(parameter.id.into_raw()),
-                binding: concrete::BindingId::from_raw(parameter.binding.into_raw()),
-                definition: parameter.definition,
-                name: parameter.name.clone(),
-                ty: self.lower_type(parameter.ty, substitution),
-            })
-            .collect();
-        let kind = match &source.kind {
+        let source = self.struct_constructor_definition(source_id);
+        let parameters = self.lower_constructor_parameters(source.parameters, substitution);
+        let kind = match source.kind {
             export::StructConstructorKind::Primary => concrete::StructConstructorKind::Primary,
             export::StructConstructorKind::Secondary {
                 delegation,
@@ -105,7 +95,7 @@ impl Concretizer<'_> {
         };
         PendingStructConstructor {
             structure,
-            source_discriminator: source_id.into_raw().into_u32(),
+            source_discriminator: source.discriminator,
             safety: source.safety,
             origin: source.origin,
             parameters,

@@ -122,37 +122,8 @@ impl Harness {
                 }
             }
         };
-        let primary_stores = fields
-            .iter()
-            .copied()
-            .zip(parameters.iter())
-            .map(|(field, parameter)| hir::PrimaryFieldStore {
-                field,
-                parameter: parameter.id,
-                span: SPAN,
-            })
-            .collect();
-        let evaluation_context = hir::SourceContextId::from_raw(
-            u32::try_from(self.class_constructors.len() + 1)
-                .unwrap()
-                .into(),
-        );
-        let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
-            safety: hir::Safety::Safe,
-            no_gc_type_params: Vec::new(),
-            owner: class,
-            identity_kind: hir::ClassConstructorIdentityKind::Source,
-            access: hir::DeclarationAccess::public(),
-            parameters,
-            kind: hir::ClassConstructorKind::Primary {
-                base: base_initialization,
-                primary_stores,
-                common_initialization: Vec::new(),
-            },
-            span: SPAN,
-            origin: definition_origin(),
-            evaluation_context,
-        });
+        let constructor_id =
+            hir::ClassConstructorId::from_raw((self.class_constructors.len() as u32).into());
         let class = self.classes.alloc(hir::ClassDecl {
             owner: None,
             name: name.to_string(),
@@ -183,6 +154,46 @@ impl Harness {
         });
         let actual = self.class_application(class, Vec::new());
         assert_eq!(actual, self_application);
+        let primary_stores = self.classes[class]
+            .fields
+            .iter()
+            .copied()
+            .zip(parameters.iter())
+            .map(|(field, parameter)| hir::PrimaryFieldStore {
+                field: {
+                    let hir::FieldRef::ClassField { owner, field } =
+                        self.class_field_ref(self_application, field)
+                    else {
+                        unreachable!("a test class field retains its owner")
+                    };
+                    hir::InitializingClassFieldRef { owner, field }
+                },
+                parameter: parameter.id,
+                span: SPAN,
+            })
+            .collect();
+        let evaluation_context = hir::SourceContextId::from_raw(
+            u32::try_from(self.class_constructors.len() + 1)
+                .unwrap()
+                .into(),
+        );
+        let actual_constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            safety: hir::Safety::Safe,
+            no_gc_type_params: Vec::new(),
+            owner: class,
+            identity_kind: hir::ClassConstructorIdentityKind::Source,
+            access: hir::DeclarationAccess::public(),
+            parameters,
+            kind: hir::ClassConstructorKind::Primary {
+                base: base_initialization,
+                primary_stores,
+                common_initialization: Vec::new(),
+            },
+            span: SPAN,
+            origin: definition_origin(),
+            evaluation_context,
+        });
+        assert_eq!(actual_constructor, constructor_id);
         class
     }
 

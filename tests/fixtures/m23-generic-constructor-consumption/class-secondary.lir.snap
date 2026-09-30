@@ -63,9 +63,9 @@ Module
   fun @scoop$1$cb$aa05459b114ac6b344c6761570ed9242acb1dd33508d332e538d14b36892c730(ptr<managed>, i32) -> void
     local %0 $dependency.constructor.local.0: i32
     local %1 $dependency.constructor.local.1: i32
-    local %2 $dependency.constructor.local.2: i32
-    local %3 $dependency.constructor.local.3: i32
-    local %4 $dependency.constructor.local.4: i32
+    local %2 $dependency.constructor.local.0: i32
+    local %3 $dependency.constructor.local.1: i32
+    local %4 $dependency.constructor.local.2: i32
     local %5 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]

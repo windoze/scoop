@@ -27,7 +27,7 @@ pub(crate) struct PreparedImportedConstructor {
     pub(crate) initialization: Arc<hir::ExportGenericNominalInitializationV1>,
     pub(crate) constructor: usize,
     pub(crate) bindings: ImportedTypeBindings,
-    kind: Option<hir::ImportedConstructorKind>,
+    kind: Option<hir::ConstructorKind>,
 }
 
 impl PreparedImportedConstructor {

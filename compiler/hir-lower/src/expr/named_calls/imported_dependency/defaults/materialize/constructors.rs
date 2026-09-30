@@ -5,12 +5,15 @@ impl Lowerer {
     pub(crate) fn materialize_imported_constructor(
         &mut self,
         template: &PreparedImportedConstructor,
-    ) -> Result<hir::ImportedConstructorKind, ImportedDefaultMaterializationError> {
+    ) -> Result<hir::ConstructorKind, ImportedDefaultMaterializationError> {
         use hir::ExportConstructorInitializationKindV1 as Source;
-        use hir::ImportedConstructorKind as Target;
         let executable = &template.initialization.constructors()[template.constructor];
-        match executable.kind() {
-            Source::StructPrimary => Ok(Target::StructPrimary),
+        let class = match executable.kind() {
+            Source::StructPrimary => {
+                return Ok(hir::ConstructorKind::Struct(
+                    hir::StructConstructorKind::Primary,
+                ));
+            }
             Source::StructSecondary { delegation, body } => {
                 let hir::ConstructorApplicationRef::Struct(target) =
                     self.imported_constructor_application(&delegation.target, &template.bindings)?
@@ -20,15 +23,16 @@ impl Lowerer {
                 let arguments =
                     self.imported_constructor_fragment(template, &delegation.arguments)?;
                 let body = self.imported_constructor_body(template, body)?;
-                Ok(Target::StructSecondary {
-                    target,
-                    arguments,
-                    body,
-                    gc_effect: match executable.effects().gc_effect() {
-                        scoop_identity::GcEffect::NoGc => hir::GcEffect::NoGc,
-                        scoop_identity::GcEffect::Managed => hir::GcEffect::Managed,
+                return Ok(hir::ConstructorKind::Struct(
+                    hir::StructConstructorKind::Secondary {
+                        delegation: hir::StructConstructorDelegation { target, arguments },
+                        body,
+                        gc_effect: match executable.effects().gc_effect() {
+                            scoop_identity::GcEffect::NoGc => hir::GcEffect::NoGc,
+                            scoop_identity::GcEffect::Managed => hir::GcEffect::Managed,
+                        },
                     },
-                })
+                ));
             }
             Source::ClassSecondaryThis { delegation, body } => {
                 let hir::ConstructorApplicationRef::Class(target) =
@@ -38,65 +42,49 @@ impl Lowerer {
                 };
                 let arguments =
                     self.imported_constructor_fragment(template, &delegation.arguments)?;
-                let body = self.imported_constructor_body(template, body)?;
-                Ok(Target::ClassThis {
-                    target,
-                    arguments,
-                    body,
-                })
+                hir::ClassConstructorKind::Secondary {
+                    delegation: hir::ClassSecondaryDelegation::This { target, arguments },
+                    body: self.imported_constructor_body(template, body)?,
+                }
             }
             Source::ClassPrimary {
                 base,
                 primary_stores,
             } => {
                 let base = self.imported_constructor_base(template, base.as_ref())?;
-                let saved_locals = std::mem::take(&mut self.locals);
-                let mut statements = Vec::new();
-                let result = (|| {
-                    for store in primary_stores {
+                let primary_stores = primary_stores
+                    .iter()
+                    .map(|store| {
                         let LocalValueSelector::Parameter { declaration_index } = store.parameter
                         else {
                             unreachable!("validated primary stores name constructor parameters")
                         };
                         let parameter = &template.signature.parameters[declaration_index as usize];
-                        let value = hir::Expr {
-                            kind: hir::ExprKind::ConstructorParam(parameter.id),
-                            ty: parameter.ty,
+                        Ok(hir::PrimaryFieldStore {
+                            field: self.imported_constructor_field(template, &store.field)?,
+                            parameter: parameter.id,
                             span: parameter.definition.span,
-                            origin: template.expression_origin(parameter.definition),
-                        };
-                        statements.push(self.imported_constructor_store(
-                            template,
-                            &store.field,
-                            value,
-                        )?);
-                    }
-                    self.append_imported_common_initialization(template, &mut statements)
-                })();
-                let locals = std::mem::replace(&mut self.locals, saved_locals);
-                result?;
-                Ok(Target::ClassTerminal {
+                        })
+                    })
+                    .collect::<Result<_, ImportedDefaultMaterializationError>>()?;
+                hir::ClassConstructorKind::Primary {
                     base,
-                    body: hir::Body { locals, statements },
-                })
+                    primary_stores,
+                    common_initialization: self.imported_common_initialization(template)?,
+                }
             }
             Source::ClassSecondaryTerminal { base, body } => {
                 let base = self.imported_constructor_base(template, base.as_ref())?;
-                let saved_locals = std::mem::take(&mut self.locals);
-                let mut statements = Vec::new();
-                let result = (|| {
-                    self.append_imported_common_initialization(template, &mut statements)?;
-                    self.append_imported_constructor_fragment(template, body, &mut statements)?;
-                    Ok::<_, ImportedDefaultMaterializationError>(())
-                })();
-                let locals = std::mem::replace(&mut self.locals, saved_locals);
-                result?;
-                Ok(Target::ClassTerminal {
-                    base,
-                    body: hir::Body { locals, statements },
-                })
+                hir::ClassConstructorKind::Secondary {
+                    delegation: hir::ClassSecondaryDelegation::Terminal {
+                        base,
+                        common_initialization: self.imported_common_initialization(template)?,
+                    },
+                    body: self.imported_constructor_body(template, body)?,
+                }
             }
-        }
+        };
+        Ok(hir::ConstructorKind::Class(class))
     }
 
     fn imported_constructor_body(
@@ -206,53 +194,55 @@ impl Lowerer {
         self.materialize_imported_default_expressions(fragment.results(), &mut context)
     }
 
-    fn append_imported_common_initialization(
+    fn imported_common_initialization(
         &mut self,
         template: &PreparedImportedConstructor,
-        statements: &mut Vec<hir::Statement>,
-    ) -> Result<(), ImportedDefaultMaterializationError> {
-        for step in template.initialization.common() {
-            match step {
-                hir::ExportCommonInitializationStepV1::Field { field, value } => {
-                    let mut values =
-                        self.append_imported_constructor_fragment(template, value, statements)?;
-                    let value = values
-                        .pop()
-                        .expect("validated field initialization has one result");
-                    statements.push(self.imported_constructor_store(template, field, value)?);
-                }
-                hir::ExportCommonInitializationStepV1::Body(body) => {
-                    self.append_imported_constructor_fragment(template, body, statements)?;
-                }
-            }
-        }
-        Ok(())
+    ) -> Result<Vec<hir::ClassInitializationStep>, ImportedDefaultMaterializationError> {
+        template
+            .initialization
+            .common()
+            .iter()
+            .map(|step| {
+                Ok(match step {
+                    hir::ExportCommonInitializationStepV1::Field { field, value } => {
+                        let field = self.imported_constructor_field(template, field)?;
+                        let mut fragment = self.imported_constructor_fragment(template, value)?;
+                        let value = fragment
+                            .args
+                            .pop()
+                            .expect("validated field initialization has one result");
+                        hir::ClassInitializationStep::Field {
+                            field,
+                            span: value.span,
+                            initializer: hir::ConstructorExpression {
+                                locals: fragment.locals,
+                                statements: fragment.statements,
+                                value,
+                            },
+                        }
+                    }
+                    hir::ExportCommonInitializationStepV1::Body(body) => {
+                        hir::ClassInitializationStep::InitBlock {
+                            body: self.imported_constructor_body(template, body)?,
+                            span: template.signature.origin.span,
+                        }
+                    }
+                })
+            })
+            .collect()
     }
 
-    fn imported_constructor_store(
+    fn imported_constructor_field(
         &mut self,
         template: &PreparedImportedConstructor,
         field: &hir::DefaultFieldRefV1,
-        value: hir::Expr,
-    ) -> Result<hir::Statement, ImportedDefaultMaterializationError> {
-        let field = self.materialize_imported_field_ref(field, &template.bindings)?;
-        let origin = template.signature.origin;
-        let receiver = hir::Expr {
-            kind: hir::ExprKind::ConstructorReceiver,
-            ty: template.signature.owner,
-            span: origin.span,
-            origin: template.expression_origin(origin),
+    ) -> Result<hir::InitializingClassFieldRef, ImportedDefaultMaterializationError> {
+        let hir::FieldRef::ClassField { owner, field } =
+            self.materialize_imported_field_ref(field, &template.bindings)?
+        else {
+            unreachable!("validated class initialization names class fields")
         };
-        Ok(hir::Statement {
-            span: value.span,
-            kind: hir::StatementKind::Assign {
-                target: hir::AssignTarget::Field {
-                    receiver: Box::new(receiver),
-                    field,
-                },
-                value,
-            },
-        })
+        Ok(hir::InitializingClassFieldRef { owner, field })
     }
 
     fn imported_constructor_base(

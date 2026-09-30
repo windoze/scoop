@@ -414,3 +414,12 @@
 - 新增 `m23-shared-constructor-applications` 两组正例、四个反例、六份阶段快照和四份诊断快照，覆盖完整且未使用的 owner 实参、重复 application、主／次构造、默认值、本地继承依赖构造及闭包。单元核对共同 application 的去重与原定义；源码移走后的再次发布、本地 class／String／Int／Unit 以及普通／moving GC 运行通过。
 - 全仓 fmt／clippy 无警告，2895 项 HIR／HIR lowering／MIR lowering／slib 单元已覆盖通过。82 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖成功。161 份旧 HIR 快照的 341 行变化逐行核对为共同构造标签及完整 class owner 的显示；既有 MIR／LIR／诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-constructor-nodes-`，结果见 `unit.log`、四份 `dump-*-verified.log`、`remaining-unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 与 `snapshot-review.json`。
 - application 声明模块 44 行，新增单元模块 76 行；继续复用 `target/m23-6a`。构造正文与完整候选尚在迁移，本批不代表 6a 完成。
+
+
+## 共用构造正文与初始化片段
+
+- 当前与解码构造器共用 class／struct 的主／次构造正文、已选 `this`／base 委托、实参计划和公共初始化步骤。主参数存储与普通／委托字段初始化直接保存完整 owner 和原字段身份；属性记录继续保存委托存储关系。删除 `ImportedConstructorKind`、提前把导入公共初始化展开为另一种正文的路径、独立导入构造正文 lowering，以及源码专用字段偏移计算。
+- 构造正文通过轻量存储视图进入同一参数、字段、公共初始化和委托降低过程；各初始化片段的局部值环境保持独立，原定义位置和执行上下文保留。wire 字节结构和 runtime ABI 不变。
+- 新组合复现初始化中的匿名函数／局部函数 `return` 被误当作退出构造器。按既有函数边界规则修复：初始化体自身仍拒绝返回，嵌套函数返回自身；lambda 裸返回和捕获未完成 `this` 仍拒绝。新增 `m23-shared-constructor-bodies` 两组正例、五个反例、六份阶段快照及五份诊断快照，检查 struct 委托、class 主／次构造、多个公共片段、委托字段、局部函数和多层闭包的顺序与捕获。
+- 全仓 fmt／clippy 无警告，2895 项 HIR／HIR lowering／MIR lowering／slib 单元测试通过。83 项真实泛型产物与完整 core 回归全部关闭更新开关覆盖成功，包括新增源码移走、再次发布、消费方本地 class／String／Int／Unit 及普通／moving GC 运行。16 份旧 MIR／LIR 快照的 90 行变化仅是片段内局部变量显示名称；寄存器、机器指令、原身份以及旧 HIR／诊断快照保持。
+- 证据前缀 `/tmp/scoop-m23-6a-shared-constructor-bodies-`，失败复现为 `before.log`，最终结果见 `unit.log`、`generate-results.json`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`。共同 class 构造降低、存储视图和解码模块分别为 293、109、352 行；确认缓存闲置后清理约 2370.2 MiB `target/debug`，继续复用 `target/m23-6a`。完整请求和候选决议继续迁移，尚未完成 6a。

@@ -64,7 +64,7 @@ pub(super) fn project(
         )?;
         common
             .iter()
-            .map(|step| common_step(&projection, declaration.self_application, step))
+            .map(|step| common_step(&projection, step))
             .collect::<Result<_, _>>()?
     } else {
         Vec::new()
@@ -99,11 +99,7 @@ pub(super) fn project(
                                     crate::GenericInitializationBuildError::PrimaryStore,
                                 ))?;
                             Ok(ExportPrimaryFieldStoreV1 {
-                                field: class_field(
-                                    &projection,
-                                    declaration.self_application,
-                                    store.field,
-                                )?,
+                                field: class_field(&projection, store.field)?,
                                 parameter: LocalValueSelector::Parameter {
                                     declaration_index: u32::try_from(index).expect(
                                         "constructor parameter index fits the source interface",
@@ -200,15 +196,14 @@ fn base_delegation(
 
 fn class_field(
     projection: &ConstructorProjection<'_, '_>,
-    application: crate::ClassApplicationId,
-    field: crate::ClassFieldId,
+    field: crate::InitializingClassFieldRef,
 ) -> Result<crate::DefaultFieldRefV1, Error> {
     projection
         .entities
         .field(
             crate::FieldRef::ClassField {
-                owner: projection.entities.export().class_applications[application].canonical_type,
-                field: projection.entities.export().field_identities[field].id(),
+                owner: field.owner,
+                field: field.field,
             },
             &projection.binders,
         )
@@ -217,17 +212,13 @@ fn class_field(
 
 fn common_step(
     projection: &ConstructorProjection<'_, '_>,
-    application: crate::ClassApplicationId,
     step: &ClassInitializationStep,
 ) -> Result<ExportCommonInitializationStepV1, Error> {
     match step {
-        ClassInitializationStep::StoredProperty {
-            field, initializer, ..
-        }
-        | ClassInitializationStep::DelegatedProperty {
+        ClassInitializationStep::Field {
             field, initializer, ..
         } => Ok(ExportCommonInitializationStepV1::Field {
-            field: class_field(projection, application, *field)?,
+            field: class_field(projection, *field)?,
             value: projection.fragment(
                 &initializer.locals,
                 &initializer.statements,

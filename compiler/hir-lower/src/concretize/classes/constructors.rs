@@ -5,30 +5,20 @@ use super::*;
 impl Concretizer<'_> {
     pub(in crate::concretize) fn lower_class_constructor(
         &mut self,
-        source_id: export::ClassConstructorId,
+        source_id: export::ClassConstructorDefinition,
         class: concrete::ClassId,
         substitution: &[concrete::TypeId],
     ) -> PendingClassConstructor {
-        let source = self.source.class_constructors[source_id].clone();
+        let source = self.class_constructor_definition(source_id);
         let mut expression_origin = export::ExpressionOrigin::Definition(source.origin).concrete();
         expression_origin.evaluation.context = source.evaluation_context;
-        let parameters = source
-            .parameters
-            .iter()
-            .map(|parameter| concrete::ConstructorParameter {
-                id: concrete::ConstructorParamId::from_raw(parameter.id.into_raw()),
-                binding: concrete::BindingId::from_raw(parameter.binding.into_raw()),
-                definition: parameter.definition,
-                name: parameter.name.clone(),
-                ty: self.lower_type(parameter.ty, substitution),
-            })
-            .collect::<Vec<_>>();
+        let parameters = self.lower_constructor_parameters(source.parameters, substitution);
         let mut body = concrete::Body {
             locals: Arena::new(),
             statements: Vec::new(),
         };
         let class_ty = self.class_type[&class];
-        let kind = match &source.kind {
+        let kind = match source.kind {
             export::ClassConstructorKind::Primary {
                 base,
                 primary_stores,
@@ -42,23 +32,17 @@ impl Concretizer<'_> {
                     expression_origin,
                 );
                 for store in primary_stores {
-                    let field = self.source.class_fields[store.field].clone();
-                    let application = self.source.classes[field.owner].self_application;
-                    let receiver_ty = self.lower_type(
-                        self.source.class_applications[application].canonical_type,
-                        substitution,
-                    );
+                    let (receiver_ty, field) =
+                        self.lower_initializing_class_field(store.field, substitution);
                     let receiver =
                         self.constructor_receiver(receiver_ty, store.span, expression_origin);
-                    let value_ty = self.lower_type(
-                        self.source.class_field_definition(store.field).ty,
-                        substitution,
-                    );
+                    let parameter = parameters
+                        .iter()
+                        .find(|parameter| parameter.id.into_raw() == store.parameter.into_raw())
+                        .expect("a primary store retains its constructor parameter");
                     let value = concrete::Expr {
-                        kind: concrete::ExprKind::ConstructorParam(
-                            concrete::ConstructorParamId::from_raw(store.parameter.into_raw()),
-                        ),
-                        ty: value_ty,
+                        kind: concrete::ExprKind::ConstructorParam(parameter.id),
+                        ty: parameter.ty,
                         span: store.span,
                         origin: expression_origin,
                     };
@@ -66,11 +50,7 @@ impl Concretizer<'_> {
                         kind: concrete::StatementKind::Assign {
                             target: concrete::AssignTarget::Field {
                                 receiver: Box::new(receiver),
-                                field: concrete::FieldRef::ClassField {
-                                    class_id: self
-                                        .lower_class_application(application, substitution),
-                                    index: self.source_class_field_layout_index(store.field),
-                                },
+                                field,
                             },
                             value,
                         },
@@ -138,7 +118,7 @@ impl Concretizer<'_> {
         };
         PendingClassConstructor {
             class,
-            source_discriminator: source_id.into_raw().into_u32(),
+            source_discriminator: source.discriminator,
             safety: source.safety,
             origin: source.origin,
             parameters,
@@ -209,16 +189,10 @@ impl Concretizer<'_> {
     ) {
         for step in common {
             match step {
-                export::ClassInitializationStep::StoredProperty {
+                export::ClassInitializationStep::Field {
                     field,
                     initializer,
                     span,
-                }
-                | export::ClassInitializationStep::DelegatedProperty {
-                    field,
-                    initializer,
-                    span,
-                    ..
                 } => {
                     let locals = self.append_source_locals(body, &initializer.locals, substitution);
                     body.statements.extend(self.lower_statement_region(
@@ -227,19 +201,14 @@ impl Concretizer<'_> {
                         &locals,
                     ));
                     let value = self.lower_expr(&initializer.value, substitution, &locals);
-                    let source_field = &self.source.class_fields[*field];
-                    let application = self.source.classes[source_field.owner].self_application;
-                    let class = self.lower_class_application(application, substitution);
-                    let receiver_ty = self.class_type[&class];
+                    let (receiver_ty, field) =
+                        self.lower_initializing_class_field(*field, substitution);
                     let receiver = self.constructor_receiver(receiver_ty, *span, origin);
                     body.statements.push(concrete::Statement {
                         kind: concrete::StatementKind::Assign {
                             target: concrete::AssignTarget::Field {
                                 receiver: Box::new(receiver),
-                                field: concrete::FieldRef::ClassField {
-                                    class_id: class,
-                                    index: self.source_class_field_layout_index(*field),
-                                },
+                                field,
                             },
                             value,
                         },

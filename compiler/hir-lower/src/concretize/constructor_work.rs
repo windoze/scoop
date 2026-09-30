@@ -82,14 +82,7 @@ impl Concretizer<'_> {
                 let index = id.into_raw().into_u32() as usize;
                 let (source, owner) = self.class_constructor_keys[index];
                 let arguments = self.classes[owner].type_arguments.clone();
-                let constructor = match source {
-                    ClassConstructorSource::Local(source) => {
-                        self.lower_class_constructor(source, owner, &arguments)
-                    }
-                    ClassConstructorSource::Template(source) => {
-                        self.lower_imported_class_constructor(source, owner, &arguments)
-                    }
-                };
+                let constructor = self.lower_class_constructor(source, owner, &arguments);
                 assert!(
                     self.class_constructor_slots[index]
                         .replace(constructor)
@@ -100,14 +93,7 @@ impl Concretizer<'_> {
                 let index = id.into_raw().into_u32() as usize;
                 let (source, owner) = self.struct_constructor_keys[index];
                 let arguments = self.structs[owner].type_arguments.clone();
-                let constructor = match source {
-                    StructConstructorSource::Local(source) => {
-                        self.lower_struct_constructor(source, owner, &arguments)
-                    }
-                    StructConstructorSource::Template(source) => {
-                        self.lower_imported_struct_constructor(source, owner, &arguments)
-                    }
-                };
+                let constructor = self.lower_struct_constructor(source, owner, &arguments);
                 assert!(
                     self.struct_constructor_slots[index]
                         .replace(constructor)

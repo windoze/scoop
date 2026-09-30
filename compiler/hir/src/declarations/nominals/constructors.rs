@@ -51,21 +51,15 @@ pub enum ClassConstructorKind {
 
 #[derive(Debug, Clone)]
 pub struct PrimaryFieldStore {
-    pub field: ClassFieldId,
+    pub field: InitializingClassFieldRef,
     pub parameter: ConstructorParamId,
     pub span: Span,
 }
 
 #[derive(Debug, Clone)]
 pub enum ClassInitializationStep {
-    StoredProperty {
-        field: ClassFieldId,
-        initializer: ConstructorExpression,
-        span: Span,
-    },
-    DelegatedProperty {
-        storage: DelegateStorageId,
-        field: ClassFieldId,
+    Field {
+        field: InitializingClassFieldRef,
         initializer: ConstructorExpression,
         span: Span,
     },
@@ -148,4 +142,10 @@ pub enum StructConstructorKind {
 pub struct StructConstructorDelegation {
     pub target: StructConstructorApplicationId,
     pub arguments: ConstructorArguments,
+}
+
+#[derive(Debug, Clone)]
+pub enum ConstructorKind {
+    Class(ClassConstructorKind),
+    Struct(StructConstructorKind),
 }

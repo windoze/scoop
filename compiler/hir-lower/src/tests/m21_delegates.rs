@@ -212,11 +212,9 @@ fn class_delegate_owns_typed_hidden_storage_and_generated_accessors() {
     };
     assert!(matches!(
         common_initialization.as_slice(),
-        [hir::ClassInitializationStep::DelegatedProperty {
-            storage: actual_storage,
-            field: actual_field,
-            ..
-        }] if *actual_storage == storage && *actual_field == field
+        [hir::ClassInitializationStep::Field { field: actual_field, .. }]
+            if actual_field.field == module.field_identities[field].id()
+                && actual_field.owner == module.class_applications[host.self_application].canonical_type
     ));
     let getter = module.properties[property].capability.getter();
     let hir::PropertyAccessorImplementation::Body(getter) =

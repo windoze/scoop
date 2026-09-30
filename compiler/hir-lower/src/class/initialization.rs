@@ -50,13 +50,14 @@ impl Lowerer {
         let mut initialized = self.inherited_fields(owner);
         let mut stores = Vec::new();
         if primary.is_some() {
-            for &field in &self.classes[owner].fields {
+            for field in self.classes[owner].fields.clone() {
                 let declaration = &self.class_fields[field];
                 if let hir::ClassFieldSource::PrimaryParameter(parameter) = declaration.source {
+                    let span = declaration.span;
                     stores.push(hir::PrimaryFieldStore {
-                        field,
+                        field: self.initializing_class_field_reference(application, field),
                         parameter,
-                        span: declaration.span,
+                        span,
                     });
                     initialized.insert(field);
                 }
@@ -256,8 +257,11 @@ impl Lowerer {
                         hir::ClassPropertyInitializer::PrimaryParameter(_) => None,
                     };
                     if let Some(initializer) = initializer {
-                        steps.push(hir::ClassInitializationStep::StoredProperty {
-                            field,
+                        steps.push(hir::ClassInitializationStep::Field {
+                            field: self.initializing_class_field_reference(
+                                self.classes[owner].self_application,
+                                field,
+                            ),
                             initializer,
                             span: property.span,
                         });
@@ -428,9 +432,9 @@ impl Lowerer {
         });
         self.properties[property_id].representation =
             hir::PropertyRepresentation::Delegated { storage };
-        let step = hir::ClassInitializationStep::DelegatedProperty {
-            storage,
-            field,
+        let step = hir::ClassInitializationStep::Field {
+            field: self
+                .initializing_class_field_reference(self.classes[owner].self_application, field),
             initializer: hir::ConstructorExpression {
                 locals: lowered.locals,
                 statements: lowered.statements,

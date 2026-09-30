@@ -5,7 +5,7 @@ use crate::*;
 #[derive(Debug, Clone)]
 pub struct ImportedConstructorTemplate {
     pub signature: ImportedConstructorSignature,
-    pub kind: ImportedConstructorKind,
+    pub kind: ConstructorKind,
 }
 
 impl std::ops::Deref for ImportedConstructorTemplate {
@@ -27,24 +27,4 @@ pub struct ImportedConstructorSignature {
     pub effects: CallableSourceEffectsV1,
     pub origin: DefinitionOrigin,
     pub evaluation_context: SourceContextId,
-}
-
-#[derive(Debug, Clone)]
-pub enum ImportedConstructorKind {
-    StructPrimary,
-    StructSecondary {
-        target: StructConstructorApplicationId,
-        arguments: ConstructorArguments,
-        body: Body,
-        gc_effect: GcEffect,
-    },
-    ClassTerminal {
-        base: BaseInitialization,
-        body: Body,
-    },
-    ClassThis {
-        target: ClassConstructorApplicationId,
-        arguments: ConstructorArguments,
-        body: Body,
-    },
 }

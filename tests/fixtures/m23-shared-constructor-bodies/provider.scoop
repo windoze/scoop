@@ -1,0 +1,65 @@
+package upstream.constructorbodies
+
+public class Trace public constructor(public var digits: Int) {
+    public fun mark(value: Int): Int {
+        this.digits = this.digits * 10 + value
+        return value
+    }
+}
+
+public struct Pair<T, U>(val value: T, val serial: Int) {
+    public constructor(value: T, trace: Trace): this(value, trace.mark(1)) {
+        trace.mark(2)
+    }
+}
+
+public open class Base<T, U> public constructor(public val value: T, trace: Trace) {
+    public val base: Int = trace.mark(3)
+}
+
+public struct Reader<T, U>(val content: T, val serial: Int) {
+    public operator fun getValue(thisRef: Built<T, U>): T = this.content
+}
+
+public class Built<T, U> public constructor(value: T, trace: Trace): Base<T, U>(value, trace) {
+    public val stored: Int = trace.mark(4)
+    public val delegated: T by Reader<T, U>(value, trace.mark(9))
+    public val retained: T = if (true) {
+        val snapshot = value
+        fun copy(): T { return snapshot }
+        val read = fun(): T { return copy() }
+        read()
+    } else { value }
+    public var output: T = value
+
+    init {
+        val snapshot = value
+        fun copy(): T { return snapshot }
+        val read: () -> T = { copy() }
+        this.output = read()
+        trace.mark(5)
+    }
+
+    public constructor(value: T, trace: Trace, flag: Boolean): this(value, trace) {
+        trace.mark(6)
+    }
+}
+
+public class Terminal<T, U>: Base<T, U> {
+    public val copied: T = this.value
+    public var marker: Int = 0
+
+    init {
+        val digit = 7
+        fun read(): Int = digit
+        this.marker = read()
+    }
+
+    public constructor(value: T, trace: Trace): super(value, trace) {
+        trace.mark(this.marker)
+    }
+
+    public constructor(value: T, trace: Trace, flag: Boolean): this(value, trace) {
+        trace.mark(8)
+    }
+}

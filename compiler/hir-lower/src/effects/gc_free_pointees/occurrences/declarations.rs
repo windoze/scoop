@@ -58,8 +58,7 @@ fn collect_class_initialization_types(
 ) {
     for step in initialization {
         match step {
-            hir::ClassInitializationStep::StoredProperty { initializer, .. }
-            | hir::ClassInitializationStep::DelegatedProperty { initializer, .. } => {
+            hir::ClassInitializationStep::Field { initializer, .. } => {
                 collect_constructor_expression_types(lowerer, initializer, out)
             }
             hir::ClassInitializationStep::InitBlock { body, .. } => {
@@ -169,8 +168,7 @@ fn collect_class_initialization_type_occurrences(
 ) {
     for step in initialization {
         match step {
-            hir::ClassInitializationStep::StoredProperty { initializer, .. }
-            | hir::ClassInitializationStep::DelegatedProperty { initializer, .. } => {
+            hir::ClassInitializationStep::Field { initializer, .. } => {
                 collect_statement_type_occurrences(lowerer, &initializer.statements, file, out);
                 collect_expr_type_occurrences(lowerer, &initializer.value, out);
             }

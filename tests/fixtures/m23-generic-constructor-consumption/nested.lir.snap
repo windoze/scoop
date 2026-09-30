@@ -126,9 +126,9 @@ Module
   fun @scoop$1$cb$2ff6590f69963c8c2135f592912883adde9ae6f9bd52bc718a21efc3fad2755e(ptr<managed>, indirect<struct0 size=16 align=8 scan=refs[0, 8]>) -> void
     local %0 $dependency.constructor.local.0: struct0
     local %1 $dependency.constructor.local.1: struct0
-    local %2 $dependency.constructor.local.2: i32
-    local %3 $dependency.constructor.local.3: i32
-    local %4 $dependency.constructor.local.4: i32
+    local %2 $dependency.constructor.local.0: i32
+    local %3 $dependency.constructor.local.1: i32
+    local %4 $dependency.constructor.local.2: i32
     local %5 $call.1: struct0
     local %6 $sc.1: struct0
     local %7 $sc.2: struct0
