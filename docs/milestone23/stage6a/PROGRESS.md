@@ -172,3 +172,9 @@
 - 扩展 `m23-shared-requests/captured-parameters`，对照源码／依赖中的多层局部函数、泛型局部调用和四项捕获；实际发布、移走源码、再次发布及引用／Int／Unit 的普通／移动 GC 运行全部通过。新 HIR／MIR／LIR 快照关闭更新开关复验通过，既有快照无需修改。
 - 全仓 fmt／clippy、1310 项 HIR lowering 单元测试和 8 项相关真实产物回归均已覆盖通过，包含方法／接口 bound、构造、委托初始化局部函数、派生相等、函数引用和默认正文。函数替换、声明读取、请求队列分别为 169、174、219 行。日志前缀 `/tmp/scoop-m23-6a-function-definitions-`，结果见 `unit.log` 加 `captures-verified.log`、`artifacts.log` 和 `artifacts-verify.log`。
 - 本批统一实际替换算法；当前／读入声明的存储定位仍有机械适配，正式语义图中的 nominal、候选及正文存储来源表示继续按阶段设计迁移。wire payload 和 runtime ABI 未改变。
+
+## 原声明子类作用域与共同祖先查询
+
+- `protected` 的子类访问约束统一保存原 `SourceNominalId`，删除依赖专用约束及当前／跨来源／依赖的三套继承遍历。作用域包含、覆写覆盖与实际访问共用一套祖先查询；现有声明索引只用于定位记录，完整类型实参、词法作用域和显式接收者规则保持。
+- 原访问域构建与查询保留在 327 行主模块；公开声明投影、类型访问域和祖先查询分别为 164、223、97 行。没有增加 wire 字段、声明副本或额外访问证明。private 词法 owner 的剩余 arena 表示继续按阶段设计迁移。
+- 全仓 fmt／clippy、856 项 HIR 与 1310 项 HIR lowering 单元测试全部通过。复用既有独立和组合 fixture 的 7 项真实产物回归全部通过，包含泛型 protected、封闭父类型、函数引用、嵌套受保护类型、setter、普通继承正例及负例；全部快照无需修改。日志前缀 `/tmp/scoop-m23-6a-visibility-`，结果见 `unit.log` 与 `artifacts.log`。

@@ -166,7 +166,9 @@ impl Lowerer {
                     .lookup
                     .0
                     .intersect(&hir::AccessDomain::from_constraints([
-                        hir::AccessConstraint::SubclassesOf(id),
+                        hir::AccessConstraint::SubclassesOf(
+                            self.nominal_identity(Owner::Class(id)).declaration_id(),
+                        ),
                     ]))
             });
         if let hir::ClassRepresentation::Intrinsic(intrinsic) = self.classes[id].representation {

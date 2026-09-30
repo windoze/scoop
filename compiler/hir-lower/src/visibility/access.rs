@@ -55,9 +55,11 @@ impl Lowerer {
             }
             hir::DeclaredVisibilityV1::Private => hir::AccessDomain::empty(),
             hir::DeclaredVisibilityV1::Protected => match parent {
-                Some(owner) => hir::AccessDomain::from_constraints([
-                    hir::AccessConstraint::ImportedSubclassesOf(owner),
-                ]),
+                Some(owner) => {
+                    hir::AccessDomain::from_constraints([hir::AccessConstraint::SubclassesOf(
+                        owner,
+                    )])
+                }
                 None => hir::AccessDomain::empty(),
             },
         }
@@ -84,7 +86,7 @@ impl Lowerer {
     pub(super) fn lexical_scope_implies_subclass(
         &self,
         owner: hir::VisibilityOwner,
-        base: hir::ClassId,
+        base: hir::SourceNominalId,
     ) -> bool {
         let owner = match owner {
             hir::VisibilityOwner::Class(id) => Owner::Class(id),
@@ -94,34 +96,7 @@ impl Lowerer {
             hir::VisibilityOwner::Object(id) => Owner::Object(id),
         };
         self.protected_scope_classes(owner)
-            .any(|class| self.class_is_same_or_subclass_of(class, base))
-    }
-
-    pub(crate) fn class_is_same_or_subclass_of(
-        &self,
-        mut class: hir::ClassId,
-        base: hir::ClassId,
-    ) -> bool {
-        let mut seen = Vec::new();
-        loop {
-            if class == base {
-                return true;
-            }
-            if seen.contains(&class) {
-                return false;
-            }
-            seen.push(class);
-            let Some(base_ty) = self.classes[class].base_class else {
-                return false;
-            };
-            if matches!(self.types[base_ty], hir::Type::ImportedClass(_)) {
-                return false;
-            }
-            let hir::Type::Class(application) = self.types[base_ty] else {
-                unreachable!("resolved class bases are class applications")
-            };
-            class = self.class_applications[application].template;
-        }
+            .any(|class| self.class_inherits_declaration(class, base))
     }
 
     pub(crate) fn receiver_class(&self, ty: hir::TypeId) -> Option<hir::ClassId> {
@@ -148,13 +123,7 @@ impl Lowerer {
                 hir::AccessConstraint::SubclassesOf(base) => {
                     self.current_owner.is_some_and(|owner| {
                         self.protected_scope_classes(owner)
-                            .any(|current| self.class_is_same_or_subclass_of(current, *base))
-                    })
-                }
-                hir::AccessConstraint::ImportedSubclassesOf(base) => {
-                    self.current_owner.is_some_and(|owner| {
-                        self.protected_scope_classes(owner)
-                            .any(|current| self.class_inherits_imported(current, *base))
+                            .any(|current| self.class_inherits_declaration(current, *base))
                     })
                 }
             })

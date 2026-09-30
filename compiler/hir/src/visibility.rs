@@ -31,8 +31,7 @@ pub enum AccessConstraint {
     Cone(ConeIdentity),
     File(SourceIdentity),
     LexicalOwner(VisibilityOwner),
-    SubclassesOf(ClassId),
-    ImportedSubclassesOf(crate::SourceNominalId),
+    SubclassesOf(crate::SourceNominalId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,10 +63,9 @@ impl AccessDomain {
             }
         }
         normalized.sort_by(|left, right| match (left, right) {
-            (
-                AccessConstraint::ImportedSubclassesOf(left),
-                AccessConstraint::ImportedSubclassesOf(right),
-            ) => left.cmp(right),
+            (AccessConstraint::SubclassesOf(left), AccessConstraint::SubclassesOf(right)) => {
+                left.cmp(right)
+            }
             _ => access_constraint_sort_key(left).cmp(&access_constraint_sort_key(right)),
         });
         Self {
@@ -137,8 +135,7 @@ fn access_constraint_sort_key(
             VisibilityOwner::Enum(id) => (2, None, None, 3, id.into_raw().into_u32()),
             VisibilityOwner::Object(id) => (2, None, None, 4, id.into_raw().into_u32()),
         },
-        AccessConstraint::SubclassesOf(id) => (3, None, None, 0, id.into_raw().into_u32()),
-        AccessConstraint::ImportedSubclassesOf(_) => (4, None, None, 0, 0),
+        AccessConstraint::SubclassesOf(_) => (3, None, None, 0, 0),
     }
 }
 

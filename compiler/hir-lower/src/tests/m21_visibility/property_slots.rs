@@ -39,7 +39,12 @@ fn explicit_setters_preserve_independent_slot_contracts_and_override_relations()
             .map(|constraint| match constraint {
                 hir::AccessConstraint::Cone(_) => "Cone".to_owned(),
                 hir::AccessConstraint::SubclassesOf(owner) => {
-                    format!("SubclassesOf({})", module.classes[*owner].name)
+                    let (_, class) = module
+                        .classes
+                        .iter()
+                        .find(|(id, _)| module.nominal_identities[*id].declaration_id() == *owner)
+                        .expect("fixture slot retains its original class declaration");
+                    format!("SubclassesOf({})", class.name)
                 }
                 other => panic!("unexpected fixture slot constraint {other:?}"),
             })

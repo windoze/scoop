@@ -23,7 +23,7 @@ impl Lowerer {
         };
         let current = self
             .protected_scope_classes(self.current_owner?)
-            .find(|class| self.class_inherits_imported(*class, base))?;
+            .find(|class| self.class_inherits_declaration(*class, base))?;
         Some(format!(
             "protected method `{name}` cannot be accessed through receiver of static type `{}`; receiver must be `{}` or one of its subclasses",
             self.type_name(receiver),
@@ -107,7 +107,7 @@ impl Lowerer {
                     return false;
                 };
                 self.protected_scope_classes(scope).any(|class| {
-                    self.class_inherits_imported(class, base)
+                    self.class_inherits_declaration(class, base)
                         && receiver.is_none_or(|receiver| {
                             self.receiver_class(receiver).is_some_and(|receiver| {
                                 self.class_is_same_or_subclass_of(receiver, class)
@@ -116,76 +116,5 @@ impl Lowerer {
                 })
             }
         }
-    }
-
-    pub(crate) fn class_inherits_imported(
-        &self,
-        class: hir::ClassId,
-        base: hir::SourceNominalId,
-    ) -> bool {
-        let mut current = self.classes[class].base_class;
-        let mut seen = Vec::new();
-        while let Some(ty) = current {
-            if seen.contains(&ty) {
-                return false;
-            }
-            seen.push(ty);
-            current = match &self.types[ty] {
-                hir::Type::Class(application) => {
-                    self.classes[self.class_applications[*application].template].base_class
-                }
-                hir::Type::ImportedClass(class) => {
-                    return self
-                        .imported_class_is_same_or_subclass_of(class.declaration.owner(), base);
-                }
-                _ => unreachable!("a resolved class base has a class type"),
-            };
-        }
-        false
-    }
-
-    pub(super) fn imported_class_is_same_or_subclass_of(
-        &self,
-        derived: hir::SourceNominalId,
-        base: hir::SourceNominalId,
-    ) -> bool {
-        let mut current = Some(derived);
-        while let Some(owner) = current {
-            if owner == base {
-                return true;
-            }
-            let dependencies = self
-                .dependencies
-                .as_ref()
-                .expect("imported classes retain their dependency declarations");
-            let declaration = dependencies
-                .nominal_declaration(owner)
-                .expect("imported class ancestry retains each declaration");
-            current = declaration
-                .interface
-                .exact_supertypes()
-                .values()
-                .iter()
-                .find_map(|parent| {
-                    let owner = match parent {
-                        scoop_identity::SignatureTypeKey::Nominal(id) => {
-                            hir::SourceNominalId::Concrete(*id)
-                        }
-                        scoop_identity::SignatureTypeKey::NominalApplication { origin, .. } => {
-                            hir::SourceNominalId::GenericTemplate(*origin)
-                        }
-                        _ => unreachable!("resolved nominal parents are nominal references"),
-                    };
-                    let parent = dependencies
-                        .nominal_declaration(owner)
-                        .expect("imported parents retain their declarations");
-                    matches!(
-                        parent.interface.source_shape(),
-                        hir::NominalSourceShapeV1::Class(_)
-                    )
-                    .then_some(owner)
-                });
-        }
-        false
     }
 }
