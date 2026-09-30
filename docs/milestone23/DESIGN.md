@@ -131,7 +131,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 | M23-4 | resolved build graph与调度（[详细设计](stage4/DESIGN.md)） | locator、DAG、artifact cache与child orchestration |
 | M23-5 | 多Cone名称语义（[详细设计](stage5/DESIGN.md)） | cross-Cone semantic world、import/re-export与access provenance |
 | M23-6 | 跨Cone layout、typed ABI与ZST（[详细设计](stage6/DESIGN.md)） | layout/scan/ABI section与运行时表示 |
-| M23-6a | 统一 HIR 语义模型、产物消费与具体化（[详细设计](stage6a/DESIGN.md)） | 同结构声明／正文、统一查询与调用决议、导出投影、共同具体化和实际物化需求 |
+| M23-6a | 统一 HIR 语义模型、产物消费与具体化（[详细设计](stage6a/DESIGN.md)、[实际验收](stage6a/ACCEPTANCE.md)） | 同结构声明／正文、统一查询与调用决议、导出投影、共同具体化和实际物化需求 |
 | M23-7 | 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](stage7/DESIGN.md)） | 消费 6a 的共同 HIR，闭合机器定义与引用、逐 member ODR、委托存储和真实运行 |
 | M23-8 | runtime multi-image registry与启动 | 实际 image/registration 消费、登记／初始化顺序与 stackmap |
 | M23-9 | 基础artifact-only program-link | fixed target/runtime闭包、runtime-build、program object与真实链接 |

@@ -341,23 +341,24 @@ Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专
 - 真实源码生成完整 `.slib`，由本阶段跨 Cone Compile/Link 路径消费，并完成适用链接与运行；覆盖 core 修改、扩展、重建、下游使用，以及类型、成员、dispatch、ABI、ZST 的独立与组合场景。手工 metadata 和证明反例不能替代验收。
 - **M23-6 已完成并验收（2026-09-27）**：实际功能、七项清理和生产调用链核对已完成，变更按功能提交；启用真实配套编译器的全仓测试 5084 项通过。详见 [实际产物验收记录](milestone23/stage6/ACCEPTANCE.md)。ODR、multi-image startup、artifact-only program-link 按 M23-7/8/9 的原阶段安排。
 
-### M23-6a 统一 HIR 语义模型、产物消费与具体化（[详细设计](milestone23/stage6a/DESIGN.md)，实现中）
+### M23-6a 统一 HIR 语义模型、产物消费与具体化（[详细设计](milestone23/stage6a/DESIGN.md)，已完成）
 
 - 插入 M23-6 与 M23-7 之间；既有 Stage 7 实现与真实 fixture 作为迁移基线，后续阶段以 6a 完成门为共同前置条件。
 - 当前与依赖声明使用相同的 typed nominal/application、成员、字段、conformance 和正文；源码与 `.slib` 解码产生同结构 HIR，Export HIR 是共同语义图的导出投影，LocalConcrete HIR 保持独立 ID 和无 binder 的完成边界。
 - 合并完整候选／参数／上下文推断、默认值展开和具体化，删除 Imported 类型／操作、导入专用执行器、transport→imported template 及本地 arena 假设；保留原实体、可见性、定义位置和求值顺序。
 - 按完整 application 和实际需求闭合物化，修复普通宿主的封闭泛型父类型、整数范围 iterator 去重、外来类型解构和函数值默认参数；上游普通存储、初始化和实现不复制。
 - 验收同一导出图内存／wire 消费等价、合法声明位置变化、模板与实参来自不同 Cone、真实再次发布和适用的链接／移动 GC；同步实际格式迁移，删除被替代路径，不能只增加共同 facade。
+- **M23-6a 已完成并验收（2026-10-01）**：共同声明、正文、调用与具体化已切换，既有语义缺口和收尾求值顺序问题已修复。完整 workspace 首轮 5294 项通过、17 项旧快照／断言失败；核对更新后，使用文件完全相同的配套编译器严格复验这 17 项，5311 项全部覆盖通过、无忽略项。详见 [实际验收](milestone23/stage6a/ACCEPTANCE.md)。
 
 ### M23-7 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](milestone23/stage7/DESIGN.md)，实现中，依赖 M23-6a）
 
-以下已有功能记录保留为 6a 的迁移基线与本阶段运行回归。6a 正在迁移，尚未完成；本阶段后续按机器定义、ODR 和委托运行闭环推进，不继续逐语法新增 imported 语义分支。
+以下保留已有功能与本阶段运行回归。M23-6a 的共同 HIR 前置条件已经验收；本阶段继续按机器定义、ODR 和委托运行闭环推进，不继续逐语法新增 imported 语义分支。
 
 - 消费 6a 的共有 `.slib` 模板、共同具体化与完整类型事实，完成泛型函数/名义类型、constructor/member/default/bound、hidden support 的机器定义／引用和 generic delegate 运行；复用当前 MIR/LIR、对象集合、registration、reader 和发布路径。参数自由 source nominal 的 shell/start 由定义方补齐，generic application 按实际引用闭合，不递归生成全部 helper。
 - 普通顶层 stored property 统一生成声明方访问器，泛型正文、嵌套 callable、构造、默认参数和 delegate initializer 共用原状态、初始化单元与 GC root；纯静态 GC-free 存储访问器保留 NoGc 合同。普通属性、泛型 enum payload、含引用大值与 ZST 的再次发布、重复实例合并及移动 GC 已有真实产物回归；本地和外来 Strong 类型描述符的对象引用统一为同一 exact type 定义，`link-identity-closure/6` 替代 `/5`。
 - 外来 core 的 `Option` 短写、泛型 enum 变体、默认值与静态 `None` 已接通共有声明和具体化路径；限定／导入／上下文构造、空安全运算、转换、含引用大值和 ZST 均有再次发布与移动 GC 回归。调换 core 变体顺序并移走源码后，下游仍按实际协议身份消费与运行。
 - 数组模板、转换构造与函数 vararg 调用已接通实际 core owner、共有类型与普通物化；数组读写、转换成员／构造、别名与同名重载、默认值、复制 identity、函数引用和迭代成员有再次发布及移动 GC 回归。导入泛型调用复用整组实参的约束固定点，后续实参可为前面的空数组、裸变体、lambda 和函数引用提供上下文，求值顺序保持源码序。数组 instance／element scan 与派发表保留各自真实身份，递归 scan 的完整字节归原对象定义；具体范围与验证见 [进度记录](milestone23/stage7/PROGRESS.md)。
-- `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作与 while，共有 HIR `/40` 撤销专用 For 和 portable binding-plan 编码。数组与本地／外来泛型迭代器、普通默认表达式、逐轮捕获、跳转和 finally 已有真实再次发布与移动 GC 回归；普通宿主的泛型父类型与整数范围迭代、消费者源码对外来类型的直接解构、外来函数值默认参数转由 6a 的共同 HIR 修正，阶段仍未完成。
+- `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作与 while，共有 HIR `/40` 撤销专用 For 和 portable binding-plan 编码。数组与本地／外来泛型迭代器、普通默认表达式、逐轮捕获、跳转和 finally 已有真实再次发布与移动 GC 回归；普通宿主的泛型父类型与整数范围迭代、消费者源码对外来类型的直接解构、外来函数值默认参数已由 6a 的共同 HIR 修正，本阶段的机器闭包、ODR 与委托运行验收继续推进。
 - 保留四类 specialization 和既有 group/member identity；按重复 member 的完整 ABI、canonical LIR、对象/EH/stackmap 判等，独立 helper 的成员集合取并集。旧“同组全部成员必须相同”规则会拒绝不同源签名到同一目标类型的合法 adapter，现按实际定义与引用修订；不增加授权、预算或证明体系。
 - 正式产物沿原完整 layout 路径切换到 `cross-cone-generic/1`，模板、定义目录、逐 member fingerprint 与缓存同步迁移；required section 按实际 payload 分步升级，不预填尚未实现的模板或保留平行发布器。完成门包含 provider 源码移走后的下游编译，以及现有单 image 验收入口的真实链接、地址合并、委托初始化/失败共享和移动 GC；生产多 image 启动与正式 program-link 仍留给 M23-8/9。
 
