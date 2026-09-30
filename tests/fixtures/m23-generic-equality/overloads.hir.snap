@@ -9,7 +9,7 @@ Module
     val local4
       Local $dependency.argument.1 : Int
     val local5
-      ImportedConstructorInit Manual : Manual<T0>
+      StructInit Manual : Manual<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local10
@@ -25,7 +25,7 @@ Module
     val local11
       Local $equality.lhs : Manual<T0>
     val local12
-      ImportedConstructorInit Manual : Manual<T0>
+      StructInit Manual : Manual<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local13
@@ -51,7 +51,7 @@ Module
       val local19
         Local $equality.lhs : Manual<T0>
       val local20
-        ImportedConstructorInit Manual : Manual<T0>
+        StructInit Manual : Manual<T0>
           Local $dependency.parameter.payload : T0
           Local $dependency.parameter.number : Int
       val local21
@@ -69,7 +69,7 @@ Module
     val local24
       Local $dependency.argument.0 : Int
     val local25
-      ImportedConstructorInit Different : Different<T0>
+      StructInit Different : Different<T0>
         Local $dependency.parameter.number : Int
     val local28
       Local derived : Different<T0>
@@ -81,7 +81,7 @@ Module
       Unary Not : Boolean
         MethodCall Different<T>.equals <derived> : Boolean
           Local $equality.lhs : Different<T0>
-          ImportedConstructorInit Different : Different<T0>
+          StructInit Different : Different<T0>
             Local $dependency.parameter.number : Int
       val local32
         BoolLiteral true : Boolean
@@ -95,7 +95,7 @@ Module
       val local32
         MethodCall Different<T>.equals <derived> : Boolean
           Local $equality.lhs : Different<T0>
-          ImportedConstructorInit Different : Different<T0>
+          StructInit Different : Different<T0>
             Local $dependency.parameter.number : Int
     if
       Local $shortCircuit.1 : Boolean

@@ -120,7 +120,7 @@ Module
     val local30
       Local $dependency.argument.0 : T0
     val local31
-      ImportedConstructorInit Pair : Pair<T0>
+      StructInit Pair : Pair<T0>
         Local $dependency.parameter.values : Array<T0>
         Local $dependency.parameter.seed : T0
     val local32
@@ -135,7 +135,7 @@ Module
     val local36
       Local $dependency.argument.0 : T0
     val local37
-      ImportedConstructorInit Host : Host<T0>
+      ClassInit Host<T0> : Host<T0>
         Local $dependency.parameter.value : T0
     val local38
       Local localHost : LocalHost<T0>
@@ -326,7 +326,7 @@ Module
     val local13
       Local $dependency.argument.1 : (Int) -> Int
     val local14
-      ImportedConstructorInit Pair : Pair<(Int) -> Int>
+      StructInit Pair : Pair<(Int) -> Int>
         Local $dependency.parameter.values : Array<(Int) -> Int>
         Local $dependency.parameter.seed : (Int) -> Int
     val local15

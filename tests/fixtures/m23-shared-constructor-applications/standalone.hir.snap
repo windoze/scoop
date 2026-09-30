@@ -1,0 +1,242 @@
+Module
+  struct CurrentPair<T, U>
+    field0 value: T0
+    field1 adjustment: Int
+    property0 val value: T0 getter0=storage <stored struct0-field0>
+    property1 val adjustment: Int getter1=storage <stored struct0-field1>
+  open class CurrentBox<T, U>(value: T0, adjustment: Int)
+    field0 property2: T0
+    field1 property3: Int
+    field2 property4: T0
+    property2 var value: T0 getter2=storage setter0=storage <stored field0 init=parameter4>
+    property3 val adjustment: Int getter3=storage <stored field1 init=parameter5>
+    property4 val copied: T0 getter4=storage <stored field2 init=expression>
+  class CurrentChild<T, U>(value: T0)
+  fun selected<T, U>(value: T0, box: CurrentBox<T0, T1>): T0
+    return
+      FieldAccess class field value : T0
+        Local box : CurrentBox<T0, T1>
+  fun plain(value: Int): Int <no-gc cdecl>
+    val local1
+      Local value : Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      IntegerLiteral 0 : Int
+    return
+      FieldAccess field 0 : Int
+        StructInit CurrentPair : CurrentPair<Int, Unit>
+          Local $parameter.value : Int
+          Local $parameter.adjustment : Int
+  fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $argument.0 : T0
+    val local4
+      IntegerLiteral 0 : Int
+    val local5
+      StructInit CurrentPair : CurrentPair<T0, Unit>
+        Local $parameter.value : T0
+        Local $parameter.adjustment : Int
+    val local6
+      Local seed : T0
+    val local7
+      Local $argument.0 : T0
+    val local8
+      IntegerLiteral 0 : Int
+    val local9
+      StructInit CurrentPair : CurrentPair<T0, Unit>
+        Local $parameter.value : T0
+        Local $parameter.adjustment : Int
+    val local10
+      Local seed : T0
+    val local11
+      BoolLiteral false : Boolean
+    val local12
+      Local $argument.0 : T0
+    val local13
+      Local $argument.1 : Boolean
+    val local14
+      StructInit CurrentPair : CurrentPair<T0, String>
+        Local $parameter.value : T0
+        Local $parameter.flag : Boolean
+    val local15
+      Local seed : T0
+    val local16
+      Local $argument.0 : T0
+    val local17
+      IntegerLiteral 0 : Int
+    val local18
+      ClassInit CurrentBox<T0, Int> : CurrentBox<T0, Int>
+        Local $parameter.value : T0
+        Local $parameter.adjustment : Int
+    val local19
+      Local seed : T0
+    val local20
+      Local $argument.0 : T0
+    val local21
+      ClassInit CurrentChild<T0, Unit> : CurrentChild<T0, Unit>
+        Local $parameter.value : T0
+    val local22
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        FieldAccess field 0 : T0
+          Local first : CurrentPair<T0, Unit>
+    val local23
+      IntegerLiteral 42 : Int
+    val local24
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local28
+        BoolLiteral true : Boolean
+    else
+      val local25
+        CallableCall function_type0 : Int
+          Local inspect : (T0) -> Int
+          FieldAccess field 0 : T0
+            Local repeated : CurrentPair<T0, Unit>
+      val local26
+        IntegerLiteral 42 : Int
+      val local27
+        Local $dependency.argument.0 : Int
+      val local28
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local29
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        FieldAccess field 0 : T0
+          Local secondary : CurrentPair<T0, String>
+    val local30
+      IntegerLiteral 42 : Int
+    val local31
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local35
+        BoolLiteral true : Boolean
+    else
+      val local32
+        CallableCall function_type0 : Int
+          Local inspect : (T0) -> Int
+          FieldAccess class field copied : T0
+            Local box : CurrentBox<T0, Int>
+      val local33
+        IntegerLiteral 42 : Int
+      val local34
+        Local $dependency.argument.0 : Int
+      val local35
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local36
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        FieldAccess class field value : T0
+          Local child : CurrentChild<T0, Unit>
+    val local37
+      IntegerLiteral 42 : Int
+    val local38
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local48
+        BoolLiteral true : Boolean
+    else
+      val local39
+        Local seed : T0
+      val local40
+        Local $argument.0 : T0
+      val local41
+        Local $parameter.value : T0
+      val local42
+        Local $argument.0 : T0
+      val local43
+        IntegerLiteral 0 : Int
+      val local44
+        ClassInit CurrentBox<T0, Unit> : CurrentBox<T0, Unit>
+          Local $parameter.value : T0
+          Local $parameter.adjustment : Int
+      val local45
+        CallableCall function_type0 : Int
+          Local inspect : (T0) -> Int
+          Call selected<T0, Unit> : T0
+            Local $parameter.value : T0
+            Local $parameter.box : CurrentBox<T0, Unit>
+      val local46
+        IntegerLiteral 42 : Int
+      val local47
+        Local $dependency.argument.0 : Int
+      val local48
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local49
+      IntegerLiteral 42 : Int
+    val local50
+      Local $argument.0 : Int
+    val local51
+      Call plain : Int
+        Local $parameter.value : Int
+    val local52
+      IntegerLiteral 42 : Int
+    val local53
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local54
+      Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
+        capture seed binding33 : T0
+    return
+      CallableCall function_type0 : Int
+        Local inspect : (T0) -> Int
+        CallableCall function_type1 : T0
+          Local closure : () -> T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+  output library
+  instance selected<T0, Unit>
+  instance exercise<Int>

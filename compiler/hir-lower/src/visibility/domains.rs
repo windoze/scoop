@@ -183,15 +183,24 @@ impl Lowerer {
             hir::ExportDefaultConstructorTarget::Imported { .. } => hir::AccessDomain::universal(),
             hir::ExportDefaultConstructorTarget::Struct(application) => {
                 let constructor = self.struct_constructor_applications[application].constructor;
-                self.struct_constructors[constructor]
-                    .access
-                    .lookup
-                    .0
-                    .clone()
+                match constructor {
+                    hir::StructConstructorDefinition::Local(constructor) => self
+                        .struct_constructors[constructor]
+                        .access
+                        .lookup
+                        .0
+                        .clone(),
+                    hir::StructConstructorDefinition::Template(_) => hir::AccessDomain::universal(),
+                }
             }
             hir::ExportDefaultConstructorTarget::Class(application) => {
                 let constructor = self.class_constructor_applications[application].constructor;
-                self.class_constructors[constructor].access.lookup.0.clone()
+                match constructor {
+                    hir::ClassConstructorDefinition::Local(constructor) => {
+                        self.class_constructors[constructor].access.lookup.0.clone()
+                    }
+                    hir::ClassConstructorDefinition::Template(_) => hir::AccessDomain::universal(),
+                }
             }
             hir::ExportDefaultConstructorTarget::Variant(variant) => {
                 self.type_access_domain(variant.owner)

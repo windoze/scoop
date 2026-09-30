@@ -5,7 +5,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedConstructorInit Inherited : Inherited<Int>
+      ClassInit Inherited<Int> : Inherited<Int>
         Local $dependency.parameter.value : Int
     val local3
       ReferenceUpcast : Box<Int>
@@ -44,7 +44,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       ReferenceUpcast : Box<T0>
-        ImportedConstructorInit Inherited : Inherited<T0>
+        ClassInit Inherited<T0> : Inherited<T0>
           Local $dependency.parameter.value : T0
     val local4
       MethodCall value<T0> : T0

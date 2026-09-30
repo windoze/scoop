@@ -8,16 +8,10 @@ pub(super) enum ConstructorWork {
     Struct(concrete::StructConstructorId),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum ClassConstructorSource {
-    Local(export::ClassConstructorId),
-    Imported(export::ImportedConstructorTemplateId),
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum StructConstructorSource {
-    Local(export::StructConstructorId),
-    Imported(export::ImportedConstructorTemplateId),
-}
+pub(super) use export::{
+    ClassConstructorDefinition as ClassConstructorSource,
+    StructConstructorDefinition as StructConstructorSource,
+};
 
 impl Concretizer<'_> {
     pub(super) fn request_class_constructor(
@@ -92,7 +86,7 @@ impl Concretizer<'_> {
                     ClassConstructorSource::Local(source) => {
                         self.lower_class_constructor(source, owner, &arguments)
                     }
-                    ClassConstructorSource::Imported(source) => {
+                    ClassConstructorSource::Template(source) => {
                         self.lower_imported_class_constructor(source, owner, &arguments)
                     }
                 };
@@ -110,7 +104,7 @@ impl Concretizer<'_> {
                     StructConstructorSource::Local(source) => {
                         self.lower_struct_constructor(source, owner, &arguments)
                     }
-                    StructConstructorSource::Imported(source) => {
+                    StructConstructorSource::Template(source) => {
                         self.lower_imported_struct_constructor(source, owner, &arguments)
                     }
                 };

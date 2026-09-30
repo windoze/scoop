@@ -52,7 +52,7 @@ Module
     val local10
       Local $dependency.argument.0 : T0
     val local11
-      ImportedConstructorInit Child : Child<T0>
+      ClassInit Child<T0> : Child<T0>
         Local $dependency.parameter.value : T0
     val local12
       CallableReference reference3 target=read<T0> captures=0 : () -> T0
@@ -67,7 +67,7 @@ Module
     val local15
       Local $dependency.argument.0 : T0
     val local16
-      ImportedConstructorInit Cell : Cell<T0>
+      StructInit Cell : Cell<T0>
         Local $dependency.parameter.value : T0
     val local17
       CallableReference reference5 target=read<T0> captures=0 : () -> T0

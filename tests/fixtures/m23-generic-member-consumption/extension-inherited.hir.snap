@@ -8,7 +8,7 @@ Module
     return
       Call extensionValue<Int> : Int
         ReferenceUpcast : Box<Int>
-          ImportedConstructorInit Inherited : Inherited<Int>
+          ClassInit Inherited<Int> : Inherited<Int>
             Local $dependency.parameter.value : Int
   fun make<T>(value: T0): T0
     val local1
@@ -18,6 +18,6 @@ Module
     return
       Call extensionValue<T0> : T0
         ReferenceUpcast : Box<T0>
-          ImportedConstructorInit Inherited : Inherited<T0>
+          ClassInit Inherited<T0> : Inherited<T0>
             Local $dependency.parameter.value : T0
   output library

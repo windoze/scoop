@@ -10,7 +10,7 @@ Module
       Local $dependency.argument.1 : Unit
     val local6
       ReferenceUpcast : Values<T0, Unit>
-        ImportedConstructorInit Remote : Remote<T0, Unit>
+        ClassInit Remote<T0, Unit> : Remote<T0, Unit>
           Local $dependency.parameter.a : T0
           Local $dependency.parameter.b : Unit
     val local7

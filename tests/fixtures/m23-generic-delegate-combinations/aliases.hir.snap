@@ -8,7 +8,7 @@ Module
     val local2
       Local $dependency.argument.0 : (T0, Boolean)
     val local3
-      ImportedConstructorInit Receiver : Receiver<(T0, Boolean)>
+      ClassInit Receiver<(T0, Boolean)> : Receiver<(T0, Boolean)>
         Local $dependency.parameter.value : (T0, Boolean)
     val local4
       Call flat<(T0, Boolean)> : Long
@@ -37,7 +37,7 @@ Module
       Local $dependency.argument.0 : (Int, Boolean)
     val local2
       Call flat<(Int, Boolean)> : Long
-        ImportedConstructorInit Receiver : Receiver<(Int, Boolean)>
+        ClassInit Receiver<(Int, Boolean)> : Receiver<(Int, Boolean)>
           Local $dependency.parameter.value : (Int, Boolean)
     val local3
       Local aliased : Long

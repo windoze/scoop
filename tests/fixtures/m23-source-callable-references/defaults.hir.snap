@@ -33,7 +33,7 @@ Module
     val local6
       Local $dependency.argument.0 : T0
     val local7
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
     val local8
       Local $argument.0 : Box<T0>

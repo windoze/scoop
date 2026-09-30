@@ -9,7 +9,7 @@ Module
     val local4
       Local $dependency.argument.1 : Int
     val local5
-      ImportedConstructorInit Key : Key<T0>
+      ClassInit Key<T0> : Key<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local6
@@ -21,7 +21,7 @@ Module
     val local9
       Local $dependency.argument.1 : Int
     val local10
-      ImportedConstructorInit Key : Key<T0>
+      ClassInit Key<T0> : Key<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local11
@@ -33,7 +33,7 @@ Module
     val local14
       Local $dependency.argument.1 : Int
     val local15
-      ImportedConstructorInit Key : Key<T0>
+      ClassInit Key<T0> : Key<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local16
@@ -45,7 +45,7 @@ Module
     val local19
       Local $dependency.argument.1 : Int
     val local20
-      ImportedConstructorInit Payload : Payload<Key<T0>>
+      StructInit Payload : Payload<Key<T0>>
         Local $dependency.parameter.data : Key<T0>
         Local $dependency.parameter.last : Int
     val local21
@@ -57,7 +57,7 @@ Module
     val local24
       Local $dependency.argument.1 : Int
     val local25
-      ImportedConstructorInit Payload : Payload<Key<T0>>
+      StructInit Payload : Payload<Key<T0>>
         Local $dependency.parameter.data : Key<T0>
         Local $dependency.parameter.last : Int
     val local26
@@ -88,7 +88,7 @@ Module
     val local34
       Local $dependency.argument.1 : Int
     val local36
-      ImportedConstructorInit Payload : Payload<Key<T0>>
+      StructInit Payload : Payload<Key<T0>>
         Local $dependency.parameter.data : Key<T0>
         Local $dependency.parameter.last : Int
     val local37
@@ -114,7 +114,7 @@ Module
     if
       MethodCall Payload<Key<T>>.equals <derived> : Boolean
         Local $equality.lhs : Payload<Key<T0>>
-        ImportedConstructorInit Payload : Payload<Key<T0>>
+        StructInit Payload : Payload<Key<T0>>
           Local $dependency.parameter.data : Key<T0>
           Local $dependency.parameter.last : Int
       return

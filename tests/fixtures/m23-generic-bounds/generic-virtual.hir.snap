@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       ReferenceUpcast : Base<T0>
-        ImportedConstructorInit Derived : Derived<T0>
+        ClassInit Derived<T0> : Derived<T0>
           Local $dependency.parameter.payload : T0
     val local4
       Local receiver : Base<T0>
@@ -36,7 +36,7 @@ Module
     val local15
       Local $dependency.argument.1 : Int
     val local16
-      ImportedConstructorInit GenericValue : GenericValue<T0>
+      StructInit GenericValue : GenericValue<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local17
@@ -49,7 +49,7 @@ Module
     val local20
       Local $dependency.argument.1 : Int
     val local21
-      ImportedConstructorInit GenericValue : GenericValue<T0>
+      StructInit GenericValue : GenericValue<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local22

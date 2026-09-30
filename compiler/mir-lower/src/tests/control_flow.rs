@@ -37,7 +37,11 @@ fn try_and_throw_become_explicit_cfg() {
         .class_constructor_applications
         .iter()
         .find_map(|(id, app)| {
-            (app.constructor == h.classes[my_error].constructors[0]).then_some(id)
+            (app.constructor
+                == scoop_hir::ClassConstructorDefinition::Local(
+                    h.classes[my_error].constructors[0],
+                ))
+            .then_some(id)
         })
         .expect("exception primary constructor application");
     let mut locals = Arena::new();

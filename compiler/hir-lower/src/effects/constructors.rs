@@ -97,24 +97,41 @@ impl Lowerer {
 
     pub(super) fn check_no_gc_constructor_call(
         &self,
-        constructor: hir::StructConstructorId,
+        constructor: hir::StructConstructorDefinition,
         span: Span,
         out: &mut Vec<(Span, String)>,
     ) {
-        let constructor = &self.struct_constructors[constructor];
-        if matches!(
-            constructor.kind,
-            hir::StructConstructorKind::Secondary {
-                gc_effect: hir::GcEffect::Managed,
-                ..
+        let (name, managed) = match constructor {
+            hir::StructConstructorDefinition::Local(constructor) => {
+                let constructor = &self.struct_constructors[constructor];
+                (
+                    &self.structs[constructor.owner].name,
+                    matches!(
+                        constructor.kind,
+                        hir::StructConstructorKind::Secondary {
+                            gc_effect: hir::GcEffect::Managed,
+                            ..
+                        }
+                    ),
+                )
             }
-        ) {
+            hir::StructConstructorDefinition::Template(template) => {
+                let template = &self.imported_constructor_templates[template];
+                let constructor = &template.initialization.constructors()[template.constructor];
+                (
+                    &template.signature.name,
+                    matches!(
+                        constructor.kind(),
+                        hir::ExportConstructorInitializationKindV1::StructSecondary { .. }
+                    ) && template.signature.effects.gc_effect()
+                        == scoop_identity::GcEffect::Managed,
+                )
+            }
+        };
+        if managed {
             out.push((
                 span,
-                format!(
-                    "`@NoGC` code may not call managed constructor `{}`",
-                    self.structs[constructor.owner].name
-                ),
+                format!("`@NoGC` code may not call managed constructor `{name}`"),
             ));
         }
     }

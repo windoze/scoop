@@ -51,20 +51,6 @@ impl Lowerer {
                 args: self.instantiate_default_exprs(args, context),
             },
             hir::ExprKind::ConstructorReceiver => hir::ExprKind::ConstructorReceiver,
-            hir::ExprKind::ImportedConstructorInit { application, args } => {
-                let application = self.imported_constructor_applications[*application].clone();
-                let owner = self.instantiate_method_ty(application.owner, &context.bindings);
-                let application = self.imported_constructor_applications.alloc(
-                    hir::ImportedConstructorApplication {
-                        template: application.template,
-                        owner,
-                    },
-                );
-                hir::ExprKind::ImportedConstructorInit {
-                    application,
-                    args: self.instantiate_default_exprs(args, context),
-                }
-            }
             hir::ExprKind::ConstructorParam(parameter) => {
                 hir::ExprKind::ConstructorParam(*parameter)
             }

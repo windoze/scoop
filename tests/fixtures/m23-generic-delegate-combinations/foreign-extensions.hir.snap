@@ -11,7 +11,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
     Call $set$foreign<T0> : Unit
       Local $receiver : Receiver<T0>
@@ -41,7 +41,7 @@ Module
     val local11
       Local $dependency.argument.0 : T0
     val local12
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local13
       Call $get$foreign<T0> : Int

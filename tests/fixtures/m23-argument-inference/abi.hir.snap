@@ -199,7 +199,7 @@ Module
     val local43
       Local $dependency.argument.1 : Large
     val local44
-      ImportedConstructorInit Pair : Pair<Large>
+      StructInit Pair : Pair<Large>
         Local $dependency.parameter.values : Array<Large>
         Local $dependency.parameter.seed : Large
     val local45

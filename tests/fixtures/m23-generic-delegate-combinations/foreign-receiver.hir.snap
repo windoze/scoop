@@ -9,7 +9,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local4
       Local first : Receiver<T0>
@@ -40,7 +40,7 @@ Module
     val local13
       Local $dependency.argument.0 : T0
     val local14
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
     return
       Call $get$locallyDefined<T0> : Int

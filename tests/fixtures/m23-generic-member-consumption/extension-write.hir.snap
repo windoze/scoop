@@ -5,7 +5,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedConstructorInit PropertyItem : PropertyItem<Int>
+      ClassInit PropertyItem<Int> : PropertyItem<Int>
         Local $dependency.parameter.value : Int
     Call extensionState<Int> : Unit
       Local holder : PropertyItem<Int>
@@ -19,7 +19,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit PropertyItem : PropertyItem<T0>
+      ClassInit PropertyItem<T0> : PropertyItem<T0>
         Local $dependency.parameter.value : T0
     Call extensionState<T0> : Unit
       Local holder : PropertyItem<T0>

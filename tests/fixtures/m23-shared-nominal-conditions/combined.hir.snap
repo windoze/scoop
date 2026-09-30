@@ -13,7 +13,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Scalar : Scalar<T0>
+      StructInit Scalar : Scalar<T0>
         Local $dependency.parameter.value : T0
   fun exercise<T>(value: T0, read: (T0) -> Int): Int
     val local2
@@ -30,7 +30,7 @@ Module
     val local7
       Local $default.local.1 : Scalar<T0>
     val local8
-      ImportedConstructorInit Scalar : Scalar<Scalar<T0>>
+      StructInit Scalar : Scalar<Scalar<T0>>
         Local $default.local.2 : Scalar<T0>
     val local9
       Call pack<Scalar<T0>> : Scalar<Scalar<T0>>
@@ -39,7 +39,7 @@ Module
     val local10
       Local $dependency.argument.0 : Scalar<Scalar<T0>>
     val local11
-      ImportedConstructorInit Carrier : Carrier<Scalar<T0>>
+      ClassInit Carrier<Scalar<T0>> : Carrier<Scalar<T0>>
         Local $dependency.parameter.scalar : Scalar<Scalar<T0>>
     val local12
       FieldAccess field 0 : Scalar<T0>
@@ -69,7 +69,7 @@ Module
     val local20
       Local $result.0 : Option<Scalar<T0>>
     val local21
-      ImportedConstructorInit Phantom : Phantom<Managed>
+      StructInit Phantom : Phantom<Managed>
     val local22
       Local phantom : Phantom<Managed>
     val local23

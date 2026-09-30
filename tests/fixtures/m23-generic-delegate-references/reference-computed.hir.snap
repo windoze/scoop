@@ -11,7 +11,7 @@ Module
     val local4
       Local $dependency.argument.0 : T0
     val local5
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local6
       Call referenceComputed<T0> : Int

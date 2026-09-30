@@ -75,7 +75,7 @@ Module
     val local29
       Local $dependency.argument.0 : T0
     val local30
-      ImportedConstructorInit Cell : Cell<T0>
+      StructInit Cell : Cell<T0>
         Local $dependency.parameter.value : T0
     val local31
       CallableReference reference2 target=read<T0> captures=0 : () -> T0

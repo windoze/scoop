@@ -1,0 +1,3 @@
+span=183..218
+expression=CurrentPair<Int, Unit>(value, true)
+`@NoGC` code may not call managed constructor `CurrentPair`

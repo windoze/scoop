@@ -2,7 +2,7 @@ Module
   fun leftFailure<T>(): Int
     try
       Call cycleLeft<T0> : Int
-        ImportedConstructorInit Token : Token<T0>
+        ClassInit Token<T0> : Token<T0>
       assign $result.0
         IntegerLiteral 0 : Int
     catch error: IllegalStateException
@@ -13,7 +13,7 @@ Module
   fun rightFailure<T>(): Int
     try
       Call cycleRight<T0> : Int
-        ImportedConstructorInit Token : Token<T0>
+        ClassInit Token<T0> : Token<T0>
       assign $result.1
         IntegerLiteral 0 : Int
     catch error: IllegalStateException

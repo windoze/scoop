@@ -296,21 +296,6 @@ impl Lowerer {
                 }
             }
 
-            ExprKind::ImportedConstructorInit { application, args } => {
-                let template = &self.imported_constructor_templates
-                    [self.imported_constructor_applications[*application].template]
-                    .signature;
-                if template.effects.gc_effect() != scoop_identity::GcEffect::NoGc {
-                    out.push((
-                        expr.span,
-                        "calling a managed dependency constructor is not allowed in `@NoGC` code"
-                            .to_string(),
-                    ));
-                }
-                for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out, requirements);
-                }
-            }
             ExprKind::LocalFunctionCall {
                 callee,
                 captures,

@@ -283,7 +283,7 @@ Module
       val local72
         Local $dependency.argument.0 : Array<Int>
       val local73
-        ImportedConstructorInit Sequence : Sequence<Int>
+        ClassInit Sequence<Int> : Sequence<Int>
           Local $dependency.parameter.values : Array<Int>
       val local74
         Local $for.source.17 : Sequence<Int>

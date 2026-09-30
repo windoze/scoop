@@ -109,7 +109,7 @@ impl Harness {
                 let target =
                     self.class_constructor_applications
                         .alloc(hir::ClassConstructorApplication {
-                            constructor: target,
+                            constructor: target.into(),
                             owner,
                         });
                 hir::BaseInitialization::Super {

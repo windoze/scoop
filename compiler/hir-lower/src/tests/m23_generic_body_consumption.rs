@@ -12,6 +12,7 @@ mod bounds;
 mod callable_signatures;
 mod classes;
 mod concrete_calls;
+mod constructor_applications;
 mod constructors;
 mod contextual;
 mod delegates;

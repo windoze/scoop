@@ -260,17 +260,20 @@ impl Lowerer {
 
     pub(crate) fn class_constructor_application(
         &mut self,
-        constructor: hir::ClassConstructorId,
+        constructor: impl Into<hir::ClassConstructorDefinition>,
         owner: hir::ClassApplicationId,
     ) -> hir::ClassConstructorApplicationId {
+        let constructor = constructor.into();
         let key = (constructor, owner);
         if let Some(&application) = self.class_constructor_application_by_key.get(&key) {
             return application;
         }
-        debug_assert_eq!(
-            self.class_constructors[constructor].owner,
-            self.class_id(self.class_applications[owner].template)
-        );
+        if let hir::ClassConstructorDefinition::Local(constructor) = constructor {
+            debug_assert_eq!(
+                self.class_constructors[constructor].owner,
+                self.class_id(self.class_applications[owner].template)
+            );
+        }
         let application = self
             .class_constructor_applications
             .alloc(hir::ClassConstructorApplication { constructor, owner });
@@ -281,17 +284,20 @@ impl Lowerer {
 
     pub(crate) fn struct_constructor_application(
         &mut self,
-        constructor: hir::StructConstructorId,
+        constructor: impl Into<hir::StructConstructorDefinition>,
         owner: hir::StructApplicationId,
     ) -> hir::StructConstructorApplicationId {
+        let constructor = constructor.into();
         let key = (constructor, owner);
         if let Some(&application) = self.struct_constructor_application_by_key.get(&key) {
             return application;
         }
-        debug_assert_eq!(
-            self.struct_constructors[constructor].owner,
-            self.struct_id(self.struct_applications[owner].template)
-        );
+        if let hir::StructConstructorDefinition::Local(constructor) = constructor {
+            debug_assert_eq!(
+                self.struct_constructors[constructor].owner,
+                self.struct_id(self.struct_applications[owner].template)
+            );
+        }
         let application = self
             .struct_constructor_applications
             .alloc(hir::StructConstructorApplication { constructor, owner });

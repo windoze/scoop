@@ -113,7 +113,7 @@ Module
     val local13
       Local $dependency.argument.0 : Int
     val local14
-      ImportedConstructorInit HolderImpl : HolderImpl<Int>
+      ClassInit HolderImpl<Int> : HolderImpl<Int>
         Local $dependency.parameter.payload : Int
     val local15
       Local $argument.0 : HolderImpl<Int>

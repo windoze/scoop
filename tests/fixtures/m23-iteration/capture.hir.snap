@@ -72,10 +72,10 @@ Module
       Local $dependency.argument.1 : (Reference, Int)
     val local18
       ArrayLiteral : Array<Entry<Reference>>
-        ImportedConstructorInit Entry : Entry<Reference>
+        StructInit Entry : Entry<Reference>
           Local $dependency.parameter.slot : Long
           Local $dependency.parameter.payload : (Reference, Int)
-        ImportedConstructorInit Entry : Entry<Reference>
+        StructInit Entry : Entry<Reference>
           Local $dependency.parameter.slot : Long
           Local $dependency.parameter.payload : (Reference, Int)
     val local19
@@ -145,10 +145,10 @@ Module
       Local $dependency.argument.1 : Int
     val local40
       ArrayLiteral : Array<Components<Reference>>
-        ImportedConstructorInit Components : Components<Reference>
+        ClassInit Components<Reference> : Components<Reference>
           Local $dependency.parameter.value : Reference
           Local $dependency.parameter.extra : Int
-        ImportedConstructorInit Components : Components<Reference>
+        ClassInit Components<Reference> : Components<Reference>
           Local $dependency.parameter.value : Reference
           Local $dependency.parameter.extra : Int
     val local41

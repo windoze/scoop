@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : Int
     val local2
       ReferenceUpcast : Reader<Int>
-        ImportedConstructorInit InterfaceItem : InterfaceItem<Int>
+        ClassInit InterfaceItem<Int> : InterfaceItem<Int>
           Local $dependency.parameter.value : Int
     val local3
       Local reader : Reader<Int>
@@ -20,7 +20,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       ReferenceUpcast : Reader<T0>
-        ImportedConstructorInit InterfaceItem : InterfaceItem<T0>
+        ClassInit InterfaceItem<T0> : InterfaceItem<T0>
           Local $dependency.parameter.value : T0
     val local4
       ReferenceUpcast : Readable<T0>

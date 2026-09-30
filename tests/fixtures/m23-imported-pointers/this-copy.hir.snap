@@ -20,7 +20,7 @@ Module
     val local6
       Local $dependency.argument.0 : Pair
     val local7
-      ImportedConstructorInit Slot : Slot<Pair>
+      StructInit Slot : Slot<Pair>
         Local $dependency.parameter.value : Pair
     val local12
       Local original : Slot<Pair>

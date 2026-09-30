@@ -60,7 +60,7 @@ Module
     val local10
       Local $dependency.argument.0 : Array<Int>
     val local11
-      ImportedConstructorInit Cursor : Cursor<Int>
+      ClassInit Cursor<Int> : Cursor<Int>
         Local $dependency.parameter.values : Array<Int>
     val local12
       Local $argument.0 : Cursor<Int>
@@ -95,13 +95,13 @@ Module
     val local21
       Local $dependency.argument.0 : Array<Int>
     val local22
-      ImportedConstructorInit Cursor : Cursor<Int>
+      ClassInit Cursor<Int> : Cursor<Int>
         Local $dependency.parameter.values : Array<Int>
     val local23
       Local $dependency.argument.0 : Cursor<Int>
     val local24
       ReferenceUpcast : Diamond<Int>
-        ImportedConstructorInit DiamondCursor : DiamondCursor<Int>
+        ClassInit DiamondCursor<Int> : DiamondCursor<Int>
           Local $dependency.parameter.inner : Cursor<Int>
     val local25
       IntegerLiteral 0 : Int
@@ -110,7 +110,7 @@ Module
     val local27
       Local $dependency.argument.0 : Diamond<Int>
     val local28
-      ImportedConstructorInit Direct : Direct<Diamond<Int>>
+      StructInit Direct : Direct<Diamond<Int>>
         Local $dependency.parameter.value : Diamond<Int>
     val local29
       Local $for.source.0 : Direct<Diamond<Int>>

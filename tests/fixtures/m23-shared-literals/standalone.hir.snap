@@ -13,7 +13,7 @@ Module
     val local7
       Local $dependency.argument.2 : T0
     val local8
-      ImportedConstructorInit Tagged : Tagged<T0>
+      StructInit Tagged : Tagged<T0>
         Local $dependency.parameter.enabled : Boolean
         Local $dependency.parameter.label : String
         Local $dependency.parameter.value : T0
@@ -51,7 +51,7 @@ Module
     val local20
       Local $dependency.argument.2 : T0
     val local21
-      ImportedConstructorInit Tagged : Tagged<T0>
+      StructInit Tagged : Tagged<T0>
         Local $dependency.parameter.enabled : Boolean
         Local $dependency.parameter.label : String
         Local $dependency.parameter.value : T0
@@ -97,7 +97,7 @@ Module
     val local38
       Local $default.local.5 : T0
     when
-      ImportedConstructorInit Tagged : Tagged<T0>
+      StructInit Tagged : Tagged<T0>
         Local $default.local.6 : Boolean
         Local $default.local.7 : String
         Local $default.local.8 : T0
@@ -140,7 +140,7 @@ Module
     val local49
       Local $dependency.argument.2 : T0
     val local50
-      ImportedConstructorInit Tagged : Tagged<T0>
+      StructInit Tagged : Tagged<T0>
         Local $dependency.parameter.enabled : Boolean
         Local $dependency.parameter.label : String
         Local $dependency.parameter.value : T0

@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       Call flat<T0> : Long
-        ImportedConstructorInit Receiver : Receiver<T0>
+        ClassInit Receiver<T0> : Receiver<T0>
           Local $dependency.parameter.value : T0
     val local4
       IntegerLiteral 0 : Int
@@ -20,7 +20,7 @@ Module
       Local $dependency.argument.0 : T0
     val local8
       Call flat<T0> : Long
-        ImportedConstructorInit Receiver : Receiver<T0>
+        ClassInit Receiver<T0> : Receiver<T0>
           Local $dependency.parameter.value : T0
     val local9
       Local first : Long

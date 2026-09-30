@@ -34,7 +34,7 @@ Module
     val local13
       Local $dependency.argument.0 : Cell<T0>
     val local14
-      ImportedConstructorInit Link : Link<T0>
+      ClassInit Link<T0> : Link<T0>
         Local $dependency.parameter.cell : Cell<T0>
     val local15
       Local $dependency.argument.0 : Link<T0>

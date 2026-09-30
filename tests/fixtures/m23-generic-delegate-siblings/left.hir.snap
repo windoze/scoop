@@ -9,7 +9,7 @@ Module
     val local3
       Local $dependency.argument.1 : Boolean
     val local4
-      ImportedConstructorInit Receiver : Receiver<Int, Boolean>
+      ClassInit Receiver<Int, Boolean> : Receiver<Int, Boolean>
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Boolean
     Call shared<Int, Boolean> : Unit
@@ -29,7 +29,7 @@ Module
       val local3
         Local $dependency.argument.1 : Boolean
       Call broken<Int, Boolean> : Int
-        ImportedConstructorInit Receiver : Receiver<Int, Boolean>
+        ClassInit Receiver<Int, Boolean> : Receiver<Int, Boolean>
           Local $dependency.parameter.left : Int
           Local $dependency.parameter.right : Boolean
     catch error: Failure

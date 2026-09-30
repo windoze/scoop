@@ -27,7 +27,7 @@ Module
     val local7
       Local $dependency.argument.2 : Unit
     val local8
-      ImportedConstructorInit Nested : Nested<T0>
+      StructInit Nested : Nested<T0>
         Local $dependency.parameter.payload : (T0, Int)
         Local $dependency.parameter.spare : Int
         Local $dependency.parameter.empty : Unit
@@ -48,7 +48,7 @@ Module
     val local15
       Local $dependency.argument.1 : Int
     val local16
-      ImportedConstructorInit Pieces : Pieces<T0>
+      ClassInit Pieces<T0> : Pieces<T0>
         Local $dependency.parameter.first : T0
         Local $dependency.parameter.second : Int
     val local17
@@ -72,7 +72,7 @@ Module
     val local25
       Local $dependency.argument.1 : Int
     val local26
-      ImportedConstructorInit Pair : Pair<T0>
+      StructInit Pair : Pair<T0>
         Local $dependency.parameter.left : T0
         Local $dependency.parameter.right : Int
     val local27

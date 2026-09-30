@@ -9,7 +9,7 @@ Module
     val local3
       Local $dependency.argument.0 : Int
     val local4
-      ImportedConstructorInit Box : Box<Int>
+      StructInit Box : Box<Int>
         Local $dependency.parameter.value : Int
     val local5
       AddressOf number : Ptr<Int>

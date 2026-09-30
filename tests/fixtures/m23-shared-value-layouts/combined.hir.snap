@@ -13,11 +13,11 @@ Module
       IntegerLiteral 42 : Int
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
     val local2
-      ImportedConstructorInit Phantom : Phantom<Mixed>
+      StructInit Phantom : Phantom<Mixed>
     val local3
       Local $dependency.argument.0 : Phantom<Mixed>
     val local4
-      ImportedConstructorInit Wrapper : Wrapper<Phantom<Mixed>>
+      StructInit Wrapper : Wrapper<Phantom<Mixed>>
         Local $dependency.parameter.value : Phantom<Mixed>
     val local5
       Local $argument.0 : Wrapper<Phantom<Mixed>>
@@ -54,12 +54,12 @@ Module
     val local16
       Local $dependency.argument.0 : Nested
     val local17
-      ImportedConstructorInit Link : Link<Nested>
+      ClassInit Link<Nested> : Link<Nested>
         Local $dependency.parameter.value : Nested
     val local18
       Local $dependency.argument.0 : Link<Nested>
     val local19
-      ImportedConstructorInit Reference : Reference<Nested>
+      StructInit Reference : Reference<Nested>
         Local $dependency.parameter.link : Link<Nested>
     val local20
       Local $argument.0 : Reference<Nested>
@@ -106,7 +106,7 @@ Module
     val local31
       Local $dependency.argument.0 : T0
     val local32
-      ImportedConstructorInit Wrapper : Wrapper<T0>
+      StructInit Wrapper : Wrapper<T0>
         Local $dependency.parameter.value : T0
     val local33
       Local $argument.0 : Wrapper<T0>

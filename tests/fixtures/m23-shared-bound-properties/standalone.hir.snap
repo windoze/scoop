@@ -9,7 +9,7 @@ Module
     val local4
       Local $dependency.argument.1 : T0
     val local5
-      ImportedConstructorInit Remote : Remote<T0>
+      ClassInit Remote<T0> : Remote<T0>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.alternate : T0
     val local6
@@ -86,7 +86,7 @@ Module
     val local31
       Local $dependency.argument.1 : Int
     val local32
-      ImportedConstructorInit Remote : Remote<Int>
+      ClassInit Remote<Int> : Remote<Int>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.alternate : Int
     val local33
@@ -152,7 +152,7 @@ Module
     val local49
       Local $dependency.argument.0 : Int
     val local50
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local51
       Local $dependency.argument.0 : Box<Int>
@@ -175,7 +175,7 @@ Module
     val local56
       Local $dependency.argument.0 : () -> Int
     val local57
-      ImportedConstructorInit Box : Box<() -> Int>
+      ClassInit Box<() -> Int> : Box<() -> Int>
         Local $dependency.parameter.value : () -> Int
     val local58
       Local $dependency.argument.0 : Box<() -> Int>

@@ -167,7 +167,7 @@ Module
     val local41
       Local $dependency.argument.0 : Link<T0>
     val local42
-      ImportedConstructorInit Wrapper : Wrapper<T0>
+      StructInit Wrapper : Wrapper<T0>
         Local $dependency.parameter.head : Link<T0>
     val local43
       VariantConstruct Option.None<Nested<T0>> : Option<Nested<T0>>
@@ -189,7 +189,7 @@ Module
     val local50
       Local $dependency.argument.0 : Link<T0>
     val local53
-      ImportedConstructorInit Wrapper : Wrapper<T0>
+      StructInit Wrapper : Wrapper<T0>
         Local $dependency.parameter.head : Link<T0>
     val local51
       Local head : Nested<T0>
@@ -263,7 +263,7 @@ Module
     val local71
       Local $dependency.argument.0 : T0
     val local72
-      ImportedConstructorInit Remote : Remote<T0>
+      ClassInit Remote<T0> : Remote<T0>
         Local $dependency.parameter.value : T0
     val local73
       CallableCall function_type2 : Int

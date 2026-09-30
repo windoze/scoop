@@ -276,26 +276,6 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
-            ExprKind::ImportedConstructorInit { application, args } => {
-                let application = &self.imported_constructor_applications[*application];
-                let template = &self.imported_constructor_templates[application.template].signature;
-                let (_, arguments) = self
-                    .dependency_nominal_application(application.owner)
-                    .expect("constructor applications retain their owner arguments");
-                out.push(GenericCall {
-                    callee: GenericCallable::ImportedConstructor(application.template),
-                    arguments: template
-                        .type_parameters
-                        .iter()
-                        .zip(arguments)
-                        .map(|(p, a)| (p.id, *a))
-                        .collect(),
-                    span: expr.span,
-                });
-                for argument in args {
-                    self.collect_generic_calls_in_expr(argument, out);
-                }
-            }
             ExprKind::LocalFunctionCall {
                 callee,
                 captures,

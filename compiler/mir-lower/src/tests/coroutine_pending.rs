@@ -20,7 +20,10 @@ fn primary_constructor(h: &Harness, class: hir::ClassId) -> hir::ClassConstructo
     let constructor = h.classes[class].constructors[0];
     h.class_constructor_applications
         .iter()
-        .find_map(|(id, application)| (application.constructor == constructor).then_some(id))
+        .find_map(|(id, application)| {
+            (application.constructor == scoop_hir::ClassConstructorDefinition::Local(constructor))
+                .then_some(id)
+        })
         .expect("the exception shell has a primary constructor application")
 }
 

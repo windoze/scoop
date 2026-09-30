@@ -123,7 +123,7 @@ Module
       Local $dependency.argument.0 : Int
     val local2
       ReferenceUpcast : Swap<Int, Unit>
-        ImportedConstructorInit Remote : Remote<Int>
+        ClassInit Remote<Int> : Remote<Int>
           Local $dependency.parameter.second : Int
     val local3
       Local integer : Swap<Int, Unit>
@@ -201,7 +201,7 @@ Module
     val local25
       Local $dependency.argument.1 : Unit
     val local26
-      ImportedConstructorInit Pair : Pair<Int, Unit>
+      StructInit Pair : Pair<Int, Unit>
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Unit
     val local27

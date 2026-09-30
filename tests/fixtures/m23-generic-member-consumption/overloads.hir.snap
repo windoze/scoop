@@ -1,7 +1,7 @@
 Module
   fun result(): Int
     val local0
-      ImportedConstructorInit Overloads : Overloads<String>
+      ClassInit Overloads<String> : Overloads<String>
     val local1
       StringLiteral "owner" : String
     val local2
@@ -23,7 +23,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local4
       Local value : T0

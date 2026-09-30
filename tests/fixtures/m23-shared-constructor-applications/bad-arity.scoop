@@ -1,0 +1,4 @@
+package consumer.constructors
+import upstream.constructors.*
+
+public fun result(): Int = Pair<Int>(42).value

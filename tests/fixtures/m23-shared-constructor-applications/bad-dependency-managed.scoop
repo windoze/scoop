@@ -1,0 +1,5 @@
+package consumer.constructors
+import upstream.constructors.*
+
+@NoGC public fun broken(value: Int): Int = Pair<Int, Unit>(value, true).value
+public fun result(): Int = 42

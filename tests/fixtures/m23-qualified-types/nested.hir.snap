@@ -18,7 +18,7 @@ Module
     val local5
       Local $dependency.argument.0 : T0
     val local6
-      ImportedConstructorInit Generic : Generic<T0>
+      StructInit Generic : Generic<T0>
         Local $dependency.parameter.value : T0
     val local7
       FieldAccess field 0 : T0
@@ -40,7 +40,7 @@ Module
     val local14
       Local $dependency.argument.0 : Int
     val local15
-      ImportedConstructorInit Generic : Generic<Int>
+      StructInit Generic : Generic<Int>
         Local $dependency.parameter.value : Int
     val local16
       Local fixed : Nested

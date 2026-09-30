@@ -153,7 +153,7 @@ impl Concretizer<'_> {
     ) -> concrete::ClassConstructorId {
         let application = &self.source.class_constructor_applications[source];
         let class = self.lower_class_application(application.owner, substitution);
-        self.request_class_constructor(application.constructor, class)
+        self.request_class_constructor_source(application.constructor, class)
     }
 
     pub(in crate::concretize) fn append_base_initialization(
@@ -170,15 +170,6 @@ impl Concretizer<'_> {
         let (target, target_ty) = match target {
             export::BaseInitializerTarget::Local(target) => {
                 let target = self.lower_class_constructor_application(*target, substitution);
-                let (_, class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
-                (
-                    concrete::ClassInitializerTarget::Local(target),
-                    self.class_type[&class],
-                )
-            }
-            export::BaseInitializerTarget::ImportedTemplate(application) => {
-                let target =
-                    self.lower_imported_class_constructor_application(*application, substitution);
                 let (_, class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
                 (
                     concrete::ClassInitializerTarget::Local(target),

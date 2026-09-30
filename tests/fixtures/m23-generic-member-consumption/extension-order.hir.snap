@@ -59,7 +59,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     val local4
-      ImportedConstructorInit ExtensionTrace : ExtensionTrace<Int>
+      ClassInit ExtensionTrace<Int> : ExtensionTrace<Int>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.order : Int
     val local5
@@ -325,7 +325,7 @@ Module
     val local4
       Local $dependency.argument.1 : Int
     val local5
-      ImportedConstructorInit ExtensionTrace : ExtensionTrace<T0>
+      ClassInit ExtensionTrace<T0> : ExtensionTrace<T0>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.order : Int
     Call extensionTracked<T0> : Unit

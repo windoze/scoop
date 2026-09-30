@@ -101,7 +101,6 @@ pub struct Module {
     pub imported_generic_delegate_templates: Arena<ImportedGenericDelegateTemplate>,
     pub imported_generic_applications: Arena<ImportedGenericCallableApplication>,
     pub imported_constructor_templates: Arena<ImportedConstructorTemplate>,
-    pub imported_constructor_applications: Arena<ImportedConstructorApplication>,
     /// Template-only calls through a class or interface upper bound. Entries
     /// retain the receiver type, bound application and selected declaration;
     /// local-concrete HIR has no corresponding arena.

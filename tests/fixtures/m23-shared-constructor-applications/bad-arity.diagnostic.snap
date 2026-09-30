@@ -1,0 +1,5 @@
+span=89..102
+expression=Pair<Int>(42)
+no applicable candidate for `Pair` in star import layer:
+  - dependency constructor `Pair` expects 2 type argument(s), found 1
+  - dependency constructor `Pair` expects 2 type argument(s), found 1

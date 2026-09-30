@@ -211,8 +211,7 @@ impl LocalFunctionCallPatcher<'_> {
             | hir::ExprKind::StructInit { args: elements, .. }
             | hir::ExprKind::ClassInit { args: elements, .. }
             | hir::ExprKind::VariantConstruct { args: elements, .. }
-            | hir::ExprKind::Call { args: elements, .. }
-            | hir::ExprKind::ImportedConstructorInit { args: elements, .. } => {
+            | hir::ExprKind::Call { args: elements, .. } => {
                 for element in elements {
                     self.expression(element);
                 }

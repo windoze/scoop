@@ -14,7 +14,7 @@ Module
     val local7
       CallableCall function_type1 : Int
         Local consume : (Pair<T0>) -> Int
-        ImportedConstructorInit Pair : Pair<T0>
+        StructInit Pair : Pair<T0>
           Local $dependency.parameter.left : T0
           Local $dependency.parameter.right : Int
     val local8
@@ -52,10 +52,10 @@ Module
       Local $dependency.argument.1 : Int
     val local19
       ArrayLiteral : Array<Pair<T0>>
-        ImportedConstructorInit Pair : Pair<T0>
+        StructInit Pair : Pair<T0>
           Local $dependency.parameter.left : T0
           Local $dependency.parameter.right : Int
-        ImportedConstructorInit Pair : Pair<T0>
+        StructInit Pair : Pair<T0>
           Local $dependency.parameter.left : T0
           Local $dependency.parameter.right : Int
     val local20
@@ -164,7 +164,7 @@ Module
       Local $dependency.argument.1 : Int
     val local54
       ArrayLiteral : Array<Pieces<T0>>
-        ImportedConstructorInit Pieces : Pieces<T0>
+        ClassInit Pieces<T0> : Pieces<T0>
           Local $dependency.parameter.first : T0
           Local $dependency.parameter.second : Int
     val local55

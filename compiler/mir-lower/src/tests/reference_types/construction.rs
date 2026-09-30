@@ -32,7 +32,11 @@ fn class_initializers_chain_on_one_exact_allocation() {
     let point_constructor = h
         .class_constructor_applications
         .iter()
-        .find_map(|(id, app)| (app.constructor == h.classes[point].constructors[0]).then_some(id))
+        .find_map(|(id, app)| {
+            (app.constructor
+                == scoop_hir::ClassConstructorDefinition::Local(h.classes[point].constructors[0]))
+            .then_some(id)
+        })
         .expect("point primary constructor application");
     let mut locals = Arena::new();
     let p = locals.alloc(local("p", point_ty));

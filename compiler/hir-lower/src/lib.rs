@@ -565,7 +565,6 @@ pub(crate) struct Lowerer {
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
     pub(crate) imported_constructor_templates: imported_constructors::ImportedConstructorTemplates,
-    pub(crate) imported_constructor_applications: Arena<hir::ImportedConstructorApplication>,
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
     pub(crate) imported_generic_delegate_templates: Arena<hir::ImportedGenericDelegateTemplate>,
     pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
@@ -598,7 +597,7 @@ pub(crate) struct Lowerer {
     pub(crate) struct_constructors: Arena<hir::StructConstructor>,
     pub(crate) struct_constructor_applications: Arena<hir::StructConstructorApplication>,
     pub(crate) struct_constructor_application_by_key: HashMap<
-        (hir::StructConstructorId, hir::StructApplicationId),
+        (hir::StructConstructorDefinition, hir::StructApplicationId),
         hir::StructConstructorApplicationId,
     >,
     pub(crate) struct_applications: Arena<hir::StructApplication>,
@@ -622,7 +621,7 @@ pub(crate) struct Lowerer {
     pub(crate) class_constructors: Arena<hir::ClassConstructor>,
     pub(crate) class_constructor_applications: Arena<hir::ClassConstructorApplication>,
     pub(crate) class_constructor_application_by_key: HashMap<
-        (hir::ClassConstructorId, hir::ClassApplicationId),
+        (hir::ClassConstructorDefinition, hir::ClassApplicationId),
         hir::ClassConstructorApplicationId,
     >,
     pub(crate) class_applications: Arena<hir::ClassApplication>,

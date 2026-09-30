@@ -50,7 +50,7 @@ Module
     val local19
       Local $dependency.argument.1 : Int
     val local20
-      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+      StructInit Payload : Payload<LocalKey<T0>>
         Local $dependency.parameter.data : LocalKey<T0>
         Local $dependency.parameter.last : Int
     val local21
@@ -60,7 +60,7 @@ Module
     val local23
       Local $dependency.argument.1 : Int
     val local24
-      ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+      StructInit Nested : Nested<LocalKey<T0>>
         Local $dependency.parameter.inner : Payload<LocalKey<T0>>
         Local $dependency.parameter.tag : Int
     val local25
@@ -72,7 +72,7 @@ Module
     val local28
       Local $dependency.argument.1 : Int
     val local29
-      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+      StructInit Payload : Payload<LocalKey<T0>>
         Local $dependency.parameter.data : LocalKey<T0>
         Local $dependency.parameter.last : Int
     val local30
@@ -82,7 +82,7 @@ Module
     val local32
       Local $dependency.argument.1 : Int
     val local33
-      ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+      StructInit Nested : Nested<LocalKey<T0>>
         Local $dependency.parameter.inner : Payload<LocalKey<T0>>
         Local $dependency.parameter.tag : Int
     val local34
@@ -118,7 +118,7 @@ Module
     val local42
       Local $dependency.argument.1 : Int
     val local43
-      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+      StructInit Payload : Payload<LocalKey<T0>>
         Local $dependency.parameter.data : LocalKey<T0>
         Local $dependency.parameter.last : Int
     val local44
@@ -130,7 +130,7 @@ Module
     if
       MethodCall Nested<LocalKey<T>>.equals <derived> : Boolean
         Local $equality.lhs : Nested<LocalKey<T0>>
-        ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+        StructInit Nested : Nested<LocalKey<T0>>
           Local $dependency.parameter.inner : Payload<LocalKey<T0>>
           Local $dependency.parameter.tag : Int
       return
@@ -146,7 +146,7 @@ Module
     val local51
       Local $dependency.argument.1 : Int
     val local52
-      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+      StructInit Payload : Payload<LocalKey<T0>>
         Local $dependency.parameter.data : LocalKey<T0>
         Local $dependency.parameter.last : Int
     val local53
@@ -158,7 +158,7 @@ Module
     if
       MethodCall Nested<LocalKey<T>>.equals <derived> : Boolean
         Local $equality.lhs : Nested<LocalKey<T0>>
-        ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+        StructInit Nested : Nested<LocalKey<T0>>
           Local $dependency.parameter.inner : Payload<LocalKey<T0>>
           Local $dependency.parameter.tag : Int
       return
@@ -174,7 +174,7 @@ Module
     val local60
       Local $dependency.argument.1 : Int
     val local61
-      ImportedConstructorInit Payload : Payload<LocalKey<T0>>
+      StructInit Payload : Payload<LocalKey<T0>>
         Local $dependency.parameter.data : LocalKey<T0>
         Local $dependency.parameter.last : Int
     val local62
@@ -186,7 +186,7 @@ Module
     if
       MethodCall Nested<LocalKey<T>>.equals <derived> : Boolean
         Local $equality.lhs : Nested<LocalKey<T0>>
-        ImportedConstructorInit Nested : Nested<LocalKey<T0>>
+        StructInit Nested : Nested<LocalKey<T0>>
           Local $dependency.parameter.inner : Payload<LocalKey<T0>>
           Local $dependency.parameter.tag : Int
       return

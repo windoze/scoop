@@ -31,7 +31,7 @@ Module
     val local9
       Local $dependency.argument.1 : Int
     val local10
-      ImportedConstructorInit Box : Box<Triple>
+      ClassInit Box<Triple> : Box<Triple>
         Local $dependency.parameter.value : Triple
         Local $dependency.parameter.extra : Int
     val local11
@@ -39,7 +39,7 @@ Module
     val local12
       Local $dependency.argument.0 : Unit
     val local13
-      ImportedConstructorInit Box : Box<Unit>
+      ClassInit Box<Unit> : Box<Unit>
         Local $dependency.parameter.value : Unit
     val local14
       MethodCall echoed<Triple> : Triple
@@ -97,6 +97,6 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
   output library

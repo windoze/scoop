@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : Int
     return
       Call extensionValue<Int> : Int
-        ImportedConstructorInit Box : Box<Int>
+        ClassInit Box<Int> : Box<Int>
           Local $dependency.parameter.value : Int
   fun make<T>(value: T0): T0
     val local1
@@ -15,6 +15,6 @@ Module
       Local $dependency.argument.0 : T0
     return
       Call extensionValue<T0> : T0
-        ImportedConstructorInit Box : Box<T0>
+        ClassInit Box<T0> : Box<T0>
           Local $dependency.parameter.value : T0
   output library

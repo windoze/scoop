@@ -5,21 +5,21 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedConstructorInit Counter : Counter<T0>
+      StructInit Counter : Counter<T0>
         Local $dependency.parameter.number : Int
     val local4
       IntegerLiteral 42 : Int
     val local5
       Local $dependency.argument.0 : Int
     val local6
-      ImportedConstructorInit Counter : Counter<T0>
+      StructInit Counter : Counter<T0>
         Local $dependency.parameter.number : Int
     val local7
       IntegerLiteral 1 : Int
     val local8
       Local $dependency.argument.0 : Int
     val local9
-      ImportedConstructorInit Counter : Counter<T0>
+      StructInit Counter : Counter<T0>
         Local $dependency.parameter.number : Int
     val local10
       Local left : Counter<T0>

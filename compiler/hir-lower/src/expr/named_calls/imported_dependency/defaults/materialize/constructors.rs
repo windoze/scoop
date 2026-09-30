@@ -12,8 +12,11 @@ impl Lowerer {
         match executable.kind() {
             Source::StructPrimary => Ok(Target::StructPrimary),
             Source::StructSecondary { delegation, body } => {
-                let target =
-                    self.imported_constructor_application(&delegation.target, &template.bindings)?;
+                let hir::ConstructorApplicationRef::Struct(target) =
+                    self.imported_constructor_application(&delegation.target, &template.bindings)?
+                else {
+                    unreachable!("validated struct delegation retains its role")
+                };
                 let arguments =
                     self.imported_constructor_fragment(template, &delegation.arguments)?;
                 let body = self.imported_constructor_body(template, body)?;
@@ -28,8 +31,11 @@ impl Lowerer {
                 })
             }
             Source::ClassSecondaryThis { delegation, body } => {
-                let target =
-                    self.imported_constructor_application(&delegation.target, &template.bindings)?;
+                let hir::ConstructorApplicationRef::Class(target) =
+                    self.imported_constructor_application(&delegation.target, &template.bindings)?
+                else {
+                    unreachable!("validated class delegation retains its role")
+                };
                 let arguments =
                     self.imported_constructor_fragment(template, &delegation.arguments)?;
                 let body = self.imported_constructor_body(template, body)?;
@@ -264,9 +270,12 @@ impl Lowerer {
             self.imported_nominal_owner(owner),
             Some(hir::SourceNominalId::GenericTemplate(_))
         ) {
-            hir::BaseInitializerTarget::ImportedTemplate(
-                self.imported_constructor_application(&base.target, &template.bindings)?,
-            )
+            let hir::ConstructorApplicationRef::Class(target) =
+                self.imported_constructor_application(&base.target, &template.bindings)?
+            else {
+                unreachable!("validated base initialization retains its class role")
+            };
+            hir::BaseInitializerTarget::Local(target)
         } else {
             let source = source_constructor(&base.target)
                 .expect("source base delegation names a source constructor");
@@ -296,7 +305,7 @@ impl Lowerer {
         &mut self,
         source: &hir::DefaultConstructorRefV1,
         bindings: &crate::imported_core::ImportedTypeBindings,
-    ) -> Result<hir::ImportedConstructorApplicationId, ImportedDefaultMaterializationError> {
+    ) -> Result<hir::ConstructorApplicationRef, ImportedDefaultMaterializationError> {
         let owner = self
             .imported_generic_type(source.owner_type(), bindings)
             .map_err(ImportedDefaultMaterializationError::Plan)?;
@@ -313,9 +322,7 @@ impl Lowerer {
         let template = self
             .request_imported_constructor_template(source)
             .map_err(ImportedDefaultMaterializationError::Plan)?;
-        Ok(self
-            .imported_constructor_applications
-            .alloc(hir::ImportedConstructorApplication { template, owner }))
+        Ok(self.constructor_template_application(template, owner))
     }
 
     pub(super) fn materialize_imported_field_ref(

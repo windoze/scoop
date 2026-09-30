@@ -12,7 +12,7 @@ Module
     val local3
       Local $dependency.argument.0 : Any
     val local5
-      ImportedConstructorInit Holder : Holder<Any>
+      ClassInit Holder<Any> : Holder<Any>
         Local $dependency.parameter.value : Any
     val local6
       Local $dependency.argument.0 : Any
@@ -45,7 +45,7 @@ Module
     val local15
       Local $dependency.argument.0 : T0
     val local16
-      ImportedConstructorInit Holder : Holder<T0>
+      ClassInit Holder<T0> : Holder<T0>
         Local $dependency.parameter.value : T0
     val local17
       Local source : Holder<T0>

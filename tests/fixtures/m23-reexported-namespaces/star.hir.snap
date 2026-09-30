@@ -5,7 +5,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedConstructorInit Box : Box<T0>
+      StructInit Box : Box<T0>
         Local $dependency.parameter.value : T0
     val local5
       IntegerLiteral 42 : Int

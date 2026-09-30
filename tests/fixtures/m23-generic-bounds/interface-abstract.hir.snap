@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       ReferenceUpcast : AbstractReader<T0>
-        ImportedConstructorInit ActualReader : ActualReader<T0>
+        ClassInit ActualReader<T0> : ActualReader<T0>
           Local $dependency.parameter.payload : T0
     val local4
       Local receiver : AbstractReader<T0>

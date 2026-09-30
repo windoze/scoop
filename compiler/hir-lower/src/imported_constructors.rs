@@ -83,6 +83,28 @@ pub(crate) fn source_constructor(
 }
 
 impl Lowerer {
+    pub(crate) fn constructor_template_application(
+        &mut self,
+        template: hir::ImportedConstructorTemplateId,
+        owner: hir::TypeId,
+    ) -> hir::ConstructorApplicationRef {
+        match self.types[owner] {
+            hir::Type::Class(owner) => {
+                hir::ConstructorApplicationRef::Class(self.class_constructor_application(
+                    hir::ClassConstructorDefinition::Template(template),
+                    owner,
+                ))
+            }
+            hir::Type::Struct(owner) => {
+                hir::ConstructorApplicationRef::Struct(self.struct_constructor_application(
+                    hir::StructConstructorDefinition::Template(template),
+                    owner,
+                ))
+            }
+            _ => unreachable!("a selected constructor has a complete class or struct owner"),
+        }
+    }
+
     pub(crate) fn request_imported_constructor_template(
         &mut self,
         source: hir::ImportedCallableDeclaration,

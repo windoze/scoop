@@ -34,7 +34,7 @@ Module
     val local8
       Local $dependency.argument.0 : T0
     val local9
-      ImportedConstructorInit Child : Child<T0>
+      ClassInit Child<T0> : Child<T0>
         Local $dependency.parameter.value : T0
     val local10
       Local $dependency.argument.0 : Child<T0>

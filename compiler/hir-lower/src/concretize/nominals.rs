@@ -120,7 +120,7 @@ impl Concretizer<'_> {
     ) -> concrete::StructConstructorId {
         let application = &self.source.struct_constructor_applications[source];
         let structure = self.lower_struct_application(application.owner, substitution);
-        self.request_struct_constructor(application.constructor, structure)
+        self.request_struct_constructor_source(application.constructor, structure)
     }
 
     pub(super) fn lower_constructor_argument_plan(

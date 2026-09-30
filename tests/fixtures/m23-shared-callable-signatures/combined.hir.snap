@@ -16,7 +16,7 @@ Module
     val local4
       Local $dependency.argument.0 : T0
     val local5
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
     return
       MethodCall suspendedGet<T0> : T0
@@ -40,7 +40,7 @@ Module
     val local5
       Local $dependency.argument.0 : T0
     val local6
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
     val local7
       ReferenceUpcast : Source<T0>

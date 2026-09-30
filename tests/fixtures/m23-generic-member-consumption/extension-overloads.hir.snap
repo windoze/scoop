@@ -5,7 +5,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local3
       Call extensionKind<Box<Int>> : Int
@@ -45,7 +45,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
     val local4
       Call extensionSelect<T0> : Int

@@ -5,7 +5,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedConstructorInit Box : Box<T0>
+      StructInit Box : Box<T0>
         Local $dependency.parameter.value : T0
     val local5
       SingletonValue external f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec : Companion

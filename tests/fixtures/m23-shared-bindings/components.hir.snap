@@ -15,7 +15,7 @@ Module
     val local5
       Local $dependency.argument.1 : Int
     val local6
-      ImportedConstructorInit Pieces : Pieces<T0>
+      ClassInit Pieces<T0> : Pieces<T0>
         Local $dependency.parameter.first : T0
         Local $dependency.parameter.second : Int
     val local7
@@ -101,7 +101,7 @@ Module
     val local34
       Local $dependency.argument.0 : T0
     val local35
-      ImportedConstructorInit ExtensionPieces : ExtensionPieces<T0>
+      ClassInit ExtensionPieces<T0> : ExtensionPieces<T0>
         Local $dependency.parameter.value : T0
     val local36
       Local $binding.subject.6 : ExtensionPieces<T0>
@@ -125,7 +125,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     val local4
-      ImportedConstructorInit Pieces : Pieces<Int>
+      ClassInit Pieces<Int> : Pieces<Int>
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Int
     val local5
@@ -135,7 +135,7 @@ Module
     val local7
       Local $dependency.argument.1 : Int
     val local8
-      ImportedConstructorInit Pieces : Pieces<Pieces<Int>>
+      ClassInit Pieces<Pieces<Int>> : Pieces<Pieces<Int>>
         Local $dependency.parameter.first : Pieces<Int>
         Local $dependency.parameter.second : Int
     val local9

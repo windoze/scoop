@@ -8,7 +8,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local5
       Call referenceNested<T0> : Int

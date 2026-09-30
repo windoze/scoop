@@ -199,7 +199,7 @@ fn validate_adapter(
         });
     }
     let constructor_application = &inputs.class_constructor_applications[*target];
-    if constructor_application.constructor != source
+    if constructor_application.constructor != crate::ClassConstructorDefinition::Local(source)
         || local_index(constructor_application.owner) >= inputs.type_inputs.class_applications.len()
         || constructor_application.owner
             != inputs.type_inputs.classes[adapter_value.owner].self_application

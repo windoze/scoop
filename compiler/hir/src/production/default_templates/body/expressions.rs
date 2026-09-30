@@ -87,29 +87,6 @@ impl BodyProjection<'_, '_> {
             ExprKind::ConstructorReceiver => {
                 DefaultExpressionKindV1::Local(scoop_identity::LocalValueSelector::This)
             }
-            ExprKind::ImportedConstructorInit { application, args } => {
-                let constructor = self
-                    .entities
-                    .imported_constructor_application(*application, self.binders)?;
-                let arguments = self.expressions(args)?;
-                match constructor {
-                    crate::DefaultConstructorRefV1::Struct { .. } => {
-                        DefaultExpressionKindV1::StructInit {
-                            constructor,
-                            arguments,
-                        }
-                    }
-                    crate::DefaultConstructorRefV1::Class { .. } => {
-                        DefaultExpressionKindV1::ClassInit {
-                            constructor,
-                            arguments,
-                        }
-                    }
-                    crate::DefaultConstructorRefV1::Variant { .. } => {
-                        unreachable!("class/struct construction cannot select a variant")
-                    }
-                }
-            }
             ExprKind::ConstructorParam(parameter) => {
                 DefaultExpressionKindV1::Local(self.locals.constructor_parameter(*parameter)?)
             }

@@ -328,7 +328,14 @@ impl Lowerer {
                 ) {
                     let application =
                         self.imported_constructor_application(constructor, context.bindings)?;
-                    hir::ExprKind::ImportedConstructorInit { application, args }
+                    match application {
+                        hir::ConstructorApplicationRef::Class(constructor) => {
+                            hir::ExprKind::ClassInit { constructor, args }
+                        }
+                        hir::ConstructorApplicationRef::Struct(constructor) => {
+                            hir::ExprKind::StructInit { constructor, args }
+                        }
+                    }
                 } else {
                     self.imported_default_call_kind(
                         scoop_identity::CallableTemplateOrigin::Constructor(*declaration),

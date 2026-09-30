@@ -71,10 +71,14 @@ impl Lowerer {
                 ..
             } = self.class_constructors[constructor].kind
             {
-                edges.insert(
-                    constructor,
-                    self.class_constructor_applications[target].constructor,
-                );
+                let hir::ClassConstructorDefinition::Local(target) =
+                    self.class_constructor_applications[target].constructor
+                else {
+                    unreachable!(
+                        "source this-delegation targets a constructor in the same declaration"
+                    )
+                };
+                edges.insert(constructor, target);
             }
         }
         self.report_class_cycles(&edges);
@@ -124,10 +128,14 @@ impl Lowerer {
             if let hir::StructConstructorKind::Secondary { ref delegation, .. } =
                 self.struct_constructors[constructor].kind
             {
-                edges.insert(
-                    constructor,
-                    self.struct_constructor_applications[delegation.target].constructor,
-                );
+                let hir::StructConstructorDefinition::Local(target) =
+                    self.struct_constructor_applications[delegation.target].constructor
+                else {
+                    unreachable!(
+                        "source this-delegation targets a constructor in the same declaration"
+                    )
+                };
+                edges.insert(constructor, target);
             }
         }
         let mut reported = HashSet::new();

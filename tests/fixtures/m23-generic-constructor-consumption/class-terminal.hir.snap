@@ -13,7 +13,7 @@ Module
     val local3
       Local $dependency.argument.0 : Payload
     val local4
-      ImportedConstructorInit Alternate : Alternate<Payload>
+      ClassInit Alternate<Payload> : Alternate<Payload>
         Local $dependency.parameter.value : Payload
     val local5
       IntegerLiteral 1 : Int
@@ -48,6 +48,6 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
   output library

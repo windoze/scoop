@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedConstructorInit Trace : Trace<T0>
+      ClassInit Trace<T0> : Trace<T0>
         Local $dependency.parameter.visits : Int
     val local4
       Local value : T0
@@ -24,7 +24,7 @@ Module
     val local11
       Local $dependency.argument.3 : Int
     val local12
-      ImportedConstructorInit Tracked : Tracked<T0>
+      ClassInit Tracked<T0> : Tracked<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.trace : Trace<T0>
         Local $dependency.parameter.number : Int
@@ -46,7 +46,7 @@ Module
     val local20
       Local $dependency.argument.3 : Int
     val local21
-      ImportedConstructorInit Tracked : Tracked<T0>
+      ClassInit Tracked<T0> : Tracked<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.trace : Trace<T0>
         Local $dependency.parameter.number : Int
@@ -68,7 +68,7 @@ Module
     val local29
       Local $dependency.argument.3 : Int
     val local30
-      ImportedConstructorInit Tracked : Tracked<T0>
+      ClassInit Tracked<T0> : Tracked<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.trace : Trace<T0>
         Local $dependency.parameter.number : Int
@@ -86,7 +86,7 @@ Module
     val local36
       Local $dependency.argument.2 : Tracked<T0>
     val local37
-      ImportedConstructorInit Wide : Wide<Tracked<T0>>
+      StructInit Wide : Wide<Tracked<T0>>
         Local $dependency.parameter.first : Tracked<T0>
         Local $dependency.parameter.second : Tracked<T0>
         Local $dependency.parameter.third : Tracked<T0>
@@ -103,7 +103,7 @@ Module
     val local43
       Local $dependency.argument.2 : Tracked<T0>
     val local44
-      ImportedConstructorInit Wide : Wide<Tracked<T0>>
+      StructInit Wide : Wide<Tracked<T0>>
         Local $dependency.parameter.first : Tracked<T0>
         Local $dependency.parameter.second : Tracked<T0>
         Local $dependency.parameter.third : Tracked<T0>

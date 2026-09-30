@@ -27,7 +27,7 @@ Module
     val local9
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
   fun rhs(value: Int): Int
     val local1

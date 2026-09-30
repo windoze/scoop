@@ -32,7 +32,7 @@ Module
     val local13
       Local $dependency.argument.0 : T0
     val local14
-      ImportedConstructorInit Host : Host<T0>
+      ClassInit Host<T0> : Host<T0>
         Local $dependency.parameter.value : T0
     val local15
       Local host : Host<T0>
@@ -208,7 +208,7 @@ Module
     val local41
       Local $dependency.argument.0 : Reference
     val local42
-      ImportedConstructorInit Host : Host<Reference>
+      ClassInit Host<Reference> : Host<Reference>
         Local $dependency.parameter.value : Reference
     val local43
       Local host : Host<Reference>

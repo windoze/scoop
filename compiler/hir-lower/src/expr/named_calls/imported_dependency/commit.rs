@@ -367,13 +367,14 @@ impl Lowerer {
                     })
                 }
                 super::generic::ImportedGenericTarget::Constructor(template) => {
-                    let application = self.imported_constructor_applications.alloc(
-                        hir::ImportedConstructorApplication {
-                            template,
-                            owner: result_type,
-                        },
-                    );
-                    hir::ExprKind::ImportedConstructorInit { application, args }
+                    match self.constructor_template_application(template, result_type) {
+                        hir::ConstructorApplicationRef::Class(constructor) => {
+                            hir::ExprKind::ClassInit { constructor, args }
+                        }
+                        hir::ConstructorApplicationRef::Struct(constructor) => {
+                            hir::ExprKind::StructInit { constructor, args }
+                        }
+                    }
                 }
                 super::generic::ImportedGenericTarget::Variant(_) => {
                     unreachable!("enum variants were constructed before callable dispatch")

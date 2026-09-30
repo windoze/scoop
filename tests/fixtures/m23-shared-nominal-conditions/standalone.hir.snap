@@ -22,7 +22,7 @@ Module
     val local5
       Local $default.local.1 : T0
     val local6
-      ImportedConstructorInit Scalar : Scalar<T0>
+      StructInit Scalar : Scalar<T0>
         Local $default.local.2 : T0
     val local7
       Call pack<T0> : Scalar<T0>
@@ -31,7 +31,7 @@ Module
     val local8
       Local $dependency.argument.0 : Scalar<T0>
     val local9
-      ImportedConstructorInit Wrapped : Wrapped<T0>
+      StructInit Wrapped : Wrapped<T0>
         Local $dependency.parameter.scalar : Scalar<T0>
     val local10
       FieldAccess field 0 : Scalar<T0>
@@ -39,7 +39,7 @@ Module
     val local11
       Local $dependency.argument.0 : Scalar<T0>
     val local12
-      ImportedConstructorInit Carrier : Carrier<T0>
+      ClassInit Carrier<T0> : Carrier<T0>
         Local $dependency.parameter.scalar : Scalar<T0>
     val local13
       FieldAccess field 0 : T0
@@ -51,11 +51,11 @@ Module
       VariantConstruct Choice.Item<T0> : Choice<T0>
         Local $dependency.parameter._1 : T0
     val local16
-      ImportedConstructorInit Phantom : Phantom<String>
+      StructInit Phantom : Phantom<String>
     val local17
       Local $dependency.argument.0 : Phantom<String>
     val local18
-      ImportedConstructorInit Scalar : Scalar<Phantom<String>>
+      StructInit Scalar : Scalar<Phantom<String>>
         Local $dependency.parameter.value : Phantom<String>
     val local19
       Local phantom : Scalar<Phantom<String>>
@@ -99,7 +99,7 @@ Module
     val local3
       Local $dependency.argument.0 : Choice<Int>
     val local4
-      ImportedConstructorInit Scalar : Scalar<Choice<Int>>
+      StructInit Scalar : Scalar<Choice<Int>>
         Local $dependency.parameter.value : Choice<Int>
     val local5
       Local safe : Scalar<Choice<Int>>

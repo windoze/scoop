@@ -8,6 +8,7 @@ mod bound_properties;
 mod bounds;
 mod callable_signatures;
 mod concrete_calls;
+mod constructor_applications;
 mod constructors;
 mod delegates;
 mod demanded_initialization;

@@ -297,18 +297,6 @@ impl ReferenceCollector<'_> {
                     self.type_reference(*static_type, origin);
                 }
             }
-            hir::ExprKind::ImportedConstructorInit { application, args } => {
-                let application = &self.lowerer.imported_constructor_applications[*application];
-                let template = &self.lowerer.imported_constructor_templates[application.template];
-                self.constructor_use(
-                    hir::ExportDefaultConstructorTarget::Imported {
-                        declaration: template.signature.declaration,
-                        owner_type: application.owner,
-                    },
-                    origin,
-                );
-                self.expressions(args);
-            }
             hir::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

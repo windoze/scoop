@@ -6,7 +6,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit Probe : Probe<T0>
+      ClassInit Probe<T0> : Probe<T0>
         Local $dependency.parameter.value : T0
     val local4
       Call external #1 : Int

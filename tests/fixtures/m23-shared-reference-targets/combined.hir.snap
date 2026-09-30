@@ -288,7 +288,7 @@ Module
     val local84
       Local $dependency.argument.0 : Int
     val local85
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local86
       CallableReference reference7 target=read<Int> captures=0 : () -> Int
@@ -298,7 +298,7 @@ Module
     val local88
       Local $dependency.argument.0 : Int
     assign owner
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local89
       CallableReference reference8 target=read<Int> captures=0 : () -> Int
@@ -347,7 +347,7 @@ Module
     val local101
       Local $dependency.argument.0 : T0
     val local102
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
     val local103
       Local box : Box<T0>

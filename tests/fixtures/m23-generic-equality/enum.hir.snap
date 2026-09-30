@@ -9,7 +9,7 @@ Module
     val local4
       Local $dependency.argument.1 : Int
     val local5
-      ImportedConstructorInit Key : Key<T0>
+      ClassInit Key<T0> : Key<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local6
@@ -21,7 +21,7 @@ Module
     val local9
       Local $dependency.argument.1 : Int
     val local10
-      ImportedConstructorInit Key : Key<T0>
+      ClassInit Key<T0> : Key<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local11
@@ -33,7 +33,7 @@ Module
     val local14
       Local $dependency.argument.1 : Int
     val local15
-      ImportedConstructorInit Key : Key<T0>
+      ClassInit Key<T0> : Key<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local16

@@ -1,5 +1,8 @@
 use super::*;
 
+mod applications;
+pub use applications::*;
+
 #[derive(Debug, Clone)]
 pub struct ConstructorParameter {
     pub id: ConstructorParamId,
@@ -91,7 +94,6 @@ pub enum BaseInitialization {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BaseInitializerTarget {
     Local(ClassConstructorApplicationId),
-    ImportedTemplate(ImportedConstructorApplicationId),
     Imported {
         owner: TypeId,
         callable: ImportedDependencyCallableUseId,
@@ -108,12 +110,6 @@ pub enum ClassSecondaryDelegation {
         base: BaseInitialization,
         common_initialization: Vec<ClassInitializationStep>,
     },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ClassConstructorApplication {
-    pub constructor: ClassConstructorId,
-    pub owner: ClassApplicationId,
 }
 
 #[derive(Debug, Clone)]
@@ -152,10 +148,4 @@ pub enum StructConstructorKind {
 pub struct StructConstructorDelegation {
     pub target: StructConstructorApplicationId,
     pub arguments: ConstructorArguments,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StructConstructorApplication {
-    pub constructor: StructConstructorId,
-    pub owner: StructApplicationId,
 }

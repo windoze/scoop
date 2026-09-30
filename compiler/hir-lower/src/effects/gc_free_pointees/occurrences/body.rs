@@ -507,16 +507,6 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
-        ExprKind::ImportedConstructorInit { application, args } => {
-            push_types_at_expression(
-                expression,
-                |types| types.push(lowerer.imported_constructor_applications[*application].owner),
-                out,
-            );
-            for argument in args {
-                collect_expr_type_occurrences(lowerer, argument, out);
-            }
-        }
         ExprKind::LocalFunctionCall {
             callee,
             captures,

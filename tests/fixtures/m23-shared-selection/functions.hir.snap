@@ -333,6 +333,6 @@ Module
       Local $dependency.argument.0 : Int
     return
       MethodCall value<Int> : Int
-        ImportedConstructorInit Holder : Holder<Int>
+        ClassInit Holder<Int> : Holder<Int>
           Local $dependency.parameter.value : Int
   output library

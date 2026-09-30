@@ -734,7 +734,9 @@ fn struct_init(h: &Harness, ty: hir::TypeId, args: Vec<hir::Expr>) -> hir::Expr 
         .struct_constructor_applications
         .iter()
         .find_map(|(id, candidate)| {
-            (candidate.constructor == constructor && candidate.owner == application).then_some(id)
+            (candidate.constructor == scoop_hir::StructConstructorDefinition::Local(constructor)
+                && candidate.owner == application)
+                .then_some(id)
         })
         .expect("the harness creates the primary struct constructor application");
     expr(

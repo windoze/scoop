@@ -579,7 +579,6 @@ impl Harness {
             imported_generic_templates: Arena::new(),
             imported_generic_delegate_templates: Arena::new(),
             imported_constructor_templates: Arena::new(),
-            imported_constructor_applications: Arena::new(),
             imported_generic_applications: Arena::new(),
             callable_references: Arena::new(),
             bound_callable_refs: Arena::new(),

@@ -9,7 +9,7 @@ Module
       Local $dependency.argument.0 : Int
     val local2
       ReferenceUpcast : MutableProperty<Int>
-        ImportedConstructorInit PropertyItem : PropertyItem<Int>
+        ClassInit PropertyItem<Int> : PropertyItem<Int>
           Local $dependency.parameter.value : Int
     val local3
       MethodCall read<Int> : Int
@@ -54,7 +54,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       ReferenceUpcast : MutableProperty<T0>
-        ImportedConstructorInit PropertyItem : PropertyItem<T0>
+        ClassInit PropertyItem<T0> : PropertyItem<T0>
           Local $dependency.parameter.value : T0
     val local4
       MethodCall read<T0> : T0

@@ -8,7 +8,7 @@ Module
     val local2
       Local $dependency.parameter.first : Int
     val local3
-      ImportedConstructorInit Pair : Pair<Int>
+      StructInit Pair : Pair<Int>
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Int
     val local4
@@ -19,7 +19,7 @@ Module
     val local6
       Local $dependency.parameter.first : Int
     val local7
-      ImportedConstructorInit Pair : Pair<Int>
+      StructInit Pair : Pair<Int>
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Int
     val local8
@@ -28,7 +28,7 @@ Module
     val local9
       Local $dependency.argument.0 : Int
     val local10
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local11
       MethodCall value<Int> : Int
@@ -40,7 +40,7 @@ Module
     val local14
       Local $dependency.argument.1 : Boolean
     val local15
-      ImportedConstructorInit Locked : Locked<Int>
+      ClassInit Locked<Int> : Locked<Int>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.marker : Boolean
     val local16
@@ -70,6 +70,6 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
   output library

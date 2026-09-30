@@ -41,7 +41,7 @@ Module
     val local8
       Local $dependency.argument.0 : Array<T0>
     val local9
-      ImportedConstructorInit Cursor : Cursor<T0>
+      ClassInit Cursor<T0> : Cursor<T0>
         Local $dependency.parameter.values : Array<T0>
     val local10
       Local read : (T0) -> Int

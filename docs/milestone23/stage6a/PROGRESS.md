@@ -405,3 +405,12 @@
 - 新增 `m23-shared-singleton-reads` 两组正例、三个反例、六份阶段快照和三份诊断快照，覆盖当前／依赖 object、默认参数、泛型、lambda／匿名函数、初始化一次与对象身份。源码移走后再次发布，下游本地 class／String／Int／Unit 在普通和 moving GC 下运行通过；以实际对象分配触发压力收集，运行夹具核对 GC epoch。单元使用同一源码检查共同节点及未复制外部存储。
 - 全仓 fmt／clippy 无警告，2894 项 HIR／HIR lowering／MIR lowering／slib 单元已覆盖成功。81 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖通过。31 份既有 HIR 快照的 82 行变化仅为单例节点标签，MIR／LIR／诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-shared-singletons-`，结果见 `unit.log`、`source-verified.log`、`remaining-unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`。
 - 新单元模块 60 行，MIR 删除重复初始化／读根分支；wire 与 runtime ABI 保持。确认无 cargo／rustc 占用后清理约 1454.4 MiB 闲置 `target/debug`，继续复用阶段构建缓存。构造 application／正文和完整候选继续按 6a 设计迁移。
+
+
+## 共同构造 application 与初始化节点
+
+- 删除导入专用的 constructor application arena、ID 和 `ImportedConstructorInit`。class／struct 分别共用完整 application 与 `ClassInit`／`StructInit`；目标保留已选定义的存储定位和完整 nominal owner。默认值、委托、效果条件、引用投影与具体化读取相同目标，普通外部 initializer 继续引用原 provider。
+- `@NoGC` 构造检查按主／次构造的实际角色执行，修复依赖泛型的 GC-free struct 主构造被当成 managed 次构造而拒绝的问题。遵循既有语言规则，当前与依赖的 managed 次构造仍报准确诊断；没有改变 wire 或 runtime ABI。
+- 新增 `m23-shared-constructor-applications` 两组正例、四个反例、六份阶段快照和四份诊断快照，覆盖完整且未使用的 owner 实参、重复 application、主／次构造、默认值、本地继承依赖构造及闭包。单元核对共同 application 的去重与原定义；源码移走后的再次发布、本地 class／String／Int／Unit 以及普通／moving GC 运行通过。
+- 全仓 fmt／clippy 无警告，2895 项 HIR／HIR lowering／MIR lowering／slib 单元已覆盖通过。82 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖成功。161 份旧 HIR 快照的 341 行变化逐行核对为共同构造标签及完整 class owner 的显示；既有 MIR／LIR／诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-constructor-nodes-`，结果见 `unit.log`、四份 `dump-*-verified.log`、`remaining-unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 与 `snapshot-review.json`。
+- application 声明模块 44 行，新增单元模块 76 行；继续复用 `target/m23-6a`。构造正文与完整候选尚在迁移，本批不代表 6a 完成。

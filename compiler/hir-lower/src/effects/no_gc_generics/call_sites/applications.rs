@@ -135,7 +135,12 @@ impl Lowerer {
         let application = &self.class_constructor_applications[id];
         let owner = &self.class_applications[application.owner];
         self.generic_constructor_call(
-            GenericCallable::ClassConstructor(application.constructor),
+            match application.constructor {
+                hir::ClassConstructorDefinition::Local(id) => GenericCallable::ClassConstructor(id),
+                hir::ClassConstructorDefinition::Template(id) => {
+                    GenericCallable::ImportedConstructor(id)
+                }
+            },
             &owner.arguments,
             span,
         )
@@ -149,7 +154,14 @@ impl Lowerer {
         let application = &self.struct_constructor_applications[id];
         let owner = &self.struct_applications[application.owner];
         self.generic_constructor_call(
-            GenericCallable::StructConstructor(application.constructor),
+            match application.constructor {
+                hir::StructConstructorDefinition::Local(id) => {
+                    GenericCallable::StructConstructor(id)
+                }
+                hir::StructConstructorDefinition::Template(id) => {
+                    GenericCallable::ImportedConstructor(id)
+                }
+            },
             &owner.arguments,
             span,
         )

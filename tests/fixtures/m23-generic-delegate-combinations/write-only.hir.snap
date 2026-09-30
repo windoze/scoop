@@ -10,7 +10,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     Call writeOnly<T0> : Unit
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
       IntegerLiteral 42 : Int
     val local4

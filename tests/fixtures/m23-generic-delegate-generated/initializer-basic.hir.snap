@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit Receiver : Receiver<T0>
+      ClassInit Receiver<T0> : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local4
       Call initializerBasic<T0> : Int
@@ -53,7 +53,7 @@ Module
       Local $dependency.argument.0 : T0
     return
       Call initializerBasic<T0> : Int
-        ImportedConstructorInit Receiver : Receiver<T0>
+        ClassInit Receiver<T0> : Receiver<T0>
           Local $dependency.parameter.value : T0
   fun result(): Int
     val local0

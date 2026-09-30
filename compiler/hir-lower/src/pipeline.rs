@@ -241,7 +241,6 @@ impl Lowerer {
             callable_references: Arena::new(),
             imported_dependency_callables: Arena::new(),
             imported_constructor_templates: Default::default(),
-            imported_constructor_applications: Arena::new(),
             imported_generic_templates: Default::default(),
             imported_generic_delegate_templates: Arena::new(),
             imported_generic_applications: Arena::new(),

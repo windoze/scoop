@@ -96,7 +96,7 @@ Module
       Local $dependency.argument.0 : T0
     val local27
       CallableReference reference7 target=read<T0> captures=0 : () -> T0
-        ImportedConstructorInit Box : Box<T0>
+        ClassInit Box<T0> : Box<T0>
           Local $dependency.parameter.value : T0
     val local28
       CallableReference reference8 target=intrinsic Integer(NoGcOperation { kind: IntegerKind { signedness: Signed, width: W32 }, operation: Equals }) captures=0 : (Int) -> Boolean

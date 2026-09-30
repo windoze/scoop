@@ -16,14 +16,14 @@ Module
       Local $dependency.argument.0 : Unit
     val local2
       Call extensionValueOnly<Unit> : Unit
-        ImportedConstructorInit Box : Box<Unit>
+        ClassInit Box<Unit> : Box<Unit>
           Local $dependency.parameter.value : Unit
     val local3
       Local token : Unit
     val local4
       Local $dependency.argument.0 : Unit
     val local5
-      ImportedConstructorInit PropertyItem : PropertyItem<Unit>
+      ClassInit PropertyItem<Unit> : PropertyItem<Unit>
         Local $dependency.parameter.value : Unit
     Call extensionState<Unit> : Unit
       Local empty : PropertyItem<Unit>
@@ -66,7 +66,7 @@ Module
     val local20
       Local $dependency.argument.0 : Large
     val local21
-      ImportedConstructorInit PropertyItem : PropertyItem<Large>
+      ClassInit PropertyItem<Large> : PropertyItem<Large>
         Local $dependency.parameter.value : Large
     val local22
       IntegerLiteral 10 : Int
@@ -108,7 +108,7 @@ Module
       Local $dependency.argument.0 : Large
     val local36
       Call extensionValue<Large> : Large
-        ImportedConstructorInit Box : Box<Large>
+        ClassInit Box<Large> : Box<Large>
           Local $dependency.parameter.value : Large
     val local37
       IntegerLiteral 1 : Int
@@ -154,7 +154,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit PropertyItem : PropertyItem<T0>
+      ClassInit PropertyItem<T0> : PropertyItem<T0>
         Local $dependency.parameter.value : T0
     Call extensionState<T0> : Unit
       Local cell : PropertyItem<T0>
@@ -166,6 +166,6 @@ Module
       Local $dependency.argument.0 : T0
     return
       Call extensionValue<T0> : T0
-        ImportedConstructorInit Box : Box<T0>
+        ClassInit Box<T0> : Box<T0>
           Local $dependency.parameter.value : T0
   output library

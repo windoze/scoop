@@ -45,7 +45,7 @@ Module
     val local13
       Local $dependency.argument.0 : Large
     val local14
-      ImportedConstructorInit Cell : Cell<Large>
+      StructInit Cell : Cell<Large>
         Local $dependency.parameter.value : Large
     val local15
       Local cell : Cell<Large>
@@ -62,7 +62,7 @@ Module
     val local20
       Local $dependency.argument.0 : Unit
     val local25
-      ImportedConstructorInit Box : Box<Unit>
+      ClassInit Box<Unit> : Box<Unit>
         Local $dependency.parameter.value : Unit
     val local22
       Local cell : Cell<Large>
@@ -130,7 +130,7 @@ Module
     val local2
       Local $dependency.argument.0 : Unit
     val local3
-      ImportedConstructorInit Cell : Cell<Unit>
+      StructInit Cell : Cell<Unit>
         Local $dependency.parameter.value : Unit
     val local4
       Local value : T0

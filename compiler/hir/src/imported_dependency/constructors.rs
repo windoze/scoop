@@ -29,17 +29,11 @@ pub struct ImportedConstructorSignature {
     pub evaluation_context: SourceContextId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedConstructorApplication {
-    pub template: ImportedConstructorTemplateId,
-    pub owner: TypeId,
-}
-
 #[derive(Debug, Clone)]
 pub enum ImportedConstructorKind {
     StructPrimary,
     StructSecondary {
-        target: ImportedConstructorApplicationId,
+        target: StructConstructorApplicationId,
         arguments: ConstructorArguments,
         body: Body,
         gc_effect: GcEffect,
@@ -49,7 +43,7 @@ pub enum ImportedConstructorKind {
         body: Body,
     },
     ClassThis {
-        target: ImportedConstructorApplicationId,
+        target: ClassConstructorApplicationId,
         arguments: ConstructorArguments,
         body: Body,
     },

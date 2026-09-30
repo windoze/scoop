@@ -11,7 +11,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local4
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local2
       IntegerLiteral 42 : Int
@@ -36,7 +36,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local4
       Local value : T0

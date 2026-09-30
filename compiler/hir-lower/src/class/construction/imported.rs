@@ -93,10 +93,9 @@ impl Lowerer {
                 },
                 args,
             ),
-            hir::ExprKind::ImportedConstructorInit { application, args } => (
-                hir::BaseInitializerTarget::ImportedTemplate(application),
-                args,
-            ),
+            hir::ExprKind::ClassInit { constructor, args } => {
+                (hir::BaseInitializerTarget::Local(constructor), args)
+            }
             _ => unreachable!("a dependency constructor resolves to its actual initializer"),
         };
         Some(hir::BaseInitialization::Super {

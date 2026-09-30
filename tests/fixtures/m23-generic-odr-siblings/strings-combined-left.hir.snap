@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : Int
     return
       MethodCall label<Int> : String
-        ImportedConstructorInit Named : Named<Int>
+        ClassInit Named<Int> : Named<Int>
           Local $dependency.parameter.value : Int
   fun leftMethod(): String
     val local0
@@ -14,7 +14,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedConstructorInit Named : Named<Int>
+      ClassInit Named<Int> : Named<Int>
         Local $dependency.parameter.value : Int
     return
       MethodCall text<Int> : String
@@ -37,7 +37,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit Named : Named<T0>
+      ClassInit Named<T0> : Named<T0>
         Local $dependency.parameter.value : T0
     return
       MethodCall text<T0> : String

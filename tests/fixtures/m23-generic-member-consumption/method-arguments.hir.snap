@@ -5,7 +5,7 @@ Module
     val local1
       Local $dependency.argument.0 : String
     val local2
-      ImportedConstructorInit Box : Box<String>
+      ClassInit Box<String> : Box<String>
         Local $dependency.parameter.value : String
     val local3
       Local box : Box<String>
@@ -60,7 +60,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
     val local4
       Local value : T0

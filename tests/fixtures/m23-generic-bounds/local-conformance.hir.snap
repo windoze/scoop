@@ -26,7 +26,7 @@ Module
     val local10
       Local $dependency.argument.1 : Int
     val local11
-      ImportedConstructorInit GenericValue : GenericValue<T0>
+      StructInit GenericValue : GenericValue<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local12

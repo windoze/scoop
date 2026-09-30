@@ -17,7 +17,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit ProtectedChild : ProtectedChild<T0>
+      ClassInit ProtectedChild<T0> : ProtectedChild<T0>
         Local $dependency.parameter.value : T0
     return
       MethodCall read<T0> : T0

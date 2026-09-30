@@ -23,7 +23,7 @@ Module
     val local2
       Local $dependency.argument.0 : Array<Int>
     val local3
-      ImportedConstructorInit Items : Items<Int>
+      ClassInit Items<Int> : Items<Int>
         Local $dependency.parameter.values : Array<Int>
     val local4
       Local $for.source.0 : Items<Int>
@@ -109,7 +109,7 @@ Module
     val local25
       Local $dependency.argument.0 : Array<Int>
     val local26
-      ImportedConstructorInit ValueItems : ValueItems<Int>
+      StructInit ValueItems : ValueItems<Int>
         Local $dependency.parameter.values : Array<Int>
     val local27
       Local $for.source.7 : ValueItems<Int>

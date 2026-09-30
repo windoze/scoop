@@ -55,7 +55,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedConstructorInit ValueReader : ValueReader<T0>
+      StructInit ValueReader : ValueReader<T0>
         Local $dependency.parameter.value : T0
     val local5
       Box : Reader<T0>

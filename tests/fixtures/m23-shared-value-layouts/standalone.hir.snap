@@ -10,7 +10,7 @@ Module
       IntegerLiteral 42 : Int
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
     val local2
-      ImportedConstructorInit Phantom : Phantom<Empty>
+      StructInit Phantom : Phantom<Empty>
     val local3
       Local $argument.0 : Phantom<Empty>
     val local4
@@ -41,12 +41,12 @@ Module
     val local12
       Local $dependency.argument.0 : Chain
     val local13
-      ImportedConstructorInit Link : Link<Chain>
+      ClassInit Link<Chain> : Link<Chain>
         Local $dependency.parameter.value : Chain
     val local14
       Local $dependency.argument.0 : Link<Chain>
     val local15
-      ImportedConstructorInit Reference : Reference<Chain>
+      StructInit Reference : Reference<Chain>
         Local $dependency.parameter.link : Link<Chain>
     val local16
       Local $argument.0 : Reference<Chain>
@@ -88,7 +88,7 @@ Module
       Local $dependency.argument.0 : T0
     val local26
       Box : Readable<T0>
-        ImportedConstructorInit Wrapper : Wrapper<T0>
+        StructInit Wrapper : Wrapper<T0>
           Local $dependency.parameter.value : T0
     val local27
       Local receiver : Readable<T0>

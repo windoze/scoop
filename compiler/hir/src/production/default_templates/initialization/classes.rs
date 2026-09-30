@@ -167,10 +167,6 @@ fn base_delegation(
         return Ok(None);
     };
     let target = match target {
-        BaseInitializerTarget::ImportedTemplate(target) => projection
-            .entities
-            .imported_constructor_application(*target, &projection.binders)
-            .map_err(Error::Entity)?,
         BaseInitializerTarget::Local(target) => projection
             .entities
             .class_constructor(*target, &projection.binders)

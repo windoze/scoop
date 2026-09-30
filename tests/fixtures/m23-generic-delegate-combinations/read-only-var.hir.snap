@@ -11,7 +11,7 @@ Module
       Local $dependency.argument.0 : T0
     val local4
       Call ordered<T0> : Int
-        ImportedConstructorInit Receiver : Receiver<T0>
+        ClassInit Receiver<T0> : Receiver<T0>
           Local $dependency.parameter.value : T0
     val local5
       IntegerLiteral 0 : Int
@@ -25,7 +25,7 @@ Module
       Local $dependency.argument.0 : T0
     val local9
       Call ordered<T0> : Int
-        ImportedConstructorInit Receiver : Receiver<T0>
+        ClassInit Receiver<T0> : Receiver<T0>
           Local $dependency.parameter.value : T0
     val local10
       Call external #2 : Int

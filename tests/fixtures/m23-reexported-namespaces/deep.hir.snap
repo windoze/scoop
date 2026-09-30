@@ -13,7 +13,7 @@ Module
     val local6
       Local $dependency.argument.0 : T0
     val local7
-      ImportedConstructorInit Box : Box<T0>
+      StructInit Box : Box<T0>
         Local $dependency.parameter.value : T0
     val local8
       CallableCall function_type0 : Int

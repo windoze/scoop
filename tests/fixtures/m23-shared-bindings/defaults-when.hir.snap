@@ -9,7 +9,7 @@ Module
     val local5
       Local $dependency.argument.1 : Int
     val local6
-      ImportedConstructorInit Pair : Pair<T0>
+      StructInit Pair : Pair<T0>
         Local $dependency.parameter.left : T0
         Local $dependency.parameter.right : Int
     val local7
@@ -135,7 +135,7 @@ Module
     val local5
       Local $dependency.argument.1 : Int
     when
-      ImportedConstructorInit Pair : Pair<Option<Int>>
+      StructInit Pair : Pair<Option<Int>>
         Local $dependency.parameter.left : Option<Int>
         Local $dependency.parameter.right : Int
       arm struct(0: variant0(0: local6), 1: local7)
@@ -177,7 +177,7 @@ Module
     val local19
       Local $dependency.argument.1 : Int
     when
-      ImportedConstructorInit Pair : Pair<Int>
+      StructInit Pair : Pair<Int>
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Int
       arm struct(0: local20, 1: local21) if <guard>

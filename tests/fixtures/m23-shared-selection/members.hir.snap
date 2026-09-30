@@ -47,7 +47,7 @@ Module
       val local14
         Local $dependency.argument.0 : T0
       val local15
-        ImportedConstructorInit GenericHost : GenericHost<T0>
+        ClassInit GenericHost<T0> : GenericHost<T0>
           Local $dependency.parameter.value : T0
       val local16
         Local seed : T0

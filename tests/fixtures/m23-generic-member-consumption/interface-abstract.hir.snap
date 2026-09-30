@@ -2,7 +2,7 @@ Module
   fun result(): Int
     val local0
       ReferenceUpcast : Chooser<Int>
-        ImportedConstructorInit InterfaceChooser : InterfaceChooser<Int>
+        ClassInit InterfaceChooser<Int> : InterfaceChooser<Int>
     val local1
       Local chooser : Chooser<Int>
     val local2
@@ -16,7 +16,7 @@ Module
   fun make<T>(value: T0): T0
     val local1
       ReferenceUpcast : RequiredChooser<T0>
-        ImportedConstructorInit InterfaceChooser : InterfaceChooser<T0>
+        ClassInit InterfaceChooser<T0> : InterfaceChooser<T0>
     val local2
       Local chooser : RequiredChooser<T0>
     val local3

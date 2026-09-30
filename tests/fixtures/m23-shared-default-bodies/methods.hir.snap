@@ -11,7 +11,7 @@ Module
       Lambda lambda2 invoke=$lambda captures=1 : () -> T0
         capture $capture.0 binding7 : T0
     val local5
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.read : () -> T0
     val local6
@@ -22,7 +22,7 @@ Module
       Lambda lambda3 invoke=$lambda captures=1 : () -> T0
         capture $capture.0 binding7 : T0
     val local9
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.read : () -> T0
     val local10

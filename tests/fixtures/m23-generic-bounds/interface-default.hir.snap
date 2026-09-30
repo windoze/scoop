@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit DefaultValue : DefaultValue<T0>
+      StructInit DefaultValue : DefaultValue<T0>
         Local $dependency.parameter.payload : T0
     val local4
       Local receiver : DefaultValue<T0>

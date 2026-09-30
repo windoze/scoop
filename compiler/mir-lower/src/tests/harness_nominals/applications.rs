@@ -168,7 +168,7 @@ impl Harness {
         for &constructor in &self.structs[template].constructors {
             self.struct_constructor_applications
                 .alloc(hir::StructConstructorApplication {
-                    constructor,
+                    constructor: constructor.into(),
                     owner: application,
                 });
         }
@@ -261,7 +261,7 @@ impl Harness {
         for &constructor in &self.classes[template].constructors {
             self.class_constructor_applications
                 .alloc(hir::ClassConstructorApplication {
-                    constructor,
+                    constructor: constructor.into(),
                     owner: application,
                 });
         }

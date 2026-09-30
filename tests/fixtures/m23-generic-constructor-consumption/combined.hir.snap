@@ -13,7 +13,7 @@ Module
     val local3
       Local $dependency.argument.0 : Payload
     val local4
-      ImportedConstructorInit Derived : Derived<Payload>
+      ClassInit Derived<Payload> : Derived<Payload>
         Local $dependency.parameter.value : Payload
     val local5
       MethodCall echoed<Payload> : Payload
@@ -22,7 +22,7 @@ Module
     val local6
       Local $dependency.argument.0 : Payload
     val local7
-      ImportedConstructorInit Pair : Pair<Payload>
+      StructInit Pair : Pair<Payload>
         Local $dependency.parameter.value : Payload
     val local8
       Local box : Derived<Payload>
@@ -69,6 +69,6 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
   output library

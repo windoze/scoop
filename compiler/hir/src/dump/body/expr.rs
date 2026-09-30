@@ -31,19 +31,8 @@ pub(super) fn dump_expr(
         ExprKind::ClassInit { constructor, args } => {
             let constructor = &module.class_constructor_applications[*constructor];
             let application = &module.class_applications[constructor.owner];
-            let name =
-                &module.classes[module.class_constructors[constructor.constructor].owner].name;
-            let arguments = application
-                .arguments
-                .iter()
-                .map(|ty| type_name(module, *ty))
-                .collect::<Vec<_>>();
-            let constructed = if arguments.is_empty() {
-                name.clone()
-            } else {
-                format!("{name}<{}>", arguments.join(", "))
-            };
-            out.push_str(&format!("{pad}ClassInit {} : {ty}\n", constructed));
+            let constructed = type_name(module, application.canonical_type);
+            out.push_str(&format!("{pad}ClassInit {constructed} : {ty}\n"));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
@@ -56,7 +45,7 @@ pub(super) fn dump_expr(
             let constructor = &module.struct_constructor_applications[*constructor];
             out.push_str(&format!(
                 "{pad}StructInit {} : {ty}\n",
-                module.structs[module.struct_constructors[constructor.constructor].owner].name
+                module.struct_name(module.struct_applications[constructor.owner].template)
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
@@ -569,17 +558,6 @@ pub(super) fn dump_expr(
 
         ExprKind::ConstructorReceiver => {
             out.push_str(&format!("{pad}ConstructorReceiver : {ty}\n"))
-        }
-        ExprKind::ImportedConstructorInit { application, args } => {
-            let application = &module.imported_constructor_applications[*application];
-            let template = &module.imported_constructor_templates[application.template];
-            out.push_str(&format!(
-                "{pad}ImportedConstructorInit {} : {ty}\n",
-                template.name
-            ));
-            for argument in args {
-                dump_expr(module, locals, argument, indent + 1, out);
-            }
         }
         ExprKind::SomeWrap(operand) => {
             out.push_str(&format!("{pad}SomeWrap : {ty}\n"));

@@ -42,7 +42,7 @@ Module
     val local16
       Local $dependency.argument.0 : T0
     val local17
-      ImportedConstructorInit Holder : Holder<T0>
+      ClassInit Holder<T0> : Holder<T0>
         Local $dependency.parameter.value : T0
     val local18
       Local $dependency.argument.0 : Holder<T0>
@@ -80,7 +80,7 @@ Module
     val local28
       Local $dependency.argument.0 : Int
     val local29
-      ImportedConstructorInit Holder : Holder<Int>
+      ClassInit Holder<Int> : Holder<Int>
         Local $dependency.parameter.value : Int
     val local30
       Local $dependency.argument.0 : Holder<Int>

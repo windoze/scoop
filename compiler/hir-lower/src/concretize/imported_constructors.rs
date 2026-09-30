@@ -1,39 +1,6 @@
-use super::constructor_work::{ClassConstructorSource, StructConstructorSource};
 use super::*;
 
 impl Concretizer<'_> {
-    pub(super) fn lower_imported_class_constructor_application(
-        &mut self,
-        application: export::ImportedConstructorApplicationId,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::ClassConstructorId {
-        let application = self.source.imported_constructor_applications[application].clone();
-        let owner = self.lower_type(application.owner, substitution);
-        let concrete::TypeKind::Class(class) = self.types[owner].kind else {
-            unreachable!("class initialization retains its class application")
-        };
-        self.request_class_constructor_source(
-            ClassConstructorSource::Imported(application.template),
-            class,
-        )
-    }
-
-    pub(super) fn lower_imported_struct_constructor_application(
-        &mut self,
-        application: export::ImportedConstructorApplicationId,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::StructConstructorId {
-        let application = self.source.imported_constructor_applications[application].clone();
-        let owner = self.lower_type(application.owner, substitution);
-        let concrete::TypeKind::Struct(structure) = self.types[owner].kind else {
-            unreachable!("struct construction retains its struct application")
-        };
-        self.request_struct_constructor_source(
-            StructConstructorSource::Imported(application.template),
-            structure,
-        )
-    }
-
     fn imported_constructor_parameters(
         &mut self,
         source: &export::ImportedConstructorTemplate,
@@ -70,8 +37,7 @@ impl Concretizer<'_> {
                 body,
                 gc_effect,
             } => {
-                let target =
-                    self.lower_imported_struct_constructor_application(*target, substitution);
+                let target = self.lower_struct_constructor_application(*target, substitution);
                 let (arguments, _) = self.lower_constructor_argument_plan(arguments, substitution);
                 let (body, _) = self.lower_body(body, substitution);
                 concrete::StructConstructorKind::Secondary {
@@ -128,8 +94,7 @@ impl Concretizer<'_> {
                 arguments,
                 body: source_body,
             } => {
-                let target =
-                    self.lower_imported_class_constructor_application(*target, substitution);
+                let target = self.lower_class_constructor_application(*target, substitution);
                 let args = self.append_constructor_arguments(&mut body, arguments, substitution);
                 let receiver = self.constructor_receiver(self.class_type[&class], span, origin);
                 let unit = self.lower_type(self.source.unit, &[]);

@@ -16,7 +16,7 @@ Module
       Local $dependency.argument.0 : Unit
     val local2
       Box : Reader<Unit>
-        ImportedConstructorInit InterfaceCell : InterfaceCell<Unit>
+        StructInit InterfaceCell : InterfaceCell<Unit>
           Local $dependency.parameter.value : Unit
     val local3
       Local empty : Reader<Unit>
@@ -58,7 +58,7 @@ Module
       Local $dependency.argument.0 : Large
     val local18
       Box : Reader<Large>
-        ImportedConstructorInit InterfaceCell : InterfaceCell<Large>
+        StructInit InterfaceCell : InterfaceCell<Large>
           Local $dependency.parameter.value : Large
     val local19
       Local reader : Reader<Large>
@@ -110,7 +110,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       Box : Reader<T0>
-        ImportedConstructorInit InterfaceCell : InterfaceCell<T0>
+        StructInit InterfaceCell : InterfaceCell<T0>
           Local $dependency.parameter.value : T0
     val local4
       Local reader : Reader<T0>

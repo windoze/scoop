@@ -61,7 +61,7 @@ Module
       Local $dependency.argument.0 : T0
     val local4
       ReferenceUpcast : MutableReader<T0>
-        ImportedConstructorInit ReaderBox : ReaderBox<T0>
+        ClassInit ReaderBox<T0> : ReaderBox<T0>
           Local $dependency.parameter.item : T0
     val local5
       Local value : T0

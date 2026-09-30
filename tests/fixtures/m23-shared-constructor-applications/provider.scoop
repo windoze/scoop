@@ -1,0 +1,13 @@
+package upstream.constructors
+
+public struct Pair<T, U>(val value: T, val adjustment: Int = 0) {
+    public constructor(value: T, flag: Boolean): this(value, 0) {}
+}
+
+public open class Box<T, U> public constructor(public var value: T, public val adjustment: Int = 0) {
+    public val copied: T = value
+
+    public constructor(value: T, flag: Boolean): this(value, 0) {}
+}
+
+public fun <T, U> selected(value: T, box: Box<T, U> = Box<T, U>(value)): T = box.value

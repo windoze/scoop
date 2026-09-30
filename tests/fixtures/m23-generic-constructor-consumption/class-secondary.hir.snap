@@ -9,7 +9,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     val local4
-      ImportedConstructorInit Box : Box<Int>
+      ClassInit Box<Int> : Box<Int>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.extra : Int
     val local5
@@ -30,6 +30,6 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
   output library

@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedConstructorInit HolderImpl : HolderImpl<T0>
+      ClassInit HolderImpl<T0> : HolderImpl<T0>
         Local $dependency.parameter.payload : T0
     val local4
       Local receiver : HolderImpl<T0>
@@ -28,7 +28,7 @@ Module
     val local12
       Local $dependency.argument.1 : Int
     val local13
-      ImportedConstructorInit GenericValue : GenericValue<T0>
+      StructInit GenericValue : GenericValue<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local14
@@ -41,7 +41,7 @@ Module
     val local17
       Local $dependency.argument.1 : Int
     val local18
-      ImportedConstructorInit GenericValue : GenericValue<T0>
+      StructInit GenericValue : GenericValue<T0>
         Local $dependency.parameter.payload : T0
         Local $dependency.parameter.number : Int
     val local19

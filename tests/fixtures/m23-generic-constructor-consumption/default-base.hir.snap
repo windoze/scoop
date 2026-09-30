@@ -1,7 +1,7 @@
 Module
   fun result(): Int
     val local0
-      ImportedConstructorInit DefaultDerived : DefaultDerived<Int>
+      ClassInit DefaultDerived<Int> : DefaultDerived<Int>
     val local1
       MethodCall count<Int> : Int
         ReferenceUpcast : DefaultBase<Int>
@@ -20,6 +20,6 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedConstructorInit Box : Box<T0>
+      ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
   output library

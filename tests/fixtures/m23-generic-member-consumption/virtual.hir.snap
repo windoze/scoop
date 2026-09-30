@@ -9,7 +9,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     val local4
-      ImportedConstructorInit VirtualChild : VirtualChild<Int>
+      ClassInit VirtualChild<Int> : VirtualChild<Int>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.other : Int
     val local5
@@ -42,7 +42,7 @@ Module
       Local $dependency.argument.1 : T0
     val local5
       ReferenceUpcast : VirtualBox<T0>
-        ImportedConstructorInit VirtualChild : VirtualChild<T0>
+        ClassInit VirtualChild<T0> : VirtualChild<T0>
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.other : T0
     val local6

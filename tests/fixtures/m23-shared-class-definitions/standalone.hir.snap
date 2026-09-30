@@ -21,7 +21,7 @@ Module
     val local10
       Local $dependency.argument.1 : Option<Link<T0>>
     val local11
-      ImportedConstructorInit Link : Link<T0>
+      ClassInit Link<T0> : Link<T0>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.next : Option<Link<T0>>
     val local12
@@ -39,7 +39,7 @@ Module
     val local16
       Local $dependency.argument.0 : Link<T0>
     val local17
-      ImportedConstructorInit Wrapper : Wrapper<T0>
+      StructInit Wrapper : Wrapper<T0>
         Local $dependency.parameter.head : Link<T0>
     val local18
       CallableCall function_type0 : Int
@@ -83,7 +83,7 @@ Module
     val local25
       Local $dependency.argument.0 : T0
     val local26
-      ImportedConstructorInit Remote : Remote<T0>
+      ClassInit Remote<T0> : Remote<T0>
         Local $dependency.parameter.value : T0
     val local27
       ReferenceUpcast : Base<Unit, T0>

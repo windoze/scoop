@@ -5,7 +5,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedConstructorInit Cell : Cell<Int>
+      StructInit Cell : Cell<Int>
         Local $dependency.parameter.value : Int
     val local3
       Call emptyChoice<String> : Choice<String>
@@ -44,7 +44,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedConstructorInit Cell : Cell<Int>
+      StructInit Cell : Cell<Int>
         Local $dependency.parameter.value : Int
     val local4
       Local value : T0

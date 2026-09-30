@@ -23,7 +23,7 @@ Module
     val local9
       Local $dependency.argument.0 : Int
     val local10
-      ImportedConstructorInit Box : Box<Int>
+      StructInit Box : Box<Int>
         Local $dependency.parameter.value : Int
     return
       FieldAccess field 0 : Int

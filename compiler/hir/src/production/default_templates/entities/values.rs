@@ -11,16 +11,6 @@ use crate::{
 };
 
 impl DefaultEntityProjector<'_> {
-    pub(in crate::production::default_templates) fn imported_constructor_application(
-        &self,
-        application: crate::ImportedConstructorApplicationId,
-        binders: &[HirSignatureBinder],
-    ) -> Result<DefaultConstructorRefV1, super::super::DefaultEntityProjectionError> {
-        let application = &self.export.imported_constructor_applications[application];
-        let template = &self.export.imported_constructor_templates[application.template];
-        self.imported_constructor(template.declaration, application.owner, binders)
-    }
-
     pub(in crate::production::default_templates) fn struct_constructor(
         &self,
         application: crate::StructConstructorApplicationId,
@@ -38,7 +28,14 @@ impl DefaultEntityProjector<'_> {
             },
         )?;
         Ok(DefaultConstructorRefV1::Struct {
-            declaration: self.struct_constructor_id(application.constructor)?,
+            declaration: match application.constructor {
+                crate::StructConstructorDefinition::Local(constructor) => {
+                    self.struct_constructor_id(constructor)?
+                }
+                crate::StructConstructorDefinition::Template(template) => {
+                    self.export.imported_constructor_templates[template].declaration
+                }
+            },
             owner_type: self.type_key(owner.canonical_type, binders)?,
         })
     }
@@ -60,7 +57,16 @@ impl DefaultEntityProjector<'_> {
             },
         )?;
         Ok(DefaultConstructorRefV1::Class {
-            declaration: self.class_constructor_id(application.constructor)?,
+            declaration: match application.constructor {
+                crate::ClassConstructorDefinition::Local(constructor) => {
+                    self.class_constructor_id(constructor)?
+                }
+                crate::ClassConstructorDefinition::Template(template) => {
+                    DefaultClassConstructorIdV1::Source(
+                        self.export.imported_constructor_templates[template].declaration,
+                    )
+                }
+            },
             owner_type: self.type_key(owner.canonical_type, binders)?,
         })
     }

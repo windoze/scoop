@@ -43,7 +43,7 @@ Module
     val local8
       Local $dependency.argument.0 : T0
     val local9
-      ImportedConstructorInit Holder : Holder<T0>
+      ClassInit Holder<T0> : Holder<T0>
         Local $dependency.parameter.value : T0
     val local10
       Local $dependency.argument.0 : Holder<T0>

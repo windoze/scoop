@@ -13,7 +13,7 @@ impl CallableIdentityBuilder<'_> {
             constructor_work::ClassConstructorSource::Local(source) => {
                 self.class_constructor_materialization(source, &arguments)
             }
-            constructor_work::ClassConstructorSource::Imported(source) => {
+            constructor_work::ClassConstructorSource::Template(source) => {
                 self.imported_constructor_materialization(source, &arguments)
             }
         };
@@ -31,7 +31,7 @@ impl CallableIdentityBuilder<'_> {
             constructor_work::StructConstructorSource::Local(source) => {
                 self.struct_constructor_materialization(source, &arguments)
             }
-            constructor_work::StructConstructorSource::Imported(source) => {
+            constructor_work::StructConstructorSource::Template(source) => {
                 self.imported_constructor_materialization(source, &arguments)
             }
         };

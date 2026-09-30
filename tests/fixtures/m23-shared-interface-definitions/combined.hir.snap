@@ -218,7 +218,7 @@ Module
     val local17
       Local $dependency.argument.1 : Unit
     val local18
-      ImportedConstructorInit Pair : Pair<Int, Unit>
+      StructInit Pair : Pair<Int, Unit>
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Unit
     val local19

@@ -342,12 +342,6 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
-        ExprKind::ImportedConstructorInit { application, args } => {
-            out.push(lowerer.imported_constructor_applications[*application].owner);
-            for argument in args {
-                collect_expr_types(lowerer, argument, out);
-            }
-        }
         ExprKind::LocalFunctionCall {
             callee,
             captures,

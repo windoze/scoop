@@ -47,17 +47,25 @@ impl SourceRoots {
                 }
                 ExportDefaultConstructorTarget::Struct(id) => {
                     let application = &export.struct_constructor_applications[id];
-                    (
-                        ExportParameterOwner::StructConstructor(application.constructor),
-                        export.struct_applications[application.owner].canonical_type,
-                    )
+                    let ty = export.struct_applications[application.owner].canonical_type;
+                    let crate::StructConstructorDefinition::Local(constructor) =
+                        application.constructor
+                    else {
+                        roots.require_field_type(export, index, ty)?;
+                        continue;
+                    };
+                    (ExportParameterOwner::StructConstructor(constructor), ty)
                 }
                 ExportDefaultConstructorTarget::Class(id) => {
                     let application = &export.class_constructor_applications[id];
-                    (
-                        ExportParameterOwner::ClassConstructor(application.constructor),
-                        export.class_applications[application.owner].canonical_type,
-                    )
+                    let ty = export.class_applications[application.owner].canonical_type;
+                    let crate::ClassConstructorDefinition::Local(constructor) =
+                        application.constructor
+                    else {
+                        roots.require_field_type(export, index, ty)?;
+                        continue;
+                    };
+                    (ExportParameterOwner::ClassConstructor(constructor), ty)
                 }
                 ExportDefaultConstructorTarget::Variant(variant) => {
                     let Some(declaration) = export
