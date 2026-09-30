@@ -111,10 +111,9 @@ impl Harness {
             ],
             return_ty: self.unit,
             attributes: hir::FunctionAttributes::default(),
-            kind: hir::FunctionKind::User(hir::Body {
+            kind: hir::FunctionKind::Abstract {
                 locals: resume_locals,
-                statements: Vec::new(),
-            }),
+            },
             method: Some(hir::Method {
                 owner: continuation_ty,
                 modifier: hir::MethodModifier::Abstract,
@@ -137,10 +136,9 @@ impl Harness {
             ],
             return_ty: self.unit,
             attributes: hir::FunctionAttributes::default(),
-            kind: hir::FunctionKind::User(hir::Body {
+            kind: hir::FunctionKind::Abstract {
                 locals: failure_locals,
-                statements: Vec::new(),
-            }),
+            },
             method: Some(hir::Method {
                 owner: continuation_ty,
                 modifier: hir::MethodModifier::Abstract,
@@ -209,10 +207,7 @@ impl Harness {
             params: vec![param("this", suspend_task_ty, run_receiver)],
             return_ty: t,
             attributes: hir::FunctionAttributes::default(),
-            kind: hir::FunctionKind::User(hir::Body {
-                locals: run_locals,
-                statements: Vec::new(),
-            }),
+            kind: hir::FunctionKind::Abstract { locals: run_locals },
             method: Some(hir::Method {
                 owner: suspend_task_ty,
                 modifier: hir::MethodModifier::Abstract,
@@ -249,10 +244,9 @@ impl Harness {
             params: vec![param("this", suspend_registration_ty, register_receiver)],
             return_ty: self.unit,
             attributes: hir::FunctionAttributes::default(),
-            kind: hir::FunctionKind::User(hir::Body {
+            kind: hir::FunctionKind::Abstract {
                 locals: register_locals,
-                statements: Vec::new(),
-            }),
+            },
             method: Some(hir::Method {
                 owner: suspend_registration_ty,
                 modifier: hir::MethodModifier::Abstract,

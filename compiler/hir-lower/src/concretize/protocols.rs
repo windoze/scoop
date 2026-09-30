@@ -173,7 +173,12 @@ impl Concretizer<'_> {
                 let Some(function) = function else {
                     continue;
                 };
-                if function.is_suspend && matches!(function.kind, concrete::FunctionKind::User(_)) {
+                if function.is_suspend
+                    && matches!(
+                        function.kind,
+                        concrete::FunctionKind::User(_) | concrete::FunctionKind::Abstract { .. }
+                    )
+                {
                     results.push(function.return_ty);
                 }
                 if matches!(

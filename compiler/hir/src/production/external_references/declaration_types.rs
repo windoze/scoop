@@ -38,8 +38,8 @@ pub(super) fn collect<E>(local: &crate::LocalConcreteHirOutput) -> Result<Vec<Si
             output.signature(root, Part::Parameter(parameter_index(index)?), parameter.ty)?;
         }
         output.signature(root, Part::Result, function.return_ty)?;
-        if let FunctionKind::User(body) = &function.kind {
-            for (local_id, local) in body.locals.iter() {
+        if let Some(locals) = function.kind.locals() {
+            for (local_id, local) in locals.iter() {
                 if matches!(local.definition, crate::LocalValueDefinitionSite::Source(_)) {
                     output.local(
                         module

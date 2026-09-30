@@ -101,7 +101,7 @@ impl Lowerer {
             source: PreparedImportedCallableSource::InitializationEnsure,
             bindings: ImportedTypeBindings::new(),
             locals: Arena::new(),
-            statements: Some(Vec::new()),
+            statements: None,
         });
         assert_eq!(
             self.imported_generic_delegate_templates

@@ -103,7 +103,7 @@ impl IterationCore {
         let receiver = &function.params[0];
         if receiver.name != "this"
             || receiver.ty != self_application.canonical_type
-            || !function_has_exact_receiver_body(function, receiver)
+            || !function_has_exact_receiver_locals(function, receiver)
         {
             return None;
         }
@@ -137,17 +137,14 @@ impl IterationCore {
     }
 }
 
-fn function_has_exact_receiver_body(function: &Function, receiver: &Param) -> bool {
-    let FunctionKind::User(body) = &function.kind else {
+fn function_has_exact_receiver_locals(function: &Function, receiver: &Param) -> bool {
+    let FunctionKind::Abstract { locals } = &function.kind else {
         return false;
     };
-    if body.locals.len() != 1
-        || receiver.local.into_raw().into_u32() as usize >= body.locals.len()
-        || !body.statements.is_empty()
-    {
+    if locals.len() != 1 || receiver.local.into_raw().into_u32() as usize >= locals.len() {
         return false;
     }
-    let local = &body.locals[receiver.local];
+    let local = &locals[receiver.local];
     local.name == receiver.name && local.ty == receiver.ty && !local.mutable
 }
 

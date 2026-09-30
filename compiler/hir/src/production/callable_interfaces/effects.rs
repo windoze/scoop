@@ -12,7 +12,9 @@ pub(in crate::production) fn function(
     declaration: &Function,
 ) -> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
     let implementation = match declaration.kind {
-        FunctionKind::User(_) => CallableImplementationV1::Scoop,
+        FunctionKind::User(_)
+        | FunctionKind::Abstract { .. }
+        | FunctionKind::InitializationEnsure => CallableImplementationV1::Scoop,
         FunctionKind::Intrinsic(intrinsic) => CallableImplementationV1::Intrinsic(intrinsic.kind),
         FunctionKind::Extern(id) => {
             let Some(external) = super::arena_get(&export.extern_functions, id) else {

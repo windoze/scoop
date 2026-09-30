@@ -47,6 +47,9 @@ impl Lowerer {
         };
         let kind = match checked.intrinsic {
             Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
+            None if modifier == hir::MethodModifier::Abstract => FunctionKind::Abstract {
+                locals: Arena::new(),
+            },
             None => FunctionKind::User(hir::Body {
                 locals: Arena::new(),
                 statements: Vec::new(),

@@ -1,0 +1,386 @@
+Module
+  class ReaderBox<Int> vtable=5 itables=1
+  class BaseReader<Int> vtable=5 itables=1
+  class LocalReader<Int> vtable=5 itables=1
+  interface MutableReader<Int>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+  closure cc1 $Closure$reference0 type=function_type1 invoke=@fn19 captures=1
+  closure cc2 $Closure$reference1 type=function_type2 invoke=@fn20 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=d4ad497b5153455b4dae59d928f432d383ed542b3bb8b15b54a5f65de212ec69 exact_id=51a91474ef54c0eb332a3f9911ae896e0dca9548c120e95a5bdb68996cf79fab
+  generated_exact_type get1 location=closure2 nominal_id=95a6b7b48919ea2b2e472e1f8c55e919b9f962b1fae4095ad6b4997dca97362c exact_id=d122f40b601a35dec7ebde6965ef4649cd8221560775d0578b94331287a98995
+  generated_exact_type get2 location=closure1 nominal_id=022265a864db891ebee58e718cda5e73e28bf20d3c18ef61aed8de10a9d36dcf exact_id=d269387ddb8c4dca2e49efe50f8a1bf27f5b329310a91b1be66d63dc16dbd43d
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn1($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn2(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.item: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type ReaderBox<Int>
+        ClassAlloc ReaderBox<Int>
+      call @fn21 direct
+        Type ReaderBox<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.item
+      val $argument.0: MutableReader<Int>
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type ReaderBox<Int>
+          Local $new.1
+      val $argument.1: Int
+        Type Int
+        Local value
+      val $argument.2: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $parameter.box: MutableReader<Int>
+        Type MutableReader<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.2
+      call imported: Int = @fn12 direct
+        Type MutableReader<Int>
+        Local $parameter.box
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.item: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type LocalReader<Int>
+        ClassAlloc LocalReader<Int>
+      call @fn22 direct
+        Type LocalReader<Int>
+        Local $new.2
+        Type Int
+        Local $parameter.item
+      val $argument.0: MutableReader<Int>
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type LocalReader<Int>
+          Local $new.2
+      val $argument.1: Int
+        Type Int
+        Local value
+      val $argument.2: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $parameter.box: MutableReader<Int>
+        Type MutableReader<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.2
+      call local: Int = @fn12 direct
+        Type MutableReader<Int>
+        Local $parameter.box
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      val $dependency.receiver: Int
+        Type Int
+        Local imported
+      val $dependency.argument.0: Int
+        Type Int
+        Local local
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.1
+        Type Int
+        Local local
+      goto bb3
+    bb2 if.else.2
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.1
+  fun BaseReader.stored @fn3(this: BaseReader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `BaseReader.stored`"
+  fun read @fn4(this: BaseReader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: BaseReader<Int>
+        Type BaseReader<Int>
+        Local this
+      call $call.1: Int = @fn3 virtual[0]
+        Type BaseReader<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun replace @fn5(this: BaseReader<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn7 virtual[4]
+        Type BaseReader<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun BaseReader.$get$value @fn6(this: BaseReader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `BaseReader.$get$value`"
+  fun BaseReader.$set$value @fn7(this: BaseReader<Int>, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `BaseReader.$set$value`"
+  fun again @fn8(this: MutableReader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: MutableReader<Int>
+        Type MutableReader<Int>
+        Local this
+      call $call.1: Int = @fn16 interface MutableReader<Int>[1]
+        Type MutableReader<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun stored @fn9(this: ReaderBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ReaderBox<Int>
+          Local this
+  fun value @fn10(this: ReaderBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ReaderBox<Int>
+          Local this
+  fun value @fn11(this: ReaderBox<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReaderBox<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun consume @fn12(box: MutableReader<Int>, value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val replace: (Int) -> Unit
+        Type (Int) -> Unit
+        ClosureAlloc cc1 $Closure$reference0
+          CaptureInit field=0
+            Type MutableReader<Int>
+            Local box
+      call <closure:function_type1> closure[function_type1]
+        Type (Int) -> Unit
+        Local replace
+        Type Int
+        Local value
+      val fetch: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference1
+          CaptureInit field=0
+            Type MutableReader<Int>
+            Local box
+      val $dependency.receiver: MutableReader<Int>
+        Type MutableReader<Int>
+        Local box
+      call $call.1: Int = @fn8 interface MutableReader<Int>[2]
+        Type MutableReader<Int>
+        Local $dependency.receiver
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.1
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local fetch
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.2
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call $call.3: Int = @fn18 interface MutableReader<Int>[3]
+        Type MutableReader<Int>
+        Local box
+      call $call.4: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.3
+      assign $result.0
+        Type Int
+        Local $call.4
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.0
+  fun LocalReader.stored @fn13(this: LocalReader<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalReader<Int>
+          Local this
+  fun LocalReader.$get$value @fn14(this: LocalReader<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalReader<Int>
+          Local this
+  fun LocalReader.$set$value @fn15(this: LocalReader<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalReader<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun read @fn16(this: MutableReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn18 interface MutableReader<Int>[3]
+        Type MutableReader<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun MutableReader.replace @fn17(this: MutableReader<Int>, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `MutableReader.replace`"
+  fun MutableReader.$get$value @fn18(this: MutableReader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `MutableReader.$get$value`"
+  fun $reference.0 @fn19($closure: (Int) -> Unit, arg0: Int) -> Unit
+    bb0 entry
+      call @fn17 interface MutableReader<Int>[0]
+        Type MutableReader<Int>
+        ClosureCapture cc1 0
+          Type (Int) -> Unit
+          Local $closure
+        Type Int
+        Local arg0
+      return
+  fun $reference.1 @fn20($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn16 interface MutableReader<Int>[1]
+        Type MutableReader<Int>
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.ReaderBox.$c1 @fn21(this: ReaderBox<Int>, item: Int) -> Unit
+    bb0 entry
+      call @fn23 direct
+        Type BaseReader<Int>
+        Retype BaseReader<Int>
+          Type ReaderBox<Int>
+          Local this
+      field_set 0
+        Type ReaderBox<Int>
+        Local this
+        Type Int
+        Local item
+      return
+  fun init.LocalReader.$c0 @fn22(this: LocalReader<Int>, item: Int) -> Unit
+    bb0 entry
+      call @fn23 direct
+        Type BaseReader<Int>
+        Retype BaseReader<Int>
+          Type LocalReader<Int>
+          Local this
+      field_set 0
+        Type LocalReader<Int>
+        Local this
+        Type Int
+        Local item
+      return
+  fun init.BaseReader.$c0 @fn23(this: BaseReader<Int>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- BaseReader.stored
+  instance mi2 function=@fn4 <- read
+  instance mi3 function=@fn5 <- replace
+  instance mi4 function=@fn6 <- BaseReader.$get$value
+  instance mi5 function=@fn7 <- BaseReader.$set$value
+  instance mi6 function=@fn8 <- again
+  instance mi7 function=@fn9 <- stored
+  instance mi8 function=@fn10 <- value
+  instance mi9 function=@fn11 <- value
+  instance mi10 function=@fn12 <- consume
+  instance mi11 function=@fn13 <- LocalReader.stored
+  instance mi12 function=@fn14 <- LocalReader.$get$value
+  instance mi13 function=@fn15 <- LocalReader.$set$value
+  instance mi14 function=@fn16 <- read
+  instance mi15 function=@fn17 <- MutableReader.replace
+  instance mi16 function=@fn18 <- MutableReader.$get$value
+  output library

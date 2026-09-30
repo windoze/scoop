@@ -1,4 +1,4 @@
-//! Request-local HIR handles for executable ordinary-dependency callables.
+//! Request-local declaration handles for ordinary-dependency callables.
 
 mod constructors;
 pub use constructors::*;
@@ -13,30 +13,13 @@ pub use references::*;
 mod methods;
 pub use methods::*;
 
-/// A dependency body normalized into the consumer's type and value domains.
+/// A dependency implementation in the consumer's type and value domains.
+/// Its kind and executable nodes are shared with current declarations.
 /// Its declaration remains owned by the provider, outside `Module::functions`.
 #[derive(Debug, Clone)]
 pub struct ImportedGenericCallableTemplate {
     pub signature: ImportedGenericCallableSignature,
-    pub implementation: ImportedGenericCallableImplementation,
-}
-
-#[derive(Debug, Clone)]
-pub enum ImportedGenericCallableImplementation {
-    Body(crate::Body),
-    /// MIR generates this entry from the associated initialization unit.
-    InitializationEnsure,
-}
-
-impl ImportedGenericCallableTemplate {
-    pub fn source_body(&self) -> &crate::Body {
-        match &self.implementation {
-            ImportedGenericCallableImplementation::Body(body) => body,
-            ImportedGenericCallableImplementation::InitializationEnsure => {
-                panic!("an initialization coordinator has no source body")
-            }
-        }
-    }
+    pub implementation: crate::FunctionKind,
 }
 
 impl std::ops::Deref for ImportedGenericCallableTemplate {

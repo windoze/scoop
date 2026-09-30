@@ -216,6 +216,8 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer".to_string(),
+                FunctionKind::Abstract { .. } => "abstract declaration".to_string(),
+                FunctionKind::InitializationEnsure => "initialization coordinator".to_string(),
                 FunctionKind::DerivedEquality => "derived equality".to_string(),
                 FunctionKind::Extern(_) => "extern".to_string(),
             };
@@ -266,6 +268,8 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer".to_string(),
+                FunctionKind::Abstract { .. } => "abstract declaration".to_string(),
+                FunctionKind::InitializationEnsure => "initialization coordinator".to_string(),
                 FunctionKind::DerivedEquality => "derived equality".to_string(),
                 FunctionKind::Extern(_) => "extern".to_string(),
             };

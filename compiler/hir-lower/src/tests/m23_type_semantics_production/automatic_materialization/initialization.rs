@@ -78,6 +78,22 @@ fn initialization_and_object_ids_follow_materialized_entities_after_skipped_decl
                 local.functions[unit.ensure].name,
                 export.functions[source.ensure].name
             );
+            assert!(matches!(
+                export.functions[source.initializer].kind,
+                hir::FunctionKind::User(_)
+            ));
+            assert!(matches!(
+                export.functions[source.ensure].kind,
+                hir::FunctionKind::InitializationEnsure
+            ));
+            assert!(matches!(
+                local.functions[unit.initializer].kind,
+                concrete::FunctionKind::User(_)
+            ));
+            assert!(matches!(
+                local.functions[unit.ensure].kind,
+                concrete::FunctionKind::InitializationEnsure
+            ));
             let expected = source
                 .dependencies
                 .iter()

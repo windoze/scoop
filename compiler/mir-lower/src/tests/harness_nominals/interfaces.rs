@@ -57,10 +57,7 @@ impl Harness {
             params,
             return_ty: method.return_ty,
             attributes: method.attributes,
-            kind: hir::FunctionKind::User(hir::Body {
-                locals,
-                statements: Vec::new(),
-            }),
+            kind: hir::FunctionKind::Abstract { locals },
             method: Some(hir::Method {
                 owner,
                 modifier: hir::MethodModifier::Abstract,

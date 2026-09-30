@@ -3,7 +3,7 @@ use super::*;
 mod captures;
 mod definition;
 
-use definition::{DefinitionReceiver, FunctionImplementation};
+use definition::DefinitionReceiver;
 
 pub(super) struct PendingFunction {
     pub(super) name: String,
@@ -44,7 +44,10 @@ impl Concretizer<'_> {
         let function = &self.source.functions[id];
         if !matches!(
             function.kind,
-            export::FunctionKind::User(_) | export::FunctionKind::DerivedEquality
+            export::FunctionKind::User(_)
+                | export::FunctionKind::Abstract { .. }
+                | export::FunctionKind::InitializationEnsure
+                | export::FunctionKind::DerivedEquality
         ) {
             return false;
         }
@@ -61,30 +64,30 @@ impl Concretizer<'_> {
         let definition = self.resolved_function_definition(key);
         let arguments = self.function_key_arguments(key);
         let (kind, local_map) = match definition.implementation {
-            FunctionImplementation::Body(body) => {
+            export::FunctionKind::User(body) => {
                 let (body, locals) = self.lower_body(body, &arguments);
                 (concrete::FunctionKind::User(body), Some(locals))
             }
-            FunctionImplementation::DerivedEquality => {
+            export::FunctionKind::Abstract { locals } => {
+                let (locals, local_map) = self.lower_locals(locals, &arguments);
+                (concrete::FunctionKind::Abstract { locals }, Some(local_map))
+            }
+            export::FunctionKind::DerivedEquality => {
                 let (body, locals) = self.derived_bodies.get(key).cloned().expect(
                     "a typed derived application supplies its concrete body before emission",
                 );
                 (concrete::FunctionKind::User(body), Some(locals))
             }
-            FunctionImplementation::Intrinsic(intrinsic) => {
-                (concrete::FunctionKind::Intrinsic(intrinsic), None)
+            export::FunctionKind::Intrinsic(intrinsic) => {
+                (concrete::FunctionKind::Intrinsic(*intrinsic), None)
             }
-            FunctionImplementation::Extern(external) => (
-                concrete::FunctionKind::Extern(self.extern_map[&external]),
+            export::FunctionKind::Extern(external) => (
+                concrete::FunctionKind::Extern(self.extern_map[external]),
                 None,
             ),
-            FunctionImplementation::InitializationEnsure => (
-                concrete::FunctionKind::User(concrete::Body {
-                    locals: Arena::new(),
-                    statements: Vec::new(),
-                }),
-                Some(Vec::new()),
-            ),
+            export::FunctionKind::InitializationEnsure => {
+                (concrete::FunctionKind::InitializationEnsure, None)
+            }
         };
         let params: Vec<concrete::Param> = definition
             .parameters

@@ -8,17 +8,9 @@ pub(super) struct ResolvedFunctionDefinition<'a> {
     pub capture_bindings: Vec<export::BindingId>,
     pub return_type: export::TypeId,
     pub attributes: export::FunctionAttributes,
-    pub implementation: FunctionImplementation<'a>,
+    pub implementation: &'a export::FunctionKind,
     pub receiver: DefinitionReceiver,
     pub span: scoop_ast::Span,
-}
-
-pub(super) enum FunctionImplementation<'a> {
-    Body(&'a export::Body),
-    DerivedEquality,
-    Intrinsic(export::IntrinsicFunction),
-    Extern(export::ExternFunctionId),
-    InitializationEnsure,
 }
 
 pub(super) enum DefinitionReceiver {
@@ -39,18 +31,6 @@ impl<'input> Concretizer<'input> {
         match self.function_source(key) {
             FunctionSource::Local(id) => {
                 let source = &self.source.functions[id];
-                let implementation = match &source.kind {
-                    export::FunctionKind::User(body) => FunctionImplementation::Body(body),
-                    export::FunctionKind::DerivedEquality => {
-                        FunctionImplementation::DerivedEquality
-                    }
-                    export::FunctionKind::Intrinsic(intrinsic) => {
-                        FunctionImplementation::Intrinsic(*intrinsic)
-                    }
-                    export::FunctionKind::Extern(external) => {
-                        FunctionImplementation::Extern(*external)
-                    }
-                };
                 let receiver = match source.method {
                     Some(method) => DefinitionReceiver::Method {
                         owner: method.owner,
@@ -76,21 +56,13 @@ impl<'input> Concretizer<'input> {
                     capture_bindings: self.local_capture_bindings(id),
                     return_type: source.return_ty,
                     attributes: source.attributes,
-                    implementation,
+                    implementation: &source.kind,
                     receiver,
                     span: source.span,
                 }
             }
             FunctionSource::Imported(id) => {
                 let source = &self.source.imported_generic_templates[id];
-                let implementation = match &source.implementation {
-                    export::ImportedGenericCallableImplementation::Body(body) => {
-                        FunctionImplementation::Body(body)
-                    }
-                    export::ImportedGenericCallableImplementation::InitializationEnsure => {
-                        FunctionImplementation::InitializationEnsure
-                    }
-                };
                 let receiver = match (source.receiver, &source.declaration) {
                     (
                         Some(owner),
@@ -119,7 +91,7 @@ impl<'input> Concretizer<'input> {
                     capture_bindings,
                     return_type: source.return_type,
                     attributes: source.effects.function_attributes(),
-                    implementation,
+                    implementation: &source.implementation,
                     receiver,
                     span: source.span,
                 }

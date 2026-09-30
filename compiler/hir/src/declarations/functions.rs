@@ -235,6 +235,13 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
+    /// A declaration-only slot retains its parameter bindings, without an
+    /// executable source body. MIR emits the slot's abstract trap.
+    Abstract {
+        locals: Arena<Local>,
+    },
+    /// MIR generates the coordinator from its associated initialization unit.
+    InitializationEnsure,
     /// Stable source identity for a conditional derived equality method. Its
     /// application-specific ordinary body lives on
     /// `DerivedEqualityApplication` and must be present before concretization

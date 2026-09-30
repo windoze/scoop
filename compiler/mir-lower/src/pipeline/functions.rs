@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    /// Lower one fully concrete user function.
+    /// Lower one fully concrete source implementation or abstract slot.
     pub(super) fn lower_user_function(
         &mut self,
         module: &hir::Module,
@@ -10,9 +10,6 @@ impl Lowerer {
         string_owner: mir::ImmortalObjectOwner,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
         let function = &module.functions[hir_id];
-        let hir::FunctionKind::User(body) = &function.kind else {
-            unreachable!("only user functions have MIR bodies")
-        };
         let current_closure = self.closure_by_function.get(&hir_id).copied();
         let mut lowerer = self.body_lowerer(module, mir_id, function.materialization, string_owner);
         lowerer.current_local_capture_params = function
@@ -21,7 +18,7 @@ impl Lowerer {
             .map(|capture| (capture.binding, capture.local))
             .collect();
         lowerer.current_closure = current_closure;
-        lowerer.lower_function(hir_id, function, body)
+        lowerer.lower_function(hir_id, function)
     }
 
     pub(crate) fn body_lowerer<'a>(

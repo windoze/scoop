@@ -146,7 +146,9 @@ impl BodyLowerer<'_> {
     pub(super) fn lower_user_callee(&mut self, callable: hir::Callable) -> mir::Callee {
         let function = self.module.callable_function(callable);
         match &self.module.functions[function].kind {
-            hir::FunctionKind::User(_) => self.instances.get(function).map_or_else(
+            hir::FunctionKind::User(_)
+            | hir::FunctionKind::Abstract { .. }
+            | hir::FunctionKind::InitializationEnsure => self.instances.get(function).map_or_else(
                 || mir::Callee::User(self.function_map[&function]),
                 mir::Callee::Monomorphized,
             ),

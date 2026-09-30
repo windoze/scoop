@@ -1,0 +1,123 @@
+Module
+  class LocalReader<T>(item: T0)
+    field0 property0: T0
+    property0 var item: T0 getter0=storage setter0=storage <stored field0 init=parameter0>
+    property1 override var value: T0 getter1=body(LocalReader.$get$value) setter1=body(LocalReader.$set$value) <accessor-only> overrides=[imported(BaseReader<T0>,f20ccbef67f7b6df743e3f01e0195a307769f5d934960d2e255373a9b9241d42),imported(MutableReader<T0>,3565f7046430f258ade37747538c62b7f780cdca70d633e432f6c278df8e9a53)]
+  fun consume<T>(box: MutableReader<T0>, value: T0, read: (T0) -> Int): Int
+    val local3
+      CallableReference reference0 target=imported MutableReader.replace captures=0 : (T0) -> Unit
+        Local box : MutableReader<T0>
+    CallableCall function_type2 : Unit
+      Local replace : (T0) -> Unit
+      Local value : T0
+    val local4
+      CallableReference reference1 target=imported read captures=0 : () -> T0
+        Local box : MutableReader<T0>
+    val local5
+      Local box : MutableReader<T0>
+    val local6
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall again<T0> : T0
+          Local $dependency.receiver : MutableReader<T0>
+    val local7
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        CallableCall function_type3 : T0
+          Local fetch : () -> T0
+    val local8
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      assign $result.0
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          ImportedGenericCall MutableReader.$get$value<T0> : T0
+            Local box : MutableReader<T0>
+    else
+      assign $result.0
+        IntegerLiteral 0 : Int
+    return
+      Local $result.0 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      ReferenceUpcast : MutableReader<T0>
+        ImportedConstructorInit ReaderBox : ReaderBox<T0>
+          Local $dependency.parameter.item : T0
+    val local5
+      Local value : T0
+    val local6
+      Local read : (T0) -> Int
+    val local7
+      Local $argument.0 : MutableReader<T0>
+    val local8
+      Local $argument.1 : T0
+    val local9
+      Local $argument.2 : (T0) -> Int
+    val local10
+      Call consume<T0> : Int
+        Local $parameter.box : MutableReader<T0>
+        Local $parameter.value : T0
+        Local $parameter.read : (T0) -> Int
+    val local11
+      Local value : T0
+    val local12
+      Local $argument.0 : T0
+    val local13
+      ReferenceUpcast : MutableReader<T0>
+        ClassInit LocalReader<T0> : LocalReader<T0>
+          Local $parameter.item : T0
+    val local14
+      Local value : T0
+    val local15
+      Local read : (T0) -> Int
+    val local16
+      Local $argument.0 : MutableReader<T0>
+    val local17
+      Local $argument.1 : T0
+    val local18
+      Local $argument.2 : (T0) -> Int
+    val local19
+      Call consume<T0> : Int
+        Local $parameter.box : MutableReader<T0>
+        Local $parameter.value : T0
+        Local $parameter.read : (T0) -> Int
+    val local20
+      Local imported : Int
+    val local21
+      Local local : Int
+    val local22
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      assign $result.1
+        Local local : Int
+    else
+      assign $result.1
+        IntegerLiteral 0 : Int
+    return
+      Local $result.1 : Int
+  output library
+  instance exercise<Int>
+  instance consume<T0>

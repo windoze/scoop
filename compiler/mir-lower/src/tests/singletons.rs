@@ -13,6 +13,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
             statements: Vec::new(),
         },
     );
+    harness.functions[ensure].kind = hir::FunctionKind::InitializationEnsure;
     let executable = harness.finish_with_initialization_core(main);
     let entry = executable.entry();
     let mut source = executable.into_module();

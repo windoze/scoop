@@ -3,9 +3,12 @@ use super::*;
 mod adapters;
 
 impl BodyLowerer<'_> {
-    pub(crate) fn allocate_function_locals(&mut self, function: hir::FunctionId, body: &hir::Body) {
-        let identities = body
-            .locals
+    pub(crate) fn allocate_function_locals(
+        &mut self,
+        function: hir::FunctionId,
+        locals: &Arena<hir::Local>,
+    ) {
+        let identities = locals
             .iter()
             .map(|(local, _)| {
                 self.module
@@ -14,7 +17,7 @@ impl BodyLowerer<'_> {
                     .clone()
             })
             .collect();
-        self.allocate_source_locals(&body.locals, identities);
+        self.allocate_source_locals(locals, identities);
     }
 
     pub(crate) fn allocate_class_locals(
@@ -100,9 +103,12 @@ impl BodyLowerer<'_> {
         mut self,
         function_id: hir::FunctionId,
         function: &hir::Function,
-        body: &hir::Body,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
-        self.allocate_function_locals(function_id, body);
+        let locals = function
+            .kind
+            .locals()
+            .expect("source implementations and abstract slots have local environments");
+        self.allocate_function_locals(function_id, locals);
         let params = function
             .params
             .iter()
@@ -119,19 +125,21 @@ impl BodyLowerer<'_> {
                 .map(|param| self.local_map[&param.local]);
         }
         let return_ty = self.lower_type(function.return_ty);
-        let statements = if is_abstract_bodiless(function) {
-            // An abstract method (hir-lower materializes it bodiless):
-            // every override replaces its vtable slot and the class
-            // cannot be instantiated, so the slot is never reached;
-            // the emitted function traps like a pure-virtual stub.
-            vec![smir::Statement {
+        let statements = match &function.kind {
+            hir::FunctionKind::Abstract { .. } => vec![smir::Statement {
                 kind: smir::StatementKind::Trap {
                     message: format!("call to abstract method `{}`", fn_name(function)),
                 },
                 span: function.span,
-            }]
-        } else {
-            self.lower_statements(&body.statements)
+            }],
+            hir::FunctionKind::User(body) => self.lower_statements(&body.statements),
+            hir::FunctionKind::InitializationEnsure
+            | hir::FunctionKind::Intrinsic(_)
+            | hir::FunctionKind::Extern(_) => {
+                unreachable!(
+                    "generated coordinators, intrinsics and native functions have no source implementation"
+                )
+            }
         };
         assert!(
             self.active_loops.is_empty(),

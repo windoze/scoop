@@ -87,16 +87,16 @@ impl Lowerer {
         let Some(method) = function.method else {
             return false;
         };
-        let hir::FunctionKind::User(body) = &function.kind else {
+        let hir::FunctionKind::Abstract { locals } = &function.kind else {
             return false;
         };
         let [receiver] = function.params.as_slice() else {
             return false;
         };
-        if receiver.local.into_raw().into_u32() as usize >= body.locals.len() {
+        if receiver.local.into_raw().into_u32() as usize >= locals.len() {
             return false;
         }
-        let receiver_local = &body.locals[receiver.local];
+        let receiver_local = &locals[receiver.local];
 
         declaration.name == "Iterable"
             && declaration.owner.is_none()
@@ -133,8 +133,7 @@ impl Lowerer {
             && receiver_local.name == receiver.name
             && receiver_local.ty == receiver.ty
             && !receiver_local.mutable
-            && body.locals.len() == 1
-            && body.statements.is_empty()
+            && locals.len() == 1
             && result.template == core.iterator()
             && result.arguments.as_slice() == self_application.arguments.as_slice()
             && result.canonical_type == function.return_ty

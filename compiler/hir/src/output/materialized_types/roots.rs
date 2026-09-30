@@ -7,13 +7,12 @@ impl Collector<'_> {
     ) -> Result<(), MaterializedTypeClosureError> {
         let module = self.module;
         for (_, function) in module.functions.iter() {
-            match &function.kind {
-                FunctionKind::User(body) => {
-                    self.signature(function)?;
-                    self.locals(&body.locals)?;
-                }
-                FunctionKind::Extern(_) => self.signature(function)?,
-                FunctionKind::Intrinsic(_) => continue,
+            if matches!(function.kind, FunctionKind::Intrinsic(_)) {
+                continue;
+            }
+            self.signature(function)?;
+            if let Some(locals) = function.kind.locals() {
+                self.locals(locals)?;
             }
         }
         for (_, function) in module.extern_functions.iter() {

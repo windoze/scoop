@@ -67,7 +67,12 @@ impl Lowerer {
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
-            if !matches!(function.kind, hir::FunctionKind::User(_)) {
+            if !matches!(
+                function.kind,
+                hir::FunctionKind::User(_)
+                    | hir::FunctionKind::Abstract { .. }
+                    | hir::FunctionKind::InitializationEnsure
+            ) {
                 continue;
             }
             let id = self.declare_function(module, hir_id);
@@ -79,7 +84,10 @@ impl Lowerer {
             };
             if !matches!(module.types[method.owner].kind, hir::TypeKind::Interface(_))
                 || !matches!(method.dispatch, hir::MethodDispatch::Direct)
-                || !matches!(function.kind, hir::FunctionKind::User(_))
+                || !matches!(
+                    function.kind,
+                    hir::FunctionKind::User(_) | hir::FunctionKind::Abstract { .. }
+                )
                 || self.function_map.contains_key(&hir_id)
             {
                 continue;
@@ -98,8 +106,10 @@ impl Lowerer {
             };
             // Imported method applications can already be ordinary roots.
             // Their interface-table use shares that same concrete function.
-            if !matches!(function.kind, hir::FunctionKind::User(_))
-                || self.function_map.contains_key(&hir_id)
+            if !matches!(
+                function.kind,
+                hir::FunctionKind::User(_) | hir::FunctionKind::Abstract { .. }
+            ) || self.function_map.contains_key(&hir_id)
             {
                 continue;
             }
@@ -158,7 +168,11 @@ impl Lowerer {
             .collect::<HashMap<_, _>>();
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = if let Some(&unit) = ensure_units.get(&mir_id) {
+            let (params, return_ty, body) = if matches!(
+                module.functions[hir_id].kind,
+                hir::FunctionKind::InitializationEnsure
+            ) {
+                let unit = ensure_units[&mir_id];
                 self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
             } else {
                 let string_owner = initialization_string_owners

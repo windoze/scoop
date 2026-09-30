@@ -10,10 +10,7 @@ pub(super) fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
 /// Whether a function is an abstract class or interface method. HIR carries this
 /// explicitly, including for `Unit`-returning methods.
 pub(super) fn is_abstract_bodiless(function: &hir::Function) -> bool {
-    function
-        .receiver
-        .method()
-        .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
+    matches!(function.kind, hir::FunctionKind::Abstract { .. })
 }
 
 /// Class ids (HIR) ordered base-before-derived (single inheritance:

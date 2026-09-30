@@ -1,11 +1,11 @@
 use super::*;
+use la_arena::Arena;
 
 impl Lowerer {
     /// Resolve a member function's signature (pass 2.5). The implicit
     /// `this` is not part of the `FnSig` (calls are checked against the
     /// declared parameters only); it becomes `params[0]` of the
-    /// `hir::Function` when the body (or the parameter-only body of a
-    /// bodyless declaration) is built.
+    /// `hir::Function` when its body or abstract parameter environment is built.
     pub(crate) fn resolve_method_signature(
         &mut self,
         id: FunctionId,
@@ -75,7 +75,10 @@ impl Lowerer {
             decl,
             Some(receiver_ty),
             true,
-            matches!(self.functions[id].kind, hir::FunctionKind::User(_)),
+            matches!(
+                self.functions[id].kind,
+                hir::FunctionKind::User(_) | hir::FunctionKind::Abstract { .. }
+            ),
             &params,
             return_ty,
         );
@@ -95,15 +98,15 @@ impl Lowerer {
             },
         );
 
-        // Bodyless declarations get their parameter-only body here;
-        // concrete methods are lowered in pass 3.
+        // Abstract declarations retain only their parameter environment;
+        // executable methods are lowered in pass 3.
         let host_ty = self.owner_ty(owner);
         if !matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_))
             && (decl.modifier == ast::MethodModifier::Abstract
                 || matches!(decl.body, ast::FunctionBody::None))
         {
-            let (body, _) = self.build_params_only_body(id, host_ty);
-            self.functions[id].kind = hir::FunctionKind::User(body);
+            let locals = self.build_abstract_parameter_locals(id, host_ty);
+            self.functions[id].kind = hir::FunctionKind::Abstract { locals };
         }
     }
 
@@ -206,17 +209,13 @@ impl Lowerer {
         }
     }
 
-    /// The body of a bodyless declaration (interface / abstract
-    /// method): locals for `this` and the declared parameters, no
-    /// statements. Fills `Function::params` (receiver first) and
-    /// returns a second copy of the declared-parameter list for the
-    /// interface's `MethodSig` (`hir::Param` is not `Clone`; both
-    /// copies refer to the same locals of this body).
-    fn build_params_only_body(
+    /// Bind `this` and declared parameters without constructing a source body.
+    /// The receiver remains first in `Function::params`.
+    fn build_abstract_parameter_locals(
         &mut self,
         id: FunctionId,
         host_ty: TypeId,
-    ) -> (hir::Body, Vec<hir::Param>) {
+    ) -> Arena<hir::Local> {
         let sig = self.signatures[&id].clone();
         let this = self.alloc_this_local(host_ty, self.functions[id].span);
         let mut params = vec![hir::Param {
@@ -224,7 +223,6 @@ impl Lowerer {
             ty: host_ty,
             local: this,
         }];
-        let mut declared = Vec::with_capacity(sig.params.len());
         for (index, param) in sig.params.iter().enumerate() {
             let local = self.alloc_parameter_local(
                 param.name.text.clone(),
@@ -237,17 +235,8 @@ impl Lowerer {
                 ty: param.ty,
                 local,
             });
-            declared.push(hir::Param {
-                name: param.name.text.clone(),
-                ty: param.ty,
-                local,
-            });
         }
         self.functions[id].params = params;
-        let body = hir::Body {
-            locals: std::mem::take(&mut self.locals),
-            statements: Vec::new(),
-        };
-        (body, declared)
+        std::mem::take(&mut self.locals)
     }
 }

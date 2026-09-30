@@ -128,18 +128,27 @@ impl ImportedGenericTemplates {
                     template.expect("successful lowering completed every dependency signature");
                 hir::ImportedGenericCallableTemplate {
                     signature: template.signature,
-                    implementation: if matches!(
-                        template.source,
-                        PreparedImportedCallableSource::InitializationEnsure
-                    ) {
-                        hir::ImportedGenericCallableImplementation::InitializationEnsure
-                    } else {
-                        hir::ImportedGenericCallableImplementation::Body(hir::Body {
-                            locals: template.locals,
-                            statements: template.statements.expect(
-                                "successful lowering completed every queued dependency body",
-                            ),
-                        })
+                    implementation: match template.source {
+                        PreparedImportedCallableSource::InitializationEnsure => {
+                            hir::FunctionKind::InitializationEnsure
+                        }
+                        PreparedImportedCallableSource::Declaration(declaration)
+                            if declaration.interface().modality()
+                                == hir::CallableModalityV1::Abstract =>
+                        {
+                            hir::FunctionKind::Abstract {
+                                locals: template.locals,
+                            }
+                        }
+                        PreparedImportedCallableSource::Declaration(_)
+                        | PreparedImportedCallableSource::Body(_) => {
+                            hir::FunctionKind::User(hir::Body {
+                                locals: template.locals,
+                                statements: template.statements.expect(
+                                    "successful lowering completed every queued dependency body",
+                                ),
+                            })
+                        }
                     },
                 }
             })
@@ -269,7 +278,14 @@ impl Lowerer {
                 index += 1;
                 continue;
             };
-            if template.statements.is_some() {
+            let bodyless = match &template.source {
+                PreparedImportedCallableSource::Declaration(declaration) => {
+                    declaration.interface().modality() == hir::CallableModalityV1::Abstract
+                }
+                PreparedImportedCallableSource::InitializationEnsure => true,
+                PreparedImportedCallableSource::Body(_) => false,
+            };
+            if bodyless || template.statements.is_some() {
                 index += 1;
                 continue;
             }

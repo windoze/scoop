@@ -94,10 +94,26 @@ impl Lowerer {
         }
         let return_type =
             self.imported_generic_type(declaration.interface().result(), &bindings)?;
+        let member_name = match declaration.interface().declaration() {
+            scoop_identity::CallableTemplateOrigin::Accessor(accessor) => {
+                let property = self
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.property_for_accessor(accessor))
+                    .ok_or("abstract accessor property is missing")?;
+                let role = if property.accessors().getter() == accessor {
+                    "get"
+                } else {
+                    "set"
+                };
+                format!("${role}${}", declaration.name())
+            }
+            _ => declaration.name().to_owned(),
+        };
         Ok(PreparedImportedGeneric {
             signature: hir::ImportedGenericCallableSignature {
                 declaration: identity,
-                name: format!("{}.{}", nominal.name(), declaration.name()),
+                name: format!("{}.{member_name}", nominal.name()),
                 type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
                 no_gc_type_params: Vec::new(),
                 gc_free_pointee_requirements: Vec::new(),
@@ -111,9 +127,7 @@ impl Lowerer {
             source,
             bindings,
             locals,
-            // This is the ordinary parameter-only abstract method body. No
-            // shared execution body is manufactured or queued for this slot.
-            statements: Some(Vec::new()),
+            statements: None,
         })
     }
 }

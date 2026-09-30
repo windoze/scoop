@@ -5,8 +5,7 @@ use super::{DefaultEntityProjector, GenericTemplateProductionError as Error};
 use crate::{
     CanonicalBinderUseListV1, DefaultCallableDeclarationV1, DefinitionOrigin,
     ExportDefinitionSourceV1, ExportGenericCallableBodyV1, ExportHir, FunctionGenericity,
-    FunctionId, FunctionKind, GenericTemplatePredicatesV1, HirSignatureBinder,
-    InterfaceMemberImplementation, MethodDispatch, MethodModifier, TypeParamId,
+    FunctionId, FunctionKind, GenericTemplatePredicatesV1, HirSignatureBinder, TypeParamId,
 };
 
 pub(super) fn project(
@@ -18,17 +17,6 @@ pub(super) fn project(
     let FunctionKind::User(implementation) = &function.kind else {
         return Ok(None);
     };
-    if let Some(method) = function.method {
-        if method.modifier == MethodModifier::Abstract {
-            return Ok(None);
-        }
-        if let MethodDispatch::Interface(member) = method.dispatch
-            && export.interface_methods[member].implementation
-                == InterfaceMemberImplementation::AbstractSlot
-        {
-            return Ok(None);
-        }
-    }
     let owner = entities
         .callable_declaration(function_id)
         .map_err(Error::Entity)?;

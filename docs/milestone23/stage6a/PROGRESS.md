@@ -178,3 +178,12 @@
 - `protected` 的子类访问约束统一保存原 `SourceNominalId`，删除依赖专用约束及当前／跨来源／依赖的三套继承遍历。作用域包含、覆写覆盖与实际访问共用一套祖先查询；现有声明索引只用于定位记录，完整类型实参、词法作用域和显式接收者规则保持。
 - 原访问域构建与查询保留在 327 行主模块；公开声明投影、类型访问域和祖先查询分别为 164、223、97 行。没有增加 wire 字段、声明副本或额外访问证明。private 词法 owner 的剩余 arena 表示继续按阶段设计迁移。
 - 全仓 fmt／clippy、856 项 HIR 与 1310 项 HIR lowering 单元测试全部通过。复用既有独立和组合 fixture 的 7 项真实产物回归全部通过，包含泛型 protected、封闭父类型、函数引用、嵌套受保护类型、setter、普通继承正例及负例；全部快照无需修改。日志前缀 `/tmp/scoop-m23-6a-visibility-`，结果见 `unit.log` 与 `artifacts.log`。
+
+## 共同函数实现类别、抽象槽与初始化协调函数
+
+- 当前和读入函数共用 `FunctionKind`，抽象方法／访问器保留完整参数局部值并使用明确的 Abstract 类别；初始化协调函数使用 InitializationEnsure 类别，只有实际初始化正文属于 User。删除依赖专用实现枚举及具体化的二次适配枚举，避免把无正文声明伪装为空函数。局部值身份、类型需求、core Iterator 合同、effect 投影和 MIR 消费同步使用真实类别。
+- 抽象槽具体化沿共同参数替换，MIR 保留既有 trap；初始化协调实现从所属初始化单元生成，未改变顺序、失败缓存或重入语义。真实再发布验证发现的抽象属性名称差异已按原 getter／setter 身份修正，源码与读入声明产生相同的 trap 字符串及 ODR 定义。
+- `globals.rs` 从 1481 行按存储、初始化、常量 image、扩展属性职责拆为 514 行主模块及四个 209–303 行子模块；dump 主模块降至 489 行，具体局部值身份主模块降至 427 行。函数替换、声明读取和抽象读入分别为 172、146、133 行，没有新增语义验证框架或 wire 字段。
+- 新增 `m23-shared-abstract` 的源码／依赖两组正例、六份阶段快照和两个反例，覆盖泛型抽象方法、getter／setter、默认实现、局部覆写、函数引用、引用／Int／Unit 组合及移动 GC。真实发布后移走源码，再次发布、ODR 比较、链接和运行通过；新快照关闭更新开关复验通过。
+- 全仓 fmt／clippy、2282 项 HIR／HIR lowering／MIR lowering 单元测试均已覆盖通过。15 项真实产物回归均已覆盖成功，包含抽象继承正反例、泛型 bound、成员、委托初始化及完整初始化 Link 组；最后一项包含初始化顺序、失败缓存、物理定义与损坏产物验证。五份旧成员快照仅修正访问器名称及 trap 字符串，另同步一份早期共同字段显示快照；两个完整测试组均关闭更新开关复验通过。日志前缀 `/tmp/scoop-m23-6a-implementations-`，结果见 `unit.log`、`singleton-verified.log`、`accessors-unit.log`、`artifacts-verified.log`、`members-verified.log` 及 `core-initialization.log`。
+- 确认没有 cargo／rustc 占用后，两次清理旧增量缓存，共约 3.6 GiB；继续复用 `target/m23-6a`。本批统一实现类别及消费，当前／读入声明的完整存储、nominal 类型、候选及正式正文编解码继续按阶段设计迁移。

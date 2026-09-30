@@ -170,7 +170,11 @@ fn generic_enum_instantiations_and_interning() {
     let module = lower_user(file).expect("generic enum program must lower");
     let body = match &module.functions[module.entry()].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
+        FunctionKind::Intrinsic(_)
+        | FunctionKind::Extern(_)
+        | FunctionKind::DerivedEquality
+        | FunctionKind::Abstract { .. }
+        | FunctionKind::InitializationEnsure => {
             panic!("main is a user function")
         }
     };

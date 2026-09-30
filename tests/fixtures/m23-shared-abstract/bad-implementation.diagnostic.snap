@@ -1,0 +1,20 @@
+span=40..153
+expression=public class Incomplete public constructor(): BaseReader<Int>() {
+    protected override fun stored(): Int = 42
+}
+class `Incomplete` does not implement abstract getter `BaseReader.value`
+span=40..153
+expression=public class Incomplete public constructor(): BaseReader<Int>() {
+    protected override fun stored(): Int = 42
+}
+class `Incomplete` does not implement abstract setter `BaseReader.value`
+span=40..153
+expression=public class Incomplete public constructor(): BaseReader<Int>() {
+    protected override fun stored(): Int = 42
+}
+class `Incomplete` leaves interface method `MutableReader<Int>.$get$value` abstract
+span=40..153
+expression=public class Incomplete public constructor(): BaseReader<Int>() {
+    protected override fun stored(): Int = 42
+}
+class `Incomplete` leaves interface method `MutableReader<Int>.$set$value` abstract

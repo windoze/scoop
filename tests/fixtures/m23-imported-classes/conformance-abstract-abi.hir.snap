@@ -25,7 +25,7 @@ Module
     val local7
       Local $dependency.argument.1 : Counter
     val local8
-      FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
+      FieldAccess field 0 : Long
         ImportedDependencyCall #2 interface[0] : WideValue
           Local $dependency.receiver : ValueReader
           Local $dependency.parameter.marker : Token

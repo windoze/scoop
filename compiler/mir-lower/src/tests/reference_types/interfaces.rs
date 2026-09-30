@@ -101,9 +101,8 @@ fn ref_equality_maps_to_a_primitive_pointer_comparison() {
 
 #[test]
 fn abstract_methods_lower_to_trap_stubs() {
-    // `abstract class Base { abstract fun id(): Int }` — hir-lower
-    // materializes the abstract method as a params-only bodiless
-    // function (`Base.id`, no statements).
+    // `abstract class Base { abstract fun id(): Int }` retains only
+    // its parameter environment and an explicit abstract implementation.
     let mut h = Harness::new();
     let int = h.int;
     let base = h.class("Base", hir::ClassModifier::Abstract, &[], None, &[]);
@@ -116,11 +115,12 @@ fn abstract_methods_lower_to_trap_stubs() {
         vec![param("this", base_ty, this)],
         int,
         hir::Body {
-            locals,
+            locals: locals.clone(),
             statements: Vec::new(),
         },
     );
     h.functions[id].method.as_mut().expect("a method").modifier = hir::MethodModifier::Abstract;
+    h.functions[id].kind = hir::FunctionKind::Abstract { locals };
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 

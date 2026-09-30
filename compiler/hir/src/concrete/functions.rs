@@ -118,8 +118,20 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
+    Abstract { locals: Arena<Local> },
+    InitializationEnsure,
     Intrinsic(IntrinsicFunction),
     Extern(ExternFunctionId),
+}
+
+impl FunctionKind {
+    pub fn locals(&self) -> Option<&Arena<Local>> {
+        match self {
+            Self::User(body) => Some(&body.locals),
+            Self::Abstract { locals } => Some(locals),
+            Self::InitializationEnsure | Self::Intrinsic(_) | Self::Extern(_) => None,
+        }
+    }
 }
 
 pub type HirIntegerOperation = IntegerOperation;
