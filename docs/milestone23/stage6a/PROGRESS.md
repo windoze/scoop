@@ -383,3 +383,10 @@
 - 扩展 `m23-shared-reference-targets` 的独立／组合正例和六份阶段快照，覆盖递归接收者创建引用，再次发布以及消费方本地类型、String／Int／Unit 和普通／移动 GC 运行。单元检查共同 arena 中两种存储根，以及实际递归目标的参数数量和捕获签名；既有四个反例诊断保持。
 - 全仓 fmt／clippy 无警告，2308 项 HIR／HIR lowering／MIR lowering 单元测试通过。79 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖成功；仅一份旧 HIR 快照的两个引用编号发生变化，更新后完整组严格复验通过。最终证据前缀 `/tmp/scoop-m23-6a-reference-roots-`，结果见 `before.log`、`unit.log`、`all-verified-results.json` 与 `snapshot-verified-results.json`。
 - 共同词法记录 201 行、默认 closure／引用替换 263 行、引用读取 166 行、引用具体化 84 行、局部调用捕获补齐 336 行。确认无 cargo／rustc 占用后清理约 225.4 MiB 闲置增量缓存，继续复用 `target/m23-6a`。wire 与 runtime ABI 保持，剩余 closure／构造节点和完整候选继续迁移。
+
+## 局部自身引用保留最终捕获
+
+- 真实源码复现局部函数正文中 `::自身函数` 提前取得空捕获列表，而最终目标函数需要隐藏捕获参数。正文完成后的补齐过程现按已选函数身份处理自身引用，以本次函数执行中的捕获绑定构造引用环境；不读取外层声明处局部变量，也不按名称或路径重选目标。
+- 扩展 `m23-shared-reference-targets` 的普通递归和泛型递归正例：引用之后首次使用外层绑定、不同类型的多项捕获、同一泛型局部函数的 Int／Unit 外部实例，以及原宿主实参均保留。复用既有捕获 ABI 单元断言，修复前明确失败为 0 对 1；修复后源码与产物路径均通过，六份阶段快照同步更新。
+- 全仓 fmt／clippy 无警告，2308 项 HIR／HIR lowering／MIR lowering 单元测试通过；15 项相关真实产物回归关闭更新开关全部通过，覆盖再次发布、普通／移动 GC、默认值、局部函数、closure、bound 与函数引用。既有其它快照和四个引用反例保持。证据前缀 `/tmp/scoop-m23-6a-recursive-references-`，结果见 `before.log`、`focused-verified.log`、`unit.log` 与 `all-verified-results.json`。
+- 捕获补齐模块 358 行。本批检查闲置增量目录为空，继续复用 `target/m23-6a`；wire 和 runtime ABI 保持，后续继续统一 closure 正文与完整候选。

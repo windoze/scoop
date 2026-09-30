@@ -20,6 +20,29 @@ public fun <T> recursiveReference(seed: T, inspect: (T) -> Int): Int {
     return inspect(descend(2).read())
 }
 
+public fun selfReference(seed: Int): Int {
+    fun recur(depth: Int): Int {
+        if (depth > 0) {
+            val next: (Int) -> Int = ::recur
+            return next(depth - 1)
+        }
+        return seed
+    }
+    return recur(2)
+}
+
+public fun <T> genericSelfReference(seed: T, inspect: (T) -> Int): Int {
+    val limit = 0
+    fun <U> recur(ignored: U, depth: Int): T {
+        if (depth > limit) {
+            val next: (U, Int) -> T = ::recur
+            return next(ignored, depth - 1)
+        }
+        return seed
+    }
+    return inspect(recur<Unit>(Unit, 2)) + inspect(recur<Int>(0, 2)) - inspect(seed)
+}
+
 public class Box<T> public constructor(public val value: T) {
     public fun read(): T = value
 }

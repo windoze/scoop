@@ -2,26 +2,26 @@ use super::*;
 
 /// Recursive calls may be lowered before a later source use discovers the
 /// complete capture set. Once the local body has been analyzed, rewrite every
-/// self-call in that body to the final hidden-argument list. Binding identity,
+/// self-call and reference to the final hidden-argument list. Binding identity,
 /// rather than source names, makes this stable under shadowing.
 pub(super) fn patch_local_function_calls(
+    lowerer: &mut Lowerer,
     statements: &mut [hir::Statement],
     target: hir::LocalFunctionId,
     captures: &[hir::Capture],
-    references: &mut la_arena::Arena<hir::CallableReference>,
 ) {
     LocalFunctionCallPatcher {
+        lowerer,
         target,
         captures,
-        references,
     }
     .statements(statements);
 }
 
 struct LocalFunctionCallPatcher<'a> {
+    lowerer: &'a mut Lowerer,
     target: hir::LocalFunctionId,
     captures: &'a [hir::Capture],
-    references: &'a mut la_arena::Arena<hir::CallableReference>,
 }
 
 impl LocalFunctionCallPatcher<'_> {
@@ -142,14 +142,36 @@ impl LocalFunctionCallPatcher<'_> {
                 }
             }
             hir::ExprKind::CallableReference(id) => {
-                let mut reference = self.references[*id].clone();
+                let mut reference = self.lowerer.callable_references[*id].clone();
                 if let Some(receiver) = reference.target.receiver_mut() {
                     self.expression(receiver);
                 }
                 for capture in &mut reference.captures {
                     self.expression(&mut capture.source);
                 }
-                self.references[*id] = reference;
+                if let hir::CallableReferenceTarget::Local {
+                    callee: hir::CallableTarget::Local(callee),
+                    ..
+                } = reference.target
+                    && self.lowerer.callable_function_id(callee)
+                        == self.lowerer.local_functions[target].source_function()
+                {
+                    // A self reference preserves its lexical owner arguments;
+                    // captured outer bindings have the same types in this body.
+                    reference.captures = target_captures
+                        .iter()
+                        .map(|capture| hir::Capture {
+                            source: hir::Expr {
+                                kind: hir::ExprKind::Capture(capture.binding),
+                                ty: capture.ty,
+                                span,
+                                origin,
+                            },
+                            ..capture.clone()
+                        })
+                        .collect();
+                }
+                self.lowerer.callable_references[*id] = reference;
             }
             hir::ExprKind::LocalFunctionCall {
                 local_function,
