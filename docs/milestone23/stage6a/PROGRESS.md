@@ -241,3 +241,11 @@
 - 新增 `m23-shared-literals`，覆盖 Boolean／String、嵌套 struct 模式、guard、默认表达式、泛型正文、别名与 Option，包含两组正例和两个反例。源码移走后再次发布，下游本地 Payload 与引用／Int／Unit 的普通／移动 GC 运行均通过；六份阶段快照和两个诊断关闭更新开关复验通过。
 - 全仓 fmt／clippy、2873 项 HIR／HIR lowering／MIR lowering／slib 单元测试均已覆盖通过，最后的引用收集修复后再次执行全部 1317 项 HIR lowering 测试。9 组真实产物回归和完整 core 22 项均关闭所有快照更新开关通过。最终日志前缀 `/tmp/scoop-m23-6a-literal-wire-`，结果见 `lower-verified.log`、`slib-verified.log`、`artifacts-verified.log` 与 `core-verified.log`。
 - 按实际职责拆出 pattern 格式错误、默认模式读取和 callable effect 查询，相关主文件控制在 502 行以内。无 cargo／rustc 占用时清理约 2109.6 MiB 旧增量缓存，继续复用 `target/m23-6a`。共同 target 是声明／application 存储迁移的一步，本批不代表全部候选或完整语义图已经统一。
+
+## class 上界属性与已选访问器
+
+- 类型参数通过其完整 class 上界查询属性，保留原静态 receiver 的访问域与实际值。继承中的宿主实参按原声明替换；计算 getter／setter 复用普通 class-bound 调用，存储属性继续使用原字段身份。默认值、复合赋值、函数值属性和安全访问沿既有正文、类型替换与具体化处理，没有新增 wire 或 runtime 入口。
+- 新增 `m23-shared-bound-properties` 两组正例及三个反例，覆盖当前／依赖声明、交换参数的继承、存储与虚访问器、默认读取、安全访问、函数值调用、复合赋值，以及错误值类型、只读属性和超出定义处上界的成员。真实发布后移走源码，下游本地 Payload 与引用／Int／Unit 的普通／移动 GC 运行均通过；六份阶段快照和三份诊断关闭更新开关复验通过。
+- 全仓 fmt／clippy 与全部 1318 项 HIR lowering 单元测试通过；新增单元检查 getter／setter 保留声明方完整实参和原 receiver。9 组相关真实产物回归全部覆盖通过，包含泛型成员、扩展属性、受保护成员、默认值、class／interface 及继承初始化 ABI。
+- 两组旧快照差异经上一个已验证编译器复现，实际输出与本批一致；14 份旧快照只同步抽象访问器名称及既定函数顺序，完整两组更新后再次关闭开关通过。最终日志前缀 `/tmp/scoop-m23-6a-bound-properties-`，结果见 `all-unit.log`、`artifact-verified.log`、`regressions.log` 和两个 `snapshot-verified-*.log`。
+- 属性主文件从 625 行拆为 394 行；查找、存储读写和访问器目标按实际职责分别为 125、130、26 行。继续复用 4.0 GiB 的 `target/m23-6a`，没有删除活动构建目录。完整 nominal application 与声明存储迁移继续推进。

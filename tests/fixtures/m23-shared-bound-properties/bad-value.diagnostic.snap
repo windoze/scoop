@@ -1,0 +1,3 @@
+span=122..129
+expression="wrong"
+cannot assign value of type String to property `value` of type Int

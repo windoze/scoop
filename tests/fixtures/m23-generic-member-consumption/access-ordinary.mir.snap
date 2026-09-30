@@ -9,14 +9,36 @@ Module
   class ProtectedBox<Int> vtable=3 itables=0
   generated_exact_type get0 location=enum0 nominal_id=6f86407477d2696895294b14659bfe1327c431d4c91c762e342583b2f10aedbc exact_id=08c0ee66634978fe4e92f1d0310633572a40171951782ccd5beb7cc7ddfb0c2d
   generated_exact_type get1 location=enum1 nominal_id=5ace2c12bfb5538498c09b07d43b37c8a45db59f630d5546745fc339dc77d3e6 exact_id=f6ac1675b7b8f8214f6d6be5f927a80b36425c51a931beb6c083239ff7853be1
-  fun Derived.secret @fn0(this: Derived) -> Int
+  fun secret @fn0(this: ProtectedBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ProtectedBox<Int>
+          Local this
+  fun state @fn1(this: ProtectedBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type ProtectedBox<Int>
+          Local this
+  fun state @fn2(this: ProtectedBox<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type ProtectedBox<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun Derived.secret @fn3(this: Derived) -> Int
     bb0 entry
       val $dependency.receiver: ProtectedBox<Int>
         Type ProtectedBox<Int>
         Retype ProtectedBox<Int>
           Type Derived
           Local this
-      call $dependency.receiver: Int = @fn2 direct
+      call $dependency.receiver: Int = @fn0 direct
         Type ProtectedBox<Int>
         Local $dependency.receiver
       val $dependency.argument.0: Int
@@ -32,39 +54,17 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun Derived.read @fn1(this: Derived) -> Int
+  fun Derived.read @fn4(this: Derived) -> Int
     bb0 entry
       val $receiver: Derived
         Type Derived
         Local this
-      call $call.1: Int = @fn0 direct
+      call $call.1: Int = @fn3 direct
         Type Derived
         Local $receiver
       return
         Type Int
         Local $call.1
-  fun secret @fn2(this: ProtectedBox<Int>) -> Int
-    bb0 entry
-      return
-        Type Int
-        FieldAccess 0
-          Type ProtectedBox<Int>
-          Local this
-  fun state @fn3(this: ProtectedBox<Int>) -> Int
-    bb0 entry
-      return
-        Type Int
-        FieldAccess 1
-          Type ProtectedBox<Int>
-          Local this
-  fun state @fn4(this: ProtectedBox<Int>, next: Int) -> Unit
-    bb0 entry
-      field_set 1
-        Type ProtectedBox<Int>
-        Local this
-        Type Int
-        Local next
-      return
   fun result @fn5() -> Int
     bb0 entry
       val $argument.0: Int
@@ -84,7 +84,7 @@ Module
       val $receiver: Derived
         Type Derived
         Local $new.1
-      call $call.2: Int = @fn1 direct
+      call $call.2: Int = @fn4 direct
         Type Derived
         Local $receiver
       return
@@ -126,7 +126,7 @@ Module
       return
   coroutine_step cs0 CoroutineStep<Derived> result=Derived
   coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
-  instance mi0 function=@fn2 <- secret
-  instance mi1 function=@fn3 <- state
-  instance mi2 function=@fn4 <- state
+  instance mi0 function=@fn0 <- secret
+  instance mi1 function=@fn1 <- state
+  instance mi2 function=@fn2 <- state
   output library

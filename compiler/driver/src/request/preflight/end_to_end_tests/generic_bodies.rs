@@ -4,6 +4,7 @@ mod abstracts;
 mod argument_inference;
 mod arrays;
 mod bindings;
+mod bound_properties;
 mod bounds;
 mod constructors;
 mod delegates;

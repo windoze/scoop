@@ -1,6 +1,6 @@
 Module
-  global @scoop$1$bs$046abac3b377a0f08063d28bea30d837df0d69feb1cac4f2a3170f6efbaf54a9 = c"call to abstract method `ReadOnlyProperty.value`"
-  global @scoop$1$bs$4b101b1e3740bf2fa4ca272eaedf709b1569fa0d1146b8193a8954cd5b10d165 = c"call to abstract method `ReadOnlyProperty.value`"
+  global @scoop$1$bs$046abac3b377a0f08063d28bea30d837df0d69feb1cac4f2a3170f6efbaf54a9 = c"call to abstract method `ReadOnlyProperty.$get$value`"
+  global @scoop$1$bs$4b101b1e3740bf2fa4ca272eaedf709b1569fa0d1146b8193a8954cd5b10d165 = c"call to abstract method `ReadOnlyProperty.$get$value`"
   enum CoroutineStep<Reference> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Reference> niche(kind=managed,payload_variant=1)
   enum CoroutineStep<Large> tagged size=32 align=8 variants=(struct0)@8+24:refs ()@8+0

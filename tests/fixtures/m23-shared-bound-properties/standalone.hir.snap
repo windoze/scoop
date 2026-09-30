@@ -1,0 +1,235 @@
+Module
+  fun exercise<T>(value: T0): Int
+    val local1
+      Local value : T0
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      Local $dependency.argument.1 : T0
+    val local5
+      ImportedConstructorInit Remote : Remote<T0>
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.alternate : T0
+    val local6
+      Local box : Remote<T0>
+    val local7
+      Local $dependency.argument.0 : Remote<T0>
+    val local8
+      ImportedGenericCall stored<T0, Remote<T0>> : T0
+        Local $dependency.parameter.box : Remote<T0>
+    val local9
+      Local box : Remote<T0>
+    val local10
+      Local value : T0
+    val local11
+      Local $dependency.argument.0 : Remote<T0>
+    val local12
+      Local $dependency.argument.1 : T0
+    val local13
+      ImportedGenericCall exchange<T0, Remote<T0>> : T0
+        Local $dependency.parameter.box : Remote<T0>
+        Local $dependency.parameter.next : T0
+    val local14
+      Local box : Remote<T0>
+    val local15
+      Local $dependency.argument.0 : Remote<T0>
+    val local16
+      ImportedMethodCall Callable(Application(Idx::<ImportedGenericCallableApplication>(33))) : T0
+        Local $dependency.parameter.box : Remote<T0>
+    val local17
+      ImportedGenericCall defaultRead<T0, Remote<T0>> : T0
+        Local $dependency.parameter.box : Remote<T0>
+        Local $dependency.parameter.previous : T0
+    val local18
+      Local box : Remote<T0>
+    val local19
+      Local $dependency.argument.0 : Remote<T0>
+    val local20
+      VariantConstruct Option.Some<Remote<T0>> : Option<Remote<T0>>
+        Local $dependency.parameter._1 : Remote<T0>
+    val local21
+      Local $dependency.argument.0 : Option<Remote<T0>>
+    val local22
+      ImportedGenericCall optional<T0, Remote<T0>> : Option<T0>
+        Local $dependency.parameter.box : Option<Remote<T0>>
+    val local23
+      VariantConstruct Option.None<Remote<T0>> : Option<Remote<T0>>
+    val local24
+      Local $dependency.argument.0 : Option<Remote<T0>>
+    when
+      ImportedGenericCall optional<T0, Remote<T0>> : Option<T0>
+        Local $dependency.parameter.box : Option<Remote<T0>>
+      arm variant1()
+        assign $result.0
+          BoolLiteral true : Boolean
+      arm variant0(0: _)
+        assign $result.0
+          BoolLiteral false : Boolean
+      impossible <enum pattern matrix for Option<T0>>
+    val local26
+      Local $result.0 : Boolean
+    val local27
+      Local absent : Boolean
+    if
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local28
+      IntegerLiteral 1 : Int
+    val local29
+      IntegerLiteral 42 : Int
+    val local30
+      Local $dependency.argument.0 : Int
+    val local31
+      Local $dependency.argument.1 : Int
+    val local32
+      ImportedConstructorInit Remote : Remote<Int>
+        Local $dependency.parameter.value : Int
+        Local $dependency.parameter.alternate : Int
+    val local33
+      Local integer : Remote<Int>
+    val local34
+      IntegerLiteral 0 : Int
+    val local35
+      Local $dependency.argument.0 : Remote<Int>
+    val local36
+      Local $dependency.argument.1 : Int
+    val local37
+      ImportedGenericCall exchange<Int, Remote<Int>> : Int
+        Local $dependency.parameter.box : Remote<Int>
+        Local $dependency.parameter.next : Int
+    val local38
+      IntegerLiteral 42 : Int
+    val local39
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local43
+        BoolLiteral true : Boolean
+    else
+      val local40
+        ImportedGenericCall value<Int> : Int
+          ReferenceUpcast : Box<Int>
+            Local integer : Remote<Int>
+      val local41
+        IntegerLiteral 1 : Int
+      val local42
+        Local $dependency.argument.0 : Int
+      val local43
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      val local47
+        BoolLiteral true : Boolean
+    else
+      val local44
+        ImportedGenericCall alternate<Int> : Int
+          Local integer : Remote<Int>
+      val local45
+        IntegerLiteral 0 : Int
+      val local46
+        Local $dependency.argument.0 : Int
+      val local47
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local48
+      IntegerLiteral 40 : Int
+    val local49
+      Local $dependency.argument.0 : Int
+    val local50
+      ImportedConstructorInit Box : Box<Int>
+        Local $dependency.parameter.value : Int
+    val local51
+      Local $dependency.argument.0 : Box<Int>
+    val local52
+      ImportedGenericCall advance<Box<Int>> : Int
+        Local $dependency.parameter.box : Box<Int>
+    val local53
+      IntegerLiteral 42 : Int
+    val local54
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local55
+      AnonymousFunction anonymous0 invoke=$anonymous.0 captures=0 : () -> Int
+    val local56
+      Local $dependency.argument.0 : () -> Int
+    val local57
+      ImportedConstructorInit Box : Box<() -> Int>
+        Local $dependency.parameter.value : () -> Int
+    val local58
+      Local $dependency.argument.0 : Box<() -> Int>
+    return
+      ImportedGenericCall invoke<Box<() -> Int>> : Int
+        Local $dependency.parameter.box : Box<() -> Int>
+  fun result(): Int
+    val local0
+      StringLiteral "text" : String
+    val local1
+      Local $argument.0 : String
+    val local2
+      Call exercise<String> : Int
+        Local $parameter.value : String
+    val local3
+      IntegerLiteral 42 : Int
+    val local4
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local10
+        BoolLiteral true : Boolean
+    else
+      val local5
+        UnitLiteral : Unit
+      val local6
+        Local $argument.0 : Unit
+      val local7
+        Call exercise<Unit> : Int
+          Local $parameter.value : Unit
+      val local8
+        IntegerLiteral 42 : Int
+      val local9
+        Local $dependency.argument.0 : Int
+      val local10
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.3 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    val local11
+      IntegerLiteral 42 : Int
+    val local12
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+  output library
+  instance exercise<String>
+  instance exercise<Unit>
+  instance exercise<Int>

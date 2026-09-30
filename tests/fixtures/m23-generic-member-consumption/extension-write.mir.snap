@@ -71,9 +71,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun ReadOnlyProperty.value @fn6(this: ReadOnlyProperty<Int>) -> Int
+  fun ReadOnlyProperty.$get$value @fn6(this: ReadOnlyProperty<Int>) -> Int
     bb0 entry
-      trap "call to abstract method `ReadOnlyProperty.value`"
+      trap "call to abstract method `ReadOnlyProperty.$get$value`"
   fun init.PropertyItem.$c0 @fn7(this: PropertyItem<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -87,5 +87,5 @@ Module
   instance mi2 function=@fn3 <- value
   instance mi3 function=@fn4 <- $extension.extensionState
   instance mi4 function=@fn5 <- $extension.extensionState
-  instance mi5 function=@fn6 <- ReadOnlyProperty.value
+  instance mi5 function=@fn6 <- ReadOnlyProperty.$get$value
   output library

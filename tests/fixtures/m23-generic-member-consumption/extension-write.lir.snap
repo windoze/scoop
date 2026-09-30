@@ -1,5 +1,5 @@
 Module
-  global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `ReadOnlyProperty.value`"
+  global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `ReadOnlyProperty.$get$value`"
   fun @scoop$1$cb$dba2caa3c855067c454526c9f05f5ab206fdaabdbc2e492f1cc42026f6a431df() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32

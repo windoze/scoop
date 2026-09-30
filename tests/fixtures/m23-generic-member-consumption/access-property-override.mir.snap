@@ -39,10 +39,10 @@ Module
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.next
-      call $dependency.receiver: Int = @fn4 virtual[1]
+      call $dependency.receiver: Int = @fn2 virtual[1]
         Type ProtectedBox<Int>
         Local base
-      call $dependency.argument.0: Int = @fn1 direct
+      call $dependency.argument.0: Int = @fn4 direct
         Type Derived<Int>
         Local value
       val $dependency.parameter.other: Int
@@ -65,7 +65,7 @@ Module
       val $dependency.receiver: Int
         Type Int
         Local previous
-      call $dependency.argument.0: Int = @fn1 direct
+      call $dependency.argument.0: Int = @fn4 direct
         Type Derived<Int>
         Local value
       val $dependency.parameter.other: Int
@@ -78,36 +78,21 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun Derived.$get$state @fn1(this: Derived<Int>) -> Int
-    bb0 entry
-      return
-        Type Int
-        FieldAccess 3
-          Type Derived<Int>
-          Local this
-  fun Derived.$set$state @fn2(this: Derived<Int>, next: Int) -> Unit
-    bb0 entry
-      field_set 3
-        Type Derived<Int>
-        Local this
-        Type Int
-        Local next
-      return
-  fun secret @fn3(this: ProtectedBox<Int>) -> Int
+  fun secret @fn1(this: ProtectedBox<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type ProtectedBox<Int>
           Local this
-  fun state @fn4(this: ProtectedBox<Int>) -> Int
+  fun state @fn2(this: ProtectedBox<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 1
           Type ProtectedBox<Int>
           Local this
-  fun state @fn5(this: ProtectedBox<Int>, next: Int) -> Unit
+  fun state @fn3(this: ProtectedBox<Int>, next: Int) -> Unit
     bb0 entry
       field_set 1
         Type ProtectedBox<Int>
@@ -115,12 +100,27 @@ Module
         Type Int
         Local next
       return
+  fun Derived.$get$state @fn4(this: Derived<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 3
+          Type Derived<Int>
+          Local this
+  fun Derived.$set$state @fn5(this: Derived<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 3
+        Type Derived<Int>
+        Local this
+        Type Int
+        Local next
+      return
   fun replaceVirtual @fn6(this: ProtectedBox<Int>, next: Int) -> Int
     bb0 entry
-      call $dependency.local.2: Int = @fn4 virtual[1]
+      call $dependency.local.2: Int = @fn2 virtual[1]
         Type ProtectedBox<Int>
         Local this
-      call @fn5 virtual[2]
+      call @fn3 virtual[2]
         Type ProtectedBox<Int>
         Local this
         Type Int
@@ -167,10 +167,10 @@ Module
         Type Int
         Local stored
       return
-  instance mi0 function=@fn1 <- Derived.$get$state
-  instance mi1 function=@fn2 <- Derived.$set$state
-  instance mi2 function=@fn3 <- secret
-  instance mi3 function=@fn4 <- state
-  instance mi4 function=@fn5 <- state
+  instance mi0 function=@fn1 <- secret
+  instance mi1 function=@fn2 <- state
+  instance mi2 function=@fn3 <- state
+  instance mi3 function=@fn4 <- Derived.$get$state
+  instance mi4 function=@fn5 <- Derived.$set$state
   instance mi5 function=@fn6 <- replaceVirtual
   output library

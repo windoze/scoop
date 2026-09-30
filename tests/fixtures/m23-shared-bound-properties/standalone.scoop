@@ -1,0 +1,25 @@
+package consumer.boundProperties
+
+import upstream.boundProperties.*
+
+public fun <T> exercise(value: T): Int {
+    val box = Remote(value, value)
+    val first: T = stored(box)
+    val previous: T = exchange(box, value)
+    val fallback: T = defaultRead(box)
+    val present: T? = optional(Some(box))
+    val absent = when (optional<T, Remote<T>>(None)) {
+        None -> true
+        Some(_) -> false
+    }
+    if (!absent) { return 1 }
+    val integer = Remote(1, 42)
+    if (exchange(integer, 0) != 42 || integer.value != 1 || integer.alternate != 0) { return 2 }
+    if (advance(Box(40)) != 42) { return 3 }
+    return invoke(Box<() -> Int>(fun(): Int { return 42 }))
+}
+
+public fun result(): Int {
+    if (exercise<String>("text") != 42 || exercise<Unit>(Unit) != 42) { return 4 }
+    return exercise<Int>(42)
+}

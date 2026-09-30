@@ -11,6 +11,9 @@ mod declarations;
 mod delegates;
 mod extensions;
 mod implicit_values;
+mod lookup;
+mod method_callees;
+mod storage;
 
 pub(crate) use delegates::{DelegateRoleCall, ResolvedDelegateRoleCall};
 pub(crate) use extensions::{
@@ -121,113 +124,6 @@ impl Lowerer {
             })
     }
 
-    pub(crate) fn find_accessible_nominal_property(
-        &mut self,
-        receiver_ty: TypeId,
-        name: &str,
-    ) -> Option<(hir::PropertyId, hir::MethodOwnerApplication, TypeId)> {
-        match self.types[receiver_ty].clone() {
-            hir::Type::Class(application) => {
-                let (declaring, property, ty) = self.find_accessible_class_application_property(
-                    application,
-                    name,
-                    receiver_ty,
-                )?;
-                let owner = match self.properties[property].owner {
-                    hir::PropertyOwner::Object(object) => {
-                        hir::MethodOwnerApplication::Object(self.objects[object].object_type)
-                    }
-                    _ => hir::MethodOwnerApplication::Class(declaring),
-                };
-                Some((property, owner, ty))
-            }
-            hir::Type::Struct(application) => {
-                let value = self.struct_applications[application].clone();
-                let property = self.structs[value.template]
-                    .properties
-                    .iter()
-                    .copied()
-                    .find(|&property| {
-                        self.properties[property].name == name
-                            && self.property_is_accessible(property, Some(receiver_ty))
-                    })?;
-                let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
-                Some((
-                    property,
-                    hir::MethodOwnerApplication::Struct(application),
-                    ty,
-                ))
-            }
-            hir::Type::Enum(application) => {
-                let value = self.enum_applications[application].clone();
-                let property =
-                    self.enums[value.template]
-                        .properties
-                        .iter()
-                        .copied()
-                        .find(|&property| {
-                            self.properties[property].name == name
-                                && self.property_is_accessible(property, Some(receiver_ty))
-                        })?;
-                let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
-                Some((property, hir::MethodOwnerApplication::Enum(application), ty))
-            }
-            hir::Type::Interface(application) => {
-                let (property, declaring, ty) = self
-                    .find_accessible_interface_application_property(
-                        application,
-                        name,
-                        receiver_ty,
-                        &mut Vec::new(),
-                    )?;
-                Some((
-                    property,
-                    hir::MethodOwnerApplication::Interface(declaring),
-                    ty,
-                ))
-            }
-            _ => None,
-        }
-    }
-
-    pub(crate) fn find_accessible_interface_application_property(
-        &mut self,
-        application: hir::InterfaceApplicationId,
-        name: &str,
-        receiver_ty: TypeId,
-        seen: &mut Vec<hir::InterfaceApplicationId>,
-    ) -> Option<(hir::PropertyId, hir::InterfaceApplicationId, TypeId)> {
-        if seen.contains(&application) {
-            return None;
-        }
-        seen.push(application);
-        let value = self.interface_applications[application].clone();
-        if let Some(property) = self.interfaces[value.template]
-            .properties
-            .iter()
-            .copied()
-            .find(|&property| {
-                self.properties[property].name == name
-                    && self.property_is_accessible(property, Some(receiver_ty))
-            })
-        {
-            let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
-            return Some((property, application, ty));
-        }
-        for parent in self.interfaces[value.template].parents.clone() {
-            let parent_ty = self.instantiate_ty(parent, &value.arguments);
-            let hir::Type::Interface(parent) = self.types[parent_ty] else {
-                continue;
-            };
-            if let Some(property) =
-                self.find_accessible_interface_application_property(parent, name, receiver_ty, seen)
-            {
-                return Some(property);
-            }
-        }
-        None
-    }
-
     pub(crate) fn lower_property_read(
         &mut self,
         property: hir::PropertyId,
@@ -283,12 +179,11 @@ impl Lowerer {
                 self.check_call_effects(hir::Callable::Function(function), span);
                 match (owner_application, receiver) {
                     (Some(owner), Some(receiver)) => {
-                        let callable =
-                            hir::Callable::Method(self.record_method_application(function, owner));
+                        let callee = self.property_method_callee(function, owner, receiver.ty);
                         Some(hir::Expr {
                             kind: hir::ExprKind::MethodCall {
                                 receiver: Box::new(receiver),
-                                callee: hir::MethodCallee::Callable(callable),
+                                callee,
                                 args: Vec::new(),
                             },
                             ty,
@@ -356,12 +251,11 @@ impl Lowerer {
                 self.check_call_effects(hir::Callable::Function(function), span);
                 let expression = match (owner_application, receiver) {
                     (Some(owner), Some(receiver)) => {
-                        let callable =
-                            hir::Callable::Method(self.record_method_application(function, owner));
+                        let callee = self.property_method_callee(function, owner, receiver.ty);
                         hir::Expr {
                             kind: hir::ExprKind::MethodCall {
                                 receiver: Box::new(receiver),
-                                callee: hir::MethodCallee::Callable(callable),
+                                callee,
                                 args: vec![value],
                             },
                             ty: self.unit,
@@ -436,131 +330,6 @@ impl Lowerer {
                 span,
             });
         }
-    }
-
-    fn property_storage_read(
-        &mut self,
-        declaration: &hir::Property,
-        owner_application: Option<hir::MethodOwnerApplication>,
-        receiver: Option<hir::Expr>,
-        ty: TypeId,
-        span: ast::Span,
-    ) -> Option<hir::Expr> {
-        let kind = match &declaration.representation {
-            hir::PropertyRepresentation::Stored(stored) => match stored.backing {
-                hir::PropertyBacking::TopLevelGlobal { storage, .. } => {
-                    debug_assert!(receiver.is_none());
-                    hir::ExprKind::GlobalRead(storage)
-                }
-                hir::PropertyBacking::ClassField { field, .. } => {
-                    let receiver = receiver.expect("class storage access has a receiver");
-                    let application = match owner_application {
-                        Some(hir::MethodOwnerApplication::Class(application)) => application,
-                        Some(hir::MethodOwnerApplication::Object(object)) => {
-                            self.object_types[object].representation
-                        }
-                        _ => {
-                            unreachable!(
-                                "reference storage access has a reference owner application"
-                            )
-                        }
-                    };
-                    hir::ExprKind::FieldAccess {
-                        receiver: Box::new(receiver),
-                        field: self.class_field_reference(application, field),
-                    }
-                }
-                hir::PropertyBacking::StructField { owner: _, index } => {
-                    let receiver = receiver.expect("struct storage access has a receiver");
-                    let Some(hir::MethodOwnerApplication::Struct(application)) = owner_application
-                    else {
-                        unreachable!("struct storage access has a struct owner application")
-                    };
-                    let field = self.struct_field_reference(application, index);
-                    hir::ExprKind::FieldAccess {
-                        receiver: Box::new(receiver),
-                        field,
-                    }
-                }
-            },
-            hir::PropertyRepresentation::NativeStorage { storage } => {
-                debug_assert!(receiver.is_none());
-                if matches!(
-                    self.globals[*storage].storage,
-                    hir::GlobalStorage::Extern { .. }
-                ) {
-                    self.require_unsafe_operation(span, "reading an extern global");
-                }
-                hir::ExprKind::GlobalRead(*storage)
-            }
-            hir::PropertyRepresentation::AccessorOnly
-            | hir::PropertyRepresentation::Delegated { .. }
-            | hir::PropertyRepresentation::GenericDelegated { .. }
-            | hir::PropertyRepresentation::Const { .. } => {
-                unreachable!("only stored and native properties have storage accessors")
-            }
-        };
-        Some(hir::Expr {
-            kind,
-            ty,
-            span,
-            origin: self.expression_origin(span),
-        })
-    }
-
-    fn property_storage_write(
-        &mut self,
-        declaration: &hir::Property,
-        owner_application: Option<hir::MethodOwnerApplication>,
-        receiver: Option<hir::Expr>,
-        value: hir::Expr,
-    ) -> Option<hir::StatementKind> {
-        let target = match &declaration.representation {
-            hir::PropertyRepresentation::Stored(stored) => match stored.backing {
-                hir::PropertyBacking::TopLevelGlobal { storage, .. } => {
-                    debug_assert!(receiver.is_none());
-                    hir::AssignTarget::Global(storage)
-                }
-                hir::PropertyBacking::ClassField { field, .. } => {
-                    let receiver = receiver.expect("class storage write has a receiver");
-                    let application = match owner_application {
-                        Some(hir::MethodOwnerApplication::Class(application)) => application,
-                        Some(hir::MethodOwnerApplication::Object(object)) => {
-                            self.object_types[object].representation
-                        }
-                        _ => {
-                            unreachable!(
-                                "reference storage write has a reference owner application"
-                            )
-                        }
-                    };
-                    hir::AssignTarget::Field {
-                        receiver: Box::new(receiver),
-                        field: self.class_field_reference(application, field),
-                    }
-                }
-                hir::PropertyBacking::StructField { .. } => {
-                    unreachable!("value-type stored properties are immutable")
-                }
-            },
-            hir::PropertyRepresentation::NativeStorage { storage } => {
-                debug_assert!(receiver.is_none());
-                if matches!(
-                    self.globals[*storage].storage,
-                    hir::GlobalStorage::Extern { .. }
-                ) {
-                    self.require_unsafe_operation(value.span, "writing an extern global");
-                }
-                hir::AssignTarget::Global(*storage)
-            }
-            hir::PropertyRepresentation::AccessorOnly
-            | hir::PropertyRepresentation::Delegated { .. }
-            | hir::PropertyRepresentation::GenericDelegated { .. }
-            | hir::PropertyRepresentation::Const { .. } => {
-                unreachable!("only stored and native properties have storage setters")
-            }
-        };
-        Some(hir::StatementKind::Assign { target, value })
     }
 
     pub(crate) fn contextual_backing_field(
