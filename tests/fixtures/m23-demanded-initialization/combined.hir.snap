@@ -1,0 +1,43 @@
+Module
+  object Cache <object0 type0 value0 root0 init0>
+    field0 property0: Int
+    property0 val answer: Int getter0=storage <stored field0 init=expression>
+  fun $init$body$0(): Unit
+    assign singleton-root#0
+      ClassInit Cache : Cache
+  fun $init$ensure$0(): Unit
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      FieldAccess class field answer : Int
+        SingletonValue Cache : Cache
+    val local3
+      IntegerLiteral 42 : Int
+    val local4
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local value : T0
+  fun result(): Int
+    val local0
+      FieldAccess class field answer : Int
+        SingletonValue Cache : Cache
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

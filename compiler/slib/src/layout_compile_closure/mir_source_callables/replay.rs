@@ -113,20 +113,12 @@ pub(super) fn validate_sources(
                     mir.dispatch(),
                 )
                 .map_err(|error| Error::Dispatch(Box::new(error)))?;
-                let result = source.metadata().signature_exact_type(
-                    &scoop_identity::SignatureTypeKey::Nominal(
-                        scoop_identity::CoreBuiltinNominal::Unit
-                            .identity_record()
-                            .id(),
-                    ),
-                )?;
                 let initialization = scoop_mir::replay_source_initialization_units(
                     *provider,
                     source.metadata().source_initialization_units(),
                     parts.mir_foundation,
                     parts.mir_core.strong_callable_bridges(),
                     parts.identities,
-                    result,
                 )?;
                 scoop_wire::allocation::try_reserve(&mut units, 1, &path)?;
                 Ok(initialization)

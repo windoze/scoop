@@ -1,10 +1,10 @@
 //! Initialization contracts replayed from original source keys and MIR definitions.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use scoop_identity::{
     CallableOwner, CborIdentityRecord, CoreBuiltinNominal, Effect, ExactCallableSignature,
-    ExactTypeKey, InitializationUnitKey, PersistentExactTypeId,
+    ExactTypeKey, InitializationUnitKey,
 };
 
 use super::*;
@@ -19,7 +19,6 @@ pub fn replay_source_initialization_units(
     foundation: &crate::CanonicalMirFoundation,
     strong: &crate::StrongCallableBridgeSurfaceV1,
     graph: &ValidatedIdentityGraph,
-    unit_result: PersistentExactTypeId,
 ) -> Result<Vec<MirTypeBridgeInitializationUnitV1>, Error> {
     let mut sources = BTreeMap::new();
     for record in source_units {
@@ -27,7 +26,7 @@ pub fn replay_source_initialization_units(
             return Err(Error::NonCanonicalUnitInventory);
         }
     }
-    let mut required = BTreeSet::new();
+    let mut required = BTreeMap::new();
     for definition in strong.bridges() {
         let CallableOwner::Generated(callable) = definition.implementation() else {
             continue;
@@ -63,12 +62,26 @@ pub fn replay_source_initialization_units(
             });
         }
 
-        if !required.contains(&unit) {
-            required.insert(unit);
-        }
+        required
+            .entry(unit)
+            .or_insert(definition.signature().result());
     }
     let mut units = super::super::reserve(required.len())?;
-    for unit in required {
+    let Some((&first_unit, &unit_result)) = required.first_key_value() else {
+        return Ok(units);
+    };
+    let result_key = ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id());
+    if graph
+        .canonical_key::<_, ExactTypeKey>(unit_result)?
+        .as_ref()
+        != &result_key
+    {
+        return Err(Error::Unit {
+            unit: first_unit,
+            problem: Problem::Signature,
+        });
+    }
+    for (unit, _) in required {
         // Provider resolution follows both the unit key and its source owner.
 
         if super::super::super::objects::unit_provider(graph, unit)? != Some(provider) {
@@ -78,16 +91,6 @@ pub fn replay_source_initialization_units(
             });
         }
 
-        if graph
-            .canonical_key::<_, ExactTypeKey>(unit_result)?
-            .as_ref()
-            != &ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id())
-        {
-            return Err(Error::Unit {
-                unit,
-                problem: Problem::Signature,
-            });
-        }
         let exact = ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit_result);
         let initializer = role(
             unit,

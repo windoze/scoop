@@ -10,6 +10,7 @@ mod callable_signatures;
 mod concrete_calls;
 mod constructors;
 mod delegates;
+mod demanded_initialization;
 mod equality;
 mod globals;
 mod helpers;

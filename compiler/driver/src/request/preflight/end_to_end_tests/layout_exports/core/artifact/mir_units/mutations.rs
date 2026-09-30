@@ -10,7 +10,6 @@ pub(super) fn check(replay: &Replay<'_>, units: &[mir::MirTypeBridgeInitializati
             replay.foundation,
             replay.strong,
             replay.metadata.identities,
-            replay.unit_result,
         ),
         Err(Error::Unit {
             problem: Problem::MissingSource,
@@ -24,7 +23,6 @@ pub(super) fn check(replay: &Replay<'_>, units: &[mir::MirTypeBridgeInitializati
             replay.foundation,
             replay.strong,
             replay.metadata.identities,
-            replay.unit_result,
         ),
         Err(Error::Unit {
             problem: Problem::WrongProvider,

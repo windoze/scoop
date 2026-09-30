@@ -342,5 +342,12 @@
 - 删除 Export HIR 的 `ImportedDependencyCall`；当前 callable、普通外部定义及非成员模板 application 共用 `Call` 与已有 typed target。默认值替换、GC／pointee 条件、引用收集、委托访问器及具体化消费共同目标，原名称绑定和静态 receiver 随替换保留。成员和限定 super 仍保留既定派发，本批未把剩余成员操作或全部候选迁移记为完成。
 - 新增 `m23-shared-source-calls` 两组正例、三个反例与九份快照，覆盖别名、当前／依赖泛型、默认值、扩展、局部函数、closure 和具副作用的逆序命名实参。真实源码移走、再次发布及 consumer-local class／String／Int／Unit 在普通／移动 GC 运行通过；反例保留 managed 调用与泛型 GC 条件的准确源码诊断。
 - 全仓 fmt／clippy 无警告，862 项 HIR、1329 项 HIR lowering 和 114 项 MIR lowering 单元全部通过。74 组泛型真实产物测试关闭所有快照更新开关复验通过；完整 core 三组 MIR／LIR 导出闭包亦通过。378 份既有快照中，375 份只修改调用标签；另外三份同步两处临时 TypeId 与静态 receiver 类型先处理带来的 class／layout 枚举顺序，原身份、签名、布局内容与机器指令保持。
-- 扩展回归中的包可见性反例暴露 reader 对无初始化入口产物仍要求 Unit exact record；上一批冻结编译器复现同一错误，证据为 `baseline-visibility.log`。该问题继续作为独立初始化需求修复处理，没有删掉反例或放宽产物校验。其余最终证据前缀 `/tmp/scoop-m23-6a-shared-source-calls-`，结果见 `unit.log`、`verified-artifacts.json` 与 `snapshot-audit.json`。
-- 按实际职责拆出 96 行的共同调用效果检查和 52 行的调用名称输出；原效果表达式降至 508 行，默认引用收集为 455 行。wire payload 与 runtime ABI 保持。确认没有 cargo／rustc 占用后清理约 1697.0 MiB 旧增量缓存，继续复用 `target/m23-6a`。
+- 扩展回归中的包可见性反例暴露 reader 的缺失 exact type 错误；上一批冻结编译器复现同一错误，证据为 `baseline-visibility.log`。后续通过原身份模块确认缺失类型并非 Unit，该回归继续单独定位，没有删掉反例或放宽产物校验。其余最终证据前缀 `/tmp/scoop-m23-6a-shared-source-calls-`，结果见 `unit.log`、`verified-artifacts.json` 与 `snapshot-audit.json`。
+- 按实际职责拆出 96 行的共同调用效果检查和 48 行的调用名称输出；原效果表达式降至 508 行，默认引用收集为 455 行。wire payload 与 runtime ABI 保持。确认没有 cargo／rustc 占用后清理约 1697.0 MiB 旧增量缓存，继续复用 `target/m23-6a`。
+
+## 按实际初始化入口读取 Unit 返回类型
+
+- MIR reader 先从实际 Strong generated callable 收集初始化单元，只有非空需求才读取并核对 canonical Unit 返回类型。删除调用方无条件查找 Unit 的前置步骤；全部实际 initializer／ensure 仍须匹配原 source key、provider、成对角色和完整签名，同一 Unit 身份只检查一次。未物化声明不成为类型或机器根，wire 与 runtime ABI 保持。
+- 新增 `m23-demanded-initialization` 两组正例和六份阶段快照，覆盖只有 Int 返回值的普通库、泛型调用与实际 object 初始化组合。再次发布后以 consumer-local class、Int 和 Unit 实例化，普通／移动 GC 运行通过；全部新快照关闭更新开关复验成功。
+- 全仓 fmt／clippy 无警告，341 项 MIR 与 584 项 slib 单元测试全部通过。8 组既有真实产物回归严格通过，包含完整 core 三组 MIR／LIR 闭包、初始化来源和 ABI、object、构造、泛型 dispatch 及共同调用；实际初始化缺来源、错 provider、缺角色和签名反例保持。包可见性回归仍报另一个 exact type 缺失，不计入本批通过项。
+- 最终日志前缀 `/tmp/scoop-m23-6a-demanded-initialization-`，结果见 `unit.log`、`new-verified-results.json` 和 `verified-results.json`。初始化重放模块为 169 行，继续复用 `target/m23-6a`。

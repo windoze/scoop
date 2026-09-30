@@ -1,0 +1,204 @@
+Module
+  global0 $singleton$Cache: Cache managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object-private:main.scoop:Cache singleton lazy global0 initializer=@fn0 ensure=@fn1 failure=1 deps=[]
+  enum CoroutineStep<Cache>
+    Completed(value: Cache)
+    Suspended()
+  enum CoroutineSlot<Cache>
+    Empty()
+    Value(value: Cache)
+  class Cache vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
+  generated_exact_type get0 location=enum1 nominal_id=9cee02b228124be5020ba365fb5354b18fdb5c76f8bfafe7a8720391ed9f90ab exact_id=67db352bdb340f0cf986861072affaafa5ec78b32cedc37d4467acac31d4ffda
+  generated_exact_type get1 location=enum0 nominal_id=aa690d5c9f5455ebb459709bf230119dc2d85488185d010fb2b0396f168f4e44 exact_id=e66e7de4a1a4bf7c311cdec493550a6989c8257e458d8ff7ebbb84c6e1bab255
+  generated_exact_type get2 location=closure0 nominal_id=8168d2f0af17f855cd66407fa67c8ef8373f59d807dc3a1f87d04208d6206cc5 exact_id=ea9861ba9f144ca54c10226c0cc3308c3d616023276048d7f6ce461f20f0af85
+  fun $init$body$0 @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Cache
+        ClassAlloc Cache
+      call @fn5 direct
+        Type Cache
+        Local $new.1
+      global_assign $singleton$Cache
+        Type Cache
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn1() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Cache
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn0 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Cache
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Cache
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Cache
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Cache
+      call external1 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun result @fn2() -> Int
+    bb0 entry
+      call @fn1 direct
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Cache
+          GlobalRead $singleton$Cache
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn3($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn4(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      call @fn1 direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cache
+          GlobalRead $singleton$Cache
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun init.Cache.$c0 @fn5(this: Cache) -> Unit
+    bb0 entry
+      call $call.1: Int = external0 direct
+      field_set 0
+        Type Cache
+        Local this
+        Type Int
+        Local $call.1
+      return
+  coroutine_step cs0 CoroutineStep<Cache> result=Cache
+  coroutine_slot cl0 CoroutineSlot<Cache> value=Cache
+  instance mi0 function=@fn4 <- exercise
+  output library

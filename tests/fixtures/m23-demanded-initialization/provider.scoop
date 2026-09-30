@@ -1,0 +1,2 @@
+package upstream.leaf
+public fun number(): Int = 42

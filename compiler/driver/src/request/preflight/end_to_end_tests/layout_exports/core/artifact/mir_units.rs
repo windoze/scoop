@@ -85,7 +85,6 @@ impl Replay<'_> {
             self.foundation,
             self.strong,
             self.metadata.identities,
-            self.unit_result,
         )
     }
 }
