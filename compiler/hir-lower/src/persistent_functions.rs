@@ -205,8 +205,14 @@ impl FunctionIdentityBuilder<'_> {
             .copied()
         {
             let local = &self.lowerer.local_functions[local];
-            let context =
-                self.context_for_site(function, local.definition_root, &local.definition_path)?;
+            let context = self.context_for_site(
+                function,
+                local
+                    .source()
+                    .expect("source identity has a current declaration")
+                    .1,
+                &local.definition_path,
+            )?;
             let inherited = &signature.type_params[..signature.owner_type_param_count];
             if inherited.len() != context.binders.len()
                 || inherited
@@ -301,8 +307,14 @@ impl FunctionIdentityBuilder<'_> {
             .copied()
         {
             let local = &self.lowerer.local_functions[local];
-            let context =
-                self.context_for_site(source, local.definition_root, &local.definition_path)?;
+            let context = self.context_for_site(
+                source,
+                local
+                    .source()
+                    .expect("source identity has a current declaration")
+                    .1,
+                &local.definition_path,
+            )?;
             let inherited = &signature.type_params[..signature.owner_type_param_count];
             if inherited.len() != context.binders.len()
                 || inherited

@@ -29,7 +29,7 @@ fn defaults_carry_their_own_local_callables_without_requiring_external_lookup() 
         let mut declarations = std::collections::HashSet::new();
         for reference in &body.references.callables {
             if let hir::ExportDefaultCallableTarget::LocalFunction(local) = reference.target {
-                declarations.insert(export.local_functions[local].function);
+                declarations.insert(export.local_functions[local].source_function());
             }
         }
         assert_eq!(declarations.len(), 1, "{name}");

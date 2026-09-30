@@ -30,6 +30,7 @@ mod publication;
 mod qualified_types;
 mod ranges;
 mod reexported_namespaces;
+mod reference_targets;
 mod references;
 mod selection;
 mod shared_bounds;

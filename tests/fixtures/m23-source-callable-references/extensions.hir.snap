@@ -1,20 +1,20 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      CallableReference reference0 target=imported retain captures=0 : (T0) -> T0
+      CallableReference reference0 target=retain<T0> captures=0 : (T0) -> T0
     val local2
-      CallableReference reference1 target=imported retain captures=0 : () -> T0
+      CallableReference reference1 target=retain<T0> captures=0 : () -> T0
         Local value : T0
     val local3
-      CallableReference reference2 target=imported extensionSelect captures=0 : (T0, Int) -> Int
+      CallableReference reference2 target=extensionSelect<T0> captures=0 : (T0, Int) -> Int
     val local4
-      CallableReference reference3 target=imported extensionSelect captures=0 : (Int) -> Int
+      CallableReference reference3 target=extensionSelect<T0> captures=0 : (Int) -> Int
         Local value : T0
     val local5
-      CallableReference reference4 target=dependency #0 captures=0 : () -> Int
+      CallableReference reference4 target=external #0 captures=0 : () -> Int
         IntegerLiteral 41 : Int
     val local6
-      CallableReference reference5 target=dependency #0 captures=0 : (Int) -> Int
+      CallableReference reference5 target=external #0 captures=0 : (Int) -> Int
     val local7
       CallableReference reference6 target=intrinsic Integer(NoGcOperation { kind: IntegerKind { signedness: Signed, width: W32 }, operation: Equals }) captures=0 : (Int) -> Boolean
         IntegerLiteral 42 : Int

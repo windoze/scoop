@@ -30,7 +30,7 @@ Module
   fun exercise<T>(value: T0): Int
     Call resetEvaluations : Unit
     val local1
-      CallableReference reference0 target=dependency #1 captures=0 : () -> Int
+      CallableReference reference0 target=external #1 captures=0 : () -> Int
         Call next : Plain
     val local2
       IntegerLiteral 42 : Int
@@ -40,7 +40,7 @@ Module
       Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local5
-      CallableReference reference1 target=dependency #1 captures=0 : () -> Int
+      CallableReference reference1 target=external #1 captures=0 : () -> Int
         Local current : Plain
     val local6
       IntegerLiteral 1 : Int
@@ -50,7 +50,7 @@ Module
       Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local8
-      CallableReference reference2 target=imported choose captures=0 : (T0) -> T0
+      CallableReference reference2 target=choose<T0> captures=0 : (T0) -> T0
         Local current : Plain
     val local9
       Local value : T0
@@ -60,11 +60,11 @@ Module
       ImportedConstructorInit Child : Child<T0>
         Local $dependency.parameter.value : T0
     val local12
-      CallableReference reference3 target=imported read captures=0 : () -> T0
+      CallableReference reference3 target=read<T0> captures=0 : () -> T0
         ReferenceUpcast : Box<T0>
           Local child : Child<T0>
     val local13
-      CallableReference reference4 target=imported choose captures=0 : (T0, Int) -> Int
+      CallableReference reference4 target=choose<T0, Int> captures=0 : (T0, Int) -> Int
         ReferenceUpcast : Box<T0>
           Local child : Child<T0>
     val local14
@@ -75,7 +75,7 @@ Module
       ImportedConstructorInit Cell : Cell<T0>
         Local $dependency.parameter.value : T0
     val local17
-      CallableReference reference5 target=imported read captures=0 : () -> T0
+      CallableReference reference5 target=read<T0> captures=0 : () -> T0
         Local cell : Cell<T0>
     val local18
       TupleLiteral : (T0, T0, T0)

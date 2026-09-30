@@ -227,12 +227,10 @@ impl DefaultEntityProjector<'_> {
             .export
             .local_functions
             .values()
-            .map(|declaration| {
-                (
-                    declaration.function,
-                    declaration.definition_root,
-                    &declaration.definition_path,
-                )
+            .filter_map(|declaration| {
+                declaration
+                    .source()
+                    .map(|(function, root)| (function, root, &declaration.definition_path))
             })
             .chain(self.export.lambdas.values().map(|declaration| {
                 (

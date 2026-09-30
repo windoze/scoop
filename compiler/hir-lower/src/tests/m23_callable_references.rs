@@ -207,21 +207,13 @@ fn selected_function(module: &hir::Module) -> hir::FunctionId {
     let hir::ExprKind::CallableReference(reference) = expression.kind else {
         panic!("selected value is a callable reference")
     };
-    match &module.callable_references[reference].target {
-        hir::CallableReferenceTarget::Named(callee) => module.callable_function(*callee),
-        hir::CallableReferenceTarget::BoundExtension { callee, .. } => {
-            module.callable_function(*callee)
-        }
-        hir::CallableReferenceTarget::BoundMember { callee, .. } => {
-            module.callable_function(crate::tests::local_method_callable(module, *callee))
-        }
-        hir::CallableReferenceTarget::Local { .. } => {
-            panic!("the selected declaration is not local")
-        }
-        hir::CallableReferenceTarget::Imported(_) => {
-            panic!("the selected declaration does not belong to a dependency")
-        }
-    }
+    let Some(hir::CallableTarget::Local(callee)) = module.callable_references[reference]
+        .target
+        .callee(&module.bound_callable_refs)
+    else {
+        panic!("the selected declaration belongs to the current source")
+    };
+    module.callable_function(callee)
 }
 
 fn selected_marker(module: &hir::Module) -> i64 {

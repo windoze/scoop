@@ -51,25 +51,50 @@ pub enum CallableBodyTypeArguments {
     Explicit(Vec<TypeId>),
 }
 
-/// A block-local named function. `function` is its lifted body; direct calls
-/// pass `captures` as hidden parameters, while taking `::name` materializes a
-/// closure over the same body.
+/// A block-local named function. Its definition locates the lifted body;
+/// direct calls pass `captures` as hidden parameters, while taking `::name`
+/// materializes a closure over the same body.
 #[derive(Debug, Clone)]
 pub struct LocalFunction {
-    pub definition_root: LexicalDefinitionRoot,
+    pub definition: LocalFunctionDefinition,
     /// Stable lexical declaration path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
-    pub function: FunctionId,
     /// Source signature in the lifted declaration's own binder frame.
     pub declaration_function_type: FunctionTypeId,
     /// Signature at this occurrence, after any default expansion.
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
-    /// Complete inherited arguments at this occurrence, including unused binders.
-    /// Their length is the owner prefix of the lifted declaration's parameters.
-    pub owner_type_arguments: Vec<TypeId>,
+    /// Inherited binder prefix of the lifted declaration. Actual uses carry
+    /// their complete arguments on the selected callable target.
+    pub owner_type_param_count: usize,
     pub origin: DefinitionOrigin,
     pub span: Span,
+}
+
+/// Storage location of a named lexical body. Its source identity and binder
+/// frame remain attached to that definition, independently of occurrences.
+#[derive(Debug, Clone, Copy)]
+pub enum LocalFunctionDefinition {
+    Source {
+        function: FunctionId,
+        root: LexicalDefinitionRoot,
+    },
+    Template(ImportedGenericCallableTemplateId),
+}
+
+impl LocalFunction {
+    pub fn source(&self) -> Option<(FunctionId, LexicalDefinitionRoot)> {
+        match self.definition {
+            LocalFunctionDefinition::Source { function, root } => Some((function, root)),
+            LocalFunctionDefinition::Template(_) => None,
+        }
+    }
+
+    pub fn source_function(&self) -> FunctionId {
+        self.source()
+            .expect("source lookup retains its current declaration")
+            .0
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -92,13 +117,10 @@ pub struct CallableReference {
 
 #[derive(Debug, Clone)]
 pub enum CallableReferenceTarget {
-    Named(Callable),
-    /// A dependency declaration selected by a reference written in this Cone.
-    /// The invoke identity still belongs to the local reference expression.
-    Imported(ImportedCallableReferenceTarget),
+    Named(CallableTarget),
     Local {
-        local_function: LocalFunctionId,
-        callee: Callable,
+        definition_path: scoop_identity::StructuralDefinitionPath,
+        callee: CallableTarget,
     },
     /// A member reference whose receiver expression is evaluated when the
     /// closure is created. The receiver's static type remains attached to the
@@ -112,17 +134,40 @@ pub enum CallableReferenceTarget {
     /// receiver to the ordinary source arguments.
     BoundExtension {
         receiver: Box<Expr>,
-        callee: Callable,
+        callee: CallableTarget,
+    },
+    BoundIntrinsic {
+        receiver: Box<Expr>,
+        declaration: scoop_identity::PersistentFunctionId,
+        intrinsic: PrimitiveMemberIntrinsic,
     },
 }
 
 impl CallableReferenceTarget {
+    pub fn callee(&self, bounds: &Arena<BoundCallableRef>) -> Option<CallableTarget> {
+        match self {
+            Self::Named(callee)
+            | Self::Local { callee, .. }
+            | Self::BoundExtension { callee, .. } => Some(*callee),
+            Self::BoundMember { callee, .. } => callee.declared_callable(bounds),
+            Self::BoundIntrinsic { .. } => None,
+        }
+    }
+
     pub fn receiver(&self) -> Option<&Expr> {
         match self {
-            Self::BoundMember { receiver, .. } | Self::BoundExtension { receiver, .. } => {
-                Some(receiver)
-            }
-            Self::Imported(target) => target.receiver(),
+            Self::BoundMember { receiver, .. }
+            | Self::BoundExtension { receiver, .. }
+            | Self::BoundIntrinsic { receiver, .. } => Some(receiver),
+            Self::Named(_) | Self::Local { .. } => None,
+        }
+    }
+
+    pub fn receiver_mut(&mut self) -> Option<&mut Expr> {
+        match self {
+            Self::BoundMember { receiver, .. }
+            | Self::BoundExtension { receiver, .. }
+            | Self::BoundIntrinsic { receiver, .. } => Some(receiver),
             Self::Named(_) | Self::Local { .. } => None,
         }
     }

@@ -5,8 +5,8 @@ use crate::Lowerer;
 mod callables;
 use callables::collect_callable_reference_types;
 pub(in super::super) use callables::{
-    collect_callable_target_types, collect_callable_types, collect_imported_reference_target_types,
-    collect_method_callee_types,
+    collect_callable_target_types, collect_callable_types, collect_method_callee_types,
+    collect_reference_target_types,
 };
 
 pub(in super::super) fn collect_body_types(
@@ -416,7 +416,7 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::ImportedCallableReference(reference) => {
             collect_function_type_types(lowerer, reference.function_type, out);
             out.extend(reference.owner_type_arguments.iter().copied());
-            collect_imported_reference_target_types(lowerer, &reference.target, out);
+            collect_reference_target_types(lowerer, &reference.target, out);
             if let Some(receiver) = reference.target.receiver() {
                 collect_expr_types(lowerer, receiver, out);
             }

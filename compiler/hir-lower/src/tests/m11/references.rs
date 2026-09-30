@@ -71,7 +71,9 @@ fn top_level_reference_is_a_distinct_typed_entity() {
         )]
     );
     assert!(reference.captures.is_empty());
-    let hir::CallableReferenceTarget::Named(callable) = &reference.target else {
+    let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(callable)) =
+        &reference.target
+    else {
         panic!("expected a top-level callable reference")
     };
     let target = module.callable_function(*callable);
@@ -116,7 +118,8 @@ fn inapplicable_local_reference_layer_falls_through_to_top_level() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::Named(callee) = reference.target else {
+    let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(callee)) = reference.target
+    else {
         panic!("the top-level reference layer must win")
     };
     let function = module.callable_function(callee);
@@ -153,7 +156,9 @@ fn generic_top_level_reference_is_fixed_by_its_expected_type() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::Named(hir::Callable::Generic(resolved)) = &reference.target
+    let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(hir::Callable::Generic(
+        resolved,
+    ))) = &reference.target
     else {
         panic!("expected a resolved generic reference")
     };
@@ -292,7 +297,10 @@ fn bound_extension_reference_has_a_distinct_direct_target() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::BoundExtension { receiver, callee } = &reference.target
+    let hir::CallableReferenceTarget::BoundExtension {
+        receiver,
+        callee: hir::CallableTarget::Local(callee),
+    } = &reference.target
     else {
         panic!("expected a bound extension target")
     };
@@ -349,7 +357,11 @@ fn inapplicable_bound_member_reference_falls_through_to_extension() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::BoundExtension { callee, .. } = reference.target else {
+    let hir::CallableReferenceTarget::BoundExtension {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = reference.target
+    else {
         panic!("the extension reference layer must win")
     };
     let function = module.callable_function(callee);

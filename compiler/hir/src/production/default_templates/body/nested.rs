@@ -1,9 +1,9 @@
 //! Projection of lexical callables and their capture ABI.
 
 use crate::{
-    CallableBodyTypeArguments, CallableReferenceTarget, DefaultAnonymousFunctionV1,
-    DefaultCallableBodyTypeArgumentsV1, DefaultCallableReferenceTargetV1,
-    DefaultCallableReferenceV1, DefaultCaptureV1, DefaultLambdaV1, DefaultLocalFunctionV1,
+    CallableBodyTypeArguments, DefaultAnonymousFunctionV1, DefaultCallableBodyTypeArgumentsV1,
+    DefaultCallableReferenceTargetV1, DefaultCallableReferenceV1, DefaultCaptureV1,
+    DefaultLambdaV1, DefaultLocalFunctionV1,
 };
 
 use super::BodyProjection;
@@ -13,7 +13,7 @@ impl BodyProjection<'_, '_> {
         &mut self,
         reference: &crate::ImportedCallableReference,
     ) -> Result<DefaultCallableReferenceV1, super::super::DefaultBodyProjectionError> {
-        let target = self.imported_reference_target(&reference.target)?;
+        let target = self.reference_target(&reference.target)?;
         let scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { path, .. } =
             reference.definition.key()
         else {
@@ -30,12 +30,12 @@ impl BodyProjection<'_, '_> {
         .map_err(super::super::DefaultBodyProjectionError::CallableReference)
     }
 
-    fn imported_reference_target(
+    fn reference_target(
         &mut self,
-        target: &crate::ImportedCallableReferenceTarget,
+        target: &crate::CallableReferenceTarget,
     ) -> Result<DefaultCallableReferenceTargetV1, super::super::DefaultBodyProjectionError> {
         Ok(match target {
-            crate::ImportedCallableReferenceTarget::BoundIntrinsic {
+            crate::CallableReferenceTarget::BoundIntrinsic {
                 receiver,
                 declaration,
                 ..
@@ -50,32 +50,35 @@ impl BodyProjection<'_, '_> {
                     .map_err(super::super::DefaultEntityProjectionError::Callable)?,
                 ),
             },
-            crate::ImportedCallableReferenceTarget::Named(callee) => {
+            crate::CallableReferenceTarget::Named(callee) => {
                 DefaultCallableReferenceTargetV1::Named(self.callable_target(*callee)?)
             }
-            crate::ImportedCallableReferenceTarget::Local(application) => {
-                let export = self.entities.export();
-                let template = &export.imported_generic_templates
-                    [export.imported_generic_applications[*application].template];
-                let crate::ImportedCallableTemplateOrigin::Local { descriptor, .. } =
-                    &template.declaration
-                else {
-                    unreachable!("a local reference retains its declaration");
+            crate::CallableReferenceTarget::Local { callee, .. } => {
+                let callee = self.callable_target(*callee)?;
+                let declaration = match callee.declaration() {
+                    crate::DefaultCallableDeclarationV1::Function(id) => {
+                        scoop_identity::CallableTemplateOrigin::Function(id)
+                    }
+                    crate::DefaultCallableDeclarationV1::GenericFunction(id) => {
+                        scoop_identity::CallableTemplateOrigin::GenericFunction(id)
+                    }
+                    crate::DefaultCallableDeclarationV1::PropertyAccessor(_)
+                    | crate::DefaultCallableDeclarationV1::Generated(_) => {
+                        unreachable!("a local reference retains a source function declaration")
+                    }
                 };
                 DefaultCallableReferenceTargetV1::Local {
-                    declaration: descriptor.declaration(),
-                    callee: self
-                        .entities
-                        .imported_generic_callable(*application, self.binders)?,
+                    declaration,
+                    callee,
                 }
             }
-            crate::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
+            crate::CallableReferenceTarget::BoundMember { receiver, callee } => {
                 DefaultCallableReferenceTargetV1::BoundMember {
                     receiver: Box::new(self.expression(receiver)?),
                     callee: self.method_callee(*callee)?,
                 }
             }
-            crate::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
+            crate::CallableReferenceTarget::BoundExtension { receiver, callee } => {
                 DefaultCallableReferenceTargetV1::BoundExtension {
                     receiver: Box::new(self.expression(receiver)?),
                     callee: self.callable_target(*callee)?,
@@ -191,12 +194,11 @@ impl BodyProjection<'_, '_> {
         let function = self.local_function_record(id)?;
 
         DefaultLocalFunctionV1::try_new(
-            self.entities
-                .source_callable_declaration(function.function)?,
+            self.entities.local_function_declaration(id)?,
             function.definition_path.clone(),
             self.entities.local_function_signature(id, self.binders)?,
             self.captures(&function.captures)?,
-            owner_parameter_count(function.owner_type_arguments.len())?,
+            owner_parameter_count(function.owner_type_param_count)?,
         )
         .map_err(super::super::DefaultBodyProjectionError::LocalFunction)
     }
@@ -213,9 +215,8 @@ impl BodyProjection<'_, '_> {
         id: crate::LocalFunctionId,
     ) -> Result<scoop_identity::CallableTemplateOrigin, super::super::DefaultBodyProjectionError>
     {
-        let function = self.local_function_record(id)?;
         self.entities
-            .source_callable_declaration(function.function)
+            .local_function_declaration(id)
             .map_err(Into::into)
     }
 
@@ -228,31 +229,7 @@ impl BodyProjection<'_, '_> {
                 kind: "callable reference",
                 index: super::super::raw_index(id),
             })?;
-        let target = match &reference.target {
-            CallableReferenceTarget::Imported(target) => self.imported_reference_target(target)?,
-            CallableReferenceTarget::Named(callee) => DefaultCallableReferenceTargetV1::Named(
-                self.entities.callable(*callee, self.binders)?,
-            ),
-            CallableReferenceTarget::Local {
-                local_function,
-                callee,
-            } => DefaultCallableReferenceTargetV1::Local {
-                declaration: self.local_function_declaration(*local_function)?,
-                callee: self.entities.callable(*callee, self.binders)?,
-            },
-            CallableReferenceTarget::BoundMember { receiver, callee } => {
-                DefaultCallableReferenceTargetV1::BoundMember {
-                    receiver: Box::new(self.expression(receiver)?),
-                    callee: self.method_callee(*callee)?,
-                }
-            }
-            CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                DefaultCallableReferenceTargetV1::BoundExtension {
-                    receiver: Box::new(self.expression(receiver)?),
-                    callee: self.entities.callable(*callee, self.binders)?,
-                }
-            }
-        };
+        let target = self.reference_target(&reference.target)?;
 
         DefaultCallableReferenceV1::try_new(
             self.entities

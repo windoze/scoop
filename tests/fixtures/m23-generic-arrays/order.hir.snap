@@ -398,7 +398,7 @@ Module
       Call pack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
     val local117
-      CallableReference reference0 target=imported pack captures=0 : (Array<Int>) -> Array<Int>
+      CallableReference reference0 target=pack<Int> captures=0 : (Array<Int>) -> Array<Int>
     val local118
       ArrayAssembly : Array<Int>
     val local119

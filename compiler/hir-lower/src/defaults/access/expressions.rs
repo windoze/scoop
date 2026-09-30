@@ -3,12 +3,12 @@ use scoop_hir as hir;
 use super::ReferenceCollector;
 
 impl ReferenceCollector<'_> {
-    pub(super) fn imported_reference_target(
+    pub(super) fn reference_target(
         &mut self,
-        target: &hir::ImportedCallableReferenceTarget,
+        target: &hir::CallableReferenceTarget,
         origin: hir::DefinitionOrigin,
     ) {
-        if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } = target {
+        if let hir::CallableReferenceTarget::BoundMember { callee, .. } = target {
             self.method_callee_shape(*callee, origin);
         } else if let Some(callee) = target.callee(&self.lowerer.bound_callable_refs) {
             self.callable_target_shape(callee, origin);
@@ -185,7 +185,7 @@ impl ReferenceCollector<'_> {
                 }
             }
             hir::ExprKind::ImportedCallableReference(reference) => {
-                self.imported_reference_target(&reference.target, origin);
+                self.reference_target(&reference.target, origin);
                 self.function_type_reference(reference.function_type, origin);
                 for ty in &reference.owner_type_arguments {
                     self.type_reference(*ty, origin);

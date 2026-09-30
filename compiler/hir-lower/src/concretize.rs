@@ -213,8 +213,7 @@ struct Concretizer<'a> {
         concrete::AnonymousFunctionId,
     >,
     local_functions: Arena<concrete::LocalFunction>,
-    local_by_key:
-        HashMap<(export::LocalFunctionId, Vec<concrete::TypeId>), concrete::LocalFunctionId>,
+    local_by_function: HashMap<concrete::FunctionId, concrete::LocalFunctionId>,
     callable_reference_slots: Vec<PendingCallableReference>,
     reference_by_key: HashMap<
         (export::CallableReferenceId, Vec<concrete::TypeId>),
@@ -389,7 +388,7 @@ impl<'a> Concretizer<'a> {
             anonymous_functions: Arena::new(),
             anonymous_by_key: HashMap::new(),
             local_functions: Arena::new(),
-            local_by_key: HashMap::new(),
+            local_by_function: HashMap::new(),
             callable_reference_slots: Vec::new(),
             reference_by_key: HashMap::new(),
             imported_dependency_callables,

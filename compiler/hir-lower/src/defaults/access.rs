@@ -95,14 +95,18 @@ impl ReferenceCollector<'_> {
         }
     }
 
+    fn selected_callable_domain(&self, target: hir::CallableTarget) -> hir::AccessDomain {
+        match target {
+            hir::CallableTarget::Local(callable) => self.callable_domain(callable),
+            hir::CallableTarget::Application(_) | hir::CallableTarget::Dependency(_) => {
+                hir::AccessDomain::universal()
+            }
+        }
+    }
+
     fn method_callee_domain(&self, callee: hir::MethodCallee) -> hir::AccessDomain {
         if let Some(target) = callee.declared_callable(&self.lowerer.bound_callable_refs) {
-            return match target {
-                hir::CallableTarget::Local(callable) => self.callable_domain(callable),
-                hir::CallableTarget::Application(_) | hir::CallableTarget::Dependency(_) => {
-                    hir::AccessDomain::universal()
-                }
-            };
+            return self.selected_callable_domain(target);
         }
         let hir::MethodCallee::DerivedEquality(application) = callee else {
             unreachable!("a method without a declared target is derived equality")
@@ -139,17 +143,17 @@ impl ReferenceCollector<'_> {
             }
             hir::ExportDefaultCallableTarget::CallableReference(reference) => {
                 match &self.lowerer.callable_references[reference].target {
-                    hir::CallableReferenceTarget::Named(callable) => {
-                        self.callable_domain(*callable)
+                    hir::CallableReferenceTarget::Named(callee)
+                    | hir::CallableReferenceTarget::BoundExtension { callee, .. } => {
+                        self.selected_callable_domain(*callee)
                     }
                     hir::CallableReferenceTarget::BoundMember { callee, .. } => {
                         self.method_callee_domain(*callee)
                     }
-                    hir::CallableReferenceTarget::BoundExtension { callee, .. } => {
-                        self.callable_domain(*callee)
-                    }
                     hir::CallableReferenceTarget::Local { .. }
-                    | hir::CallableReferenceTarget::Imported(_) => hir::AccessDomain::universal(),
+                    | hir::CallableReferenceTarget::BoundIntrinsic { .. } => {
+                        hir::AccessDomain::universal()
+                    }
                 }
             }
             hir::ExportDefaultCallableTarget::LocalFunction(_)

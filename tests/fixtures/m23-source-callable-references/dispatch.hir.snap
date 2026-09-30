@@ -4,13 +4,13 @@ Module
       ReferenceUpcast : Base
         Call external #3 : Derived
     val local2
-      CallableReference reference0 target=dependency #1 captures=0 : () -> Int
+      CallableReference reference0 target=external #1 virtual[0] captures=0 : () -> Int
         Local base : Base
     val local3
       ReferenceUpcast : Readable
         Call external #5 : Reader
     val local4
-      CallableReference reference1 target=dependency #6 captures=0 : () -> Int
+      CallableReference reference1 target=external #6 interface[0] captures=0 : () -> Int
         Local reader : Readable
     val local5
       Local value : T0
@@ -26,13 +26,13 @@ Module
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.other : T0
     val local10
-      CallableReference reference2 target=imported read captures=0 : () -> T0
+      CallableReference reference2 target=read<T0> captures=0 : () -> T0
         Local generic : VirtualBox<T0>
     val local11
       ReferenceUpcast : Chooser<T0>
         ImportedConstructorInit Choosing : Choosing<T0>
     val local12
-      CallableReference reference3 target=imported choose captures=0 : (T0) -> T0
+      CallableReference reference3 target=choose<T0> captures=0 : (T0) -> T0
         Local chooser : Chooser<T0>
     val local13
       TupleLiteral : (T0, T0)

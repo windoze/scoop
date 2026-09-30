@@ -19,15 +19,26 @@ impl Lowerer {
                     "dependency callable reference is missing its invoke definition".into(),
                 )
             })?;
+        let definition_origin = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| {
+                dependencies.generated_callable_definition_origin(source.invoke())
+            })
+            .cloned()
+            .ok_or_else(|| {
+                ImportedDefaultMaterializationError::Plan(
+                    "dependency callable reference is missing its invoke definition origin".into(),
+                )
+            })?;
+        let origin = self.imported_default_definition_origin(&definition_origin, context)?;
         let target = match source.target() {
             hir::DefaultCallableReferenceTargetV1::Named(callee) => {
-                hir::ImportedCallableReferenceTarget::Named(
-                    self.materialize_imported_callable_target(
-                        callee,
-                        MemberCallKind::Ordinary,
-                        context,
-                    )?,
-                )
+                hir::CallableReferenceTarget::Named(self.materialize_imported_callable_target(
+                    callee,
+                    MemberCallKind::Ordinary,
+                    context,
+                )?)
             }
             hir::DefaultCallableReferenceTargetV1::Local { callee, .. } => {
                 let hir::CallableTarget::Application(application) = self
@@ -41,7 +52,18 @@ impl Lowerer {
                         "a dependency local reference requires its lexical implementation".into(),
                     ));
                 };
-                hir::ImportedCallableReferenceTarget::Local(application)
+                let template = self.imported_generic_applications[application].template;
+                let hir::ImportedCallableTemplateOrigin::Local { descriptor, .. } =
+                    &self.imported_generic_templates[template].declaration
+                else {
+                    return Err(ImportedDefaultMaterializationError::Plan(
+                        "a dependency local reference requires its local declaration".into(),
+                    ));
+                };
+                hir::CallableReferenceTarget::Local {
+                    definition_path: descriptor.definition_path().clone(),
+                    callee: hir::CallableTarget::Application(application),
+                }
             }
             hir::DefaultCallableReferenceTargetV1::BoundMember { receiver, callee } => {
                 let receiver =
@@ -54,13 +76,13 @@ impl Lowerer {
                             )
                         })?;
                     }
-                    hir::ImportedCallableReferenceTarget::BoundIntrinsic {
+                    hir::CallableReferenceTarget::BoundIntrinsic {
                         receiver,
                         declaration,
                         intrinsic,
                     }
                 } else {
-                    hir::ImportedCallableReferenceTarget::BoundMember {
+                    hir::CallableReferenceTarget::BoundMember {
                         receiver,
                         callee: self
                             .materialize_imported_method_callee(callee, creation, context)?,
@@ -68,7 +90,7 @@ impl Lowerer {
                 }
             }
             hir::DefaultCallableReferenceTargetV1::BoundExtension { receiver, callee } => {
-                hir::ImportedCallableReferenceTarget::BoundExtension {
+                hir::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(
                         self.materialize_imported_default_expression(receiver, context)?,
                     ),
@@ -98,7 +120,7 @@ impl Lowerer {
                 target,
                 function_type,
                 captures,
-                origin: creation.concrete().definition,
+                origin,
             },
         )))
     }

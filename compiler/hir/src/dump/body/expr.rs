@@ -215,46 +215,17 @@ pub(super) fn dump_expr(
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];
             let function = match &reference.target {
-                CallableReferenceTarget::Imported(target) => match target
-                    .callee(&module.bound_callable_refs)
-                {
-                    Some(crate::CallableTarget::Local(callable)) => module.functions
-                        [crate::callable_function(module, callable)]
-                    .name
-                    .clone(),
-                    Some(crate::CallableTarget::Application(application)) => {
-                        let template = module.imported_generic_applications[application].template;
-                        format!(
-                            "imported {}",
-                            module.imported_generic_templates[template].name
-                        )
-                    }
-                    Some(crate::CallableTarget::Dependency(callee)) => {
-                        format!("dependency #{}", callee.into_raw().into_u32())
-                    }
-                    None => match target {
-                        crate::ImportedCallableReferenceTarget::BoundIntrinsic {
-                            intrinsic,
-                            ..
-                        } => format!("intrinsic {intrinsic:?}"),
-                        _ => "imported bound member".to_owned(),
-                    },
-                },
-                CallableReferenceTarget::Named(callable) => module.functions
-                    [callable_function(module, *callable)]
-                .name
-                .clone(),
-                CallableReferenceTarget::Local { callee, .. } => module.functions
-                    [callable_function(module, *callee)]
-                .name
-                .clone(),
+                CallableReferenceTarget::Named(callee)
+                | CallableReferenceTarget::Local { callee, .. }
+                | CallableReferenceTarget::BoundExtension { callee, .. } => {
+                    method_callee_name(module, MethodCallee::Callable(*callee))
+                }
                 CallableReferenceTarget::BoundMember { callee, .. } => {
                     method_callee_name(module, *callee)
                 }
-                CallableReferenceTarget::BoundExtension { callee, .. } => module.functions
-                    [callable_function(module, *callee)]
-                .name
-                .clone(),
+                CallableReferenceTarget::BoundIntrinsic { intrinsic, .. } => {
+                    format!("intrinsic {intrinsic:?}")
+                }
             };
             out.push_str(&format!(
                 "{pad}CallableReference reference{} target={} captures={} : {ty}\n",

@@ -109,11 +109,9 @@ impl Lowerer {
     ) -> Result<Option<hir::Expr>, ()> {
         let functions: Vec<_> = candidates
             .iter()
-            .map(|id| self.local_functions[*id].function)
+            .map(|id| self.local_functions[*id].source_function())
             .collect();
-        let owner_count = self.local_functions[candidates[0]]
-            .owner_type_arguments
-            .len();
+        let owner_count = self.local_functions[candidates[0]].owner_type_param_count;
         let owner_type_args = self.ambient_type_args(owner_count);
         let explicit_type_args = self.resolve_call_type_args(&call.type_args).ok_or(())?;
         let resolved = match self.resolve_overload_outcome(

@@ -33,7 +33,7 @@ Module
         Local $dependency.parameter.second : Plain
         Local $dependency.parameter.third : Plain
     val local14
-      CallableReference reference0 target=dependency #2 captures=0 : () -> Int
+      CallableReference reference0 target=external #2 captures=0 : () -> Int
         Local triple : Triple
     val local15
       IntegerLiteral 0 : Int
@@ -68,7 +68,7 @@ Module
         Local $dependency.parameter.second : Plain
         Local $dependency.parameter.third : Plain
     val local27
-      CallableReference reference1 target=dependency #4 captures=0 : () -> Int
+      CallableReference reference1 target=external #4 captures=0 : () -> Int
         Call external #3 : Empty
     val local28
       Local value : T0
@@ -78,7 +78,7 @@ Module
       ImportedConstructorInit Cell : Cell<T0>
         Local $dependency.parameter.value : T0
     val local31
-      CallableReference reference2 target=imported read captures=0 : () -> T0
+      CallableReference reference2 target=read<T0> captures=0 : () -> T0
         Local box : Cell<T0>
     val local32
       TupleLiteral : (T0, T0)

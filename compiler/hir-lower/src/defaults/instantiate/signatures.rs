@@ -8,12 +8,18 @@ impl Lowerer {
     ) -> hir::FunctionTypeId {
         let function = &self.local_functions[source];
         let signature = self.function_types[function.function_type].canonical_type;
-        let own_parameters = self.functions[function.function]
-            .type_params()
-            .into_iter()
-            .skip(function.owner_type_arguments.len())
-            .map(|parameter| parameter.id)
-            .collect::<Vec<_>>();
+        let parameters = match function.definition {
+            hir::LocalFunctionDefinition::Source { function, .. } => self.functions[function]
+                .type_params()
+                .into_iter()
+                .map(|parameter| parameter.id)
+                .collect::<Vec<_>>(),
+            hir::LocalFunctionDefinition::Template(template) => self.imported_generic_templates
+                [template]
+                .type_parameters
+                .ids(),
+        };
+        let own_parameters = parameters.into_iter().skip(function.owner_type_param_count);
         let mut bindings = outer_bindings.to_vec();
         bindings.extend(
             own_parameters

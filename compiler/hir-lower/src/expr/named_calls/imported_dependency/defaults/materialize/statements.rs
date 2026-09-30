@@ -9,23 +9,18 @@ impl Lowerer {
         &mut self,
         source: &hir::DefaultStatementV1,
         context: &mut ImportedDefaultContext<'_>,
-    ) -> Result<Option<hir::Statement>, ImportedDefaultMaterializationError> {
+    ) -> Result<hir::Statement, ImportedDefaultMaterializationError> {
         use hir::DefaultStatementKindV1 as Kind;
         let kind = match source.kind() {
             Kind::GenericDelegateEnsure(reference) => hir::StatementKind::GenericDelegateEnsure(
                 self.materialize_imported_delegate_reference(reference, context)?,
             ),
-            // Local declarations have no runtime effect. Actual calls request
-            // their provider-owned bodies and pass captures explicitly.
             Kind::LocalFunction(descriptor) => {
-                let parent = context.parent;
-                let bindings = descriptor
-                    .captures()
-                    .iter()
-                    .map(|capture| self.materialize_capture_binding(capture, context))
-                    .collect::<Result<_, _>>()?;
-                self.register_imported_local_function(parent, descriptor, bindings);
-                return Ok(None);
+                let origin =
+                    self.imported_default_definition_origin(source.definition_origin(), context)?;
+                hir::StatementKind::LocalFunction(
+                    self.materialize_imported_local_declaration(descriptor, origin, context)?,
+                )
             }
             Kind::Expr(value) => hir::StatementKind::Expr(
                 self.materialize_imported_default_expression(value, context)?,
@@ -109,7 +104,7 @@ impl Lowerer {
             }
         };
         let span = self.imported_statement_span(source.definition_origin(), context)?;
-        Ok(Some(hir::Statement { kind, span }))
+        Ok(hir::Statement { kind, span })
     }
 
     fn imported_statement_span(
@@ -129,10 +124,7 @@ impl Lowerer {
     ) -> Result<Vec<hir::Statement>, ImportedDefaultMaterializationError> {
         statements
             .iter()
-            .filter_map(|statement| {
-                self.materialize_imported_default_statement(statement, context)
-                    .transpose()
-            })
+            .map(|statement| self.materialize_imported_default_statement(statement, context))
             .collect()
     }
 

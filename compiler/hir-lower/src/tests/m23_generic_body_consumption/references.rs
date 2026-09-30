@@ -40,8 +40,14 @@ fn source_callable_references_select_dependency_targets_and_publish() {
                         .callable_references
                         .values()
                         .any(|reference| matches!(
+                            reference.target.callee(&export.bound_callable_refs),
+                            Some(
+                                hir::CallableTarget::Application(_)
+                                    | hir::CallableTarget::Dependency(_)
+                            )
+                        ) || matches!(
                             reference.target,
-                            hir::CallableReferenceTarget::Imported(_)
+                            hir::CallableReferenceTarget::BoundIntrinsic { .. }
                         )),
                     "{case}"
                 );

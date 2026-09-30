@@ -5,7 +5,7 @@ use crate::Lowerer;
 use super::TypeOccurrence;
 use super::types::{
     collect_callable_target_types, collect_callable_types, collect_field_ref_types,
-    collect_imported_reference_target_types, collect_method_callee_types,
+    collect_method_callee_types, collect_reference_target_types,
 };
 
 /// Collect source-backed type occurrences for diagnostics. Unlike the
@@ -320,7 +320,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
             push_types_at_expression(
                 expression,
                 |types| {
-                    collect_imported_reference_target_types(lowerer, &reference.target, types);
+                    collect_reference_target_types(lowerer, &reference.target, types);
                     types.extend(reference.owner_type_arguments.iter().copied());
                     types.extend(reference.captures.iter().map(|capture| capture.ty));
                 },
@@ -343,41 +343,13 @@ pub(in super::super) fn collect_expr_type_occurrences(
             for capture in &reference.captures {
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
-            match &reference.target {
-                hir::CallableReferenceTarget::Imported(target) => {
-                    push_types_at_expression(
-                        expression,
-                        |types| collect_imported_reference_target_types(lowerer, target, types),
-                        out,
-                    );
-                    if let Some(receiver) = target.receiver() {
-                        collect_expr_type_occurrences(lowerer, receiver, out);
-                    }
-                }
-                hir::CallableReferenceTarget::Named(callee)
-                | hir::CallableReferenceTarget::Local { callee, .. } => {
-                    push_types_at_expression(
-                        expression,
-                        |types| collect_callable_types(lowerer, *callee, types),
-                        out,
-                    );
-                }
-                hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                    push_types_at_expression(
-                        expression,
-                        |types| collect_method_callee_types(lowerer, *callee, types),
-                        out,
-                    );
-                    collect_expr_type_occurrences(lowerer, receiver, out);
-                }
-                hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                    push_types_at_expression(
-                        expression,
-                        |types| collect_callable_types(lowerer, *callee, types),
-                        out,
-                    );
-                    collect_expr_type_occurrences(lowerer, receiver, out);
-                }
+            push_types_at_expression(
+                expression,
+                |types| collect_reference_target_types(lowerer, &reference.target, types),
+                out,
+            );
+            if let Some(receiver) = reference.target.receiver() {
+                collect_expr_type_occurrences(lowerer, receiver, out);
             }
         }
         ExprKind::FunctionCoercion { source, .. }

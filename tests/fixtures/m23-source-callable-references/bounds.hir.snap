@@ -3,14 +3,14 @@ Module
   class LocalChooser<T>() : Chooser<T0>
   fun readBound<R : Readable>(value: T0): Int
     val local1
-      CallableReference reference0 target=dependency #0 captures=0 : () -> Int
+      CallableReference reference0 target=external #0 interface[0] captures=0 : () -> Int
         Local value : T0
     return
       CallableCall function_type0 : Int
         Local read : () -> Int
   fun chooseBound<T, R : Chooser<T>>(owner: T1, value: T0): T0
     val local2
-      CallableReference reference1 target=imported choose captures=0 : (T0) -> T0
+      CallableReference reference1 target=choose<T0> captures=0 : (T0) -> T0
         Local owner : T1
     return
       CallableCall function_type1 : T0
@@ -18,7 +18,7 @@ Module
         Local value : T0
   fun readClass<T, R : Box<T>>(owner: T1): T0
     val local1
-      CallableReference reference2 target=imported read captures=0 : () -> T0
+      CallableReference reference2 target=read<T0> captures=0 : () -> T0
         ReferenceUpcast : Box<T0>
           Local owner : T1
     return

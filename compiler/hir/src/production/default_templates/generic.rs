@@ -94,15 +94,20 @@ impl<'a> GenericBodyProducer<'a> {
                         export.anonymous_functions[id].function
                     }
                     crate::ExportDefaultCallableTarget::LocalFunction(id) => {
-                        export.local_functions[id].function
+                        let Some((function, _)) = export.local_functions[id].source() else {
+                            continue;
+                        };
+                        function
                     }
                     crate::ExportDefaultCallableTarget::CallableReference(id) => {
-                        let crate::CallableReferenceTarget::Local { local_function, .. } =
-                            export.callable_references[id].target
+                        let crate::CallableReferenceTarget::Local {
+                            callee: crate::CallableTarget::Local(callee),
+                            ..
+                        } = export.callable_references[id].target
                         else {
                             continue;
                         };
-                        export.local_functions[local_function].function
+                        crate::callable_function(export, callee)
                     }
                     _ => continue,
                 };

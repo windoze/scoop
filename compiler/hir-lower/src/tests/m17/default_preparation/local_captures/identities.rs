@@ -121,16 +121,10 @@ pub(super) fn check_unused_default_is_not_a_materialization_root(output: &hir::O
         .iter()
         .filter(|(_, f)| f.definition_root == hir::LexicalDefinitionRoot::Function(provider))
         .map(|(_, f)| f.function)
-        .chain(
-            output
-                .export
-                .local_functions
-                .iter()
-                .filter(|(_, f)| {
-                    f.definition_root == hir::LexicalDefinitionRoot::Function(provider)
-                })
-                .map(|(_, f)| f.function),
-        )
+        .chain(output.export.local_functions.iter().filter_map(|(_, f)| {
+            let (function, root) = f.source()?;
+            (root == hir::LexicalDefinitionRoot::Function(provider)).then_some(function)
+        }))
         .collect::<Vec<_>>();
     assert_eq!(functions.len(), 2);
     for function in functions {

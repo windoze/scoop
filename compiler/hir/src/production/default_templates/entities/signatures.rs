@@ -30,19 +30,31 @@ impl DefaultEntityProjector<'_> {
                 index: raw_index(id),
             },
         )?;
-        let function = arena_get(&self.export.functions, local.function).ok_or(
-            DefaultEntityProjectionError::Unknown {
-                kind: "function",
-                index: raw_index(local.function),
-            },
-        )?;
         let invalid = || DefaultEntityProjectionError::InvalidLocalFunctionBinders {
             local_function: raw_index(id),
         };
-
-        let parameters = function.type_params();
+        let parameters = match local.definition {
+            crate::LocalFunctionDefinition::Source { function, .. } => {
+                let function = arena_get(&self.export.functions, function).ok_or(
+                    DefaultEntityProjectionError::Unknown {
+                        kind: "function",
+                        index: raw_index(function),
+                    },
+                )?;
+                function
+                    .type_params()
+                    .into_iter()
+                    .map(|parameter| parameter.id)
+                    .collect::<Vec<_>>()
+            }
+            crate::LocalFunctionDefinition::Template(template) => {
+                self.export.imported_generic_templates[template]
+                    .type_parameters
+                    .ids()
+            }
+        };
         let own = parameters
-            .get(local.owner_type_arguments.len()..)
+            .get(local.owner_type_param_count..)
             .ok_or_else(invalid)?;
         let ty = arena_get(&self.export.function_types, local.function_type)
             .ok_or(DefaultEntityProjectionError::Unknown {
@@ -65,7 +77,7 @@ impl DefaultEntityProjector<'_> {
         }
         for (index, &parameter) in own.iter().enumerate() {
             scoped.push(HirSignatureBinder {
-                parameter: parameter.id,
+                parameter,
                 depth: 0,
                 index: u32::try_from(index).map_err(|_| invalid())?,
             });

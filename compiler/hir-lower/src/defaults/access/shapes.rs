@@ -166,7 +166,9 @@ impl ReferenceCollector<'_> {
     pub(super) fn local_function_descriptor(&mut self, id: hir::LocalFunctionId) {
         let function = self.lowerer.local_functions[id].clone();
         let origin = function.origin;
-        self.local_declarations.insert(function.function);
+        if let Some((function, _)) = function.source() {
+            self.local_declarations.insert(function);
+        }
         let ty = self.lowerer.function_types[function.function_type].canonical_type;
         let domain = self.lowerer.type_access_domain(ty);
         let target_domain = self.checked_target_domain(domain, origin, "a type");
@@ -190,23 +192,7 @@ impl ReferenceCollector<'_> {
             origin,
         );
         self.function_type_reference(reference.function_type, origin);
-        match reference.target {
-            hir::CallableReferenceTarget::Imported(target) => {
-                self.imported_reference_target(&target, origin);
-            }
-            hir::CallableReferenceTarget::Named(callable)
-            | hir::CallableReferenceTarget::Local {
-                callee: callable, ..
-            } => self.callable_shape(callable, origin),
-            hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                self.expression(&receiver);
-                self.method_callee_shape(callee, origin);
-            }
-            hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                self.expression(&receiver);
-                self.callable_shape(callee, origin);
-            }
-        }
+        self.reference_target(&reference.target, origin);
         self.capture_shapes(&reference.captures);
     }
 

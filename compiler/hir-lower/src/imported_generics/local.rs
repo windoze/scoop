@@ -3,14 +3,12 @@ use super::*;
 impl Lowerer {
     pub(crate) fn register_imported_local_function(
         &mut self,
-        parent: scoop_identity::CallableTemplateOwner,
         descriptor: &hir::DefaultLocalFunctionV1,
         capture_bindings: Vec<hir::BindingId>,
     ) {
         self.imported_generic_templates.local_functions.insert(
             descriptor.declaration(),
             ImportedLocalFunctionSource {
-                parent,
                 descriptor: descriptor.clone(),
                 capture_bindings,
             },
@@ -36,17 +34,27 @@ impl Lowerer {
         {
             return Ok(Some(*id));
         }
-        let origin = hir::ImportedCallableTemplateOrigin::Local {
-            parent: source.parent,
-            descriptor: source.descriptor,
-            capture_bindings: source.capture_bindings,
+        let owner = match declaration {
+            CallableTemplateOrigin::Function(id) => hir::DefaultCallableDeclarationV1::Function(id),
+            CallableTemplateOrigin::GenericFunction(id) => {
+                hir::DefaultCallableDeclarationV1::GenericFunction(id)
+            }
+            _ => unreachable!("local declarations are named source functions"),
         };
         let body = self
             .dependencies
             .as_ref()
             .expect("an imported local function retains its dependency catalog")
-            .callable_body(origin.body_owner())
+            .callable_body(owner)
             .ok_or("dependency local function is missing its implementation")?;
+        let parent = body
+            .lexical_parent()
+            .ok_or("dependency local function is missing its lexical parent")?;
+        let origin = hir::ImportedCallableTemplateOrigin::Local {
+            parent,
+            descriptor: source.descriptor,
+            capture_bindings: source.capture_bindings,
+        };
         let name = body
             .source_name()
             .ok_or("dependency local function has no source name")?

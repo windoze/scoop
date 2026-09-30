@@ -76,7 +76,7 @@ Module
         Local $dependency.parameter.values : Array<T0>
         Local $dependency.parameter.seed : T0
     val local12
-      CallableReference reference0 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference0 target=identity<T0> captures=0 : (T0) -> T0
     val local13
       Local local : T0
     val local14
@@ -269,7 +269,7 @@ Module
       return
         IntegerLiteral 3 : Int
     val local75
-      CallableReference reference3 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference3 target=identity<T0> captures=0 : (T0) -> T0
     val local71
       CallableReference reference2 target=localIdentity captures=0 : (T0) -> T0
     val local72

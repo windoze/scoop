@@ -456,12 +456,13 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Result<Option<hir::Expr>, ()> {
         let expected_signature = self.expected_function_signature(expected);
-        let owner_type_param_count =
-            self.signatures[&self.local_functions[candidates[0]].function].owner_type_param_count;
+        let owner_type_param_count = self.signatures
+            [&self.local_functions[candidates[0]].source_function()]
+            .owner_type_param_count;
         let owner_type_args = self.ambient_type_args(owner_type_param_count);
         let functions = candidates
             .iter()
-            .map(|candidate| self.local_functions[*candidate].function)
+            .map(|candidate| self.local_functions[*candidate].source_function())
             .collect::<Vec<_>>();
         let display = format!("local callable reference `::{}`", name.text);
         let resolved = match self.resolve_reference_candidates(
@@ -480,7 +481,9 @@ impl Lowerer {
             ReferenceResolutionOutcome::Blocked => return Ok(None),
             ReferenceResolutionOutcome::Failed => return Err(()),
         };
-        let hir::CallableReferenceTarget::Named(callee) = resolved.target else {
+        let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(callee)) =
+            resolved.target
+        else {
             unreachable!("lexical reference candidates are local named declarations")
         };
         let function = self.callable_function_id(callee);
@@ -525,8 +528,8 @@ impl Lowerer {
             definition_root: self.current_definition_root(),
             definition_path,
             target: hir::CallableReferenceTarget::Local {
-                local_function,
-                callee,
+                definition_path: self.local_functions[local_function].definition_path.clone(),
+                callee: callee.into(),
             },
             function_type,
             owner_type_arguments,

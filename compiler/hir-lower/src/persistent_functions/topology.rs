@@ -102,12 +102,15 @@ impl FunctionIdentityBuilder<'_> {
     ) -> Result<Option<hir::FunctionId>, PersistentFunctionIdentityError> {
         let mut candidate = None;
         for (_, declaration) in self.lowerer.local_functions.iter() {
+            let Some((source_function, source_root)) = declaration.source() else {
+                continue;
+            };
             self.consider_parent(
                 function,
                 root,
                 path,
-                declaration.function,
-                declaration.definition_root,
+                source_function,
+                source_root,
                 &declaration.definition_path,
                 &mut candidate,
             )?;

@@ -86,10 +86,18 @@ pub(super) fn dump_statements(
             )),
             StatementKind::LocalFunction(id) => {
                 let local = &module.local_functions[*id];
+                let name = match local.definition {
+                    LocalFunctionDefinition::Source { function, .. } => {
+                        &module.functions[function].name
+                    }
+                    LocalFunctionDefinition::Template(template) => {
+                        &module.imported_generic_templates[template].name
+                    }
+                };
                 out.push_str(&format!(
                     "{pad}LocalFunction local{} body={} captures={}\n",
                     id.into_raw(),
-                    module.functions[local.function].name,
+                    name,
                     local.captures.len()
                 ));
             }

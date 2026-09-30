@@ -16,7 +16,7 @@ Module
         Local $dependency.parameter.value : Option<T0>
         Local $dependency.parameter.seed : T0
     val local7
-      CallableReference reference0 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference0 target=identity<T0> captures=0 : (T0) -> T0
     val local8
       Local selected : T0
     val local9
@@ -127,7 +127,7 @@ Module
       return
         IntegerLiteral 2 : Int
     val local16
-      CallableReference reference1 target=imported identity captures=0 : (Int) -> Int
+      CallableReference reference1 target=identity<Int> captures=0 : (Int) -> Int
     val local17
       IntegerLiteral 42 : Int
     val local18
@@ -266,7 +266,7 @@ Module
       return
         IntegerLiteral 5 : Int
     val local60
-      CallableReference reference2 target=imported identity captures=0 : (Reference) -> Reference
+      CallableReference reference2 target=identity<Reference> captures=0 : (Reference) -> Reference
     val local61
       MethodCall value<Reference> : Reference
         Local host : Host<Reference>

@@ -75,17 +75,20 @@ pub(super) fn claim_local_functions(
     claims: &mut [Option<Claim>],
 ) -> Result<(), HirFunctionIdentityError> {
     for (local, declaration) in inputs.local_functions.iter() {
+        let Some((source_function, source_root)) = declaration.source() else {
+            continue;
+        };
         claim(
             inputs,
             claims,
-            declaration.function,
+            source_function,
             FunctionIdentityRelation::LocalFunction,
             raw_index(local),
             ClaimKind::LocalSource {
-                root: declaration.definition_root,
+                root: source_root,
                 path: declaration.definition_path.clone(),
                 declaration_function_type: declaration.declaration_function_type,
-                owner_type_parameter_count: declaration.owner_type_arguments.len(),
+                owner_type_parameter_count: declaration.owner_type_param_count,
                 origin: declaration.origin,
                 capture_bindings: declaration
                     .captures

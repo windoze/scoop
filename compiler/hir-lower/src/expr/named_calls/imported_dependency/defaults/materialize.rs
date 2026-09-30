@@ -21,6 +21,7 @@ mod errors;
 mod expressions;
 use errors::ImportedDefaultMaterializationError;
 mod delegates;
+mod local_functions;
 mod methods;
 mod patterns;
 mod pointers;

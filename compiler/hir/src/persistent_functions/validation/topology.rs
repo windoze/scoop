@@ -34,12 +34,15 @@ fn immediate_parent_function(
 ) -> Result<Option<FunctionId>, HirFunctionIdentityError> {
     let mut candidate = None;
     for (_, declaration) in inputs.local_functions.iter() {
+        let Some((source_function, source_root)) = declaration.source() else {
+            continue;
+        };
         consider_parent(
             function,
             root,
             path,
-            declaration.function,
-            declaration.definition_root,
+            source_function,
+            source_root,
             &declaration.definition_path,
             &mut candidate,
         )?;

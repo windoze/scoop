@@ -2,6 +2,29 @@
 use super::DefaultEntityProjector;
 use crate::{ExportDefaultCallableTarget, ExportDefaultCallableTargetV1, HirSignatureBinder};
 impl DefaultEntityProjector<'_> {
+    pub(in crate::production::default_templates) fn local_function_declaration(
+        &self,
+        id: crate::LocalFunctionId,
+    ) -> Result<scoop_identity::CallableTemplateOrigin, super::super::DefaultEntityProjectionError>
+    {
+        let local = super::super::arena_get(&self.export().local_functions, id).ok_or(
+            super::super::DefaultEntityProjectionError::Unknown {
+                kind: "local function",
+                index: super::super::raw_index(id),
+            },
+        )?;
+        match local.definition {
+            crate::LocalFunctionDefinition::Source { function, .. } => {
+                self.source_callable_declaration(function)
+            }
+            crate::LocalFunctionDefinition::Template(template) => {
+                Ok(self.export().imported_generic_templates[template]
+                    .declaration
+                    .declaration())
+            }
+        }
+    }
+
     pub(in crate::production::default_templates) fn reference_callable(
         &self,
         target: ExportDefaultCallableTarget,
@@ -40,14 +63,8 @@ impl DefaultEntityProjector<'_> {
                 }
             }
             ExportDefaultCallableTarget::LocalFunction(id) => {
-                let function = super::super::arena_get(&export.local_functions, id).ok_or(
-                    super::super::DefaultEntityProjectionError::Unknown {
-                        kind: "local function",
-                        index: super::super::raw_index(id),
-                    },
-                )?;
                 ExportDefaultCallableTargetV1::LocalFunction {
-                    declaration: entities.source_callable_declaration(function.function)?,
+                    declaration: entities.local_function_declaration(id)?,
                 }
             }
             ExportDefaultCallableTarget::Lambda(id) => {

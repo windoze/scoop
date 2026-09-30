@@ -9,13 +9,8 @@ impl Concretizer<'_> {
         locals: &[concrete::LocalId],
     ) -> concrete::CallableReferenceId {
         let function_type = self.lower_function_type(source.function_type, substitution);
-        let target = self.lower_imported_reference_target(
-            &source.target,
-            function_type,
-            span,
-            substitution,
-            locals,
-        );
+        let target =
+            self.lower_reference_target(&source.target, function_type, substitution, locals);
         let pending = PendingCallableReference {
             source: CallableReferenceSource::Imported {
                 parent: source.parent,
@@ -43,16 +38,15 @@ impl Concretizer<'_> {
         id
     }
 
-    pub(super) fn lower_imported_reference_target(
+    pub(super) fn lower_reference_target(
         &mut self,
-        target: &export::ImportedCallableReferenceTarget,
+        target: &export::CallableReferenceTarget,
         function_type: concrete::FunctionTypeId,
-        span: scoop_ast::Span,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
     ) -> concrete::CallableReferenceTarget {
         match target {
-            export::ImportedCallableReferenceTarget::BoundIntrinsic {
+            export::CallableReferenceTarget::BoundIntrinsic {
                 receiver,
                 intrinsic,
                 ..
@@ -65,33 +59,28 @@ impl Concretizer<'_> {
                     intrinsic: *intrinsic,
                 }
             }
-            export::ImportedCallableReferenceTarget::Named(callee) => {
+            export::CallableReferenceTarget::Named(callee) => {
                 concrete::CallableReferenceTarget::Named(
                     self.lower_callable_target(*callee, substitution),
                 )
             }
-            export::ImportedCallableReferenceTarget::Local(application) => {
-                let application = self.source.imported_generic_applications[*application].clone();
-                let template = &self.source.imported_generic_templates[application.template];
-                let export::ImportedCallableTemplateOrigin::Local { descriptor, .. } =
-                    &template.declaration
+            export::CallableReferenceTarget::Local {
+                definition_path,
+                callee,
+            } => {
+                let concrete::CallableTarget::Local(concrete::Callable::Function(function)) =
+                    self.lower_callable_target(*callee, substitution)
                 else {
-                    unreachable!("a local reference retains its source local declaration");
+                    unreachable!("a local reference retains its lexical implementation");
                 };
-                let path = descriptor.definition_path().clone();
-                let function = self.lower_imported_callable_application(&application, substitution);
-                let local_function = self.local_functions.alloc(concrete::LocalFunction {
-                    definition_path: path,
-                    function,
-                    function_type,
-                    span,
-                });
+                let local_function =
+                    self.intern_local_function(function, definition_path.clone(), function_type);
                 concrete::CallableReferenceTarget::Local {
                     local_function,
                     callee: concrete::Callable::Function(function),
                 }
             }
-            export::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
+            export::CallableReferenceTarget::BoundMember { receiver, callee } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);
                 let (callee, target) = self.lower_method_callee(*callee, receiver.ty, substitution);
                 let receiver = self.adapt_method_receiver(receiver, target);
@@ -100,7 +89,7 @@ impl Concretizer<'_> {
                     callee,
                 }
             }
-            export::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
+            export::CallableReferenceTarget::BoundExtension { receiver, callee } => {
                 concrete::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
                     callee: self.lower_callable_target(*callee, substitution),

@@ -7,9 +7,9 @@ Module
       IntegerLiteral 2 : Int
   fun exercise<T>(value: T0): Int
     val local1
-      CallableReference reference0 target=imported select captures=0 : ((T0, Int)) -> Int
+      CallableReference reference0 target=select<T0, Int> captures=0 : ((T0, Int)) -> Int
     val local2
-      CallableReference reference1 target=dependency #0 captures=0 : (Int) -> Int
+      CallableReference reference1 target=external #0 captures=0 : (Int) -> Int
     val local3
       CallableCall function_type0 : Int
         Local selected : ((T0, Int)) -> Int

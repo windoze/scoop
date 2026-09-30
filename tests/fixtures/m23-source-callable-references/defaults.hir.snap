@@ -23,7 +23,7 @@ Module
     val local2
       Local $argument.0 : T0
     val local3
-      CallableReference reference4 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference4 target=identity<T0> captures=0 : (T0) -> T0
     val local4
       Call copy<T0> : T0
         Local $parameter.value : T0
@@ -38,7 +38,7 @@ Module
     val local8
       Local $argument.0 : Box<T0>
     val local9
-      CallableReference reference5 target=imported read captures=0 : () -> T0
+      CallableReference reference5 target=read<T0> captures=0 : () -> T0
         Local $parameter.owner : Box<T0>
     val local10
       TupleLiteral : (T0, T0)
@@ -55,7 +55,7 @@ Module
     val local14
       Local $argument.1 : T0
     val local15
-      CallableReference reference6 target=imported identity captures=0 : (Int) -> Int
+      CallableReference reference6 target=identity<Int> captures=0 : (Int) -> Int
     val local16
       Call first<Int, T0> : Int
         Local $parameter.value : Int
@@ -81,14 +81,14 @@ Module
     val local22
       Local $argument.1 : Int
     val local23
-      CallableReference reference7 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference7 target=identity<T0> captures=0 : (T0) -> T0
     val local24
       Call first<T0, Int> : T0
         Local $parameter.value : T0
         Local $parameter.other : Int
         Local $parameter.copy : (T0) -> T0
     val local25
-      CallableReference reference8 target=dependency #0 captures=0 : () -> Int
+      CallableReference reference8 target=external #0 captures=0 : () -> Int
     return
       Call answer : Int
         Local $parameter.read : () -> Int

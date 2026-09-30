@@ -139,34 +139,18 @@ pub(super) fn collect_callable_reference_types(
     for capture in &reference.captures {
         collect_expr_types(lowerer, &capture.source, out);
     }
-    match &reference.target {
-        hir::CallableReferenceTarget::Imported(target) => {
-            collect_imported_reference_target_types(lowerer, target, out);
-            if let Some(receiver) = target.receiver() {
-                collect_expr_types(lowerer, receiver, out);
-            }
-        }
-        hir::CallableReferenceTarget::Named(callee)
-        | hir::CallableReferenceTarget::Local { callee, .. } => {
-            collect_callable_types(lowerer, *callee, out)
-        }
-        hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-            collect_method_callee_types(lowerer, *callee, out);
-            collect_expr_types(lowerer, receiver, out);
-        }
-        hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-            collect_callable_types(lowerer, *callee, out);
-            collect_expr_types(lowerer, receiver, out);
-        }
+    collect_reference_target_types(lowerer, &reference.target, out);
+    if let Some(receiver) = reference.target.receiver() {
+        collect_expr_types(lowerer, receiver, out);
     }
 }
 
-pub(in crate::effects::gc_free_pointees) fn collect_imported_reference_target_types(
+pub(in crate::effects::gc_free_pointees) fn collect_reference_target_types(
     lowerer: &Lowerer,
-    target: &hir::ImportedCallableReferenceTarget,
+    target: &hir::CallableReferenceTarget,
     out: &mut Vec<hir::TypeId>,
 ) {
-    if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } = target {
+    if let hir::CallableReferenceTarget::BoundMember { callee, .. } = target {
         collect_method_callee_types(lowerer, *callee, out);
     } else if let Some(target) = target.callee(&lowerer.bound_callable_refs) {
         collect_callable_target_types(lowerer, target, out);

@@ -5,13 +5,13 @@ Module
     property1 override var value: T0 getter1=body(LocalReader.$get$value) setter1=body(LocalReader.$set$value) <accessor-only> overrides=[imported(BaseReader<T0>,f20ccbef67f7b6df743e3f01e0195a307769f5d934960d2e255373a9b9241d42),imported(MutableReader<T0>,3565f7046430f258ade37747538c62b7f780cdca70d633e432f6c278df8e9a53)]
   fun consume<T>(box: MutableReader<T0>, value: T0, read: (T0) -> Int): Int
     val local3
-      CallableReference reference0 target=imported MutableReader.replace captures=0 : (T0) -> Unit
+      CallableReference reference0 target=MutableReader.replace<T0> captures=0 : (T0) -> Unit
         Local box : MutableReader<T0>
     CallableCall function_type2 : Unit
       Local replace : (T0) -> Unit
       Local value : T0
     val local4
-      CallableReference reference1 target=imported read captures=0 : () -> T0
+      CallableReference reference1 target=read<T0> captures=0 : () -> T0
         Local box : MutableReader<T0>
     val local5
       Local box : MutableReader<T0>

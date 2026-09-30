@@ -197,13 +197,11 @@ impl ImportedReferenceDeclaration {
                     .clone(),
                 declared_receiver.expect("a primitive member has a receiver"),
             );
-            return Ok(hir::CallableReferenceTarget::Imported(
-                hir::ImportedCallableReferenceTarget::BoundIntrinsic {
-                    receiver: Box::new(receiver),
-                    declaration,
-                    intrinsic,
-                },
-            ));
+            return Ok(hir::CallableReferenceTarget::BoundIntrinsic {
+                receiver: Box::new(receiver),
+                declaration,
+                intrinsic,
+            });
         }
         let callee = match self.implementation {
             ImportedReferenceImplementation::Template(template) => {
@@ -266,20 +264,20 @@ impl ImportedReferenceDeclaration {
                 )
             };
             if extension {
-                hir::ImportedCallableReferenceTarget::BoundExtension {
+                hir::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(receiver),
                     callee,
                 }
             } else {
-                hir::ImportedCallableReferenceTarget::BoundMember {
+                hir::CallableReferenceTarget::BoundMember {
                     receiver: Box::new(receiver),
                     callee: bound.unwrap_or(hir::MethodCallee::Callable(callee)),
                 }
             }
         } else {
-            hir::ImportedCallableReferenceTarget::Named(callee)
+            hir::CallableReferenceTarget::Named(callee)
         };
-        Ok(hir::CallableReferenceTarget::Imported(target))
+        Ok(target)
     }
 }
 

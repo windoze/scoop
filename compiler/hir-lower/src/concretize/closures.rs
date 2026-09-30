@@ -155,19 +155,31 @@ impl Concretizer<'_> {
         source_id: export::LocalFunctionId,
         substitution: &[concrete::TypeId],
     ) -> concrete::LocalFunctionId {
-        let key = (source_id, substitution.to_vec());
-        if let Some(&id) = self.local_by_key.get(&key) {
+        let source = self.source.local_functions[source_id].clone();
+        let function = self.request_function(source.source_function(), substitution.to_vec());
+        let function_type =
+            self.lower_function_type(source.declaration_function_type, substitution);
+        self.intern_local_function(function, source.definition_path, function_type)
+    }
+
+    fn intern_local_function(
+        &mut self,
+        function: concrete::FunctionId,
+        definition_path: scoop_identity::StructuralDefinitionPath,
+        function_type: concrete::FunctionTypeId,
+    ) -> concrete::LocalFunctionId {
+        if let Some(&id) = self.local_by_function.get(&function) {
             return id;
         }
-        let source = self.source.local_functions[source_id].clone();
-        let value = concrete::LocalFunction {
-            definition_path: source.definition_path,
-            function: self.request_function(source.function, substitution.to_vec()),
-            function_type: self.lower_function_type(source.declaration_function_type, substitution),
-            span: source.span,
-        };
-        let id = self.local_functions.alloc(value);
-        self.local_by_key.insert(key, id);
+        let key = &self.function_keys[function.into_raw().into_u32() as usize];
+        let span = self.resolved_function_definition(key).signature.span;
+        let id = self.local_functions.alloc(concrete::LocalFunction {
+            definition_path,
+            function,
+            function_type,
+            span,
+        });
+        self.local_by_function.insert(function, id);
         id
     }
 
@@ -183,48 +195,8 @@ impl Concretizer<'_> {
         }
         let source = self.source.callable_references[source_id].clone();
         let function_type = self.lower_function_type(source.function_type, substitution);
-        let target = match source.target {
-            export::CallableReferenceTarget::Imported(target) => self
-                .lower_imported_reference_target(
-                    &target,
-                    function_type,
-                    source.span,
-                    substitution,
-                    locals,
-                ),
-            export::CallableReferenceTarget::Named(callee) => {
-                concrete::CallableReferenceTarget::Named(concrete::CallableTarget::Local(
-                    self.lower_callable(callee, substitution),
-                ))
-            }
-            export::CallableReferenceTarget::Local {
-                local_function,
-                callee,
-            } => {
-                let (callee, arguments) = self.lower_callable_with_arguments(callee, substitution);
-                concrete::CallableReferenceTarget::Local {
-                    local_function: self.ensure_local_function(local_function, &arguments),
-                    callee,
-                }
-            }
-            export::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                let receiver = self.lower_expr(&receiver, substitution, locals);
-                let (callee, target) = self.lower_method_callee(callee, receiver.ty, substitution);
-                let receiver = self.adapt_method_receiver(receiver, target);
-                concrete::CallableReferenceTarget::BoundMember {
-                    receiver: Box::new(receiver),
-                    callee,
-                }
-            }
-            export::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                concrete::CallableReferenceTarget::BoundExtension {
-                    receiver: Box::new(self.lower_expr(&receiver, substitution, locals)),
-                    callee: concrete::CallableTarget::Local(
-                        self.lower_callable(callee, substitution),
-                    ),
-                }
-            }
-        };
+        let target =
+            self.lower_reference_target(&source.target, function_type, substitution, locals);
         let value = PendingCallableReference {
             source: CallableReferenceSource::Local(source_id),
             owner_arguments: source

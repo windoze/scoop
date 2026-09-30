@@ -14,7 +14,7 @@ pub(super) fn project(
     if let Some((_, local)) = export
         .local_functions
         .iter()
-        .find(|(_, local)| local.function == function)
+        .find(|(_, local)| local.source().is_some_and(|(source, _)| source == function))
     {
         let parameters = &export.functions[function].params;
         if parameters.len() < local.captures.len() {

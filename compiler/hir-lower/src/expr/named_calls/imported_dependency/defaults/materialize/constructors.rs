@@ -195,8 +195,7 @@ impl Lowerer {
             );
         }
         for statement in fragment.statements() {
-            statements
-                .extend(self.materialize_imported_default_statement(statement, &mut context)?);
+            statements.push(self.materialize_imported_default_statement(statement, &mut context)?);
         }
         self.materialize_imported_default_expressions(fragment.results(), &mut context)
     }

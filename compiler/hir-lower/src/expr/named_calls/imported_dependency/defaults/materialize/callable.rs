@@ -66,10 +66,7 @@ impl Lowerer {
             .body()
             .statements()
             .iter()
-            .filter_map(|statement| {
-                self.materialize_imported_default_statement(statement, &mut context)
-                    .transpose()
-            })
+            .map(|statement| self.materialize_imported_default_statement(statement, &mut context))
             .collect::<Result<Vec<_>, _>>();
         let locals = std::mem::replace(&mut self.locals, saved_locals);
         if let Some(parameters) = saved_parameters {

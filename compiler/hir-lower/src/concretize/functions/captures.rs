@@ -9,7 +9,11 @@ impl Concretizer<'_> {
             .source
             .local_functions
             .iter()
-            .filter(|(_, declaration)| declaration.function == function);
+            .filter(|(_, declaration)| {
+                declaration
+                    .source()
+                    .is_some_and(|(source, _)| source == function)
+            });
         let Some((_, declaration)) = declarations.next() else {
             return Vec::new();
         };

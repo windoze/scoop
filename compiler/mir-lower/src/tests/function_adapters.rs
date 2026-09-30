@@ -244,7 +244,7 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
             ),
             [],
         ),
-        target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target)),
+        target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target).into()),
         function_type: source_type.0,
         owner_type_arguments: Vec::new(),
         captures: Vec::new(),

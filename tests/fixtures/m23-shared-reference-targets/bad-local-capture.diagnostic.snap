@@ -1,0 +1,3 @@
+span=97..102
+expression=value
+cannot capture mutable local `value`; bind its current value to a `val` snapshot or capture explicit reference state

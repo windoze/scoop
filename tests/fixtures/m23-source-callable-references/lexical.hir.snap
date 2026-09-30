@@ -1,7 +1,7 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      CallableReference reference0 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference0 target=identity<T0> captures=0 : (T0) -> T0
     LocalFunction local0 body=$local.0.make captures=0
     val local2
       Lambda lambda0 invoke=$lambda.0 captures=2 : () -> T0
@@ -20,7 +20,7 @@ Module
     val local6
       Local $dependency.argument.0 : Int
     val local7
-      CallableReference reference2 target=dependency #1 captures=0 : () -> Int
+      CallableReference reference2 target=external #1 captures=0 : () -> Int
         Call external #0 : Plain
           Local $dependency.parameter.number : Int
     LocalFunction local1 body=$local.1.read captures=1

@@ -1,9 +1,9 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      CallableReference reference0 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference0 target=identity<T0> captures=0 : (T0) -> T0
     val local2
-      CallableReference reference1 target=imported identity captures=0 : (T0) -> T0
+      CallableReference reference1 target=identity<T0> captures=0 : (T0) -> T0
     val local3
       TupleLiteral : (T0, T0)
         CallableCall function_type0 : T0
@@ -13,7 +13,7 @@ Module
           Local copyAgain : (T0) -> T0
           Local value : T0
     val local4
-      CallableReference reference2 target=imported identity captures=0 : (Int) -> Int
+      CallableReference reference2 target=identity<Int> captures=0 : (Int) -> Int
     return
       CallableCall function_type1 : Int
         Local number : (Int) -> Int

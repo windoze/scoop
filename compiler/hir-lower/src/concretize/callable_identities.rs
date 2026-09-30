@@ -77,13 +77,16 @@ impl<'a> CallableIdentityBuilder<'a> {
     ) -> Self {
         let mut lexical_sites = HashMap::new();
         for (_, declaration) in concretizer.source.local_functions.iter() {
+            let Some((source_function, source_root)) = declaration.source() else {
+                continue;
+            };
             insert_lexical_site(
                 &mut lexical_sites,
-                declaration.function,
+                source_function,
                 LexicalSite {
-                    root: declaration.definition_root,
+                    root: source_root,
                     path: declaration.definition_path.clone(),
-                    owner_type_parameter_count: declaration.owner_type_arguments.len(),
+                    owner_type_parameter_count: declaration.owner_type_param_count,
                 },
             );
         }

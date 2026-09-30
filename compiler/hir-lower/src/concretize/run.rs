@@ -79,7 +79,7 @@ impl Concretizer<'_> {
             .source
             .local_functions
             .iter()
-            .map(|(_, local)| local.function)
+            .filter_map(|(_, local)| local.source().map(|(function, _)| function))
             .chain(
                 self.source
                     .lambdas

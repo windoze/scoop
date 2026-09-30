@@ -1,11 +1,11 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      CallableReference reference0 target=dependency #0 captures=0 : () -> Int
+      CallableReference reference0 target=external #0 captures=0 : () -> Int
     val local2
-      CallableReference reference1 target=dependency #1 captures=0 : (Int) -> Int
+      CallableReference reference1 target=external #1 captures=0 : (Int) -> Int
     val local3
-      CallableReference reference2 target=dependency #2 captures=0 : (Int) -> Int
+      CallableReference reference2 target=external #2 captures=0 : (Int) -> Int
     val local4
       CallableCall function_type0 : Int
         Local read : () -> Int

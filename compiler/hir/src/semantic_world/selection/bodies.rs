@@ -8,7 +8,7 @@ use super::{ImportedDependencyDefinitionSource, ImportedDependencyDefinitionSour
 pub struct ImportedCallableBody {
     pub(super) body: Arc<crate::ExportGenericCallableBodyV1>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
-    pub(super) source_name: Option<scoop_identity::CanonicalIdentifier>,
+    pub(super) source_declaration: Option<Arc<scoop_identity::SourceDeclarationKey>>,
 }
 
 impl ImportedCallableBody {
@@ -25,7 +25,33 @@ impl ImportedCallableBody {
 
     /// Named source functions have names; compiler-generated bodies do not.
     pub fn source_name(&self) -> Option<&scoop_identity::CanonicalIdentifier> {
-        self.source_name.as_ref()
+        match self.source_declaration.as_ref()?.name() {
+            scoop_identity::DeclarationName::Named(name) => Some(name),
+            scoop_identity::DeclarationName::Constructor => None,
+        }
+    }
+
+    pub fn lexical_parent(&self) -> Option<scoop_identity::CallableTemplateOwner> {
+        use scoop_identity::{CallableTemplateOwner as Parent, DefinitionOwnerAtom as Owner};
+        let declaration = self.source_declaration.as_ref()?;
+        if !matches!(
+            declaration.scope(),
+            scoop_identity::DeclarationScope::LexicalScoped { .. }
+        ) {
+            return None;
+        }
+        Some(match declaration.owners().owners().last()? {
+            Owner::Function(id) => Parent::Function(*id),
+            Owner::GenericFunction(id) => Parent::GenericFunction(*id),
+            Owner::Constructor(id) => Parent::Constructor(*id),
+            Owner::PropertyAccessor(id) => Parent::Accessor(*id),
+            Owner::GeneratedCallable(id) => Parent::Generated(*id),
+            Owner::EnumVariant(id) => Parent::VariantConstructor(*id),
+            Owner::Type(_)
+            | Owner::GenericType(_)
+            | Owner::Property(_)
+            | Owner::ExtensionProperty(_) => return None,
+        })
     }
 
     pub fn definition_source(
@@ -41,7 +67,17 @@ impl super::ImportedDependencySelectionPlan {
         &self,
         id: scoop_identity::PersistentGeneratedCallableId,
     ) -> Option<&crate::concrete::GeneratedCallableRecord> {
-        self.catalog.generated_callables.get(&id)
+        self.catalog
+            .generated_callables
+            .get(&id)
+            .map(|entry| &entry.definition)
+    }
+
+    pub fn generated_callable_definition_origin(
+        &self,
+        id: scoop_identity::PersistentGeneratedCallableId,
+    ) -> Option<&crate::ExportDefinitionSourceV1> {
+        self.catalog.generated_callables.get(&id)?.origin.as_ref()
     }
 
     pub fn generic_delegate(

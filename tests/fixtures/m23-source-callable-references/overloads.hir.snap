@@ -1,7 +1,7 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      CallableReference reference0 target=imported select captures=0 : ((T0, Int)) -> Int
+      CallableReference reference0 target=select<T0, Int> captures=0 : ((T0, Int)) -> Int
     return
       CallableCall function_type0 : Int
         Local selected : ((T0, Int)) -> Int

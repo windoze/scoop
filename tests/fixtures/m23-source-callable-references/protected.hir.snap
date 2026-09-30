@@ -16,7 +16,7 @@ Module
     val local6
       Local child : LocalChild<T0>
     val local7
-      CallableReference reference1 target=imported read captures=0 : () -> T0
+      CallableReference reference1 target=read<T0> captures=0 : () -> T0
         ReferenceUpcast : Protected<T0>
           Local $receiver : LocalChild<T0>
     val local8

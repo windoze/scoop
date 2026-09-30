@@ -148,7 +148,7 @@ fn local_source_identity_uses_own_binders_and_nearest_callable_owner() {
         DeclarationScope::LexicalScoped { path, .. }
             if path == &module.local_functions
                 .iter()
-                .find(|(_, local)| local.function == plain)
+                .find(|(_, local)| local.source_function() == plain)
                 .expect("plain local declaration")
                 .1
                 .definition_path

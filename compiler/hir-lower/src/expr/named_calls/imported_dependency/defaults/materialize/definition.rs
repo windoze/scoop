@@ -81,9 +81,8 @@ impl Lowerer {
                 .body()
                 .statements()
                 .iter()
-                .filter_map(|statement| {
+                .map(|statement| {
                     self.materialize_imported_default_statement(statement, &mut context)
-                        .transpose()
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             let value = self

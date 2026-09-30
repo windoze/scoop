@@ -37,7 +37,6 @@ pub(crate) struct ImportedGenericTemplates {
 
 #[derive(Clone)]
 struct ImportedLocalFunctionSource {
-    parent: scoop_identity::CallableTemplateOwner,
     descriptor: hir::DefaultLocalFunctionV1,
     capture_bindings: Vec<hir::BindingId>,
 }

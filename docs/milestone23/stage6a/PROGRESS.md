@@ -366,3 +366,12 @@
 - 新增 `m23-shared-method-calls` 的独立／组合源码、6 份阶段快照和 4 份错误诊断。覆盖 class／interface 上界、完整宿主与方法实参、默认值、限定 super、函数引用、当前接口与外部父类实现，以及通过基类静态类型调用子类覆写。源码移走后再次发布，下游 String／Int／Unit 组合及普通／移动 GC 运行通过。
 - 全仓 fmt／clippy、2306 项 HIR／HIR lowering／MIR lowering 单元测试，以及关闭全部快照更新开关的 78 项真实泛型产物与完整 core 回归全部通过。122 份既有阶段快照变化中，97 份 HIR 仅调用标签变化，另 7 份 HIR 展示共同上界／派生目标；11 份 MIR 对应明确上转型或函数编号变化。7 份 LIR 按稳定符号还原调用后，正文、调用目标和元数据相同，仅函数排列与临时编号变化；既有诊断快照保持不变。
 - 最终日志前缀 `/tmp/scoop-m23-6a-shared-methods-`，结果见 `unit.log`、`all-verified-results.json`、`hir-review.json` 和 `lir-review.json`。成员具体化模块 206 行，默认实体替换模块 328 行；本批清理未使用的 `target/debug` 约 1475.1 MiB，继续复用 `target/m23-6a`。wire 和 runtime ABI 不变，完整候选与剩余词法／构造节点的共同表示继续迁移。
+
+## 共同函数引用目标与原局部声明
+
+- 删除 `ImportedCallableReferenceTarget`，当前与解码正文的命名、局部、成员、扩展和 intrinsic 引用使用同一目标及替换、投影和具体化过程。局部目标保留原定义路径和已选 typed callable；Concrete 局部声明按实际函数实体复用，重复引用共享实现，各次创建的捕获值仍独立。
+- 解码局部声明不再被当作无运行时效果的语句提前删除。共同 `LocalFunction` 记录保存声明、出现处签名、原路径、宿主 binder 数与捕获，正文存储只负责定位；原 parent 从已有 typed declaration owner 读取，实际调用和引用继续保存完整实参。声明本身不触发机器实例，具体化执行正文时才擦除该声明语句。
+- 新的再次发布组合复现默认值引用的来源位置错配：调用点产生新的 invoke 身份，外层表达式仍保留默认值定义位置。读取时现从既有生成声明记录恢复 invoke 位置，当前与解码默认展开共用调用点规则；没有增加 wire 字段或放宽 reader。
+- 新增 `m23-shared-reference-targets` 两组正例、四个反例、六份阶段快照与四份诊断快照。覆盖局部泛型、完整且未使用的 owner 实参、重复引用、不同捕获值、可变接收者快照、成员／扩展／intrinsic 引用及函数值默认参数；源码移走后再次发布，下游本地 class／String／Int／Unit 和普通／移动 GC 运行通过。单元还核对原定义 span、捕获参数身份与未用局部声明不发射。
+- 全仓 fmt／clippy 无警告，2307 项 HIR／HIR lowering／MIR lowering 单元测试通过；79 项真实泛型产物及完整 core 回归已全部关闭更新开关覆盖成功。18 份既有 HIR 快照的 55 处变化仅为目标显示，MIR／LIR／诊断快照不变。最终证据前缀 `/tmp/scoop-m23-6a-shared-references-`，结果见 `unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`。
+- 共同词法记录 192 行，默认值 closure／引用替换 314 行，新增局部声明读取 89 行，引用目标具体化 121 行；清理闲置增量缓存约 1605.4 MiB，继续复用 `target/m23-6a`。wire 与 runtime ABI 保持，剩余词法引用根和完整候选继续按 6a 设计迁移。

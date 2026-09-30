@@ -1,13 +1,13 @@
 use super::*;
 
-pub(super) struct ResolvedFunctionDefinition<'a> {
+pub(in crate::concretize) struct ResolvedFunctionDefinition<'a> {
     pub signature: &'a export::CallableSignature,
     pub capture_bindings: Vec<export::BindingId>,
     pub implementation: &'a export::FunctionKind,
     pub receiver: DefinitionReceiver,
 }
 
-pub(super) enum DefinitionReceiver {
+pub(in crate::concretize) enum DefinitionReceiver {
     None,
     Extension(export::TypeId),
     Method {
@@ -18,7 +18,7 @@ pub(super) enum DefinitionReceiver {
 }
 
 impl<'input> Concretizer<'input> {
-    pub(super) fn resolved_function_definition(
+    pub(in crate::concretize) fn resolved_function_definition(
         &self,
         key: &FunctionKey,
     ) -> ResolvedFunctionDefinition<'input> {

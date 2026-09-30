@@ -141,32 +141,15 @@ impl Lowerer {
             }
             ExprKind::CallableReference(reference) => {
                 let reference = &self.callable_references[*reference];
-                match &reference.target {
-                    hir::CallableReferenceTarget::Imported(target) => {
-                        if let Some(hir::CallableTarget::Application(application)) =
-                            target.callee(&self.bound_callable_refs)
-                        {
-                            out.push(self.imported_body_generic_call(application, expr.span));
-                        }
-                        if let Some(receiver) = target.receiver() {
-                            self.collect_generic_calls_in_expr(receiver, out);
-                        }
-                    }
-                    hir::CallableReferenceTarget::Named(callee) => record(*callee),
-                    hir::CallableReferenceTarget::Local { callee, .. } => record(*callee),
-                    hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                        if let Some(call) = callee
-                            .declared_callable(&self.bound_callable_refs)
-                            .and_then(|target| self.generic_call_target(target, expr.span))
-                        {
-                            out.push(call);
-                        }
-                        self.collect_generic_calls_in_expr(receiver, out);
-                    }
-                    hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                        record(*callee);
-                        self.collect_generic_calls_in_expr(receiver, out);
-                    }
+                if let Some(call) = reference
+                    .target
+                    .callee(&self.bound_callable_refs)
+                    .and_then(|target| self.generic_call_target(target, expr.span))
+                {
+                    out.push(call);
+                }
+                if let Some(receiver) = reference.target.receiver() {
+                    self.collect_generic_calls_in_expr(receiver, out);
                 }
             }
             ExprKind::IntegerOperation { arguments, .. } => match arguments {

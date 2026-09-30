@@ -1,0 +1,40 @@
+package upstream.references
+
+public fun answer(): Int = 42
+public fun <T> identity(value: T): T = value
+public fun <T> T.retain(): T = this
+
+public fun <T> declarationOnly(seed: T): T {
+    fun neverCalled(): T = seed
+    return seed
+}
+
+public class Box<T> public constructor(public val value: T) {
+    public fun read(): T = value
+}
+
+public fun <T, U> captured(seed: T, inspect: (T) -> Int): () -> Int {
+    fun <V> value(ignored: V): Int = inspect(seed)
+    val first: (Int) -> Int = ::value
+    val repeated: (Int) -> Int = ::value
+    val alternate: (Unit) -> Int = ::value
+    return { first(0) + repeated(0) + alternate(Unit) - 84 }
+}
+
+public fun <T, U> fromDefault(
+    seed: T,
+    marker: U,
+    read: () -> T = if (true) {
+        fun keep(): T = seed
+        val first: () -> T = ::keep
+        val repeated: () -> T = ::keep
+        first()
+        repeated
+    } else {
+        val fallback: () -> T = { seed }
+        fallback
+    }
+): T = read()
+
+public fun <T> copyDefault(seed: T, copy: (T) -> T = ::identity): T = copy(seed)
+public fun <T> memberDefault(owner: Box<T>, read: () -> T = owner::read): T = read()

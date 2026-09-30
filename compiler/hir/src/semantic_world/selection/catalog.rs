@@ -54,6 +54,12 @@ pub(super) struct TypeAliasCatalogEntry {
 }
 
 #[derive(Debug)]
+pub(super) struct GeneratedCallableCatalogEntry {
+    pub(super) definition: crate::concrete::GeneratedCallableRecord,
+    pub(super) origin: Option<crate::ExportDefinitionSourceV1>,
+}
+
+#[derive(Debug)]
 pub(super) struct DependencyCatalog {
     pub(super) static_namespaces:
         BTreeMap<crate::SourceNominalId, Vec<crate::DirectNamedPublicBindingGroup>>,
@@ -62,10 +68,8 @@ pub(super) struct DependencyCatalog {
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
-    pub(super) generated_callables: BTreeMap<
-        scoop_identity::PersistentGeneratedCallableId,
-        crate::concrete::GeneratedCallableRecord,
-    >,
+    pub(super) generated_callables:
+        BTreeMap<scoop_identity::PersistentGeneratedCallableId, GeneratedCallableCatalogEntry>,
     pub(super) initializations: BTreeMap<
         scoop_identity::PersistentGenericTypeId,
         Arc<crate::ExportGenericNominalInitializationV1>,
@@ -103,9 +107,22 @@ impl ImportedSemanticWorld<'_> {
                 .canonical_for_semantic_authority()
                 .type_source_generated_callable_records()
             {
+                let origin = provider
+                    .foundation()
+                    .canonical_for_semantic_authority()
+                    .definition_origin(DefinitionOriginSubject::GeneratedCallable(record.id()))
+                    .map(|record| crate::ExportDefinitionSourceV1::new(record.origin().clone()));
                 generated_callables
                     .entry(record.id())
-                    .or_insert_with(|| record.clone());
+                    .and_modify(|entry: &mut GeneratedCallableCatalogEntry| {
+                        if entry.origin.is_none() {
+                            entry.origin = origin.clone();
+                        }
+                    })
+                    .or_insert_with(|| GeneratedCallableCatalogEntry {
+                        definition: record.clone(),
+                        origin,
+                    });
             }
             for nominal in provider.interface().nominal_interfaces().all_records() {
                 nominal_visibilities.insert(
@@ -168,18 +185,34 @@ impl ImportedSemanticWorld<'_> {
                     crate::DefaultCallableDeclarationV1::PropertyAccessor(_)
                     | crate::DefaultCallableDeclarationV1::Generated(_) => None,
                 };
-                let source_name = declaration
+                let source_declaration = declaration
                     .map(|declaration| {
-                        match super::intrinsics::callable_catalog_name(provider, declaration)? {
-                            super::intrinsics::CallableCatalogName::Function(name) => Ok(name),
-                            _ => unreachable!("source function owners have function names"),
-                        }
+                        let foundation = provider.foundation().canonical_for_semantic_authority();
+                        let key = match declaration {
+                            CallableTemplateOrigin::Function(id) => foundation
+                                .function_by_bytes(id.as_array())
+                                .map(|(_, key)| key),
+                            CallableTemplateOrigin::GenericFunction(id) => foundation
+                                .generic_function_by_bytes(id.as_array())
+                                .map(|(_, key)| key),
+                            _ => unreachable!("named bodies retain function declarations"),
+                        };
+                        key.filter(|key| {
+                            matches!(key.name(), scoop_identity::DeclarationName::Named(_))
+                        })
+                        .cloned()
+                        .map(Arc::new)
+                        .ok_or(
+                            ImportedDependencySelectionPlanBuildError::MissingCallableSourceName(
+                                declaration,
+                            ),
+                        )
                     })
                     .transpose()?;
                 let source = super::ImportedCallableBody {
                     body: Arc::new(body.clone()),
                     definition_sources: Arc::clone(&definition_sources),
-                    source_name,
+                    source_declaration,
                 };
                 if bodies.insert(body.owner(), source).is_some() {
                     return Err(

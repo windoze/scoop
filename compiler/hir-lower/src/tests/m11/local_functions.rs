@@ -71,7 +71,7 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         .next()
         .expect("local function");
     assert_eq!(
-        local.definition_root,
+        local.source().expect("current local definition").1,
         hir::LexicalDefinitionRoot::Function(module.entry())
     );
     assert_eq!(
@@ -114,7 +114,7 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
             ..
         } if local_function == local_id && captures.len() == 1
     ));
-    let lifted = &module.functions[local.function];
+    let lifted = &module.functions[local.source_function()];
     assert_eq!(
         lifted.params.len(),
         2,

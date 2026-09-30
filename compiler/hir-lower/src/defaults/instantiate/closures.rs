@@ -42,8 +42,7 @@ impl Lowerer {
             hir::ExpressionOrigin::Definition(source.origin),
             context.evaluation,
         );
-        let target =
-            self.instantiate_default_imported_reference_target(&source.target, origin, context);
+        let target = self.instantiate_default_reference_target(&source.target, origin, context);
         let function_type = self.instantiate_default_function_type(source.function_type, context);
         let captures = source
             .captures
@@ -62,7 +61,7 @@ impl Lowerer {
                     definition_root,
                     definition_path,
                     owner_type_arguments,
-                    target: hir::CallableReferenceTarget::Imported(target),
+                    target,
                     function_type,
                     captures,
                     origin,
@@ -85,40 +84,40 @@ impl Lowerer {
         }))
     }
 
-    fn instantiate_default_imported_reference_target(
+    fn instantiate_default_reference_target(
         &mut self,
-        target: &hir::ImportedCallableReferenceTarget,
+        target: &hir::CallableReferenceTarget,
         origin: hir::ExpressionOrigin,
         context: &mut InstantiationContext,
-    ) -> hir::ImportedCallableReferenceTarget {
+    ) -> hir::CallableReferenceTarget {
         match target {
-            hir::ImportedCallableReferenceTarget::BoundIntrinsic {
+            hir::CallableReferenceTarget::BoundIntrinsic {
                 receiver,
                 declaration,
                 intrinsic,
-            } => hir::ImportedCallableReferenceTarget::BoundIntrinsic {
+            } => hir::CallableReferenceTarget::BoundIntrinsic {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                 declaration: *declaration,
                 intrinsic: *intrinsic,
             },
-            hir::ImportedCallableReferenceTarget::Named(callee) => {
-                hir::ImportedCallableReferenceTarget::Named(
-                    self.instantiate_default_callable_target(*callee, context),
-                )
-            }
-            hir::ImportedCallableReferenceTarget::Local(application) => {
-                hir::ImportedCallableReferenceTarget::Local(
-                    self.instantiate_default_imported_application(*application, context),
-                )
-            }
-            hir::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
-                hir::ImportedCallableReferenceTarget::BoundMember {
+            hir::CallableReferenceTarget::Named(callee) => hir::CallableReferenceTarget::Named(
+                self.instantiate_default_callable_target(*callee, context),
+            ),
+            hir::CallableReferenceTarget::Local {
+                definition_path,
+                callee,
+            } => hir::CallableReferenceTarget::Local {
+                definition_path: definition_path.clone(),
+                callee: self.instantiate_default_callable_target(*callee, context),
+            },
+            hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
+                hir::CallableReferenceTarget::BoundMember {
                     receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                     callee: self.instantiate_default_method_callee(*callee, origin, context),
                 }
             }
-            hir::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
-                hir::ImportedCallableReferenceTarget::BoundExtension {
+            hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
+                hir::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                     callee: self.instantiate_default_callable_target(*callee, context),
                 }
@@ -154,11 +153,6 @@ impl Lowerer {
         let mut function = self.local_functions[source].clone();
         function.function_type =
             self.instantiate_default_local_signature(source, &context.bindings);
-        function.owner_type_arguments = function
-            .owner_type_arguments
-            .into_iter()
-            .map(|argument| self.instantiate_method_ty(argument, &context.bindings))
-            .collect();
         function.captures = function
             .captures
             .iter()
@@ -240,58 +234,33 @@ impl Lowerer {
             hir::ExpressionOrigin::Definition(source.origin),
             context.evaluation,
         );
-        let target = match source.target {
-            hir::CallableReferenceTarget::Imported(target) => {
-                hir::CallableReferenceTarget::Imported(
-                    self.instantiate_default_imported_reference_target(&target, origin, context),
-                )
-            }
-            hir::CallableReferenceTarget::Named(callee) => hir::CallableReferenceTarget::Named(
-                self.instantiate_default_callable(callee, context),
-            ),
-            hir::CallableReferenceTarget::Local {
-                local_function,
-                callee,
-            } => hir::CallableReferenceTarget::Local {
-                local_function: context.local_function(local_function),
-                callee: self.instantiate_default_callable(callee, context),
-            },
-            hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                hir::CallableReferenceTarget::BoundMember {
-                    receiver: Box::new(self.instantiate_default_expr(&receiver, context)),
-                    callee: self.instantiate_default_method_callee(callee, origin, context),
-                }
-            }
-            hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                hir::CallableReferenceTarget::BoundExtension {
-                    receiver: Box::new(self.instantiate_default_expr(&receiver, context)),
-                    callee: self.instantiate_default_callable(callee, context),
-                }
-            }
-        };
+        let target = self.instantiate_default_reference_target(&source.target, origin, context);
         let function_type = self.instantiate_default_function_type(source.function_type, context);
         let captures = source
             .captures
             .iter()
             .map(|capture| self.instantiate_default_capture(capture, context))
             .collect();
-        let (definition_root, definition_path, owner_type_arguments) = match context.evaluation {
-            InstantiationEvaluation::Template => (
-                source.definition_root,
-                source.definition_path,
-                source
-                    .owner_type_arguments
-                    .into_iter()
-                    .map(|argument| self.instantiate_method_ty(argument, &context.bindings))
-                    .collect(),
-            ),
-            InstantiationEvaluation::Concrete(_) => (
-                self.current_definition_root(),
-                self.definition_paths
-                    .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion),
-                self.ambient_type_args(self.type_params_in_scope.len()),
-            ),
-        };
+        let (definition_root, definition_path, owner_type_arguments, origin) =
+            match context.evaluation {
+                InstantiationEvaluation::Template => (
+                    source.definition_root,
+                    source.definition_path,
+                    source
+                        .owner_type_arguments
+                        .into_iter()
+                        .map(|argument| self.instantiate_method_ty(argument, &context.bindings))
+                        .collect(),
+                    source.origin,
+                ),
+                InstantiationEvaluation::Concrete(_) => (
+                    self.current_definition_root(),
+                    self.definition_paths
+                        .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion),
+                    self.ambient_type_args(self.type_params_in_scope.len()),
+                    self.definition_origin(context.statement_span),
+                ),
+            };
         self.callable_references.alloc(hir::CallableReference {
             definition_root,
             definition_path,
@@ -299,8 +268,8 @@ impl Lowerer {
             function_type,
             owner_type_arguments,
             captures,
-            origin: source.origin,
-            span: source.span,
+            origin,
+            span: origin.span,
         })
     }
 

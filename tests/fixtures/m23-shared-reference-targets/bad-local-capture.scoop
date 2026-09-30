@@ -1,0 +1,9 @@
+package consumer.references
+
+public fun result(): Int {
+    var value = 42
+    fun read(): Int = value
+    val reference: () -> Int = ::read
+    value = 43
+    return reference()
+}

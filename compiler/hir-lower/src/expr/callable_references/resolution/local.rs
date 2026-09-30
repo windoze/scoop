@@ -33,14 +33,14 @@ impl LocalReferenceDeclaration {
             Some(receiver) if matches!(self.view.receiver, ReceiverShape::Extension(_)) => {
                 hir::CallableReferenceTarget::BoundExtension {
                     receiver: Box::new(receiver.clone()),
-                    callee,
+                    callee: callee.into(),
                 }
             }
             Some(receiver) => hir::CallableReferenceTarget::BoundMember {
                 receiver: Box::new(receiver.clone()),
                 callee: state.materialize_method_callee(self.candidate.source, callee, type_args),
             },
-            None => hir::CallableReferenceTarget::Named(callee),
+            None => hir::CallableReferenceTarget::Named(callee.into()),
         }
     }
 }

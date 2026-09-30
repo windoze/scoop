@@ -26,7 +26,7 @@ impl SourceRoots {
                     CallableReferenceTarget::Named(callable)
                     | CallableReferenceTarget::BoundExtension {
                         callee: callable, ..
-                    } => self.function(export, callable.function(export), roots),
+                    } => self.callable_target(export, *callable, roots),
                     CallableReferenceTarget::BoundMember { callee, .. } => match *callee {
                         MethodCallee::Callable(callable) => {
                             self.callable_target(export, callable, roots)
@@ -41,7 +41,7 @@ impl SourceRoots {
                     // The lifted declaration and its dependencies are attached
                     // to this default body, rather than a top-level record.
                     CallableReferenceTarget::Local { .. }
-                    | CallableReferenceTarget::Imported(_) => Ok(()),
+                    | CallableReferenceTarget::BoundIntrinsic { .. } => Ok(()),
                 }
             }
             // Imported calls keep the actual provider; attached lexical bodies

@@ -67,7 +67,7 @@ fn generic_bodies_keep_owner_and_method_binders_and_lexical_capture_bodies() {
             hir::DefaultCallableDeclarationV1::Generated(_)
         )));
         let local = export.local_functions.iter().next().unwrap().1;
-        let local_owner = function_owner(export, local.function);
+        let local_owner = function_owner(export, local.source_function());
         assert!(table.get(local_owner).is_some());
         roundtrip(output, core, &section);
         snapshot(output, "combined");
