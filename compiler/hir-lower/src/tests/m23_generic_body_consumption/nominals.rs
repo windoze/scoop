@@ -1,5 +1,51 @@
 use super::*;
 
+#[test]
+fn source_and_dependency_enum_instances_share_payload_and_gc_substitution() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/m23-shared-enums");
+    with_provider_consumer(
+        &std::fs::read_to_string(root.join("provider.scoop")).unwrap(),
+        &std::fs::read_to_string(root.join("instances.scoop")).unwrap(),
+        |output, _, _, _, _| {
+            let module = output.output().local.module();
+            let mut applications = std::collections::HashSet::new();
+            for (_, enumeration) in module.enums.iter() {
+                assert!(applications.insert((
+                    enumeration.origin.declaration_id(),
+                    enumeration.type_arguments.clone(),
+                )));
+            }
+            for name in ["LocalChoice", "Choice"] {
+                let instances = module
+                    .enums
+                    .iter()
+                    .filter(|(_, enumeration)| enumeration.name == name)
+                    .collect::<Vec<_>>();
+                assert_eq!(instances.len(), 3, "{name}");
+                for (_, instance) in instances {
+                    assert_eq!(instance.type_arguments.len(), 1);
+                    let argument = instance.type_arguments[0];
+                    assert_eq!(instance.gc_free, module.types[argument].gc_free);
+                    assert_eq!(
+                        module.types[instance.canonical_type].gc_free,
+                        instance.gc_free,
+                    );
+                    let payload = instance
+                        .variants
+                        .iter()
+                        .find(|variant| {
+                            variant.name == if name == "Choice" { "Item" } else { "Pair" }
+                        })
+                        .unwrap();
+                    assert_eq!(payload.fields[0].ty, argument);
+                }
+            }
+        },
+    )
+    .unwrap();
+}
+
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

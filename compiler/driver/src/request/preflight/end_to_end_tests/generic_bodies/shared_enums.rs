@@ -7,6 +7,7 @@ fn shared_enum_references_republish_and_execute_from_artifacts() {
             "defaults-nested",
             "aliases-equality",
             "qualified",
+            "instances",
         ],
         &[],
         "downstream",

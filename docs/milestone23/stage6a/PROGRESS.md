@@ -200,3 +200,11 @@
 - 新增四个独立反例，连同既有错误 payload 反例，覆盖别名链、命名 payload、结果转为 Any、直接期望 application 和 class 构造器。诊断定位错误实参；原反例快照无需改动，新诊断快照关闭更新开关复验通过。
 - 全仓 fmt／clippy、1314 项 HIR lowering 单元测试通过。Option 完整组和泛型构造器完整组的真实发布、源码移走、再发布及运行均通过；同时执行的 enum／接口成员等九项不同真实产物测试均已覆盖成功。日志前缀 `/tmp/scoop-m23-6a-constructor-applications-`，结果见 `unit.log`、`options-verified.log` 和 `verified-artifacts.log`。
 - 未增加推断器、wire 字段或 runtime ABI；修改后的泛型调用主模块为 470 行。确认没有 cargo／rustc 占用后清理约 0.72 GiB 旧增量缓存，继续复用 `target/m23-6a`。
+
+## 共同 enum 具体化与实例缓存
+
+- enum 具体化按原声明身份和完整类型实参复用同一实例缓存。声明读取后统一分配、替换 variant payload、计算 GC 属性及降低既定接口实现，删除当前／依赖的两套处理；递归引用先登记身份，字段与 GC 完成后再降低方法和接口。普通外部方法保留提供方定义归属，没有复制方法或重新选择接口实现。
+- 声明读取直接借用既有字段类型和原 variant／payload 字段身份，不复制整个声明。当前定义与已应用的依赖记录分别传递其实际替换环境，保证嵌套泛型和 consumer-local 实参对应正确；已在前端检查的参数数目与 NoGC 规则不在具体化中重复断言。
+- 新增 `m23-shared-enums/instances` 及 HIR／MIR／LIR 快照，覆盖本地／依赖 enum、别名、嵌套 Option 与 enum payload、引用／Int／Unit、泛型调用及下游再次发布。原四组快照无需修改；完整五组正例关闭更新开关复验通过，单元测试同时验证原身份加完整实参唯一、payload 替换及 GC 属性。
+- 全仓 fmt／clippy、最终 1314 项 HIR lowering 单元测试及九项不同真实产物回归均已覆盖成功，包含普通 enum、Option、重建 core、派生相等、构造和接口成员组合。最终日志前缀 `/tmp/scoop-m23-6a-constructor-applications-`，结果见 `unit.log`、`verified-artifacts.log` 和 `enums-verified.log`；早期新 fixture 验证见 `/tmp/scoop-m23-6a-enum-definitions-shared-verified.log`。
+- 具体化主文件从 631 行按实际编排职责拆为 384 行主模块和 253 行运行模块，enum 具体化与声明读取分别为 126、110 行。前端 nominal application 与完整声明存储的来源表示仍须继续迁移，本批只统一已经消费已检查声明的实际具体化算法；wire 与 runtime ABI 未改变。
