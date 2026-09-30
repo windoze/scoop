@@ -263,3 +263,9 @@
 - 删除求解器 `NominalApplication` 的 Struct／Class／Enum／Imported 分支，约束统一保存原声明和完整类型项；求解后的类型应用使用现有共同入口。构造器与 variant 的目标 ID 保持独立，未把构造目标改成普通函数。
 - Ptr／FunPtr 的表示从真实声明取得，删除求解器中的另一套指针应用分配。数组类型信息按原声明的 intrinsic 类别和实际元素实参查询，移除当前／依赖的重复数组判定。既有求解器测试改用真实 intrinsic 声明表示，并验证非法 `FunPtr<Int>` 被拒绝。
 - 全仓 fmt／clippy、2291 项相关单元测试与 6 组真实产物回归全部通过；覆盖指针及下游 pointee、数组／vararg、泛型构造、bound 和完整 core 三组 MIR／LIR 导出闭包。快照无需修改，wire 和 runtime ABI 保持。日志前缀 `/tmp/scoop-m23-6a-nominal-constraints-`，结果见 `unit.log`、`build.log` 与 `artifacts.json`。
+
+## 调用与函数引用共用候选约束环境
+
+- 候选环境直接接收宿主／callable 形参组、已知宿主实参、显式类型实参及已绑定 receiver 关系，不再要求源码 `CallableView`。普通源码调用、依赖普通／泛型调用和 callable reference 共用该入口，删除各自重建形参上界、宿主绑定和显式参数约束的代码；构造结果与函数引用的精确签名约束保持原角色。
+- 全仓 fmt／clippy、全部 1318 项 HIR lowering 单元测试与 7 组真实产物回归全部通过。覆盖构造、bound、函数引用、默认值、数组、指针 intrinsic 与 consumer-local pointee，已有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-callable-environments-`，结果见 `unit.log`、`build.log` 与 `artifacts.json`。
+- 本批生产代码净减少 34 行；依赖泛型调用主文件降至 446 行。剩余候选目标和声明存储仍按阶段设计继续统一，没有将环境合并等同于全部候选迁移完成。

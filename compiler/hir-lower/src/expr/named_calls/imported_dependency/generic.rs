@@ -4,14 +4,12 @@
 use super::*;
 
 mod signature;
-use crate::call_resolution::constraints::{
-    Constraint, ConstraintOrigin, InferenceSession, TypeTerm,
-};
+use crate::call_resolution::applicability::CallableApplicabilityInput;
+use crate::call_resolution::constraints::{Constraint, ConstraintOrigin, TypeTerm};
 use crate::call_resolution::contextual::{
     ArgumentExpression, ArgumentInferenceFailureKind, ArgumentInferenceInput, ArgumentPattern,
     InferredArguments,
 };
-use crate::expr::ResolvedCallTypeArgument;
 pub(in crate::expr) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
 
 impl Lowerer {
@@ -44,17 +42,9 @@ impl Lowerer {
             Some(arguments) => arguments,
             None => return Err(self),
         };
-        let mut session = InferenceSession::new();
-        let environment =
-            session.add_environment(&signature.owner_parameters, &signature.type_parameters);
-        self.add_declaration_bounds(
-            &mut session,
-            signature
-                .owner_parameters
-                .iter()
-                .chain(&signature.type_parameters),
-        );
-        if !signature.owner_parameters.is_empty() {
+        let owner_arguments = if signature.owner_parameters.is_empty() {
+            Vec::new()
+        } else {
             let ImportedCallReceiver::Member { value, .. } = &receiver else {
                 unreachable!("nominal member inference has its exact receiver");
             };
@@ -65,28 +55,22 @@ impl Lowerer {
             let owner = self
                 .imported_member_owner_type(value.ty(), owner)
                 .expect("nominal member inference retains its declared owner application");
-            let owner_arguments = self.imported_owner_arguments(owner);
-            for (variable, argument) in session
-                .owner_variables(environment)
-                .to_vec()
-                .iter()
-                .zip(owner_arguments)
-            {
-                session.push(
-                    Constraint::Equal((*variable).into(), TypeTerm::Rigid(*argument)),
-                    ConstraintOrigin::Receiver,
-                );
+            self.imported_owner_arguments(owner).to_vec()
+        };
+        let bound_receiver = match (signature.receiver, &receiver) {
+            (Some(expected), ImportedCallReceiver::Member { value, .. }) => {
+                Some((expected, value.ty()))
             }
-        }
-        for (index, argument) in explicit.iter().enumerate() {
-            if let ResolvedCallTypeArgument::Explicit { ty, .. } = argument {
-                let variable = session.callable_variables(environment)[index];
-                session.push(
-                    Constraint::Equal(variable.into(), TypeTerm::Rigid(*ty)),
-                    ConstraintOrigin::ExplicitTypeArgument(index as u32),
-                );
-            }
-        }
+            _ => None,
+        };
+        let (mut session, environment) =
+            self.callable_applicability_session(CallableApplicabilityInput {
+                owner_parameters: &signature.owner_parameters,
+                callable_parameters: &signature.type_parameters,
+                owner_arguments: &owner_arguments,
+                explicit_arguments: &explicit,
+                bound_receiver,
+            });
         let expected_result = expected.map(|expected| (signature.return_type, expected));
         let expected_result = if matches!(
             template,
@@ -104,14 +88,6 @@ impl Lowerer {
         } else {
             expected_result
         };
-        if let (Some(expected), ImportedCallReceiver::Member { value, .. }) =
-            (signature.receiver, &receiver)
-        {
-            session.push(
-                Constraint::Subtype(TypeTerm::Rigid(value.ty()), TypeTerm::Type(expected)),
-                ConstraintOrigin::Receiver,
-            );
-        }
         let mut source_patterns = Vec::new();
         for (index, pattern) in argument_map.source_parameters().iter().enumerate() {
             match self.imported_signature_type_with_bindings(pattern, &template_bindings) {

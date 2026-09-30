@@ -9,7 +9,8 @@ use super::super::{
     ImportedCallableCandidate, ImportedDependencyCallProbe, ImportedProbeCall,
 };
 use crate::Lowerer;
-use crate::call_resolution::constraints::{ConstraintOrigin, InferenceSession};
+use crate::call_resolution::applicability::CallableApplicabilityInput;
+use crate::call_resolution::constraints::ConstraintOrigin;
 use crate::call_resolution::contextual::{
     ArgumentInferenceFailureKind, ArgumentInferenceInput, ArgumentPattern, InferredArguments,
 };
@@ -78,8 +79,14 @@ impl Lowerer {
                 return Err(self);
             }
         };
-        let mut session = InferenceSession::new();
-        let environment = session.add_environment(&[], &[]);
+        let (mut session, environment) =
+            self.callable_applicability_session(CallableApplicabilityInput {
+                owner_parameters: &[],
+                callable_parameters: &[],
+                owner_arguments: &[],
+                explicit_arguments: &[],
+                bound_receiver: None,
+            });
         let InferredArguments {
             values,
             sinks: argument_sinks,

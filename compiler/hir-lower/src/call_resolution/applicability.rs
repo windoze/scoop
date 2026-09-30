@@ -3,9 +3,7 @@
 use scoop_hir as hir;
 
 use super::arguments::CandidateArgumentMap;
-use super::candidates::{
-    CallableView, NominalConstructorSource, NominalConstructorView, ReceiverShape,
-};
+use super::candidates::{NominalConstructorSource, NominalConstructorView};
 use super::constraints::{
     CallableCategory, CallableParameter, CallableReturn, CallableShape, Constraint,
     ConstraintFailure, ConstraintOrigin, InferenceSession, NominalApplication, TypeTerm,
@@ -15,10 +13,11 @@ use crate::{Lowerer, Type};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CallableApplicabilityInput<'a> {
-    pub(crate) view: &'a CallableView,
+    pub(crate) owner_parameters: &'a [hir::TypeParamDecl],
+    pub(crate) callable_parameters: &'a [hir::TypeParamDecl],
     pub(crate) owner_arguments: &'a [hir::TypeId],
     pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
-    pub(crate) receiver_type: Option<hir::TypeId>,
+    pub(crate) bound_receiver: Option<(hir::TypeId, hir::TypeId)>,
 }
 
 #[derive(Debug, Clone)]
@@ -108,32 +107,14 @@ impl Lowerer {
             is_suspend,
             expected_type,
         } = input;
-        debug_assert_eq!(owner_parameters.len(), owner_arguments.len());
-
-        let mut session = InferenceSession::new();
-        let environment = session.add_environment(owner_parameters, callable_parameters);
-        for (&variable, &argument) in session
-            .owner_variables(environment)
-            .to_vec()
-            .iter()
-            .zip(owner_arguments)
-        {
-            session.push(
-                Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
-                ConstraintOrigin::Receiver,
-            );
-        }
-        self.add_declaration_bounds(
-            &mut session,
-            owner_parameters.iter().chain(callable_parameters),
-        );
-
-        if let Some((declared, actual)) = bound_receiver {
-            session.push(
-                Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(declared)),
-                ConstraintOrigin::Receiver,
-            );
-        }
+        let (mut session, environment) =
+            self.callable_applicability_session(CallableApplicabilityInput {
+                owner_parameters,
+                callable_parameters,
+                owner_arguments,
+                explicit_arguments: &[],
+                bound_receiver,
+            });
 
         let shape = CallableShape {
             category: CallableCategory::Managed,
@@ -187,20 +168,19 @@ impl Lowerer {
         input: CallableApplicabilityInput<'_>,
     ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
         let CallableApplicabilityInput {
-            view,
+            owner_parameters,
+            callable_parameters,
             owner_arguments,
             explicit_arguments,
-            receiver_type,
+            bound_receiver,
         } = input;
-        debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
+        debug_assert_eq!(owner_parameters.len(), owner_arguments.len());
         debug_assert!(
-            explicit_arguments.is_empty()
-                || view.callable_parameters.len() == explicit_arguments.len()
+            explicit_arguments.is_empty() || callable_parameters.len() == explicit_arguments.len()
         );
 
         let mut session = InferenceSession::new();
-        let environment =
-            session.add_environment(&view.owner_parameters, &view.callable_parameters);
+        let environment = session.add_environment(owner_parameters, callable_parameters);
 
         let owner_variables = session.owner_variables(environment).to_vec();
         for (&variable, &argument) in owner_variables.iter().zip(owner_arguments) {
@@ -228,19 +208,14 @@ impl Lowerer {
 
         self.add_declaration_bounds(
             &mut session,
-            view.owner_parameters
-                .iter()
-                .chain(&view.callable_parameters),
+            owner_parameters.iter().chain(callable_parameters),
         );
 
-        if let ReceiverShape::Extension(expected) = view.receiver {
-            let actual = receiver_type.expect("extension applicability has a receiver type");
+        if let Some((expected, actual)) = bound_receiver {
             session.push(
                 Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected)),
                 ConstraintOrigin::Receiver,
             );
-        } else {
-            debug_assert!(receiver_type.is_none());
         }
 
         (session, environment)

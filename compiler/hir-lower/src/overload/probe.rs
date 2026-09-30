@@ -107,10 +107,18 @@ impl Lowerer {
             .collect::<Vec<_>>();
         let (mut session, environment) =
             state.callable_applicability_session(CallableApplicabilityInput {
-                view: &candidate.view,
+                owner_parameters: &candidate.view.owner_parameters,
+                callable_parameters: &candidate.view.callable_parameters,
                 owner_arguments: &candidate.owner_arguments,
                 explicit_arguments: explicit_type_args,
-                receiver_type: receiver.map(|receiver| receiver.ty),
+                bound_receiver: receiver.map(|receiver| {
+                    let crate::call_resolution::candidates::ReceiverShape::Extension(expected) =
+                        candidate.view.receiver
+                    else {
+                        unreachable!("direct call applicability binds only extension receivers")
+                    };
+                    (expected, receiver.ty)
+                }),
             });
         let InferredArguments {
             types,
