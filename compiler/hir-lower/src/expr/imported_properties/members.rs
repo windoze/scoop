@@ -243,16 +243,13 @@ impl Lowerer {
             let mut args = vec![self.adapt_to(receiver, owner_type)];
             args.extend(values);
             return Some(hir::Expr {
-                kind: hir::ExprKind::ImportedGenericCall {
+                kind: self.resolved_template_call(
                     application,
-                    kind: match kind {
-                        MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
-                        MemberCallKind::DirectSuper => hir::ImportedGenericCallKind::DirectSuper,
-                    },
-                    binding: None,
+                    kind,
+                    None,
                     args,
-                    receiver: hir::SourceCallReceiver::Receiver { static_type },
-                },
+                    hir::SourceCallReceiver::Receiver { static_type },
+                ),
                 ty: result_type,
                 span,
                 origin: self.expression_origin(span),

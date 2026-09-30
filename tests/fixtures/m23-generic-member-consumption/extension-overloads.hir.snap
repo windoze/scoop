@@ -37,7 +37,7 @@ Module
         IntegerLiteral 0 : Int
     return
       Call external #0 : Int
-        ImportedGenericCall value<Int> : Int
+        MethodCall value<Int> : Int
           Local box : Box<Int>
   fun make<T>(value: T0): T0
     val local1

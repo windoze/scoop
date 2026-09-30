@@ -26,7 +26,7 @@ Module
     val local7
       Local base : ProtectedBox<Int>
     val local9
-      ImportedGenericCall readVirtual<Int> : Int
+      MethodCall readVirtual<Int> : Int
         Local $dependency.receiver : ProtectedBox<Int>
     val local10
       Local $dependency.argument.0 : Int
@@ -49,6 +49,6 @@ Module
           Local $parameter.value : T0
           Local $parameter.replacement : T0
     return
-      ImportedGenericCall readVirtual<T0> : T0
+      MethodCall readVirtual<T0> : T0
         Local $dependency.receiver : ProtectedBox<T0>
   output library

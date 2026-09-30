@@ -1,0 +1,36 @@
+package upstream.methods
+
+public interface Reader<T> {
+    public fun read(): T
+}
+
+public interface Label {
+    public fun label(): Int = 42
+}
+
+public interface Numbered {
+    public fun number(): Int
+}
+
+public open class Box<T> public constructor(public val value: T): Reader<T>, Label {
+    public open override fun read(): T = value
+    public fun <U> choose(extra: U, chosen: T = read()): T = chosen
+}
+
+public class Leaf<T> public constructor(value: T): Box<T>(value) {
+    public fun onlyLeaf(): T = read()
+}
+
+public open class RemoteNumber public constructor() {
+    public open fun number(): Int = 42
+}
+
+public struct Number(val value: Int): Numbered {
+    public override fun number(): Int = value
+}
+
+public fun <T, R: Reader<T>> boundRead(reader: R, chosen: T = reader.read()): T = chosen
+public fun <T, R: Reader<T>> reference(reader: R): () -> T = reader::read
+public fun <T, B: Box<T>> classRead(box: B, chosen: T = box.read()): T = chosen
+public fun <R: Label> label(value: R): Int = value.label()
+public fun <R: Numbered> number(value: R): Int = value.number()

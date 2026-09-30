@@ -432,8 +432,8 @@ Module
       return
   fun extension:Receiver<T0>:ordered$initialize @fn11() -> Unit
     bb0 entry
-      call $call.1: Starter<Int> = @fn22 direct
-      call $call.2: OrderedSlot<Int> = @fn21 direct
+      call $call.1: Starter<Int> = @fn21 direct
+      call $call.2: OrderedSlot<Int> = @fn22 direct
         Type Starter<Int>
         Local $call.1
       global_assign extension:Receiver<T0>:ordered$delegate
@@ -929,7 +929,51 @@ Module
       return
         Type ReferenceSlot<Int>
         Local $call.4
-  fun provideDelegate @fn21(this: Starter<Int>) -> OrderedSlot<Int>
+  fun start @fn21() -> Starter<Int>
+    bb0 entry
+      call external6 direct
+      call $dependency.local.0: Int = external2 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.0
+          Type Int
+          Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call external6 direct
+      call external3 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+      assign $new.1
+        Type Starter<Int>
+        ClassAlloc Starter<Int>
+      call @fn24 direct
+        Type Starter<Int>
+        Local $new.1
+      return
+        Type Starter<Int>
+        Local $new.1
+  fun provideDelegate @fn22(this: Starter<Int>) -> OrderedSlot<Int>
     bb0 entry
       call external6 direct
       call $dependency.local.1: Int = external2 direct
@@ -987,7 +1031,7 @@ Module
       assign $new.2
         Type OrderedSlot<Int>
         ClassAlloc OrderedSlot<Int>
-      call @fn24 direct
+      call @fn25 direct
         Type OrderedSlot<Int>
         Local $new.2
         Type Payload
@@ -995,50 +1039,6 @@ Module
       return
         Type OrderedSlot<Int>
         Local $new.2
-  fun start @fn22() -> Starter<Int>
-    bb0 entry
-      call external6 direct
-      call $dependency.local.0: Int = external2 direct
-        Type Trace
-        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
-      val $dependency.local.1: Int
-        Type Int
-        IntegerLiteral Int value=10 bits=0x0000000a
-      val $dependency.local.2: Int
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: Int
-        Type Int
-        IntegerBinary multiply kind=Int
-          Type Int
-          Local $dependency.local.0
-          Type Int
-          Local $dependency.local.2
-      val $dependency.local.4: Int
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      val $dependency.local.5: Int
-        Type Int
-        Local $dependency.local.4
-      call external6 direct
-      call external3 direct
-        Type Trace
-        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.local.3
-          Type Int
-          Local $dependency.local.5
-      assign $new.1
-        Type Starter<Int>
-        ClassAlloc Starter<Int>
-      call @fn25 direct
-        Type Starter<Int>
-        Local $new.1
-      return
-        Type Starter<Int>
-        Local $new.1
   fun init.Receiver.$c0 @fn23(this: Receiver<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1047,16 +1047,16 @@ Module
         Type Int
         Local value
       return
-  fun init.OrderedSlot.$c5 @fn24(this: OrderedSlot<Int>, payload: Payload) -> Unit
+  fun init.Starter.$c4 @fn24(this: Starter<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.OrderedSlot.$c5 @fn25(this: OrderedSlot<Int>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
         Type OrderedSlot<Int>
         Local this
         Type Payload
         Local payload
-      return
-  fun init.Starter.$c4 @fn25(this: Starter<Int>) -> Unit
-    bb0 entry
       return
   fun ctor.ZeroSlot.$c1 @fn26() -> ZeroSlot<Int> <no-gc>
     bb0 entry
@@ -1105,6 +1105,6 @@ Module
   instance mi17 function=@fn18 <- extension:Receiver<T0>:flat$ensure
   instance mi18 function=@fn19 <- getValue
   instance mi19 function=@fn20 <- references
-  instance mi20 function=@fn21 <- provideDelegate
-  instance mi21 function=@fn22 <- start
+  instance mi20 function=@fn21 <- start
+  instance mi21 function=@fn22 <- provideDelegate
   output library

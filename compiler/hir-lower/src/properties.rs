@@ -77,12 +77,6 @@ pub(crate) enum LocalDelegateDispatch {
         binding: Option<std::sync::Arc<hir::DirectImportedTargetBinding>>,
         receiver: hir::SourceCallReceiver<TypeId>,
     },
-    ImportedGeneric {
-        application: hir::ImportedGenericCallableApplicationId,
-        kind: hir::ImportedGenericCallKind,
-        binding: Option<std::sync::Arc<hir::DirectImportedTargetBinding>>,
-        receiver: hir::SourceCallReceiver<TypeId>,
-    },
 }
 
 #[derive(Clone)]

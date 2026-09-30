@@ -18,12 +18,12 @@ Module
     val local6
       Local base : VirtualBox<Int>
     val local8
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         Local $dependency.receiver : VirtualBox<Int>
     val local7
       Local child : VirtualChild<Int>
     val local9
-      ImportedGenericCall inheritedRead<Int> : Int
+      MethodCall inheritedRead<Int> : Int
         Local $dependency.receiver : VirtualChild<Int>
     val local10
       Local $dependency.argument.0 : Int
@@ -48,6 +48,6 @@ Module
     val local6
       Local base : VirtualBox<T0>
     return
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         Local $dependency.receiver : VirtualBox<T0>
   output library

@@ -96,28 +96,26 @@ impl ReferenceCollector<'_> {
     }
 
     fn method_callee_domain(&self, callee: hir::MethodCallee) -> hir::AccessDomain {
-        let function = match callee {
-            hir::MethodCallee::Callable(callable) => self.lowerer.callable_function_id(callable),
-            hir::MethodCallee::Bound(bound) => match self.lowerer.bound_callable_refs[bound].source
-            {
-                hir::BoundCallableSource::Class { callable, .. } => {
-                    self.lowerer.callable_function_id(callable)
+        if let Some(target) = callee.declared_callable(&self.lowerer.bound_callable_refs) {
+            return match target {
+                hir::CallableTarget::Local(callable) => self.callable_domain(callable),
+                hir::CallableTarget::Application(_) | hir::CallableTarget::Dependency(_) => {
+                    hir::AccessDomain::universal()
                 }
-                hir::BoundCallableSource::Interface { member, .. } => {
-                    self.lowerer.interface_method_entities[member].function
-                }
-            },
-            hir::MethodCallee::DerivedEquality(application) => {
-                let application = &self.lowerer.derived_equality_applications[application];
-                match application.origin {
-                    hir::DerivedEqualityOrigin::Nominal(_) => application.function,
-                    hir::DerivedEqualityOrigin::TypeOwned(owner_type) => {
-                        return self.lowerer.type_access_domain(owner_type);
-                    }
-                }
-            }
+            };
+        }
+        let hir::MethodCallee::DerivedEquality(application) = callee else {
+            unreachable!("a method without a declared target is derived equality")
         };
-        self.lowerer.function_access_domain(function)
+        let application = &self.lowerer.derived_equality_applications[application];
+        match application.origin {
+            hir::DerivedEqualityOrigin::Nominal(_) => {
+                self.lowerer.function_access_domain(application.function)
+            }
+            hir::DerivedEqualityOrigin::TypeOwned(owner_type) => {
+                self.lowerer.type_access_domain(owner_type)
+            }
+        }
     }
 
     fn callable_target_domain(
@@ -127,8 +125,9 @@ impl ReferenceCollector<'_> {
         match *target {
             hir::ExportDefaultCallableTarget::Callable(callable) => self.callable_domain(callable),
             hir::ExportDefaultCallableTarget::ImportedDependency(_)
-            | hir::ExportDefaultCallableTarget::ImportedGeneric(_)
-            | hir::ExportDefaultCallableTarget::ImportedBound(_) => hir::AccessDomain::universal(),
+            | hir::ExportDefaultCallableTarget::ImportedGeneric(_) => {
+                hir::AccessDomain::universal()
+            }
             hir::ExportDefaultCallableTarget::Bound(bound) => {
                 self.method_callee_domain(hir::MethodCallee::Bound(bound))
             }

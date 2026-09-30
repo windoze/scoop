@@ -22,7 +22,7 @@ Module
     val local9
       Local $dependency.argument.1 : (T0, Int) -> Int
     val local10
-      ImportedGenericCall mix<T0, Int> : Int
+      MethodCall mix<T0, Int> : Int
         Local $dependency.receiver : Box<T0>
         Local $dependency.parameter.extra : Int
         Local $dependency.parameter.select : (T0, Int) -> Int
@@ -38,14 +38,14 @@ Module
     val local15
       Local $dependency.argument.1 : (T0, Unit) -> Int
     val local16
-      ImportedGenericCall mix<T0, Unit> : Int
+      MethodCall mix<T0, Unit> : Int
         Local $dependency.receiver : Box<T0>
         Local $dependency.parameter.extra : Unit
         Local $dependency.parameter.select : (T0, Unit) -> Int
     val local17
       Local box : Box<T0>
     val local18
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         Local $dependency.receiver : Box<T0>
     val local19
       Local $argument.0 : T0

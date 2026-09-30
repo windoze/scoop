@@ -99,44 +99,23 @@ fn collect_generic_method_owner_types(
     out.extend(ty);
 }
 
-pub(in crate::effects::gc_free_pointees) fn collect_imported_method_callee_types(
-    lowerer: &Lowerer,
-    callee: &hir::ImportedMethodCallee,
-    out: &mut Vec<hir::TypeId>,
-) {
-    if let Some(target) = callee.declared_callable() {
-        collect_callable_target_types(lowerer, target, out);
-    }
-    match callee {
-        hir::ImportedMethodCallee::Callable(_) => {}
-        hir::ImportedMethodCallee::InterfaceBound(bound) => {
-            out.extend([bound.receiver_type, bound.interface]);
-            collect_function_type_types(lowerer, bound.signature, out);
-        }
-        hir::ImportedMethodCallee::DerivedEquality(application) => {
-            collect_method_callee_types(
-                lowerer,
-                hir::MethodCallee::DerivedEquality(*application),
-                out,
-            );
-        }
-    }
-}
-
 pub(in crate::effects::gc_free_pointees) fn collect_method_callee_types(
     lowerer: &Lowerer,
     callee: hir::MethodCallee,
     out: &mut Vec<hir::TypeId>,
 ) {
     match callee {
-        hir::MethodCallee::Callable(callable) => collect_callable_types(lowerer, callable, out),
+        hir::MethodCallee::Callable(callable) => {
+            collect_callable_target_types(lowerer, callable, out)
+        }
         hir::MethodCallee::Bound(bound) => {
             let bound = &lowerer.bound_callable_refs[bound];
+            out.push(bound.receiver_type);
+            collect_callable_target_types(lowerer, bound.declared_callable(), out);
             collect_function_type_types(lowerer, bound.instantiated_signature, out);
             match bound.source {
-                hir::BoundCallableSource::Class { bound, callable } => {
+                hir::BoundCallableSource::Class { bound, .. } => {
                     out.push(lowerer.class_applications[bound].canonical_type);
-                    collect_callable_types(lowerer, callable, out);
                 }
                 hir::BoundCallableSource::Interface { bound, .. } => {
                     out.push(lowerer.interface_applications[bound].canonical_type);
@@ -188,8 +167,8 @@ pub(in crate::effects::gc_free_pointees) fn collect_imported_reference_target_ty
     out: &mut Vec<hir::TypeId>,
 ) {
     if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } = target {
-        collect_imported_method_callee_types(lowerer, callee, out);
-    } else if let Some(target) = target.callee() {
+        collect_method_callee_types(lowerer, *callee, out);
+    } else if let Some(target) = target.callee(&lowerer.bound_callable_refs) {
         collect_callable_target_types(lowerer, target, out);
     }
 }

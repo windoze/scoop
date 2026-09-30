@@ -20,11 +20,11 @@ Module
     val local6
       Local $dependency.argument.0 : Int
     val local7
-      ImportedGenericCall replaceVirtual<Int> : Int
+      MethodCall replaceVirtual<Int> : Int
         Local $dependency.receiver : ProtectedBox<Int>
         Local $dependency.parameter.next : Int
     val local8
-      ImportedGenericCall state<Int> : Int
+      MethodCall state<Int> : Int
         Local base : ProtectedBox<Int>
     val local9
       MethodCall Derived.$get$state : Int
@@ -64,10 +64,10 @@ Module
       Local value : T0
     val local6
       Local $dependency.argument.0 : T0
-    ImportedGenericCall replaceVirtual<T0> : T0
+    MethodCall replaceVirtual<T0> : T0
       Local $dependency.receiver : ProtectedBox<T0>
       Local $dependency.parameter.next : T0
     return
-      ImportedGenericCall state<T0> : T0
+      MethodCall state<T0> : T0
         Local holder : ProtectedBox<T0>
   output library

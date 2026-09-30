@@ -205,7 +205,7 @@ fn bound_reference_retains_receiver_and_resolved_member_identity() {
         panic!("expected a bound member target")
     };
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
-    let target = module.callable_function(*callee);
+    let target = module.callable_function(crate::tests::local_method_callable(&module, *callee));
     assert_eq!(module.functions[target].name, "Mapper.map");
     assert!(reference.captures.is_empty());
 }

@@ -7,7 +7,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall choose<Int> : Int
+      MethodCall choose<Int> : Int
         Local $dependency.receiver : Plain
         Local $dependency.parameter.value : Int
   fun make<T>(value: T0): T0
@@ -18,7 +18,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall choose<T0> : T0
+      MethodCall choose<T0> : T0
         Local $dependency.receiver : Plain
         Local $dependency.parameter.value : T0
   output library

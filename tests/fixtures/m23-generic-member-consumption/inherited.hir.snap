@@ -11,10 +11,10 @@ Module
       ReferenceUpcast : Box<Int>
         Local box : Inherited<Int>
     val local4
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         Local $dependency.receiver : Box<Int>
     val local9
-      ImportedGenericCall echo<Int> : Int
+      MethodCall echo<Int> : Int
         Local $dependency.receiver : Box<Int>
         Local $dependency.parameter.value : Int
     val local5
@@ -27,7 +27,7 @@ Module
     val local8
       Local $dependency.parameter.value : Int
     val local10
-      ImportedGenericCall choose<Int, Int> : Int
+      MethodCall choose<Int, Int> : Int
         Local $dependency.receiver : Box<Int>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.fallback : Int
@@ -47,10 +47,10 @@ Module
         ImportedConstructorInit Inherited : Inherited<T0>
           Local $dependency.parameter.value : T0
     val local4
-      ImportedGenericCall value<T0> : T0
+      MethodCall value<T0> : T0
         Local $dependency.receiver : Box<T0>
     return
-      ImportedGenericCall echo<T0> : T0
+      MethodCall echo<T0> : T0
         Local $dependency.receiver : Box<T0>
         Local $dependency.parameter.value : T0
   output library

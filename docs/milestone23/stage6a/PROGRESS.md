@@ -358,3 +358,11 @@
 - 在 `m23-qualified-types` 补充 `independent` 正例，将菱形重导出、嵌套类型、泛型、值类型与独立普通函数库组合。三份新阶段快照、普通／移动 GC 运行以及三个既有包可见性反例全部关闭更新开关复验成功；原 `bad-direct-longest` 现准确报告不可访问的 `Nested`，不再提前误报产物类型缺失。
 - 全仓 fmt／clippy 无警告，862 项 HIR 与 584 项 slib 单元测试通过，另有 10 组真实产物回归严格通过，包括完整 core、槽与 callable 反例、类型策略、继承 ABI／初始化、泛型 dispatch、限定类型和初始化需求。临时定位输出已移除，旧快照无需改动，wire 与 runtime ABI 保持。
 - 最终日志前缀 `/tmp/scoop-m23-6a-inheritance-scope-`，结果见 `unit.log`、`new-verified-results.json` 与 `verified-results.json`；原失败的定位证据为 `/tmp/scoop-m23-6a-missing-type-diagnostic.log`。槽重放与组合测试模块分别为 107、233 行；旧 `target/debug/incremental` 已为空，继续复用 `target/m23-6a`。
+
+## 共同成员调用与实际接收者适配
+
+- 当前成员、依赖泛型成员、解码正文、默认值与函数引用共用 `MethodCallee` 和 `BoundCallableRef`；上界记录保存实际 receiver 类型、完整 class／interface application、原成员引用、已选目标与完整签名。默认展开共同代换这些字段，删除 `ImportedMethodCall`、`ImportedGenericCall`、`ImportedMethodCallee` 和单独的导入上界记录及替换、效果检查与投影分支。
+- 具体化按已有完整 conformance 和原接口槽取得实际实现；普通外部实现继续引用原声明。本地与依赖的调用、引用共用接收者上转型／装箱，外部 callable use 从原签名保存所需 receiver，调用点原静态类型独立保留。修正外部父类实现被本地接口上界选中后的参数 ABI，并让成员与扩展的连接检查共用完整 exact receiver 关系，接受合法泛型 application 的父类型链。
+- 新增 `m23-shared-method-calls` 的独立／组合源码、6 份阶段快照和 4 份错误诊断。覆盖 class／interface 上界、完整宿主与方法实参、默认值、限定 super、函数引用、当前接口与外部父类实现，以及通过基类静态类型调用子类覆写。源码移走后再次发布，下游 String／Int／Unit 组合及普通／移动 GC 运行通过。
+- 全仓 fmt／clippy、2306 项 HIR／HIR lowering／MIR lowering 单元测试，以及关闭全部快照更新开关的 78 项真实泛型产物与完整 core 回归全部通过。122 份既有阶段快照变化中，97 份 HIR 仅调用标签变化，另 7 份 HIR 展示共同上界／派生目标；11 份 MIR 对应明确上转型或函数编号变化。7 份 LIR 按稳定符号还原调用后，正文、调用目标和元数据相同，仅函数排列与临时编号变化；既有诊断快照保持不变。
+- 最终日志前缀 `/tmp/scoop-m23-6a-shared-methods-`，结果见 `unit.log`、`all-verified-results.json`、`hir-review.json` 和 `lir-review.json`。成员具体化模块 206 行，默认实体替换模块 328 行；本批清理未使用的 `target/debug` 约 1475.1 MiB，继续复用 `target/m23-6a`。wire 和 runtime ABI 不变，完整候选与剩余词法／构造节点的共同表示继续迁移。

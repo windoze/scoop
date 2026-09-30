@@ -36,7 +36,7 @@ Module
     val local15
       Local $dependency.argument.0 : Remote<T0>
     val local16
-      ImportedMethodCall Callable(Application(Idx::<ImportedGenericCallableApplication>(7))) : T0
+      MethodCall bound Remote<T0> via Box<T0> -> value<T0> : T0
         Local $dependency.parameter.box : Remote<T0>
     val local17
       Call defaultRead<T0, Remote<T0>> : T0
@@ -114,7 +114,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local40
-        ImportedGenericCall value<Int> : Int
+        MethodCall value<Int> : Int
           ReferenceUpcast : Box<Int>
             Local integer : Remote<Int>
       val local41
@@ -132,7 +132,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local44
-        ImportedGenericCall alternate<Int> : Int
+        MethodCall alternate<Int> : Int
           Local integer : Remote<Int>
       val local45
         IntegerLiteral 0 : Int

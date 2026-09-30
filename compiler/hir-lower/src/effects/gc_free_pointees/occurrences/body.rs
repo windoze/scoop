@@ -5,8 +5,7 @@ use crate::Lowerer;
 use super::TypeOccurrence;
 use super::types::{
     collect_callable_target_types, collect_callable_types, collect_field_ref_types,
-    collect_imported_method_callee_types, collect_imported_reference_target_types,
-    collect_method_callee_types,
+    collect_imported_reference_target_types, collect_method_callee_types,
 };
 
 /// Collect source-backed type occurrences for diagnostics. Unlike the
@@ -317,21 +316,6 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }
-        ExprKind::ImportedMethodCall {
-            receiver,
-            callee,
-            args,
-        } => {
-            push_types_at_expression(
-                expression,
-                |types| collect_imported_method_callee_types(lowerer, callee, types),
-                out,
-            );
-            collect_expr_type_occurrences(lowerer, receiver, out);
-            for arg in args {
-                collect_expr_type_occurrences(lowerer, arg, out);
-            }
-        }
         ExprKind::ImportedCallableReference(reference) => {
             push_types_at_expression(
                 expression,
@@ -566,36 +550,6 @@ pub(in super::super) fn collect_expr_type_occurrences(
             push_types_at_expression(
                 expression,
                 |types| types.push(lowerer.imported_constructor_applications[*application].owner),
-                out,
-            );
-            for argument in args {
-                collect_expr_type_occurrences(lowerer, argument, out);
-            }
-        }
-        ExprKind::ImportedGenericCall {
-            application,
-            args,
-            receiver,
-            ..
-        } => {
-            push_types_at_expression(
-                expression,
-                |types| {
-                    types.extend(
-                        lowerer.imported_generic_applications[*application]
-                            .arguments
-                            .substitution(
-                                &lowerer.types,
-                                &lowerer.enum_applications,
-                                &lowerer.struct_applications,
-                                &lowerer.class_applications,
-                                &lowerer.interface_applications,
-                            ),
-                    );
-                    if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
-                        types.push(*static_type);
-                    }
-                },
                 out,
             );
             for argument in args {

@@ -359,12 +359,7 @@ impl Lowerer {
                     bound.unwrap_or_else(|| {
                         self.resolved_template_call(
                             application,
-                            match kind {
-                                MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
-                                MemberCallKind::DirectSuper => {
-                                    hir::ImportedGenericCallKind::DirectSuper
-                                }
-                            },
+                            kind,
                             binding,
                             args,
                             source_receiver,

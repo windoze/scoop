@@ -192,7 +192,7 @@ fn selected_marker(output: &hir::Output) -> u32 {
     };
     let expression = local_init(body, "chosen");
     let hir::ExprKind::MethodCall {
-        callee: hir::MethodCallee::Callable(callee),
+        callee: hir::MethodCallee::Callable(hir::CallableTarget::Local(callee)),
         ..
     } = expression.kind
     else {

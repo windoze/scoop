@@ -10,7 +10,7 @@ Module
     val local3
       Local box : Box<Int>
     return
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         Local $dependency.receiver : Box<Int>
   fun make<T>(value: T0): T0
     val local1
@@ -21,6 +21,6 @@ Module
       ImportedConstructorInit Box : Box<T0>
         Local $dependency.parameter.value : T0
     return
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         Local $dependency.receiver : Box<T0>
   output library

@@ -6,7 +6,7 @@ Module
     val local1
       Local value : T0
     return
-      ImportedMethodCall InterfaceBound(ImportedInterfaceBoundCallable { receiver_type: Idx::<Type>(14), interface: Idx::<Type>(13), member: Function(PersistentFunctionId([169, 171, 168, 72, 20, 129, 198, 49, 18, 161, 9, 121, 242, 50, 110, 68, 195, 147, 99, 205, 118, 146, 106, 149, 136, 173, 79, 255, 244, 167, 159, 124])), slot: PersistentDispatchSlotId([118, 162, 49, 121, 248, 191, 79, 252, 152, 149, 127, 182, 91, 5, 87, 255, 120, 153, 133, 53, 1, 132, 159, 79, 227, 190, 202, 214, 211, 98, 164, 160]), declared: Dependency(Idx::<ImportedDependencyCallableUse>(0)), signature: Idx::<FunctionType>(0) }) : Int
+      MethodCall bound T0 via Read -> external #0 interface[0] : Int
         Local $dependency.receiver : T0
   fun exercise<T>(value: T0): Int
     val local1

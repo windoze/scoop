@@ -29,7 +29,7 @@ Module
       ImportedConstructorInit Box : Box<Int>
         Local $dependency.parameter.value : Int
     val local11
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         Local box : Box<Int>
     val local12
       FieldAccess field 1 : Int
@@ -41,7 +41,7 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
     val local15
-      ImportedGenericCall count<Int> : Int
+      MethodCall count<Int> : Int
         Local box : Box<Int>
     val local16
       Local $dependency.argument.0 : Int

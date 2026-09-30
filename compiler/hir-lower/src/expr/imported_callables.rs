@@ -24,6 +24,7 @@ impl Lowerer {
     > {
         let dispatch =
             self.imported_callable_dispatch(candidate.interface(), MemberCallKind::Ordinary)?;
+        let receiver = self.imported_callable_receiver_type(candidate.interface())?;
         let binding = std::sync::Arc::new(candidate.binding().clone());
         let reference = self
             .dependencies
@@ -31,7 +32,7 @@ impl Lowerer {
             .expect("ordinary lowering carries a dependency selection plan")
             .select_callable(candidate)?;
         Ok((
-            self.intern_imported_dependency_callable_use(reference, dispatch),
+            self.intern_imported_dependency_callable_use(reference, dispatch, receiver),
             binding,
         ))
     }
@@ -61,12 +62,45 @@ impl Lowerer {
         candidate: hir::ImportedCallableDeclaration,
         dispatch: hir::ImportedDependencyDispatch,
     ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
+        let receiver = self.imported_callable_receiver_type(candidate.interface())?;
         let reference = self
             .dependencies
             .as_mut()
             .expect("ordinary lowering carries a dependency selection plan")
             .select_declared_callable(candidate)?;
-        Ok(self.intern_imported_dependency_callable_use(reference, dispatch))
+        Ok(self.intern_imported_dependency_callable_use(reference, dispatch, receiver))
+    }
+
+    fn imported_callable_receiver_type(
+        &mut self,
+        callable: &hir::CallableDeclarationRecordV1,
+    ) -> Result<Option<hir::TypeId>, hir::ImportedDependencySelectionError> {
+        use scoop_identity::{CallableTemplateOrigin, SignatureTypeKey};
+        if matches!(
+            callable.declaration(),
+            CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_)
+        ) {
+            return Ok(None);
+        }
+        let receiver = match callable.owner() {
+            hir::PublicDeclarationOwnerV1::TopLevel => None,
+            hir::PublicDeclarationOwnerV1::Extension => callable.receiver().cloned(),
+            hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) => {
+                Some(SignatureTypeKey::Nominal(owner))
+            }
+            hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(_)) => {
+                return Err(hir::ImportedDependencySelectionError::InvalidDispatch {
+                    declaration: callable.declaration(),
+                });
+            }
+        };
+        receiver
+            .as_ref()
+            .map(|receiver| self.imported_signature_type(receiver))
+            .transpose()
+            .map_err(|_| hir::ImportedDependencySelectionError::InvalidDispatch {
+                declaration: callable.declaration(),
+            })
     }
 
     fn imported_callable_dispatch(
@@ -130,6 +164,7 @@ impl Lowerer {
         &mut self,
         reference: hir::ImportedDependencyCallableRef,
         dispatch: hir::ImportedDependencyDispatch,
+        receiver: Option<hir::TypeId>,
     ) -> hir::ImportedDependencyCallableUseId {
         let existing = self
             .imported_dependency_callables
@@ -139,9 +174,12 @@ impl Lowerer {
             });
         match existing {
             Some(existing) => existing,
-            None => self
-                .imported_dependency_callables
-                .alloc(hir::ImportedDependencyCallableUse::new(reference, dispatch)),
+            None => {
+                self.imported_dependency_callables
+                    .alloc(hir::ImportedDependencyCallableUse::new(
+                        reference, dispatch, receiver,
+                    ))
+            }
         }
     }
 }

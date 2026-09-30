@@ -19,7 +19,7 @@ Module
     val local8
       Local $dependency.parameter.value : GenericValue<T0>
     val local9
-      ImportedMethodCall InterfaceBound(ImportedInterfaceBoundCallable { receiver_type: Idx::<Type>(25), interface: Idx::<Type>(14), member: Function(PersistentFunctionId([38, 49, 32, 11, 126, 158, 143, 232, 124, 205, 117, 91, 112, 10, 134, 8, 123, 219, 108, 91, 76, 142, 162, 36, 78, 11, 137, 31, 17, 198, 218, 224])), slot: PersistentDispatchSlotId([151, 134, 133, 40, 19, 44, 23, 28, 55, 186, 196, 66, 141, 190, 40, 10, 197, 58, 227, 251, 5, 81, 232, 5, 48, 154, 240, 57, 163, 243, 142, 193]), declared: Dependency(Idx::<ImportedDependencyCallableUse>(3)), signature: Idx::<FunctionType>(0) }) : Int
+      MethodCall bound GenericValue<T0> via Readable -> external #3 interface[0] : Int
         Local $default.local.1 : GenericValue<T0>
     return
       Call defaultRead<GenericValue<T0>> : Int

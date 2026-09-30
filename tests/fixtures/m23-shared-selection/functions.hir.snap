@@ -332,7 +332,7 @@ Module
     val local72
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         ImportedConstructorInit Holder : Holder<Int>
           Local $dependency.parameter.value : Int
   output library

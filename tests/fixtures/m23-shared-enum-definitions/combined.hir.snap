@@ -102,7 +102,7 @@ Module
       Local external : Option<Chain<T0>>
       arm variant0(0: variant1(0: local22))
         assign $result.1
-          ImportedGenericCall value<T0> : T0
+          MethodCall value<T0> : T0
             Local link : Link<T0>
       else
         assign $result.1
@@ -132,7 +132,7 @@ Module
     val local33
       Local $dependency.argument.0 : (T0) -> Int
     val local37
-      ImportedGenericCall apply<T0> : Int
+      MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.action : (T0) -> Int
     val local34
@@ -144,7 +144,7 @@ Module
     val local38
       Local $equality.lhs : Int
     val local39
-      ImportedGenericCall apply<T0> : Int
+      MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.action : (T0) -> Int
     val local40

@@ -13,7 +13,7 @@ Module
     val local4
       Local $dependency.argument.1 : (Int, Int)
     return
-      ImportedGenericCall select<String, Int, Int> : Int
+      MethodCall select<String, Int, Int> : Int
         Local $dependency.receiver : Overloads<String>
         Local $dependency.parameter.owner : String
         Local $dependency.parameter.value : (Int, Int)
@@ -32,7 +32,7 @@ Module
     val local6
       Local $dependency.parameter.value : T0
     return
-      ImportedGenericCall choose<Int, T0> : T0
+      MethodCall choose<Int, T0> : T0
         Local $dependency.receiver : Box<Int>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.fallback : T0

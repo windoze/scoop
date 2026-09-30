@@ -7,7 +7,7 @@ Module
     val local4
       Local $dependency.argument.0 : T0
     val local5
-      ImportedGenericCall keep<T0> : T0
+      MethodCall keep<T0> : T0
         Local $dependency.receiver : Tools
         Local $dependency.parameter.value : T0
     val local6

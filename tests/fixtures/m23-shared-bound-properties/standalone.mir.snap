@@ -168,8 +168,10 @@ Module
         Type Remote<String>
         Local $dependency.argument.0
       call $dependency.parameter.previous: String = @fn16 direct
-        Type Remote<String>
-        Local $dependency.parameter.box
+        Type Box<String>
+        Retype Box<String>
+          Type Remote<String>
+          Local $dependency.parameter.box
       call fallback: String = @fn17 direct
         Type Remote<String>
         Local $dependency.parameter.box
@@ -506,8 +508,10 @@ Module
         Type Remote<Unit>
         Local $dependency.argument.0
       call @fn31 direct
-        Type Remote<Unit>
-        Local $dependency.parameter.box
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Remote<Unit>
+          Local $dependency.parameter.box
       val $dependency.parameter.previous: Unit
         Type Unit
         UnitLiteral
@@ -844,8 +848,10 @@ Module
         Type Remote<Int>
         Local $dependency.argument.0
       call $dependency.parameter.previous: Int = @fn20 direct
-        Type Remote<Int>
-        Local $dependency.parameter.box
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local $dependency.parameter.box
       call fallback: Int = @fn36 direct
         Type Remote<Int>
         Local $dependency.parameter.box
@@ -1199,19 +1205,25 @@ Module
   fun stored @fn14(box: Remote<String>) -> String
     bb0 entry
       call $call.1: String = @fn16 direct
-        Type Remote<String>
-        Local box
+        Type Box<String>
+        Retype Box<String>
+          Type Remote<String>
+          Local box
       return
         Type String
         Local $call.1
   fun exchange @fn15(box: Remote<String>, next: String) -> String
     bb0 entry
       call $dependency.local.2: String = @fn4 virtual[0]
-        Type Remote<String>
-        Local box
+        Type Box<String>
+        Retype Box<String>
+          Type Remote<String>
+          Local box
       call @fn5 virtual[1]
-        Type Remote<String>
-        Local box
+        Type Box<String>
+        Retype Box<String>
+          Type Remote<String>
+          Local box
         Type String
         Local next
       return
@@ -1241,10 +1253,12 @@ Module
           Local $dependency.local.1
     bb1 if.then.1
       call $call.1: String = @fn16 direct
-        Type Remote<String>
-        VariantPayloadProject Option<Remote<String>> v0 f0
-          Type Option<Remote<String>>
-          Local $dependency.local.1
+        Type Box<String>
+        Retype Box<String>
+          Type Remote<String>
+          VariantPayloadProject Option<Remote<String>> v0 f0
+            Type Option<Remote<String>>
+            Local $dependency.local.1
       val $dependency.local.2: Option<String>
         Type Option<String>
         VariantConstruct Option<String> v0
@@ -1263,11 +1277,15 @@ Module
   fun exchange @fn19(box: Remote<Int>, next: Int) -> Int
     bb0 entry
       call $dependency.local.2: Int = @fn8 virtual[0]
-        Type Remote<Int>
-        Local box
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local box
       call @fn9 virtual[1]
-        Type Remote<Int>
-        Local box
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local box
         Type Int
         Local next
       return
@@ -1366,20 +1384,26 @@ Module
   fun stored @fn29(box: Remote<Unit>) -> Unit
     bb0 entry
       call @fn31 direct
-        Type Remote<Unit>
-        Local box
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Remote<Unit>
+          Local box
       return
   fun exchange @fn30(box: Remote<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn25 virtual[0]
-        Type Remote<Unit>
-        Local box
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Remote<Unit>
+          Local box
       val $dependency.local.2: Unit
         Type Unit
         UnitLiteral
       call @fn26 virtual[1]
-        Type Remote<Unit>
-        Local box
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Remote<Unit>
+          Local box
         Type Unit
         Local next
       Type Unit
@@ -1409,10 +1433,12 @@ Module
           Local $dependency.local.1
     bb1 if.then.1
       call @fn31 direct
-        Type Remote<Unit>
-        VariantPayloadProject Option<Remote<Unit>> v0 f0
-          Type Option<Remote<Unit>>
-          Local $dependency.local.1
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Remote<Unit>
+          VariantPayloadProject Option<Remote<Unit>> v0 f0
+            Type Option<Remote<Unit>>
+            Local $dependency.local.1
       val $dependency.local.2: Option<Unit>
         Type Option<Unit>
         VariantConstruct Option<Unit> v0
@@ -1436,8 +1462,10 @@ Module
   fun stored @fn35(box: Remote<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
-        Type Remote<Int>
-        Local box
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local box
       return
         Type Int
         Local $call.1
@@ -1458,10 +1486,12 @@ Module
           Local $dependency.local.1
     bb1 if.then.1
       call $call.1: Int = @fn20 direct
-        Type Remote<Int>
-        VariantPayloadProject Option<Remote<Int>> v0 f0
-          Type Option<Remote<Int>>
-          Local $dependency.local.1
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          VariantPayloadProject Option<Remote<Int>> v0 f0
+            Type Option<Remote<Int>>
+            Local $dependency.local.1
       val $dependency.local.2: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0

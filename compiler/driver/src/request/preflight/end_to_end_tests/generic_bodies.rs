@@ -18,6 +18,7 @@ mod initialization;
 mod iteration;
 mod machine;
 mod members;
+mod method_calls;
 mod native_calls;
 mod nominal_conditions;
 mod nominals;

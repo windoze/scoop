@@ -9,7 +9,7 @@ Module
         ImportedConstructorInit PropertyCell : PropertyCell<Int>
           Local $dependency.parameter.stored : Int
     return
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         Local cell : ReadOnlyProperty<Int>
   fun make<T>(value: T0): T0
     val local1
@@ -21,6 +21,6 @@ Module
         ImportedConstructorInit PropertyCell : PropertyCell<T0>
           Local $dependency.parameter.stored : T0
     return
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         Local cell : ReadOnlyProperty<T0>
   output library

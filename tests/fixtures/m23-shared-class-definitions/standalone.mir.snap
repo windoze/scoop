@@ -227,7 +227,7 @@ Module
       call wrapped: Wrapper<String> = @fn67 direct
         Type Link<String>
         Local $dependency.parameter.head
-      call $opt.1: Option<Link<String>> = @fn17 direct
+      call $opt.1: Option<Link<String>> = @fn16 direct
         Type Link<String>
         FieldAccess 0
           Type Wrapper<String>
@@ -255,7 +255,7 @@ Module
         Type UnwrapException
         Local $new.2
     bb3 if.merge.3
-      call $call.3: String = @fn16 direct
+      call $call.3: String = @fn17 direct
         Type Link<String>
         Local $uw.2
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -283,7 +283,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb5 if.merge.5
-      call $opt.3: Option<Link<String>> = @fn17 direct
+      call $opt.3: Option<Link<String>> = @fn16 direct
         Type Link<String>
         Local leaf
       branch bb6 bb7
@@ -309,7 +309,7 @@ Module
         Type UnwrapException
         Local $new.4
     bb8 if.merge.8
-      call $call.5: String = @fn16 direct
+      call $call.5: String = @fn17 direct
         Type Link<String>
         Local $uw.4
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -602,7 +602,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.12
     bb26 if.merge.26
-      call $call.13: String = @fn16 direct
+      call $call.13: String = @fn17 direct
         Type Link<String>
         ArrayGet MutableArray<Link<String>>
           Type MutableArray<Link<String>>
@@ -736,7 +736,7 @@ Module
       call wrapped: Wrapper<Unit> = @fn68 direct
         Type Link<Unit>
         Local $dependency.parameter.head
-      call $opt.1: Option<Link<Unit>> = @fn29 direct
+      call $opt.1: Option<Link<Unit>> = @fn28 direct
         Type Link<Unit>
         FieldAccess 0
           Type Wrapper<Unit>
@@ -764,7 +764,7 @@ Module
         Type UnwrapException
         Local $new.2
     bb3 if.merge.3
-      call @fn28 direct
+      call @fn29 direct
         Type Link<Unit>
         Local $uw.2
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
@@ -792,7 +792,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb5 if.merge.5
-      call $opt.3: Option<Link<Unit>> = @fn29 direct
+      call $opt.3: Option<Link<Unit>> = @fn28 direct
         Type Link<Unit>
         Local leaf
       branch bb6 bb7
@@ -818,7 +818,7 @@ Module
         Type UnwrapException
         Local $new.3
     bb8 if.merge.8
-      call @fn28 direct
+      call @fn29 direct
         Type Link<Unit>
         Local $uw.4
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
@@ -1114,7 +1114,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.8
     bb26 if.merge.26
-      call @fn28 direct
+      call @fn29 direct
         Type Link<Unit>
         ArrayGet MutableArray<Link<Unit>>
           Type MutableArray<Link<Unit>>
@@ -1833,18 +1833,18 @@ Module
         Type Option<Link<String>>
         Local value
       return
-  fun value @fn16(this: Link<String>) -> String
-    bb0 entry
-      return
-        Type String
-        FieldAccess 0
-          Type Link<String>
-          Local this
-  fun next @fn17(this: Link<String>) -> Option<Link<String>>
+  fun next @fn16(this: Link<String>) -> Option<Link<String>>
     bb0 entry
       return
         Type Option<Link<String>>
         FieldAccess 1
+          Type Link<String>
+          Local this
+  fun value @fn17(this: Link<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
           Type Link<String>
           Local this
   fun echoed @fn18(this: Remote<String>) -> String
@@ -1863,7 +1863,7 @@ Module
           Local this
   fun readLink @fn20(value: String, link: Link<String>) -> String
     bb0 entry
-      call $call.1: String = @fn16 direct
+      call $call.1: String = @fn17 direct
         Type Link<String>
         Local link
       return
@@ -1986,20 +1986,20 @@ Module
         Type Option<Link<Unit>>
         Local value
       return
-  fun value @fn28(this: Link<Unit>) -> Unit
-    bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Link<Unit>
-        Local this
-      return
-  fun next @fn29(this: Link<Unit>) -> Option<Link<Unit>>
+  fun next @fn28(this: Link<Unit>) -> Option<Link<Unit>>
     bb0 entry
       return
         Type Option<Link<Unit>>
         FieldAccess 1
           Type Link<Unit>
           Local this
+  fun value @fn29(this: Link<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Link<Unit>
+        Local this
+      return
   fun echoed @fn30(this: Remote<Unit>) -> Unit
     bb0 entry
       Type Unit
@@ -2016,7 +2016,7 @@ Module
       return
   fun readLink @fn32(value: Unit, link: Link<Unit>) -> Unit
     bb0 entry
-      call @fn28 direct
+      call @fn29 direct
         Type Link<Unit>
         Local link
       return
@@ -3209,8 +3209,8 @@ Module
   instance mi9 function=@fn13 <- iterator
   instance mi10 function=@fn14 <- make
   instance mi11 function=@fn15 <- next
-  instance mi12 function=@fn16 <- value
-  instance mi13 function=@fn17 <- next
+  instance mi12 function=@fn16 <- next
+  instance mi13 function=@fn17 <- value
   instance mi14 function=@fn18 <- echoed
   instance mi15 function=@fn19 <- second
   instance mi16 function=@fn20 <- readLink
@@ -3221,8 +3221,8 @@ Module
   instance mi21 function=@fn25 <- iterator
   instance mi22 function=@fn26 <- make
   instance mi23 function=@fn27 <- next
-  instance mi24 function=@fn28 <- value
-  instance mi25 function=@fn29 <- next
+  instance mi24 function=@fn28 <- next
+  instance mi25 function=@fn29 <- value
   instance mi26 function=@fn30 <- echoed
   instance mi27 function=@fn31 <- second
   instance mi28 function=@fn32 <- readLink

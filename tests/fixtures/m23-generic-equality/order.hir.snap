@@ -123,7 +123,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local49
-        ImportedGenericCall visits<T0> : Int
+        MethodCall visits<T0> : Int
           Local trace : Trace<T0>
       val local50
         IntegerLiteral 12 : Int
@@ -140,7 +140,7 @@ Module
         IntegerLiteral 1 : Int
     val local53
       Local trace : Trace<T0>
-    ImportedGenericCall visits<T0> : Unit
+    MethodCall visits<T0> : Unit
       Local $place.1 : Trace<T0>
       IntegerLiteral 0 : Int
     if
@@ -152,7 +152,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local54
-        ImportedGenericCall visits<T0> : Int
+        MethodCall visits<T0> : Int
           Local trace : Trace<T0>
       val local55
         IntegerLiteral 123 : Int
@@ -169,7 +169,7 @@ Module
         IntegerLiteral 2 : Int
     val local58
       Local trace : Trace<T0>
-    ImportedGenericCall visits<T0> : Unit
+    MethodCall visits<T0> : Unit
       Local $place.3 : Trace<T0>
       IntegerLiteral 0 : Int
     val local59
@@ -197,7 +197,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local66
-        ImportedGenericCall visits<T0> : Int
+        MethodCall visits<T0> : Int
           Local trace : Trace<T0>
       val local67
         IntegerLiteral 0 : Int
@@ -248,7 +248,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local82
-        ImportedGenericCall visits<T0> : Int
+        MethodCall visits<T0> : Int
           Local trace : Trace<T0>
       val local83
         IntegerLiteral 12 : Int

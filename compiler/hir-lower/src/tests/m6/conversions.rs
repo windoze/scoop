@@ -283,7 +283,10 @@ fn smart_cast_narrows_class_references_for_free() {
                     receiver, callee, ..
                 } => {
                     assert_eq!(
-                        module.functions[module.callable_function(*callee)].name,
+                        module.functions[module.callable_function(
+                            crate::tests::local_method_callable(&module, *callee)
+                        )]
+                        .name,
                         "Shape.describe"
                     );
                     // The receiver is the same local, retyped — no Unbox.

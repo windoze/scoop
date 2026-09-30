@@ -185,8 +185,10 @@ Module
         Type Foreign<String>
         Local $dependency.argument.0
       call $dependency.parameter.previous: String = @fn15 direct
-        Type Foreign<String>
-        Local $dependency.parameter.box
+        Type Box<String>
+        Retype Box<String>
+          Type Foreign<String>
+          Local $dependency.parameter.box
       call fromDefault: String = @fn16 direct
         Type Foreign<String>
         Local $dependency.parameter.box
@@ -365,8 +367,10 @@ Module
         Type Foreign<Unit>
         Local $dependency.argument.0
       call @fn27 direct
-        Type Foreign<Unit>
-        Local $dependency.parameter.box
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Foreign<Unit>
+          Local $dependency.parameter.box
       val $dependency.parameter.previous: Unit
         Type Unit
         UnitLiteral
@@ -542,8 +546,10 @@ Module
         Type Foreign<Int>
         Local $dependency.argument.0
       call $dependency.parameter.previous: Int = @fn33 direct
-        Type Foreign<Int>
-        Local $dependency.parameter.box
+        Type Box<Int>
+        Retype Box<Int>
+          Type Foreign<Int>
+          Local $dependency.parameter.box
       call fromDefault: Int = @fn34 direct
         Type Foreign<Int>
         Local $dependency.parameter.box
@@ -707,11 +713,15 @@ Module
   fun changeLocal @fn13(box: Child<String>, next: String) -> String
     bb0 entry
       call previous: String = @fn4 virtual[0]
-        Type Child<String>
-        Local box
+        Type Local<Unit, String>
+        Retype Local<Unit, String>
+          Type Child<String>
+          Local box
       call @fn5 virtual[1]
-        Type Child<String>
-        Local box
+        Type Local<Unit, String>
+        Retype Local<Unit, String>
+          Type Child<String>
+          Local box
         Type String
         Local next
       return
@@ -720,8 +730,10 @@ Module
   fun stored @fn14(box: Foreign<String>) -> String
     bb0 entry
       call $call.1: String = @fn15 direct
-        Type Foreign<String>
-        Local box
+        Type Box<String>
+        Retype Box<String>
+          Type Foreign<String>
+          Local box
       return
         Type String
         Local $call.1
@@ -749,10 +761,12 @@ Module
           Local $dependency.local.1
     bb1 if.then.1
       call $call.1: String = @fn15 direct
-        Type Foreign<String>
-        VariantPayloadProject Option<Foreign<String>> v0 f0
-          Type Option<Foreign<String>>
-          Local $dependency.local.1
+        Type Box<String>
+        Retype Box<String>
+          Type Foreign<String>
+          VariantPayloadProject Option<Foreign<String>> v0 f0
+            Type Option<Foreign<String>>
+            Local $dependency.local.1
       val $dependency.local.2: Option<String>
         Type Option<String>
         VariantConstruct Option<String> v0
@@ -774,8 +788,10 @@ Module
         Type Foreign<Int>
         Local box
       call $dependency.local.2: Int = @fn33 direct
-        Type Foreign<Int>
-        Local $dependency.local.1
+        Type Box<Int>
+        Retype Box<Int>
+          Type Foreign<Int>
+          Local $dependency.local.1
       val $dependency.local.3: Int
         Type Int
         Local $dependency.local.2
@@ -786,8 +802,10 @@ Module
         Type Int
         Local $dependency.local.4
       call @fn37 direct
-        Type Foreign<Int>
-        Local $dependency.local.1
+        Type Box<Int>
+        Retype Box<Int>
+          Type Foreign<Int>
+          Local $dependency.local.1
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -795,8 +813,10 @@ Module
           Type Int
           Local $dependency.local.5
       call $call.1: Int = @fn33 direct
-        Type Foreign<Int>
-        Local box
+        Type Box<Int>
+        Retype Box<Int>
+          Type Foreign<Int>
+          Local box
       return
         Type Int
         Local $call.1
@@ -872,14 +892,18 @@ Module
   fun changeLocal @fn25(box: Child<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn20 virtual[0]
-        Type Child<Unit>
-        Local box
+        Type Local<Unit, Unit>
+        Retype Local<Unit, Unit>
+          Type Child<Unit>
+          Local box
       val previous: Unit
         Type Unit
         UnitLiteral
       call @fn21 virtual[1]
-        Type Child<Unit>
-        Local box
+        Type Local<Unit, Unit>
+        Retype Local<Unit, Unit>
+          Type Child<Unit>
+          Local box
         Type Unit
         Local next
       Type Unit
@@ -888,8 +912,10 @@ Module
   fun stored @fn26(box: Foreign<Unit>) -> Unit
     bb0 entry
       call @fn27 direct
-        Type Foreign<Unit>
-        Local box
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Foreign<Unit>
+          Local box
       return
   fun value @fn27(this: Box<Unit>) -> Unit
     bb0 entry
@@ -915,10 +941,12 @@ Module
           Local $dependency.local.1
     bb1 if.then.1
       call @fn27 direct
-        Type Foreign<Unit>
-        VariantPayloadProject Option<Foreign<Unit>> v0 f0
-          Type Option<Foreign<Unit>>
-          Local $dependency.local.1
+        Type Box<Unit>
+        Retype Box<Unit>
+          Type Foreign<Unit>
+          VariantPayloadProject Option<Foreign<Unit>> v0 f0
+            Type Option<Foreign<Unit>>
+            Local $dependency.local.1
       val $dependency.local.2: Option<Unit>
         Type Option<Unit>
         VariantConstruct Option<Unit> v0
@@ -944,11 +972,15 @@ Module
   fun changeLocal @fn31(box: Child<Int>, next: Int) -> Int
     bb0 entry
       call previous: Int = @fn10 virtual[0]
-        Type Child<Int>
-        Local box
+        Type Local<Unit, Int>
+        Retype Local<Unit, Int>
+          Type Child<Int>
+          Local box
       call @fn11 virtual[1]
-        Type Child<Int>
-        Local box
+        Type Local<Unit, Int>
+        Retype Local<Unit, Int>
+          Type Child<Int>
+          Local box
         Type Int
         Local next
       return
@@ -957,8 +989,10 @@ Module
   fun stored @fn32(box: Foreign<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn33 direct
-        Type Foreign<Int>
-        Local box
+        Type Box<Int>
+        Retype Box<Int>
+          Type Foreign<Int>
+          Local box
       return
         Type Int
         Local $call.1
@@ -986,10 +1020,12 @@ Module
           Local $dependency.local.1
     bb1 if.then.1
       call $call.1: Int = @fn33 direct
-        Type Foreign<Int>
-        VariantPayloadProject Option<Foreign<Int>> v0 f0
-          Type Option<Foreign<Int>>
-          Local $dependency.local.1
+        Type Box<Int>
+        Retype Box<Int>
+          Type Foreign<Int>
+          VariantPayloadProject Option<Foreign<Int>> v0 f0
+            Type Option<Foreign<Int>>
+            Local $dependency.local.1
       val $dependency.local.2: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v0

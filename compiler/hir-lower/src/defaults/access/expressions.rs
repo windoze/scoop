@@ -9,9 +9,9 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         if let hir::ImportedCallableReferenceTarget::BoundMember { callee, .. } = target {
-            self.imported_method_callee_shape(callee, origin);
-        } else if let Some(callee) = target.callee() {
-            self.imported_callable_shape(callee, origin);
+            self.method_callee_shape(*callee, origin);
+        } else if let Some(callee) = target.callee(&self.lowerer.bound_callable_refs) {
+            self.callable_target_shape(callee, origin);
         }
         if let Some(receiver) = target.receiver() {
             self.expression(receiver);
@@ -23,10 +23,9 @@ impl ReferenceCollector<'_> {
         callee: hir::CallableTarget,
         origin: hir::DefinitionOrigin,
     ) {
-        self.imported_callable_shape(callee, origin);
+        self.callable_target_shape(callee, origin);
         let target = match callee {
             hir::CallableTarget::Local(callable) => {
-                self.callable_shape(callable, origin);
                 hir::ExportDefaultCallableTarget::Callable(callable)
             }
             hir::CallableTarget::Application(application) => {
@@ -69,13 +68,15 @@ impl ReferenceCollector<'_> {
         self.callable_target(callee, origin);
     }
 
-    fn imported_callable_shape(
+    pub(super) fn callable_target_shape(
         &mut self,
         callee: hir::CallableTarget,
         origin: hir::DefinitionOrigin,
     ) {
-        let hir::CallableTarget::Application(application) = callee else {
-            return;
+        let application = match callee {
+            hir::CallableTarget::Local(callable) => return self.callable_shape(callable, origin),
+            hir::CallableTarget::Application(application) => application,
+            hir::CallableTarget::Dependency(_) => return,
         };
         let arguments = self.lowerer.imported_generic_applications[application]
             .arguments
@@ -92,50 +93,6 @@ impl ReferenceCollector<'_> {
         };
         for ty in arguments {
             self.type_reference(ty, origin);
-        }
-    }
-
-    fn imported_method_callee(
-        &mut self,
-        callee: &hir::ImportedMethodCallee,
-        origin: hir::DefinitionOrigin,
-    ) {
-        match callee {
-            hir::ImportedMethodCallee::Callable(target) => self.callable_target(*target, origin),
-            hir::ImportedMethodCallee::InterfaceBound(bound) => {
-                self.record_callable(
-                    hir::ExportDefaultCallableTarget::ImportedBound(**bound),
-                    origin,
-                );
-                self.imported_method_callee_shape(callee, origin);
-            }
-            hir::ImportedMethodCallee::DerivedEquality(application) => {
-                self.record_callable(
-                    hir::ExportDefaultCallableTarget::DerivedEquality(*application),
-                    origin,
-                );
-                self.imported_method_callee_shape(callee, origin);
-            }
-        }
-    }
-
-    fn imported_method_callee_shape(
-        &mut self,
-        callee: &hir::ImportedMethodCallee,
-        origin: hir::DefinitionOrigin,
-    ) {
-        match callee {
-            hir::ImportedMethodCallee::Callable(target) => {
-                self.imported_callable_shape(*target, origin);
-            }
-            hir::ImportedMethodCallee::InterfaceBound(bound) => {
-                self.type_reference(bound.receiver_type, origin);
-                self.type_reference(bound.interface, origin);
-                self.function_type_reference(bound.signature, origin);
-            }
-            hir::ImportedMethodCallee::DerivedEquality(application) => {
-                self.method_callee_shape(hir::MethodCallee::DerivedEquality(*application), origin);
-            }
         }
     }
 
@@ -226,15 +183,6 @@ impl ReferenceCollector<'_> {
                     self.type_reference(capture.ty, origin);
                     self.expression(&capture.source);
                 }
-            }
-            hir::ExprKind::ImportedMethodCall {
-                receiver,
-                callee,
-                args,
-            } => {
-                self.imported_method_callee(callee, origin);
-                self.expression(receiver);
-                self.expressions(args);
             }
             hir::ExprKind::ImportedCallableReference(reference) => {
                 self.imported_reference_target(&reference.target, origin);
@@ -399,18 +347,6 @@ impl ReferenceCollector<'_> {
                     origin,
                 );
                 self.expressions(args);
-            }
-            hir::ExprKind::ImportedGenericCall {
-                application,
-                args,
-                receiver,
-                ..
-            } => {
-                self.callable_target(hir::CallableTarget::Application(*application), origin);
-                self.expressions(args);
-                if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
-                    self.type_reference(*static_type, origin);
-                }
             }
             hir::ExprKind::LocalFunctionCall {
                 local_function,

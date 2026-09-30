@@ -115,7 +115,7 @@ Module
     val local29
       Local $for.source.0 : Direct<Diamond<Int>>
     val local30
-      ImportedGenericCall iterator<Diamond<Int>> : Diamond<Int>
+      MethodCall iterator<Diamond<Int>> : Diamond<Int>
         Local $dependency.receiver : Direct<Diamond<Int>>
     val local31
       ReferenceUpcast : Iterator<Int>
@@ -123,7 +123,7 @@ Module
     while
       condition setup
         val local32
-          ImportedGenericCall Iterator.next<Int> : Option<Int>
+          MethodCall Iterator.next<Int> : Option<Int>
             Local $for.iterator.2 : Iterator<Int>
       IsSome : Boolean
         Local $for.next.3 : Option<Int>
@@ -177,7 +177,7 @@ Module
     while
       condition setup
         val local48
-          ImportedGenericCall Iterator.next<Int> : Option<Int>
+          MethodCall Iterator.next<Int> : Option<Int>
             Local $for.iterator.7 : Iterator<Int>
       IsSome : Boolean
         Local $for.next.8 : Option<Int>

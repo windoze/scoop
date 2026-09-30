@@ -76,7 +76,7 @@ fn basic_for_expansion_keeps_source_iterator_and_next_exactly_once() {
         panic!("the condition setup must contain the canonical next call")
     };
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(module, *callee)),
         module.interface_methods[defined_export_core(module).iteration.next()].function
     );
     let hir::Type::Enum(option) = module.types[next_call.ty] else {
@@ -337,7 +337,9 @@ fn suspend_for_binding_may_call_a_suspend_component() {
     let hir::ExprKind::MethodCall { callee, .. } = &call.kind else {
         panic!("component1 must remain an exact method call")
     };
-    let function = output.export.callable_function(*callee);
+    let function = output
+        .export
+        .callable_function(crate::tests::local_method_callable(&output.export, *callee));
     assert!(output.export.functions[function].is_suspend);
 }
 
@@ -475,7 +477,8 @@ fn iteration_plan_keeps_canonical_next_some_and_none_identities() {
     let hir::ExprKind::MethodCall { callee, .. } = &next_call.kind else {
         panic!("the poll invokes the checked core slot")
     };
-    let next_function = module.callable_function(*callee);
+    let next_function =
+        module.callable_function(crate::tests::local_method_callable(&module, *callee));
     let canonical_next =
         module.interface_methods[defined_export_core(&module).iteration.next()].function;
     let shadow_next = module

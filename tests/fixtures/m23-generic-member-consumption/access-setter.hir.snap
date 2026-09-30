@@ -35,7 +35,7 @@ Module
     val local12
       Local old : Int
     val local13
-      ImportedGenericCall state<Int> : Int
+      MethodCall state<Int> : Int
         ReferenceUpcast : ProtectedBox<Int>
           Local value : Derived<Int>
     val local14
@@ -67,7 +67,7 @@ Module
       Local $parameter.peer : Derived<T0>
       Local $parameter.next : T0
     return
-      ImportedGenericCall state<T0> : T0
+      MethodCall state<T0> : T0
         ReferenceUpcast : ProtectedBox<T0>
           Local holder : Derived<T0>
   output library

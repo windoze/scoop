@@ -20,7 +20,7 @@ Module
           Local $dependency.parameter.value : Unit
     val local3
       Local empty : Reader<Unit>
-    ImportedGenericCall read<Unit> : Unit
+    MethodCall read<Unit> : Unit
       Local $dependency.receiver : Reader<Unit>
     val local4
       IntegerLiteral 10 : Int
@@ -63,7 +63,7 @@ Module
     val local19
       Local reader : Reader<Large>
     val local20
-      ImportedGenericCall read<Large> : Large
+      MethodCall read<Large> : Large
         Local $dependency.receiver : Reader<Large>
     val local21
       IntegerLiteral 1 : Int
@@ -115,6 +115,6 @@ Module
     val local4
       Local reader : Reader<T0>
     return
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         Local $dependency.receiver : Reader<T0>
   output library

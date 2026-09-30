@@ -30,7 +30,7 @@ Module
       Local head : Link<T0>
     val local14
       Local $dependency.argument.0 : Link<T0>
-    ImportedGenericCall next<T0> : Unit
+    MethodCall next<T0> : Unit
       Local $place.0 : Link<T0>
       VariantConstruct Option.Some<Link<T0>> : Option<Link<T0>>
         Local $dependency.parameter._1 : Link<T0>
@@ -44,9 +44,9 @@ Module
     val local18
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall value<T0> : T0
+        MethodCall value<T0> : T0
           Unwrap trap=true : Link<T0>
-            ImportedGenericCall next<T0> : Option<Link<T0>>
+            MethodCall next<T0> : Option<Link<T0>>
               FieldAccess field 0 : Link<T0>
                 Local wrapped : Wrapper<T0>
     val local19
@@ -63,9 +63,9 @@ Module
     val local21
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall value<T0> : T0
+        MethodCall value<T0> : T0
           Unwrap trap=true : Link<T0>
-            ImportedGenericCall next<T0> : Option<Link<T0>>
+            MethodCall next<T0> : Option<Link<T0>>
               Local leaf : Link<T0>
     val local22
       IntegerLiteral 42 : Int
@@ -94,7 +94,7 @@ Module
     val local29
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall echoed<T0> : T0
+        MethodCall echoed<T0> : T0
           Local remote : Remote<T0>
     val local30
       IntegerLiteral 42 : Int
@@ -110,12 +110,12 @@ Module
     val local32
       Local base : Base<Unit, T0>
     val local33
-      ImportedGenericCall second<Unit, T0> : T0
+      MethodCall second<Unit, T0> : T0
         Local $dependency.receiver : Base<Unit, T0>
     val local34
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall select<Unit, T0> : T0
+        MethodCall select<Unit, T0> : T0
           Local $dependency.receiver : Base<Unit, T0>
           Local $dependency.parameter.other : T0
     val local35
@@ -136,7 +136,7 @@ Module
     val local39
       Local $dependency.argument.0 : (T0) -> Int
     val local40
-      ImportedGenericCall apply<T0> : Int
+      MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.convert : (T0) -> Int
     val local41
@@ -184,7 +184,7 @@ Module
     val local55
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall value<T0> : T0
+        MethodCall value<T0> : T0
           Index MutableGet : Link<T0>
             Local $dependency.receiver : MutableArray<Link<T0>>
             Local $dependency.parameter.index : Long
@@ -271,7 +271,7 @@ Module
       Call make<Int> : Link<Int>
         Local $dependency.parameter.value : Int
     val local17
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         Local alias : Link<Int>
     val local18
       Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int

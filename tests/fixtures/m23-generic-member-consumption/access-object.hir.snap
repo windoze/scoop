@@ -19,6 +19,6 @@ Module
       ImportedConstructorInit ProtectedChild : ProtectedChild<T0>
         Local $dependency.parameter.value : T0
     return
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         Local $dependency.receiver : ProtectedChild<T0>
   output library

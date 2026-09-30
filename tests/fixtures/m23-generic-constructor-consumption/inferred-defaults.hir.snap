@@ -31,7 +31,7 @@ Module
       ImportedConstructorInit Box : Box<Int>
         Local $dependency.parameter.value : Int
     val local11
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         Local box : Box<Int>
     val local12
       BoolLiteral true : Boolean
@@ -44,7 +44,7 @@ Module
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.marker : Boolean
     val local16
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         Local locked : Locked<Int>
     val local17
       FieldAccess field 0 : Int
@@ -56,7 +56,7 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
     val local20
-      ImportedGenericCall count<Int> : Int
+      MethodCall count<Int> : Int
         Local box : Box<Int>
     val local21
       Local $dependency.argument.0 : Int

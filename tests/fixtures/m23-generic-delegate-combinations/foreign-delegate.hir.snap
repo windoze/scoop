@@ -96,18 +96,18 @@ Module
         Local $parameter.value : Int
   fun $init$body$0<T>(): Unit
     assign delegate foreign<T0>
-      ImportedGenericCall provideDelegate<T0> : OrderedSlot<T0>
+      MethodCall provideDelegate<T0> : OrderedSlot<T0>
         ImportedConstructorInit Starter : Starter<T0>
   fun $init$ensure$0<T>(): Unit
   fun $get$foreign<T>(this: Receiver<T0>): Int
     ensure delegate foreign<T0>
     return
-      ImportedGenericCall getValue<T0> : Int
+      MethodCall getValue<T0> : Int
         DelegateStorageRead foreign<T0> : OrderedSlot<T0>
         Local this : Receiver<T0>
   fun $set$foreign<T>(this: Receiver<T0>, value: Int): Unit
     ensure delegate foreign<T0>
-    ImportedGenericCall setValue<T0> : Unit
+    MethodCall setValue<T0> : Unit
       DelegateStorageRead foreign<T0> : OrderedSlot<T0>
       Local this : Receiver<T0>
       Local value : Int

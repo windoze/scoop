@@ -25,7 +25,7 @@ Module
           Local $parameter.b : Unit
     val local7
       Local local : Diamond<T0, Unit>
-    ImportedGenericCall Values.$set$second<T0, Unit> : Unit
+    MethodCall Values.$set$second<T0, Unit> : Unit
       ReferenceUpcast : Values<T0, Unit>
         Local $place.0 : Diamond<T0, Unit>
       UnitLiteral : Unit
@@ -44,7 +44,7 @@ Module
     val local13
       Local $dependency.argument.1 : (Unit) -> Int
     val local14
-      ImportedGenericCall total<T0, Unit> : Int
+      MethodCall total<T0, Unit> : Int
         Local $dependency.receiver : Values<T0, Unit>
         Local $dependency.parameter.left : (T0) -> Int
         Local $dependency.parameter.right : (Unit) -> Int
@@ -74,7 +74,7 @@ Module
     val local22
       Local $dependency.argument.1 : (Unit) -> Int
     return
-      ImportedGenericCall total<T0, Unit> : Int
+      MethodCall total<T0, Unit> : Int
         Local $dependency.receiver : Values<T0, Unit>
         Local $dependency.parameter.left : (T0) -> Int
         Local $dependency.parameter.right : (Unit) -> Int

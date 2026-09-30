@@ -10,8 +10,6 @@ mod closures;
 pub use closures::*;
 mod references;
 pub use references::*;
-mod methods;
-pub use methods::*;
 
 /// A dependency implementation in the consumer's type and value domains.
 /// Its kind and executable nodes are shared with current declarations.
@@ -88,12 +86,6 @@ pub enum ImportedCallableTemplateOrigin {
 pub enum ImportedDispatchCallable {
     External(crate::ImportedDependencyCallableUseId),
     Template(crate::ImportedGenericCallableApplicationId),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ImportedGenericCallKind {
-    Ordinary,
-    DirectSuper,
 }
 
 impl ImportedCallableTemplateOrigin {
@@ -195,6 +187,7 @@ pub struct ImportedGenericCallableApplication {
 pub struct ImportedDependencyCallableUse {
     reference: crate::ImportedDependencyCallableRef,
     dispatch: ImportedDependencyDispatch,
+    receiver: Option<crate::TypeId>,
 }
 
 /// The source-selected dispatch table and its provider-defined slot position.
@@ -214,10 +207,12 @@ impl ImportedDependencyCallableUse {
     pub fn new(
         reference: crate::ImportedDependencyCallableRef,
         dispatch: ImportedDependencyDispatch,
+        receiver: Option<crate::TypeId>,
     ) -> Self {
         Self {
             reference,
             dispatch,
+            receiver,
         }
     }
 
@@ -227,5 +222,10 @@ impl ImportedDependencyCallableUse {
 
     pub const fn dispatch(self) -> ImportedDependencyDispatch {
         self.dispatch
+    }
+
+    /// Required receiver from the selected declaration; absent for free calls.
+    pub const fn receiver(self) -> Option<crate::TypeId> {
+        self.receiver
     }
 }

@@ -217,7 +217,9 @@ fn method_calls_resolve_against_the_receiver_type() {
     match &show.kind {
         hir::ExprKind::MethodCall { callee, args, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Shape.describe"
             );
             assert!(args.is_empty());
@@ -228,7 +230,9 @@ fn method_calls_resolve_against_the_receiver_type() {
     match &show2.kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Describable.describe"
             );
         }
@@ -239,7 +243,9 @@ fn method_calls_resolve_against_the_receiver_type() {
     match &show3.kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Shape.describe"
             );
         }

@@ -14,7 +14,7 @@ Module
     val local7
       Local $dependency.argument.0 : Swap<T0, Unit>
     val local8
-      ImportedGenericCall same<T0, Unit> : Swap<T0, Unit>
+      MethodCall same<T0, Unit> : Swap<T0, Unit>
         Local $dependency.receiver : Swap<T0, Unit>
         Local $dependency.parameter.other : Swap<T0, Unit>
     val local9
@@ -23,12 +23,12 @@ Module
     val local10
       Local view : View<Unit, T0>
     val local11
-      ImportedGenericCall View.$get$second<Unit, T0> : T0
+      MethodCall View.$get$second<Unit, T0> : T0
         Local $dependency.receiver : View<Unit, T0>
     val local12
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall choose<Unit, T0> : T0
+        MethodCall choose<Unit, T0> : T0
           Local $dependency.receiver : View<Unit, T0>
           Local $dependency.parameter.next : T0
     val local13
@@ -45,13 +45,13 @@ Module
     val local15
       Local remote : Swap<T0, Unit>
     val local16
-      ImportedGenericCall View.$get$second<Unit, T0> : T0
+      MethodCall View.$get$second<Unit, T0> : T0
         ReferenceUpcast : View<Unit, T0>
           Local $dependency.receiver : Swap<T0, Unit>
     val local17
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall choose<T0, Unit> : T0
+        MethodCall choose<T0, Unit> : T0
           Local $dependency.receiver : Swap<T0, Unit>
           Local $dependency.parameter.next : T0
     val local18
@@ -73,14 +73,14 @@ Module
     val local22
       Local $dependency.argument.0 : View<Unit, T0>
     val local23
-      ImportedGenericCall peer<Unit, T0> : View<Unit, T0>
+      MethodCall peer<Unit, T0> : View<Unit, T0>
         Local $dependency.receiver : View<Unit, T0>
         Local $dependency.parameter.other : View<Unit, T0>
     val local24
       ArrayLiteral : Array<T0>
-        ImportedGenericCall View.$get$second<Unit, T0> : T0
+        MethodCall View.$get$second<Unit, T0> : T0
           Local peer : View<Unit, T0>
-        ImportedGenericCall View.$get$second<Unit, T0> : T0
+        MethodCall View.$get$second<Unit, T0> : T0
           ReferenceUpcast : View<Unit, T0>
             Local remote : Swap<T0, Unit>
     val local25
@@ -128,11 +128,11 @@ Module
     val local3
       Local integer : Swap<Int, Unit>
     val local4
-      ImportedGenericCall View.$get$second<Unit, Int> : Int
+      MethodCall View.$get$second<Unit, Int> : Int
         ReferenceUpcast : View<Unit, Int>
           Local $dependency.receiver : Swap<Int, Unit>
     val local5
-      ImportedGenericCall choose<Int, Unit> : Int
+      MethodCall choose<Int, Unit> : Int
         Local $dependency.receiver : Swap<Int, Unit>
         Local $dependency.parameter.next : Int
     val local6

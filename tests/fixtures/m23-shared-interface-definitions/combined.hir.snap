@@ -17,13 +17,13 @@ Module
     val local2
       Local view : T1
     val local3
-      ImportedGenericCall View.$get$second<Unit, T0> : T0
+      MethodCall View.$get$second<Unit, T0> : T0
         Box : View<Unit, T0>
           Local $dependency.receiver : T1
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedMethodCall InterfaceBound(ImportedInterfaceBoundCallable { receiver_type: Idx::<Type>(35), interface: Idx::<Type>(34), member: Function(PersistentFunctionId([197, 117, 96, 22, 194, 41, 174, 118, 189, 166, 129, 24, 237, 90, 49, 139, 207, 17, 172, 160, 182, 13, 32, 231, 233, 154, 209, 96, 34, 88, 249, 212])), slot: PersistentDispatchSlotId([178, 159, 45, 163, 6, 69, 67, 45, 48, 52, 18, 150, 176, 49, 11, 254, 99, 96, 245, 171, 213, 235, 234, 169, 216, 108, 123, 160, 232, 10, 240, 2]), declared: Application(Idx::<ImportedGenericCallableApplication>(14)), signature: Idx::<FunctionType>(2) }) : T0
+        MethodCall bound T1 via View<Unit, T0> -> choose<Unit, T0> : T0
           Local $dependency.receiver : T1
           Local $dependency.parameter.next : T0
   fun exercise<T>(value: T0, read: (T0) -> Int): Int
@@ -41,7 +41,7 @@ Module
     val local6
       Local restored : Restored<Unit, T0>
     val local7
-      ImportedGenericCall View.$get$second<Unit, T0> : T0
+      MethodCall View.$get$second<Unit, T0> : T0
         ReferenceUpcast : View<Unit, T0>
           Local $receiver : Restored<Unit, T0>
     val local8
@@ -98,13 +98,13 @@ Module
     val local22
       Local $dependency.argument.0 : View<Unit, T0>
     val local23
-      ImportedGenericCall peer<Unit, T0> : View<Unit, T0>
+      MethodCall peer<Unit, T0> : View<Unit, T0>
         Local $dependency.receiver : View<Unit, T0>
         Local $dependency.parameter.other : View<Unit, T0>
     val local24
       CallableCall function_type1 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall View.$get$second<Unit, T0> : T0
+        MethodCall View.$get$second<Unit, T0> : T0
           Local peer : View<Unit, T0>
     val local25
       IntegerLiteral 42 : Int
@@ -153,7 +153,7 @@ Module
     val local38
       Local boxed : Restored<Unit, T0>
     val local39
-      ImportedGenericCall View.$get$second<Unit, T0> : T0
+      MethodCall View.$get$second<Unit, T0> : T0
         ReferenceUpcast : View<Unit, T0>
           Local $receiver : Restored<Unit, T0>
     return

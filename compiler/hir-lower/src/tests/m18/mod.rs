@@ -93,7 +93,7 @@ fn direct_method_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str 
     let hir::ExprKind::MethodCall { callee, .. } = &expr.kind else {
         panic!("expected a method call, found {expr:?}");
     };
-    let hir::MethodCallee::Callable(callable) = callee else {
+    let hir::MethodCallee::Callable(hir::CallableTarget::Local(callable)) = callee else {
         panic!("expected an ordinary callable method");
     };
     let function = match callable {
@@ -116,7 +116,7 @@ fn direct_callable_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a st
             ..
         } => *callee,
         hir::ExprKind::MethodCall { callee, .. } => {
-            let hir::MethodCallee::Callable(callee) = callee else {
+            let hir::MethodCallee::Callable(hir::CallableTarget::Local(callee)) = callee else {
                 panic!("expected an ordinary callable method");
             };
             *callee

@@ -32,7 +32,7 @@ Module
       Local $dependency.argument.0 : Manual<T0>
     if
       Unary Not : Boolean
-        ImportedGenericCall equals<T0> : Boolean
+        MethodCall equals<T0> : Boolean
           Local $dependency.receiver : Manual<T0>
           Local $dependency.parameter.other : Manual<T0>
       val local22
@@ -57,7 +57,7 @@ Module
       val local21
         Local $dependency.argument.0 : Manual<T0>
       val local22
-        ImportedGenericCall equals<T0> : Boolean
+        MethodCall equals<T0> : Boolean
           Local $dependency.receiver : Manual<T0>
           Local $dependency.parameter.other : Manual<T0>
     if
@@ -108,7 +108,7 @@ Module
     val local35
       Local $dependency.argument.0 : Int
     val local36
-      ImportedGenericCall equals<T0> : Boolean
+      MethodCall equals<T0> : Boolean
         Local $dependency.receiver : Different<T0>
         Local $dependency.parameter.other : Int
     if
@@ -124,7 +124,7 @@ Module
       val local39
         Local $dependency.argument.0 : Int
       val local40
-        ImportedGenericCall equals<T0> : Boolean
+        MethodCall equals<T0> : Boolean
           Local $dependency.receiver : Different<T0>
           Local $dependency.parameter.other : Int
     if

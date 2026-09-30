@@ -57,7 +57,7 @@ Module
       Local chain : Chain
       arm variant1(0: local18)
         when
-          ImportedGenericCall value<Chain> : Chain
+          MethodCall value<Chain> : Chain
             FieldAccess field 0 : Link<Chain>
               Local reference : Reference<Chain>
           arm variant0()
@@ -95,7 +95,7 @@ Module
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall Readable.get<T0> : T0
+        MethodCall Readable.get<T0> : T0
           Local $dependency.receiver : Readable<T0>
   fun result(): Int
     val local0

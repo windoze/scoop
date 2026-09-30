@@ -277,11 +277,6 @@ pub enum ExprKind {
     AnonymousFunction(AnonymousFunctionId),
     ImportedClosure(Box<crate::ImportedClosure>),
     ImportedCallableReference(Box<crate::ImportedCallableReference>),
-    ImportedMethodCall {
-        receiver: Box<Expr>,
-        callee: crate::ImportedMethodCallee,
-        args: Vec<Expr>,
-    },
     CallableReference(CallableReferenceId),
     /// A variance-preserving function-value adaptation. `Expr::ty` is the
     /// target type; the typed entity also records both concrete HIR
@@ -414,13 +409,6 @@ pub enum ExprKind {
         application: ImportedConstructorApplicationId,
         args: Vec<Expr>,
     },
-    ImportedGenericCall {
-        application: ImportedGenericCallableApplicationId,
-        kind: ImportedGenericCallKind,
-        binding: Option<std::sync::Arc<DirectImportedTargetBinding>>,
-        args: Vec<Expr>,
-        receiver: crate::SourceCallReceiver<TypeId>,
-    },
     /// Direct call of a lifted local function. Hidden capture arguments are
     /// explicit and precede source arguments in the lowered ABI.
     LocalFunctionCall {
@@ -514,19 +502,36 @@ pub enum ArrayAssemblyPart {
     CopyArray(Expr),
 }
 
+/// Dispatch requested by member syntax before its HIR node is built.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemberCallKind {
+    Ordinary,
+    DirectSuper,
+}
+
 /// Source-level method target. Ordinary receivers already name a resolved
 /// callable. A type-parameter receiver instead names a typed upper-bound
 /// member that must disappear during HIR concretization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MethodCallee {
-    Callable(Callable),
+    Callable(CallableTarget),
     Bound(BoundCallableRefId),
     DerivedEquality(DerivedEqualityApplicationId),
 }
 
+impl MethodCallee {
+    pub fn declared_callable(self, bounds: &Arena<BoundCallableRef>) -> Option<CallableTarget> {
+        match self {
+            Self::Callable(callable) => Some(callable),
+            Self::Bound(bound) => Some(bounds[bound].declared_callable()),
+            Self::DerivedEquality(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoundCallableRef {
-    pub receiver_parameter: TypeParamId,
+    pub receiver_type: TypeId,
     pub source: BoundCallableSource,
     pub instantiated_signature: FunctionTypeId,
 }
@@ -535,12 +540,22 @@ pub struct BoundCallableRef {
 pub enum BoundCallableSource {
     Class {
         bound: ClassApplicationId,
-        callable: Callable,
+        callable: CallableTarget,
     },
     Interface {
         bound: InterfaceApplicationId,
-        member: InterfaceMethodId,
+        member: InterfaceMethodReference,
+        declared: CallableTarget,
     },
+}
+
+impl BoundCallableRef {
+    pub fn declared_callable(&self) -> CallableTarget {
+        match self.source {
+            BoundCallableSource::Class { callable, .. } => callable,
+            BoundCallableSource::Interface { declared, .. } => declared,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

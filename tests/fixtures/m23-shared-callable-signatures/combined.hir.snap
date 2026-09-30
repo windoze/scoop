@@ -19,7 +19,7 @@ Module
       ImportedConstructorInit Box : Box<T0>
         Local $dependency.parameter.value : T0
     return
-      ImportedGenericCall suspendedGet<T0> : T0
+      MethodCall suspendedGet<T0> : T0
         Local $dependency.receiver : Box<T0>
   fun nativeNumber(value: Int): Int <no-gc cdecl>
     val local1
@@ -48,7 +48,7 @@ Module
     val local8
       Local source : Source<T0>
     val local9
-      ImportedGenericCall Source.get<T0> : T0
+      MethodCall Source.get<T0> : T0
         Local $dependency.receiver : Source<T0>
     val local10
       Local $argument.0 : T0
@@ -59,7 +59,7 @@ Module
     val local12
       Local local : Source<T0>
     val local13
-      ImportedGenericCall Source.get<T0> : T0
+      MethodCall Source.get<T0> : T0
         Local $dependency.receiver : Source<T0>
     val local14
       Local $dependency.argument.0 : T0
@@ -89,7 +89,7 @@ Module
     val local24
       Local $dependency.argument.1 : (T0, Unit) -> Int
     val local25
-      ImportedGenericCall apply<T0, Unit> : Int
+      MethodCall apply<T0, Unit> : Int
         Local $dependency.receiver : Box<T0>
         Local $dependency.parameter.extra : Unit
         Local $dependency.parameter.select : (T0, Unit) -> Int
@@ -125,7 +125,7 @@ Module
     val local35
       Local $dependency.argument.1 : (T0, Int) -> Int
     return
-      ImportedGenericCall apply<T0, Int> : Int
+      MethodCall apply<T0, Int> : Int
         Local $dependency.receiver : Box<T0>
         Local $dependency.parameter.extra : Int
         Local $dependency.parameter.select : (T0, Int) -> Int

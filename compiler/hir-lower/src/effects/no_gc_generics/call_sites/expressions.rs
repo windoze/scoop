@@ -26,6 +26,20 @@ impl Lowerer {
         }
     }
 
+    fn generic_call_target(
+        &self,
+        target: hir::CallableTarget,
+        span: scoop_ast::Span,
+    ) -> Option<GenericCall> {
+        match target {
+            hir::CallableTarget::Local(callable) => self.generic_call(callable, span),
+            hir::CallableTarget::Application(application) => {
+                Some(self.imported_body_generic_call(application, span))
+            }
+            hir::CallableTarget::Dependency(_) => None,
+        }
+    }
+
     pub(in crate::effects) fn collect_generic_calls_in_expr(
         &self,
         expr: &hir::Expr,
@@ -129,7 +143,8 @@ impl Lowerer {
                 let reference = &self.callable_references[*reference];
                 match &reference.target {
                     hir::CallableReferenceTarget::Imported(target) => {
-                        if let Some(hir::CallableTarget::Application(application)) = target.callee()
+                        if let Some(hir::CallableTarget::Application(application)) =
+                            target.callee(&self.bound_callable_refs)
                         {
                             out.push(self.imported_body_generic_call(application, expr.span));
                         }
@@ -140,8 +155,11 @@ impl Lowerer {
                     hir::CallableReferenceTarget::Named(callee) => record(*callee),
                     hir::CallableReferenceTarget::Local { callee, .. } => record(*callee),
                     hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                        if let hir::MethodCallee::Callable(callee) = callee {
-                            record(*callee);
+                        if let Some(call) = callee
+                            .declared_callable(&self.bound_callable_refs)
+                            .and_then(|target| self.generic_call_target(target, expr.span))
+                        {
+                            out.push(call);
                         }
                         self.collect_generic_calls_in_expr(receiver, out);
                     }
@@ -250,8 +268,11 @@ impl Lowerer {
                 callee,
                 args,
             } => {
-                if let hir::MethodCallee::Callable(callee) = callee {
-                    record(*callee);
+                if let Some(call) = callee
+                    .declared_callable(&self.bound_callable_refs)
+                    .and_then(|target| self.generic_call_target(target, expr.span))
+                {
+                    out.push(call);
                 }
                 self.collect_generic_calls_in_expr(receiver, out);
                 for arg in args {
@@ -290,38 +311,15 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(argument, out);
                 }
             }
-            ExprKind::ImportedGenericCall {
-                application, args, ..
-            } => {
-                out.push(self.imported_body_generic_call(*application, expr.span));
-                for argument in args {
-                    self.collect_generic_calls_in_expr(argument, out);
-                }
-            }
             ExprKind::ImportedClosure(closure) => {
                 out.push(self.imported_body_generic_call(closure.application, expr.span));
                 for capture in &closure.captures {
                     self.collect_generic_calls_in_expr(&capture.source, out);
                 }
             }
-            ExprKind::ImportedMethodCall {
-                receiver,
-                callee,
-                args,
-            } => {
-                if let Some(hir::CallableTarget::Application(application)) =
-                    callee.declared_callable()
-                {
-                    out.push(self.imported_body_generic_call(application, expr.span));
-                }
-                self.collect_generic_calls_in_expr(receiver, out);
-                for arg in args {
-                    self.collect_generic_calls_in_expr(arg, out);
-                }
-            }
             ExprKind::ImportedCallableReference(reference) => {
                 if let Some(hir::CallableTarget::Application(application)) =
-                    reference.target.callee()
+                    reference.target.callee(&self.bound_callable_refs)
                 {
                     out.push(self.imported_body_generic_call(application, expr.span));
                 }

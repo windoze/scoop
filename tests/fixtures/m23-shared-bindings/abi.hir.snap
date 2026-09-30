@@ -54,14 +54,14 @@ Module
     val local17
       Local $binding.subject.3 : Pieces<T0>
     val local18
-      ImportedGenericCall component1<T0> : T0
+      MethodCall component1<T0> : T0
         Local $dependency.receiver : Pieces<T0>
     val local19
       Local $binding.component.4 : T0
     val local20
       Local $binding.subject.3 : Pieces<T0>
     val local21
-      ImportedGenericCall component2<T0> : Int
+      MethodCall component2<T0> : Int
         Local $dependency.receiver : Pieces<T0>
     val local22
       Local piece : T0

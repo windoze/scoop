@@ -85,7 +85,7 @@ fn virtual_calls_annotate_the_overloads_own_slot() {
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                     args: vec![arg],
                 },
                 unit,
@@ -186,7 +186,7 @@ fn interface_calls_annotate_the_overloads_own_slot() {
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                     args: vec![arg],
                 },
                 int,

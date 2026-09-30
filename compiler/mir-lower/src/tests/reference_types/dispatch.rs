@@ -28,7 +28,7 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
         expr(
             hir::ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                 args: Vec::new(),
             },
             unit,
@@ -153,7 +153,7 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
         expr(
             hir::ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                 args: Vec::new(),
             },
             unit,

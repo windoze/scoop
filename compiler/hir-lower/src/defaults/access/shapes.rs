@@ -13,16 +13,14 @@ impl ReferenceCollector<'_> {
         callee: hir::MethodCallee,
         origin: hir::DefinitionOrigin,
     ) {
-        self.method_callee_shape(callee, origin);
         let target = match callee {
-            hir::MethodCallee::Callable(callable) => {
-                hir::ExportDefaultCallableTarget::Callable(callable)
-            }
+            hir::MethodCallee::Callable(callable) => return self.callable_target(callable, origin),
             hir::MethodCallee::Bound(bound) => hir::ExportDefaultCallableTarget::Bound(bound),
             hir::MethodCallee::DerivedEquality(application) => {
                 hir::ExportDefaultCallableTarget::DerivedEquality(application)
             }
         };
+        self.method_callee_shape(callee, origin);
         self.record_callable(target, origin);
     }
 
@@ -63,7 +61,7 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         match callee {
-            hir::MethodCallee::Callable(callable) => self.callable_shape(callable, origin),
+            hir::MethodCallee::Callable(callable) => self.callable_target_shape(callable, origin),
             hir::MethodCallee::Bound(bound) => self.bound_callable_shape(bound, origin),
             hir::MethodCallee::DerivedEquality(application) => {
                 let owner = self.lowerer.derived_equality_applications[application].owner_ty;
@@ -75,15 +73,19 @@ impl ReferenceCollector<'_> {
     fn bound_callable_shape(&mut self, id: hir::BoundCallableRefId, origin: hir::DefinitionOrigin) {
         let bound = self.lowerer.bound_callable_refs[id].clone();
         let signature = self.lowerer.function_types[bound.instantiated_signature].canonical_type;
+        self.type_reference(bound.receiver_type, origin);
         match bound.source {
             hir::BoundCallableSource::Class { bound, callable } => {
                 let ty = self.lowerer.class_applications[bound].canonical_type;
                 self.type_reference(ty, origin);
-                self.callable_shape(callable, origin);
+                self.callable_target_shape(callable, origin);
             }
-            hir::BoundCallableSource::Interface { bound, .. } => {
+            hir::BoundCallableSource::Interface {
+                bound, declared, ..
+            } => {
                 let ty = self.lowerer.interface_applications[bound].canonical_type;
                 self.type_reference(ty, origin);
+                self.callable_target_shape(declared, origin);
             }
         }
         self.type_reference(signature, origin);

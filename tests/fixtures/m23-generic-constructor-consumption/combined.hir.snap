@@ -16,7 +16,7 @@ Module
       ImportedConstructorInit Derived : Derived<Payload>
         Local $dependency.parameter.value : Payload
     val local5
-      ImportedGenericCall echoed<Payload> : Payload
+      MethodCall echoed<Payload> : Payload
         ReferenceUpcast : Box<Payload>
           Local box : Derived<Payload>
     val local6
@@ -30,7 +30,7 @@ Module
       IntegerLiteral 8 : Int
     val local10
       Local $argument.0 : Int
-    ImportedGenericCall value<Payload> : Unit
+    MethodCall value<Payload> : Unit
       ReferenceUpcast : Box<Payload>
         Local $place.0 : Derived<Payload>
       ClassInit Payload : Payload
@@ -54,7 +54,7 @@ Module
         FieldAccess field 0 : Payload
           Local pair : Pair<Payload>
     val local18
-      ImportedGenericCall count<Payload> : Int
+      MethodCall count<Payload> : Int
         ReferenceUpcast : Box<Payload>
           Local box : Derived<Payload>
     val local19

@@ -176,17 +176,6 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, &capture.source, indent + 1, out);
             }
         }
-        ExprKind::ImportedMethodCall {
-            receiver,
-            callee,
-            args,
-        } => {
-            out.push_str(&format!("{pad}ImportedMethodCall {callee:?} : {ty}\n"));
-            dump_expr(module, locals, receiver, indent + 1, out);
-            for arg in args {
-                dump_expr(module, locals, arg, indent + 1, out);
-            }
-        }
         ExprKind::Lambda(id) => {
             let lambda = &module.lambdas[*id];
             out.push_str(&format!(
@@ -226,7 +215,9 @@ pub(super) fn dump_expr(
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];
             let function = match &reference.target {
-                CallableReferenceTarget::Imported(target) => match target.callee() {
+                CallableReferenceTarget::Imported(target) => match target
+                    .callee(&module.bound_callable_refs)
+                {
                     Some(crate::CallableTarget::Local(callable)) => module.functions
                         [crate::callable_function(module, callable)]
                     .name
@@ -257,10 +248,9 @@ pub(super) fn dump_expr(
                     [callable_function(module, *callee)]
                 .name
                 .clone(),
-                CallableReferenceTarget::BoundMember { callee, .. } => module.functions
-                    [method_callee_function(module, *callee)]
-                .name
-                .clone(),
+                CallableReferenceTarget::BoundMember { callee, .. } => {
+                    method_callee_name(module, *callee)
+                }
                 CallableReferenceTarget::BoundExtension { callee, .. } => module.functions
                     [callable_function(module, *callee)]
                 .name
@@ -525,9 +515,9 @@ pub(super) fn dump_expr(
             callee,
             args,
         } => {
-            let function = method_callee_function(module, *callee);
+            let name = method_callee_name(module, *callee);
             let target = match callee {
-                MethodCallee::Callable(_) => module.functions[function].name.clone(),
+                MethodCallee::Callable(_) => name.clone(),
                 MethodCallee::Bound(bound) => {
                     let bound = &module.bound_callable_refs[*bound];
                     let via = match bound.source {
@@ -538,15 +528,14 @@ pub(super) fn dump_expr(
                             module.interface_applications[bound].canonical_type
                         }
                     };
-                    format!(
-                        "bound T{} via {} -> {}",
-                        bound.receiver_parameter.into_raw(),
-                        type_name(module, via),
-                        module.functions[function].name
-                    )
+                    let receiver = match module.types[bound.receiver_type] {
+                        Type::Param(parameter) => format!("T{}", parameter.into_raw()),
+                        _ => type_name(module, bound.receiver_type),
+                    };
+                    format!("bound {receiver} via {} -> {name}", type_name(module, via))
                 }
                 MethodCallee::DerivedEquality(_) => {
-                    format!("{} <derived>", module.functions[function].name)
+                    format!("{name} <derived>")
                 }
             };
             out.push_str(&format!("{pad}MethodCall {} : {ty}\n", target));
@@ -560,11 +549,8 @@ pub(super) fn dump_expr(
             callee,
             args,
         } => {
-            let function = method_callee_function(module, *callee);
-            out.push_str(&format!(
-                "{pad}DirectSuperMethodCall {} : {ty}\n",
-                module.functions[function].name
-            ));
+            let name = method_callee_name(module, *callee);
+            out.push_str(&format!("{pad}DirectSuperMethodCall {name} : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
@@ -660,15 +646,6 @@ pub(super) fn dump_expr(
                 "{pad}ImportedConstructorInit {} : {ty}\n",
                 template.name
             ));
-            for argument in args {
-                dump_expr(module, locals, argument, indent + 1, out);
-            }
-        }
-        ExprKind::ImportedGenericCall {
-            application, args, ..
-        } => {
-            let callee = callable_application_name(module, *application);
-            out.push_str(&format!("{pad}ImportedGenericCall {callee} : {ty}\n"));
             for argument in args {
                 dump_expr(module, locals, argument, indent + 1, out);
             }

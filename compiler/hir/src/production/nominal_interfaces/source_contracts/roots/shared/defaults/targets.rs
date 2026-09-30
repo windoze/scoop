@@ -29,7 +29,7 @@ impl SourceRoots {
                     } => self.function(export, callable.function(export), roots),
                     CallableReferenceTarget::BoundMember { callee, .. } => match *callee {
                         MethodCallee::Callable(callable) => {
-                            self.function(export, callable.function(export), roots)
+                            self.callable_target(export, callable, roots)
                         }
                         MethodCallee::Bound(id) => self.bound(export, id, index, roots),
                         MethodCallee::DerivedEquality(id) => roots.require_field_type(
@@ -48,7 +48,6 @@ impl SourceRoots {
             // keep their own generated identity and reference closure.
             ExportDefaultCallableTarget::ImportedDependency(_)
             | ExportDefaultCallableTarget::ImportedGeneric(_)
-            | ExportDefaultCallableTarget::ImportedBound(_)
             | ExportDefaultCallableTarget::LocalFunction(_)
             | ExportDefaultCallableTarget::Lambda(_)
             | ExportDefaultCallableTarget::AnonymousFunction(_) => Ok(()),
@@ -62,17 +61,30 @@ impl SourceRoots {
         index: &super::super::super::Index,
         roots: &mut Roots,
     ) -> Result<(), Error> {
-        let (ty, function) = match export.bound_callable_refs[id].source {
-            BoundCallableSource::Class { bound, callable } => (
-                export.class_applications[bound].canonical_type,
-                callable.function(export),
-            ),
-            BoundCallableSource::Interface { bound, member } => (
-                export.interface_applications[bound].canonical_type,
-                export.interface_methods[member].function,
-            ),
+        let source = &export.bound_callable_refs[id];
+        let ty = match source.source {
+            BoundCallableSource::Class { bound, .. } => {
+                export.class_applications[bound].canonical_type
+            }
+            BoundCallableSource::Interface { bound, .. } => {
+                export.interface_applications[bound].canonical_type
+            }
         };
         roots.require_field_type(export, index, ty)?;
-        self.function(export, function, roots)
+        self.callable_target(export, source.declared_callable(), roots)
+    }
+
+    fn callable_target(
+        &mut self,
+        export: &ExportHir,
+        target: CallableTarget,
+        roots: &mut Roots,
+    ) -> Result<(), Error> {
+        match target {
+            CallableTarget::Local(callable) => {
+                self.function(export, callable.function(export), roots)
+            }
+            CallableTarget::Application(_) | CallableTarget::Dependency(_) => Ok(()),
+        }
     }
 }

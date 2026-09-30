@@ -352,3 +352,15 @@ fn return_value(statements: &[hir::Statement]) -> &hir::Expr {
         })
         .expect("a return with a value must exist")
 }
+
+fn local_method_callable(module: &hir::Module, callee: hir::MethodCallee) -> hir::Callable {
+    if let hir::MethodCallee::DerivedEquality(application) = callee {
+        return hir::Callable::Function(module.derived_equality_applications[application].function);
+    }
+    let Some(hir::CallableTarget::Local(callable)) =
+        callee.declared_callable(&module.bound_callable_refs)
+    else {
+        panic!("expected a local method declaration")
+    };
+    callable
+}

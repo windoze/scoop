@@ -4,7 +4,7 @@ use crate::cross_cone_type_semantics::inheritance::is_nominal_ancestor;
 type Relations = BTreeMap<(PersistentExactTypeId, PersistentExactTypeId), bool>;
 
 impl Graph<'_> {
-    pub(super) fn receiver_is_subtype(
+    pub(in super::super) fn receiver_is_subtype(
         &self,
         source: PersistentExactTypeId,
         target: PersistentExactTypeId,
@@ -43,11 +43,12 @@ impl Graph<'_> {
                 {
                     true
                 }
-                (ExactTypeKey::Nominal(_), ExactTypeKey::Nominal(_)) => {
-                    is_nominal_ancestor(source, target, path, |current| {
-                        self.source_receiver_parents(current, path)
-                    })?
-                }
+                (
+                    ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. },
+                    ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. },
+                ) => is_nominal_ancestor(source, target, path, |current| {
+                    self.source_receiver_parents(current, path)
+                })?,
                 (
                     ExactTypeKey::Function {
                         effect: source_effect,

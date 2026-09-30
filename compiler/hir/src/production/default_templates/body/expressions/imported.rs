@@ -13,7 +13,7 @@ impl BodyProjection<'_, '_> {
         application: crate::ImportedGenericCallableApplicationId,
         args: &[Expr],
         receiver: SourceCallReceiver<TypeId>,
-        kind: crate::ImportedGenericCallKind,
+        kind: crate::MemberCallKind,
     ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
         let callee = self
             .entities
@@ -32,12 +32,12 @@ impl BodyProjection<'_, '_> {
             let callee = DefaultMethodCalleeV1::Callable(callee);
             let arguments = self.expressions(arguments)?;
             return Ok(match kind {
-                crate::ImportedGenericCallKind::Ordinary => DefaultExpressionKindV1::MethodCall {
+                crate::MemberCallKind::Ordinary => DefaultExpressionKindV1::MethodCall {
                     receiver,
                     callee,
                     arguments,
                 },
-                crate::ImportedGenericCallKind::DirectSuper => {
+                crate::MemberCallKind::DirectSuper => {
                     DefaultExpressionKindV1::DirectSuperMethodCall {
                         receiver,
                         callee,

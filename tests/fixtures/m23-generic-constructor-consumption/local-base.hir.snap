@@ -9,11 +9,11 @@ Module
       ClassInit LocalBox : LocalBox
         Local $parameter.value : Int
     val local3
-      ImportedGenericCall echoed<Int> : Int
+      MethodCall echoed<Int> : Int
         ReferenceUpcast : Box<Int>
           Local box : LocalBox
     val local4
-      ImportedGenericCall count<Int> : Int
+      MethodCall count<Int> : Int
         ReferenceUpcast : Box<Int>
           Local box : LocalBox
     val local5

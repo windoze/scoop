@@ -43,7 +43,7 @@ Module
         Local $dependency.parameter.scalar : Scalar<T0>
     val local13
       FieldAccess field 0 : T0
-        ImportedGenericCall scalar<T0> : Scalar<T0>
+        MethodCall scalar<T0> : Scalar<T0>
           Local carrier : Carrier<T0>
     val local14
       Local $dependency.argument.0 : T0

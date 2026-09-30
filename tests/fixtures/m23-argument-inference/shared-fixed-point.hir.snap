@@ -163,7 +163,7 @@ Module
     val local48
       Local $dependency.argument.1 : T0
     val local49
-      ImportedGenericCall transform<T0, T0> : T0
+      MethodCall transform<T0, T0> : T0
         Local $dependency.receiver : Host<T0>
         Local $dependency.parameter.action : (T0) -> T0
         Local $dependency.parameter.seed : T0

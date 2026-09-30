@@ -21,7 +21,7 @@ Module
     val local9
       Local $dependency.argument.0 : Ptr<Int>
     if
-      ImportedGenericCall equals<Int> : Boolean
+      MethodCall equals<Int> : Boolean
         Local $dependency.receiver : Ptr<Int>
         Local $dependency.parameter.other : Ptr<Int>
       val local10

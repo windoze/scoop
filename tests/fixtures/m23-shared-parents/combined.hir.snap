@@ -31,7 +31,7 @@ Module
     val local8
       Local reader : Reader<Int>
     return
-      ImportedGenericCall again<Int> : Int
+      MethodCall again<Int> : Int
         Local $dependency.receiver : Reader<Int>
   fun result(): Int
     val local0
@@ -46,7 +46,7 @@ Module
       Local nested : Base<Payload<Int>>
     val local4
       FieldAccess field 0 : Int
-        ImportedGenericCall read<Payload<Int>> : Payload<Int>
+        MethodCall read<Payload<Int>> : Payload<Int>
           Local $dependency.receiver : Base<Payload<Int>>
     val local5
       IntegerLiteral 42 : Int
@@ -71,7 +71,7 @@ Module
       ReferenceUpcast : Reader<Int>
         Local reader : ClosedReader
     val local11
-      ImportedGenericCall again<Int> : Int
+      MethodCall again<Int> : Int
         Local $dependency.receiver : Reader<Int>
     val local12
       IntegerLiteral 42 : Int
@@ -99,6 +99,6 @@ Module
           Local $parameter.value : Hidden
     return
       FieldAccess class field number : Int
-        ImportedGenericCall read<Hidden> : Hidden
+        MethodCall read<Hidden> : Hidden
           Local $dependency.receiver : Base<Hidden>
   output library

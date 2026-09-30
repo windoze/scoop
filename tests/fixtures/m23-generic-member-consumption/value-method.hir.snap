@@ -12,7 +12,7 @@ Module
     val local4
       Local cell : Cell<Int>
     val local11
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         Local $dependency.receiver : Cell<Int>
     val local8
       Local choice : Choice<String>
@@ -23,13 +23,13 @@ Module
     val local7
       Local $dependency.argument.0 : Int
     val local9
-      ImportedGenericCall choose<Int, Int> : Int
+      MethodCall choose<Int, Int> : Int
         Local $dependency.receiver : Cell<Int>
         Local $dependency.parameter.value : Int
     val local10
       Local $dependency.argument.0 : Int
     val local12
-      ImportedGenericCall choose<String, Int> : Int
+      MethodCall choose<String, Int> : Int
         Local $dependency.receiver : Choice<String>
         Local $dependency.parameter.value : Int
     val local13
@@ -51,7 +51,7 @@ Module
     val local5
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall choose<Int, T0> : T0
+      MethodCall choose<Int, T0> : T0
         Local $dependency.receiver : Cell<Int>
         Local $dependency.parameter.value : T0
   output library

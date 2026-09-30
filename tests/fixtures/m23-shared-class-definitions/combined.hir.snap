@@ -59,12 +59,12 @@ Module
     val local12
       Local base : Base<Unit, T0>
     val local13
-      ImportedGenericCall second<Unit, T0> : T0
+      MethodCall second<Unit, T0> : T0
         Local $dependency.receiver : Base<Unit, T0>
     val local14
       CallableCall function_type2 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall select<Unit, T0> : T0
+        MethodCall select<Unit, T0> : T0
           Local $dependency.receiver : Base<Unit, T0>
           Local $dependency.parameter.other : T0
     val local15
@@ -85,7 +85,7 @@ Module
     val local19
       Local $dependency.argument.0 : (T0) -> Int
     val local20
-      ImportedGenericCall apply<T0> : Int
+      MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.convert : (T0) -> Int
     val local21
@@ -102,7 +102,7 @@ Module
     val local23
       Local local : Local<T0, Unit>
     val local24
-      ImportedGenericCall second<Unit, T0> : T0
+      MethodCall second<Unit, T0> : T0
         ReferenceUpcast : Base<Unit, T0>
           Local $receiver : Local<T0, Unit>
     val local25
@@ -137,7 +137,7 @@ Module
     val local33
       Local leaf : Leaf<Unit, T0>
     val local34
-      ImportedGenericCall second<Unit, T0> : T0
+      MethodCall second<Unit, T0> : T0
         ReferenceUpcast : Base<Unit, T0>
           Local $receiver : Leaf<Unit, T0>
     val local35
@@ -209,7 +209,7 @@ Module
     val local58
       CallableCall function_type2 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall value<T0> : T0
+        MethodCall value<T0> : T0
           FieldAccess field 0 : Link<T0>
             FieldAccess class field wrapper : Wrapper<T0>
               Unwrap trap=true : Nested<T0>
@@ -268,7 +268,7 @@ Module
     val local73
       CallableCall function_type2 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall echoed<T0> : T0
+        MethodCall echoed<T0> : T0
           Local remote : Remote<T0>
     val local74
       IntegerLiteral 42 : Int

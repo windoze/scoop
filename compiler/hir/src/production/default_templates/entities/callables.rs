@@ -186,60 +186,45 @@ impl DefaultEntityProjector<'_> {
                 index: super::super::raw_index(id),
             },
         )?;
-        let receiver = binders
-            .iter()
-            .find(|binder| binder.parameter == bound.receiver_parameter)
-            .ok_or(
-                super::super::DefaultEntityProjectionError::MissingIdentity {
-                    kind: "bound receiver parameter",
-                    index: bound.receiver_parameter.identity_raw(),
-                },
-            )?;
         let source = match bound.source {
             crate::BoundCallableSource::Class { bound, callable } => {
                 let application = arena_get(&self.export.class_applications, bound)
                     .ok_or_else(|| unknown("bound class application", bound))?;
                 DefaultBoundCallableSourceV1::Class {
                     bound: self.type_key(application.canonical_type, binders)?,
-                    callable: self.callable(callable, binders)?,
+                    callable: self.callable_target(callable, binders)?,
                 }
             }
-            crate::BoundCallableSource::Interface { bound, member } => {
+            crate::BoundCallableSource::Interface {
+                bound, declared, ..
+            } => {
                 let application = arena_get(&self.export.interface_applications, bound)
                     .ok_or_else(|| unknown("bound interface application", bound))?;
-                let member = arena_get(&self.export.interface_methods, member)
-                    .ok_or_else(|| unknown("interface method", member))?;
+                let member = match self.callable_target(declared, binders)?.declaration() {
+                    crate::DefaultCallableDeclarationV1::Function(id) => {
+                        scoop_identity::CallableTemplateOrigin::Function(id)
+                    }
+                    crate::DefaultCallableDeclarationV1::GenericFunction(id) => {
+                        scoop_identity::CallableTemplateOrigin::GenericFunction(id)
+                    }
+                    crate::DefaultCallableDeclarationV1::PropertyAccessor(id) => {
+                        scoop_identity::CallableTemplateOrigin::Accessor(id)
+                    }
+                    crate::DefaultCallableDeclarationV1::Generated(_) => {
+                        return Err(unknown("bound interface declaration", id));
+                    }
+                };
                 DefaultBoundCallableSourceV1::Interface {
                     bound: self.type_key(application.canonical_type, binders)?,
-                    member: self.source_callable_declaration(member.function)?,
+                    member,
                 }
             }
         };
         let signature = arena_get(&self.export.function_types, bound.instantiated_signature)
             .ok_or_else(|| unknown("bound callable signature", bound.instantiated_signature))?;
         Ok(DefaultBoundCallableRefV1::new(
-            scoop_identity::SignatureTypeKey::Binder {
-                depth: receiver.depth,
-                index: receiver.index,
-            },
-            source,
-            self.type_key(signature.canonical_type, binders)?,
-        ))
-    }
-
-    pub(in crate::production::default_templates) fn imported_bound_callable(
-        &self,
-        bound: &crate::ImportedInterfaceBoundCallable,
-        binders: &[HirSignatureBinder],
-    ) -> Result<DefaultBoundCallableRefV1, super::super::DefaultEntityProjectionError> {
-        let signature = arena_get(&self.export.function_types, bound.signature)
-            .ok_or_else(|| unknown("bound callable signature", bound.signature))?;
-        Ok(DefaultBoundCallableRefV1::new(
             self.type_key(bound.receiver_type, binders)?,
-            DefaultBoundCallableSourceV1::Interface {
-                bound: self.type_key(bound.interface, binders)?,
-                member: bound.member,
-            },
+            source,
             self.type_key(signature.canonical_type, binders)?,
         ))
     }

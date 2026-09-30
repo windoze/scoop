@@ -100,15 +100,6 @@ impl Lowerer {
             hir::ExprKind::ImportedCallableReference(reference) => {
                 self.instantiate_default_imported_reference(reference, context)
             }
-            hir::ExprKind::ImportedMethodCall {
-                receiver,
-                callee,
-                args,
-            } => hir::ExprKind::ImportedMethodCall {
-                receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                callee: self.instantiate_default_imported_method_callee(callee, origin, context),
-                args: self.instantiate_default_exprs(args, context),
-            },
             hir::ExprKind::Lambda(lambda) => {
                 hir::ExprKind::Lambda(self.instantiate_default_lambda(*lambda, context))
             }
@@ -306,31 +297,6 @@ impl Lowerer {
                 binding: binding.clone(),
                 args: self.instantiate_default_exprs(args, context),
             },
-            hir::ExprKind::ImportedGenericCall {
-                application,
-                kind,
-                binding,
-                args,
-                receiver,
-            } => {
-                let application = self.imported_generic_applications[*application].clone();
-                let arguments = application
-                    .arguments
-                    .map(|ty| self.instantiate_method_ty(ty, &context.bindings));
-                let application = self.imported_generic_applications.alloc(
-                    hir::ImportedGenericCallableApplication {
-                        template: application.template,
-                        arguments,
-                    },
-                );
-                hir::ExprKind::ImportedGenericCall {
-                    application,
-                    kind: *kind,
-                    binding: binding.clone(),
-                    args: self.instantiate_default_exprs(args, context),
-                    receiver: receiver.map(|ty| self.instantiate_method_ty(ty, &context.bindings)),
-                }
-            }
             hir::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

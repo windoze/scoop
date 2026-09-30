@@ -614,8 +614,8 @@ Module
       return
   fun extension:Receiver<T0>:ordered$initialize @fn9() -> Unit
     bb0 entry
-      call $call.1: Starter<Int> = @fn15 direct
-      call $call.2: OrderedSlot<Int> = @fn14 direct
+      call $call.1: Starter<Int> = @fn14 direct
+      call $call.2: OrderedSlot<Int> = @fn15 direct
         Type Starter<Int>
         Local $call.1
       global_assign extension:Receiver<T0>:ordered$delegate
@@ -765,8 +765,8 @@ Module
         Local $call.1
   fun extension:Receiver<T0>:compound$initialize @fn12() -> Unit
     bb0 entry
-      call $call.1: Starter<Int> = @fn15 direct
-      call $call.2: OrderedSlot<Int> = @fn14 direct
+      call $call.1: Starter<Int> = @fn14 direct
+      call $call.2: OrderedSlot<Int> = @fn15 direct
         Type Starter<Int>
         Local $call.1
       global_assign extension:Receiver<T0>:compound$delegate
@@ -871,7 +871,51 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun provideDelegate @fn14(this: Starter<Int>) -> OrderedSlot<Int>
+  fun start @fn14() -> Starter<Int>
+    bb0 entry
+      call external6 direct
+      call $dependency.local.0: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.0
+          Type Int
+          Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call external6 direct
+      call external1 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+      assign $new.1
+        Type Starter<Int>
+        ClassAlloc Starter<Int>
+      call @fn17 direct
+        Type Starter<Int>
+        Local $new.1
+      return
+        Type Starter<Int>
+        Local $new.1
+  fun provideDelegate @fn15(this: Starter<Int>) -> OrderedSlot<Int>
     bb0 entry
       call external6 direct
       call $dependency.local.1: Int = external0 direct
@@ -929,7 +973,7 @@ Module
       assign $new.2
         Type OrderedSlot<Int>
         ClassAlloc OrderedSlot<Int>
-      call @fn17 direct
+      call @fn18 direct
         Type OrderedSlot<Int>
         Local $new.2
         Type Payload
@@ -937,50 +981,6 @@ Module
       return
         Type OrderedSlot<Int>
         Local $new.2
-  fun start @fn15() -> Starter<Int>
-    bb0 entry
-      call external6 direct
-      call $dependency.local.0: Int = external0 direct
-        Type Trace
-        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
-      val $dependency.local.1: Int
-        Type Int
-        IntegerLiteral Int value=10 bits=0x0000000a
-      val $dependency.local.2: Int
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: Int
-        Type Int
-        IntegerBinary multiply kind=Int
-          Type Int
-          Local $dependency.local.0
-          Type Int
-          Local $dependency.local.2
-      val $dependency.local.4: Int
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      val $dependency.local.5: Int
-        Type Int
-        Local $dependency.local.4
-      call external6 direct
-      call external1 direct
-        Type Trace
-        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.local.3
-          Type Int
-          Local $dependency.local.5
-      assign $new.1
-        Type Starter<Int>
-        ClassAlloc Starter<Int>
-      call @fn18 direct
-        Type Starter<Int>
-        Local $new.1
-      return
-        Type Starter<Int>
-        Local $new.1
   fun init.Receiver.$c0 @fn16(this: Receiver<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -989,16 +989,16 @@ Module
         Type Int
         Local value
       return
-  fun init.OrderedSlot.$c2 @fn17(this: OrderedSlot<Int>, payload: Payload) -> Unit
+  fun init.Starter.$c1 @fn17(this: Starter<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.OrderedSlot.$c2 @fn18(this: OrderedSlot<Int>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
         Type OrderedSlot<Int>
         Local this
         Type Payload
         Local payload
-      return
-  fun init.Starter.$c1 @fn18(this: Starter<Int>) -> Unit
-    bb0 entry
       return
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- $extension.ordered
@@ -1012,6 +1012,6 @@ Module
   instance mi9 function=@fn11 <- getValue
   instance mi10 function=@fn12 <- extension:Receiver<T0>:compound$initialize
   instance mi11 function=@fn13 <- extension:Receiver<T0>:compound$ensure
-  instance mi12 function=@fn14 <- provideDelegate
-  instance mi13 function=@fn15 <- start
+  instance mi12 function=@fn14 <- start
+  instance mi13 function=@fn15 <- provideDelegate
   output library

@@ -5,8 +5,8 @@ use crate::Lowerer;
 mod callables;
 use callables::collect_callable_reference_types;
 pub(in super::super) use callables::{
-    collect_callable_target_types, collect_callable_types, collect_imported_method_callee_types,
-    collect_imported_reference_target_types, collect_method_callee_types,
+    collect_callable_target_types, collect_callable_types, collect_imported_reference_target_types,
+    collect_method_callee_types,
 };
 
 pub(in super::super) fn collect_body_types(
@@ -348,30 +348,6 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
-        ExprKind::ImportedGenericCall {
-            application,
-            args,
-            receiver,
-            ..
-        } => {
-            out.extend(
-                lowerer.imported_generic_applications[*application]
-                    .arguments
-                    .substitution(
-                        &lowerer.types,
-                        &lowerer.enum_applications,
-                        &lowerer.struct_applications,
-                        &lowerer.class_applications,
-                        &lowerer.interface_applications,
-                    ),
-            );
-            if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
-                out.push(*static_type);
-            }
-            for argument in args {
-                collect_expr_types(lowerer, argument, out);
-            }
-        }
         ExprKind::LocalFunctionCall {
             callee,
             captures,
@@ -435,17 +411,6 @@ pub(in super::super) fn collect_expr_types(
             for capture in &closure.captures {
                 out.push(capture.ty);
                 collect_expr_types(lowerer, &capture.source, out);
-            }
-        }
-        ExprKind::ImportedMethodCall {
-            receiver,
-            callee,
-            args,
-        } => {
-            collect_imported_method_callee_types(lowerer, callee, out);
-            collect_expr_types(lowerer, receiver, out);
-            for arg in args {
-                collect_expr_types(lowerer, arg, out);
             }
         }
         ExprKind::ImportedCallableReference(reference) => {

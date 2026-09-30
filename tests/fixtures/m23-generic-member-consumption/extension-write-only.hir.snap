@@ -11,7 +11,7 @@ Module
       Local holder : PropertyItem<Int>
       IntegerLiteral 42 : Int
     return
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         Local holder : PropertyItem<Int>
   fun make<T>(value: T0): T0
     val local1
@@ -25,6 +25,6 @@ Module
       Local holder : PropertyItem<T0>
       Local value : T0
     return
-      ImportedGenericCall value<T0> : T0
+      MethodCall value<T0> : T0
         Local holder : PropertyItem<T0>
   output library

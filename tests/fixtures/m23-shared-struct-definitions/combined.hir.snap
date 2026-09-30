@@ -92,7 +92,7 @@ Module
     val local31
       Local $dependency.argument.0 : (T0) -> Int
     val local35
-      ImportedGenericCall apply<T0> : Int
+      MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.action : (T0) -> Int
     val local32
@@ -104,7 +104,7 @@ Module
     val local36
       Local $equality.lhs : Int
     val local37
-      ImportedGenericCall apply<T0> : Int
+      MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.action : (T0) -> Int
     val local38
@@ -123,7 +123,7 @@ Module
       arm variant0(0: local39)
         assign $result.7
           FieldAccess field 0 : T0
-            ImportedGenericCall cell<T0> : Cell<T0>
+            MethodCall cell<T0> : Cell<T0>
               Local link : Link<T0>
       arm variant1()
         assign $result.7

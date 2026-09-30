@@ -132,8 +132,10 @@ Module
   fun Derived.get @fn4(this: Derived<Payload>) -> Payload
     bb0 entry
       call $call.1: Payload = @fn7 direct
-        Type Derived<Payload>
-        Local this
+        Type Base<Payload>
+        Retype Base<Payload>
+          Type Derived<Payload>
+          Local this
       return
         Type Payload
         Local $call.1

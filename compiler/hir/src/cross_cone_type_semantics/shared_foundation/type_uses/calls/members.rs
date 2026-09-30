@@ -1,5 +1,4 @@
 use super::*;
-use crate::cross_cone_type_semantics::inheritance::is_nominal_ancestor;
 use crate::{InheritanceCallableDeclarationV1 as Member, SourceCallReceiver};
 use scoop_identity::{AccessorRole, CallableTemplateOrigin, PropertyAccessorKey, PropertyOwner};
 
@@ -49,15 +48,7 @@ impl Graph<'_> {
             return Err(invalid());
         };
 
-        if !matches!(
-            self.current
-                .identities
-                .canonical_key::<_, ExactTypeKey>(static_type)?
-                .as_ref(),
-            ExactTypeKey::Nominal(_)
-        ) || !is_nominal_ancestor(static_type, owner_exact, path, |current| {
-            self.source_receiver_parents(current, path)
-        })? {
+        if !self.receiver_is_subtype(static_type, owner_exact, path)? {
             return Err(invalid());
         }
         // The declaration's provider owns the use, even for a local receiver.

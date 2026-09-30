@@ -267,9 +267,7 @@ impl Lowerer {
             let hir::MethodCallee::Callable(equals) = callee else {
                 unreachable!("literal equality is an ordinary concrete member")
             };
-            hir::LiteralPatternEquality::Ordinary {
-                equals: hir::CallableTarget::Local(equals),
-            }
+            hir::LiteralPatternEquality::Ordinary { equals }
         };
         let [literal] = resolved.args.as_slice() else {
             unreachable!("equals has exactly one explicit argument")

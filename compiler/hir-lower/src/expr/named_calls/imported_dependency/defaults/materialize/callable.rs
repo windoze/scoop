@@ -88,16 +88,9 @@ impl Lowerer {
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
         let callee = self.materialize_imported_callable_target(callee, kind, context)?;
         Ok(match callee {
-            hir::CallableTarget::Application(application) => self.resolved_template_call(
-                application,
-                match kind {
-                    MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
-                    MemberCallKind::DirectSuper => hir::ImportedGenericCallKind::DirectSuper,
-                },
-                None,
-                args,
-                receiver,
-            ),
+            hir::CallableTarget::Application(application) => {
+                self.resolved_template_call(application, kind, None, args, receiver)
+            }
             callee => hir::ExprKind::Call {
                 callee,
                 binding: None,

@@ -153,11 +153,7 @@ impl Concretizer<'_> {
             export::ExprKind::ImportedClosure(closure) => {
                 self.lower_imported_closure(closure, source.span, substitution, locals)
             }
-            export::ExprKind::ImportedMethodCall {
-                receiver,
-                callee,
-                args,
-            } => self.lower_imported_method_call(receiver, callee, args, substitution, locals),
+
             export::ExprKind::ImportedCallableReference(reference) => {
                 concrete::ExprKind::CallableReference(self.lower_imported_reference(
                     reference,
@@ -313,70 +309,12 @@ impl Concretizer<'_> {
                 receiver,
                 callee,
                 args,
-            } => {
-                let source_function = self.source.callable_function(*callee);
-                assert!(
-                    !matches!(
-                        &self.source.functions[source_function].kind,
-                        export::FunctionKind::Intrinsic(export::IntrinsicFunction {
-                            kind: export::IntrinsicFunctionKind::Integer(_),
-                            ..
-                        })
-                    ),
-                    "integer intrinsic MethodCall must be normalized before LocalConcrete HIR"
-                );
-                let mut receiver = self.lower_expr(receiver, substitution, locals);
-                let callee = match callee {
-                    export::MethodCallee::Callable(callable) => {
-                        self.lower_callable(*callable, substitution)
-                    }
-                    export::MethodCallee::Bound(bound) => {
-                        let (callee, interface) =
-                            self.resolve_bound_callee(*bound, receiver.ty, substitution);
-                        if let Some(interface) = interface {
-                            receiver = self.adapt_receiver_to_interface(receiver, interface);
-                        }
-                        callee
-                    }
-                    export::MethodCallee::DerivedEquality(application) => {
-                        self.lower_derived_equality_application(*application, substitution)
-                    }
-                };
-                concrete::ExprKind::MethodCall {
-                    receiver: Box::new(receiver),
-                    callee,
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
-                }
-            }
+            } => self.lower_method_call(receiver, *callee, args, false, substitution, locals),
             export::ExprKind::DirectSuperMethodCall {
                 receiver,
                 callee,
                 args,
-            } => {
-                let receiver = self.lower_expr(receiver, substitution, locals);
-                let callee = match callee {
-                    export::MethodCallee::Callable(callable) => {
-                        self.lower_callable(*callable, substitution)
-                    }
-                    export::MethodCallee::Bound(_) => {
-                        unreachable!("super resolution never produces a bound interface target")
-                    }
-                    export::MethodCallee::DerivedEquality(_) => {
-                        unreachable!("super resolution only produces declared class methods")
-                    }
-                };
-                concrete::ExprKind::DirectSuperMethodCall {
-                    receiver: Box::new(receiver),
-                    callee,
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
-                }
-            }
+            } => self.lower_method_call(receiver, *callee, args, true, substitution, locals),
             export::ExprKind::Box(value) => {
                 let value = self.lower_expr(value, substitution, locals);
                 self.ensure_box_source(value.ty);
@@ -507,56 +445,6 @@ impl Concretizer<'_> {
                     .collect(),
             },
 
-            export::ExprKind::ImportedGenericCall {
-                application,
-                kind: call_kind,
-                args,
-                receiver,
-                binding,
-            } => {
-                let application = &self.source.imported_generic_applications[*application];
-                let callee = self.lower_imported_callable_application(application, substitution);
-                let args: Vec<_> = args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument, substitution, locals))
-                    .collect();
-                let receiver = receiver.map(|ty| self.lower_type(ty, substitution));
-                if matches!(
-                    application.arguments,
-                    export::ImportedCallableArguments::Method { .. }
-                ) {
-                    let mut args = args.into_iter();
-                    let receiver =
-                        Box::new(args.next().expect("a member call has a receiver argument"));
-                    let args = args.collect();
-                    let callee = concrete::Callable::Function(callee);
-                    match call_kind {
-                        export::ImportedGenericCallKind::Ordinary => {
-                            concrete::ExprKind::MethodCall {
-                                receiver,
-                                callee,
-                                args,
-                            }
-                        }
-                        export::ImportedGenericCallKind::DirectSuper => {
-                            concrete::ExprKind::DirectSuperMethodCall {
-                                receiver,
-                                callee,
-                                args,
-                            }
-                        }
-                    }
-                } else {
-                    concrete::ExprKind::Call {
-                        callee: concrete::CallableTarget::Local(concrete::Callable::Function(
-                            callee,
-                        )),
-                        binding: binding.clone(),
-                        receiver,
-                        args,
-                    }
-                }
-            }
             export::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

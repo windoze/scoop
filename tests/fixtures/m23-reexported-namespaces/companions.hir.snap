@@ -25,7 +25,7 @@ Module
     val local11
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall keep<T0> : T0
+        MethodCall keep<T0> : T0
           Local $dependency.receiver : Tools
           Local $dependency.parameter.value : T0
     val local12

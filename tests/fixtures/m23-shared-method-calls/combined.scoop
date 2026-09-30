@@ -1,0 +1,40 @@
+package consumer.methods
+import upstream.methods.*
+
+private class Derived<T>(item: T): Box<T>(item) {
+    public override fun read(): T = super.read()
+    public fun <U> localChoose(extra: U, chosen: T = read()): T = chosen
+}
+
+private interface LocalNumber {
+    public fun number(): Int
+}
+
+private open class LocalNumbered(): RemoteNumber(), LocalNumber
+private class NarrowNumber(): LocalNumbered() {
+    public override fun number(): Int = 43
+}
+
+private fun <R: LocalNumber> localNumber(value: R): Int = value.number()
+private fun <R: LocalNumber> localNumberReference(value: R): () -> Int = value::number
+private fun <R: LocalNumber> localNumberDefault(value: R, chosen: Int = value.number()): Int = chosen
+private fun <T, R: Reader<T>> localRead(value: R, chosen: T = value.read()): T = chosen
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val box = Derived<T>(seed)
+    if (label<Derived<T>>(box) != 42) { return 1 }
+    if (localNumber<LocalNumbered>(LocalNumbered()) != 42) { return 2 }
+    if (number<Number>(Number(42)) != 42) { return 3 }
+    if (localNumber<LocalNumbered>(NarrowNumber()) != 43) { return 6 }
+    if (localNumberReference<LocalNumbered>(NarrowNumber())() != 43) { return 7 }
+    if (localNumberDefault<LocalNumbered>(NarrowNumber()) != 43) { return 8 }
+    val callback = reference<T, Derived<T>>(box)
+    val chosen = box.localChoose<Int>(0)
+    val remote = box.choose<Unit>(Unit)
+    val base = classRead<T, Derived<T>>(box)
+    if (read(chosen) != read(remote)) { return 4 }
+    if (read(base) != read(localRead<T, Derived<T>>(box))) { return 5 }
+    return read(callback())
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

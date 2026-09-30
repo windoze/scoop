@@ -114,8 +114,7 @@ impl Lowerer {
             hir::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
                 hir::ImportedCallableReferenceTarget::BoundMember {
                     receiver: Box::new(self.instantiate_default_expr(receiver, context)),
-                    callee: self
-                        .instantiate_default_imported_method_callee(callee, origin, context),
+                    callee: self.instantiate_default_method_callee(*callee, origin, context),
                 }
             }
             hir::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {

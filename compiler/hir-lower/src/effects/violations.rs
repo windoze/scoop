@@ -228,25 +228,15 @@ impl Lowerer {
                 callee,
                 args,
             } => {
-                match callee {
-                    hir::MethodCallee::Callable(callee) => {
-                        self.check_no_gc_callee(*callee, expr.span, out)
-                    }
-                    hir::MethodCallee::Bound(bound) => {
-                        let function = match self.bound_callable_refs[*bound].source {
-                            hir::BoundCallableSource::Class { callable, .. } => {
-                                self.callable_function_id(callable)
-                            }
-                            hir::BoundCallableSource::Interface { member, .. } => {
-                                self.interface_method_entities[member].function
-                            }
-                        };
-                        self.check_no_gc_function(function, expr.span, out);
-                    }
-                    hir::MethodCallee::DerivedEquality(application) => {
-                        let function = self.derived_equality_applications[*application].function;
-                        self.check_no_gc_function(function, expr.span, out);
-                    }
+                let span = expr.origin.concrete().evaluation.span;
+                if let Some(target) = callee.declared_callable(&self.bound_callable_refs) {
+                    self.check_no_gc_call_target(target, span, out);
+                } else if let hir::MethodCallee::DerivedEquality(application) = callee {
+                    self.check_no_gc_function(
+                        self.derived_equality_applications[*application].function,
+                        span,
+                        out,
+                    );
                 }
                 self.collect_no_gc_expr_violations(receiver, out, requirements);
                 for arg in args {
@@ -308,32 +298,6 @@ impl Lowerer {
                 }
             }
 
-            ExprKind::ImportedMethodCall {
-                receiver,
-                callee,
-                args,
-            } => {
-                let span = expr.origin.concrete().evaluation.span;
-                if let Some(target) = callee.declared_callable() {
-                    let is_no_gc = self.callable_target_is_no_gc(target);
-                    if !is_no_gc {
-                        out.push((
-                            span,
-                            "managed dependency calls are not allowed in `@NoGC` code".into(),
-                        ));
-                    }
-                } else if let hir::ImportedMethodCallee::DerivedEquality(application) = callee {
-                    self.check_no_gc_function(
-                        self.derived_equality_applications[*application].function,
-                        span,
-                        out,
-                    );
-                }
-                self.collect_no_gc_expr_violations(receiver, out, requirements);
-                for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out, requirements);
-                }
-            }
             ExprKind::ImportedConstructorInit { application, args } => {
                 let template = &self.imported_constructor_templates
                     [self.imported_constructor_applications[*application].template]
@@ -345,18 +309,6 @@ impl Lowerer {
                             .to_string(),
                     ));
                 }
-                for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out, requirements);
-                }
-            }
-            ExprKind::ImportedGenericCall {
-                application, args, ..
-            } => {
-                self.check_no_gc_call_target(
-                    hir::CallableTarget::Application(*application),
-                    expr.span,
-                    out,
-                );
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }

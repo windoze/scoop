@@ -149,15 +149,6 @@ impl BodyProjection<'_, '_> {
             },
             ExprKind::Lambda(lambda) => DefaultExpressionKindV1::Lambda(self.lambda(*lambda)?),
             ExprKind::ImportedClosure(closure) => self.imported_closure(closure)?,
-            ExprKind::ImportedMethodCall {
-                receiver,
-                callee,
-                args,
-            } => DefaultExpressionKindV1::MethodCall {
-                receiver: Box::new(self.expression(receiver)?),
-                callee: self.imported_method_callee(callee)?,
-                arguments: self.expressions(args)?,
-            },
             ExprKind::ImportedCallableReference(reference) => {
                 DefaultExpressionKindV1::CallableReference(
                     self.imported_callable_reference(reference)?,
@@ -343,19 +334,12 @@ impl BodyProjection<'_, '_> {
                     *application,
                     args,
                     *receiver,
-                    crate::ImportedGenericCallKind::Ordinary,
+                    crate::MemberCallKind::Ordinary,
                 )?,
                 crate::CallableTarget::Dependency(callee) => {
                     self.imported_call(*callee, args, *receiver, result_type)?
                 }
             },
-            ExprKind::ImportedGenericCall {
-                application,
-                kind,
-                args,
-                receiver,
-                ..
-            } => self.imported_generic_call(*application, args, *receiver, *kind)?,
             ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

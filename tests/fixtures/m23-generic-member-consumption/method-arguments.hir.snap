@@ -16,7 +16,7 @@ Module
     val local6
       Local $dependency.parameter.value : Int
     val local7
-      ImportedGenericCall choose<String, Int> : Int
+      MethodCall choose<String, Int> : Int
         Local $dependency.receiver : Box<String>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.fallback : Int
@@ -29,7 +29,7 @@ Module
     val local11
       Local $dependency.parameter.value : Int
     val local12
-      ImportedGenericCall choose<String, Int> : Int
+      MethodCall choose<String, Int> : Int
         Local $dependency.receiver : Box<String>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.fallback : Int
@@ -50,7 +50,7 @@ Module
     val local19
       Local $dependency.parameter.value : Int
     return
-      ImportedGenericCall choose<String, Int> : Int
+      MethodCall choose<String, Int> : Int
         Local $dependency.receiver : Box<String>
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.fallback : Int
@@ -69,7 +69,7 @@ Module
     val local6
       Local $dependency.parameter.value : T0
     return
-      ImportedGenericCall choose<Int, T0> : T0
+      MethodCall choose<Int, T0> : T0
         Local $dependency.receiver : Box<Int>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.fallback : T0

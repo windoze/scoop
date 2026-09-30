@@ -109,7 +109,7 @@ Module
       val local10
         Local external : Base<Int>
       val local11
-        ImportedGenericCall read<Int> : Int
+        MethodCall read<Int> : Int
           Local $dependency.receiver : Base<Int>
       val local12
         IntegerLiteral 42 : Int
@@ -129,7 +129,7 @@ Module
     val local16
       Local $argument.0 : Int
     val local17
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         ReferenceUpcast : Base<Int>
           ClassInit Child : Child
             Local $parameter.value : Int
@@ -153,6 +153,6 @@ Module
         ClassInit PrivateChild : PrivateChild
           Local $parameter.value : Int
     return
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         Local $dependency.receiver : Base<Int>
   output library

@@ -1,0 +1,3 @@
+span=107..120
+expression=reader.read()
+calling a managed dependency function is not allowed in `@NoGC` code

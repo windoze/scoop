@@ -198,21 +198,6 @@ impl Lowerer {
                     receiver: source_receiver,
                 }
             }
-            LocalDelegateDispatch::ImportedGeneric {
-                application,
-                kind,
-                binding,
-                receiver: source_receiver,
-            } => {
-                args.insert(0, receiver);
-                hir::ExprKind::ImportedGenericCall {
-                    application,
-                    kind,
-                    binding,
-                    args,
-                    receiver: source_receiver,
-                }
-            }
         };
         hir::Expr {
             kind,
@@ -336,25 +321,6 @@ fn local_delegate_accessor(resolved: ResolvedDelegateRoleCall) -> LocalDelegateA
             (
                 LocalDelegateDispatch::Call {
                     callee,
-                    binding,
-                    receiver,
-                },
-                value.ty,
-                args,
-            )
-        }
-        hir::ExprKind::ImportedGenericCall {
-            application,
-            kind,
-            binding,
-            receiver,
-            mut args,
-        } => {
-            let value = args.remove(0);
-            (
-                LocalDelegateDispatch::ImportedGeneric {
-                    application,
-                    kind,
                     binding,
                     receiver,
                 },

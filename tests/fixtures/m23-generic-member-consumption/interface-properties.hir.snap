@@ -12,12 +12,12 @@ Module
         ImportedConstructorInit PropertyItem : PropertyItem<Int>
           Local $dependency.parameter.value : Int
     val local3
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         ReferenceUpcast : ReadOnlyProperty<Int>
           Local item : MutableProperty<Int>
     val local4
       Local item : MutableProperty<Int>
-    ImportedGenericCall MutableProperty.$set$value<Int> : Unit
+    MethodCall MutableProperty.$set$value<Int> : Unit
       Local $place.0 : MutableProperty<Int>
       IntegerLiteral 22 : Int
     val local5
@@ -30,15 +30,15 @@ Module
           Local $parameter.value : Int
     val local8
       Local local : MutableProperty<Int>
-    ImportedGenericCall MutableProperty.$set$value<Int> : Unit
+    MethodCall MutableProperty.$set$value<Int> : Unit
       Local $place.1 : MutableProperty<Int>
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         ReferenceUpcast : ReadOnlyProperty<Int>
           Local item : MutableProperty<Int>
     val local9
       Local before : Int
     val local10
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         ReferenceUpcast : ReadOnlyProperty<Int>
           Local local : MutableProperty<Int>
     val local11
@@ -57,7 +57,7 @@ Module
         ImportedConstructorInit PropertyItem : PropertyItem<T0>
           Local $dependency.parameter.value : T0
     val local4
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         ReferenceUpcast : ReadOnlyProperty<T0>
           Local item : MutableProperty<T0>
     val local5
@@ -68,11 +68,11 @@ Module
           Local $parameter.value : T0
     val local7
       Local local : MutableProperty<T0>
-    ImportedGenericCall MutableProperty.$set$value<T0> : Unit
+    MethodCall MutableProperty.$set$value<T0> : Unit
       Local $place.2 : MutableProperty<T0>
       Local value : T0
     return
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         ReferenceUpcast : ReadOnlyProperty<T0>
           Local local : MutableProperty<T0>
   output library

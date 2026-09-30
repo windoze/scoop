@@ -95,16 +95,16 @@ pub struct Module {
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
     /// Dependency callables committed by this HIR graph. Handles retain the
-    /// selection brand; each expression also retains its own winning binding.
+    /// selected declaration; each expression also keeps its winning binding.
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub imported_generic_templates: Arena<ImportedGenericCallableTemplate>,
     pub imported_generic_delegate_templates: Arena<ImportedGenericDelegateTemplate>,
     pub imported_generic_applications: Arena<ImportedGenericCallableApplication>,
     pub imported_constructor_templates: Arena<ImportedConstructorTemplate>,
     pub imported_constructor_applications: Arena<ImportedConstructorApplication>,
-    /// Template-only calls through an interface upper bound. Each entry
-    /// names the exact receiver parameter, bound application and declaring
-    /// interface method; local-concrete HIR has no corresponding arena.
+    /// Template-only calls through a class or interface upper bound. Entries
+    /// retain the receiver type, bound application and selected declaration;
+    /// local-concrete HIR has no corresponding arena.
     pub bound_callable_refs: Arena<BoundCallableRef>,
     /// Source/target signatures of every explicit function-value variance
     /// adaptation requested by HIR.

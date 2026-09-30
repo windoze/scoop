@@ -1,0 +1,666 @@
+Module
+  struct Number (value: Int)
+  enum CoroutineStep<NarrowNumber>
+    Completed(value: NarrowNumber)
+    Suspended()
+  enum CoroutineSlot<NarrowNumber>
+    Empty()
+    Value(value: NarrowNumber)
+  enum CoroutineStep<LocalNumbered>
+    Completed(value: LocalNumbered)
+    Suspended()
+  enum CoroutineSlot<LocalNumbered>
+    Empty()
+    Value(value: LocalNumbered)
+  enum CoroutineStep<LocalNumber>
+    Completed(value: LocalNumber)
+    Suspended()
+  enum CoroutineSlot<LocalNumber>
+    Empty()
+    Value(value: LocalNumber)
+  class LocalNumbered vtable=1 itables=1
+  class RemoteNumber vtable=1 itables=0
+  class NarrowNumber vtable=1 itables=1
+  class Derived<Int> vtable=1 itables=2
+  class Box<Int> vtable=1 itables=2
+  interface LocalNumber
+  interface Label
+  interface Reader<Int>
+  interface Numbered
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
+  closure cc1 $Closure$reference0 type=function_type1 invoke=@fn18 captures=1
+  closure cc2 $Closure$reference1 type=function_type1 invoke=@fn19 captures=1
+  generated_exact_type get0 location=closure1 nominal_id=1bd2ceea1f2d150a7b84e29f2f33c5fbc48e8380963378782068285d4d78f793 exact_id=06834b9d03fa964c53eb64666565a717284b16396514df310dddd6016dd5c0b1
+  generated_exact_type get1 location=enum4 nominal_id=3ee9d5c6a522380b74dcc7a72cd24e9c063ad950684862b1f29d10f64455e0ea exact_id=1e944a7c7ba6feffdfbc251c787224695b0697690c0d6eef6224dbd55fe78de1
+  generated_exact_type get2 location=enum5 nominal_id=8bbd01a222af54de9da380125a72b3f41c6dd30b7dac4b232a0cd2173eefe637 exact_id=37c8580480ae54de2698a2cb060b1da5bbefa76fb70afbe95328e28c4a99f401
+  generated_exact_type get3 location=enum1 nominal_id=ef74bb532e59acafad90e0bf29a5451becd6391524249a1fe7dc69f3586f3cf3 exact_id=59da4c8d5f821de4dc3f39880c5d381bb637a9483a91e470658e713387c27b8a
+  generated_exact_type get4 location=enum2 nominal_id=de767107158ae5bcbf3555eddb52be6f0ed74677a33ad40f77c9cbaaab2a59ff exact_id=5bc5d5a524e2176de125d319cec25f03164d7343919b586eebbe6310e7c06860
+  generated_exact_type get5 location=closure0 nominal_id=c5e2c395a3b7bbc2f55e201e9959eafc25d3808436b8fa50725648b2305a2467 exact_id=6bcd25bffe8cb83c4ddcdef6a27c8647ee676b2eb367d4544b7d5671b459f50e
+  generated_exact_type get6 location=enum3 nominal_id=80f590c561b77cbcfad1a8312949cd12f1282855f56d9c268775de7624ba9382 exact_id=a4161891f357e2134cd07004ec3fdc8fcd9a608e7f72306bd6bd5a86ba32258a
+  generated_exact_type get7 location=enum0 nominal_id=8c9e38e2375b4ef18535d85b92baa9fdec4db7645dae8d93063b819ffe41d94e exact_id=b291df499bb9e186a509262a47ac81fb0aa61ff3a2a9f51524f57eebb8da3f48
+  generated_exact_type get8 location=closure2 nominal_id=f787f12860a215d04b367e2427b45043703bda672aeb246d8224928079372ea2 exact_id=b5b91046743b1b9789f7378b6866b6a5853ac8875804951f7bc145afe19d1ebb
+  fun NarrowNumber.number @fn0(this: NarrowNumber) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn2($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn3(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local seed
+      val $parameter.item: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Derived<Int>
+        ClassAlloc Derived<Int>
+      call @fn22 direct
+        Type Derived<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.item
+      val box: Derived<Int>
+        Type Derived<Int>
+        Local $new.1
+      val $dependency.argument.0: Derived<Int>
+        Type Derived<Int>
+        Local box
+      val $dependency.parameter.value: Derived<Int>
+        Type Derived<Int>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn6 direct
+        Type Derived<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      assign $new.2
+        Type LocalNumbered
+        ClassAlloc LocalNumbered
+      call @fn20 direct
+        Type LocalNumbered
+        Local $new.2
+      val $argument.0: LocalNumbered
+        Type LocalNumbered
+        Local $new.2
+      val $parameter.value: LocalNumbered
+        Type LocalNumbered
+        Local $argument.0
+      call $dependency.receiver: Int = @fn7 direct
+        Type LocalNumbered
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Number = external4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Number
+        Type Number
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn8 direct
+        Type Number
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      assign $new.3
+        Type NarrowNumber
+        ClassAlloc NarrowNumber
+      call @fn21 direct
+        Type NarrowNumber
+        Local $new.3
+      val $argument.0: LocalNumbered
+        Type LocalNumbered
+        Retype LocalNumbered
+          Type NarrowNumber
+          Local $new.3
+      val $parameter.value: LocalNumbered
+        Type LocalNumbered
+        Local $argument.0
+      call $dependency.receiver: Int = @fn7 direct
+        Type LocalNumbered
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb8 if.merge.8
+      assign $new.4
+        Type NarrowNumber
+        ClassAlloc NarrowNumber
+      call @fn21 direct
+        Type NarrowNumber
+        Local $new.4
+      val $argument.0: LocalNumbered
+        Type LocalNumbered
+        Retype LocalNumbered
+          Type NarrowNumber
+          Local $new.4
+      val $parameter.value: LocalNumbered
+        Type LocalNumbered
+        Local $argument.0
+      call $call.5: () -> Int = @fn9 direct
+        Type LocalNumbered
+        Local $parameter.value
+      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb10 if.merge.10
+      assign $new.6
+        Type NarrowNumber
+        ClassAlloc NarrowNumber
+      call @fn21 direct
+        Type NarrowNumber
+        Local $new.6
+      val $argument.0: LocalNumbered
+        Type LocalNumbered
+        Retype LocalNumbered
+          Type NarrowNumber
+          Local $new.6
+      val $parameter.value: LocalNumbered
+        Type LocalNumbered
+        Local $argument.0
+      val $receiver: LocalNumbered
+        Type LocalNumbered
+        Local $parameter.value
+      call $parameter.chosen: Int = external1 virtual[0]
+        Type RemoteNumber
+        Retype RemoteNumber
+          Type LocalNumbered
+          Local $receiver
+      call $dependency.receiver: Int = @fn10 direct
+        Type LocalNumbered
+        Local $parameter.value
+        Type Int
+        Local $parameter.chosen
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb11 if.then.11
+      return
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+    bb12 if.merge.12
+      val $dependency.argument.0: Derived<Int>
+        Type Derived<Int>
+        Local box
+      val $dependency.parameter.reader: Derived<Int>
+        Type Derived<Int>
+        Local $dependency.argument.0
+      call callback: () -> Int = @fn11 direct
+        Type Derived<Int>
+        Local $dependency.parameter.reader
+      val $receiver: Derived<Int>
+        Type Derived<Int>
+        Local box
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.extra: Int
+        Type Int
+        Local $argument.0
+      val $receiver: Derived<Int>
+        Type Derived<Int>
+        Local $receiver
+      call $parameter.chosen: Int = @fn5 direct
+        Type Derived<Int>
+        Local $receiver
+      call chosen: Int = @fn12 direct
+        Type Derived<Int>
+        Local $receiver
+        Type Int
+        Local $parameter.extra
+        Type Int
+        Local $parameter.chosen
+      val $dependency.receiver: Box<Int>
+        Type Box<Int>
+        Retype Box<Int>
+          Type Derived<Int>
+          Local box
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.extra: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $default.local.2: Box<Int>
+        Type Box<Int>
+        Local $dependency.receiver
+      call $dependency.parameter.chosen: Int = @fn4 virtual[0]
+        Type Box<Int>
+        Local $default.local.2
+      call remote: Int = @fn13 direct
+        Type Box<Int>
+        Local $dependency.receiver
+        Type Unit
+        Local $dependency.parameter.extra
+        Type Int
+        Local $dependency.parameter.chosen
+      val $dependency.argument.0: Derived<Int>
+        Type Derived<Int>
+        Local box
+      val $dependency.parameter.box: Derived<Int>
+        Type Derived<Int>
+        Local $dependency.argument.0
+      val $default.local.1: Derived<Int>
+        Type Derived<Int>
+        Local $dependency.parameter.box
+      call $dependency.parameter.chosen: Int = @fn4 virtual[0]
+        Type Box<Int>
+        Retype Box<Int>
+          Type Derived<Int>
+          Local $default.local.1
+      call base: Int = @fn14 direct
+        Type Derived<Int>
+        Local $dependency.parameter.box
+        Type Int
+        Local $dependency.parameter.chosen
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local chosen
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local remote
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb14 if.merge.14
+      call $equality.lhs: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local base
+      val $argument.0: Derived<Int>
+        Type Derived<Int>
+        Local box
+      val $parameter.value: Derived<Int>
+        Type Derived<Int>
+        Local $argument.0
+      val $dependency.receiver: Derived<Int>
+        Type Derived<Int>
+        Local $parameter.value
+      call $parameter.chosen: Int = @fn5 direct
+        Type Derived<Int>
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local $equality.lhs
+      call $call.7: Int = @fn15 direct
+        Type Derived<Int>
+        Local $parameter.value
+        Type Int
+        Local $parameter.chosen
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.7
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb16 if.merge.16
+      call $call.8: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local callback
+      call $call.9: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.8
+      return
+        Type Int
+        Local $call.9
+  fun read @fn4(this: Box<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn16 direct
+        Type Box<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Derived.read @fn5(this: Derived<Int>) -> Int
+    bb0 entry
+      val $dependency.receiver: Box<Int>
+        Type Box<Int>
+        Retype Box<Int>
+          Type Derived<Int>
+          Local this
+      call $call.1: Int = @fn4 direct
+        Type Box<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun label @fn6(value: Derived<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Derived<Int>
+        Type Derived<Int>
+        Local value
+      call $call.1: Int = external0 direct
+        Type Label
+        Retype Label
+          Type Derived<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun localNumber @fn7(value: LocalNumbered) -> Int
+    bb0 entry
+      val $receiver: LocalNumbered
+        Type LocalNumbered
+        Local value
+      call $call.1: Int = external1 virtual[0]
+        Type RemoteNumber
+        Retype RemoteNumber
+          Type LocalNumbered
+          Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun number @fn8(value: Number) -> Int
+    bb0 entry
+      val $dependency.local.1: Number
+        Type Number
+        Local value
+      call $call.1: Int = external3 direct
+        Type Number
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun localNumberReference @fn9(value: LocalNumbered) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference0
+          CaptureInit field=0
+            Type RemoteNumber
+            Retype RemoteNumber
+              Type LocalNumbered
+              Local value
+  fun localNumberDefault @fn10(value: LocalNumbered, chosen: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local chosen
+  fun reference @fn11(reader: Derived<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference1
+          CaptureInit field=0
+            Type Derived<Int>
+            Local reader
+  fun Derived.localChoose @fn12(this: Derived<Int>, extra: Int, chosen: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local chosen
+  fun choose @fn13(this: Box<Int>, extra: Unit, chosen: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local chosen
+  fun classRead @fn14(box: Derived<Int>, chosen: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local chosen
+  fun localRead @fn15(value: Derived<Int>, chosen: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local chosen
+  fun value @fn16(this: Box<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local this
+  fun LocalNumber.number @fn17(this: LocalNumber) -> Int
+    bb0 entry
+      trap "call to abstract method `LocalNumber.number`"
+  fun $reference.0 @fn18($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external1 virtual[0]
+        Type RemoteNumber
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn19($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type Derived<Int>
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.LocalNumbered.$c1 @fn20(this: LocalNumbered) -> Unit
+    bb0 entry
+      call external2 direct
+        Type RemoteNumber
+        Retype RemoteNumber
+          Type LocalNumbered
+          Local this
+      return
+  fun init.NarrowNumber.$c2 @fn21(this: NarrowNumber) -> Unit
+    bb0 entry
+      call @fn20 direct
+        Type LocalNumbered
+        Retype LocalNumbered
+          Type NarrowNumber
+          Local this
+      return
+  fun init.Derived.$c0 @fn22(this: Derived<Int>, item: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local item
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Derived<Int>
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun init.Box.$c0 @fn23(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  coroutine_step cs0 CoroutineStep<NarrowNumber> result=NarrowNumber
+  coroutine_step cs1 CoroutineStep<LocalNumbered> result=LocalNumbered
+  coroutine_step cs2 CoroutineStep<LocalNumber> result=LocalNumber
+  coroutine_slot cl0 CoroutineSlot<NarrowNumber> value=NarrowNumber
+  coroutine_slot cl1 CoroutineSlot<LocalNumbered> value=LocalNumbered
+  coroutine_slot cl2 CoroutineSlot<LocalNumber> value=LocalNumber
+  instance mi0 function=@fn3 <- exercise
+  instance mi1 function=@fn4 <- read
+  instance mi2 function=@fn5 <- Derived.read
+  instance mi3 function=@fn6 <- label
+  instance mi4 function=@fn7 <- localNumber
+  instance mi5 function=@fn8 <- number
+  instance mi6 function=@fn9 <- localNumberReference
+  instance mi7 function=@fn10 <- localNumberDefault
+  instance mi8 function=@fn11 <- reference
+  instance mi9 function=@fn12 <- Derived.localChoose
+  instance mi10 function=@fn13 <- choose
+  instance mi11 function=@fn14 <- classRead
+  instance mi12 function=@fn15 <- localRead
+  instance mi13 function=@fn16 <- value
+  output library

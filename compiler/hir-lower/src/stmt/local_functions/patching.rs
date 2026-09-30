@@ -132,12 +132,6 @@ fn patch_local_function_call_expr(
                 patch_local_function_call_expr(&mut capture.source, target, target_captures);
             }
         }
-        hir::ExprKind::ImportedMethodCall { receiver, args, .. } => {
-            patch_local_function_call_expr(receiver, target, target_captures);
-            for arg in args {
-                patch_local_function_call_expr(arg, target, target_captures);
-            }
-        }
         hir::ExprKind::ImportedCallableReference(reference) => {
             if let Some(receiver) = reference.target.receiver_mut() {
                 patch_local_function_call_expr(receiver, target, target_captures);
@@ -176,8 +170,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::ClassInit { args: elements, .. }
         | hir::ExprKind::VariantConstruct { args: elements, .. }
         | hir::ExprKind::Call { args: elements, .. }
-        | hir::ExprKind::ImportedConstructorInit { args: elements, .. }
-        | hir::ExprKind::ImportedGenericCall { args: elements, .. } => {
+        | hir::ExprKind::ImportedConstructorInit { args: elements, .. } => {
             for element in elements {
                 patch_local_function_call_expr(element, target, target_captures);
             }

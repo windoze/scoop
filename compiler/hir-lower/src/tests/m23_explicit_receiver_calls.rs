@@ -195,7 +195,7 @@ fn assert_marker(module: &hir::Module, expression: &hir::Expr, expected: i64) {
             ..
         } => *callee,
         hir::ExprKind::MethodCall {
-            callee: hir::MethodCallee::Callable(callee),
+            callee: hir::MethodCallee::Callable(hir::CallableTarget::Local(callee)),
             ..
         } => *callee,
         other => panic!("expected a resolved callable expression, found {other:?}"),

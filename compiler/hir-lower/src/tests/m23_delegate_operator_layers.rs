@@ -159,7 +159,9 @@ fn selected_getter(module: &hir::Module) -> hir::FunctionId {
             callee: hir::CallableTarget::Local(callee),
             ..
         } => module.callable_function(callee),
-        hir::ExprKind::MethodCall { callee, .. } => module.callable_function(callee),
+        hir::ExprKind::MethodCall { callee, .. } => {
+            module.callable_function(crate::tests::local_method_callable(module, callee))
+        }
         ref other => panic!("delegate read is a resolved role call, found {other:?}"),
     }
 }

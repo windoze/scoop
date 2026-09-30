@@ -48,7 +48,7 @@ Module
     val local11
       Local $equality.lhs : Int
     val local12
-      ImportedGenericCall again<Int> : Int
+      MethodCall again<Int> : Int
         Local $dependency.receiver : Reader<Int>
     val local13
       Local $dependency.argument.0 : Int
@@ -60,7 +60,7 @@ Module
         ReferenceUpcast : Reader<Int>
           Local reader : IntReader
       assign $result.0
-        ImportedGenericCall again<Int> : Int
+        MethodCall again<Int> : Int
           Local $dependency.receiver : Reader<Int>
     else
       assign $result.0
@@ -102,7 +102,7 @@ Module
         ReferenceUpcast : Reader<Int>
           Local external : IntReader
       assign $result.1
-        ImportedGenericCall again<Int> : Int
+        MethodCall again<Int> : Int
           Local $dependency.receiver : Reader<Int>
     else
       assign $result.1

@@ -10,12 +10,6 @@ impl FunctionCallee for Callable {
     }
 }
 
-impl FunctionCallee for MethodCallee {
-    fn function(self, module: &Module) -> FunctionId {
-        method_callee_function(module, self)
-    }
-}
-
 /// A generic type parameter that must denote a recursively GC-free value
 /// whenever it is used as the pointee of the compiler-represented `Ptr`
 /// family. This condition is intentionally distinct from a callable's
@@ -151,21 +145,6 @@ pub(crate) fn callable_function(module: &Module, callable: Callable) -> Function
         Callable::Method(id) => module.method_applications[id].function,
         Callable::GenericMethod(id) => {
             module.generic_methods[module.generic_method_applications[id].method].function
-        }
-    }
-}
-
-pub(crate) fn method_callee_function(module: &Module, callee: MethodCallee) -> FunctionId {
-    match callee {
-        MethodCallee::Callable(callable) => callable_function(module, callable),
-        MethodCallee::Bound(bound) => match module.bound_callable_refs[bound].source {
-            BoundCallableSource::Class { callable, .. } => callable_function(module, callable),
-            BoundCallableSource::Interface { member, .. } => {
-                module.interface_methods[member].function
-            }
-        },
-        MethodCallee::DerivedEquality(application) => {
-            module.derived_equality_applications[application].function
         }
     }
 }

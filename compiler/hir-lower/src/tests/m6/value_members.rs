@@ -57,7 +57,10 @@ fn struct_methods_and_bare_field_access() {
 
     match &returned(body_of(&module, "use_it")).kind {
         hir::ExprKind::MethodCall { callee, .. } => {
-            assert_eq!(module.callable_function(*callee), get);
+            assert_eq!(
+                module.callable_function(crate::tests::local_method_callable(&module, *callee)),
+                get
+            );
         }
         other => panic!("expected a method call, found {other:?}"),
     }
@@ -95,7 +98,9 @@ fn enum_methods_resolve_and_this_is_the_value() {
     match &returned(body_of(&module, "f")).kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Color.code"
             );
         }
@@ -129,7 +134,9 @@ fn bare_method_calls_inside_a_class_mean_this() {
             receiver, callee, ..
         } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Shape.describe"
             );
             assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));

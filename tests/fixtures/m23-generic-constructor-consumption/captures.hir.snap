@@ -31,7 +31,7 @@ Module
         Local $parameter.value : Int
     return
       FieldAccess class field value : Int
-        ImportedGenericCall output<Payload> : Payload
+        MethodCall output<Payload> : Payload
           Local box : Captured<Payload>
   fun make<T>(value: T0): Box<T0>
     val local1

@@ -1,6 +1,6 @@
 use crate::{
     CallableTarget, Capture, DefinitionOrigin, Expr, FunctionTypeId,
-    ImportedGenericCallableApplicationId, ImportedMethodCallee, TypeId,
+    ImportedGenericCallableApplicationId, MethodCallee, TypeId,
 };
 
 #[derive(Debug, Clone)]
@@ -9,7 +9,7 @@ pub enum ImportedCallableReferenceTarget {
     Local(ImportedGenericCallableApplicationId),
     BoundMember {
         receiver: Box<Expr>,
-        callee: ImportedMethodCallee,
+        callee: MethodCallee,
     },
     BoundExtension {
         receiver: Box<Expr>,
@@ -23,10 +23,10 @@ pub enum ImportedCallableReferenceTarget {
 }
 
 impl ImportedCallableReferenceTarget {
-    pub fn callee(&self) -> Option<CallableTarget> {
+    pub fn callee(&self, bounds: &crate::Arena<crate::BoundCallableRef>) -> Option<CallableTarget> {
         match self {
             Self::Named(callee) | Self::BoundExtension { callee, .. } => Some(*callee),
-            Self::BoundMember { callee, .. } => callee.declared_callable(),
+            Self::BoundMember { callee, .. } => callee.declared_callable(bounds),
             Self::Local(application) => Some(CallableTarget::Application(*application)),
             Self::BoundIntrinsic { .. } => None,
         }

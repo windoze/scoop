@@ -31,10 +31,10 @@ Module
         Local $parameter.value : Int
     val local11
       FieldAccess class field value : Int
-        ImportedGenericCall carried<Payload> : Payload
+        MethodCall carried<Payload> : Payload
           Local box : Alternate<Payload>
     val local12
-      ImportedGenericCall extra<Payload> : Int
+      MethodCall extra<Payload> : Int
         Local box : Alternate<Payload>
     val local13
       Local $dependency.argument.0 : Int

@@ -11,7 +11,7 @@ Module
     val local3
       Local reader : Reader<Int>
     return
-      ImportedGenericCall read<Int> : Int
+      MethodCall read<Int> : Int
         Local $dependency.receiver : Reader<Int>
   fun make<T>(value: T0): T0
     val local1
@@ -23,6 +23,6 @@ Module
         ImportedConstructorInit InterfaceCell : InterfaceCell<T0>
           Local $dependency.parameter.value : T0
     return
-      ImportedGenericCall read<T0> : T0
+      MethodCall read<T0> : T0
         Local $dependency.receiver : Reader<T0>
   output library

@@ -53,14 +53,14 @@ Module
       val local10
         Local $default.local.7 : Array<Int>
       val local11
-        ImportedGenericCall iterator<Int> : Iterator<Int>
+        MethodCall iterator<Int> : Iterator<Int>
           Local $default.local.8 : Array<Int>
       val local12
         Local $default.local.9 : Iterator<Int>
       while
         condition setup
           val local13
-            ImportedGenericCall Iterator.next<Int> : Option<Int>
+            MethodCall Iterator.next<Int> : Option<Int>
               Local $default.local.10 : Iterator<Int>
         IsSome : Boolean
           Local $default.local.11 : Option<Int>
@@ -138,14 +138,14 @@ Module
       val local36
         Local $default.local.7 : Array<Reference>
       val local37
-        ImportedGenericCall iterator<Reference> : Iterator<Reference>
+        MethodCall iterator<Reference> : Iterator<Reference>
           Local $default.local.8 : Array<Reference>
       val local38
         Local $default.local.9 : Iterator<Reference>
       while
         condition setup
           val local39
-            ImportedGenericCall Iterator.next<Reference> : Option<Reference>
+            MethodCall Iterator.next<Reference> : Option<Reference>
               Local $default.local.10 : Iterator<Reference>
         IsSome : Boolean
           Local $default.local.11 : Option<Reference>
@@ -200,14 +200,14 @@ Module
       val local53
         Local $default.local.7 : Array<Reference>
       val local54
-        ImportedGenericCall iterator<Reference> : Iterator<Reference>
+        MethodCall iterator<Reference> : Iterator<Reference>
           Local $default.local.8 : Array<Reference>
       val local55
         Local $default.local.9 : Iterator<Reference>
       while
         condition setup
           val local56
-            ImportedGenericCall Iterator.next<Reference> : Option<Reference>
+            MethodCall Iterator.next<Reference> : Option<Reference>
               Local $default.local.10 : Iterator<Reference>
         IsSome : Boolean
           Local $default.local.11 : Option<Reference>

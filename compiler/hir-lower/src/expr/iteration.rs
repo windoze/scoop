@@ -23,7 +23,7 @@ impl Lowerer {
                 Some(hir::Expr {
                     kind: ExprKind::MethodCall {
                         receiver: Box::new(receiver),
-                        callee: hir::MethodCallee::Callable(hir::Callable::Method(callable)),
+                        callee: hir::MethodCallee::Callable(hir::Callable::Method(callable).into()),
                         args: Vec::new(),
                     },
                     ty: result_type,

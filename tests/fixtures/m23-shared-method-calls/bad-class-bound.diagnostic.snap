@@ -1,0 +1,3 @@
+span=76..110
+expression=classRead<Int, Number>(Number(42))
+dependency function `classRead`: Number is not a subtype of Box<T>

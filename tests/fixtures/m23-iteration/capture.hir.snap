@@ -179,14 +179,14 @@ Module
     val local49
       Local $for.source.1 : MutableArray<() -> Reference>
     val local50
-      ImportedGenericCall iterator<() -> Reference> : Iterator<() -> Reference>
+      MethodCall iterator<() -> Reference> : Iterator<() -> Reference>
         Local $dependency.receiver : MutableArray<() -> Reference>
     val local51
       Local $for.iterator.result.2 : Iterator<() -> Reference>
     while
       condition setup
         val local52
-          ImportedGenericCall Iterator.next<() -> Reference> : Option<() -> Reference>
+          MethodCall Iterator.next<() -> Reference> : Option<() -> Reference>
             Local $for.iterator.3 : Iterator<() -> Reference>
       IsSome : Boolean
         Local $for.next.4 : Option<() -> Reference>

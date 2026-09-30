@@ -21,6 +21,7 @@ mod interfaces;
 mod machine;
 mod members;
 mod metadata;
+mod method_calls;
 mod native_calls;
 mod nominal_conditions;
 mod nominals;

@@ -13,10 +13,10 @@ Module
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.extra : Int
     val local5
-      ImportedGenericCall echoed<Int> : Int
+      MethodCall echoed<Int> : Int
         Local box : Box<Int>
     val local6
-      ImportedGenericCall count<Int> : Int
+      MethodCall count<Int> : Int
         Local box : Box<Int>
     val local7
       Local $dependency.argument.0 : Int

@@ -25,7 +25,7 @@ Module
       val local7
         Local probe : Probe<T0>
       val local8
-        ImportedGenericCall take<T0> : Int
+        MethodCall take<T0> : Int
           Local $dependency.receiver : Probe<T0>
       val local9
         IntegerLiteral 2 : Int

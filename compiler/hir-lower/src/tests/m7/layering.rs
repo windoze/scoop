@@ -65,7 +65,7 @@ fn method_overloads_resolve() {
         })
         .expect("expected a materialized method call");
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(&module, *callee)),
         method_fn(&module, "C", "m", &["String"])
     );
 
@@ -81,7 +81,7 @@ fn method_overloads_resolve() {
         panic!("expected a method call")
     };
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(&module, *callee)),
         method_fn(&module, "C", "m", &["Int"])
     );
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
@@ -123,7 +123,7 @@ fn member_layer_shadows_top_level() {
         )
     };
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(&module, *callee)),
         method_fn(&module, "C", "value", &[])
     );
 }

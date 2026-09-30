@@ -240,14 +240,14 @@ Module
     val local50
       Local $for.source.1 : Array<Large>
     val local51
-      ImportedGenericCall iterator<Large> : Iterator<Large>
+      MethodCall iterator<Large> : Iterator<Large>
         Local $dependency.receiver : Array<Large>
     val local52
       Local $for.iterator.result.2 : Iterator<Large>
     while
       condition setup
         val local53
-          ImportedGenericCall Iterator.next<Large> : Option<Large>
+          MethodCall Iterator.next<Large> : Option<Large>
             Local $for.iterator.3 : Iterator<Large>
       IsSome : Boolean
         Local $for.next.4 : Option<Large>

@@ -1,0 +1,278 @@
+Module
+  class Derived<T>(item: T0)
+  open class LocalNumbered() : LocalNumber
+  class NarrowNumber()
+  interface LocalNumber
+    fun number(): Int
+  fun localNumber<R : LocalNumber>(value: T0): Int
+    val local1
+      Local value : T0
+    return
+      MethodCall bound T0 via LocalNumber -> LocalNumber.number : Int
+        Local $receiver : T0
+  fun localNumberReference<R : LocalNumber>(value: T0): () -> Int
+    return
+      CallableReference reference0 target=LocalNumber.number captures=0 : () -> Int
+        Local value : T0
+  fun localNumberDefault<R : LocalNumber>(value: T0, chosen: Int): Int
+    return
+      Local chosen : Int
+  fun localRead<T, R : Reader<T>>(value: T1, chosen: T0): T0
+    return
+      Local chosen : T0
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $argument.0 : T0
+    val local4
+      ClassInit Derived<T0> : Derived<T0>
+        Local $parameter.item : T0
+    val local5
+      Local box : Derived<T0>
+    val local6
+      Local $dependency.argument.0 : Derived<T0>
+    val local7
+      Call label<Derived<T0>> : Int
+        Local $dependency.parameter.value : Derived<T0>
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local10
+      ClassInit LocalNumbered : LocalNumbered
+    val local11
+      Local $argument.0 : LocalNumbered
+    val local12
+      Call localNumber<LocalNumbered> : Int
+        Local $parameter.value : LocalNumbered
+    val local13
+      IntegerLiteral 42 : Int
+    val local14
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local15
+      IntegerLiteral 42 : Int
+    val local16
+      Local $dependency.argument.0 : Int
+    val local17
+      Call external #5 : Number
+        Local $dependency.parameter.value : Int
+    val local18
+      Local $dependency.argument.0 : Number
+    val local19
+      Call number<Number> : Int
+        Local $dependency.parameter.value : Number
+    val local20
+      IntegerLiteral 42 : Int
+    val local21
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local22
+      ReferenceUpcast : LocalNumbered
+        ClassInit NarrowNumber : NarrowNumber
+    val local23
+      Local $argument.0 : LocalNumbered
+    val local24
+      Call localNumber<LocalNumbered> : Int
+        Local $parameter.value : LocalNumbered
+    val local25
+      IntegerLiteral 43 : Int
+    val local26
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 6 : Int
+    val local27
+      ReferenceUpcast : LocalNumbered
+        ClassInit NarrowNumber : NarrowNumber
+    val local28
+      Local $argument.0 : LocalNumbered
+    val local29
+      CallableCall function_type0 : Int
+        Call localNumberReference<LocalNumbered> : () -> Int
+          Local $parameter.value : LocalNumbered
+    val local30
+      IntegerLiteral 43 : Int
+    val local31
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 7 : Int
+    val local32
+      ReferenceUpcast : LocalNumbered
+        ClassInit NarrowNumber : NarrowNumber
+    val local33
+      Local $argument.0 : LocalNumbered
+    val local34
+      Local $parameter.value : LocalNumbered
+    val local35
+      MethodCall bound LocalNumbered via LocalNumber -> LocalNumber.number : Int
+        Local $receiver : LocalNumbered
+    val local36
+      Call localNumberDefault<LocalNumbered> : Int
+        Local $parameter.value : LocalNumbered
+        Local $parameter.chosen : Int
+    val local37
+      IntegerLiteral 43 : Int
+    val local38
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 8 : Int
+    val local39
+      Local box : Derived<T0>
+    val local40
+      Local $dependency.argument.0 : Derived<T0>
+    val local41
+      Call reference<T0, Derived<T0>> : () -> T0
+        Local $dependency.parameter.reader : Derived<T0>
+    val local42
+      Local box : Derived<T0>
+    val local43
+      IntegerLiteral 0 : Int
+    val local44
+      Local $argument.0 : Int
+    val local45
+      Local $receiver : Derived<T0>
+    val local46
+      MethodCall Derived.read : T0
+        Local $receiver : Derived<T0>
+    val local47
+      MethodCall Derived.localChoose : T0
+        Local $receiver : Derived<T0>
+        Local $parameter.extra : Int
+        Local $parameter.chosen : T0
+    val local48
+      ReferenceUpcast : Box<T0>
+        Local box : Derived<T0>
+    val local49
+      UnitLiteral : Unit
+    val local50
+      Local $dependency.argument.0 : Unit
+    val local51
+      Local $dependency.receiver : Box<T0>
+    val local52
+      MethodCall read<T0> : T0
+        Local $default.local.2 : Box<T0>
+    val local53
+      MethodCall choose<T0, Unit> : T0
+        Local $dependency.receiver : Box<T0>
+        Local $dependency.parameter.extra : Unit
+        Local $dependency.parameter.chosen : T0
+    val local54
+      Local box : Derived<T0>
+    val local55
+      Local $dependency.argument.0 : Derived<T0>
+    val local56
+      Local $dependency.parameter.box : Derived<T0>
+    val local57
+      MethodCall bound Derived<T0> via Box<T0> -> read<T0> : T0
+        Local $default.local.1 : Derived<T0>
+    val local58
+      Call classRead<T0, Derived<T0>> : T0
+        Local $dependency.parameter.box : Derived<T0>
+        Local $dependency.parameter.chosen : T0
+    val local59
+      CallableCall function_type1 : Int
+        Local read : (T0) -> Int
+        Local chosen : T0
+    val local60
+      CallableCall function_type1 : Int
+        Local read : (T0) -> Int
+        Local remote : T0
+    val local61
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local66
+      CallableCall function_type1 : Int
+        Local read : (T0) -> Int
+        Local base : T0
+    val local62
+      Local box : Derived<T0>
+    val local63
+      Local $argument.0 : Derived<T0>
+    val local64
+      Local $parameter.value : Derived<T0>
+    val local65
+      MethodCall bound Derived<T0> via Reader<T0> -> Reader.read<T0> : T0
+        Local $dependency.receiver : Derived<T0>
+    val local67
+      Local $equality.lhs : Int
+    val local68
+      CallableCall function_type1 : Int
+        Local read : (T0) -> Int
+        Call localRead<T0, Derived<T0>> : T0
+          Local $parameter.value : Derived<T0>
+          Local $parameter.chosen : T0
+    val local69
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 5 : Int
+    return
+      CallableCall function_type1 : Int
+        Local read : (T0) -> Int
+        CallableCall function_type4 : T0
+          Local callback : () -> T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance localNumber<LocalNumbered>
+  instance localNumberReference<LocalNumbered>
+  instance localNumberDefault<LocalNumbered>
+  instance localRead<T0, Derived<T0>>
+  instance exercise<Int>
+  method instance Derived.localChoose<owner=[T0], method=[Int]>

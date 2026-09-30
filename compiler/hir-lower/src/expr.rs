@@ -131,11 +131,7 @@ pub(crate) enum QualifiedInterfacePropertyTarget {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum MemberCallKind {
-    Ordinary,
-    DirectSuper,
-}
+pub(crate) use scoop_hir::MemberCallKind;
 
 #[derive(Clone, Copy)]
 pub(crate) struct CallSite<'a> {

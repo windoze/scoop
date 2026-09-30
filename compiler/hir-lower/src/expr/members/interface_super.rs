@@ -146,7 +146,7 @@ impl Lowerer {
         Some(hir::Expr {
             kind: ExprKind::DirectSuperMethodCall {
                 receiver: Box::new(property.receiver),
-                callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                 args: Vec::new(),
             },
             ty: property.ty,
@@ -212,7 +212,7 @@ impl Lowerer {
         Some(hir::StatementKind::Expr(hir::Expr {
             kind: ExprKind::DirectSuperMethodCall {
                 receiver: Box::new(property.receiver),
-                callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                 args: vec![value],
             },
             ty: self.unit,

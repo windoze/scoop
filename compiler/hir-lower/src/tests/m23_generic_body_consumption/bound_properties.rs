@@ -20,7 +20,10 @@ fn class_bound_accessors_keep_the_declaring_application_and_original_receiver() 
                 .bound_callable_refs
                 .iter()
                 .filter_map(|(_, bound)| match bound.source {
-                    hir::BoundCallableSource::Class { bound, callable } => {
+                    hir::BoundCallableSource::Class {
+                        bound,
+                        callable: hir::CallableTarget::Local(callable),
+                    } => {
                         let application = &module.class_applications[bound];
                         (module.classes[module
                             .nominal_identities

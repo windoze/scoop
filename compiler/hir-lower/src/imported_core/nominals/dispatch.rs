@@ -71,12 +71,14 @@ impl Lowerer {
                     .and_then(|dependencies| dependencies.resolve_callable(reference))
                     .expect("a virtual implementation retains its selected declaration");
                 if selected.interface().modality() != hir::CallableModalityV1::Final {
+                    let receiver = self.imported_dependency_callables[callee].receiver();
                     self.intern_imported_dependency_callable_use(
                         reference,
                         hir::ImportedDependencyDispatch::Virtual {
                             slot: u32::try_from(position)
                                 .map_err(|_| ImportedSignatureTypeError::Structural)?,
                         },
+                        receiver,
                     );
                 }
             }

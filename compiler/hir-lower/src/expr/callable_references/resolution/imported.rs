@@ -273,7 +273,7 @@ impl ImportedReferenceDeclaration {
             } else {
                 hir::ImportedCallableReferenceTarget::BoundMember {
                     receiver: Box::new(receiver),
-                    callee: bound.unwrap_or(hir::ImportedMethodCallee::Callable(callee)),
+                    callee: bound.unwrap_or(hir::MethodCallee::Callable(callee)),
                 }
             }
         } else {

@@ -177,7 +177,7 @@ impl Lowerer {
     ) -> hir::MethodCallee {
         let (receiver_parameter, bound_source, function) = match source {
             crate::CallableCandidateSource::Direct => {
-                return hir::MethodCallee::Callable(callable);
+                return hir::MethodCallee::Callable(callable.into());
             }
             crate::CallableCandidateSource::ClassBound {
                 receiver_parameter,
@@ -185,7 +185,10 @@ impl Lowerer {
                 member,
             } => (
                 receiver_parameter,
-                hir::BoundCallableSource::Class { bound, callable },
+                hir::BoundCallableSource::Class {
+                    bound,
+                    callable: callable.into(),
+                },
                 member,
             ),
             crate::CallableCandidateSource::InterfaceBound {
@@ -194,7 +197,11 @@ impl Lowerer {
                 member,
             } => (
                 receiver_parameter,
-                hir::BoundCallableSource::Interface { bound, member },
+                hir::BoundCallableSource::Interface {
+                    bound,
+                    member: hir::InterfaceMethodReference::Local(member),
+                    declared: callable.into(),
+                },
                 self.interface_method_entities[member].function,
             ),
         };
@@ -211,18 +218,21 @@ impl Lowerer {
             unreachable!("interned function signatures have function type identity")
         };
         let value = hir::BoundCallableRef {
-            receiver_parameter,
+            receiver_type: self.intern_type(Type::Param(receiver_parameter)),
             source: bound_source,
             instantiated_signature,
         };
+        hir::MethodCallee::Bound(self.record_bound_callable(value))
+    }
+
+    pub(crate) fn record_bound_callable(
+        &mut self,
+        value: hir::BoundCallableRef,
+    ) -> hir::BoundCallableRefId {
         let existing = self
             .bound_callable_refs
             .iter()
             .find_map(|(id, existing)| (existing == &value).then_some(id));
-        let id = match existing {
-            Some(id) => id,
-            None => self.bound_callable_refs.alloc(value),
-        };
-        hir::MethodCallee::Bound(id)
+        existing.unwrap_or_else(|| self.bound_callable_refs.alloc(value))
     }
 }

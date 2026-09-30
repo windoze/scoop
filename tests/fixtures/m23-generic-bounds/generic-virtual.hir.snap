@@ -74,7 +74,7 @@ Module
       val local27
         Local copied : GenericValue<T0>
       val local28
-        ImportedGenericCall read<T0> : Int
+        MethodCall read<T0> : Int
           Local $dependency.receiver : GenericValue<T0>
       val local29
         IntegerLiteral 42 : Int
@@ -93,7 +93,7 @@ Module
       val local32
         Local retained : GenericValue<T0>
       val local33
-        ImportedGenericCall read<T0> : Int
+        MethodCall read<T0> : Int
           Local $dependency.receiver : GenericValue<T0>
       val local34
         IntegerLiteral 42 : Int

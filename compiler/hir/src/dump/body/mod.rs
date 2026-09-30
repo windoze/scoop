@@ -3,7 +3,7 @@ use super::*;
 mod calls;
 mod expr;
 mod variants;
-use calls::{callable_application_name, callable_target_name};
+use calls::{callable_target_name, method_callee_name};
 use expr::dump_expr;
 use variants::{enum_field_name, enum_variant_names};
 

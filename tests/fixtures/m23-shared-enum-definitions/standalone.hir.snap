@@ -72,7 +72,7 @@ Module
     val local25
       Local $dependency.argument.0 : (T0) -> Int
     return
-      ImportedGenericCall apply<T0> : Int
+      MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.action : (T0) -> Int
   fun result(): Int

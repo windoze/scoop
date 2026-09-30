@@ -68,7 +68,7 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
             })
             .nth(index)
             .expect("expected a materialized method call");
-        module.callable_function(*callee)
+        module.callable_function(crate::tests::local_method_callable(&module, *callee))
     };
     assert_eq!(method_target(0), pick_t);
     assert_eq!(method_target(1), pick_int);
@@ -120,7 +120,7 @@ fn receiver_owner_parameters_irrelevant_to_forwarding_may_remain_unconstrained()
         panic!("rank resolves to a method call")
     };
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(&module, *callee)),
         method_fn(&module, "Box", "rank", &["Int"])
     );
 }

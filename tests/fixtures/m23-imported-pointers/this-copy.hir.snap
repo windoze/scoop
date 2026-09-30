@@ -39,7 +39,7 @@ Module
     val local14
       Local $dependency.argument.0 : Pair
     val local15
-      ImportedGenericCall rewrite<Pair> : Pair
+      MethodCall rewrite<Pair> : Pair
         Local $dependency.receiver : Slot<Pair>
         Local $dependency.parameter.next : Pair
     val local16

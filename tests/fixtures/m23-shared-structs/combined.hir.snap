@@ -39,7 +39,7 @@ Module
     val local12
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall read<T0> : T0
+        MethodCall read<T0> : T0
           Local $dependency.receiver : Reader<T0>
     val local13
       IntegerLiteral 42 : Int
@@ -57,7 +57,7 @@ Module
     val local16
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall Readable.get<T0> : T0
+        MethodCall Readable.get<T0> : T0
           Local $dependency.receiver : Readable<T0>
     val local17
       IntegerLiteral 42 : Int

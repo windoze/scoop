@@ -72,7 +72,7 @@ impl BodyProjection<'_, '_> {
             crate::ImportedCallableReferenceTarget::BoundMember { receiver, callee } => {
                 DefaultCallableReferenceTargetV1::BoundMember {
                     receiver: Box::new(self.expression(receiver)?),
-                    callee: self.imported_method_callee(callee)?,
+                    callee: self.method_callee(*callee)?,
                 }
             }
             crate::ImportedCallableReferenceTarget::BoundExtension { receiver, callee } => {
@@ -88,17 +88,7 @@ impl BodyProjection<'_, '_> {
         &self,
         callee: crate::CallableTarget,
     ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultBodyProjectionError> {
-        Ok(match callee {
-            crate::CallableTarget::Local(callable) => {
-                self.entities.callable(callable, self.binders)?
-            }
-            crate::CallableTarget::Application(application) => self
-                .entities
-                .imported_generic_callable(application, self.binders)?,
-            crate::CallableTarget::Dependency(callee) => {
-                self.entities.imported_dependency_callable(callee)?
-            }
-        })
+        Ok(self.entities.callable_target(callee, self.binders)?)
     }
 
     pub(super) fn imported_closure(

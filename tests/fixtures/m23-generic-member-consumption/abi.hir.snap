@@ -54,7 +54,7 @@ Module
     val local17
       Local $dependency.argument.0 : Unit
     val local18
-      ImportedGenericCall choose<Large, Unit> : Unit
+      MethodCall choose<Large, Unit> : Unit
         Local $dependency.receiver : Cell<Large>
         Local $dependency.parameter.value : Unit
     val local19
@@ -69,12 +69,12 @@ Module
     val local21
       Local cell : Cell<Large>
     val local23
-      ImportedGenericCall read<Large> : Large
+      MethodCall read<Large> : Large
         Local $dependency.receiver : Cell<Large>
     val local24
       Local $dependency.argument.0 : Large
     val local26
-      ImportedGenericCall choose<Large, Large> : Large
+      MethodCall choose<Large, Large> : Large
         Local $dependency.receiver : Cell<Large>
         Local $dependency.parameter.value : Large
     val local27
@@ -82,7 +82,7 @@ Module
     val local28
       Local $dependency.parameter.value : Large
     val local29
-      ImportedGenericCall choose<Unit, Large> : Large
+      MethodCall choose<Unit, Large> : Large
         Local $dependency.receiver : Box<Unit>
         Local $dependency.parameter.value : Large
         Local $dependency.parameter.fallback : Large
@@ -137,7 +137,7 @@ Module
     val local5
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall choose<Unit, T0> : T0
+      MethodCall choose<Unit, T0> : T0
         Local $dependency.receiver : Cell<Unit>
         Local $dependency.parameter.value : T0
   output library

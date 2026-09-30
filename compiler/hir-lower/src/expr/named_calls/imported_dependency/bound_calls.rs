@@ -23,7 +23,7 @@ impl Lowerer {
         else {
             return Ok(None);
         };
-        Ok(Some(hir::ExprKind::ImportedMethodCall {
+        Ok(Some(hir::ExprKind::MethodCall {
             receiver: Box::new(args.remove(0)),
             callee,
             args: std::mem::take(args),
@@ -37,7 +37,7 @@ impl Lowerer {
         receiver_type: hir::TypeId,
         parameter_types: &[hir::TypeId],
         result_type: hir::TypeId,
-    ) -> Result<Option<hir::ImportedMethodCallee>, String> {
+    ) -> Result<Option<hir::MethodCallee>, String> {
         let hir::PublicDeclarationOwnerV1::Nominal(owner) = declaration.owner() else {
             return Ok(None);
         };
@@ -64,15 +64,21 @@ impl Lowerer {
         let hir::Type::Function(signature) = self.types[signature] else {
             unreachable!("an interned bound signature is a function type")
         };
-        Ok(Some(hir::ImportedMethodCallee::InterfaceBound(Box::new(
-            hir::ImportedInterfaceBoundCallable {
-                receiver_type,
-                interface,
-                member,
-                slot,
+        let hir::Type::Interface(bound) = self.types[interface] else {
+            return Err("a bound member retains its declared interface application".into());
+        };
+        let callee = self.record_bound_callable(hir::BoundCallableRef {
+            receiver_type,
+            source: hir::BoundCallableSource::Interface {
+                bound,
+                member: hir::InterfaceMethodReference::Imported {
+                    owner: interface,
+                    slot,
+                },
                 declared,
-                signature,
             },
-        ))))
+            instantiated_signature: signature,
+        });
+        Ok(Some(hir::MethodCallee::Bound(callee)))
     }
 }

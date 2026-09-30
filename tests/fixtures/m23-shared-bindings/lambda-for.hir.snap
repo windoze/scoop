@@ -63,14 +63,14 @@ Module
     val local21
       Local $for.source.2 : Array<Pair<T0>>
     val local22
-      ImportedGenericCall iterator<Pair<T0>> : Iterator<Pair<T0>>
+      MethodCall iterator<Pair<T0>> : Iterator<Pair<T0>>
         Local $dependency.receiver : Array<Pair<T0>>
     val local23
       Local $for.iterator.result.3 : Iterator<Pair<T0>>
     while
       condition setup
         val local24
-          ImportedGenericCall Iterator.next<Pair<T0>> : Option<Pair<T0>>
+          MethodCall Iterator.next<Pair<T0>> : Option<Pair<T0>>
             Local $for.iterator.4 : Iterator<Pair<T0>>
       IsSome : Boolean
         Local $for.next.5 : Option<Pair<T0>>
@@ -170,14 +170,14 @@ Module
     val local55
       Local $for.source.9 : Array<Pieces<T0>>
     val local56
-      ImportedGenericCall iterator<Pieces<T0>> : Iterator<Pieces<T0>>
+      MethodCall iterator<Pieces<T0>> : Iterator<Pieces<T0>>
         Local $dependency.receiver : Array<Pieces<T0>>
     val local57
       Local $for.iterator.result.10 : Iterator<Pieces<T0>>
     while
       condition setup
         val local58
-          ImportedGenericCall Iterator.next<Pieces<T0>> : Option<Pieces<T0>>
+          MethodCall Iterator.next<Pieces<T0>> : Option<Pieces<T0>>
             Local $for.iterator.11 : Iterator<Pieces<T0>>
       IsSome : Boolean
         Local $for.next.12 : Option<Pieces<T0>>
@@ -187,14 +187,14 @@ Module
       val local60
         Local $for.element.13 : Pieces<T0>
       val local61
-        ImportedGenericCall component1<T0> : T0
+        MethodCall component1<T0> : T0
           Local $dependency.receiver : Pieces<T0>
       val local62
         Local $binding.component.14 : T0
       val local63
         Local $for.element.13 : Pieces<T0>
       val local64
-        ImportedGenericCall component2<T0> : Int
+        MethodCall component2<T0> : Int
           Local $dependency.receiver : Pieces<T0>
       val local65
         Local $binding.component.15 : Int

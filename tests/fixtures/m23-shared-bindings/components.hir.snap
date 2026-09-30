@@ -21,14 +21,14 @@ Module
     val local7
       Local $binding.subject.0 : Pieces<T0>
     val local8
-      ImportedGenericCall component1<T0> : T0
+      MethodCall component1<T0> : T0
         Local $dependency.receiver : Pieces<T0>
     val local9
       Local $binding.component.1 : T0
     val local10
       Local $binding.subject.0 : Pieces<T0>
     val local11
-      ImportedGenericCall component2<T0> : Int
+      MethodCall component2<T0> : Int
         Local $dependency.receiver : Pieces<T0>
     val local12
       Call external #1 : Int
@@ -141,24 +141,24 @@ Module
     val local9
       Local $binding.subject.8 : Pieces<Pieces<Int>>
     val local10
-      ImportedGenericCall component1<Pieces<Int>> : Pieces<Int>
+      MethodCall component1<Pieces<Int>> : Pieces<Int>
         Local $dependency.receiver : Pieces<Pieces<Int>>
     val local11
       Local $binding.component.9 : Pieces<Int>
     val local12
-      ImportedGenericCall component1<Int> : Int
+      MethodCall component1<Int> : Int
         Local $dependency.receiver : Pieces<Int>
     val local13
       Local $binding.component.10 : Int
     val local14
       Local $binding.component.9 : Pieces<Int>
     val local15
-      ImportedGenericCall component2<Int> : Int
+      MethodCall component2<Int> : Int
         Local $dependency.receiver : Pieces<Int>
     val local16
       Local $binding.subject.8 : Pieces<Pieces<Int>>
     val local17
-      ImportedGenericCall component2<Pieces<Int>> : Int
+      MethodCall component2<Pieces<Int>> : Int
         Local $dependency.receiver : Pieces<Pieces<Int>>
     val local18
       Call external #1 : Int

@@ -80,7 +80,7 @@ Module
     val local27
       Local $dependency.argument.1 : Int
     val local28
-      ImportedGenericCall select<String, Int> : Int
+      MethodCall select<String, Int> : Int
         Local $dependency.receiver : Host<String>
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.seed : Int
@@ -183,7 +183,7 @@ Module
     if
       Local $shortCircuit.3 : Boolean
       val local55
-        ImportedGenericCall value<String> : String
+        MethodCall value<String> : String
           Local host : Host<String>
       val local56
         StringLiteral "owner" : String

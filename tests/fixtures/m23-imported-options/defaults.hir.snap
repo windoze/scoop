@@ -60,7 +60,7 @@ Module
         Local $default.local.2 : Option<Holder<T0>>
       val local24
         SomeWrap : Option<T0>
-          ImportedGenericCall value<T0> : T0
+          MethodCall value<T0> : T0
             Unwrap trap=false : Holder<T0>
               Local $default.local.2 : Option<Holder<T0>>
     else
@@ -98,7 +98,7 @@ Module
         Local $default.local.2 : Option<Holder<Int>>
       val local36
         SomeWrap : Option<Int>
-          ImportedGenericCall value<Int> : Int
+          MethodCall value<Int> : Int
             Unwrap trap=false : Holder<Int>
               Local $default.local.2 : Option<Holder<Int>>
     else
@@ -137,7 +137,7 @@ Module
         Local $default.local.2 : Option<Holder<Int>>
       val local46
         SomeWrap : Option<Int>
-          ImportedGenericCall value<Int> : Int
+          MethodCall value<Int> : Int
             Unwrap trap=false : Holder<Int>
               Local $default.local.2 : Option<Holder<Int>>
     else

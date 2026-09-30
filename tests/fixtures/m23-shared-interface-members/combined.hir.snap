@@ -24,7 +24,7 @@ Module
         ReferenceUpcast : Reader<Int>
           Local reader : NumberReader
       val local8
-        ImportedGenericCall again<Int> : Int
+        MethodCall again<Int> : Int
           Local $dependency.receiver : Reader<Int>
       val local9
         IntegerLiteral 42 : Int
@@ -65,7 +65,7 @@ Module
     val local10
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall again<T0> : T0
+        MethodCall again<T0> : T0
           Local $dependency.receiver : Reader<T0>
     val local7
       Local reader : ValueReader<T0>
@@ -78,7 +78,7 @@ Module
     val local12
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall read<T0> : T0
+        MethodCall read<T0> : T0
           Local $dependency.receiver : ValueReader<T0>
           Local $dependency.parameter.fallback : T0
     val local13
@@ -92,7 +92,7 @@ Module
       assign $result.2
         CallableCall function_type0 : Int
           Local read : (T0) -> Int
-          ImportedGenericCall read<T0> : T0
+          MethodCall read<T0> : T0
             Local $dependency.receiver : ValueReader<T0>
     else
       assign $result.2

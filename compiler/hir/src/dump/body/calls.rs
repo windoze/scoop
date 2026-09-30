@@ -46,3 +46,21 @@ fn type_arguments(module: &Module, arguments: &[TypeId]) -> String {
         .collect::<Vec<_>>()
         .join(", ")
 }
+
+pub(super) fn method_callee_name(module: &Module, callee: MethodCallee) -> String {
+    match callee.declared_callable(&module.bound_callable_refs) {
+        Some(CallableTarget::Local(callable)) => module.functions
+            [callable_function(module, callable)]
+        .name
+        .clone(),
+        Some(target) => callable_target_name(module, target),
+        None => {
+            let MethodCallee::DerivedEquality(application) = callee else {
+                unreachable!("a method without a declaration is derived equality")
+            };
+            module.functions[module.derived_equality_applications[application].function]
+                .name
+                .clone()
+        }
+    }
+}

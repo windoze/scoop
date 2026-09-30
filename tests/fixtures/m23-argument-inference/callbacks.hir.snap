@@ -47,7 +47,7 @@ Module
     val local20
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall transform<T0, T0> : T0
+        MethodCall transform<T0, T0> : T0
           Local $dependency.receiver : Host<T0>
           Local $dependency.parameter.action : (T0) -> T0
           Local $dependency.parameter.seed : T0
@@ -221,7 +221,7 @@ Module
     val local47
       Local $dependency.argument.1 : Int
     val local48
-      ImportedGenericCall transform<Reference, Int> : Reference
+      MethodCall transform<Reference, Int> : Reference
         Local $dependency.receiver : Host<Reference>
         Local $dependency.parameter.action : (Int) -> Reference
         Local $dependency.parameter.seed : Int
@@ -268,7 +268,7 @@ Module
     val local60
       CallableReference reference2 target=imported identity captures=0 : (Reference) -> Reference
     val local61
-      ImportedGenericCall value<Reference> : Reference
+      MethodCall value<Reference> : Reference
         Local host : Host<Reference>
     val local62
       Local $dependency.argument.0 : (Reference) -> Reference

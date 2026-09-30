@@ -16,7 +16,7 @@ Module
     val local7
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall value<T0> : T0
+        MethodCall value<T0> : T0
           Local base : Base<T0>
     val local8
       IntegerLiteral 42 : Int
@@ -38,7 +38,7 @@ Module
     val local13
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall select<T0> : T0
+        MethodCall select<T0> : T0
           Local $dependency.receiver : Base<T0>
           Local $dependency.parameter.other : T0
     val local14
@@ -57,7 +57,7 @@ Module
     val local17
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall ValueSource.read<T0> : T0
+        MethodCall ValueSource.read<T0> : T0
           Local $dependency.receiver : ValueSource<T0>
     val local18
       IntegerLiteral 42 : Int
@@ -83,7 +83,7 @@ Module
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall alternate<T0> : T0
+        MethodCall alternate<T0> : T0
           Index ImmutableGet : Remote<T0>
             Local $dependency.receiver : Array<Remote<T0>>
             Local $dependency.parameter.index : Long

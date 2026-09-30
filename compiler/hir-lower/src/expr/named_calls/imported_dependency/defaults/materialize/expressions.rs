@@ -375,7 +375,7 @@ impl Lowerer {
                 receiver,
                 callee,
                 arguments,
-            } => hir::ExprKind::ImportedMethodCall {
+            } => hir::ExprKind::MethodCall {
                 receiver: Box::new(
                     self.materialize_imported_default_expression(receiver, context)?,
                 ),

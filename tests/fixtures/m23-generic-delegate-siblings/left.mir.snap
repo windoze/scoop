@@ -198,8 +198,8 @@ Module
       return
   fun extension:Receiver<T0, T1>:shared$initialize @fn6() -> Unit
     bb0 entry
-      call $call.1: Starter<Int, Boolean> = @fn12 direct
-      call $call.2: Slot<Int, Boolean> = @fn11 direct
+      call $call.1: Starter<Int, Boolean> = @fn11 direct
+      call $call.2: Slot<Int, Boolean> = @fn12 direct
         Type Starter<Int, Boolean>
         Local $call.1
       global_assign extension:Receiver<T0, T1>:shared$delegate
@@ -419,7 +419,43 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun provideDelegate @fn11(this: Starter<Int, Boolean>) -> Slot<Int, Boolean>
+  fun start @fn11() -> Starter<Int, Boolean>
+    bb0 entry
+      call external12 direct
+      val $dependency.local.0: State
+        Type State
+        GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
+      call $dependency.local.1: Int = external3 direct
+        Type State
+        Local $dependency.local.0
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call external4 direct
+        Type State
+        Local $dependency.local.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      assign $new.1
+        Type Starter<Int, Boolean>
+        ClassAlloc Starter<Int, Boolean>
+      call @fn15 direct
+        Type Starter<Int, Boolean>
+        Local $new.1
+      return
+        Type Starter<Int, Boolean>
+        Local $new.1
+  fun provideDelegate @fn12(this: Starter<Int, Boolean>) -> Slot<Int, Boolean>
     bb0 entry
       call external12 direct
       val $dependency.local.1: State
@@ -469,7 +505,7 @@ Module
       assign $new.2
         Type Slot<Int, Boolean>
         ClassAlloc Slot<Int, Boolean>
-      call @fn15 direct
+      call @fn16 direct
         Type Slot<Int, Boolean>
         Local $new.2
         Type Payload
@@ -477,42 +513,6 @@ Module
       return
         Type Slot<Int, Boolean>
         Local $new.2
-  fun start @fn12() -> Starter<Int, Boolean>
-    bb0 entry
-      call external12 direct
-      val $dependency.local.0: State
-        Type State
-        GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.1: Int = external3 direct
-        Type State
-        Local $dependency.local.0
-      val $dependency.local.2: Int
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.local.4: Int
-        Type Int
-        Local $dependency.local.3
-      call external4 direct
-        Type State
-        Local $dependency.local.0
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.local.2
-          Type Int
-          Local $dependency.local.4
-      assign $new.1
-        Type Starter<Int, Boolean>
-        ClassAlloc Starter<Int, Boolean>
-      call @fn16 direct
-        Type Starter<Int, Boolean>
-        Local $new.1
-      return
-        Type Starter<Int, Boolean>
-        Local $new.1
   fun fail @fn13() -> Slot<Int, Boolean>
     bb0 entry
       call external12 direct
@@ -585,16 +585,16 @@ Module
         Type Boolean
         Local right
       return
-  fun init.Slot.$c2 @fn15(this: Slot<Int, Boolean>, payload: Payload) -> Unit
+  fun init.Starter.$c1 @fn15(this: Starter<Int, Boolean>) -> Unit
+    bb0 entry
+      return
+  fun init.Slot.$c2 @fn16(this: Slot<Int, Boolean>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
         Type Slot<Int, Boolean>
         Local this
         Type Payload
         Local payload
-      return
-  fun init.Starter.$c1 @fn16(this: Starter<Int, Boolean>) -> Unit
-    bb0 entry
       return
   instance mi0 function=@fn2 <- $extension.shared
   instance mi1 function=@fn3 <- $extension.shared
@@ -605,8 +605,8 @@ Module
   instance mi6 function=@fn8 <- getValue
   instance mi7 function=@fn9 <- extension:Receiver<T0, T1>:broken$initialize
   instance mi8 function=@fn10 <- extension:Receiver<T0, T1>:broken$ensure
-  instance mi9 function=@fn11 <- provideDelegate
-  instance mi10 function=@fn12 <- start
+  instance mi9 function=@fn11 <- start
+  instance mi10 function=@fn12 <- provideDelegate
   instance mi11 function=@fn13 <- fail
   str @str0 "illegal state"
   output library

@@ -51,7 +51,7 @@ Module
       val local17
         Local allocated : GenericValue<T0>
       val local18
-        ImportedGenericCall read<T0> : Int
+        MethodCall read<T0> : Int
           Local $dependency.receiver : GenericValue<T0>
       val local19
         IntegerLiteral 0 : Int

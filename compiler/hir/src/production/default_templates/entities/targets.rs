@@ -27,9 +27,6 @@ impl DefaultEntityProjector<'_> {
             ExportDefaultCallableTarget::Bound(bound) => {
                 ExportDefaultCallableTargetV1::Bound(entities.bound_callable(bound, binders)?)
             }
-            ExportDefaultCallableTarget::ImportedBound(bound) => {
-                ExportDefaultCallableTargetV1::Bound(self.imported_bound_callable(&bound, binders)?)
-            }
             ExportDefaultCallableTarget::DerivedEquality(id) => {
                 let application =
                     super::super::arena_get(&export.derived_equality_applications, id).ok_or(
@@ -95,6 +92,22 @@ impl DefaultEntityProjector<'_> {
                 }
             }
         })
+    }
+
+    pub(in crate::production::default_templates) fn callable_target(
+        &self,
+        callee: crate::CallableTarget,
+        binders: &[HirSignatureBinder],
+    ) -> Result<crate::DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
+        match callee {
+            crate::CallableTarget::Local(callable) => self.callable(callable, binders),
+            crate::CallableTarget::Application(application) => {
+                self.imported_generic_callable(application, binders)
+            }
+            crate::CallableTarget::Dependency(callable) => {
+                self.imported_dependency_callable(callable)
+            }
+        }
     }
 
     pub(in crate::production::default_templates) fn imported_generic_callable(

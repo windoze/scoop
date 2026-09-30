@@ -4,7 +4,7 @@ impl Lowerer {
     pub(crate) fn resolved_template_call(
         &self,
         application: hir::ImportedGenericCallableApplicationId,
-        kind: hir::ImportedGenericCallKind,
+        kind: hir::MemberCallKind,
         binding: Option<std::sync::Arc<hir::DirectImportedTargetBinding>>,
         args: Vec<hir::Expr>,
         receiver: hir::SourceCallReceiver<hir::TypeId>,
@@ -13,12 +13,21 @@ impl Lowerer {
             self.imported_generic_applications[application].arguments,
             hir::ImportedCallableArguments::Method { .. }
         ) {
-            hir::ExprKind::ImportedGenericCall {
-                application,
-                kind,
-                binding,
-                args,
-                receiver,
+            let mut args = args.into_iter();
+            let receiver = Box::new(args.next().expect("a selected member call has a receiver"));
+            let args = args.collect();
+            let callee = hir::MethodCallee::Callable(hir::CallableTarget::Application(application));
+            match kind {
+                hir::MemberCallKind::Ordinary => hir::ExprKind::MethodCall {
+                    receiver,
+                    callee,
+                    args,
+                },
+                hir::MemberCallKind::DirectSuper => hir::ExprKind::DirectSuperMethodCall {
+                    receiver,
+                    callee,
+                    args,
+                },
             }
         } else {
             hir::ExprKind::Call {

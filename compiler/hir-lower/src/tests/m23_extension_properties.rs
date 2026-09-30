@@ -193,7 +193,7 @@ fn called_function(module: &hir::Module, expression: &hir::Expr) -> hir::Functio
             ..
         } => callee,
         hir::ExprKind::MethodCall {
-            callee: hir::MethodCallee::Callable(callee),
+            callee: hir::MethodCallee::Callable(hir::CallableTarget::Local(callee)),
             ..
         } => callee,
         ref other => panic!("expected a callable property access, found {other:?}"),

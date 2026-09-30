@@ -5,7 +5,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall label<Int> : String
+      MethodCall label<Int> : String
         ImportedConstructorInit Named : Named<Int>
           Local $dependency.parameter.value : Int
   fun rightMethod(): String
@@ -17,7 +17,7 @@ Module
       ImportedConstructorInit Named : Named<Int>
         Local $dependency.parameter.value : Int
     return
-      ImportedGenericCall text<Int> : String
+      MethodCall text<Int> : String
         Local $dependency.receiver : Named<Int>
   fun rightExtension(): String
     return
@@ -37,7 +37,7 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     return
-      ImportedGenericCall label<Long> : String
+      MethodCall label<Long> : String
         ImportedConstructorInit Named : Named<Long>
           Local $dependency.parameter.value : Long
   output library

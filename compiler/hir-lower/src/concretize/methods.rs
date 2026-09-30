@@ -1,28 +1,51 @@
 use super::*;
 
 impl Concretizer<'_> {
-    pub(super) fn lower_imported_method_callee(
+    pub(super) fn lower_method_callee(
         &mut self,
-        source: &export::ImportedMethodCallee,
+        source: export::MethodCallee,
         receiver: concrete::TypeId,
         substitution: &[concrete::TypeId],
-    ) -> (concrete::CallableTarget, Option<concrete::InterfaceId>) {
-        let bound = match source {
-            export::ImportedMethodCallee::Callable(callee) => {
-                return (self.lower_callable_target(*callee, substitution), None);
+    ) -> (concrete::CallableTarget, concrete::TypeId) {
+        let callee = match source {
+            export::MethodCallee::Callable(callee) => {
+                self.lower_callable_target(callee, substitution)
             }
-            export::ImportedMethodCallee::DerivedEquality(application) => {
-                return (
-                    concrete::CallableTarget::Local(
-                        self.lower_derived_equality_application(*application, substitution),
-                    ),
-                    None,
-                );
+            export::MethodCallee::DerivedEquality(application) => concrete::CallableTarget::Local(
+                self.lower_derived_equality_application(application, substitution),
+            ),
+            export::MethodCallee::Bound(bound) => {
+                self.resolve_bound_callee(bound, receiver, substitution)
             }
-            export::ImportedMethodCallee::InterfaceBound(bound) => bound,
         };
-        let interface = self.lower_interface_type(bound.interface, substitution);
-        let slot = self.interface_slot_by_source[&(interface, bound.slot)];
+        let receiver = self.method_target_receiver(callee);
+        (callee, receiver)
+    }
+
+    pub(super) fn resolve_bound_callee(
+        &mut self,
+        source: export::BoundCallableRefId,
+        receiver: concrete::TypeId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::CallableTarget {
+        let bound = self.source.bound_callable_refs[source].clone();
+        let (interface, member, declared) = match bound.source {
+            export::BoundCallableSource::Class { bound, callable } => {
+                self.lower_class_application(bound, substitution);
+                return self.lower_callable_target(callable, substitution);
+            }
+            export::BoundCallableSource::Interface {
+                bound,
+                member,
+                declared,
+            } => (
+                self.lower_interface_application(bound, substitution),
+                member,
+                declared,
+            ),
+        };
+        let source_slot = self.interface_reference_slot(member);
+        let slot = self.interface_slot_by_source[&(interface, source_slot)];
         if !matches!(self.types[receiver].kind, concrete::TypeKind::Interface(_)) {
             let conformances = self.concrete_bound_conformances(receiver);
             let implementation = conformances
@@ -36,15 +59,7 @@ impl Concretizer<'_> {
                 .expect("a concrete conformance retains the declared interface slot");
             match method.target {
                 concrete::InterfaceImplementationTarget::Method(function) => {
-                    let interface =
-                        match self.function_keys[function.into_raw().into_u32() as usize].owner {
-                            Some(concrete::MethodOwner::Interface(interface)) => Some(interface),
-                            _ => None,
-                        };
-                    return (
-                        concrete::CallableTarget::Local(concrete::Callable::Function(function)),
-                        interface,
-                    );
+                    return concrete::CallableTarget::Local(concrete::Callable::Function(function));
                 }
                 concrete::InterfaceImplementationTarget::Imported(callee) => {
                     let reference = self.imported_dependency_callables[callee].reference();
@@ -60,45 +75,45 @@ impl Concretizer<'_> {
                             .then_some(id)
                         })
                         .unwrap_or(callee);
-                    let interface = self.imported_interface_method_owner(reference);
-                    return (concrete::CallableTarget::Imported(callee), interface);
+                    return concrete::CallableTarget::Imported(callee);
                 }
                 concrete::InterfaceImplementationTarget::Abstract { .. }
                 | concrete::InterfaceImplementationTarget::ImportedAbstract { .. } => {}
             }
         }
-        (
-            self.lower_callable_target(bound.declared, substitution),
-            Some(interface),
-        )
+        self.lower_callable_target(declared, substitution)
     }
 
-    fn imported_interface_method_owner(
-        &self,
-        target: export::ImportedDependencyCallableRef,
-    ) -> Option<concrete::InterfaceId> {
-        self.source
-            .loaded_interface_definitions
-            .values()
-            .find_map(|interface| {
-                let owner = interface.declaration.owner();
-                if interface.definition.type_params.is_empty()
-                    && interface.methods.iter().any(|method| {
-                        method.declaration.declaration() == target.declaration()
-                            && method.declaration.owner()
-                                == export::PublicDeclarationOwnerV1::Nominal(owner)
-                    })
-                {
-                    Some(
-                        *self
-                            .interface_by_key
-                            .get(&(owner, Vec::new()))
-                            .expect("a default implementation retains its declaring interface"),
-                    )
-                } else {
-                    None
+    fn method_target_receiver(&mut self, target: concrete::CallableTarget) -> concrete::TypeId {
+        match target {
+            concrete::CallableTarget::Local(concrete::Callable::Function(function)) => {
+                let owner = self.function_keys[function.into_raw().into_u32() as usize]
+                    .owner
+                    .expect("a method target retains its complete owner");
+                match owner {
+                    concrete::MethodOwner::Class(id) => self.classes[id].canonical_type,
+                    concrete::MethodOwner::Struct(id) => self.structs[id].canonical_type,
+                    concrete::MethodOwner::Enum(id) => self.enums[id].canonical_type,
+                    concrete::MethodOwner::Interface(id) => self.interfaces[id].canonical_type,
+                    concrete::MethodOwner::Object(id) => self.object_types[id].canonical_type,
+                    concrete::MethodOwner::TypeOwned(ty) => ty,
                 }
-            })
+            }
+            concrete::CallableTarget::Imported(callee) => {
+                let reference = self.imported_dependency_callables[callee].reference();
+                let source = self
+                    .source
+                    .imported_dependency_callables
+                    .iter()
+                    .find(|(_, use_)| use_.reference() == reference)
+                    .expect("a concrete dependency use retains its export declaration")
+                    .1;
+                let receiver = source
+                    .receiver()
+                    .expect("a selected member declaration has a receiver");
+                self.lower_type(receiver, &[])
+            }
+        }
     }
 
     fn concrete_bound_conformances(
@@ -143,40 +158,47 @@ impl Concretizer<'_> {
         }
     }
 
-    pub(super) fn lower_imported_method_call(
+    pub(super) fn lower_method_call(
         &mut self,
         receiver: &export::Expr,
-        callee: &export::ImportedMethodCallee,
+        callee: export::MethodCallee,
         args: &[export::Expr],
+        direct_super: bool,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
     ) -> concrete::ExprKind {
-        let mut receiver = self.lower_expr(receiver, substitution, locals);
-        let (callee, interface) =
-            self.lower_imported_method_callee(callee, receiver.ty, substitution);
-        if let Some(interface) = interface {
-            receiver = self.adapt_receiver_to_interface(receiver, interface);
-        }
+        let receiver = self.lower_expr(receiver, substitution, locals);
+        let static_type = receiver.ty;
+        let (callee, target) = self.lower_method_callee(callee, static_type, substitution);
+        let receiver = self.adapt_method_receiver(receiver, target);
         let mut args = args
             .iter()
             .map(|arg| self.lower_expr(arg, substitution, locals))
             .collect::<Vec<_>>();
         match callee {
-            concrete::CallableTarget::Local(callee) => concrete::ExprKind::MethodCall {
-                receiver: Box::new(receiver),
-                callee,
-                args,
-            },
+            concrete::CallableTarget::Local(callee) => {
+                let receiver = Box::new(receiver);
+                if direct_super {
+                    concrete::ExprKind::DirectSuperMethodCall {
+                        receiver,
+                        callee,
+                        args,
+                    }
+                } else {
+                    concrete::ExprKind::MethodCall {
+                        receiver,
+                        callee,
+                        args,
+                    }
+                }
+            }
             concrete::CallableTarget::Imported(callee) => {
-                let receiver_type = receiver.ty;
                 args.insert(0, receiver);
                 concrete::ExprKind::Call {
                     callee: concrete::CallableTarget::Imported(callee),
                     binding: None,
                     args,
-                    receiver: export::SourceCallReceiver::Receiver {
-                        static_type: receiver_type,
-                    },
+                    receiver: export::SourceCallReceiver::Receiver { static_type },
                 }
             }
         }

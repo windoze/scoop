@@ -279,7 +279,8 @@ impl Lowerer {
                 Some(())
             }
             ExprKind::MethodCall { callee, .. } => {
-                let hir::MethodCallee::Callable(callable) = *callee else {
+                let hir::MethodCallee::Callable(hir::CallableTarget::Local(callable)) = *callee
+                else {
                     return None;
                 };
                 let function = self.callable_function_id(callable);

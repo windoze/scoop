@@ -111,14 +111,14 @@ Module
     val local27
       Local $for.source.0 : Sequence<Int>
     val local28
-      ImportedGenericCall iterator<Int> : Iterator<Int>
+      MethodCall iterator<Int> : Iterator<Int>
         Local $dependency.receiver : Sequence<Int>
     val local29
       Local $for.iterator.result.1 : Iterator<Int>
     while
       condition setup
         val local30
-          ImportedGenericCall Iterator.next<Int> : Option<Int>
+          MethodCall Iterator.next<Int> : Option<Int>
             Local $for.iterator.2 : Iterator<Int>
       IsSome : Boolean
         Local $for.next.3 : Option<Int>

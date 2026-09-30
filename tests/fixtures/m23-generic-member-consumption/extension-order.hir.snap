@@ -3,7 +3,7 @@ Module
     val local1
       Local cell : ExtensionTrace<Int>
     val local2
-      ImportedGenericCall order<Int> : Int
+      MethodCall order<Int> : Int
         Local cell : ExtensionTrace<Int>
     val local3
       IntegerLiteral 10 : Int
@@ -17,7 +17,7 @@ Module
       IntegerLiteral 1 : Int
     val local7
       Local $dependency.argument.0 : Int
-    ImportedGenericCall order<Int> : Unit
+    MethodCall order<Int> : Unit
       Local $place.0 : ExtensionTrace<Int>
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
@@ -28,7 +28,7 @@ Module
     val local1
       Local cell : ExtensionTrace<Int>
     val local2
-      ImportedGenericCall order<Int> : Int
+      MethodCall order<Int> : Int
         Local cell : ExtensionTrace<Int>
     val local3
       IntegerLiteral 10 : Int
@@ -42,7 +42,7 @@ Module
       IntegerLiteral 3 : Int
     val local7
       Local $dependency.argument.0 : Int
-    ImportedGenericCall order<Int> : Unit
+    MethodCall order<Int> : Unit
       Local $place.1 : ExtensionTrace<Int>
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
@@ -76,7 +76,7 @@ Module
       Call rhs : Int
         Local $parameter.cell : ExtensionTrace<Int>
     val local9
-      ImportedGenericCall order<Int> : Int
+      MethodCall order<Int> : Int
         Local cell : ExtensionTrace<Int>
     val local10
       IntegerLiteral 134 : Int
@@ -91,7 +91,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local12
-        ImportedGenericCall value<Int> : Int
+        MethodCall value<Int> : Int
           Local cell : ExtensionTrace<Int>
       val local13
         IntegerLiteral 20 : Int
@@ -108,7 +108,7 @@ Module
         IntegerLiteral 1 : Int
     val local16
       Local cell : ExtensionTrace<Int>
-    ImportedGenericCall order<Int> : Unit
+    MethodCall order<Int> : Unit
       Local $place.3 : ExtensionTrace<Int>
       IntegerLiteral 0 : Int
     val local17
@@ -138,7 +138,7 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
     val local26
-      ImportedGenericCall order<Int> : Int
+      MethodCall order<Int> : Int
         Local cell : ExtensionTrace<Int>
     val local27
       IntegerLiteral 1234 : Int
@@ -153,7 +153,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local29
-        ImportedGenericCall value<Int> : Int
+        MethodCall value<Int> : Int
           Local cell : ExtensionTrace<Int>
       val local30
         IntegerLiteral 40 : Int
@@ -170,7 +170,7 @@ Module
         IntegerLiteral 2 : Int
     val local33
       Local cell : ExtensionTrace<Int>
-    ImportedGenericCall order<Int> : Unit
+    MethodCall order<Int> : Unit
       Local $place.7 : ExtensionTrace<Int>
       IntegerLiteral 0 : Int
     val local34
@@ -194,7 +194,7 @@ Module
     val local40
       Local $old.9 : Int
     val local41
-      ImportedGenericCall order<Int> : Int
+      MethodCall order<Int> : Int
         Local cell : ExtensionTrace<Int>
     val local42
       IntegerLiteral 124 : Int
@@ -225,7 +225,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local48
-        ImportedGenericCall value<Int> : Int
+        MethodCall value<Int> : Int
           Local cell : ExtensionTrace<Int>
       val local49
         IntegerLiteral 41 : Int
@@ -242,7 +242,7 @@ Module
         IntegerLiteral 3 : Int
     val local52
       Local cell : ExtensionTrace<Int>
-    ImportedGenericCall order<Int> : Unit
+    MethodCall order<Int> : Unit
       Local $place.13 : ExtensionTrace<Int>
       IntegerLiteral 0 : Int
     val local53
@@ -266,7 +266,7 @@ Module
     val local59
       Local $new.16 : Int
     val local60
-      ImportedGenericCall order<Int> : Int
+      MethodCall order<Int> : Int
         Local cell : ExtensionTrace<Int>
     val local61
       IntegerLiteral 124 : Int
@@ -297,7 +297,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local67
-        ImportedGenericCall value<Int> : Int
+        MethodCall value<Int> : Int
           Local cell : ExtensionTrace<Int>
       val local68
         IntegerLiteral 42 : Int
@@ -313,7 +313,7 @@ Module
       return
         IntegerLiteral 4 : Int
     return
-      ImportedGenericCall value<Int> : Int
+      MethodCall value<Int> : Int
         Local cell : ExtensionTrace<Int>
   fun make<T>(value: T0): T0
     val local1

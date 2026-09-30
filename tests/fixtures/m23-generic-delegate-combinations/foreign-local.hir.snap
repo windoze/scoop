@@ -7,7 +7,7 @@ Module
     val local3
       ImportedConstructorInit LocalValueSlot : LocalValueSlot<T0>
         Local $dependency.parameter.stored : T0
-    ImportedGenericCall setValue<T0> : Unit
+    MethodCall setValue<T0> : Unit
       Local $delegate.0 : LocalValueSlot<T0>
       UnitLiteral : Unit
       Local value : T0

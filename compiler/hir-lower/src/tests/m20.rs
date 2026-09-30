@@ -104,7 +104,7 @@ fn class_bound_member_resolves_to_a_concrete_class_method() {
         .find(|bound| {
             matches!(
                 bound.source,
-                hir::BoundCallableSource::Class { callable, .. }
+                hir::BoundCallableSource::Class { callable: hir::CallableTarget::Local(callable), .. }
                     if output.export.functions[output.export.callable_function(callable)].name
                         == "Base.get"
             )
@@ -346,7 +346,7 @@ fn class_bound_exposes_an_abstract_interface_capability() {
     assert!(output.export.bound_callable_refs.iter().any(|(_, bound)| {
         matches!(
             bound.source,
-            hir::BoundCallableSource::Interface { member, .. }
+            hir::BoundCallableSource::Interface { member: hir::InterfaceMethodReference::Local(member), .. }
                 if output.export.functions[output.export.interface_methods[member].function].name
                     == "Named.name"
         )

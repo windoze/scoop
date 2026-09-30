@@ -3,7 +3,7 @@ Module
     val local0
       ImportedConstructorInit DefaultDerived : DefaultDerived<Int>
     val local1
-      ImportedGenericCall count<Int> : Int
+      MethodCall count<Int> : Int
         ReferenceUpcast : DefaultBase<Int>
           Local box : DefaultDerived<Int>
     val local2

@@ -220,7 +220,9 @@ fn export_callee_name<'module>(module: &'module hir::Module, expr: &hir::Expr) -
             callee: hir::CallableTarget::Local(callee),
             ..
         } => module.callable_function(*callee),
-        hir::ExprKind::MethodCall { callee, .. } => module.callable_function(*callee),
+        hir::ExprKind::MethodCall { callee, .. } => {
+            module.callable_function(crate::tests::local_method_callable(module, *callee))
+        }
         other => panic!("expected a resolved call, found {other:?}"),
     };
     &module.functions[function].name

@@ -16,7 +16,7 @@ Module
       ImportedConstructorInit Nested : Nested<Payload>
         Local $dependency.parameter.value : Payload
     val local5
-      ImportedGenericCall echoed<Pair<Payload>> : Pair<Payload>
+      MethodCall echoed<Pair<Payload>> : Pair<Payload>
         ReferenceUpcast : Box<Pair<Payload>>
           Local box : Nested<Payload>
     val local6
@@ -38,7 +38,7 @@ Module
         FieldAccess field 1 : Payload
           Local pair : Pair<Payload>
     val local13
-      ImportedGenericCall count<Pair<Payload>> : Int
+      MethodCall count<Pair<Payload>> : Int
         ReferenceUpcast : Box<Pair<Payload>>
           Local box : Nested<Payload>
     val local14

@@ -54,7 +54,7 @@ Module
       val local17
         Local $dependency.argument.0 : T0
       assign $result.0
-        ImportedGenericCall fewer<T0> : Int
+        MethodCall fewer<T0> : Int
           Local $dependency.receiver : GenericHost<T0>
           Local $dependency.parameter.value : T0
     else

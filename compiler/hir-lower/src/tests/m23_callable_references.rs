@@ -213,7 +213,7 @@ fn selected_function(module: &hir::Module) -> hir::FunctionId {
             module.callable_function(*callee)
         }
         hir::CallableReferenceTarget::BoundMember { callee, .. } => {
-            module.callable_function(*callee)
+            module.callable_function(crate::tests::local_method_callable(module, *callee))
         }
         hir::CallableReferenceTarget::Local { .. } => {
             panic!("the selected declaration is not local")

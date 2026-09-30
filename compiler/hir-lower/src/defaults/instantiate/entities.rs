@@ -1,44 +1,6 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn instantiate_default_imported_method_callee(
-        &mut self,
-        source: &hir::ImportedMethodCallee,
-        origin: hir::ExpressionOrigin,
-        context: &InstantiationContext,
-    ) -> hir::ImportedMethodCallee {
-        match source {
-            hir::ImportedMethodCallee::Callable(callee) => hir::ImportedMethodCallee::Callable(
-                self.instantiate_default_callable_target(*callee, context),
-            ),
-            hir::ImportedMethodCallee::InterfaceBound(bound) => {
-                hir::ImportedMethodCallee::InterfaceBound(Box::new(
-                    hir::ImportedInterfaceBoundCallable {
-                        receiver_type: self
-                            .instantiate_method_ty(bound.receiver_type, &context.bindings),
-                        interface: self.instantiate_method_ty(bound.interface, &context.bindings),
-                        member: bound.member,
-                        slot: bound.slot,
-                        declared: self.instantiate_default_callable_target(bound.declared, context),
-                        signature: self.instantiate_default_function_type(bound.signature, context),
-                    },
-                ))
-            }
-            hir::ImportedMethodCallee::DerivedEquality(application) => {
-                let hir::MethodCallee::DerivedEquality(application) = self
-                    .instantiate_default_method_callee(
-                        hir::MethodCallee::DerivedEquality(*application),
-                        origin,
-                        context,
-                    )
-                else {
-                    unreachable!("an equality application retains its callable kind")
-                };
-                hir::ImportedMethodCallee::DerivedEquality(application)
-            }
-        }
-    }
-
     pub(super) fn instantiate_default_initializing_field(
         &mut self,
         source: hir::InitializingClassFieldRef,
@@ -108,38 +70,47 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::MethodCallee {
         match source {
-            hir::MethodCallee::Callable(callable) => {
-                hir::MethodCallee::Callable(self.instantiate_default_callable(callable, context))
-            }
+            hir::MethodCallee::Callable(callable) => hir::MethodCallee::Callable(
+                self.instantiate_default_callable_target(callable, context),
+            ),
             hir::MethodCallee::Bound(bound) => {
                 let source = self.bound_callable_refs[bound].clone();
                 let bound_source = match source.source {
                     hir::BoundCallableSource::Class { bound, callable } => {
                         hir::BoundCallableSource::Class {
                             bound: self.instantiate_default_class_application(bound, context),
-                            callable: self.instantiate_default_callable(callable, context),
+                            callable: self.instantiate_default_callable_target(callable, context),
                         }
                     }
-                    hir::BoundCallableSource::Interface { bound, member } => {
-                        hir::BoundCallableSource::Interface {
-                            bound: self.instantiate_default_interface_application(bound, context),
-                            member,
-                        }
-                    }
+                    hir::BoundCallableSource::Interface {
+                        bound,
+                        member,
+                        declared,
+                    } => hir::BoundCallableSource::Interface {
+                        bound: self.instantiate_default_interface_application(bound, context),
+                        member: match member {
+                            hir::InterfaceMethodReference::Local(member) => {
+                                hir::InterfaceMethodReference::Local(member)
+                            }
+                            hir::InterfaceMethodReference::Imported { owner, slot } => {
+                                hir::InterfaceMethodReference::Imported {
+                                    owner: self.instantiate_method_ty(owner, &context.bindings),
+                                    slot,
+                                }
+                            }
+                        },
+                        declared: self.instantiate_default_callable_target(declared, context),
+                    },
                 };
                 let instantiated_signature =
                     self.instantiate_default_function_type(source.instantiated_signature, context);
                 let value = hir::BoundCallableRef {
-                    receiver_parameter: source.receiver_parameter,
+                    receiver_type: self
+                        .instantiate_method_ty(source.receiver_type, &context.bindings),
                     source: bound_source,
                     instantiated_signature,
                 };
-                let existing = self
-                    .bound_callable_refs
-                    .iter()
-                    .find_map(|(id, existing)| (existing == &value).then_some(id));
-                let id = existing.unwrap_or_else(|| self.bound_callable_refs.alloc(value));
-                hir::MethodCallee::Bound(id)
+                hir::MethodCallee::Bound(self.record_bound_callable(value))
             }
             hir::MethodCallee::DerivedEquality(application) => {
                 let source = self.derived_equality_applications[application].clone();
