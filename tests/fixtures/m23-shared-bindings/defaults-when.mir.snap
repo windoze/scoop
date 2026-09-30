@@ -232,6 +232,9 @@ Module
         Local $dependency.parameter.left
         Type Int
         Local $dependency.parameter.right
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Pair<Int>
         Type Pair<Int>
         Local pair
@@ -275,7 +278,7 @@ Module
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       val $dependency.argument.0: Int
@@ -298,6 +301,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb5 if.merge.5
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Pair<Int>
         Type Pair<Int>
         Local pair
@@ -325,7 +331,7 @@ Module
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.2
       val $dependency.argument.0: Int

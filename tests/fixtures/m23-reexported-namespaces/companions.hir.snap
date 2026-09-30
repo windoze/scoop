@@ -16,21 +16,23 @@ Module
     val local7
       Call external #2 : CompanionLeaf
         Local $dependency.parameter.number : Int
+    val local11
+      Local read : (T0) -> Int
     val local8
       SingletonValue external 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
     val local9
       Local value : T0
     val local10
       Local $dependency.argument.0 : T0
-    val local11
+    val local12
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall keep<T0> : T0
           Local $dependency.receiver : Tools
           Local $dependency.parameter.value : T0
-    val local12
-      IntegerLiteral 42 : Int
     val local13
+      IntegerLiteral 42 : Int
+    val local14
       Local $dependency.argument.0 : Int
     if
       IntegerOperation int.equals <no-gc> : Boolean

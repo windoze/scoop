@@ -209,6 +209,9 @@ Module
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
     bb6 if.merge.6
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -220,7 +223,7 @@ Module
         Local $dependency.parameter.seed
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.1
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -683,6 +686,9 @@ Module
       val box: Box<Int>
         Type Box<Int>
         Local $new.8
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $dependency.argument.0: Box<Int>
         Type Box<Int>
         Local box
@@ -702,9 +708,12 @@ Module
         Local $dependency.parameter.read
       call $equality.lhs: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.9
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -724,7 +733,7 @@ Module
         Local $dependency.parameter.copy
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.10
       val $dependency.parameter.other: Int
@@ -848,6 +857,9 @@ Module
       val $dependency.local.2: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $dependency.local.3: Unit
         Type Unit
         UnitLiteral
@@ -869,64 +881,70 @@ Module
         Local $dependency.local.5
         Type Int
         Local $dependency.local.6
-      call $dependency.local.11: Int = <closure:function_type0> closure[function_type0]
+      call $dependency.local.13: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $dependency.local.7
         Type Int
         Local $call.1
-      val $dependency.local.7: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.12: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $dependency.local.8: Int
         Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
+        IntegerLiteral Int value=0 bits=0x00000000
       val $dependency.local.9: Int
         Type Int
-        Local $dependency.local.7
+        IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.local.10: Int
         Type Int
         Local $dependency.local.8
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.9
       call $call.2: Int = @fn24 direct
         Type Int
         Local $dependency.local.2
         Type Int
         Local seed
         Type Int
-        Local $dependency.local.9
-        Type Int
         Local $dependency.local.10
-      call $dependency.local.12: Int = <closure:function_type0> closure[function_type0]
+        Type Int
+        Local $dependency.local.11
+      call $dependency.local.14: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $dependency.local.12
         Type Int
         Local $call.2
-      val $dependency.local.13: Int
+      val $dependency.local.15: Int
         Type Int
-        Local $dependency.local.12
-      val $dependency.local.14: Int
+        Local $dependency.local.14
+      val $dependency.local.16: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.11
-          Type Int
           Local $dependency.local.13
-      call $dependency.local.15: Int = <closure:function_type0> closure[function_type0]
+          Type Int
+          Local $dependency.local.15
+      call $dependency.local.17: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local inspect
         Type Int
         Local seed
-      val $dependency.local.16: Int
+      val $dependency.local.18: Int
         Type Int
-        Local $dependency.local.15
+        Local $dependency.local.17
       return
         Type Int
         IntegerBinary subtract kind=Int
           Type Int
-          Local $dependency.local.14
-          Type Int
           Local $dependency.local.16
+          Type Int
+          Local $dependency.local.18
   fun recursiveReference @fn4(seed: Int, inspect: (Int) -> Int) -> Int
     bb0 entry
+      val $dependency.local.5: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $dependency.local.2: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -943,7 +961,7 @@ Module
         Local $dependency.local.4
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $dependency.local.5
         Type Int
         Local $call.1
       return
@@ -1209,6 +1227,12 @@ Module
           CaptureInit field=0
             Type Int
             Local $capture.1
+      val $dependency.local.9: (Unit, Int) -> Int
+        Type (Unit, Int) -> Int
+        Local $dependency.local.2
+      val $dependency.local.10: Unit
+        Type Unit
+        Local $argument.0
       val $dependency.local.6: Int
         Type Int
         Local $argument.1
@@ -1220,9 +1244,9 @@ Module
         Local $dependency.local.7
       call $call.1: Int = <closure:function_type4> closure[function_type4]
         Type (Unit, Int) -> Int
-        Local $dependency.local.2
+        Local $dependency.local.9
         Type Unit
-        Local $argument.0
+        Local $dependency.local.10
         Type Int
         IntegerBinary subtract kind=Int
           Type Int
@@ -1268,6 +1292,12 @@ Module
           CaptureInit field=0
             Type Int
             Local $capture.1
+      val $dependency.local.9: (Int, Int) -> Int
+        Type (Int, Int) -> Int
+        Local $dependency.local.2
+      val $dependency.local.10: Int
+        Type Int
+        Local $argument.0
       val $dependency.local.6: Int
         Type Int
         Local $argument.1
@@ -1279,9 +1309,9 @@ Module
         Local $dependency.local.7
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type (Int, Int) -> Int
-        Local $dependency.local.2
+        Local $dependency.local.9
         Type Int
-        Local $argument.0
+        Local $dependency.local.10
         Type Int
         IntegerBinary subtract kind=Int
           Type Int

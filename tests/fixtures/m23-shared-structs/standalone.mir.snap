@@ -156,6 +156,9 @@ Module
         Box
           Type RemoteCell<String>
           Local remote
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: Reader<String>
         Type Reader<String>
         Local receiver
@@ -164,7 +167,7 @@ Module
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.1
       val $dependency.argument.0: Int
@@ -187,6 +190,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $opt.0: Option<String>
         Type Option<String>
         FieldAccess 1
@@ -212,7 +218,7 @@ Module
     bb5 if.merge.5
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $res.1
       val $dependency.argument.0: Int
@@ -293,6 +299,9 @@ Module
         Box
           Type RemoteCell<Unit>
           Local remote
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: Reader<Unit>
         Type Reader<Unit>
         Local receiver
@@ -301,7 +310,7 @@ Module
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -324,6 +333,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $opt.0: Option<Unit>
         Type Option<Unit>
         FieldAccess 1
@@ -349,7 +361,7 @@ Module
     bb5 if.merge.5
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         Local $res.1
       val $dependency.argument.0: Int
@@ -430,6 +442,9 @@ Module
         Box
           Type RemoteCell<Int>
           Local remote
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: Reader<Int>
         Type Reader<Int>
         Local receiver
@@ -438,7 +453,7 @@ Module
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       val $dependency.argument.0: Int
@@ -461,6 +476,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $opt.0: Option<Int>
         Type Option<Int>
         FieldAccess 1
@@ -486,7 +504,7 @@ Module
     bb5 if.merge.5
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $res.1
       val $dependency.argument.0: Int

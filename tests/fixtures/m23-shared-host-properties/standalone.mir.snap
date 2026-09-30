@@ -83,6 +83,9 @@ Module
       val host: Host<Int>
         Type Host<Int>
         Local $new.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $receiver: Base<Int>
         Type Base<Int>
         Retype Base<Int>
@@ -93,7 +96,7 @@ Module
         Local $receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.3
       val $dependency.argument.0: Int
@@ -116,6 +119,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $receiver: Host<Int>
         Type Host<Int>
         Local host
@@ -124,7 +130,7 @@ Module
         Local $receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.4
       val $dependency.argument.0: Int
@@ -181,6 +187,9 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb6 if.merge.6
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: Item<Int>
         Type Item<Int>
         Local item
@@ -203,7 +212,7 @@ Module
         Local $receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.7
       val $dependency.argument.0: Int

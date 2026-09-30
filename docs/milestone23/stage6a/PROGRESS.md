@@ -480,3 +480,10 @@
 - 新增 `m23-shared-host-properties` 两组正例、两个反例、六份阶段快照和两份诊断快照，覆盖本地／依赖宿主、继承泛型属性、本地派生 class、函数值属性和属性接收者上的函数引用。私有属性在两个声明位置都准确拒绝；源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过。
 - 全仓 fmt／clippy 无警告，2900 项 HIR／HIR lowering／MIR lowering／slib 单元通过；新增组及六组既有 bound、接口、扩展属性、函数引用产物回归全部关闭更新开关通过。既有快照没有变化。证据前缀 `/tmp/scoop-m23-6a-host-properties-`，原 panic 为 `before-verified.log`，最终结果见 `unit.log`、`fixture-verified-results.json` 和 `related-verified-results.json`。
 - 单独抽查 core bootstrap 测试发现旧固定数量断言期望 7 个 ODR member、实际为 91；本批修复前的冻结编译器也同样失败，证据为 `bootstrap-baseline.log`。该基线断言与实际成员的对应关系将在完整 workspace 验收中核对，不能据此宣称全仓已通过。成员决议模块由 238 行降至 188 行，新增单元仅 11 行；wire 与 runtime ABI 不变。
+
+## 函数值与此前实参先于后续前置语句求值
+
+- 真实运行复现函数值调用的后续默认实参越过 callee 和前一实参求值。共同函数值入口先收集每个实参的完整表达式及前置语句，仅在存在后续前置语句时保存此前结果；函数值自身在第一个实参前保存。直接 `f(...)` 与显式 `f.invoke(...)` 共用该处理，异常继续终止后续执行，函数值的参数形态、类型与挂起规则保持。
+- 新增 `m23-shared-callable-order` 两组正例和六份阶段快照，覆盖 callee 与实参副作用、嵌套默认值、异常、实参期间重绑定函数变量以及后续实参修改此前实参读取的变量。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 均通过；修复前冻结编译器实际运行返回用例错误，证据为 `/tmp/scoop-m23-6a-callable-order-before-generate-function_values_preserve_callee_and_argument_evaluation_order.log`。
+- 全仓 fmt／clippy 无警告，2900 项 HIR／HIR lowering／MIR lowering／slib 单元通过；90 项真实泛型产物与完整 core 回归全部使用同一最终配套编译器、关闭更新开关覆盖通过。29 组受到快照变化影响的场景全部严格复验成功，161 份旧快照的类型、函数与 callback 声明头逐项保持一致；HIR／MIR 中增加普通临时保存，LIR 与局部编号相应变化，既有诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-callable-order-`，结果见 `unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 与 `snapshot-review.json`。
+- 函数值调用拆为 123 行的独立模块，调用分类主模块降至 252 行。所有验证完成后清理约 1725.8 MiB 闲置 `target/debug`，前一宿主属性批次另清理 1725.0 MiB，继续复用热缓存。wire payload 结构与 runtime ABI 保持；完整 workspace／runtime 验收和已确认的 core bootstrap 旧断言仍待完成。

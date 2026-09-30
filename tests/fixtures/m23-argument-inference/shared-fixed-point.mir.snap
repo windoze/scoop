@@ -1103,6 +1103,9 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb15 if.merge.15
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $argument.0: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc12 $Closure$reference3
@@ -1136,7 +1139,7 @@ Module
         Local $parameter.seed
       call $call.4: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       return

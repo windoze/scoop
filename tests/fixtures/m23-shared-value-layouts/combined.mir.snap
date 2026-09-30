@@ -379,6 +379,9 @@ Module
           FieldAccess 0
             Type Local<Wrapper<String>>
             Local $call.2
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: Readable<String>
         Type Readable<String>
         Local receiver
@@ -387,7 +390,7 @@ Module
         Local $dependency.receiver
       call $call.4: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.3
       return
@@ -610,6 +613,9 @@ Module
           FieldAccess 0
             Type Local<Wrapper<Unit>>
             Local $call.2
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: Readable<Unit>
         Type Readable<Unit>
         Local receiver
@@ -618,7 +624,7 @@ Module
         Local $dependency.receiver
       call $call.3: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       return
@@ -841,6 +847,9 @@ Module
           FieldAccess 0
             Type Local<Wrapper<Int>>
             Local $call.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: Readable<Int>
         Type Readable<Int>
         Local receiver
@@ -849,7 +858,7 @@ Module
         Local $dependency.receiver
       call $call.4: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       return

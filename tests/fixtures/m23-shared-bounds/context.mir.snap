@@ -190,6 +190,9 @@ Module
         Local $call.1
   fun delayed @fn8(source: Holder<Int>, read: (Int) -> Int) -> Int
     bb0 entry
+      val $dependency.local.3: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.local.2: Holder<Int>
         Type Holder<Int>
         Local source
@@ -198,7 +201,7 @@ Module
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $dependency.local.3
         Type Int
         Local $call.1
       return

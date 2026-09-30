@@ -51,19 +51,21 @@ Module
     val local6
       CallableReference reference1 target=MutableReader.read captures=0 : () -> T0
         Local box : MutableReader<T0>
+    val local8
+      Local read : (T0) -> Int
     val local7
       Local box : MutableReader<T0>
-    val local8
+    val local9
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall MutableReader.again : T0
           Local $receiver : MutableReader<T0>
-    val local9
+    val local10
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
         CallableCall function_type3 : T0
           Local fetch : () -> T0
-    val local10
+    val local11
       Local $dependency.argument.0 : Int
     if
       IntegerOperation int.equals <no-gc> : Boolean

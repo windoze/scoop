@@ -397,6 +397,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: Base<Unit, String>
         Type Base<Unit, String>
         Local base
@@ -410,7 +413,7 @@ Module
         Local $dependency.parameter.other
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.2
       val $dependency.argument.0: Int
@@ -467,6 +470,9 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb6 if.merge.6
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $receiver: Local<String, Unit>
         Type Local<String, Unit>
         Local local
@@ -482,7 +488,7 @@ Module
         Local $parameter.other
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.3
       val $dependency.argument.0: Int
@@ -530,6 +536,9 @@ Module
       val leaf: Leaf<Unit, String>
         Type Leaf<Unit, String>
         Local $new.4
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $receiver: Leaf<Unit, String>
         Type Leaf<Unit, String>
         Local leaf
@@ -545,7 +554,7 @@ Module
         Local $parameter.other
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.5
       val $dependency.argument.0: Int
@@ -811,6 +820,9 @@ Module
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
     bb19 if.merge.19
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.argument.0: String
         Type String
         Local value
@@ -834,7 +846,7 @@ Module
         Local $dependency.parameter.link
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.13
       call @fn5 direct
@@ -922,6 +934,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: Base<Unit, Unit>
         Type Base<Unit, Unit>
         Local base
@@ -938,7 +953,7 @@ Module
         Local $dependency.parameter.other
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -995,6 +1010,9 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb6 if.merge.6
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $receiver: Local<Unit, Unit>
         Type Local<Unit, Unit>
         Local local
@@ -1013,7 +1031,7 @@ Module
         Local $parameter.other
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -1061,6 +1079,9 @@ Module
       val leaf: Leaf<Unit, Unit>
         Type Leaf<Unit, Unit>
         Local $new.2
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $receiver: Leaf<Unit, Unit>
         Type Leaf<Unit, Unit>
         Local leaf
@@ -1079,7 +1100,7 @@ Module
         Local $parameter.other
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -1345,6 +1366,9 @@ Module
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
     bb19 if.merge.19
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.argument.0: Unit
         Type Unit
         Local value
@@ -1368,7 +1392,7 @@ Module
         Local $dependency.parameter.link
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       call @fn5 direct
@@ -1456,6 +1480,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: Base<Unit, Int>
         Type Base<Unit, Int>
         Local base
@@ -1469,7 +1496,7 @@ Module
         Local $dependency.parameter.other
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.2
       val $dependency.argument.0: Int
@@ -1526,6 +1553,9 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb6 if.merge.6
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $receiver: Local<Int, Unit>
         Type Local<Int, Unit>
         Local local
@@ -1541,7 +1571,7 @@ Module
         Local $parameter.other
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       val $dependency.argument.0: Int
@@ -1589,6 +1619,9 @@ Module
       val leaf: Leaf<Unit, Int>
         Type Leaf<Unit, Int>
         Local $new.4
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $receiver: Leaf<Unit, Int>
         Type Leaf<Unit, Int>
         Local leaf
@@ -1604,7 +1637,7 @@ Module
         Local $parameter.other
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.5
       val $dependency.argument.0: Int
@@ -1870,6 +1903,9 @@ Module
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
     bb19 if.merge.19
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Int
         Type Int
         Local value
@@ -1893,7 +1929,7 @@ Module
         Local $dependency.parameter.link
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.13
       call @fn5 direct
@@ -1927,6 +1963,9 @@ Module
         Local other
   fun apply @fn15(this: Readable<String>, convert: (String) -> Int) -> Int
     bb0 entry
+      val $dependency.local.3: (String) -> Int
+        Type (String) -> Int
+        Local convert
       val $dependency.local.2: Readable<String>
         Type Readable<String>
         Local this
@@ -1935,7 +1974,7 @@ Module
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local convert
+        Local $dependency.local.3
         Type String
         Local $call.1
       return
@@ -2017,6 +2056,9 @@ Module
       return
   fun apply @fn25(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
     bb0 entry
+      val $dependency.local.3: (Unit) -> Int
+        Type (Unit) -> Int
+        Local convert
       val $dependency.local.2: Readable<Unit>
         Type Readable<Unit>
         Local this
@@ -2025,7 +2067,7 @@ Module
         Local $dependency.local.2
       call $call.1: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local convert
+        Local $dependency.local.3
         Type Unit
         UnitLiteral
       return
@@ -2107,6 +2149,9 @@ Module
         Local other
   fun apply @fn35(this: Readable<Int>, convert: (Int) -> Int) -> Int
     bb0 entry
+      val $dependency.local.3: (Int) -> Int
+        Type (Int) -> Int
+        Local convert
       val $dependency.local.2: Readable<Int>
         Type Readable<Int>
         Local this
@@ -2115,7 +2160,7 @@ Module
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local convert
+        Local $dependency.local.3
         Type Int
         Local $call.1
       return

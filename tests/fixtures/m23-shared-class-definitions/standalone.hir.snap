@@ -107,20 +107,22 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
+    val local34
+      Local read : (T0) -> Int
     val local32
       Local base : Base<Unit, T0>
     val local33
       MethodCall second<Unit, T0> : T0
         Local $dependency.receiver : Base<Unit, T0>
-    val local34
+    val local35
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall select<Unit, T0> : T0
           Local $dependency.receiver : Base<Unit, T0>
           Local $dependency.parameter.other : T0
-    val local35
-      IntegerLiteral 42 : Int
     val local36
+      IntegerLiteral 42 : Int
+    val local37
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -129,19 +131,19 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 4 : Int
-    val local37
-      Local view : Readable<T0>
     val local38
-      Local read : (T0) -> Int
+      Local view : Readable<T0>
     val local39
-      Local $dependency.argument.0 : (T0) -> Int
+      Local read : (T0) -> Int
     val local40
+      Local $dependency.argument.0 : (T0) -> Int
+    val local41
       MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.convert : (T0) -> Int
-    val local41
-      IntegerLiteral 42 : Int
     val local42
+      IntegerLiteral 42 : Int
+    val local43
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -150,47 +152,49 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 5 : Int
-    val local43
+    val local44
       ArrayLiteral : Array<Link<T0>>
         Local leaf : Link<T0>
         Local head : Link<T0>
-    val local44
-      Local source : Array<Link<T0>>
     val local45
-      Local $argument.0 : Array<Link<T0>>
+      Local source : Array<Link<T0>>
     val local46
+      Local $argument.0 : Array<Link<T0>>
+    val local47
       ArrayClone : MutableArray<Link<T0>>
         Local $parameter.source : Array<Link<T0>>
-    val local47
-      Local links : MutableArray<Link<T0>>
     val local48
-      IntegerLiteral 0 : Long
+      Local links : MutableArray<Link<T0>>
     val local49
-      Local head : Link<T0>
+      IntegerLiteral 0 : Long
     val local50
-      Local $dependency.argument.0 : Long
+      Local head : Link<T0>
     val local51
+      Local $dependency.argument.0 : Long
+    val local52
       Local $dependency.argument.1 : Link<T0>
     ArraySet MutableSet : Unit
       Local $dependency.receiver : MutableArray<Link<T0>>
       Local $dependency.parameter.index : Long
       Local $dependency.parameter.value : Link<T0>
-    val local52
-      Local links : MutableArray<Link<T0>>
+    val local56
+      Local read : (T0) -> Int
     val local53
-      IntegerLiteral 0 : Long
+      Local links : MutableArray<Link<T0>>
     val local54
-      Local $dependency.argument.0 : Long
+      IntegerLiteral 0 : Long
     val local55
+      Local $dependency.argument.0 : Long
+    val local57
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall value<T0> : T0
           Index MutableGet : Link<T0>
             Local $dependency.receiver : MutableArray<Link<T0>>
             Local $dependency.parameter.index : Long
-    val local56
+    val local58
       IntegerLiteral 42 : Int
-    val local57
+    val local59
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -199,20 +203,22 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 6 : Int
-    val local58
-      Local value : T0
-    val local59
-      Local $dependency.argument.0 : T0
+    val local65
+      Local read : (T0) -> Int
     val local60
-      Local $dependency.parameter.value : T0
+      Local value : T0
     val local61
-      Local $default.local.1 : T0
+      Local $dependency.argument.0 : T0
     val local62
+      Local $dependency.parameter.value : T0
+    val local63
+      Local $default.local.1 : T0
+    val local64
       Call make<T0> : Link<T0>
         Local $default.local.2 : T0
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call readLink<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.link : Link<T0>

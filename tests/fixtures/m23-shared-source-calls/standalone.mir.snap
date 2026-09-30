@@ -164,6 +164,9 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn4(seed: String, read: (String) -> Int) -> Int
     bb0 entry
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.argument.0: String
         Type String
         Local seed
@@ -209,7 +212,7 @@ Module
         Local $parameter.copy
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.1
       return
@@ -222,6 +225,9 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
     bb0 entry
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.argument.0: Unit
         Type Unit
         Local seed
@@ -279,7 +285,7 @@ Module
         Local $parameter.copy
       call $call.1: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       return
@@ -292,6 +298,9 @@ Module
         Local item
   fun exercise @fn8(seed: Int, read: (Int) -> Int) -> Int
     bb0 entry
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -337,7 +346,7 @@ Module
         Local $parameter.copy
       call $call.2: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       return

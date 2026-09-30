@@ -316,6 +316,9 @@ Module
       val identity: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc2 $Closure$lambda2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $dependency.argument.0: (Int) -> Int
         Type (Int) -> Int
         Local identity
@@ -335,7 +338,7 @@ Module
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.6
       val $dependency.argument.0: Int

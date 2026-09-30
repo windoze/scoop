@@ -270,6 +270,8 @@ Module
         Local inherited : () -> Int
   fun localRecursiveReference<T>(seed: T0, inspect: (T0) -> Int): Int
     LocalFunction local1 body=$local.1.descend captures=1
+    val local5
+      Local inspect : (T0) -> Int
     val local2
       IntegerLiteral 2 : Int
     val local3
@@ -280,7 +282,7 @@ Module
         Local $parameter.depth : Int
     return
       CallableCall function_type3 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall read<T0> : T0
           Local $dependency.receiver : Box<T0>
   fun localSelfReference(seed: Int): Int
@@ -297,6 +299,8 @@ Module
     val local2
       IntegerLiteral 0 : Int
     LocalFunction local3 body=$local.3.recur captures=2
+    val local7
+      Local inspect : (T0) -> Int
     val local3
       UnitLiteral : Unit
     val local4
@@ -305,41 +309,43 @@ Module
       Local $argument.0 : Unit
     val local6
       Local $argument.1 : Int
-    val local11
+    val local13
       CallableCall function_type4 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call $local.3.recur<T0, Unit> : T0
           Local limit : Int
           Local seed : T0
           Local $parameter.ignored : Unit
           Local $parameter.depth : Int
-    val local7
-      IntegerLiteral 0 : Int
-    val local8
-      IntegerLiteral 2 : Int
-    val local9
-      Local $argument.0 : Int
-    val local10
-      Local $argument.1 : Int
     val local12
+      Local inspect : (T0) -> Int
+    val local8
+      IntegerLiteral 0 : Int
+    val local9
+      IntegerLiteral 2 : Int
+    val local10
+      Local $argument.0 : Int
+    val local11
+      Local $argument.1 : Int
+    val local14
       CallableCall function_type4 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call $local.3.recur<T0, Int> : T0
           Local limit : Int
           Local seed : T0
           Local $parameter.ignored : Int
           Local $parameter.depth : Int
-    val local13
+    val local15
       Local $dependency.argument.0 : Int
-    val local14
+    val local16
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
-    val local15
+    val local17
       CallableCall function_type4 : Int
         Local inspect : (T0) -> Int
         Local seed : T0
-    val local16
+    val local18
       Local $dependency.argument.0 : Int
     return
       IntegerOperation int.sub <no-gc> : Int

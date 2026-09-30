@@ -34,16 +34,18 @@ Module
       Box : Readable<T0>
         FieldAccess field 1 : RemoteCell<T0>
           Local local : LocalCell<T0>
+    val local12
+      Local read : (T0) -> Int
     val local11
       Local current : Reader<T0>
-    val local12
+    val local13
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall read<T0> : T0
           Local $dependency.receiver : Reader<T0>
-    val local13
-      IntegerLiteral 42 : Int
     val local14
+      IntegerLiteral 42 : Int
+    val local15
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -52,16 +54,18 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 1 : Int
-    val local15
-      Local remote : Readable<T0>
+    val local17
+      Local read : (T0) -> Int
     val local16
+      Local remote : Readable<T0>
+    val local18
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Readable.get<T0> : T0
           Local $dependency.receiver : Readable<T0>
-    val local17
+    val local19
       IntegerLiteral 42 : Int
-    val local18
+    val local20
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -70,27 +74,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local19
+    val local23
+      Local read : (T0) -> Int
+    val local21
       FieldAccess field 1 : Option<T0>
         FieldAccess field 1 : RemoteCell<T0>
           Local local : LocalCell<T0>
     if
       IsSome : Boolean
         Local $opt.0 : Option<T0>
-      val local20
+      val local22
         Unwrap trap=false : T0
           Local $opt.0 : Option<T0>
     else
-      val local20
+      val local22
         FieldAccess field 0 : T0
           Local local : LocalCell<T0>
-    val local21
+    val local24
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Local $res.1 : T0
-    val local22
+    val local25
       IntegerLiteral 42 : Int
-    val local23
+    val local26
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -99,39 +105,39 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local24
-      IntegerLiteral 20 : Int
-    val local25
-      IntegerLiteral 22 : Int
-    val local26
-      Local $dependency.argument.0 : Int
     val local27
-      Local $dependency.argument.1 : Int
+      IntegerLiteral 20 : Int
     val local28
+      IntegerLiteral 22 : Int
+    val local29
+      Local $dependency.argument.0 : Int
+    val local30
+      Local $dependency.argument.1 : Int
+    val local31
       Call external #0 : NativePair
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Int
-    val local29
+    val local32
       FieldAccess field 0 : Int
         Local first : NativePair
-    val local30
+    val local33
       FieldAccess field 1 : Int
         Local first : NativePair
-    val local31
+    val local34
       Local $argument.0 : Int
-    val local32
+    val local35
       Local $argument.1 : Int
-    val local33
+    val local36
       StructInit LocalNative : LocalNative
         Local $parameter.left : Int
         Local $parameter.right : Int
-    val local34
+    val local37
       FieldAccess field 0 : Int
         Local second : LocalNative
-    val local35
+    val local38
       FieldAccess field 1 : Int
         Local second : LocalNative
-    val local36
+    val local39
       Local $dependency.argument.0 : Int
     return
       IntegerOperation int.add <no-gc> : Int

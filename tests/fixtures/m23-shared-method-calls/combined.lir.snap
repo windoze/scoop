@@ -97,30 +97,31 @@ Module
     local %61 $parameter.value: ptr<managed>
     local %62 $dependency.receiver: ptr<managed>
     local %63 $parameter.chosen: i32
-    local %64 $equality.lhs: i32
-    local %65 $dependency.receiver: i32
-    local %66 $dependency.argument.0: i32
-    local %67 $dependency.parameter.other: i32
-    local %68 $new.1: ptr<managed>
-    local %69 $new.2: ptr<managed>
-    local %70 $new.3: ptr<managed>
-    local %71 $new.4: ptr<managed>
-    local %72 $call.5: ptr<managed>
-    local %73 $new.6: ptr<managed>
-    local %74 $call.7: i32
-    local %75 $call.8: i32
-    local %76 $call.9: i32
-    local %77 $sc.1: struct0
-    local %78 $sc.2: struct0
+    local %64 $callable.receiver: ptr<managed>
+    local %65 $equality.lhs: i32
+    local %66 $dependency.receiver: i32
+    local %67 $dependency.argument.0: i32
+    local %68 $dependency.parameter.other: i32
+    local %69 $new.1: ptr<managed>
+    local %70 $new.2: ptr<managed>
+    local %71 $new.3: ptr<managed>
+    local %72 $new.4: ptr<managed>
+    local %73 $call.5: ptr<managed>
+    local %74 $new.6: ptr<managed>
+    local %75 $call.7: i32
+    local %76 $call.8: i32
+    local %77 $call.9: i32
+    local %78 $sc.1: struct0
+    local %79 $sc.2: struct0
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     store param0 -> local0
     store local0 -> local1
     call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
-    store t0 -> local68
-    call managed-void-target0 sp<managed-call:1> live=[param1:ptr<managed>@0, local68:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn22(local68, local1)
+    store t0 -> local69
+    call managed-void-target0 sp<managed-call:1> live=[param1:ptr<managed>@0, local69:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn22(local69, local1)
     t1 = aggregate () : {}
-    store local68 -> local2
+    store local69 -> local2
     store local2 -> local3
     store local3 -> local4
     call managed-direct-target1 sp<managed-call:2> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local4:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 local-fn6(local4)
@@ -134,10 +135,10 @@ Module
     ret integer<Int>(0x00000001)
   block if.merge.2
     call managed-direct-target2 sp<managed-call:3> live=[param1:ptr<managed>@0, local2:ptr<managed>@0] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(16)))
-    store t5 -> local69
-    call managed-void-target1 sp<managed-call:4> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local69:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn20(local69)
+    store t5 -> local70
+    call managed-void-target1 sp<managed-call:4> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local70:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn20(local70)
     t6 = aggregate () : {}
-    store local69 -> local8
+    store local70 -> local8
     store local8 -> local9
     call managed-direct-target3 sp<managed-call:5> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local9:ptr<managed>@0] t7 = sig=direct3 (ptr<managed>) -> i32 local-fn7(local9)
     store t7 -> local10
@@ -151,11 +152,11 @@ Module
   block if.merge.4
     store integer<Int>(0x0000002a) -> local13
     store local13 -> local14
-    call no-gc-indirect-target0 local77 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) external-fn4(local14)
-    store local77 -> local15
+    call no-gc-indirect-target0 local78 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) external-fn4(local14)
+    store local78 -> local15
     store local15 -> local16
-    store local16 -> local78
-    call managed-direct-target4 sp<managed-call:6> live=[param1:ptr<managed>@0, local2:ptr<managed>@0] t10 = sig=direct4 (indirect<struct0 size=4 align=4 scan=none>) -> i32 local-fn8(indirect local78)
+    store local16 -> local79
+    call managed-direct-target4 sp<managed-call:6> live=[param1:ptr<managed>@0, local2:ptr<managed>@0] t10 = sig=direct4 (indirect<struct0 size=4 align=4 scan=none>) -> i32 local-fn8(indirect local79)
     store t10 -> local17
     store integer<Int>(0x0000002a) -> local18
     store local18 -> local19
@@ -166,10 +167,10 @@ Module
     ret integer<Int>(0x00000003)
   block if.merge.6
     call managed-direct-target5 sp<managed-call:7> live=[param1:ptr<managed>@0, local2:ptr<managed>@0] t13 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(16)))
-    store t13 -> local70
-    call managed-void-target2 sp<managed-call:8> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local70:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local70)
+    store t13 -> local71
+    call managed-void-target2 sp<managed-call:8> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local71:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local71)
     t14 = aggregate () : {}
-    store local70 -> local20
+    store local71 -> local20
     store local20 -> local21
     call managed-direct-target6 sp<managed-call:9> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local21:ptr<managed>@0] t15 = sig=direct6 (ptr<managed>) -> i32 local-fn7(local21)
     store t15 -> local22
@@ -182,14 +183,14 @@ Module
     ret integer<Int>(0x00000006)
   block if.merge.8
     call managed-direct-target7 sp<managed-call:10> live=[param1:ptr<managed>@0, local2:ptr<managed>@0] t18 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(16)))
-    store t18 -> local71
-    call managed-void-target3 sp<managed-call:11> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local71:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local71)
+    store t18 -> local72
+    call managed-void-target3 sp<managed-call:11> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local72:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local72)
     t19 = aggregate () : {}
-    store local71 -> local25
+    store local72 -> local25
     store local25 -> local26
     call managed-direct-target8 sp<managed-call:12> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local26:ptr<managed>@0] t20 = sig=direct8 (ptr<managed>) -> ptr<managed> local-fn9(local26)
-    store t20 -> local72
-    call managed-direct-target9 sp<managed-call:13> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local72:ptr<managed>@0] t21 = sig=direct9 (ptr<managed>) -> i32 dispatch[Closure:2] local72(local72)
+    store t20 -> local73
+    call managed-direct-target9 sp<managed-call:13> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local73:ptr<managed>@0] t21 = sig=direct9 (ptr<managed>) -> i32 dispatch[Closure:2] local73(local73)
     store t21 -> local27
     store integer<Int>(0x0000002b) -> local28
     store local28 -> local29
@@ -200,10 +201,10 @@ Module
     ret integer<Int>(0x00000007)
   block if.merge.10
     call managed-direct-target10 sp<managed-call:14> live=[param1:ptr<managed>@0, local2:ptr<managed>@0] t24 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(16)))
-    store t24 -> local73
-    call managed-void-target4 sp<managed-call:15> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local73:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn21(local73)
+    store t24 -> local74
+    call managed-void-target4 sp<managed-call:15> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local74:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn21(local74)
     t25 = aggregate () : {}
-    store local73 -> local30
+    store local74 -> local30
     store local30 -> local31
     store local31 -> local32
     t26 = heap_load local32 +0 : ptr<metadata>
@@ -264,29 +265,30 @@ Module
     ret integer<Int>(0x00000004)
   block if.merge.14
     call managed-direct-target22 sp<managed-call:27> live=[param1:ptr<managed>@0, local2:ptr<managed>@0, local39:ptr<managed>@0] t48 = sig=direct22 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local56)
-    store t48 -> local64
+    store t48 -> local65
+    store param1 -> local64
     store local2 -> local60
     store local60 -> local61
     store local61 -> local62
-    call managed-direct-target23 sp<managed-call:28> live=[param1:ptr<managed>@0, local39:ptr<managed>@0, local61:ptr<managed>@0, local62:ptr<managed>@0] t49 = sig=direct23 (ptr<managed>) -> i32 local-fn5(local62)
+    call managed-direct-target23 sp<managed-call:28> live=[param1:ptr<managed>@0, local39:ptr<managed>@0, local61:ptr<managed>@0, local62:ptr<managed>@0, local64:ptr<managed>@0] t49 = sig=direct23 (ptr<managed>) -> i32 local-fn5(local62)
     store t49 -> local63
-    store local64 -> local65
-    call managed-direct-target24 sp<managed-call:29> live=[param1:ptr<managed>@0, local39:ptr<managed>@0, local61:ptr<managed>@0] t50 = sig=direct24 (ptr<managed>, i32) -> i32 local-fn15(local61, local63)
-    store t50 -> local74
-    call managed-direct-target25 sp<managed-call:30> live=[param1:ptr<managed>@0, local39:ptr<managed>@0] t51 = sig=direct25 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local74)
-    store t51 -> local66
-    store local66 -> local67
-    t52 = integer_compare_Equal<Int> local65, local67 : i1
+    store local65 -> local66
+    call managed-direct-target24 sp<managed-call:29> live=[param1:ptr<managed>@0, local39:ptr<managed>@0, local61:ptr<managed>@0, local64:ptr<managed>@0] t50 = sig=direct24 (ptr<managed>, i32) -> i32 local-fn15(local61, local63)
+    store t50 -> local75
+    call managed-direct-target25 sp<managed-call:30> live=[param1:ptr<managed>@0, local39:ptr<managed>@0, local64:ptr<managed>@0] t51 = sig=direct25 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local64(local64, local75)
+    store t51 -> local67
+    store local67 -> local68
+    t52 = integer_compare_Equal<Int> local66, local68 : i1
     t53 = Not t52 : i1
     cbr t53 then @if.then.15 else @if.merge.16
   block if.then.15
     ret integer<Int>(0x00000005)
   block if.merge.16
     call managed-direct-target26 sp<managed-call:31> live=[param1:ptr<managed>@0, local39:ptr<managed>@0] t54 = sig=direct26 (ptr<managed>) -> i32 dispatch[Closure:2] local39(local39)
-    store t54 -> local75
-    call managed-direct-target27 sp<managed-call:32> live=[param1:ptr<managed>@0] t55 = sig=direct27 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local75)
-    store t55 -> local76
-    ret local76
+    store t54 -> local76
+    call managed-direct-target27 sp<managed-call:32> live=[param1:ptr<managed>@0] t55 = sig=direct27 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local76)
+    store t55 -> local77
+    ret local77
   fun @scoop$1$cb$f489d42de82904046305370903bfe6b1b4dbeae276d78e378cce855776a6532e(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry

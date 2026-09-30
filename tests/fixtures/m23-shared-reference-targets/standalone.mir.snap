@@ -109,6 +109,9 @@ Module
           CaptureInit field=0
             Type Int
             Local $capture.seed
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local next
       val $dependency.receiver: Int
         Type Int
         Local depth
@@ -120,7 +123,7 @@ Module
         Local $dependency.argument.0
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local next
+        Local $callable.receiver
         Type Int
         IntegerBinary subtract kind=Int
           Type Int
@@ -576,6 +579,9 @@ Module
       val limit: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: Unit
         Type Unit
         UnitLiteral
@@ -599,9 +605,12 @@ Module
         Local $parameter.depth
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.1
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -625,7 +634,7 @@ Module
         Local $parameter.depth
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.2
       val $dependency.parameter.other: Int
@@ -655,6 +664,9 @@ Module
           Local $dependency.parameter.other
   fun localRecursiveReference @fn6(seed: Int, inspect: (Int) -> Int) -> Int
     bb0 entry
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -671,7 +683,7 @@ Module
         Local $dependency.receiver
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.1
       return
@@ -819,6 +831,12 @@ Module
           CaptureInit field=0
             Type Int
             Local $capture.seed
+      val $callable.receiver: (Unit, Int) -> Int
+        Type (Unit, Int) -> Int
+        Local next
+      val $callable.argument.0: Unit
+        Type Unit
+        Local ignored
       val $dependency.receiver: Int
         Type Int
         Local depth
@@ -830,9 +848,9 @@ Module
         Local $dependency.argument.0
       call $call.1: Int = <closure:function_type4> closure[function_type4]
         Type (Unit, Int) -> Int
-        Local next
+        Local $callable.receiver
         Type Unit
-        Local ignored
+        Local $callable.argument.0
         Type Int
         IntegerBinary subtract kind=Int
           Type Int
@@ -878,6 +896,12 @@ Module
           CaptureInit field=0
             Type Int
             Local $capture.seed
+      val $callable.receiver: (Int, Int) -> Int
+        Type (Int, Int) -> Int
+        Local next
+      val $callable.argument.0: Int
+        Type Int
+        Local ignored
       val $dependency.receiver: Int
         Type Int
         Local depth
@@ -889,9 +913,9 @@ Module
         Local $dependency.argument.0
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type (Int, Int) -> Int
-        Local next
+        Local $callable.receiver
         Type Int
-        Local ignored
+        Local $callable.argument.0
         Type Int
         IntegerBinary subtract kind=Int
           Type Int

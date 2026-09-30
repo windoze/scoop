@@ -235,6 +235,9 @@ Module
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
     bb4 if.merge.4
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -254,7 +257,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.2
       val $dependency.argument.0: Int
@@ -277,6 +280,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb6 if.merge.6
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -296,7 +302,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       val $dependency.argument.0: Int
@@ -319,6 +325,9 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb8 if.merge.8
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -343,7 +352,7 @@ Module
         Local $dependency.parameter.second
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.4
       val $dependency.argument.0: Int
@@ -366,6 +375,9 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb10 if.merge.10
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -385,7 +397,7 @@ Module
         Local $dependency.parameter.next
       call $call.6: Int = <closure:function_type1> closure[function_type1]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.5
       return

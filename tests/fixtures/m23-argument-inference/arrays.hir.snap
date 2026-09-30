@@ -28,26 +28,28 @@ Module
         IntegerOperation long.equals <no-gc> : Boolean
           Local $dependency.receiver : Long
           Local $dependency.parameter.other : Long
-      val local15
+      val local16
         BoolLiteral true : Boolean
     else
+      val local12
+        Local read : (T0) -> Int
       val local9
         Local values : Array<T0>
       val local10
         IntegerLiteral 0 : Long
       val local11
         Local $dependency.argument.0 : Long
-      val local12
+      val local13
         CallableCall function_type0 : Int
-          Local read : (T0) -> Int
+          Local $callable.receiver : (T0) -> Int
           Index ImmutableGet : T0
             Local $dependency.receiver : Array<T0>
             Local $dependency.parameter.index : Long
-      val local13
-        IntegerLiteral 42 : Int
       val local14
-        Local $dependency.argument.0 : Int
+        IntegerLiteral 42 : Int
       val local15
+        Local $dependency.argument.0 : Int
+      val local16
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -56,13 +58,13 @@ Module
       Local $shortCircuit.0 : Boolean
       return
         IntegerLiteral 8 : Int
-    val local16
-      Local seed : T0
     val local17
-      Local read : (T0) -> Int
+      Local seed : T0
     val local18
-      Local $dependency.argument.0 : T0
+      Local read : (T0) -> Int
     val local19
+      Local $dependency.argument.0 : T0
+    val local20
       Local $dependency.argument.1 : (T0) -> Int
     return
       Call exercise<T0> : Int

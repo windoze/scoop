@@ -50,17 +50,19 @@ Module
       ClassInit Host<T0> : Host<T0>
         Local $parameter.item : Item<T0>
         Local $parameter.action : () -> T0
+    val local11
+      Local inspect : (T0) -> Int
     val local10
       ReferenceUpcast : Base<T0>
         Local host : Host<T0>
-    val local11
+    val local12
       CallableCall function_type2 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call readItem<T0> : T0
           Local $receiver : Base<T0>
-    val local12
-      IntegerLiteral 42 : Int
     val local13
+      IntegerLiteral 42 : Int
+    val local14
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -69,16 +71,18 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 1 : Int
-    val local14
-      Local host : Host<T0>
+    val local16
+      Local inspect : (T0) -> Int
     val local15
+      Local host : Host<T0>
+    val local17
       CallableCall function_type2 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call readAction<T0> : T0
           Local $receiver : Host<T0>
-    val local16
+    val local18
       IntegerLiteral 42 : Int
-    val local17
+    val local19
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -87,19 +91,19 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local18
+    val local20
       Local host : Host<T0>
-    val local19
+    val local21
       Call referenceItem<T0> : () -> T0
         Local $receiver : Host<T0>
-    val local20
+    val local22
       CallableCall function_type2 : Int
         Local inspect : (T0) -> Int
         CallableCall function_type4 : T0
           Local read : () -> T0
-    val local21
+    val local23
       IntegerLiteral 42 : Int
-    val local22
+    val local24
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -108,21 +112,23 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local23
-      Local item : Item<T0>
-    val local24
-      Local $argument.0 : Item<T0>
+    val local28
+      Local inspect : (T0) -> Int
     val local25
+      Local item : Item<T0>
+    val local26
+      Local $argument.0 : Item<T0>
+    val local27
       ClassInit Local<T0> : Local<T0>
         Local $parameter.item : Item<T0>
-    val local26
+    val local29
       CallableCall function_type2 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Local.readLocal : T0
           Local $receiver : Local<T0>
-    val local27
+    val local30
       IntegerLiteral 42 : Int
-    val local28
+    val local31
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean

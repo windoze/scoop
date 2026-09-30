@@ -142,6 +142,9 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb4 if.merge.4
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Box<Int>
         Type Box<Int>
         Local box
@@ -161,7 +164,7 @@ Module
         Local $dependency.parameter.chosen
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -186,6 +189,9 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb6 if.merge.6
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Box<Int>
         Type Box<Int>
         Local box
@@ -205,7 +211,7 @@ Module
         Local $dependency.parameter.chosen
       call $call.5: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.4
       return

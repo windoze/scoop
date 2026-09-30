@@ -162,9 +162,11 @@ Module
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local48
+      val local49
         BoolLiteral true : Boolean
     else
+      val local45
+        Local inspect : (T0) -> Int
       val local39
         Local seed : T0
       val local40
@@ -179,17 +181,17 @@ Module
         ClassInit CurrentBox<T0, Unit> : CurrentBox<T0, Unit>
           Local $parameter.value : T0
           Local $parameter.adjustment : Int
-      val local45
+      val local46
         CallableCall function_type0 : Int
-          Local inspect : (T0) -> Int
+          Local $callable.receiver : (T0) -> Int
           Call selected<T0, Unit> : T0
             Local $parameter.value : T0
             Local $parameter.box : CurrentBox<T0, Unit>
-      val local46
-        IntegerLiteral 42 : Int
       val local47
-        Local $dependency.argument.0 : Int
+        IntegerLiteral 42 : Int
       val local48
+        Local $dependency.argument.0 : Int
+      val local49
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -198,16 +200,16 @@ Module
       Local $shortCircuit.2 : Boolean
       return
         IntegerLiteral 3 : Int
-    val local49
-      IntegerLiteral 42 : Int
     val local50
-      Local $argument.0 : Int
+      IntegerLiteral 42 : Int
     val local51
+      Local $argument.0 : Int
+    val local52
       Call plain : Int
         Local $parameter.value : Int
-    val local52
-      IntegerLiteral 42 : Int
     val local53
+      IntegerLiteral 42 : Int
+    val local54
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -216,7 +218,7 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 4 : Int
-    val local54
+    val local55
       Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
         capture seed binding33 : T0
     return

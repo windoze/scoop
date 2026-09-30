@@ -188,6 +188,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: Base<String>
         Type Base<String>
         Local base
@@ -204,7 +207,7 @@ Module
         Local $dependency.parameter.other
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.2
       val $dependency.argument.0: Int
@@ -227,6 +230,9 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb4 if.merge.4
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: ValueSource<String>
         Type ValueSource<String>
         Local receiver
@@ -235,7 +241,7 @@ Module
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.3
       val $dependency.argument.0: Int
@@ -265,6 +271,9 @@ Module
           Local actual
           Type Remote<String>
           Local actual
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: Array<Remote<String>>
         Type Array<Remote<String>>
         Local values
@@ -327,7 +336,7 @@ Module
           Local $idx.2
       call $call.7: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.6
       return
@@ -387,6 +396,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: Base<Unit>
         Type Base<Unit>
         Local base
@@ -403,7 +415,7 @@ Module
         Local $dependency.parameter.other
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -426,6 +438,9 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb4 if.merge.4
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: ValueSource<Unit>
         Type ValueSource<Unit>
         Local receiver
@@ -434,7 +449,7 @@ Module
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -464,6 +479,9 @@ Module
           Local actual
           Type Remote<Unit>
           Local actual
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: Array<Remote<Unit>>
         Type Array<Remote<Unit>>
         Local values
@@ -526,7 +544,7 @@ Module
           Local $idx.2
       call $call.3: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       return
@@ -586,6 +604,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: Base<Int>
         Type Base<Int>
         Local base
@@ -602,7 +623,7 @@ Module
         Local $dependency.parameter.other
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.2
       val $dependency.argument.0: Int
@@ -625,6 +646,9 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb4 if.merge.4
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: ValueSource<Int>
         Type ValueSource<Int>
         Local receiver
@@ -633,7 +657,7 @@ Module
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       val $dependency.argument.0: Int
@@ -663,6 +687,9 @@ Module
           Local actual
           Type Remote<Int>
           Local actual
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: Array<Remote<Int>>
         Type Array<Remote<Int>>
         Local values
@@ -725,7 +752,7 @@ Module
           Local $idx.2
       call $call.7: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.6
       return

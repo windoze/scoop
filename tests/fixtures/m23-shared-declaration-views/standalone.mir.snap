@@ -301,6 +301,9 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb10 if.merge.10
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $receiver: Box<Int>
         Type Box<Int>
         Local box
@@ -317,7 +320,7 @@ Module
         Local $parameter.ignored
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.4
       val $dependency.argument.0: Int
@@ -546,6 +549,9 @@ Module
         BoolLiteral true
       goto bb28
     bb27 if.else.27
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: Int
         Type Int
         Local seed
@@ -618,7 +624,7 @@ Module
     bb33 if.merge.33
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         ArrayGet Array<Int>
           Type Array<Int>
@@ -646,6 +652,9 @@ Module
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
     bb35 if.merge.35
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: Int
         Type Int
         Local seed
@@ -717,7 +726,7 @@ Module
     bb40 if.merge.40
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         ArrayGet Array<Int>
           Type Array<Int>
@@ -797,6 +806,9 @@ Module
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
     bb44 if.merge.44
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: Int
         Type Int
         Local seed
@@ -813,7 +825,7 @@ Module
         Local $parameter.operation
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.15
       val $dependency.argument.0: Int
@@ -837,6 +849,9 @@ Module
         BoolLiteral true
       goto bb47
     bb46 if.else.46
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $argument.0: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc8 $Closure$reference7
@@ -856,7 +871,7 @@ Module
         Local $parameter.operation
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.16
       val $dependency.argument.0: Int

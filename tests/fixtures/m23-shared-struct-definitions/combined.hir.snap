@@ -148,7 +148,7 @@ Module
         IntegerLiteral 2 : Int
     val local45
       Lambda lambda0 invoke=$lambda.0 captures=1 : (T0) -> Cell<T0>
-        capture changed binding32 : LocalCell<T0>
+        capture changed binding33 : LocalCell<T0>
     val local46
       CallableCall function_type4 : Cell<T0>
         Local factory : (T0) -> Cell<T0>

@@ -146,6 +146,9 @@ Module
         Local $dependency.parameter.value
         Type (Int) -> Int
         Local $dependency.parameter.select
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Int
         Type Int
         Local value
@@ -157,7 +160,7 @@ Module
         Local $dependency.parameter.value
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       return

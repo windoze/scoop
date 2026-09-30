@@ -14,6 +14,8 @@ Module
         Local next : T1
   interface Diamond<T> : Restored<Unit, T0>, View<Unit, T0>
   fun readBound<T, I : View<Unit, T>>(view: T1, read: (T0) -> Int): Int
+    val local4
+      Local read : (T0) -> Int
     val local2
       Local view : T1
     val local3
@@ -22,7 +24,7 @@ Module
           Local $dependency.receiver : T1
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall bound T1 via View<Unit, T0> -> choose<Unit, T0> : T0
           Local $dependency.receiver : T1
           Local $dependency.parameter.next : T0
@@ -38,21 +40,23 @@ Module
     val local5
       ReferenceUpcast : Restored<Unit, T0>
         Local local : Diamond<T0>
+    val local8
+      Local read : (T0) -> Int
     val local6
       Local restored : Restored<Unit, T0>
     val local7
       MethodCall View.$get$second<Unit, T0> : T0
         ReferenceUpcast : View<Unit, T0>
           Local $receiver : Restored<Unit, T0>
-    val local8
+    val local9
       CallableCall function_type1 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Restored.choose : T0
           Local $receiver : Restored<Unit, T0>
           Local $parameter.next : T0
-    val local9
-      IntegerLiteral 42 : Int
     val local10
+      IntegerLiteral 42 : Int
+    val local11
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -61,21 +65,21 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 1 : Int
-    val local11
-      Local local : Diamond<T0>
     val local12
-      Local read : (T0) -> Int
+      Local local : Diamond<T0>
     val local13
-      Local $argument.0 : Diamond<T0>
+      Local read : (T0) -> Int
     val local14
-      Local $argument.1 : (T0) -> Int
+      Local $argument.0 : Diamond<T0>
     val local15
+      Local $argument.1 : (T0) -> Int
+    val local16
       Call readBound<T0, Diamond<T0>> : Int
         Local $parameter.view : Diamond<T0>
         Local $parameter.read : (T0) -> Int
-    val local16
-      IntegerLiteral 42 : Int
     val local17
+      IntegerLiteral 42 : Int
+    val local18
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -84,31 +88,31 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local20
+    val local21
       ReferenceUpcast : View<Unit, T0>
         Local local : Diamond<T0>
-    val local18
-      Local value : T0
     val local19
+      Local value : T0
+    val local20
       Local $dependency.argument.0 : T0
-    val local21
+    val local22
       ReferenceUpcast : View<Unit, T0>
         Call reference<T0> : Swap<T0, Unit>
           Local $dependency.parameter.value : T0
-    val local22
-      Local $dependency.argument.0 : View<Unit, T0>
     val local23
+      Local $dependency.argument.0 : View<Unit, T0>
+    val local24
       MethodCall peer<Unit, T0> : View<Unit, T0>
         Local $dependency.receiver : View<Unit, T0>
         Local $dependency.parameter.other : View<Unit, T0>
-    val local24
+    val local25
       CallableCall function_type1 : Int
         Local read : (T0) -> Int
         MethodCall View.$get$second<Unit, T0> : T0
           Local peer : View<Unit, T0>
-    val local25
-      IntegerLiteral 42 : Int
     val local26
+      IntegerLiteral 42 : Int
+    val local27
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -117,28 +121,28 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local27
-      Local value : T0
     val local28
-      Local $argument.0 : T0
+      Local value : T0
     val local29
+      Local $argument.0 : T0
+    val local30
       StructInit Inline : Inline<T0>
         Local $parameter.value : T0
-    val local30
-      Local inline : Inline<T0>
     val local31
-      Local read : (T0) -> Int
+      Local inline : Inline<T0>
     val local32
-      Local $argument.0 : Inline<T0>
+      Local read : (T0) -> Int
     val local33
-      Local $argument.1 : (T0) -> Int
+      Local $argument.0 : Inline<T0>
     val local34
+      Local $argument.1 : (T0) -> Int
+    val local35
       Call readBound<T0, Inline<T0>> : Int
         Local $parameter.view : Inline<T0>
         Local $parameter.read : (T0) -> Int
-    val local35
-      IntegerLiteral 42 : Int
     val local36
+      IntegerLiteral 42 : Int
+    val local37
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -147,18 +151,20 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 4 : Int
-    val local37
+    val local38
       Box : Restored<Unit, T0>
         Local inline : Inline<T0>
-    val local38
-      Local boxed : Restored<Unit, T0>
+    val local41
+      Local read : (T0) -> Int
     val local39
+      Local boxed : Restored<Unit, T0>
+    val local40
       MethodCall View.$get$second<Unit, T0> : T0
         ReferenceUpcast : View<Unit, T0>
           Local $receiver : Restored<Unit, T0>
     return
       CallableCall function_type1 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Restored.choose : T0
           Local $receiver : Restored<Unit, T0>
           Local $parameter.next : T0

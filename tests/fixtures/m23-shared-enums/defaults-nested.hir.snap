@@ -33,6 +33,8 @@ Module
       VariantConstruct Carrier.Wrapped<T0> : Carrier<T0>
         Local $parameter._1 : Choice<T0>
         Local $parameter._2 : Option<T0>
+    val local40
+      Local read : (T0) -> Int
     val local13
       Local value : Carrier<T0>
     val local14
@@ -111,16 +113,16 @@ Module
       impossible <enum pattern matrix for Carrier<T0>>
     val local39
       Local $result.0 : T0
-    val local40
+    val local41
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call selected<T0> : T0
           Local $parameter.value : Carrier<T0>
           Local $parameter.fallback : T0
           Local $parameter.result : T0
-    val local41
-      IntegerLiteral 42 : Int
     val local42
+      IntegerLiteral 42 : Int
+    val local43
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -134,25 +136,25 @@ Module
       arm variant0()
         assign $result.1
           IntegerLiteral 2 : Int
-      arm variant1(0: variant3(0: local43, 1: local44), 1: variant0(0: local45)) if <guard>
+      arm variant1(0: variant3(0: local44, 1: local45), 1: variant0(0: local46)) if <guard>
         guard setup
-          val local46
-            Local amount : Int
           val local47
-            IntegerLiteral 2 : Int
+            Local amount : Int
           val local48
+            IntegerLiteral 2 : Int
+          val local49
             Local $dependency.argument.0 : Int
         guard condition
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
             Local $dependency.parameter.other : Int
-        val local49
+        val local50
           CallableCall function_type0 : Int
             Local read : (T0) -> Int
             Local extra : T0
-        val local50
-          IntegerLiteral 42 : Int
         val local51
+          IntegerLiteral 42 : Int
+        val local52
           Local $dependency.argument.0 : Int
         if
           Unary Not : Boolean

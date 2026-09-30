@@ -11,6 +11,8 @@ Module
       Call scalar<Int> : Int
         Local $dependency.parameter.value : Int
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local14
+      Local read : (T0) -> Int
     val local2
       Local seed : T0
     val local3
@@ -42,7 +44,7 @@ Module
         Local $dependency.parameter.copy : T0
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call localDefault<T0> : T0
           Local $parameter.value : T0
           Local $parameter.copy : T0

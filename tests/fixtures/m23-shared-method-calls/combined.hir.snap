@@ -221,10 +221,12 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 4 : Int
-    val local66
+    val local67
       CallableCall function_type1 : Int
         Local read : (T0) -> Int
         Local base : T0
+    val local66
+      Local read : (T0) -> Int
     val local62
       Local box : Derived<T0>
     val local63
@@ -234,15 +236,15 @@ Module
     val local65
       MethodCall bound Derived<T0> via Reader<T0> -> Reader.read<T0> : T0
         Local $dependency.receiver : Derived<T0>
-    val local67
-      Local $equality.lhs : Int
     val local68
+      Local $equality.lhs : Int
+    val local69
       CallableCall function_type1 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call localRead<T0, Derived<T0>> : T0
           Local $parameter.value : Derived<T0>
           Local $parameter.chosen : T0
-    val local69
+    val local70
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean

@@ -169,6 +169,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb14 if.merge.14
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.argument.0: Choice<Int>
         Type Choice<Int>
         Local value
@@ -219,7 +222,7 @@ Module
         Local $dependency.parameter.selected
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.4
       val $dependency.argument.0: Int

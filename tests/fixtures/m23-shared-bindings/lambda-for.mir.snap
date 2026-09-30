@@ -72,6 +72,9 @@ Module
           CaptureInit field=0
             Type (Int) -> Int
             Local read
+      val $callable.receiver: (Pair<Int>) -> Int
+        Type (Pair<Int>) -> Int
+        Local consume
       val $dependency.argument.0: Int
         Type Int
         Local seed
@@ -91,7 +94,7 @@ Module
         Local $dependency.parameter.right
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Pair<Int>) -> Int
-        Local consume
+        Local $callable.receiver
         Type Pair<Int>
         Local $call.1
       val $dependency.argument.0: Int
@@ -191,6 +194,9 @@ Module
           Type Option<Pair<Int>>
           Local $for.next.5
     bb4 while.exit.4
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: MutableArray<() -> Int>
         Type MutableArray<() -> Int>
         Local readers
@@ -441,7 +447,7 @@ Module
           Local $idx.8
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.10
       val $dependency.argument.0: Int

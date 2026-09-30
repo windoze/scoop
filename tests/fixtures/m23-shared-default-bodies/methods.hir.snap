@@ -63,6 +63,8 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
+    val local20
+      Local read : (T0) -> Int
     val local16
       Local seed : T0
     val local17
@@ -73,17 +75,17 @@ Module
     val local19
       Lambda lambda4 invoke=$lambda.0 captures=1 : () -> T0
         capture this binding1 : Local<T0>
-    val local20
+    val local21
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Local.select : T0
           Local $receiver : Local<T0>
           Local $parameter.next : () -> T0
-    val local21
+    val local22
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
         Local seed : T0
-    val local22
+    val local23
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -92,14 +94,16 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local23
-      Local first : Box<T0>
+    val local26
+      Local read : (T0) -> Int
     val local24
+      Local first : Box<T0>
+    val local25
       Lambda lambda6 invoke=$lambda captures=1 : () -> T0
-        capture $capture.0 binding33 : Box<T0>
+        capture $capture.0 binding34 : Box<T0>
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall select<T0> : T0
           Local $dependency.receiver : Box<T0>
           Local $dependency.parameter.next : () -> T0

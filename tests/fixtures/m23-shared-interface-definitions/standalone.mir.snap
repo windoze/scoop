@@ -313,6 +313,9 @@ Module
         Retype View<Unit, String>
           Type Swap<String, Unit>
           Local same
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: View<Unit, String>
         Type View<Unit, String>
         Local view
@@ -326,7 +329,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.1
       val $dependency.argument.0: Int
@@ -349,6 +352,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: Swap<String, Unit>
         Type Swap<String, Unit>
         Local remote
@@ -364,7 +370,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         Local $call.2
       val $dependency.argument.0: Int
@@ -498,6 +504,9 @@ Module
         Local $idx.2
         Type String
         Local $value.3
+      val $callable.receiver: (String) -> Int
+        Type (String) -> Int
+        Local read
       val $dependency.receiver: MutableArray<String>
         Type MutableArray<String>
         Local values
@@ -553,7 +562,7 @@ Module
     bb14 if.merge.14
       call $call.9: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
-        Local read
+        Local $callable.receiver
         Type String
         ArrayGet MutableArray<String>
           Type MutableArray<String>
@@ -598,6 +607,9 @@ Module
         Retype View<Unit, Unit>
           Type Swap<Unit, Unit>
           Local same
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: View<Unit, Unit>
         Type View<Unit, Unit>
         Local view
@@ -614,7 +626,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -637,6 +649,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: Swap<Unit, Unit>
         Type Swap<Unit, Unit>
         Local remote
@@ -655,7 +670,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         UnitLiteral
       val $dependency.argument.0: Int
@@ -789,6 +804,9 @@ Module
         Local $idx.2
         Type Unit
         Local $value.3
+      val $callable.receiver: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.receiver: MutableArray<Unit>
         Type MutableArray<Unit>
         Local values
@@ -844,7 +862,7 @@ Module
     bb14 if.merge.14
       call $call.5: Int = <closure:function_type1> closure[function_type1]
         Type (Unit) -> Int
-        Local read
+        Local $callable.receiver
         Type Unit
         ArrayGet MutableArray<Unit>
           Type MutableArray<Unit>
@@ -891,6 +909,9 @@ Module
         Retype View<Unit, Pair<Int, Unit>>
           Type Swap<Pair<Int, Unit>, Unit>
           Local same
+      val $callable.receiver: (Pair<Int, Unit>) -> Int
+        Type (Pair<Int, Unit>) -> Int
+        Local read
       val $dependency.receiver: View<Unit, Pair<Int, Unit>>
         Type View<Unit, Pair<Int, Unit>>
         Local view
@@ -904,7 +925,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Pair<Int, Unit>) -> Int
-        Local read
+        Local $callable.receiver
         Type Pair<Int, Unit>
         Local $call.1
       val $dependency.argument.0: Int
@@ -927,6 +948,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Pair<Int, Unit>) -> Int
+        Type (Pair<Int, Unit>) -> Int
+        Local read
       val $dependency.receiver: Swap<Pair<Int, Unit>, Unit>
         Type Swap<Pair<Int, Unit>, Unit>
         Local remote
@@ -942,7 +966,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Pair<Int, Unit>) -> Int
-        Local read
+        Local $callable.receiver
         Type Pair<Int, Unit>
         Local $call.2
       val $dependency.argument.0: Int
@@ -1076,6 +1100,9 @@ Module
         Local $idx.2
         Type Pair<Int, Unit>
         Local $value.3
+      val $callable.receiver: (Pair<Int, Unit>) -> Int
+        Type (Pair<Int, Unit>) -> Int
+        Local read
       val $dependency.receiver: MutableArray<Pair<Int, Unit>>
         Type MutableArray<Pair<Int, Unit>>
         Local values
@@ -1131,7 +1158,7 @@ Module
     bb14 if.merge.14
       call $call.9: Int = <closure:function_type2> closure[function_type2]
         Type (Pair<Int, Unit>) -> Int
-        Local read
+        Local $callable.receiver
         Type Pair<Int, Unit>
         ArrayGet MutableArray<Pair<Int, Unit>>
           Type MutableArray<Pair<Int, Unit>>
@@ -1176,6 +1203,9 @@ Module
         Retype View<Unit, Int>
           Type Swap<Int, Unit>
           Local same
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: View<Unit, Int>
         Type View<Unit, Int>
         Local view
@@ -1189,7 +1219,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       val $dependency.argument.0: Int
@@ -1212,6 +1242,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: Swap<Int, Unit>
         Type Swap<Int, Unit>
         Local remote
@@ -1227,7 +1260,7 @@ Module
         Local $dependency.parameter.next
       call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.2
       val $dependency.argument.0: Int
@@ -1361,6 +1394,9 @@ Module
         Local $idx.2
         Type Int
         Local $value.3
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: MutableArray<Int>
         Type MutableArray<Int>
         Local values
@@ -1416,7 +1452,7 @@ Module
     bb14 if.merge.14
       call $call.9: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         ArrayGet MutableArray<Int>
           Type MutableArray<Int>

@@ -230,6 +230,9 @@ Module
       call callback: () -> Int = @fn12 direct
         Type Int
         Local $dependency.parameter.value
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       call $dependency.argument.0: Int = <closure:function_type3> closure[function_type3]
         Type () -> Int
         Local callback
@@ -249,7 +252,7 @@ Module
         Local $dependency.parameter.select
       call $call.4: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       return

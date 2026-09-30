@@ -107,6 +107,8 @@ Module
       Local $shortCircuit.1 : Boolean
       return
         IntegerLiteral 1 : Int
+    val local40
+      Local inspect : (T0) -> Int
     val local35
       Local seed : T0
     val local36
@@ -118,16 +120,16 @@ Module
     val local39
       Lambda lambda3 invoke=$lambda captures=1 : () -> T0
         capture $capture.0 binding62 : T0
-    val local40
+    val local41
       CallableCall function_type1 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call defaultLambda<T0, Unit> : T0
           Local $dependency.parameter.seed : T0
           Local $dependency.parameter.marker : Unit
           Local $dependency.parameter.read : () -> T0
-    val local41
-      Local expected : Int
     val local42
+      Local expected : Int
+    val local43
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -136,27 +138,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local43
-      Local seed : T0
+    val local49
+      Local inspect : (T0) -> Int
     val local44
-      IntegerLiteral 0 : Int
+      Local seed : T0
     val local45
-      Local $dependency.argument.0 : T0
+      IntegerLiteral 0 : Int
     val local46
-      Local $dependency.argument.1 : Int
+      Local $dependency.argument.0 : T0
     val local47
+      Local $dependency.argument.1 : Int
+    val local48
       AnonymousFunction anonymous2 invoke=$anonymous captures=1 : () -> T0
         capture $capture.0 binding5 : T0
-    val local48
+    val local50
       CallableCall function_type1 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call defaultAnonymous<T0, Int> : T0
           Local $dependency.parameter.seed : T0
           Local $dependency.parameter.marker : Int
           Local $dependency.parameter.read : () -> T0
-    val local49
+    val local51
       Local expected : Int
-    val local50
+    val local52
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -165,25 +169,25 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local51
-      IntegerLiteral 42 : Int
-    val local52
-      UnitLiteral : Unit
     val local53
-      Local $dependency.argument.0 : Int
+      IntegerLiteral 42 : Int
     val local54
-      Local $dependency.argument.1 : Unit
+      UnitLiteral : Unit
     val local55
+      Local $dependency.argument.0 : Int
+    val local56
+      Local $dependency.argument.1 : Unit
+    val local57
       AnonymousFunction anonymous3 invoke=$anonymous captures=1 : () -> Int
         capture $capture.0 binding5 : Int
-    val local56
+    val local58
       Call defaultAnonymous<Int, Unit> : Int
         Local $dependency.parameter.seed : Int
         Local $dependency.parameter.marker : Unit
         Local $dependency.parameter.read : () -> Int
-    val local57
+    val local59
       IntegerLiteral 42 : Int
-    val local58
+    val local60
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -192,25 +196,25 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 4 : Int
-    val local59
-      IntegerLiteral 43 : Int
-    val local60
-      UnitLiteral : Unit
     val local61
-      Local $dependency.argument.0 : Int
+      IntegerLiteral 43 : Int
     val local62
-      Local $dependency.argument.1 : Unit
+      UnitLiteral : Unit
     val local63
+      Local $dependency.argument.0 : Int
+    val local64
+      Local $dependency.argument.1 : Unit
+    val local65
       AnonymousFunction anonymous4 invoke=$anonymous captures=1 : () -> Int
         capture $capture.0 binding5 : Int
-    val local64
+    val local66
       Call defaultAnonymous<Int, Unit> : Int
         Local $dependency.parameter.seed : Int
         Local $dependency.parameter.marker : Unit
         Local $dependency.parameter.read : () -> Int
-    val local65
+    val local67
       IntegerLiteral 43 : Int
-    val local66
+    val local68
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -219,29 +223,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 5 : Int
-    val local67
-      Local seed : T0
-    val local68
-      UnitLiteral : Unit
     val local69
-      Local $dependency.argument.0 : T0
+      Local seed : T0
     val local70
-      Local $dependency.argument.1 : Unit
+      UnitLiteral : Unit
     val local71
+      Local $dependency.argument.0 : T0
+    val local72
+      Local $dependency.argument.1 : Unit
+    val local73
       Call nested<T0, Unit> : () -> () -> T0
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.marker : Unit
-    val local72
+    val local74
       CallableCall function_type15 : () -> T0
         Local outer : () -> () -> T0
-    val local73
+    val local75
       CallableCall function_type1 : Int
         Local inspect : (T0) -> Int
         CallableCall function_type10 : T0
           Local inner : () -> T0
-    val local74
+    val local76
       Local expected : Int
-    val local75
+    val local77
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -250,27 +254,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 6 : Int
-    val local76
-      Local seed : T0
-    val local77
-      IntegerLiteral 0 : Int
+    val local83
+      Local inspect : (T0) -> Int
     val local78
-      Local $dependency.argument.0 : T0
+      Local seed : T0
     val local79
-      Local $dependency.argument.1 : Int
+      IntegerLiteral 0 : Int
     val local80
-      Lambda lambda5 invoke=$lambda captures=1 : () -> () -> T0
-        capture $capture.0 binding112 : T0
+      Local $dependency.argument.0 : T0
     val local81
+      Local $dependency.argument.1 : Int
+    val local82
+      Lambda lambda5 invoke=$lambda captures=1 : () -> () -> T0
+        capture $capture.0 binding114 : T0
+    val local84
       CallableCall function_type1 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call nestedDefault<T0, Int> : T0
           Local $dependency.parameter.seed : T0
           Local $dependency.parameter.marker : Int
           Local $dependency.parameter.read : () -> () -> T0
-    val local82
+    val local85
       Local expected : Int
-    val local83
+    val local86
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -279,28 +285,30 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 7 : Int
-    val local84
-      Local seed : T0
-    val local85
-      UnitLiteral : Unit
-    val local86
-      Local $argument.0 : T0
+    val local92
+      Local inspect : (T0) -> Int
     val local87
-      Local $argument.1 : Unit
+      Local seed : T0
     val local88
+      UnitLiteral : Unit
+    val local89
+      Local $argument.0 : T0
+    val local90
+      Local $argument.1 : Unit
+    val local91
       Lambda lambda6 invoke=$lambda.0 captures=2 : () -> T0
         capture seed binding0 : T0
         capture marker binding1 : Unit
-    val local89
+    val local93
       CallableCall function_type1 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call localDefault<T0, Unit> : T0
           Local $parameter.seed : T0
           Local $parameter.marker : Unit
           Local $parameter.read : () -> T0
-    val local90
+    val local94
       Local expected : Int
-    val local91
+    val local95
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -309,37 +317,37 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 8 : Int
-    val local92
+    val local96
       Local seed : T0
-    val local93
+    val local97
       Local $dependency.argument.0 : T0
-    val local94
+    val local98
       ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
-    val local95
+    val local99
       Local box : Box<T0>
-    val local96
+    val local100
       UnitLiteral : Unit
-    val local97
+    val local101
       Lambda lambda7 invoke=$lambda.2 captures=1 : (Box<T0>) -> Int
         capture inspect binding18 : (T0) -> Int
-    val local98
+    val local102
       Local $dependency.argument.0 : Box<T0>
-    val local99
+    val local103
       Local $dependency.argument.1 : Unit
-    val local100
+    val local104
       Local $dependency.argument.2 : (Box<T0>) -> Int
-    val local101
+    val local105
       Call readers<Box<T0>, Unit> : () -> Int
         Local $dependency.parameter.seed : Box<T0>
         Local $dependency.parameter.marker : Unit
         Local $dependency.parameter.inspect : (Box<T0>) -> Int
-    val local102
+    val local106
       CallableCall function_type7 : Int
         Local fromForeign : () -> Int
-    val local103
+    val local107
       Local expected : Int
-    val local104
+    val local108
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean

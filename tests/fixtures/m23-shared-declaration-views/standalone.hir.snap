@@ -131,6 +131,8 @@ Module
       Local $shortCircuit.1 : Boolean
       return
         IntegerLiteral 2 : Int
+    val local31
+      Local inspect : (T0) -> Int
     val local28
       Local box : Box<T0>
     val local29
@@ -139,32 +141,32 @@ Module
     val local30
       MethodCall Counter.next : Int
         Local $receiver : Counter
-    val local31
+    val local32
       CallableCall function_type1 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Box.read : T0
           Local $receiver : Box<T0>
           Local $parameter.ignored : Int
-    val local32
-      IntegerLiteral 42 : Int
     val local33
+      IntegerLiteral 42 : Int
+    val local34
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local37
+      val local38
         BoolLiteral true : Boolean
     else
-      val local34
+      val local35
         MethodCall Counter.$get$calls : Int
           Local counter : Counter
-      val local35
-        IntegerLiteral 1 : Int
       val local36
-        Local $dependency.argument.0 : Int
+        IntegerLiteral 1 : Int
       val local37
+        Local $dependency.argument.0 : Int
+      val local38
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -173,54 +175,54 @@ Module
       Local $shortCircuit.2 : Boolean
       return
         IntegerLiteral 3 : Int
-    val local38
+    val local39
       CallableCall function_type1 : Int
         Local inspect : (T0) -> Int
         CallableCall function_type3 : T0
           Local relay : (T0) -> T0
           Local seed : T0
-    val local39
-      IntegerLiteral 42 : Int
     val local40
+      IntegerLiteral 42 : Int
+    val local41
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local44
+      val local45
         BoolLiteral true : Boolean
     else
-      val local41
+      val local42
         CallableCall function_type1 : Int
           Local inspect : (T0) -> Int
           CallableCall function_type4 : T0
             Local bound : () -> T0
-      val local42
-        IntegerLiteral 42 : Int
       val local43
-        Local $dependency.argument.0 : Int
+        IntegerLiteral 42 : Int
       val local44
+        Local $dependency.argument.0 : Int
+      val local45
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
             Local $dependency.parameter.other : Int
     if
       Local $shortCircuit.3 : Boolean
-      val local48
+      val local49
         BoolLiteral true : Boolean
     else
-      val local45
+      val local46
         CallableCall function_type1 : Int
           Local inspect : (T0) -> Int
           CallableCall function_type3 : T0
             Local unbound : (T0) -> T0
             Local seed : T0
-      val local46
-        IntegerLiteral 42 : Int
       val local47
-        Local $dependency.argument.0 : Int
+        IntegerLiteral 42 : Int
       val local48
+        Local $dependency.argument.0 : Int
+      val local49
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -229,17 +231,17 @@ Module
       Local $shortCircuit.4 : Boolean
       return
         IntegerLiteral 4 : Int
-    val local49
-      ArrayLiteral : Array<T0>
     val local50
+      ArrayLiteral : Array<T0>
+    val local51
       ArrayLen : Long
         CallableCall function_type6 : Array<T0>
           Local packed : (T0, Array<T0>) -> Array<T0>
           Local seed : T0
           Local empty : Array<T0>
-    val local51
-      IntegerLiteral 0 : Long
     val local52
+      IntegerLiteral 0 : Long
+    val local53
       Local $dependency.argument.0 : Long
     if
       Unary Not : Boolean
@@ -248,56 +250,58 @@ Module
           Local $dependency.parameter.other : Long
       return
         IntegerLiteral 5 : Int
-    val local53
-      Local seed : T0
     val local54
-      Local $argument.0 : T0
+      Local seed : T0
     val local55
+      Local $argument.0 : T0
+    val local56
       ArrayLiteral : Array<T0>
         Local $parameter.fallback : T0
-    val local56
+    val local57
       ArrayLen : Long
         Call collect<T0> : Array<T0>
           Local $parameter.fallback : T0
           Local $parameter.values : Array<T0>
-    val local57
-      IntegerLiteral 1 : Long
     val local58
+      IntegerLiteral 1 : Long
+    val local59
       Local $dependency.argument.0 : Long
     if
       Unary Not : Boolean
         IntegerOperation long.equals <no-gc> : Boolean
           Local $dependency.receiver : Long
           Local $dependency.parameter.other : Long
-      val local68
+      val local70
         BoolLiteral true : Boolean
     else
-      val local59
-        Local seed : T0
+      val local66
+        Local inspect : (T0) -> Int
       val local60
-        Local $argument.0 : T0
+        Local seed : T0
       val local61
+        Local $argument.0 : T0
+      val local62
         ArrayLiteral : Array<T0>
           Local $parameter.fallback : T0
-      val local62
+      val local63
         Call collect<T0> : Array<T0>
           Local $parameter.fallback : T0
           Local $parameter.values : Array<T0>
-      val local63
-        IntegerLiteral 0 : Long
       val local64
-        Local $dependency.argument.0 : Long
+        IntegerLiteral 0 : Long
       val local65
+        Local $dependency.argument.0 : Long
+      val local67
         CallableCall function_type1 : Int
-          Local inspect : (T0) -> Int
+          Local $callable.receiver : (T0) -> Int
           Index ImmutableGet : T0
             Local $dependency.receiver : Array<T0>
             Local $dependency.parameter.index : Long
-      val local66
-        IntegerLiteral 42 : Int
-      val local67
-        Local $dependency.argument.0 : Int
       val local68
+        IntegerLiteral 42 : Int
+      val local69
+        Local $dependency.argument.0 : Int
+      val local70
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -306,32 +310,34 @@ Module
       Local $shortCircuit.5 : Boolean
       return
         IntegerLiteral 6 : Int
-    val local69
+    val local78
+      Local inspect : (T0) -> Int
+    val local71
       Local seed : T0
-    val local70
+    val local72
       ArrayLiteral : Array<T0>
         Local seed : T0
-    val local71
-      Local $argument.0 : T0
-    val local72
-      Local $argument.1 : Array<T0>
     val local73
+      Local $argument.0 : T0
+    val local74
+      Local $argument.1 : Array<T0>
+    val local75
       Call collect<T0> : Array<T0>
         Local $parameter.fallback : T0
         Local $parameter.values : Array<T0>
-    val local74
-      IntegerLiteral 0 : Long
-    val local75
-      Local $dependency.argument.0 : Long
     val local76
+      IntegerLiteral 0 : Long
+    val local77
+      Local $dependency.argument.0 : Long
+    val local79
       CallableCall function_type1 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Index ImmutableGet : T0
           Local $dependency.receiver : Array<T0>
           Local $dependency.parameter.index : Long
-    val local77
+    val local80
       IntegerLiteral 42 : Int
-    val local78
+    val local81
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -340,29 +346,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 7 : Int
-    val local79
+    val local82
       Local seed : T0
-    val local80
+    val local83
       Local seed : T0
-    val local81
+    val local84
       ArrayLiteral : Array<T0>
         Local seed : T0
-    val local82
+    val local85
       Local $argument.0 : T0
-    val local83
+    val local86
       ArrayAssembly : Array<T0>
         Element
           Local $argument.1 : T0
         CopyArray
           Local $argument.2 : Array<T0>
-    val local84
+    val local87
       ArrayLen : Long
         Call collect<T0> : Array<T0>
           Local $parameter.fallback : T0
           Local $parameter.values : Array<T0>
-    val local85
+    val local88
       IntegerLiteral 2 : Long
-    val local86
+    val local89
       Local $dependency.argument.0 : Long
     if
       Unary Not : Boolean
@@ -371,49 +377,53 @@ Module
           Local $dependency.parameter.other : Long
       return
         IntegerLiteral 8 : Int
-    val local87
-      Local seed : T0
-    val local88
-      Local $argument.0 : T0
-    val local89
-      CallableReference reference7 target=identity captures=0 : (T0) -> T0
+    val local93
+      Local inspect : (T0) -> Int
     val local90
+      Local seed : T0
+    val local91
+      Local $argument.0 : T0
+    val local92
+      CallableReference reference7 target=identity captures=0 : (T0) -> T0
+    val local94
       CallableCall function_type1 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call copy<T0> : T0
           Local $parameter.value : T0
           Local $parameter.operation : (T0) -> T0
-    val local91
+    val local95
       IntegerLiteral 42 : Int
-    val local92
+    val local96
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local100
+      val local105
         BoolLiteral true : Boolean
     else
-      val local93
-        CallableReference reference8 target=identity captures=0 : (T0) -> T0
-      val local94
-        Local seed : T0
-      val local95
-        Local $argument.1 : T0
-      val local96
-        Local $argument.0 : (T0) -> T0
+      val local101
+        Local inspect : (T0) -> Int
       val local97
+        CallableReference reference8 target=identity captures=0 : (T0) -> T0
+      val local98
+        Local seed : T0
+      val local99
+        Local $argument.1 : T0
+      val local100
+        Local $argument.0 : (T0) -> T0
+      val local102
         CallableCall function_type1 : Int
-          Local inspect : (T0) -> Int
+          Local $callable.receiver : (T0) -> Int
           Call copy<T0> : T0
             Local $parameter.value : T0
             Local $parameter.operation : (T0) -> T0
-      val local98
+      val local103
         IntegerLiteral 42 : Int
-      val local99
+      val local104
         Local $dependency.argument.0 : Int
-      val local100
+      val local105
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int

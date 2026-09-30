@@ -268,6 +268,8 @@ Module
       Local $shortCircuit.3 : Boolean
       return
         IntegerLiteral 3 : Int
+    val local79
+      Local read : (T0) -> Int
     val local75
       CallableReference reference3 target=identity<T0> captures=0 : (T0) -> T0
     val local71
@@ -288,7 +290,7 @@ Module
       Local $argument.1 : T0
     return
       CallableCall function_type1 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call localReference<T0> : T0
           Local $parameter.action : (T0) -> T0
           Local $parameter.seed : T0

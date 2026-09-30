@@ -135,6 +135,8 @@ Module
       Local $shortCircuit.1 : Boolean
       return
         IntegerLiteral 1 : Int
+    val local40
+      Local inspect : (T0) -> Int
     val local35
       Local seed : T0
     val local36
@@ -146,16 +148,16 @@ Module
     val local39
       Lambda lambda6 invoke=$lambda.0 captures=1 : () -> T0
         capture seed binding0 : T0
-    val local40
+    val local41
       CallableCall function_type8 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call defaultLambda<T0, Unit> : T0
           Local $parameter.seed : T0
           Local $parameter.marker : Unit
           Local $parameter.read : () -> T0
-    val local41
-      Local expected : Int
     val local42
+      Local expected : Int
+    val local43
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -164,27 +166,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local43
-      Local seed : T0
+    val local49
+      Local inspect : (T0) -> Int
     val local44
-      IntegerLiteral 0 : Int
+      Local seed : T0
     val local45
-      Local $argument.0 : T0
+      IntegerLiteral 0 : Int
     val local46
-      Local $argument.1 : Int
+      Local $argument.0 : T0
     val local47
+      Local $argument.1 : Int
+    val local48
       AnonymousFunction anonymous4 invoke=$anonymous.0 captures=1 : () -> T0
         capture seed binding3 : T0
-    val local48
+    val local50
       CallableCall function_type8 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call defaultAnonymous<T0, Int> : T0
           Local $parameter.seed : T0
           Local $parameter.marker : Int
           Local $parameter.read : () -> T0
-    val local49
+    val local51
       Local expected : Int
-    val local50
+    val local52
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -193,25 +197,25 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local51
-      IntegerLiteral 42 : Int
-    val local52
-      UnitLiteral : Unit
     val local53
-      Local $argument.0 : Int
+      IntegerLiteral 42 : Int
     val local54
-      Local $argument.1 : Unit
+      UnitLiteral : Unit
     val local55
+      Local $argument.0 : Int
+    val local56
+      Local $argument.1 : Unit
+    val local57
       AnonymousFunction anonymous5 invoke=$anonymous.0 captures=1 : () -> Int
         capture seed binding3 : Int
-    val local56
+    val local58
       Call defaultAnonymous<Int, Unit> : Int
         Local $parameter.seed : Int
         Local $parameter.marker : Unit
         Local $parameter.read : () -> Int
-    val local57
+    val local59
       IntegerLiteral 42 : Int
-    val local58
+    val local60
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -220,25 +224,25 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 4 : Int
-    val local59
-      IntegerLiteral 43 : Int
-    val local60
-      UnitLiteral : Unit
     val local61
-      Local $argument.0 : Int
+      IntegerLiteral 43 : Int
     val local62
-      Local $argument.1 : Unit
+      UnitLiteral : Unit
     val local63
+      Local $argument.0 : Int
+    val local64
+      Local $argument.1 : Unit
+    val local65
       AnonymousFunction anonymous6 invoke=$anonymous.0 captures=1 : () -> Int
         capture seed binding3 : Int
-    val local64
+    val local66
       Call defaultAnonymous<Int, Unit> : Int
         Local $parameter.seed : Int
         Local $parameter.marker : Unit
         Local $parameter.read : () -> Int
-    val local65
+    val local67
       IntegerLiteral 43 : Int
-    val local66
+    val local68
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -247,29 +251,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 5 : Int
-    val local67
-      Local seed : T0
-    val local68
-      UnitLiteral : Unit
     val local69
-      Local $argument.0 : T0
+      Local seed : T0
     val local70
-      Local $argument.1 : Unit
+      UnitLiteral : Unit
     val local71
+      Local $argument.0 : T0
+    val local72
+      Local $argument.1 : Unit
+    val local73
       Call nested<T0, Unit> : () -> () -> T0
         Local $parameter.seed : T0
         Local $parameter.marker : Unit
-    val local72
+    val local74
       CallableCall function_type12 : () -> T0
         Local outer : () -> () -> T0
-    val local73
+    val local75
       CallableCall function_type8 : Int
         Local inspect : (T0) -> Int
         CallableCall function_type11 : T0
           Local inner : () -> T0
-    val local74
+    val local76
       Local expected : Int
-    val local75
+    val local77
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -278,27 +282,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 6 : Int
-    val local76
-      Local seed : T0
-    val local77
-      IntegerLiteral 0 : Int
+    val local83
+      Local inspect : (T0) -> Int
     val local78
-      Local $argument.0 : T0
+      Local seed : T0
     val local79
-      Local $argument.1 : Int
+      IntegerLiteral 0 : Int
     val local80
+      Local $argument.0 : T0
+    val local81
+      Local $argument.1 : Int
+    val local82
       Lambda lambda7 invoke=$lambda.1 captures=1 : () -> () -> T0
         capture seed binding6 : T0
-    val local81
+    val local84
       CallableCall function_type8 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call nestedDefault<T0, Int> : T0
           Local $parameter.seed : T0
           Local $parameter.marker : Int
           Local $parameter.read : () -> () -> T0
-    val local82
+    val local85
       Local expected : Int
-    val local83
+    val local86
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean

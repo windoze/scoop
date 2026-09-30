@@ -184,21 +184,23 @@ Module
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local19
+      val local20
         BoolLiteral true : Boolean
     else
+      val local16
+        Local inspect : (T0) -> Int
       val local15
         Local second : T0
-      val local16
+      val local17
         CallableCall function_type1 : Int
-          Local inspect : (T0) -> Int
+          Local $callable.receiver : (T0) -> Int
           Call $local.6.read<T0> : T0
             Local $parameter.value : T0
-      val local17
-        IntegerLiteral 42 : Int
       val local18
-        Local $dependency.argument.0 : Int
+        IntegerLiteral 42 : Int
       val local19
+        Local $dependency.argument.0 : Int
+      val local20
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -207,13 +209,13 @@ Module
       Local $shortCircuit.2 : Boolean
       return
         IntegerLiteral 1 : Int
-    val local20
-      Local seed : T0
     val local21
-      Local inspect : (T0) -> Int
+      Local seed : T0
     val local22
-      Local $argument.0 : T0
+      Local inspect : (T0) -> Int
     val local23
+      Local $argument.0 : T0
+    val local24
       Local $argument.1 : (T0) -> Int
     return
       Call measure<T0> : Int

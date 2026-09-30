@@ -42,16 +42,17 @@ Module
     local %11 $dependency.argument.0: i32
     local %12 $dependency.parameter.other: i32
     local %13 $parameter.value: i32
-    local %14 $dependency.receiver: i32
-    local %15 $dependency.argument.0: i32
-    local %16 $dependency.parameter.other: i32
-    local %17 $shortCircuit.2: i1
-    local %18 $argument.0: i32
-    local %19 $argument.1: ptr<managed>
-    local %20 $parameter.seed: i32
-    local %21 $parameter.inspect: ptr<managed>
-    local %22 $call.1: i32
-    local %23 $call.2: i32
+    local %14 $callable.receiver: ptr<managed>
+    local %15 $dependency.receiver: i32
+    local %16 $dependency.argument.0: i32
+    local %17 $dependency.parameter.other: i32
+    local %18 $shortCircuit.2: i1
+    local %19 $argument.0: i32
+    local %20 $argument.1: ptr<managed>
+    local %21 $parameter.seed: i32
+    local %22 $parameter.inspect: ptr<managed>
+    local %23 $call.1: i32
+    local %24 $call.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     store param0 -> local0
@@ -75,32 +76,33 @@ Module
     t5 = Not t4 : i1
     cbr t5 then @if.then.1 else @if.else.2
   block if.then.1
-    store true -> local17
+    store true -> local18
     br @if.merge.3
   block if.else.2
+    store param1 -> local14
     store local9 -> local13
-    call managed-direct-target3 sp<managed-call:3> live=[param1:ptr<managed>@0] t6 = sig=direct3 (i32) -> i32 local-fn5(local13)
-    store t6 -> local22
-    call managed-direct-target4 sp<managed-call:4> live=[param1:ptr<managed>@0] t7 = sig=direct4 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local22)
-    store t7 -> local14
-    store integer<Int>(0x0000002a) -> local15
-    store local15 -> local16
-    t8 = integer_compare_Equal<Int> local14, local16 : i1
+    call managed-direct-target3 sp<managed-call:3> live=[param1:ptr<managed>@0, local14:ptr<managed>@0] t6 = sig=direct3 (i32) -> i32 local-fn5(local13)
+    store t6 -> local23
+    call managed-direct-target4 sp<managed-call:4> live=[param1:ptr<managed>@0, local14:ptr<managed>@0] t7 = sig=direct4 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local14(local14, local23)
+    store t7 -> local15
+    store integer<Int>(0x0000002a) -> local16
+    store local16 -> local17
+    t8 = integer_compare_Equal<Int> local15, local17 : i1
     t9 = Not t8 : i1
-    store t9 -> local17
+    store t9 -> local18
     br @if.merge.3
   block if.merge.3
-    cbr local17 then @if.then.4 else @if.merge.5
+    cbr local18 then @if.then.4 else @if.merge.5
   block if.then.4
     ret integer<Int>(0x00000001)
   block if.merge.5
-    store param0 -> local18
-    store param1 -> local19
-    store local18 -> local20
+    store param0 -> local19
+    store param1 -> local20
     store local19 -> local21
-    call managed-direct-target5 sp<managed-call:5> live=[local21:ptr<managed>@0] t10 = sig=direct5 (i32, ptr<managed>) -> i32 local-fn6(local20, local21)
-    store t10 -> local23
-    ret local23
+    store local20 -> local22
+    call managed-direct-target5 sp<managed-call:5> live=[local22:ptr<managed>@0] t10 = sig=direct5 (i32, ptr<managed>) -> i32 local-fn6(local21, local22)
+    store t10 -> local24
+    ret local24
   fun @scoop$1$cb$998e9b0933caac3b83d75d2b709d9683c4d831c75f444cb782c52c330b44c5b9(i32, elided-zst<{} size=0 align=1>) -> i32
     local %0 $argument.0: i32
     local %1 $parameter.depth: i32

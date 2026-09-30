@@ -209,6 +209,9 @@ Module
           Local this
   fun apply @fn2(this: Readable<Int>, action: (Int) -> Int) -> Int
     bb0 entry
+      val $dependency.local.3: (Int) -> Int
+        Type (Int) -> Int
+        Local action
       val $dependency.local.2: Readable<Int>
         Type Readable<Int>
         Local this
@@ -217,7 +220,7 @@ Module
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local action
+        Local $dependency.local.3
         Type Int
         Local $call.1
       return
@@ -1189,6 +1192,9 @@ Module
           Local this
   fun apply @fn13(this: Readable<String>, action: (String) -> Int) -> Int
     bb0 entry
+      val $dependency.local.3: (String) -> Int
+        Type (String) -> Int
+        Local action
       val $dependency.local.2: Readable<String>
         Type Readable<String>
         Local this
@@ -1197,7 +1203,7 @@ Module
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type1> closure[function_type1]
         Type (String) -> Int
-        Local action
+        Local $dependency.local.3
         Type String
         Local $call.1
       return
@@ -1342,6 +1348,9 @@ Module
       return
   fun apply @fn20(this: Readable<Unit>, action: (Unit) -> Int) -> Int
     bb0 entry
+      val $dependency.local.3: (Unit) -> Int
+        Type (Unit) -> Int
+        Local action
       val $dependency.local.2: Readable<Unit>
         Type Readable<Unit>
         Local this
@@ -1350,7 +1359,7 @@ Module
         Local $dependency.local.2
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
-        Local action
+        Local $dependency.local.3
         Type Unit
         UnitLiteral
       return

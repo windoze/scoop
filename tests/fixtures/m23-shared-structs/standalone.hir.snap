@@ -10,16 +10,18 @@ Module
     val local5
       Box : Reader<T0>
         Local remote : RemoteCell<T0>
+    val local7
+      Local read : (T0) -> Int
     val local6
       Local receiver : Reader<T0>
-    val local7
+    val local8
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall read<T0> : T0
           Local $dependency.receiver : Reader<T0>
-    val local8
-      IntegerLiteral 42 : Int
     val local9
+      IntegerLiteral 42 : Int
+    val local10
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -28,25 +30,27 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 1 : Int
-    val local10
+    val local13
+      Local read : (T0) -> Int
+    val local11
       FieldAccess field 1 : Option<T0>
         Local remote : RemoteCell<T0>
     if
       IsSome : Boolean
         Local $opt.0 : Option<T0>
-      val local11
+      val local12
         Unwrap trap=false : T0
           Local $opt.0 : Option<T0>
     else
-      val local11
+      val local12
         Local value : T0
-    val local12
-      CallableCall function_type0 : Int
-        Local read : (T0) -> Int
-        Local $res.1 : T0
-    val local13
-      IntegerLiteral 42 : Int
     val local14
+      CallableCall function_type0 : Int
+        Local $callable.receiver : (T0) -> Int
+        Local $res.1 : T0
+    val local15
+      IntegerLiteral 42 : Int
+    val local16
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -55,25 +59,25 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local15
-      IntegerLiteral 20 : Int
-    val local16
-      IntegerLiteral 22 : Int
     val local17
-      Local $dependency.argument.0 : Int
+      IntegerLiteral 20 : Int
     val local18
-      Local $dependency.argument.1 : Int
+      IntegerLiteral 22 : Int
     val local19
+      Local $dependency.argument.0 : Int
+    val local20
+      Local $dependency.argument.1 : Int
+    val local21
       Call external #0 : NativePair
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Int
-    val local20
+    val local22
       FieldAccess field 0 : Int
         Local pair : NativePair
-    val local21
+    val local23
       FieldAccess field 1 : Int
         Local pair : NativePair
-    val local22
+    val local24
       Local $dependency.argument.0 : Int
     return
       IntegerOperation int.add <no-gc> : Int

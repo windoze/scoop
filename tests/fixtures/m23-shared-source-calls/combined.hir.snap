@@ -101,13 +101,15 @@ Module
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.callback : () -> T0
     LocalFunction local0 body=$local.0.local captures=0
+    val local37
+      Local read : (T0) -> Int
     val local35
       Local selected : T0
     val local36
       Local $argument.0 : T0
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call $local.0.local<T0> : T0
           Local $parameter.value : T0
   fun result(): Int

@@ -72,38 +72,44 @@ Module
     val local5
       Box : Reader<T0>
         Local reader : ValueReader<T0>
+    val local7
+      Local read : (T0) -> Int
     val local6
       Local protocol : Reader<T0>
-    val local10
-      CallableCall function_type0 : Int
-        Local read : (T0) -> Int
-        MethodCall Reader.again : T0
-          Local $receiver : Reader<T0>
-    val local7
-      Local reader : ValueReader<T0>
-    val local8
-      Local value : T0
-    val local9
-      Local $argument.0 : T0
-    val local11
-      Local $equality.lhs : Int
     val local12
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
+        MethodCall Reader.again : T0
+          Local $receiver : Reader<T0>
+    val local11
+      Local read : (T0) -> Int
+    val local8
+      Local reader : ValueReader<T0>
+    val local9
+      Local value : T0
+    val local10
+      Local $argument.0 : T0
+    val local13
+      Local $equality.lhs : Int
+    val local14
+      CallableCall function_type0 : Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall ValueReader.read : T0
           Local $receiver : ValueReader<T0>
           Local $parameter.fallback : T0
-    val local13
+    val local15
       Local $dependency.argument.0 : Int
     if
       IntegerOperation int.equals <no-gc> : Boolean
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
-      val local14
+      val local17
+        Local read : (T0) -> Int
+      val local16
         Local reader : ValueReader<T0>
       assign $result.2
         CallableCall function_type0 : Int
-          Local read : (T0) -> Int
+          Local $callable.receiver : (T0) -> Int
           MethodCall ValueReader.read : T0
             Local $receiver : ValueReader<T0>
     else

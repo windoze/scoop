@@ -34,6 +34,8 @@ Module
     val local14
       ClassInit Host<T0> : Host<T0>
         Local $dependency.parameter.value : T0
+    val local20
+      Local read : (T0) -> Int
     val local15
       Local host : Host<T0>
     val local16
@@ -44,16 +46,16 @@ Module
       Local $dependency.argument.0 : (T0) -> T0
     val local19
       Local $dependency.argument.1 : T0
-    val local20
+    val local21
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall transform<T0, T0> : T0
           Local $dependency.receiver : Host<T0>
           Local $dependency.parameter.action : (T0) -> T0
           Local $dependency.parameter.seed : T0
-    val local21
-      IntegerLiteral 42 : Int
     val local22
+      IntegerLiteral 42 : Int
+    val local23
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -62,13 +64,13 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 6 : Int
-    val local23
-      Local seed : T0
     val local24
-      Local read : (T0) -> Int
+      Local seed : T0
     val local25
-      Local $dependency.argument.0 : T0
+      Local read : (T0) -> Int
     val local26
+      Local $dependency.argument.0 : T0
+    val local27
       Local $dependency.argument.1 : (T0) -> Int
     return
       Call exercise<T0> : Int

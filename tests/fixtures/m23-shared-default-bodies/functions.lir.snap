@@ -108,31 +108,35 @@ Module
     local %11 $dependency.argument.0: i32
     local %12 $dependency.parameter.value: i32
     local %13 $dependency.parameter.next: ptr<managed>
-    local %14 $dependency.receiver: i32
-    local %15 $dependency.argument.0: i32
-    local %16 $dependency.parameter.other: i32
-    local %17 $dependency.argument.0: i32
-    local %18 $dependency.parameter.value: i32
-    local %19 $dependency.parameter.next: ptr<managed>
-    local %20 $dependency.receiver: i32
-    local %21 $dependency.argument.0: i32
-    local %22 $dependency.parameter.other: i32
+    local %14 $callable.receiver: ptr<managed>
+    local %15 $dependency.receiver: i32
+    local %16 $dependency.argument.0: i32
+    local %17 $dependency.parameter.other: i32
+    local %18 $dependency.argument.0: i32
+    local %19 $dependency.parameter.value: i32
+    local %20 $dependency.parameter.next: ptr<managed>
+    local %21 $callable.receiver: ptr<managed>
+    local %22 $dependency.receiver: i32
     local %23 $dependency.argument.0: i32
-    local %24 $dependency.parameter.value: i32
-    local %25 $dependency.parameter.first: ptr<managed>
-    local %26 $dependency.parameter.second: ptr<managed>
-    local %27 $dependency.receiver: i32
-    local %28 $dependency.argument.0: i32
-    local %29 $dependency.parameter.other: i32
-    local %30 $dependency.argument.0: i32
-    local %31 $dependency.parameter.value: i32
-    local %32 $dependency.parameter.next: ptr<managed>
-    local %33 $call.1: ptr<managed>
-    local %34 $call.2: i32
-    local %35 $call.3: i32
-    local %36 $call.4: i32
-    local %37 $call.5: i32
-    local %38 $call.6: i32
+    local %24 $dependency.parameter.other: i32
+    local %25 $dependency.argument.0: i32
+    local %26 $dependency.parameter.value: i32
+    local %27 $dependency.parameter.first: ptr<managed>
+    local %28 $dependency.parameter.second: ptr<managed>
+    local %29 $callable.receiver: ptr<managed>
+    local %30 $dependency.receiver: i32
+    local %31 $dependency.argument.0: i32
+    local %32 $dependency.parameter.other: i32
+    local %33 $dependency.argument.0: i32
+    local %34 $dependency.parameter.value: i32
+    local %35 $dependency.parameter.next: ptr<managed>
+    local %36 $callable.receiver: ptr<managed>
+    local %37 $call.1: ptr<managed>
+    local %38 $call.2: i32
+    local %39 $call.3: i32
+    local %40 $call.4: i32
+    local %41 $call.5: i32
+    local %42 $call.6: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, param0)
@@ -154,11 +158,11 @@ Module
   block if.merge.2
     store integer<Int>(0x00000000) -> local6
     call managed-direct-target3 sp<managed-call:3> live=[param1:ptr<managed>@0] t6 = sig=direct3 () -> ptr<managed> external-fn2()
-    store t6 -> local33
-    call managed-direct-target4 sp<managed-call:4> live=[param1:ptr<managed>@0, local33:ptr<managed>@0] t7 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
+    store t6 -> local37
+    call managed-direct-target4 sp<managed-call:4> live=[param1:ptr<managed>@0, local37:ptr<managed>@0] t7 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(32)))
     t8 = function_address @scoop$1$cb$8028ab2af6e8940f3df4243f7dafcd3c4fe2055170ee683dbbf0ae170cd59476 : ptr
     heap_store t7 +16 t8
-    heap_store t7 +24 local33
+    heap_store t7 +24 local37
     store t7 -> local7
     call managed-direct-target5 sp<managed-call:5> live=[param1:ptr<managed>@0, local7:ptr<managed>@0] t9 = sig=direct5 (i32, ptr<managed>) -> i32 external-fn3(local6, local7)
     store t9 -> local8
@@ -170,76 +174,80 @@ Module
   block if.then.3
     ret integer<Int>(0x00000005)
   block if.merge.4
+    store param1 -> local14
     store param0 -> local11
     store local11 -> local12
-    call managed-direct-target6 sp<managed-call:6> live=[param1:ptr<managed>@0] t12 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(32)))
+    call managed-direct-target6 sp<managed-call:6> live=[param1:ptr<managed>@0, local14:ptr<managed>@0] t12 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(32)))
     t13 = function_address @scoop$1$cb$d3a0f943ba962cb30fdbfe018caa90cc5ed2eb23a293c286b5d69dc466abd0cf : ptr
     heap_store t12 +16 t13
     heap_store t12 +24 local12
     store t12 -> local13
-    call managed-direct-target7 sp<managed-call:7> live=[param1:ptr<managed>@0, local13:ptr<managed>@0] t14 = sig=direct7 (i32, ptr<managed>) -> i32 local-fn6(local12, local13)
-    store t14 -> local34
-    call managed-direct-target8 sp<managed-call:8> live=[param1:ptr<managed>@0] t15 = sig=direct8 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local34)
-    store t15 -> local14
-    store local0 -> local15
-    store local15 -> local16
-    t16 = integer_compare_Equal<Int> local14, local16 : i1
+    call managed-direct-target7 sp<managed-call:7> live=[param1:ptr<managed>@0, local13:ptr<managed>@0, local14:ptr<managed>@0] t14 = sig=direct7 (i32, ptr<managed>) -> i32 local-fn6(local12, local13)
+    store t14 -> local38
+    call managed-direct-target8 sp<managed-call:8> live=[param1:ptr<managed>@0, local14:ptr<managed>@0] t15 = sig=direct8 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local14(local14, local38)
+    store t15 -> local15
+    store local0 -> local16
+    store local16 -> local17
+    t16 = integer_compare_Equal<Int> local15, local17 : i1
     t17 = Not t16 : i1
     cbr t17 then @if.then.5 else @if.merge.6
   block if.then.5
     ret integer<Int>(0x00000001)
   block if.merge.6
-    store param0 -> local17
-    store local17 -> local18
-    call managed-direct-target9 sp<managed-call:9> live=[param1:ptr<managed>@0] t18 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(32)))
+    store param1 -> local21
+    store param0 -> local18
+    store local18 -> local19
+    call managed-direct-target9 sp<managed-call:9> live=[param1:ptr<managed>@0, local21:ptr<managed>@0] t18 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(32)))
     t19 = function_address @scoop$1$cb$80b6ee0d214cb456d6666f099d07684a5c6eb0f72814e7f938109c309a3dd413 : ptr
     heap_store t18 +16 t19
-    heap_store t18 +24 local18
-    store t18 -> local19
-    call managed-direct-target10 sp<managed-call:10> live=[param1:ptr<managed>@0, local19:ptr<managed>@0] t20 = sig=direct10 (i32, ptr<managed>) -> i32 local-fn8(local18, local19)
-    store t20 -> local35
-    call managed-direct-target11 sp<managed-call:11> live=[param1:ptr<managed>@0] t21 = sig=direct11 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local35)
-    store t21 -> local20
-    store local0 -> local21
-    store local21 -> local22
-    t22 = integer_compare_Equal<Int> local20, local22 : i1
+    heap_store t18 +24 local19
+    store t18 -> local20
+    call managed-direct-target10 sp<managed-call:10> live=[param1:ptr<managed>@0, local20:ptr<managed>@0, local21:ptr<managed>@0] t20 = sig=direct10 (i32, ptr<managed>) -> i32 local-fn8(local19, local20)
+    store t20 -> local39
+    call managed-direct-target11 sp<managed-call:11> live=[param1:ptr<managed>@0, local21:ptr<managed>@0] t21 = sig=direct11 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local21(local21, local39)
+    store t21 -> local22
+    store local0 -> local23
+    store local23 -> local24
+    t22 = integer_compare_Equal<Int> local22, local24 : i1
     t23 = Not t22 : i1
     cbr t23 then @if.then.7 else @if.merge.8
   block if.then.7
     ret integer<Int>(0x00000002)
   block if.merge.8
-    store param0 -> local23
-    store local23 -> local24
-    call managed-direct-target12 sp<managed-call:12> live=[param1:ptr<managed>@0] t24 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(32)))
+    store param1 -> local29
+    store param0 -> local25
+    store local25 -> local26
+    call managed-direct-target12 sp<managed-call:12> live=[param1:ptr<managed>@0, local29:ptr<managed>@0] t24 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(32)))
     t25 = function_address @scoop$1$cb$ae03e25151ff1cbe30966f413ac5d639a7741a943f66376f06e214b47eea78b0 : ptr
     heap_store t24 +16 t25
-    heap_store t24 +24 local24
-    store t24 -> local25
-    store local25 -> local26
-    call managed-direct-target13 sp<managed-call:13> live=[param1:ptr<managed>@0, local25:ptr<managed>@0, local26:ptr<managed>@0] t26 = sig=direct13 (i32, ptr<managed>, ptr<managed>) -> i32 local-fn10(local24, local25, local26)
-    store t26 -> local36
-    call managed-direct-target14 sp<managed-call:14> live=[param1:ptr<managed>@0] t27 = sig=direct14 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local36)
-    store t27 -> local27
-    store local0 -> local28
-    store local28 -> local29
-    t28 = integer_compare_Equal<Int> local27, local29 : i1
+    heap_store t24 +24 local26
+    store t24 -> local27
+    store local27 -> local28
+    call managed-direct-target13 sp<managed-call:13> live=[param1:ptr<managed>@0, local27:ptr<managed>@0, local28:ptr<managed>@0, local29:ptr<managed>@0] t26 = sig=direct13 (i32, ptr<managed>, ptr<managed>) -> i32 local-fn10(local26, local27, local28)
+    store t26 -> local40
+    call managed-direct-target14 sp<managed-call:14> live=[param1:ptr<managed>@0, local29:ptr<managed>@0] t27 = sig=direct14 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local29(local29, local40)
+    store t27 -> local30
+    store local0 -> local31
+    store local31 -> local32
+    t28 = integer_compare_Equal<Int> local30, local32 : i1
     t29 = Not t28 : i1
     cbr t29 then @if.then.9 else @if.merge.10
   block if.then.9
     ret integer<Int>(0x00000003)
   block if.merge.10
-    store param0 -> local30
-    store local30 -> local31
-    call managed-direct-target15 sp<managed-call:15> live=[param1:ptr<managed>@0] t30 = sig=direct15 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(32)))
+    store param1 -> local36
+    store param0 -> local33
+    store local33 -> local34
+    call managed-direct-target15 sp<managed-call:15> live=[local36:ptr<managed>@0] t30 = sig=direct15 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(32)))
     t31 = function_address @scoop$1$cb$daae8eaef9fc4d656074489934a65ed84f79c3ff691907b53d2a16ffc8e06b1a : ptr
     heap_store t30 +16 t31
-    heap_store t30 +24 local31
-    store t30 -> local32
-    call managed-direct-target16 sp<managed-call:16> live=[param1:ptr<managed>@0, local32:ptr<managed>@0] t32 = sig=direct16 (i32, ptr<managed>) -> i32 local-fn12(local31, local32)
-    store t32 -> local37
-    call managed-direct-target17 sp<managed-call:17> live=[param1:ptr<managed>@0] t33 = sig=direct17 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local37)
-    store t33 -> local38
-    ret local38
+    heap_store t30 +24 local34
+    store t30 -> local35
+    call managed-direct-target16 sp<managed-call:16> live=[local35:ptr<managed>@0, local36:ptr<managed>@0] t32 = sig=direct16 (i32, ptr<managed>) -> i32 local-fn12(local34, local35)
+    store t32 -> local41
+    call managed-direct-target17 sp<managed-call:17> live=[local36:ptr<managed>@0] t33 = sig=direct17 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local36(local36, local41)
+    store t33 -> local42
+    ret local42
   fun @scoop$1$cb$62fbb26abde6b4f597d0188676b83897b2630561b3dbb337dfbbe0fab3ae10b1(i32) -> i32
     local %0 $dependency.local.0: i32
     local %1 $dependency.local.1: i32

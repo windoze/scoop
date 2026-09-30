@@ -419,6 +419,9 @@ Module
         Local read
         Type Int
         Local base
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $argument.0: Derived<Int>
         Type Derived<Int>
         Local box
@@ -441,7 +444,7 @@ Module
         Local $parameter.chosen
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.7
       val $dependency.parameter.other: Int

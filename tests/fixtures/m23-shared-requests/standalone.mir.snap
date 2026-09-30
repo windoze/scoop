@@ -130,6 +130,9 @@ Module
         Local value
   fun exercise @fn5(seed: Int, read: (Int) -> Int) -> Int
     bb0 entry
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $argument.0: Int
         Type Int
         Local seed
@@ -153,7 +156,7 @@ Module
         Local $dependency.parameter.value
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       return

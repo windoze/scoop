@@ -173,6 +173,8 @@ Module
         IntegerLiteral 4 : Int
     val local40
       Lambda lambda1 invoke=$lambda.1 captures=0 : (T0) -> T0
+    val local45
+      Local inspect : (T0) -> Int
     val local41
       Local identity : (T0) -> T0
     val local42
@@ -181,15 +183,15 @@ Module
       Local $argument.0 : (T0) -> T0
     val local44
       Local $argument.1 : T0
-    val local45
+    val local46
       CallableCall function_type4 : Int
-        Local inspect : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call map<T0, T0> : T0
           Local $parameter.operation : (T0) -> T0
           Local $parameter.value : T0
-    val local46
-      IntegerLiteral 42 : Int
     val local47
+      IntegerLiteral 42 : Int
+    val local48
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -198,23 +200,23 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 5 : Int
-    val local48
-      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
     val local49
-      IntegerLiteral 41 : Int
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
     val local50
-      Local $argument.0 : (Int) -> Int
+      IntegerLiteral 41 : Int
     val local51
-      Local $argument.1 : Int
+      Local $argument.0 : (Int) -> Int
     val local52
+      Local $argument.1 : Int
+    val local53
       Call map<Int, Int> : Int
         Local $parameter.operation : (Int) -> Int
         Local $parameter.value : Int
-    val local53
-      Local mapped : Int
     val local54
-      IntegerLiteral 42 : Int
+      Local mapped : Int
     val local55
+      IntegerLiteral 42 : Int
+    val local56
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -223,43 +225,43 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 6 : Int
-    val local56
-      ClassInit Counter : Counter
     val local57
-      IntegerLiteral 41 : Int
+      ClassInit Counter : Counter
     val local58
-      Lambda lambda3 invoke=$lambda.3 captures=1 : (Int) -> Int
-        capture counter binding81 : Counter
+      IntegerLiteral 41 : Int
     val local59
-      Local $argument.0 : Int
+      Lambda lambda3 invoke=$lambda.3 captures=1 : (Int) -> Int
+        capture counter binding82 : Counter
     val local60
-      Local $argument.1 : (Int) -> Int
+      Local $argument.0 : Int
     val local61
+      Local $argument.1 : (Int) -> Int
+    val local62
       Call choose<Int> : Int
         Local $parameter.value : Int
         Local $parameter.operation : (Int) -> Int
-    val local62
-      Local chosen : Int
     val local63
-      IntegerLiteral 42 : Int
+      Local chosen : Int
     val local64
+      IntegerLiteral 42 : Int
+    val local65
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local68
+      val local69
         BoolLiteral true : Boolean
     else
-      val local65
+      val local66
         MethodCall Counter.$get$calls : Int
           Local counter : Counter
-      val local66
-        IntegerLiteral 1 : Int
       val local67
-        Local $dependency.argument.0 : Int
+        IntegerLiteral 1 : Int
       val local68
+        Local $dependency.argument.0 : Int
+      val local69
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -268,21 +270,21 @@ Module
       Local $shortCircuit.2 : Boolean
       return
         IntegerLiteral 7 : Int
-    val local69
-      IntegerLiteral 41 : Int
     val local70
-      AnonymousFunction anonymous0 invoke=$anonymous.0 captures=0 : (Int) -> Int
+      IntegerLiteral 41 : Int
     val local71
-      Local $argument.0 : Int
+      AnonymousFunction anonymous0 invoke=$anonymous.0 captures=0 : (Int) -> Int
     val local72
-      Local $argument.1 : (Int) -> Int
+      Local $argument.0 : Int
     val local73
+      Local $argument.1 : (Int) -> Int
+    val local74
       Call plain : Int
         Local $parameter.value : Int
         Local $parameter.operation : (Int) -> Int
-    val local74
-      IntegerLiteral 42 : Int
     val local75
+      IntegerLiteral 42 : Int
+    val local76
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean

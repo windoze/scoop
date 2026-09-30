@@ -3,6 +3,8 @@ Module
     return
       Local value : T0
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local8
+      Local read : (T0) -> Int
     val local2
       Local seed : T0
     val local3
@@ -19,7 +21,7 @@ Module
       Local $dependency.argument.0 : T0
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call identity<T0> : T0
           Local $dependency.parameter.value : T0
   fun result(): Int

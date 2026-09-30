@@ -93,18 +93,20 @@ Module
         Local $dependency.receiver : Box<T0>
         Local $dependency.parameter.extra : Unit
         Local $dependency.parameter.select : (T0, Unit) -> Int
+    val local28
+      Local read : (T0) -> Int
     val local26
       Local value : T0
     val local27
       Local $dependency.argument.0 : T0
-    val local28
+    val local29
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call unchecked<T0> : T0
           Local $dependency.parameter.value : T0
-    val local29
-      Local selected : Int
     val local30
+      Local selected : Int
+    val local31
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -113,16 +115,16 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 1 : Int
-    val local31
-      Local box : Box<T0>
     val local32
-      IntegerLiteral 0 : Int
+      Local box : Box<T0>
     val local33
+      IntegerLiteral 0 : Int
+    val local34
       Lambda lambda3 invoke=$lambda.1 captures=1 : (T0, Int) -> Int
         capture read binding17 : (T0) -> Int
-    val local34
-      Local $dependency.argument.0 : Int
     val local35
+      Local $dependency.argument.0 : Int
+    val local36
       Local $dependency.argument.1 : (T0, Int) -> Int
     return
       MethodCall apply<T0, Int> : Int

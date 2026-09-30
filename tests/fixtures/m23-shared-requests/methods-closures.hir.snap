@@ -113,6 +113,8 @@ Module
     val local39
       Call factory<T0> : () -> T0
         Local $dependency.parameter.value : T0
+    val local44
+      Local read : (T0) -> Int
     val local40
       CallableCall function_type6 : T0
         Local callback : () -> T0
@@ -124,7 +126,7 @@ Module
       Local $dependency.argument.1 : (T0) -> T0
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call defaulted<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.select : (T0) -> T0

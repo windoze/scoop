@@ -1461,6 +1461,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb8 if.merge.8
+      val $dependency.local.48: (Large) -> Int
+        Type (Large) -> Int
+        Local read
       val $dependency.local.45: Array<Large>
         Type Array<Large>
         Local $dependency.local.2
@@ -1514,201 +1517,181 @@ Module
         Type IndexOutOfBoundsException
         Local $new.3
     bb13 if.merge.13
-      call $dependency.local.48: Int = <closure:function_type0> closure[function_type0]
+      call $dependency.local.49: Int = <closure:function_type0> closure[function_type0]
         Type (Large) -> Int
-        Local read
+        Local $dependency.local.48
         Type Large
         ArrayGet Array<Large>
           Type Array<Large>
           Local $arr.1
           Type Long
           Local $idx.2
-      val $dependency.local.49: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.50: Int
         Type Int
-        Local $dependency.local.49
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
       branch bb14 bb15
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.48
+            Local $dependency.local.49
             Type Int
-            Local $dependency.local.50
+            Local $dependency.local.51
     bb14 if.then.14
-      val $dependency.local.54: Boolean
+      val $dependency.local.55: Boolean
         Type Boolean
         BoolLiteral true
       goto bb16
     bb15 if.else.15
-      call $dependency.local.51: Int = <closure:function_type0> closure[function_type0]
+      call $dependency.local.52: Int = <closure:function_type0> closure[function_type0]
         Type (Large) -> Int
         Local read
         Type Large
         FieldAccess 1
           Type Pair<Large>
           Local $dependency.local.4
-      val $dependency.local.52: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.53: Int
         Type Int
-        Local $dependency.local.52
-      val $dependency.local.54: Boolean
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.55: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.51
+            Local $dependency.local.52
             Type Int
-            Local $dependency.local.53
+            Local $dependency.local.54
       goto bb16
     bb16 if.merge.16
       branch bb17 bb18
         Type Boolean
-        Local $dependency.local.54
+        Local $dependency.local.55
     bb17 if.then.17
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb18 if.merge.18
-      val $dependency.local.55: Choice<Large>
-        Type Choice<Large>
-        Local $dependency.local.5
-      val $dependency.local.56: Large
-        Type Large
-        Local seed
-      val $dependency.local.57: Choice<Large>
-        Type Choice<Large>
-        Local $dependency.local.55
-      val $dependency.local.58: Large
-        Type Large
-        Local $dependency.local.56
-      call $call.4: Large = @fn23 direct
-        Type Choice<Large>
-        Local $dependency.local.57
-        Type Large
-        Local $dependency.local.58
-      call $dependency.local.59: Int = <closure:function_type0> closure[function_type0]
+      val $dependency.local.60: (Large) -> Int
         Type (Large) -> Int
         Local read
+      val $dependency.local.56: Choice<Large>
+        Type Choice<Large>
+        Local $dependency.local.5
+      val $dependency.local.57: Large
+        Type Large
+        Local seed
+      val $dependency.local.58: Choice<Large>
+        Type Choice<Large>
+        Local $dependency.local.56
+      val $dependency.local.59: Large
+        Type Large
+        Local $dependency.local.57
+      call $call.4: Large = @fn23 direct
+        Type Choice<Large>
+        Local $dependency.local.58
+        Type Large
+        Local $dependency.local.59
+      call $dependency.local.61: Int = <closure:function_type0> closure[function_type0]
+        Type (Large) -> Int
+        Local $dependency.local.60
         Type Large
         Local $call.4
-      val $dependency.local.60: Int
+      val $dependency.local.62: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.61: Int
+      val $dependency.local.63: Int
         Type Int
-        Local $dependency.local.60
+        Local $dependency.local.62
       branch bb19 bb20
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.59
-            Type Int
             Local $dependency.local.61
+            Type Int
+            Local $dependency.local.63
     bb19 if.then.19
-      val $dependency.local.65: Boolean
+      val $dependency.local.67: Boolean
         Type Boolean
         BoolLiteral true
       goto bb21
     bb20 if.else.20
-      call $dependency.local.62: Int = <closure:function_type0> closure[function_type0]
+      call $dependency.local.64: Int = <closure:function_type0> closure[function_type0]
         Type (Large) -> Int
         Local read
         Type Large
         Local $dependency.local.7
-      val $dependency.local.63: Int
+      val $dependency.local.65: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.64: Int
+      val $dependency.local.66: Int
         Type Int
-        Local $dependency.local.63
-      val $dependency.local.65: Boolean
+        Local $dependency.local.65
+      val $dependency.local.67: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.62
-            Type Int
             Local $dependency.local.64
+            Type Int
+            Local $dependency.local.66
       goto bb21
     bb21 if.merge.21
       branch bb22 bb23
         Type Boolean
-        Local $dependency.local.65
+        Local $dependency.local.67
     bb22 if.then.22
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb23 if.merge.23
-      val $dependency.local.66: Host<Large>
+      val $dependency.local.73: (Large) -> Int
+        Type (Large) -> Int
+        Local read
+      val $dependency.local.68: Host<Large>
         Type Host<Large>
         Local $dependency.local.6
-      val $dependency.local.67: Array<Large>
-        Type Array<Large>
-        ArrayLiteral Array<Large>
-      val $dependency.local.68: Large
-        Type Large
-        Local seed
       val $dependency.local.69: Array<Large>
         Type Array<Large>
-        Local $dependency.local.67
+        ArrayLiteral Array<Large>
       val $dependency.local.70: Large
         Type Large
-        Local $dependency.local.68
-      call $call.5: Large = @fn24 direct
-        Type Host<Large>
-        Local $dependency.local.66
+        Local seed
+      val $dependency.local.71: Array<Large>
         Type Array<Large>
         Local $dependency.local.69
+      val $dependency.local.72: Large
         Type Large
         Local $dependency.local.70
-      call $dependency.local.71: Int = <closure:function_type0> closure[function_type0]
-        Type (Large) -> Int
-        Local read
+      call $call.5: Large = @fn24 direct
+        Type Host<Large>
+        Local $dependency.local.68
+        Type Array<Large>
+        Local $dependency.local.71
         Type Large
-        Local $call.5
-      val $dependency.local.72: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.73: Int
-        Type Int
         Local $dependency.local.72
-      branch bb24 bb25
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IntegerCompare equal operands=Int result=Boolean
-            Type Int
-            Local $dependency.local.71
-            Type Int
-            Local $dependency.local.73
-    bb24 if.then.24
-      val $dependency.local.77: Boolean
-        Type Boolean
-        BoolLiteral true
-      goto bb26
-    bb25 if.else.25
       call $dependency.local.74: Int = <closure:function_type0> closure[function_type0]
         Type (Large) -> Int
-        Local read
+        Local $dependency.local.73
         Type Large
-        Local $dependency.local.8
+        Local $call.5
       val $dependency.local.75: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.76: Int
         Type Int
         Local $dependency.local.75
-      val $dependency.local.77: Boolean
+      branch bb24 bb25
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -1717,45 +1700,71 @@ Module
             Local $dependency.local.74
             Type Int
             Local $dependency.local.76
+    bb24 if.then.24
+      val $dependency.local.80: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      call $dependency.local.77: Int = <closure:function_type0> closure[function_type0]
+        Type (Large) -> Int
+        Local read
+        Type Large
+        Local $dependency.local.8
+      val $dependency.local.78: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.79: Int
+        Type Int
+        Local $dependency.local.78
+      val $dependency.local.80: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.77
+            Type Int
+            Local $dependency.local.79
       goto bb26
     bb26 if.merge.26
       branch bb27 bb28
         Type Boolean
-        Local $dependency.local.77
+        Local $dependency.local.80
     bb27 if.then.27
       return
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
     bb28 if.merge.28
-      val $dependency.local.82: (Large) -> Int
+      val $dependency.local.85: (Large) -> Int
         Type (Large) -> Int
         Local read
-      call $dependency.local.78: Array<Large> = @fn25 direct
-      val $dependency.local.79: Large
+      call $dependency.local.81: Array<Large> = @fn25 direct
+      val $dependency.local.82: Large
         Type Large
         Local seed
-      val $dependency.local.80: Array<Large>
+      val $dependency.local.83: Array<Large>
         Type Array<Large>
-        Local $dependency.local.78
-      val $dependency.local.81: Large
-        Type Large
-        Local $dependency.local.79
-      call $dependency.local.83: Large = @fn26 direct
-        Type Array<Large>
-        Local $dependency.local.80
-        Type Large
         Local $dependency.local.81
-      val $dependency.local.84: (Large) -> Int
-        Type (Large) -> Int
-        Local $dependency.local.82
-      val $dependency.local.85: Large
+      val $dependency.local.84: Large
         Type Large
+        Local $dependency.local.82
+      call $dependency.local.86: Large = @fn26 direct
+        Type Array<Large>
         Local $dependency.local.83
+        Type Large
+        Local $dependency.local.84
+      val $dependency.local.87: (Large) -> Int
+        Type (Large) -> Int
+        Local $dependency.local.85
+      val $dependency.local.88: Large
+        Type Large
+        Local $dependency.local.86
       call $call.6: Int = @fn27 direct
         Type (Large) -> Int
-        Local $dependency.local.84
+        Local $dependency.local.87
         Type Large
-        Local $dependency.local.85
+        Local $dependency.local.88
       return
         Type Int
         Local $call.6
@@ -1972,6 +1981,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb8 if.merge.8
+      val $dependency.local.48: (Payload<Large>) -> Int
+        Type (Payload<Large>) -> Int
+        Local read
       val $dependency.local.45: Array<Payload<Large>>
         Type Array<Payload<Large>>
         Local $dependency.local.2
@@ -2025,201 +2037,181 @@ Module
         Type IndexOutOfBoundsException
         Local $new.3
     bb13 if.merge.13
-      call $dependency.local.48: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.49: Int = <closure:function_type1> closure[function_type1]
         Type (Payload<Large>) -> Int
-        Local read
+        Local $dependency.local.48
         Type Payload<Large>
         ArrayGet Array<Payload<Large>>
           Type Array<Payload<Large>>
           Local $arr.1
           Type Long
           Local $idx.2
-      val $dependency.local.49: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.50: Int
         Type Int
-        Local $dependency.local.49
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
       branch bb14 bb15
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.48
+            Local $dependency.local.49
             Type Int
-            Local $dependency.local.50
+            Local $dependency.local.51
     bb14 if.then.14
-      val $dependency.local.54: Boolean
+      val $dependency.local.55: Boolean
         Type Boolean
         BoolLiteral true
       goto bb16
     bb15 if.else.15
-      call $dependency.local.51: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.52: Int = <closure:function_type1> closure[function_type1]
         Type (Payload<Large>) -> Int
         Local read
         Type Payload<Large>
         FieldAccess 1
           Type Pair<Payload<Large>>
           Local $dependency.local.4
-      val $dependency.local.52: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.53: Int
         Type Int
-        Local $dependency.local.52
-      val $dependency.local.54: Boolean
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.55: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.51
+            Local $dependency.local.52
             Type Int
-            Local $dependency.local.53
+            Local $dependency.local.54
       goto bb16
     bb16 if.merge.16
       branch bb17 bb18
         Type Boolean
-        Local $dependency.local.54
+        Local $dependency.local.55
     bb17 if.then.17
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb18 if.merge.18
-      val $dependency.local.55: Choice<Payload<Large>>
-        Type Choice<Payload<Large>>
-        Local $dependency.local.5
-      val $dependency.local.56: Payload<Large>
-        Type Payload<Large>
-        Local seed
-      val $dependency.local.57: Choice<Payload<Large>>
-        Type Choice<Payload<Large>>
-        Local $dependency.local.55
-      val $dependency.local.58: Payload<Large>
-        Type Payload<Large>
-        Local $dependency.local.56
-      call $call.4: Payload<Large> = @fn34 direct
-        Type Choice<Payload<Large>>
-        Local $dependency.local.57
-        Type Payload<Large>
-        Local $dependency.local.58
-      call $dependency.local.59: Int = <closure:function_type1> closure[function_type1]
+      val $dependency.local.60: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local read
+      val $dependency.local.56: Choice<Payload<Large>>
+        Type Choice<Payload<Large>>
+        Local $dependency.local.5
+      val $dependency.local.57: Payload<Large>
+        Type Payload<Large>
+        Local seed
+      val $dependency.local.58: Choice<Payload<Large>>
+        Type Choice<Payload<Large>>
+        Local $dependency.local.56
+      val $dependency.local.59: Payload<Large>
+        Type Payload<Large>
+        Local $dependency.local.57
+      call $call.4: Payload<Large> = @fn34 direct
+        Type Choice<Payload<Large>>
+        Local $dependency.local.58
+        Type Payload<Large>
+        Local $dependency.local.59
+      call $dependency.local.61: Int = <closure:function_type1> closure[function_type1]
+        Type (Payload<Large>) -> Int
+        Local $dependency.local.60
         Type Payload<Large>
         Local $call.4
-      val $dependency.local.60: Int
+      val $dependency.local.62: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.61: Int
+      val $dependency.local.63: Int
         Type Int
-        Local $dependency.local.60
+        Local $dependency.local.62
       branch bb19 bb20
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.59
-            Type Int
             Local $dependency.local.61
+            Type Int
+            Local $dependency.local.63
     bb19 if.then.19
-      val $dependency.local.65: Boolean
+      val $dependency.local.67: Boolean
         Type Boolean
         BoolLiteral true
       goto bb21
     bb20 if.else.20
-      call $dependency.local.62: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.64: Int = <closure:function_type1> closure[function_type1]
         Type (Payload<Large>) -> Int
         Local read
         Type Payload<Large>
         Local $dependency.local.7
-      val $dependency.local.63: Int
+      val $dependency.local.65: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.64: Int
+      val $dependency.local.66: Int
         Type Int
-        Local $dependency.local.63
-      val $dependency.local.65: Boolean
+        Local $dependency.local.65
+      val $dependency.local.67: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.62
-            Type Int
             Local $dependency.local.64
+            Type Int
+            Local $dependency.local.66
       goto bb21
     bb21 if.merge.21
       branch bb22 bb23
         Type Boolean
-        Local $dependency.local.65
+        Local $dependency.local.67
     bb22 if.then.22
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb23 if.merge.23
-      val $dependency.local.66: Host<Payload<Large>>
+      val $dependency.local.73: (Payload<Large>) -> Int
+        Type (Payload<Large>) -> Int
+        Local read
+      val $dependency.local.68: Host<Payload<Large>>
         Type Host<Payload<Large>>
         Local $dependency.local.6
-      val $dependency.local.67: Array<Payload<Large>>
-        Type Array<Payload<Large>>
-        ArrayLiteral Array<Payload<Large>>
-      val $dependency.local.68: Payload<Large>
-        Type Payload<Large>
-        Local seed
       val $dependency.local.69: Array<Payload<Large>>
         Type Array<Payload<Large>>
-        Local $dependency.local.67
+        ArrayLiteral Array<Payload<Large>>
       val $dependency.local.70: Payload<Large>
         Type Payload<Large>
-        Local $dependency.local.68
-      call $call.5: Payload<Large> = @fn35 direct
-        Type Host<Payload<Large>>
-        Local $dependency.local.66
+        Local seed
+      val $dependency.local.71: Array<Payload<Large>>
         Type Array<Payload<Large>>
         Local $dependency.local.69
+      val $dependency.local.72: Payload<Large>
         Type Payload<Large>
         Local $dependency.local.70
-      call $dependency.local.71: Int = <closure:function_type1> closure[function_type1]
-        Type (Payload<Large>) -> Int
-        Local read
+      call $call.5: Payload<Large> = @fn35 direct
+        Type Host<Payload<Large>>
+        Local $dependency.local.68
+        Type Array<Payload<Large>>
+        Local $dependency.local.71
         Type Payload<Large>
-        Local $call.5
-      val $dependency.local.72: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.73: Int
-        Type Int
         Local $dependency.local.72
-      branch bb24 bb25
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IntegerCompare equal operands=Int result=Boolean
-            Type Int
-            Local $dependency.local.71
-            Type Int
-            Local $dependency.local.73
-    bb24 if.then.24
-      val $dependency.local.77: Boolean
-        Type Boolean
-        BoolLiteral true
-      goto bb26
-    bb25 if.else.25
       call $dependency.local.74: Int = <closure:function_type1> closure[function_type1]
         Type (Payload<Large>) -> Int
-        Local read
+        Local $dependency.local.73
         Type Payload<Large>
-        Local $dependency.local.8
+        Local $call.5
       val $dependency.local.75: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.76: Int
         Type Int
         Local $dependency.local.75
-      val $dependency.local.77: Boolean
+      branch bb24 bb25
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -2228,45 +2220,71 @@ Module
             Local $dependency.local.74
             Type Int
             Local $dependency.local.76
+    bb24 if.then.24
+      val $dependency.local.80: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      call $dependency.local.77: Int = <closure:function_type1> closure[function_type1]
+        Type (Payload<Large>) -> Int
+        Local read
+        Type Payload<Large>
+        Local $dependency.local.8
+      val $dependency.local.78: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.79: Int
+        Type Int
+        Local $dependency.local.78
+      val $dependency.local.80: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.77
+            Type Int
+            Local $dependency.local.79
       goto bb26
     bb26 if.merge.26
       branch bb27 bb28
         Type Boolean
-        Local $dependency.local.77
+        Local $dependency.local.80
     bb27 if.then.27
       return
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
     bb28 if.merge.28
-      val $dependency.local.82: (Payload<Large>) -> Int
+      val $dependency.local.85: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local read
-      call $dependency.local.78: Array<Payload<Large>> = @fn36 direct
-      val $dependency.local.79: Payload<Large>
+      call $dependency.local.81: Array<Payload<Large>> = @fn36 direct
+      val $dependency.local.82: Payload<Large>
         Type Payload<Large>
         Local seed
-      val $dependency.local.80: Array<Payload<Large>>
+      val $dependency.local.83: Array<Payload<Large>>
         Type Array<Payload<Large>>
-        Local $dependency.local.78
-      val $dependency.local.81: Payload<Large>
-        Type Payload<Large>
-        Local $dependency.local.79
-      call $dependency.local.83: Payload<Large> = @fn37 direct
-        Type Array<Payload<Large>>
-        Local $dependency.local.80
-        Type Payload<Large>
         Local $dependency.local.81
-      val $dependency.local.84: (Payload<Large>) -> Int
-        Type (Payload<Large>) -> Int
-        Local $dependency.local.82
-      val $dependency.local.85: Payload<Large>
+      val $dependency.local.84: Payload<Large>
         Type Payload<Large>
+        Local $dependency.local.82
+      call $dependency.local.86: Payload<Large> = @fn37 direct
+        Type Array<Payload<Large>>
         Local $dependency.local.83
+        Type Payload<Large>
+        Local $dependency.local.84
+      val $dependency.local.87: (Payload<Large>) -> Int
+        Type (Payload<Large>) -> Int
+        Local $dependency.local.85
+      val $dependency.local.88: Payload<Large>
+        Type Payload<Large>
+        Local $dependency.local.86
       call $call.6: Int = @fn38 direct
         Type (Payload<Large>) -> Int
-        Local $dependency.local.84
+        Local $dependency.local.87
         Type Payload<Large>
-        Local $dependency.local.85
+        Local $dependency.local.88
       return
         Type Int
         Local $call.6
@@ -2489,6 +2507,9 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb8 if.merge.8
+      val $dependency.local.48: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
       val $dependency.local.45: Array<Unit>
         Type Array<Unit>
         Local $dependency.local.2
@@ -2542,201 +2563,181 @@ Module
         Type IndexOutOfBoundsException
         Local $new.3
     bb13 if.merge.13
-      call $dependency.local.48: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.local.49: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
-        Local read
+        Local $dependency.local.48
         Type Unit
         ArrayGet Array<Unit>
           Type Array<Unit>
           Local $arr.1
           Type Long
           Local $idx.2
-      val $dependency.local.49: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.50: Int
         Type Int
-        Local $dependency.local.49
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
       branch bb14 bb15
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.48
+            Local $dependency.local.49
             Type Int
-            Local $dependency.local.50
+            Local $dependency.local.51
     bb14 if.then.14
-      val $dependency.local.54: Boolean
+      val $dependency.local.55: Boolean
         Type Boolean
         BoolLiteral true
       goto bb16
     bb15 if.else.15
-      call $dependency.local.51: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.local.52: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
         FieldAccess 1
           Type Pair<Unit>
           Local $dependency.local.4
-      val $dependency.local.52: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.53: Int
         Type Int
-        Local $dependency.local.52
-      val $dependency.local.54: Boolean
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.55: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.51
+            Local $dependency.local.52
             Type Int
-            Local $dependency.local.53
+            Local $dependency.local.54
       goto bb16
     bb16 if.merge.16
       branch bb17 bb18
         Type Boolean
-        Local $dependency.local.54
+        Local $dependency.local.55
     bb17 if.then.17
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb18 if.merge.18
-      val $dependency.local.55: Choice<Unit>
-        Type Choice<Unit>
-        Local $dependency.local.5
-      val $dependency.local.56: Unit
-        Type Unit
-        Local seed
-      val $dependency.local.57: Choice<Unit>
-        Type Choice<Unit>
-        Local $dependency.local.55
-      val $dependency.local.58: Unit
-        Type Unit
-        Local $dependency.local.56
-      call @fn43 direct
-        Type Choice<Unit>
-        Local $dependency.local.57
-        Type Unit
-        Local $dependency.local.58
-      call $dependency.local.59: Int = <closure:function_type2> closure[function_type2]
+      val $dependency.local.60: (Unit) -> Int
         Type (Unit) -> Int
         Local read
+      val $dependency.local.56: Choice<Unit>
+        Type Choice<Unit>
+        Local $dependency.local.5
+      val $dependency.local.57: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.58: Choice<Unit>
+        Type Choice<Unit>
+        Local $dependency.local.56
+      val $dependency.local.59: Unit
+        Type Unit
+        Local $dependency.local.57
+      call @fn43 direct
+        Type Choice<Unit>
+        Local $dependency.local.58
+        Type Unit
+        Local $dependency.local.59
+      call $dependency.local.61: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $dependency.local.60
         Type Unit
         UnitLiteral
-      val $dependency.local.60: Int
+      val $dependency.local.62: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.61: Int
+      val $dependency.local.63: Int
         Type Int
-        Local $dependency.local.60
+        Local $dependency.local.62
       branch bb19 bb20
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.59
-            Type Int
             Local $dependency.local.61
+            Type Int
+            Local $dependency.local.63
     bb19 if.then.19
-      val $dependency.local.65: Boolean
+      val $dependency.local.67: Boolean
         Type Boolean
         BoolLiteral true
       goto bb21
     bb20 if.else.20
-      call $dependency.local.62: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.local.64: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
         Local $dependency.local.7
-      val $dependency.local.63: Int
+      val $dependency.local.65: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.64: Int
+      val $dependency.local.66: Int
         Type Int
-        Local $dependency.local.63
-      val $dependency.local.65: Boolean
+        Local $dependency.local.65
+      val $dependency.local.67: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.62
-            Type Int
             Local $dependency.local.64
+            Type Int
+            Local $dependency.local.66
       goto bb21
     bb21 if.merge.21
       branch bb22 bb23
         Type Boolean
-        Local $dependency.local.65
+        Local $dependency.local.67
     bb22 if.then.22
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb23 if.merge.23
-      val $dependency.local.66: Host<Unit>
+      val $dependency.local.73: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.68: Host<Unit>
         Type Host<Unit>
         Local $dependency.local.6
-      val $dependency.local.67: Array<Unit>
-        Type Array<Unit>
-        ArrayLiteral Array<Unit>
-      val $dependency.local.68: Unit
-        Type Unit
-        Local seed
       val $dependency.local.69: Array<Unit>
         Type Array<Unit>
-        Local $dependency.local.67
+        ArrayLiteral Array<Unit>
       val $dependency.local.70: Unit
         Type Unit
-        Local $dependency.local.68
-      call @fn44 direct
-        Type Host<Unit>
-        Local $dependency.local.66
+        Local seed
+      val $dependency.local.71: Array<Unit>
         Type Array<Unit>
         Local $dependency.local.69
+      val $dependency.local.72: Unit
         Type Unit
         Local $dependency.local.70
-      call $dependency.local.71: Int = <closure:function_type2> closure[function_type2]
-        Type (Unit) -> Int
-        Local read
+      call @fn44 direct
+        Type Host<Unit>
+        Local $dependency.local.68
+        Type Array<Unit>
+        Local $dependency.local.71
         Type Unit
-        UnitLiteral
-      val $dependency.local.72: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.73: Int
-        Type Int
         Local $dependency.local.72
-      branch bb24 bb25
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IntegerCompare equal operands=Int result=Boolean
-            Type Int
-            Local $dependency.local.71
-            Type Int
-            Local $dependency.local.73
-    bb24 if.then.24
-      val $dependency.local.77: Boolean
-        Type Boolean
-        BoolLiteral true
-      goto bb26
-    bb25 if.else.25
       call $dependency.local.74: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
-        Local read
+        Local $dependency.local.73
         Type Unit
-        Local $dependency.local.8
+        UnitLiteral
       val $dependency.local.75: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.76: Int
         Type Int
         Local $dependency.local.75
-      val $dependency.local.77: Boolean
+      branch bb24 bb25
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -2745,48 +2746,74 @@ Module
             Local $dependency.local.74
             Type Int
             Local $dependency.local.76
+    bb24 if.then.24
+      val $dependency.local.80: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      call $dependency.local.77: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        Local $dependency.local.8
+      val $dependency.local.78: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.79: Int
+        Type Int
+        Local $dependency.local.78
+      val $dependency.local.80: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.77
+            Type Int
+            Local $dependency.local.79
       goto bb26
     bb26 if.merge.26
       branch bb27 bb28
         Type Boolean
-        Local $dependency.local.77
+        Local $dependency.local.80
     bb27 if.then.27
       return
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
     bb28 if.merge.28
-      val $dependency.local.82: (Unit) -> Int
+      val $dependency.local.85: (Unit) -> Int
         Type (Unit) -> Int
         Local read
-      call $dependency.local.78: Array<Unit> = @fn45 direct
-      val $dependency.local.79: Unit
+      call $dependency.local.81: Array<Unit> = @fn45 direct
+      val $dependency.local.82: Unit
         Type Unit
         Local seed
-      val $dependency.local.80: Array<Unit>
+      val $dependency.local.83: Array<Unit>
         Type Array<Unit>
-        Local $dependency.local.78
-      val $dependency.local.81: Unit
+        Local $dependency.local.81
+      val $dependency.local.84: Unit
         Type Unit
-        Local $dependency.local.79
+        Local $dependency.local.82
       call @fn46 direct
         Type Array<Unit>
-        Local $dependency.local.80
+        Local $dependency.local.83
         Type Unit
-        Local $dependency.local.81
-      val $dependency.local.83: Unit
+        Local $dependency.local.84
+      val $dependency.local.86: Unit
         Type Unit
         UnitLiteral
-      val $dependency.local.84: (Unit) -> Int
+      val $dependency.local.87: (Unit) -> Int
         Type (Unit) -> Int
-        Local $dependency.local.82
-      val $dependency.local.85: Unit
+        Local $dependency.local.85
+      val $dependency.local.88: Unit
         Type Unit
-        Local $dependency.local.83
+        Local $dependency.local.86
       call $call.4: Int = @fn47 direct
         Type (Unit) -> Int
-        Local $dependency.local.84
+        Local $dependency.local.87
         Type Unit
-        Local $dependency.local.85
+        Local $dependency.local.88
       return
         Type Int
         Local $call.4

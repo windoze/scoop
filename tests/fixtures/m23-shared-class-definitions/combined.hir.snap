@@ -56,20 +56,22 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 1 : Int
+    val local14
+      Local read : (T0) -> Int
     val local12
       Local base : Base<Unit, T0>
     val local13
       MethodCall second<Unit, T0> : T0
         Local $dependency.receiver : Base<Unit, T0>
-    val local14
+    val local15
       CallableCall function_type2 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall select<Unit, T0> : T0
           Local $dependency.receiver : Base<Unit, T0>
           Local $dependency.parameter.other : T0
-    val local15
-      IntegerLiteral 42 : Int
     val local16
+      IntegerLiteral 42 : Int
+    val local17
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -78,19 +80,19 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local17
-      Local view : Readable<T0>
     val local18
-      Local read : (T0) -> Int
+      Local view : Readable<T0>
     val local19
-      Local $dependency.argument.0 : (T0) -> Int
+      Local read : (T0) -> Int
     val local20
+      Local $dependency.argument.0 : (T0) -> Int
+    val local21
       MethodCall apply<T0> : Int
         Local $dependency.receiver : Readable<T0>
         Local $dependency.parameter.convert : (T0) -> Int
-    val local21
-      IntegerLiteral 42 : Int
     val local22
+      IntegerLiteral 42 : Int
+    val local23
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -99,21 +101,23 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local23
-      Local local : Local<T0, Unit>
+    val local26
+      Local read : (T0) -> Int
     val local24
+      Local local : Local<T0, Unit>
+    val local25
       MethodCall second<Unit, T0> : T0
         ReferenceUpcast : Base<Unit, T0>
           Local $receiver : Local<T0, Unit>
-    val local25
+    val local27
       CallableCall function_type2 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Local.select : T0
           Local $receiver : Local<T0, Unit>
           Local $parameter.other : T0
-    val local26
+    val local28
       IntegerLiteral 42 : Int
-    val local27
+    val local29
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -122,33 +126,35 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 7 : Int
-    val local28
-      UnitLiteral : Unit
-    val local29
-      Local value : T0
     val local30
-      Local $argument.0 : Unit
+      UnitLiteral : Unit
     val local31
-      Local $argument.1 : T0
+      Local value : T0
     val local32
+      Local $argument.0 : Unit
+    val local33
+      Local $argument.1 : T0
+    val local34
       ClassInit Leaf<Unit, T0> : Leaf<Unit, T0>
         Local $parameter.first : Unit
         Local $parameter.second : T0
-    val local33
+    val local37
+      Local read : (T0) -> Int
+    val local35
       Local leaf : Leaf<Unit, T0>
-    val local34
+    val local36
       MethodCall second<Unit, T0> : T0
         ReferenceUpcast : Base<Unit, T0>
           Local $receiver : Leaf<Unit, T0>
-    val local35
+    val local38
       CallableCall function_type2 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         MethodCall Leaf.select : T0
           Local $receiver : Leaf<Unit, T0>
           Local $parameter.other : T0
-    val local36
+    val local39
       IntegerLiteral 42 : Int
-    val local37
+    val local40
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -157,56 +163,56 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 8 : Int
-    val local38
+    val local41
       Local value : T0
-    val local39
+    val local42
       Local $dependency.argument.0 : T0
-    val local40
+    val local43
       Call make<T0> : Link<T0>
         Local $dependency.parameter.value : T0
-    val local41
+    val local44
       Local $dependency.argument.0 : Link<T0>
-    val local42
+    val local45
       StructInit Wrapper : Wrapper<T0>
         Local $dependency.parameter.head : Link<T0>
-    val local43
-      VariantConstruct Option.None<Nested<T0>> : Option<Nested<T0>>
-    val local44
-      Local $argument.0 : Wrapper<T0>
-    val local45
-      Local $argument.1 : Option<Nested<T0>>
     val local46
+      VariantConstruct Option.None<Nested<T0>> : Option<Nested<T0>>
+    val local47
+      Local $argument.0 : Wrapper<T0>
+    val local48
+      Local $argument.1 : Option<Nested<T0>>
+    val local49
       ClassInit Nested<T0> : Nested<T0>
         Local $parameter.wrapper : Wrapper<T0>
         Local $parameter.parent : Option<Nested<T0>>
-    val local47
+    val local50
       Local value : T0
-    val local48
+    val local51
       Local $dependency.argument.0 : T0
-    val local49
+    val local52
       Call make<T0> : Link<T0>
         Local $dependency.parameter.value : T0
-    val local50
-      Local $dependency.argument.0 : Link<T0>
     val local53
+      Local $dependency.argument.0 : Link<T0>
+    val local56
       StructInit Wrapper : Wrapper<T0>
         Local $dependency.parameter.head : Link<T0>
-    val local51
-      Local head : Nested<T0>
-    val local52
-      Local $dependency.argument.0 : Nested<T0>
     val local54
+      Local head : Nested<T0>
+    val local55
+      Local $dependency.argument.0 : Nested<T0>
+    val local57
       VariantConstruct Option.Some<Nested<T0>> : Option<Nested<T0>>
         Local $dependency.parameter._1 : Nested<T0>
-    val local55
+    val local58
       Local $argument.0 : Wrapper<T0>
-    val local56
+    val local59
       Local $argument.1 : Option<Nested<T0>>
-    val local57
+    val local60
       ClassInit Nested<T0> : Nested<T0>
         Local $parameter.wrapper : Wrapper<T0>
         Local $parameter.parent : Option<Nested<T0>>
-    val local58
+    val local61
       CallableCall function_type2 : Int
         Local read : (T0) -> Int
         MethodCall value<T0> : T0
@@ -215,9 +221,9 @@ Module
               Unwrap trap=true : Nested<T0>
                 FieldAccess class field parent : Option<Nested<T0>>
                   Local tail : Nested<T0>
-    val local59
+    val local62
       IntegerLiteral 42 : Int
-    val local60
+    val local63
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -226,30 +232,30 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 4 : Int
-    val local61
+    val local64
       ClassInit Host : Host
-    val local62
+    val local65
       Local host : Host
-    val local63
+    val local66
       MethodCall Host.$get$number : Int
         Local $place.0 : Host
-    val local64
+    val local67
       Local $old.1 : Int
-    val local65
+    val local68
       IntegerLiteral 2 : Int
-    val local66
+    val local69
       Local $dependency.argument.0 : Int
     MethodCall Host.$set$number : Unit
       Local $place.0 : Host
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
-    val local67
+    val local70
       MethodCall Host.$get$number : Int
         Local host : Host
-    val local68
+    val local71
       IntegerLiteral 42 : Int
-    val local69
+    val local72
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -258,21 +264,21 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 5 : Int
-    val local70
+    val local73
       Local value : T0
-    val local71
+    val local74
       Local $dependency.argument.0 : T0
-    val local72
+    val local75
       ClassInit Remote<T0> : Remote<T0>
         Local $dependency.parameter.value : T0
-    val local73
+    val local76
       CallableCall function_type2 : Int
         Local read : (T0) -> Int
         MethodCall echoed<T0> : T0
           Local remote : Remote<T0>
-    val local74
+    val local77
       IntegerLiteral 42 : Int
-    val local75
+    val local78
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -281,26 +287,28 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 6 : Int
-    val local76
+    val local83
+      Local read : (T0) -> Int
+    val local79
       Local value : T0
-    val local77
+    val local80
       FieldAccess field 0 : Link<T0>
         FieldAccess class field wrapper : Wrapper<T0>
           Local tail : Nested<T0>
-    val local78
+    val local81
       Local $dependency.argument.0 : T0
-    val local79
+    val local82
       Local $dependency.argument.1 : Link<T0>
-    val local80
+    val local84
       CallableCall function_type2 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call readLink<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.link : Link<T0>
-    val local81
+    val local85
       FieldAccess class field zero : Int
         SingletonValue State : State
-    val local82
+    val local86
       Local $dependency.argument.0 : Int
     return
       IntegerOperation int.add <no-gc> : Int

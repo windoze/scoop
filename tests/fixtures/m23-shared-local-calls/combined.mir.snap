@@ -108,6 +108,9 @@ Module
         BoolLiteral true
       goto bb3
     bb2 if.else.2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local inspect
       val $parameter.value: Int
         Type Int
         Local second
@@ -116,7 +119,7 @@ Module
         Local $parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local inspect
+        Local $callable.receiver
         Type Int
         Local $call.1
       val $dependency.argument.0: Int

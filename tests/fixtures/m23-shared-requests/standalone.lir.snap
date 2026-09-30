@@ -101,23 +101,25 @@ Module
     local %3 $dependency.parameter.value: i32
     local %4 $dependency.argument.0: i32
     local %5 $dependency.parameter.value: i32
-    local %6 $call.1: i32
-    local %7 $call.2: i32
+    local %6 $callable.receiver: ptr<managed>
+    local %7 $call.1: i32
+    local %8 $call.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
+    store param1 -> local6
     store param0 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t0 = sig=direct0 (i32) -> i32 local-fn6(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[local6:ptr<managed>@0] t0 = sig=direct0 (i32) -> i32 local-fn6(local1)
     store t0 -> local2
     store local2 -> local3
-    call managed-direct-target1 sp<managed-call:1> live=[param1:ptr<managed>@0] t1 = sig=direct1 (i32) -> i32 local-fn3(local3)
+    call managed-direct-target1 sp<managed-call:1> live=[local6:ptr<managed>@0] t1 = sig=direct1 (i32) -> i32 local-fn3(local3)
     store t1 -> local4
     store local4 -> local5
-    call managed-direct-target2 sp<managed-call:2> live=[param1:ptr<managed>@0] t2 = sig=direct2 (i32) -> i32 local-fn3(local5)
-    store t2 -> local6
-    call managed-direct-target3 sp<managed-call:3> live=[param1:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local6)
-    store t3 -> local7
-    ret local7
+    call managed-direct-target2 sp<managed-call:2> live=[local6:ptr<managed>@0] t2 = sig=direct2 (i32) -> i32 local-fn3(local5)
+    store t2 -> local7
+    call managed-direct-target3 sp<managed-call:3> live=[local6:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local6(local6, local7)
+    store t3 -> local8
+    ret local8
   fun @scoop$1$cb$7701ba7505c49ea54ec6b74c5dfd45ff2f5677a82cab03903d850b9ce1131a1a(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]

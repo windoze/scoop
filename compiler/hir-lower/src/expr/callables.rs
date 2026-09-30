@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod values;
+
 impl Lowerer {
     pub(super) fn lower_value_invoke(
         &mut self,
@@ -246,106 +248,5 @@ impl Lowerer {
             }
             Constructor::Unmatched => None,
         }
-    }
-
-    pub(super) fn lower_callable_call(
-        &mut self,
-        callee: hir::Expr,
-        args: &[ast::CallArgument],
-        span: Span,
-        sink: &mut Vec<hir::Statement>,
-    ) -> Option<hir::Expr> {
-        let Type::Function(function_type) = self.types[callee.ty] else {
-            let found = self.type_name(callee.ty);
-            self.error(
-                callee.span,
-                format!("value of type {found} is not callable"),
-            );
-            return None;
-        };
-        let signature = self.function_types[function_type].clone();
-        if let Some(argument) = args
-            .iter()
-            .find(|argument| !matches!(argument.name, ast::CallArgumentName::Positional))
-        {
-            self.error(
-                argument.span,
-                "function values do not accept named arguments".to_string(),
-            );
-            return None;
-        }
-        if let Some(argument) = args
-            .iter()
-            .find(|argument| matches!(argument.spread, ast::SpreadSyntax::Spread(_)))
-        {
-            self.error(
-                argument.span,
-                "function values do not accept spread arguments".to_string(),
-            );
-            return None;
-        }
-        if signature.parameter_types.len() != args.len() {
-            self.error(
-                span,
-                format!(
-                    "function value takes exactly {} argument(s), but {} were supplied",
-                    signature.parameter_types.len(),
-                    args.len()
-                ),
-            );
-            return None;
-        }
-        if signature.is_suspend {
-            let context = *self
-                .suspension_contexts
-                .last()
-                .expect("the suspension context stack is initialized");
-            if let SuspensionContext::Forbidden(reason) = context {
-                let location = match reason {
-                    ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
-                    ForbiddenSuspendContext::Function => {
-                        format!("non-suspend function `{}`", self.current_fn_name)
-                    }
-                    ForbiddenSuspendContext::DefaultExpression => {
-                        format!("non-suspend default expression {}", self.current_fn_name)
-                    }
-                    ForbiddenSuspendContext::ConstructorDelegation => {
-                        "constructor delegation".to_string()
-                    }
-                    ForbiddenSuspendContext::ConstructorInitialization => {
-                        "constructor initialization".to_string()
-                    }
-                };
-                self.error(
-                    span,
-                    format!("suspend function value cannot be called from {location}"),
-                );
-                return None;
-            }
-        }
-        let mut lowered = Vec::with_capacity(args.len());
-        for (arg, &parameter_ty) in args.iter().zip(&signature.parameter_types) {
-            let value = self.lower_expr(&arg.expression, sink, Some(parameter_ty))?;
-            if !self.is_subtype(value.ty, parameter_ty) {
-                let expected = self.type_name(parameter_ty);
-                let found = self.type_name(value.ty);
-                self.error(
-                    arg.span,
-                    format!("function argument must be of type {expected}, found {found}"),
-                );
-                return None;
-            }
-            lowered.push(self.adapt_to(value, parameter_ty));
-        }
-        Some(hir::Expr {
-            kind: ExprKind::CallableCall {
-                callee: Box::new(callee),
-                function_type,
-                args: lowered,
-            },
-            ty: signature.return_type,
-            span,
-            origin: self.expression_origin(span),
-        })
     }
 }

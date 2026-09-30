@@ -109,26 +109,28 @@ Module
     local %5 $dependency.parameter.value: i32
     local %6 $argument.0: i32
     local %7 $parameter.value: i32
-    local %8 $call.1: i32
-    local %9 $call.2: i32
+    local %8 $callable.receiver: ptr<managed>
+    local %9 $call.1: i32
+    local %10 $call.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
+    store param1 -> local8
     store param0 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t0 = sig=direct0 (i32) -> i32 local-fn5(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[local8:ptr<managed>@0] t0 = sig=direct0 (i32) -> i32 local-fn5(local1)
     store t0 -> local2
     store local2 -> local3
-    call managed-direct-target1 sp<managed-call:1> live=[param1:ptr<managed>@0] t1 = sig=direct1 (i32) -> i32 local-fn8(local3)
+    call managed-direct-target1 sp<managed-call:1> live=[local8:ptr<managed>@0] t1 = sig=direct1 (i32) -> i32 local-fn8(local3)
     store t1 -> local4
     store local4 -> local5
-    call managed-direct-target2 sp<managed-call:2> live=[param1:ptr<managed>@0] t2 = sig=direct2 (i32) -> i32 local-fn5(local5)
+    call managed-direct-target2 sp<managed-call:2> live=[local8:ptr<managed>@0] t2 = sig=direct2 (i32) -> i32 local-fn5(local5)
     store t2 -> local6
     store local6 -> local7
-    call managed-direct-target3 sp<managed-call:3> live=[param1:ptr<managed>@0] t3 = sig=direct3 (i32) -> i32 local-fn9(local7)
-    store t3 -> local8
-    call managed-direct-target4 sp<managed-call:4> live=[param1:ptr<managed>@0] t4 = sig=direct4 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local8)
-    store t4 -> local9
-    ret local9
+    call managed-direct-target3 sp<managed-call:3> live=[local8:ptr<managed>@0] t3 = sig=direct3 (i32) -> i32 local-fn9(local7)
+    store t3 -> local9
+    call managed-direct-target4 sp<managed-call:4> live=[local8:ptr<managed>@0] t4 = sig=direct4 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local8(local8, local9)
+    store t4 -> local10
+    ret local10
   fun @scoop$1$cb$9a0d7555b7cdbe5e03e6f3f8b1f03c747c4da216d0f9022ced6727588ccc6472(i32) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32

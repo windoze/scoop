@@ -1,0 +1,432 @@
+Module
+  class Tape()
+    field0 property0: Int
+    property0 var log: Int getter0=body(Tape.$get$log) setter0=body(Tape.$set$log) <stored field0 init=expression>
+  fun prepare<T>(tape: Tape, seed: T0): (Int, Int) -> T0
+    val local2
+      Local tape : Tape
+    val local3
+      IntegerLiteral 1 : Int
+    val local4
+      Local $argument.0 : Int
+    MethodCall Tape.mark : Int
+      Local $receiver : Tape
+      Local $parameter.value : Int
+    return
+      Lambda lambda0 invoke=$lambda.0 captures=2 : (Int, Int) -> T0
+        capture tape binding8 : Tape
+        capture seed binding9 : T0
+  fun argument(tape: Tape, value: Int): Int
+    return
+      Local value : Int
+  fun fail(tape: Tape, value: Int): Int
+    throw
+      Call external #0 : ArithmeticException
+  fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
+    val local2
+      ClassInit Tape : Tape
+    val local3
+      Local tape : Tape
+    val local4
+      Local seed : T0
+    val local5
+      Local $argument.0 : Tape
+    val local6
+      Local $argument.1 : T0
+    val local16
+      Call prepare<T0> : (Int, Int) -> T0
+        Local $parameter.tape : Tape
+        Local $parameter.seed : T0
+    val local7
+      Local tape : Tape
+    val local8
+      IntegerLiteral 2 : Int
+    val local9
+      Local $argument.0 : Int
+    val local17
+      MethodCall Tape.mark : Int
+        Local $receiver : Tape
+        Local $parameter.value : Int
+    val local10
+      Local tape : Tape
+    val local11
+      Local $argument.0 : Tape
+    val local12
+      Local $parameter.tape : Tape
+    val local13
+      IntegerLiteral 3 : Int
+    val local14
+      Local $argument.0 : Int
+    val local15
+      MethodCall Tape.mark : Int
+        Local $receiver : Tape
+        Local $parameter.value : Int
+    val local18
+      CallableCall function_type2 : T0
+        Local $callable.receiver : (Int, Int) -> T0
+        Local $callable.argument.0 : Int
+        Call argument : Int
+          Local $parameter.tape : Tape
+          Local $parameter.value : Int
+    val local19
+      CallableCall function_type1 : Int
+        Local inspect : (T0) -> Int
+        Local first : T0
+    val local20
+      IntegerLiteral 42 : Int
+    val local21
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local25
+        BoolLiteral true : Boolean
+    else
+      val local22
+        MethodCall Tape.$get$log : Int
+          Local tape : Tape
+      val local23
+        IntegerLiteral 1234 : Int
+      val local24
+        Local $dependency.argument.0 : Int
+      val local25
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 1 : Int
+    val local26
+      Local tape : Tape
+    MethodCall Tape.reset : Unit
+      Local $receiver : Tape
+    val local27
+      Local tape : Tape
+    val local28
+      Local seed : T0
+    val local29
+      Local $argument.0 : Tape
+    val local30
+      Local $argument.1 : T0
+    val local31
+      Call prepare<T0> : (Int, Int) -> T0
+        Local $parameter.tape : Tape
+        Local $parameter.seed : T0
+    val local41
+      Local operation : (Int, Int) -> T0
+    val local32
+      Local tape : Tape
+    val local33
+      IntegerLiteral 2 : Int
+    val local34
+      Local $argument.0 : Int
+    val local42
+      MethodCall Tape.mark : Int
+        Local $receiver : Tape
+        Local $parameter.value : Int
+    val local35
+      Local tape : Tape
+    val local36
+      Local $argument.0 : Tape
+    val local37
+      Local $parameter.tape : Tape
+    val local38
+      IntegerLiteral 3 : Int
+    val local39
+      Local $argument.0 : Int
+    val local40
+      MethodCall Tape.mark : Int
+        Local $receiver : Tape
+        Local $parameter.value : Int
+    val local43
+      CallableCall function_type2 : T0
+        Local $callable.receiver : (Int, Int) -> T0
+        Local $callable.argument.0 : Int
+        Call argument : Int
+          Local $parameter.tape : Tape
+          Local $parameter.value : Int
+    val local44
+      CallableCall function_type1 : Int
+        Local inspect : (T0) -> Int
+        Local second : T0
+    val local45
+      IntegerLiteral 42 : Int
+    val local46
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local50
+        BoolLiteral true : Boolean
+    else
+      val local47
+        MethodCall Tape.$get$log : Int
+          Local tape : Tape
+      val local48
+        IntegerLiteral 1234 : Int
+      val local49
+        Local $dependency.argument.0 : Int
+      val local50
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local51
+      Local tape : Tape
+    MethodCall Tape.reset : Unit
+      Local $receiver : Tape
+    try
+      val local52
+        Local tape : Tape
+      val local53
+        Local seed : T0
+      val local54
+        Local $argument.0 : Tape
+      val local55
+        Local $argument.1 : T0
+      val local65
+        Call prepare<T0> : (Int, Int) -> T0
+          Local $parameter.tape : Tape
+          Local $parameter.seed : T0
+      val local56
+        Local tape : Tape
+      val local57
+        IntegerLiteral 2 : Int
+      val local58
+        Local $argument.0 : Int
+      val local66
+        MethodCall Tape.mark : Int
+          Local $receiver : Tape
+          Local $parameter.value : Int
+      val local59
+        Local tape : Tape
+      val local60
+        Local $argument.0 : Tape
+      val local61
+        Local $parameter.tape : Tape
+      val local62
+        IntegerLiteral 3 : Int
+      val local63
+        Local $argument.0 : Int
+      val local64
+        MethodCall Tape.mark : Int
+          Local $receiver : Tape
+          Local $parameter.value : Int
+      CallableCall function_type2 : T0
+        Local $callable.receiver : (Int, Int) -> T0
+        Local $callable.argument.0 : Int
+        Call fail : Int
+          Local $parameter.tape : Tape
+          Local $parameter.value : Int
+      return
+        IntegerLiteral 3 : Int
+    catch error: ArithmeticException
+      val local68
+        MethodCall Tape.$get$log : Int
+          Local tape : Tape
+      val local69
+        IntegerLiteral 123 : Int
+      val local70
+        Local $dependency.argument.0 : Int
+      if
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+        return
+          IntegerLiteral 4 : Int
+    val local71
+      Local tape : Tape
+    MethodCall Tape.reset : Unit
+      Local $receiver : Tape
+    val local72
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int, Int) -> Int
+    val local83
+      Local selected : (Int, Int) -> Int
+    val local73
+      Local tape : Tape
+    val local74
+      IntegerLiteral 2 : Int
+    val local75
+      Local $argument.0 : Int
+    val local84
+      MethodCall Tape.mark : Int
+        Local $receiver : Tape
+        Local $parameter.value : Int
+    if
+      BoolLiteral true : Boolean
+      assign selected
+        Lambda lambda2 invoke=$lambda.2 captures=0 : (Int, Int) -> Int
+      val local76
+        Local tape : Tape
+      val local77
+        Local $argument.0 : Tape
+      val local78
+        Local $parameter.tape : Tape
+      val local79
+        IntegerLiteral 3 : Int
+      val local80
+        Local $argument.0 : Int
+      val local81
+        MethodCall Tape.mark : Int
+          Local $receiver : Tape
+          Local $parameter.value : Int
+      assign $result.2
+        Call argument : Int
+          Local $parameter.tape : Tape
+          Local $parameter.value : Int
+    else
+      assign $result.2
+        IntegerLiteral 0 : Int
+    val local85
+      CallableCall function_type3 : Int
+        Local $callable.receiver : (Int, Int) -> Int
+        Local $callable.argument.0 : Int
+        Local $result.2 : Int
+    val local86
+      Local preserved : Int
+    val local87
+      IntegerLiteral 42 : Int
+    val local88
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local92
+        BoolLiteral true : Boolean
+    else
+      val local89
+        MethodCall Tape.$get$log : Int
+          Local tape : Tape
+      val local90
+        IntegerLiteral 23 : Int
+      val local91
+        Local $dependency.argument.0 : Int
+      val local92
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.3 : Boolean
+      val local96
+        BoolLiteral true : Boolean
+    else
+      val local93
+        CallableCall function_type3 : Int
+          Local selected : (Int, Int) -> Int
+          IntegerLiteral 0 : Int
+          IntegerLiteral 0 : Int
+      val local94
+        IntegerLiteral 0 : Int
+      val local95
+        Local $dependency.argument.0 : Int
+      val local96
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.4 : Boolean
+      return
+        IntegerLiteral 5 : Int
+    val local97
+      IntegerLiteral 20 : Int
+    val local98
+      Lambda lambda3 invoke=$lambda.3 captures=0 : (Int, Int) -> Int
+    val local100
+      Local sum : (Int, Int) -> Int
+    val local101
+      Local earlier : Int
+    if
+      BoolLiteral true : Boolean
+      assign earlier
+        IntegerLiteral 0 : Int
+      assign $result.5
+        IntegerLiteral 22 : Int
+    else
+      assign $result.5
+        IntegerLiteral 0 : Int
+    val local102
+      CallableCall function_type3 : Int
+        Local $callable.receiver : (Int, Int) -> Int
+        Local $callable.argument.0 : Int
+        Local $result.5 : Int
+    val local103
+      Local saved : Int
+    val local104
+      IntegerLiteral 42 : Int
+    val local105
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local109
+        BoolLiteral true : Boolean
+    else
+      val local106
+        Local earlier : Int
+      val local107
+        IntegerLiteral 0 : Int
+      val local108
+        Local $dependency.argument.0 : Int
+      val local109
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.6 : Boolean
+      val local113
+        BoolLiteral true : Boolean
+    else
+      val local110
+        CallableCall function_type3 : Int
+          Local sum : (Int, Int) -> Int
+          IntegerLiteral 20 : Int
+          IntegerLiteral 22 : Int
+      val local111
+        IntegerLiteral 42 : Int
+      val local112
+        Local $dependency.argument.0 : Int
+      val local113
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.7 : Boolean
+      return
+        IntegerLiteral 6 : Int
+    return
+      IntegerLiteral 42 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda4 invoke=$lambda.4 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+  output library
+  instance prepare<T0>
+  instance exercise<Int>

@@ -230,6 +230,9 @@ Module
           CaptureInit field=0
             Type MutableReader<Int>
             Local box
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $dependency.receiver: MutableReader<Int>
         Type MutableReader<Int>
         Local box
@@ -238,7 +241,7 @@ Module
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       call $call.2: Int = <closure:function_type2> closure[function_type2]

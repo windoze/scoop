@@ -66,6 +66,8 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
+    val local26
+      Local read : (T0) -> Int
     val local22
       Local box : Box<T0>
     val local23
@@ -75,17 +77,17 @@ Module
     val local25
       MethodCall bound Box<T0> via Box<T0> -> read<T0> : T0
         Local $default.local.1 : Box<T0>
-    val local26
+    val local27
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call classRead<T0, Box<T0>> : T0
           Local $dependency.parameter.box : Box<T0>
           Local $dependency.parameter.chosen : T0
-    val local27
+    val local28
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
         Local seed : T0
-    val local28
+    val local29
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -94,18 +96,20 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local29
-      Local box : Box<T0>
+    val local34
+      Local read : (T0) -> Int
     val local30
-      Local $dependency.argument.0 : Box<T0>
+      Local box : Box<T0>
     val local31
-      Local $dependency.parameter.reader : Box<T0>
+      Local $dependency.argument.0 : Box<T0>
     val local32
+      Local $dependency.parameter.reader : Box<T0>
+    val local33
       MethodCall bound Box<T0> via Reader<T0> -> Reader.read<T0> : T0
         Local $default.local.1 : Box<T0>
     return
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call boundRead<T0, Box<T0>> : T0
           Local $dependency.parameter.reader : Box<T0>
           Local $dependency.parameter.chosen : T0

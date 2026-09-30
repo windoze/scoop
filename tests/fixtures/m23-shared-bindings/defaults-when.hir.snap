@@ -12,6 +12,8 @@ Module
       StructInit Pair : Pair<T0>
         Local $dependency.parameter.left : T0
         Local $dependency.parameter.right : Int
+    val local14
+      Local read : (T0) -> Int
     val local7
       Local pair : Pair<T0>
     val local8
@@ -33,15 +35,15 @@ Module
           Local $dependency.parameter.pair : Pair<T0>
     val local13
       Local $default.local.4 : T0
-    val local14
+    val local15
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call chosen<T0> : T0
           Local $dependency.parameter.pair : Pair<T0>
           Local $dependency.parameter.value : T0
-    val local15
-      IntegerLiteral 42 : Int
     val local16
+      IntegerLiteral 42 : Int
+    val local17
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -50,27 +52,29 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 1 : Int
-    val local17
-      Local pair : Pair<T0>
+    val local23
+      Local read : (T0) -> Int
     val local18
+      Local pair : Pair<T0>
+    val local19
       Local $dependency.argument.0 : Pair<T0>
     when
       Local $dependency.parameter.pair : Pair<T0>
-      arm struct(0: local19, 1: _)
+      arm struct(0: local20, 1: _)
         assign $default.local.2
           Local $default.local.1 : T0
       impossible <irrefutable Pair<T0>>
-    val local21
-      Local $default.local.2 : T0
     val local22
+      Local $default.local.2 : T0
+    val local24
       CallableCall function_type0 : Int
-        Local read : (T0) -> Int
+        Local $callable.receiver : (T0) -> Int
         Call matched<T0> : T0
           Local $dependency.parameter.pair : Pair<T0>
           Local $dependency.parameter.value : T0
-    val local23
+    val local25
       IntegerLiteral 42 : Int
-    val local24
+    val local26
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -79,21 +83,21 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local25
-      Local pair : Pair<T0>
-    val local26
-      Local read : (T0) -> Int
     val local27
-      Local $dependency.argument.0 : Pair<T0>
+      Local pair : Pair<T0>
     val local28
-      Local $dependency.argument.1 : (T0) -> Int
+      Local read : (T0) -> Int
     val local29
+      Local $dependency.argument.0 : Pair<T0>
+    val local30
+      Local $dependency.argument.1 : (T0) -> Int
+    val local31
       Call patternBody<T0> : Int
         Local $dependency.parameter.pair : Pair<T0>
         Local $dependency.parameter.read : (T0) -> Int
-    val local30
+    val local32
       IntegerLiteral 42 : Int
-    val local31
+    val local33
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -104,14 +108,14 @@ Module
         IntegerLiteral 3 : Int
     when
       Local pair : Pair<T0>
-      arm struct(0: local33, 1: local32)
-        val local34
+      arm struct(0: local35, 1: local34)
+        val local36
           CallableCall function_type0 : Int
             Local read : (T0) -> Int
             Local value : T0
-        val local35
+        val local37
           Local extra : Int
-        val local36
+        val local38
           Local $dependency.argument.0 : Int
         assign $result.0
           IntegerOperation int.add <no-gc> : Int

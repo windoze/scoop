@@ -84,6 +84,9 @@ Module
           Local $parameter._1
           Type Option<Int>
           Local $parameter._2
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       val $argument.0: Carrier<Int>
         Type Carrier<Int>
         Local value
@@ -134,7 +137,7 @@ Module
         Local $parameter.result
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.3
       val $dependency.argument.0: Int

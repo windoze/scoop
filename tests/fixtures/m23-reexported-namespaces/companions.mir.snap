@@ -57,6 +57,9 @@ Module
       call leaf: CompanionLeaf = external2 direct
         Type Int
         Local $dependency.parameter.number
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
       call external3 direct
       val $dependency.receiver: Tools
         Type Tools
@@ -74,7 +77,7 @@ Module
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        Local read
+        Local $callable.receiver
         Type Int
         Local $call.1
       val $dependency.argument.0: Int
