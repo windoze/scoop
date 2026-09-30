@@ -125,7 +125,11 @@ pub(super) fn check_fixture_cases(
     )
     .unwrap();
     let runtime = runtime::build(&target, &sysroot.path().join("runtime"));
-    let runtime_fixtures = crate::workspace_root().join("tests/fixtures/m23-imported-classes");
+    let runtime_fixtures = if fixtures.join("runtime.c").is_file() {
+        fixtures.clone()
+    } else {
+        crate::workspace_root().join("tests/fixtures/m23-imported-classes")
+    };
     for &case in cases {
         eprintln!("generic member case: {case}");
         let name = format!("generic-member-{case}");

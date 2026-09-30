@@ -649,7 +649,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         static_callback_trampoline_with_signature(3, outer_signature.fingerprint());
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
-        bridge: static_bridge,
+        bridge: scoop_lir::StaticCallbackTarget::Local(static_bridge),
         trampoline: static_trampoline,
         params: vec![scoop_lir::CType::Struct(outer)],
         return_type: c_value(scoop_lir::CType::Struct(outer)),
@@ -735,8 +735,11 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         .next()
         .expect("callback bridge")
         .1;
+    let scoop_lir::StaticCallbackTarget::Local(bridge_function) = static_callback.bridge else {
+        panic!("local callback bridge");
+    };
     let callback_bridge_symbol =
-        module.functions[static_callback.bridge.declaration().into_u32() as usize].symbol();
+        module.functions[bridge_function.declaration().into_u32() as usize].symbol();
     let static_trampoline_symbol = static_callback.trampoline.entry().symbol();
     let callback_bridge_object_symbol = module
         .meta
@@ -1668,7 +1671,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     let signed_trampoline = static_callback_trampoline(10);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "signedNarrow".to_string(),
-        bridge: signed_bridge,
+        bridge: scoop_lir::StaticCallbackTarget::Local(signed_bridge),
         trampoline: signed_trampoline,
         params: vec![
             scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
@@ -1688,7 +1691,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     let unsigned_trampoline = static_callback_trampoline(11);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "unsignedNarrow".to_string(),
-        bridge: unsigned_bridge,
+        bridge: scoop_lir::StaticCallbackTarget::Local(unsigned_bridge),
         trampoline: unsigned_trampoline,
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::UNSIGNED_16)),
@@ -1698,7 +1701,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     let bool_trampoline = static_callback_trampoline(12);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "boolNarrow".to_string(),
-        bridge: bool_bridge,
+        bridge: scoop_lir::StaticCallbackTarget::Local(bool_bridge),
         trampoline: bool_trampoline,
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Boolean),

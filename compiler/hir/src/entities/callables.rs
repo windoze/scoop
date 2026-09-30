@@ -136,6 +136,12 @@ impl From<Callable> for CallableTarget {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct NativeCallbackSignature {
+    pub function: FunctionId,
+    pub signature: FunctionTypeId,
+}
+
 pub(crate) fn callable_function(module: &Module, callable: Callable) -> FunctionId {
     match callable {
         Callable::Function(function) => function,

@@ -177,7 +177,9 @@ impl BodyProjection<'_, '_> {
             ExprKind::SizeOf(ty) => DefaultExpressionKindV1::SizeOf(self.type_key(*ty)?),
             ExprKind::AlignOf(ty) => DefaultExpressionKindV1::AlignOf(self.type_key(*ty)?),
             ExprKind::FunctionAddress(function) => DefaultExpressionKindV1::FunctionAddress(
-                self.entities.callable_declaration(*function)?,
+                self.entities
+                    .callable_target(*function, self.binders)?
+                    .declaration(),
             ),
             ExprKind::ForeignCallbackRegister {
                 registration,

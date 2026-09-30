@@ -1,4 +1,5 @@
 Module
+  callback cb0 @fn0 -> @fn17 function_type0 id=01b7c4e150676a899ac6ed323e5542d4030c33ee42a422f3fc676505d9590073
   struct Pair<Int, Unit> (value: Int, adjustment: Int)
   struct Pair<Int, String> (value: Int, adjustment: Int)
   struct CurrentPair<Box<Int, Int>, Unit> (value: Box<Int, Int>)
@@ -9,6 +10,7 @@ Module
   closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn7 captures=1
   generated_exact_type get0 location=closure0 nominal_id=6c39e047ee54baeff0d0b87a2b887d48ca1eade979e024204a164e6530f40224 exact_id=935b0033fea49e277afb14805ec30b5fd703d88e5d2565972dcab294d3aa89e1
   generated_exact_type get1 location=closure1 nominal_id=a74bd7a2eea70597f571130d8fa46bd0e740895aafe758e4bf3dbed97f8e4e8d exact_id=9bcc0ca1f5d730d4d7876f9a1bb90e2eaed32cafca9667e9747a4096ecfbfde5
+  generated_callable gc0 function=@fn17 id=01b7c4e150676a899ac6ed323e5542d4030c33ee42a422f3fc676505d9590073
   fun plain @fn0(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.argument.0: Int
@@ -599,6 +601,20 @@ Module
           Local value
           Type Int
           Local adjustment
+  fun callback bridge for plain @fn17($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn0 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
   instance mi0 function=@fn3 <- exercise
   instance mi1 function=@fn4 <- copied
   instance mi2 function=@fn5 <- value

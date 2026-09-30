@@ -110,6 +110,12 @@ pub enum CallableTarget {
     Imported(ImportedDependencyCallableUseId),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct NativeCallbackSignature {
+    pub function: FunctionId,
+    pub signature: FunctionTypeId,
+}
+
 impl CallableReferenceTarget {
     pub fn callee(&self) -> Option<CallableTarget> {
         match self {

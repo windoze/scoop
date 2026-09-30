@@ -13,7 +13,7 @@ impl SourceRoots {
                 self.function(export, callable.function(export), roots)
             }
             ExportDefaultCallableTarget::FunctionAddress(function) => {
-                self.function(export, function, roots)
+                self.callable_target(export, function, roots)
             }
             ExportDefaultCallableTarget::Bound(id) => self.bound(export, id, index, roots),
             ExportDefaultCallableTarget::DerivedEquality(id) => roots.require_field_type(

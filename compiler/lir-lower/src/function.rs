@@ -110,6 +110,7 @@ pub(super) fn lower_function<'a>(
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
     external_callables: &'a Arena<lir::ExternalCallable>,
     external_callable_map: &'a HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
+    callback_map: &'a HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
 ) -> StorageResult<LoweredFunction> {
@@ -203,6 +204,7 @@ pub(super) fn lower_function<'a>(
         function_signatures,
         external_callables,
         external_callable_map,
+        callback_map,
         extern_functions,
         extern_function_refs,
         pending_safepoints: &mut pending_safepoints,
@@ -305,6 +307,7 @@ struct FunctionLowerer<'a> {
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
     external_callables: &'a Arena<lir::ExternalCallable>,
     external_callable_map: &'a HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
+    callback_map: &'a HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     pending_safepoints: &'a mut safepoints::PendingSafepointSites,

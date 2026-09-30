@@ -57,7 +57,7 @@ pub fn hir_cross_cone_type_semantics_capability() -> CapabilityId {
 }
 
 pub fn mir_cross_cone_type_bridge_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.mir", "cross-cone-type-bridge", 4)
+    CapabilityId::new("org.scoop-lang.mir", "cross-cone-type-bridge", 5)
         .expect("built-in capability id is valid")
 }
 

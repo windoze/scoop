@@ -511,4 +511,12 @@ Module
     ret integer<Long>(0x000000000000000c)
   block if.merge.30
     ret integer<Long>(0x0000000000000053)
+  fun @scoop$1$cb$06500e776fc2e5e7bb5bef0fe7508a1fc8678217af321e189ab6244ed6852ba0(ptr<raw>) -> void <no-gc>
+    local %0 $value: i64
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn5()
+    store t0 -> local0
+    raw_store param0 local0 align 8
+    t1 = aggregate () : {}
+    ret
   output library

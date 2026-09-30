@@ -50,6 +50,9 @@ impl DependencyHirOutput {
                     callable
                 } else {
                     match &occurrence.expression.kind {
+                        concrete::ExprKind::FunctionAddress(
+                            concrete::CallableTarget::Imported(callable),
+                        ) => *callable,
                         concrete::ExprKind::ClassInitializerCall {
                             initializer: concrete::ClassInitializerTarget::Imported(callable),
                             ..

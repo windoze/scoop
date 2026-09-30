@@ -25,6 +25,7 @@ pub struct Module {
     /// registrations in this local graph.
     pub callback_applications: CallbackApplicationIdentities,
     pub function_types: Arena<FunctionType>,
+    pub native_callback_signatures: Vec<NativeCallbackSignature>,
     pub lambdas: Arena<Lambda>,
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,

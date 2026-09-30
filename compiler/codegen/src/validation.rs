@@ -648,18 +648,21 @@ fn validate_c_abi(module: &Module) -> Result<(), CodegenError> {
         })?;
     }
     for (_, callback) in module.callback_bridges.iter() {
-        let bridge_index = callback.bridge.declaration().into_u32() as usize;
-        let Some(bridge) = module.functions.get(bridge_index) else {
-            return Err(CodegenError(format!(
-                "static callback `{}` has invalid NoGC bridge id {bridge_index}",
-                callback.source_name
-            )));
+        let effect = match callback.bridge {
+            scoop_lir::StaticCallbackTarget::Local(bridge) => module
+                .functions
+                .get(bridge.declaration().into_u32() as usize)
+                .map(|function| function.gc_effect),
+            scoop_lir::StaticCallbackTarget::External(bridge) => module
+                .meta
+                .external_callables
+                .iter()
+                .find_map(|(id, function)| (id == bridge).then_some(function.gc_effect())),
         };
-        if bridge.gc_effect != GcEffect::NoGc {
+        if effect != Some(GcEffect::NoGc) {
             return Err(CodegenError(format!(
-                "static callback `{}` bridge @{} must be NoGC",
-                callback.source_name,
-                bridge.symbol()
+                "static callback `{}` must reference an existing NoGC storage bridge",
+                callback.source_name
             )));
         }
         for parameter in &callback.params {

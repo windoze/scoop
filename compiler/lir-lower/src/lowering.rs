@@ -181,11 +181,12 @@ pub(super) fn lower_graph(
             ))
         }
     };
-    let callback_bridges = lower_callback_bridges(
+    let (callback_bridges, callback_map) = lower_callback_bridges(
         module,
         &structs,
         &enums,
         &local_function_map,
+        &external_callable_map,
         &native_abi.callback_signatures,
     );
     let foreign_callback_families = lower_foreign_callback_families(module, &enums);
@@ -237,6 +238,7 @@ pub(super) fn lower_graph(
                 &function_signatures,
                 &external_callables,
                 &external_callable_map,
+                &callback_map,
                 &extern_functions,
                 &extern_function_refs,
             )

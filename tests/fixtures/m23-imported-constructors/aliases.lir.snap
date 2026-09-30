@@ -101,4 +101,12 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (indirect<struct1 size=24 align=8 scan=none>) -> i64 external-fn4(indirect local2)
     store t0 -> local1
     ret local1
+  fun @scoop$1$cb$84905930719bd7760738afdddedf4e60d0c6da8f383b6bf46bda99158b58179c(ptr<raw>) -> void <no-gc>
+    local %0 $value: i64
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn3()
+    store t0 -> local0
+    raw_store param0 local0 align 8
+    t1 = aggregate () : {}
+    ret
   output library

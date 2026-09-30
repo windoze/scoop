@@ -6,6 +6,7 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod callbacks;
 mod classification;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

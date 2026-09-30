@@ -1,8 +1,10 @@
 Module
+  callback cb0 @fn1 -> @fn2 function_type0 id=957e0229961a5a2ca3ff6e474d40c130a94f43ca4689356586ec5bad85ada6ae
   struct Token ()
   enum Choice
     Empty()
     Pair(left: Long, marker: Token, right: Long)
+  generated_callable gc0 function=@fn2 id=957e0229961a5a2ca3ff6e474d40c130a94f43ca4689356586ec5bad85ada6ae
   fun relay @fn0(value: Choice) -> Choice <no-gc>
     bb0 entry
       return
@@ -101,4 +103,14 @@ Module
           Local $dependency.receiver
           Type Long
           Local $dependency.parameter.other
+  fun callback bridge for test @fn2($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn1 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
   output library

@@ -1,4 +1,5 @@
 Module
+  callback cb0 @fn4 -> @fn6 function_type0 id=92d1e5812f9626c8abb080c87757bb089b6f05ea2c0bd7a61fdf106002e2d3fc
   struct Carrier (value: Choice, markers: (Token, Token))
   struct Token ()
   enum Wrapper
@@ -27,6 +28,7 @@ Module
   generated_exact_type get0 location=enum6 nominal_id=36b4bd52a2cc15c05f3375050a883d53eb0cf0a5d33d89a5826735c2aa86e229 exact_id=17a1a9c8b2e1c91b8933abc1fad662595dca436231ceac03c6430639deedf341
   generated_exact_type get1 location=class0 nominal_id=87c91f015956692d97ff4e2d926197dd5038e1bda447758ab6ed341c19392154 exact_id=659c9955aebf414e4898d27bab872981bf59ed79c0f9db5de1b2627ef0317615
   generated_exact_type get2 location=enum5 nominal_id=525494e1643dd177eb915d2085262bb400e76642f0e8d12b304fcac97a75921c exact_id=74752f29fd4335eb229915a06d0d3cca68b9de4122ba40f9fe2dd8f24b2c44b2
+  generated_callable gc0 function=@fn6 id=92d1e5812f9626c8abb080c87757bb089b6f05ea2c0bd7a61fdf106002e2d3fc
   fun relay @fn0(value: Choice) -> Choice <no-gc>
     bb0 entry
       return
@@ -435,6 +437,16 @@ Module
           Local value
           Type (Token, Token)
           Local markers
+  fun callback bridge for test @fn6($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn4 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
   coroutine_step cs0 CoroutineStep<Carrier> result=Carrier
   coroutine_slot cl0 CoroutineSlot<Carrier> value=Carrier
   output library

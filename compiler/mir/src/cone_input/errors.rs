@@ -27,6 +27,9 @@ pub enum ConeMirInputError {
     DuplicateExternalImplementation {
         implementation: scoop_identity::StrongCallableDefinitionOwner,
     },
+    ExternalCallbackSignatureMismatch {
+        bridge: crate::CallbackBridgeId,
+    },
     Initialization(super::StrongInitializationUnitError),
     Production(crate::MirProductionBuildError),
     StrongCallableSurfaceMismatch,
@@ -89,6 +92,7 @@ impl std::error::Error for ConeMirInputError {
             | Self::ForeignExternalCallable { .. }
             | Self::UnreferencedExternalCallable { .. }
             | Self::DuplicateExternalImplementation { .. }
+            | Self::ExternalCallbackSignatureMismatch { .. }
             | Self::StrongCallableSurfaceMismatch
             | Self::NonCanonicalShapeSupportSource { .. }
             | Self::InvalidShapeSupportSource { .. }

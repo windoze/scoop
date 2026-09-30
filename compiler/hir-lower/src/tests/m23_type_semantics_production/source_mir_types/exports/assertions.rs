@@ -183,6 +183,7 @@ pub(super) fn dump(
         let name = &input.mir.module().functions[root.function()].name;
         let role = match record.lowering_role() {
             Role::Ordinary => "ordinary",
+            Role::StaticCallbackStorage => "static-callback-storage",
             Role::Accessor => "accessor",
             Role::PureVirtualTrap { .. } => "trap",
             Role::ClassInitializer { .. } => "class-initializer",

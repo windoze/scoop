@@ -1,0 +1,30 @@
+Module
+  fun nativeWide(arg1: FunPtr<(Wide) -> Wide>): Long <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_call_wide>
+  fun callWide(callback: FunPtr<(Wide) -> Wide>): Long
+    val local1
+      Local callback : FunPtr<(Wide) -> Wide>
+    val local2
+      Local $argument.0 : FunPtr<(Wide) -> Wide>
+    return
+      Call nativeWide : Long
+        Local $parameter.callback : FunPtr<(Wide) -> Wide>
+  fun exercise<T>(value: T0): Long
+    val local1
+      FunctionAddress external #0 : FunPtr<(Wide) -> Wide>
+    val local2
+      Local callback : FunPtr<(Wide) -> Wide>
+    val local3
+      Local $argument.0 : FunPtr<(Wide) -> Wide>
+    return
+      Call callWide : Long
+        Local $parameter.callback : FunPtr<(Wide) -> Wide>
+  fun result(): Long
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Long
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

@@ -559,13 +559,6 @@ impl Lowerer {
             }
             CoreLoweringAuthority::Imported(authority) => hir::CoreProtocols::Imported(authority),
         };
-        let completion = LoweringCompletion {
-            dependencies: self
-                .dependencies
-                .take()
-                .expect("every HIR entry installs its dependency selection plan"),
-            binding_witness_uses: std::mem::take(&mut self.retained_binding_witness_uses),
-        };
-        self.finish(current_cone, warnings, core_protocols, completion)
+        self.finish(current_cone, warnings, core_protocols)
     }
 }

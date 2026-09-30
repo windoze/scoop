@@ -455,8 +455,11 @@ fn generated_callables(module: &mir::Module) -> mir::MirGeneratedCallableIdentit
     };
 
     for (_, bridge) in module.callback_bridges.iter() {
+        let Some((_, bridge_function)) = bridge.local_definition() else {
+            continue;
+        };
         register(
-            bridge.bridge_function,
+            bridge_function,
             bridge.identity().callable_record(),
             bridge.identity().signature_record().subject(),
         );
@@ -554,6 +557,9 @@ fn callable_signatures(module: &mir::Module) -> mir::MirCallableSignatures {
         register(source.signature_record());
     }
     for (_, bridge) in module.callback_bridges.iter() {
+        let Some((_, _)) = bridge.local_definition() else {
+            continue;
+        };
         register(bridge.identity().signature_record());
     }
     for (_, bridge) in module.foreign_callback_bridges.iter() {

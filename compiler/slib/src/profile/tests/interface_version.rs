@@ -22,10 +22,10 @@ fn type_semantics_v11_uses_complete_slot_receivers() {
 }
 
 #[test]
-fn mir_type_bridge_v4_separates_interface_contracts_from_machine_targets() {
+fn mir_type_bridge_v5_includes_definition_owned_callback_storage() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        4,
+        5,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }

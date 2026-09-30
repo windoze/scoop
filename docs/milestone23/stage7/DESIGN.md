@@ -340,6 +340,8 @@ generated-C bridge 继续以 producer-independent unit 表达 recipe，实际对
 
 跨 Cone 首次取得参数自由 `@NoGC` 函数的 C ABI 地址必须闭合真实 storage bridge、trampoline 及它们对原函数的引用。M23-6a 的实际 CLI 对照中，本地 `FunPtr<(Int) -> Int> = ::increment` 和消费方普通 `increment(41)` 都可发布；提供方只定义 `increment` 时没有 C storage bridge，消费方直接取其地址尚不能发布。本阶段应补齐实际机器地址的发布、需求与引用关系，保留原源码函数和桥的 typed identity／ABI／归属；不得复制外来 Strong 函数体或以假源码 wrapper 代替这一关系。验收覆盖提供方已经取地址与消费方首次取地址、再导出与源码移走、默认／泛型正文使用，以及真实 C 调用该地址的返回值。
 
+定义 Cone 从共有 callable 表选择参数自由、ordinary、NoGC、顶层 Scoop 函数，只有其参数与结果满足已有 C-safe 规则时才发布实际 storage bridge；私有模板支持与公开函数使用同一选择。桥沿既有 generated identity 保留原函数，MIR binding 同时保存源码签名和实际指针参数／Unit 结果签名。普通不满足 C-safe 的函数仍可发布，不为它们生成桥。源码与模板中的 FunctionAddress 共用已选 callable target，消费方引用定义方桥、生成本次 generated-C trampoline；提供方已经取址时复用同一桥，不因使用点不同追加 Strong 定义、身份或来源记录。
+
 ## 8. ODR 摘要、检查与合并
 
 ### 8.1 逐 member 记录
@@ -482,7 +484,7 @@ delegate/failure 中的 managed reference 由普通 root 和 scan 更新，中�
 
 ## 10. wire、profile 与缓存迁移
 
-以下表格记录修订前的 HIR 版本基线及本阶段物理产物目标，不把 6a 待实现的格式视为已完成。共同 HIR 的最终 section/inventory 由 6a 的实际编解码迁移确定；Stage 7 直接继承，不再另设 imported 模板格式。现有正式生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/1`。它沿用原完整 layout 产物的同一 producer/reader，替换 `cross-cone-layout-strong/3`；descriptor 仍只有 id 与当前实际必需 section 清单。
+以下表格记录 M23-6a 已验收的 HIR 版本基线及本阶段物理产物格式。Stage 7 直接继承共同 HIR 的实际 section/inventory，不再另设 imported 模板格式。现有正式生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/1`。它沿用原完整 layout 产物的同一 producer/reader，替换 `cross-cone-layout-strong/3`；descriptor 仍只有 id 与当前实际必需 section 清单。
 
 修订前第一条泛型函数纵向主线启用该 profile 时，使用已完成的 manifest `/2`、HIR interface `/32`、HIR type semantics `/8`、MIR type bridge `/1`、LIR layout ABI `/3`、callable link closure `/1`、layout link closure `/2`、link identity closure `/4`，并将原 Strong production `/14` 替换为 `cone-production/1`、Scoop 对象 verifier 升至 `/3`。这些编号记录既有迁移；6a 完成后按共同 HIR 和本阶段新增物理 payload 更新实际 section、descriptor fingerprint 与缓存；不为尚未生产的数据预写空表、引入临时 profile 或保留 layout-strong 双轨。profile 的启用不代替第 12、14 节的完整阶段验收。
 
@@ -503,9 +505,9 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | section/capability | 既有基线／物理目标 | 变化 |
 | --- | --- | --- |
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
-| `org.scoop-lang.hir/cross-cone-interface` | `/42` | Literal field 1 使用完整 typed 表达式，保留原定义与求值位置； 捕获 field 4 分离读取值来源与原绑定；for 在 Export 前展开，撤销专用 For 与 portable binding-plan 编码； 公开绑定引用不要求终点 provider 是 direct；AliasTarget 只保存实际 typed 引用；原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
+| `org.scoop-lang.hir/cross-cone-interface` | `/43` | 保留名义实例化条件；Literal field 1 使用完整 typed 表达式，保留原定义与求值位置；捕获 field 4 分离读取值来源与原绑定；for 在 Export 前展开，撤销专用 For 与 portable binding-plan 编码；公开绑定引用不要求终点 provider 是 direct；AliasTarget 只保存实际 typed 引用；原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/11` | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5 与槽根／目标 owner field 2，以原声明和完整 receiver 查询泛型父类型 |
-| `org.scoop-lang.mir/cross-cone-type-bridge` | `/4` | 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
+| `org.scoop-lang.mir/cross-cone-type-bridge` | `/5` | 参数自由 NoGC callback storage 使用 role tag 12，语义签名保留源函数、物理签名为结果及参数的 Ptr 序列并返回 Unit； 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
 | `org.scoop-lang.lir/cross-cone-layout-abi` | `/5` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用；完整 callable ABI 保留实际 callable member |
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |

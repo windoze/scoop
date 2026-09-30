@@ -18,6 +18,17 @@ impl Lowerer {
             .map(|capture| (capture.binding, capture.local))
             .collect();
         lowerer.current_closure = current_closure;
+        if let Some(callback) = module
+            .native_callback_signatures
+            .iter()
+            .find(|callback| callback.function == hir_id)
+        {
+            lowerer.ensure_callback_bridge(
+                hir::CallableTarget::Local(hir::Callable::Function(hir_id)),
+                callback.signature,
+                function.span,
+            );
+        }
         lowerer.lower_function(hir_id, function)
     }
 

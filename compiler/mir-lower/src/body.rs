@@ -10,6 +10,7 @@ mod imported_calls;
 mod operators;
 mod patterns;
 mod statements;
+mod static_callbacks;
 
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {

@@ -219,7 +219,16 @@ pub fn dump(module: &Module) -> String {
             "  callback cb{} {} @{} -> @{} c=({})->{}\n",
             id.into_raw(),
             callback.source_name,
-            module.functions[callback.bridge.declaration().into_u32() as usize].symbol(),
+            match callback.bridge {
+                StaticCallbackTarget::Local(bridge) => module.functions
+                    [bridge.declaration().into_u32() as usize]
+                    .symbol()
+                    .to_string(),
+                StaticCallbackTarget::External(bridge) => module.meta.external_callables[bridge]
+                    .expected_symbol()
+                    .symbol()
+                    .to_string(),
+            },
             callback.trampoline.entry().symbol(),
             params,
             callback.return_type.dump(),

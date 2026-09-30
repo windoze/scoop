@@ -112,7 +112,19 @@ pub(super) fn classify_binding(
                     unit.unit,
                 )
             })?;
-            if resolved_definition(binding) == Some(definition)
+            let external_symbol = scoop_identity::MangledSymbol::from_key(
+                &scoop_identity::PersistentSymbolKey::CallableBody(body),
+            );
+            let external_symbol = target_support
+                .target()
+                .contract()
+                .native_symbol_normalization()
+                .compiler_generated_object_symbol(external_symbol.as_str());
+            let external = matches!(
+                binding.resolution(),
+                StrongRelocationResolutionV1::ExternalCandidate { .. }
+            ) && binding.symbol() == external_symbol.as_bytes();
+            if (resolved_definition(binding) == Some(definition) || external)
                 && binding.relocation_form() == VerifiedDarwinArm64RelocationFormV1::Branch26
             {
                 return Ok(

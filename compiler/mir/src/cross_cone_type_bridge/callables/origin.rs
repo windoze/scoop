@@ -50,7 +50,8 @@ impl DecodedMirCallableOriginV1 {
                 let callable = graph.resolve(callable)?;
                 if !matches!(
                     role,
-                    DecodedGeneratedCallableKey::Initialization { .. }
+                    DecodedGeneratedCallableKey::StaticNoGcCallbackStorageBridge { .. }
+                        | DecodedGeneratedCallableKey::Initialization { .. }
                         | DecodedGeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                         | DecodedGeneratedCallableKey::DerivedEquality { .. }
                         | DecodedGeneratedCallableKey::DispatchAdjust { .. }

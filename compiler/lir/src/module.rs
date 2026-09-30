@@ -96,10 +96,16 @@ pub enum InitializationSchedule {
 #[derive(Debug)]
 pub struct CallbackBridge {
     pub source_name: String,
-    pub bridge: NoGcLocalFunctionRef,
+    pub bridge: StaticCallbackTarget,
     pub trampoline: StaticCallbackTrampolineIdentity,
     pub params: Vec<CType>,
     pub return_type: CReturnType,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StaticCallbackTarget {
+    Local(NoGcLocalFunctionRef),
+    External(ExternalCallableId),
 }
 
 /// One concrete managed-callback protocol family. All three ids are nominal:

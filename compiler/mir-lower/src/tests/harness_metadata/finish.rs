@@ -572,6 +572,7 @@ impl Harness {
             types: self.types,
             imported_intrinsic_types: std::collections::BTreeMap::new(),
             function_types: self.function_types,
+            native_callback_signatures: Vec::new(),
             lambdas: Arena::new(),
             anonymous_functions: Arena::new(),
             local_functions: Arena::new(),

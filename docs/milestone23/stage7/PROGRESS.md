@@ -699,14 +699,24 @@
 
 本项覆盖数组与上述泛型迭代路径，M23-7 尚未完成。真实组合验证还明确了三个后续缺口：普通参数自由宿主继承／实现封闭泛型父类型仍被旧的 materialization gate 排除，core 整数范围的普通 iterator 与泛型接口声明还会重复进入候选；消费者源码直接解构外来 struct／class 尚未接通共用 binding lowering；源码调用直接展开外来函数值默认参数仍受旧 gate 限制。这些问题随职责修订转入 [M23-6a](../stage6a/DESIGN.md) 的共同 HIR 迁移，不能把本项测试通过当成范围迭代或全部默认值／解构组合已经交付。
 
+## 2026-10-01：跨 Cone 原生函数取址
+
+- 源码与默认值／泛型正文的 `FunctionAddress` 共用实际选中的 callable target。当前与依赖函数按同一候选流程检查普通顶层、参数自由、NoGC、精确 C-safe 签名及 unsafe 规则；消费方不复制外来源码函数或 Strong 桥。
+- 定义方为实际发射的合格源函数生成 storage bridge，并为公开与模板支持函数发布共有 callable binding。桥保留原函数的 typed identity 和语义签名，物理签名使用可选结果指针及各参数指针并返回 Unit；只有实际取址表达式才产生 C trampoline。自动属性 getter／setter 不生成源函数取址桥，未取址的 provider 函数也不产生 C 对象。
+- 共有 MIR type bridge 升至 **`/5`**，storage bridge 使用 lowering role tag **12**。foundation 保存真实 storage ABI，消费方沿已有 generated identity 选择定义方桥；LIR 与 generated-C relocation 使用同一外部 callable 引用。profile 固定向量和指纹同步，旧产物与缓存重建，runtime ABI 与 GC 契约保持。
+- 新增 `m23-native-addresses` 的 **14 份源码、23 份 golden**，覆盖首次外来取址、提供方已取址、重载、默认值、私有泛型正文支持、再次转导出、24-byte CLayout 大值与指针写回。provider／consumer 发布后移走源码，下游以自有引用类型和重复 Int application 再次实例化并发布；**7 组**真实产物完成 C callback 调用、普通运行和移动 GC。**5 组**反例核对 managed 函数、错误签名、泛型原生地址、unsafe 和 private 可见性的报错位置与内容。
+- 新增实际产物检查确认 provider 只为 6 个源函数发布 storage bridge，公共属性访问器不混入；其唯一已取址函数产生 1 个 C trampoline，对每个桥核对定义方与实际 ABI。测试链接入口同时使用正式 reader 返回的 Scoop 对象与 generated-C 对象。
+- 完成 LLVM 22.1 下的 `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和配套编译器构建，无警告。HIR lowering、MIR lowering 与 slib 的严格单元回归 **2038 passed、0 failed、0 ignored**；受影响的 driver 回归 **39 passed、0 failed、0 ignored**，耗时 **494.36 秒**。既有快照中 41 份只变化产物指纹，其余增量核对为合格源函数的实际桥、callable、对象和登记记录。
+- 清除全部 `SCOOP_UPDATE_*`、`INSTA_UPDATE` 与 `RUST_MIN_STACK`，启用最新实际配套 `scoopc` 完成 `cargo test --workspace --no-fail-fast --target-dir target/m23-6a`：**37 个测试组、5313 passed、0 failed、0 ignored**，无编译警告；driver 的 **206 项** 全部通过，耗时 **703.46 秒**。包含实际编译执行的 collector、GC／stack-map、EH C 回归及关闭更新的全部 golden。日志与汇总为 `/tmp/scoop-m23-7-native-final-workspace.log` 和 `/tmp/scoop-m23-7-native-final-results.json`。
+- 全部构建和测试结束后执行 `cargo clean --target-dir target/m23-6a`，删除 **1948 个文件、5.1 GiB**；日志为 `/tmp/scoop-m23-7-native-clean.log`。
+
 ## 剩余主线
 
-以下保留迁移前发现的功能缺口。涉及共同语义、默认值、解构、bound、上下文推断和 source-only gate 的部分由 M23-6a 统一完成；本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
+[M23-6a 已验收](../stage6a/ACCEPTANCE.md)，普通宿主的封闭泛型父类型、整数范围、外来类型解构及函数值默认参数不再列为本阶段缺口。本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
 
-1. 在已完成的 delegate template 生产、读取、消费、求值顺序、cycle、表示组合、完整 unit 损坏产物、initializer 局部函数、lambda、匿名函数与函数引用捕获、派发组合基础上，继续覆盖初始化正文中的函数值适配；其余物理角色继续复用实际成员摘要与共有合并入口。
-2. 在已通过的私有 helper、定义处绑定、局部函数捕获、成员默认值、两组 binder、混合来源 bound、具名泛型正文与默认参数的派生相等、消费方源码直接引用外来函数、普通顶层状态共享、外来 Option 与泛型变体、指针和布局 intrinsic 调用、显式原始指针构造、依赖包限定类型路径、经转导出类型的静态嵌套 import、数组模板／vararg 及转换构造、整组实参上下文推断、数组与泛型 for、普通默认表达式循环基础上，继续补齐普通宿主及整数范围迭代、消费者源码对外来 struct／class 的 val／lambda／for 解构、其他 vararg 组合、参数自由外来值和派生相等的显式调用／函数引用、词法正文中的 bound 组合、导入默认值中的其他生成实体与捕获组合；继续接通指针函数值适配，以及显式 native storage（含取址）的泛型组合。
-3. 在已完成的泛型 class 共有 callable/dispatch、消费方构造与成员、泛型接口及属性、protected 方法/构造/setter、消费方覆写、普通子类与 object、泛型计算扩展属性闭环基础上，在本批递归 shape scan 完整对象定义的基础上，接通普通参数自由宿主继承／实现封闭泛型父类型的共有表示与 dispatch，移除已被完整应用取代的 source-only gate，并继续覆盖其他成员与表示组合。
-4. 在已完成的泛型与结构装箱、函数类型变体 adapter 基础上，继续完成其他 adapter、coroutine 与按需 shape support；挂起函数引用目前只验证签名与共有 HIR，仍需接通外来 coroutine protocol 的机器表示和执行。验证共同 member 一致、独立 member 并集、EH/stackmap 和实际地址合并。
-5. 切换 core、driver、reader/publisher、cache 与全部 fixture，删除无调用的旧路径，完成真实配套编译器和 runtime 的全仓验收。
+1. 补齐指针／函数值 adapter 与泛型 delegate initializer 中的适配组合，使用现有真实产物、再次发布和移动 GC 入口验收。
+2. 接通外来 core 协程协议的完整具体化、机器定义、异常与执行，以及参数自由 source exact 的有限 shell/start 支持；泛型与结构结果类型继续按实际使用物化。
+3. 验证 sibling 对同组独立 adapter／helper 成员的合法并集，共同 member、EH／stackmap 内容一致，以及真实 TD 和 dispatch 地址合并。
+4. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

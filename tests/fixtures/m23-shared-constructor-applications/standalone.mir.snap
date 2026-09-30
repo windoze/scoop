@@ -1,4 +1,5 @@
 Module
+  callback cb0 @fn0 -> @fn13 function_type0 id=a8df530cd5da9f67a1dcc2a5eb324d550da55be7372e5512fc12bc17ba56a6b0
   struct CurrentPair<Int, Unit> (value: Int, adjustment: Int)
   struct CurrentPair<Int, String> (value: Int, adjustment: Int)
   class CurrentBox<Int, Int> vtable=0 itables=0
@@ -8,6 +9,7 @@ Module
   closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn5 captures=1
   generated_exact_type get0 location=closure0 nominal_id=f9b927d1a3d676ec7fab55c0cbaea7db328d8d5738c2f9a264fea4f056230d46 exact_id=60d91ffc9289d0bd3b333c8be86459969ca71a08ebf76fb2263ca2537b235669
   generated_exact_type get1 location=closure1 nominal_id=4ca2d2c7ed21aad6e3e6de519901f0a646d884530056c916313e35d2ed63361f exact_id=dc26b879986d1be6a20fb9f32fb9ef8ebb5d855c456369ae2df7f2ba00c3a4ee
+  generated_callable gc0 function=@fn13 id=a8df530cd5da9f67a1dcc2a5eb324d550da55be7372e5512fc12bc17ba56a6b0
   fun plain @fn0(value: Int) -> Int <no-gc>
     bb0 entry
       val $argument.0: Int
@@ -554,6 +556,20 @@ Module
           Local value
           Type Int
           Local adjustment
+  fun callback bridge for plain @fn13($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn0 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
   instance mi0 function=@fn3 <- exercise
   instance mi1 function=@fn4 <- selected
   instance mi2 function=@fn5 <- $lambda.0

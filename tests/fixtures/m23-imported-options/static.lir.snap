@@ -323,6 +323,14 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
+  fun @scoop$1$cb$2d2964e390f65f050364215aea6dc4ed1e444854e7783c000137c16e5ee30745(ptr<raw>) -> void <no-gc>
+    local %0 $value: i32
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn0()
+    store t0 -> local0
+    raw_store param0 local0 align 4
+    t1 = aggregate () : {}
+    ret
   td td0 n(c=dev.example%3Ageneric-member-static%3A0.1.0;p=consumer.options;o=-;k=C;x=Cell) @scoop$1$td$bcb0a31fd05fc4e1ae9109a38f8936ee3e855a1e5cf99714b3b3b63d94d75757 type-id=12921287678680879974 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=dev.example%3Ageneric-member-static%3A0.1.0;p=consumer.options;o=-;k=C;x=Cell)]) @scoop$1$td$4601c5c4261f11cb3a361ce1c3481800c164837aa08395e719e0aa49228f0cf2 type-id=9686610505168473686 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$99105b2fcc5c078d010bbcc6eb646fc28da5b9a4b54d1154614fd6786521a572 type-id=2541775214623186241 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]

@@ -122,11 +122,34 @@ impl Module {
 
 #[derive(Debug)]
 pub struct CallbackBridge {
-    pub source: FunctionId,
+    pub target: StaticCallbackTarget,
     pub signature: FunctionTypeId,
-    /// NoGC storage-ABI entry called by the generated C trampoline.
-    pub bridge_function: FunctionId,
     pub(crate) identity: StaticCallbackBridgeIdentity,
+}
+
+/// Source and its storage entry share the same defining Cone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StaticCallbackTarget {
+    Local {
+        source: FunctionId,
+        bridge_function: FunctionId,
+    },
+    External {
+        source: ExternalCallableUseId,
+        bridge_function: ExternalCallableUseId,
+    },
+}
+
+impl CallbackBridge {
+    pub fn local_definition(&self) -> Option<(FunctionId, FunctionId)> {
+        match self.target {
+            StaticCallbackTarget::Local {
+                source,
+                bridge_function,
+            } => Some((source, bridge_function)),
+            StaticCallbackTarget::External { .. } => None,
+        }
+    }
 }
 
 /// Managed storage adapter for one foreign callback registration. Its

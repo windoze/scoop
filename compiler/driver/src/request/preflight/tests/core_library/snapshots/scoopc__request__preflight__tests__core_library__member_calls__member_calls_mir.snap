@@ -3,6 +3,8 @@ source: compiler/driver/src/request/preflight/tests/core_library/member_calls.rs
 expression: dump.text()
 ---
 Module
+  callback cb0 @fn10 -> @fn15 function_type0 id=142e1f75c331b8587f2dd0f10245a5a347774d2ab9b6eb8bcab66db0716626b6
+  generated_callable gc0 function=@fn15 id=142e1f75c331b8587f2dd0f10245a5a347774d2ab9b6eb8bcab66db0716626b6
   fun compare @fn0(value: Int) -> Long
     bb0 entry
       val $dependency.receiver: Int
@@ -326,6 +328,20 @@ Module
       call normal: Int = external0 direct
         Type Int
         Local $dependency.parameter.value
+      return
+  fun callback bridge for pure @fn15($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn10 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
       return
   str @str0 "!"
   str @str1 "z"

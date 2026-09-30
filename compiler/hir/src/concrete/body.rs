@@ -247,7 +247,7 @@ pub enum ExprKind {
     AddressOf(Place),
     SizeOf(TypeId),
     AlignOf(TypeId),
-    FunctionAddress(FunctionId),
+    FunctionAddress(CallableTarget),
     ForeignCallbackRegister {
         registration: ForeignCallbackRegistrationId,
         closure: Box<Expr>,

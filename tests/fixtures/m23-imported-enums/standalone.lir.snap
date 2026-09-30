@@ -87,4 +87,12 @@ Module
     store local24 -> local25
     t4 = integer_Add<Long> local23, local25 : i64
     ret t4
+  fun @scoop$1$cb$fd3c4f8f28d73d59c63a7dfedf8c71dafce6245da06803ae5e14ffc68eab057f(ptr<raw>) -> void <no-gc>
+    local %0 $value: i64
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn1()
+    store t0 -> local0
+    raw_store param0 local0 align 8
+    t1 = aggregate () : {}
+    ret
   output library

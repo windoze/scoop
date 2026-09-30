@@ -169,7 +169,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.push(lir::Instruction::FunctionAddress {
                     out,
                     target: lir::FunctionAddressTarget::CallbackTrampoline(
-                        lir::CallbackBridgeId::from_raw(callback.into_raw()),
+                        self.callback_map[callback],
                     ),
                 });
                 lir::Value::Temp(out)

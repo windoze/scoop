@@ -39,7 +39,7 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
         panic!("main is a user function")
     };
     main_body.statements.push(expr_stmt(expr(
-        hir::ExprKind::FunctionAddress(target),
+        hir::ExprKind::FunctionAddress(hir::Callable::Function(target).into()),
         function_pointer,
     )));
 
@@ -56,7 +56,7 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
     let source_materialization = module
         .meta
         .source_callable_materializations
-        .get(bridge.source)
+        .get(bridge.local_definition().unwrap().0)
         .expect("the callback source retains its local-concrete materialization")
         .materialization();
 
@@ -72,7 +72,7 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
     let generated = module
         .meta
         .generated_callables
-        .get(bridge.bridge_function)
+        .get(bridge.local_definition().unwrap().1)
         .expect("the static callback bridge has one generated callable location");
     assert_eq!(
         generated.identity_record(),

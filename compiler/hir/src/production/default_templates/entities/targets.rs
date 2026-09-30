@@ -127,7 +127,7 @@ impl DefaultEntityProjector<'_> {
             }
             ExportDefaultCallableTarget::FunctionAddress(function) => {
                 ExportDefaultCallableTargetV1::FunctionAddress {
-                    declaration: entities.callable_declaration(function)?,
+                    declaration: entities.callable_target(function, binders)?.declaration(),
                 }
             }
         })

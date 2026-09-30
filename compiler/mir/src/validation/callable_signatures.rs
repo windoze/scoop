@@ -62,6 +62,9 @@ fn expected_signatures(module: &Module) -> Result<MirCallableSignatures, MirVali
         register(source.signature_record());
     }
     for (_, bridge) in module.callback_bridges.iter() {
+        let Some((_, _)) = bridge.local_definition() else {
+            continue;
+        };
         register(bridge.identity().signature_record());
     }
     for (_, bridge) in module.foreign_callback_bridges.iter() {

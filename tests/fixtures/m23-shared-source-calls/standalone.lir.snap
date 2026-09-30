@@ -283,6 +283,15 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
+  fun @scoop$1$cb$2e2d5307a6120156dafdeb0ff2b8ac8016e9e7f13d051d3982059929f9647789(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i32
+  block entry
+    t0 = raw_load param1 align 4 : i32
+    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn0(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 4
+    t2 = aggregate () : {}
+    ret
   td td0 g(r=00000001;i=c4e733afb717e9746ff394fdd18ba76538cc639c9ee038872890433d2ebc2b8c) @scoop$1$td$ef08674e89a9561180b4b48064c4f8eb68205234efd0aa149a77e08260f94498 type-id=5220420524018944129 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td1 g(r=00000001;i=3d6114e61917f486413230b8c1c95ca1899817f9171de74241fe23d4c9c1c65c) @scoop$1$td$7d5c1983c95a622fe9580697710d6aead10e02ef146673e63346bb624e278ee3 type-id=5892069408746907242 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td2 g(r=00000001;i=ff9d6416b6a0ae85d3efd705213ee080105968016abad7770682fe98f6472b9f) @scoop$1$td$84623b5915c19048f5a34d2c0180225ff1dea350792a1d922d2cc7f65558dd48 type-id=3636410136073830930 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]

@@ -197,9 +197,19 @@ pub(in super::super) fn check(
                 }
             }
         }
-        for object in link.final_objects().objects() {
+        for bytes in link
+            .final_objects()
+            .objects()
+            .iter()
+            .map(|object| object.bytes())
+            .chain(
+                link.object_contents()
+                    .generated_objects()
+                    .map(|object| object.bytes()),
+            )
+        {
             let path = directory.join(format!("{}.o", objects.len()));
-            std::fs::write(&path, object.bytes()).unwrap();
+            std::fs::write(&path, bytes).unwrap();
             objects.push(path);
         }
     }

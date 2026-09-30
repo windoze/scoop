@@ -1,0 +1,3 @@
+span=7..40
+expression=dependency.nativeAddresses.hidden
+import target is not available in the current compilation unit

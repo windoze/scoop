@@ -125,6 +125,7 @@ fn static_callback_module() -> (Module, CallbackBridgeId) {
             bridge_function,
             materialization,
             exact_callback_signature(),
+            crate::core_unit_exact_type(),
             None,
         )
         .unwrap(),
@@ -143,15 +144,22 @@ fn static_callback_bridge_has_one_canonical_source_identity() {
 #[test]
 fn static_callback_bridge_must_name_its_source_materialization() {
     let (mut module, bridge) = static_callback_module();
-    let source = module.callback_bridges[bridge].source;
+    let source = module.callback_bridges[bridge]
+        .local_definition()
+        .unwrap()
+        .0;
     let signature = module.callback_bridges[bridge].signature;
-    let bridge_function = module.callback_bridges[bridge].bridge_function;
+    let bridge_function = module.callback_bridges[bridge]
+        .local_definition()
+        .unwrap()
+        .1;
     module.callback_bridges[bridge] = CallbackBridge::new(
         source,
         signature,
         bridge_function,
         source_materialization("differentStaticCallbackSource"),
         exact_callback_signature(),
+        crate::core_unit_exact_type(),
         None,
     )
     .unwrap();
@@ -170,7 +178,10 @@ fn static_callback_bridge_must_name_its_source_materialization() {
 #[test]
 fn static_callback_bridge_requires_the_exact_storage_abi() {
     let (mut module, bridge) = static_callback_module();
-    let function = module.callback_bridges[bridge].bridge_function;
+    let function = module.callback_bridges[bridge]
+        .local_definition()
+        .unwrap()
+        .1;
     module.functions[function].gc_effect = GcEffect::Managed;
 
     assert_eq!(
@@ -361,7 +372,12 @@ fn generated_callable_function_must_retain_its_signature_subject() {
     let generated = module
         .meta
         .generated_callables
-        .get(module.callback_bridges[bridge].bridge_function)
+        .get(
+            module.callback_bridges[bridge]
+                .local_definition()
+                .unwrap()
+                .1,
+        )
         .unwrap();
     let function = generated.function();
     let identity = generated.identity_record().clone();

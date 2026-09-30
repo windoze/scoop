@@ -1,0 +1,66 @@
+Module
+  extern ef0 nativeScalar @m23_call_scalar(FunPtr<(Long) -> Long>, Long) -> Long <abi=c no-gc>
+  callback cb0 external0 -> external1 function_type0 id=2bf815ede5ec704adde4d7843fcc4aa774034ead8a3c03ce45fbab693b1b3609
+  fun callScalar @fn0(callback: FunPtr<(Long) -> Long>, value: Long) -> Long
+    bb0 entry
+      val $argument.0: FunPtr<(Long) -> Long>
+        Type FunPtr<(Long) -> Long>
+        Local callback
+      val $argument.1: Long
+        Type Long
+        Local value
+      val $parameter.callback: FunPtr<(Long) -> Long>
+        Type FunPtr<(Long) -> Long>
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = extern0 @m23_call_scalar direct
+        Type FunPtr<(Long) -> Long>
+        Local $parameter.callback
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun result @fn1() -> Long
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Long = @fn2 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun exercise @fn2(value: Int) -> Long
+    bb0 entry
+      val callback: FunPtr<(Long) -> Long>
+        Type FunPtr<(Long) -> Long>
+        FunctionAddress cb0
+      val $argument.0: FunPtr<(Long) -> Long>
+        Type FunPtr<(Long) -> Long>
+        Local callback
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $parameter.callback: FunPtr<(Long) -> Long>
+        Type FunPtr<(Long) -> Long>
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = @fn0 direct
+        Type FunPtr<(Long) -> Long>
+        Local $parameter.callback
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  instance mi0 function=@fn2 <- exercise
+  output library

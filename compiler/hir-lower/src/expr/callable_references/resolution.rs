@@ -224,31 +224,4 @@ impl Lowerer {
             }
         }
     }
-
-    // Native addresses retain their separate contextual resolution rules.
-    pub(super) fn named_reference_candidate_layers(
-        &self,
-        name: &str,
-    ) -> Vec<crate::imports::lookup::LookupLayer<hir::FunctionId>> {
-        self.named_callable_reference_layers(name)
-            .into_iter()
-            .map(|layer| {
-                let mut candidates = layer
-                    .candidates
-                    .into_iter()
-                    .filter_map(|binding| match binding.target {
-                        NamedCallTarget::Function(function) => Some(function),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>();
-                candidates.sort_by_key(|id| id.into_raw().into_u32());
-                crate::imports::lookup::LookupLayer {
-                    kind: layer.kind,
-                    candidates,
-                    suppressed_callables: layer.suppressed_callables,
-                }
-            })
-            .filter(|layer| !layer.candidates.is_empty() || !layer.suppressed_callables.is_empty())
-            .collect()
-    }
 }

@@ -278,7 +278,7 @@ pub(super) fn dump_expr(
         )),
         ExprKind::FunctionAddress(function) => out.push_str(&format!(
             "{pad}FunctionAddress {} : {ty}\n",
-            module.functions[*function].name
+            callable_target_name(module, *function)
         )),
         ExprKind::ForeignCallbackRegister {
             registration,

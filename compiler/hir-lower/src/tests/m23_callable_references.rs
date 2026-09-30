@@ -519,7 +519,10 @@ fn native_reference_ignores_exact_member_and_selects_current_top_level() {
     let output = lower_sources(vec![library, user], core_file())
         .expect("native lookup only considers the legal current top-level declaration");
     let expression = local_init(body(&output.export, "main"), "selected");
-    let hir::ExprKind::FunctionAddress(function) = expression.kind else {
+    let hir::ExprKind::FunctionAddress(hir::CallableTarget::Local(hir::Callable::Function(
+        function,
+    ))) = expression.kind
+    else {
         panic!("the selected native reference is a direct function address")
     };
     assert_eq!(output.export.functions[function].name, "callback");
@@ -552,7 +555,10 @@ fn native_reference_accepts_exact_alias_to_top_level_function() {
     let output = lower_sources(vec![library, user], core_file())
         .expect("native lookup retains an exact alias to a legal top-level function");
     let expression = local_init(body(&output.export, "main"), "selected");
-    let hir::ExprKind::FunctionAddress(function) = expression.kind else {
+    let hir::ExprKind::FunctionAddress(hir::CallableTarget::Local(hir::Callable::Function(
+        function,
+    ))) = expression.kind
+    else {
         panic!("the exact alias lowers directly to a native function address")
     };
     assert_eq!(output.export.functions[function].name, "callback");

@@ -1271,69 +1271,13 @@ fn try_visit_block_exprs(
     block: &BasicBlock,
     visitor: &mut impl FnMut(&Expr) -> Result<(), MirValidationError>,
 ) -> Result<(), MirValidationError> {
-    for statement in &block.statements {
-        match &statement.kind {
-            StatementKind::Expr(expr) => try_visit_expr(expr, visitor)?,
-            StatementKind::Call(effect) => {
-                let call = match effect {
-                    CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
-                };
-                for argument in &call.args {
-                    try_visit_expr(argument, visitor)?;
-                }
-            }
-            StatementKind::ValDecl { init, .. } => try_visit_expr(init, visitor)?,
-            StatementKind::Assign { value, .. } | StatementKind::GlobalAssign { value, .. } => {
-                try_visit_expr(value, visitor)?
-            }
-            StatementKind::ArraySet {
-                array,
-                index,
-                value,
-                ..
-            } => {
-                try_visit_expr(array, visitor)?;
-                try_visit_expr(index, visitor)?;
-                try_visit_expr(value, visitor)?;
-            }
-            StatementKind::FieldSet { object, value, .. }
-            | StatementKind::AtomicFieldStore { object, value, .. } => {
-                try_visit_expr(object, visitor)?;
-                try_visit_expr(value, visitor)?;
-            }
-            StatementKind::Eh(_) => {}
-        }
-    }
-    match &block.terminator {
-        Terminator::Branch { cond, .. } => try_visit_expr(cond, visitor)?,
-        Terminator::Return { value: Some(value) } => try_visit_expr(value, visitor)?,
-        Terminator::Throw { exception, .. } => try_visit_expr(exception, visitor)?,
-        Terminator::Goto(_)
-        | Terminator::Return { value: None }
-        | Terminator::Rethrow { .. }
-        | Terminator::Resume
-        | Terminator::Trap { .. }
-        | Terminator::Unreachable => {}
-    }
-    Ok(())
-}
-
-fn try_visit_expr(
-    expr: &Expr,
-    visitor: &mut impl FnMut(&Expr) -> Result<(), MirValidationError>,
-) -> Result<(), MirValidationError> {
-    let mut error = None;
-    visit_expr(expr, &mut |expr| {
-        if error.is_none()
-            && let Err(found) = visitor(expr)
-        {
-            error = Some(found);
+    let mut result = Ok(());
+    visit_block_exprs(block, &mut |expr| {
+        if result.is_ok() {
+            result = visitor(expr);
         }
     });
-    match error {
-        Some(error) => Err(error),
-        None => Ok(()),
-    }
+    result
 }
 
 #[cfg(test)]

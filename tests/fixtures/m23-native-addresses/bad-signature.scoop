@@ -1,0 +1,3 @@
+import dependency.nativeAddresses.echo
+
+public fun rejected(): FunPtr<(Boolean) -> Boolean> = ::echo

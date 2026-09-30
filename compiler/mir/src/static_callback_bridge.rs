@@ -32,6 +32,7 @@ impl StaticCallbackBridgeIdentity {
     pub fn new(
         source: CallableMaterialization,
         signature: ExactCallableSignature,
+        unit: scoop_identity::PersistentExactTypeId,
         odr_group: Option<OdrGroupId>,
     ) -> Result<Self, StaticCallbackBridgeIdentityError> {
         if signature.effect() != Effect::Ordinary {
@@ -72,11 +73,23 @@ impl StaticCallbackBridgeIdentity {
             ),
             None => CallableSignatureSubject::strong(CallableOwner::Generated(callable.id())),
         };
+        let parameters = (signature.result() != unit)
+            .then_some(signature.result())
+            .into_iter()
+            .chain(signature.parameters().iter().copied())
+            .map(|pointee| {
+                scoop_identity::PersistentExactTypeId::from_key(
+                    &scoop_identity::ExactTypeKey::RawPointer(pointee),
+                )
+                .map_err(StaticCallbackBridgeIdentityError::StorageType)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let storage = ExactCallableSignature::new(Effect::Ordinary, None, parameters, unit);
         Ok(Self {
             source,
             callable,
             odr_member,
-            signature: CallableSignatureRecord::new(subject, signature),
+            signature: CallableSignatureRecord::new(subject, storage),
         })
     }
 
@@ -116,15 +129,19 @@ impl CallbackBridge {
         bridge_function: FunctionId,
         source_materialization: CallableMaterialization,
         exact_signature: ExactCallableSignature,
+        unit: scoop_identity::PersistentExactTypeId,
         odr_group: Option<OdrGroupId>,
     ) -> Result<Self, StaticCallbackBridgeIdentityError> {
         Ok(Self {
-            source,
+            target: crate::StaticCallbackTarget::Local {
+                source,
+                bridge_function,
+            },
             signature,
-            bridge_function,
             identity: StaticCallbackBridgeIdentity::new(
                 source_materialization,
                 exact_signature,
+                unit,
                 odr_group,
             )?,
         })
@@ -132,6 +149,22 @@ impl CallbackBridge {
 
     pub const fn identity(&self) -> &StaticCallbackBridgeIdentity {
         &self.identity
+    }
+
+    pub fn external(
+        source: crate::ExternalCallableUseId,
+        bridge_function: crate::ExternalCallableUseId,
+        signature: FunctionTypeId,
+        identity: StaticCallbackBridgeIdentity,
+    ) -> Self {
+        Self {
+            target: crate::StaticCallbackTarget::External {
+                source,
+                bridge_function,
+            },
+            signature,
+            identity,
+        }
     }
 }
 
@@ -144,6 +177,7 @@ pub enum StaticCallbackBridgeIdentityError {
     GeneratedCallable(GeneratedCallableIdentityError),
     OdrMember(OdrMemberIdentityError),
     OdrMemberRecord(HashError),
+    StorageType(HashError),
 }
 
 impl fmt::Display for StaticCallbackBridgeIdentityError {
@@ -162,7 +196,7 @@ impl fmt::Display for StaticCallbackBridgeIdentityError {
                 .write_str("a parameter-free static callback bridge must not have an ODR group"),
             Self::GeneratedCallable(error) => error.fmt(formatter),
             Self::OdrMember(error) => error.fmt(formatter),
-            Self::OdrMemberRecord(error) => error.fmt(formatter),
+            Self::OdrMemberRecord(error) | Self::StorageType(error) => error.fmt(formatter),
         }
     }
 }
@@ -217,7 +251,8 @@ mod tests {
             CallableMaterializationContext::NoSubstitution,
         );
         let signature = signature();
-        let identity = StaticCallbackBridgeIdentity::new(source, signature.clone(), None).unwrap();
+        let identity =
+            StaticCallbackBridgeIdentity::new(source, signature.clone(), unit(), None).unwrap();
 
         assert_eq!(identity.source(), source);
         assert_eq!(
@@ -234,7 +269,11 @@ mod tests {
                 identity.callable_record().id()
             ))
         );
-        assert_eq!(identity.signature_record().signature(), &signature);
+        let pointer = PersistentExactTypeId::from_key(&ExactTypeKey::RawPointer(unit())).unwrap();
+        assert_eq!(
+            identity.signature_record().signature(),
+            &ExactCallableSignature::new(Effect::Ordinary, None, vec![pointer], unit())
+        );
     }
 
     #[test]
@@ -255,7 +294,8 @@ mod tests {
             CallableTemplateOwner::Function(source_function()),
             CallableMaterializationContext::Application(application),
         );
-        let identity = StaticCallbackBridgeIdentity::new(source, signature(), Some(group)).unwrap();
+        let identity =
+            StaticCallbackBridgeIdentity::new(source, signature(), unit(), Some(group)).unwrap();
         let member = identity.odr_member_record().unwrap();
 
         assert_eq!(member.key().group(), group);

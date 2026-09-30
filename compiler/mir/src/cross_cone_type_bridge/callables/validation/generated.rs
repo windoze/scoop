@@ -15,6 +15,37 @@ impl MirCallableBridgeAuthority<'_> {
         let lowered = binding.lowered.exact();
         match (generated, binding.role) {
             (
+                GeneratedCallableKey::StaticNoGcCallbackStorageBridge { source, signature },
+                MirCallableLoweringRoleV1::StaticCallbackStorage,
+            ) => {
+                if source.context() != CallableMaterializationContext::NoSubstitution
+                    || !matches!(source.template(), CallableTemplateOwner::Function(_))
+                    || signature != semantic
+                    || semantic.effect() != scoop_identity::Effect::Ordinary
+                    || semantic.receiver().is_present()
+                    || lowered.receiver().is_present()
+                    || !self.is_unit(lowered.result())?
+                    || binding.semantic.gc_effect() != crate::GcEffect::NoGc
+                {
+                    return Err(MirCallableBridgeError::SignatureMismatch);
+                }
+                let pointees = (!self.is_unit(semantic.result())?)
+                    .then_some(semantic.result())
+                    .into_iter()
+                    .chain(semantic.parameters().iter().copied())
+                    .collect::<Vec<_>>();
+                if pointees.len() != lowered.parameters().len() {
+                    return Err(MirCallableBridgeError::SignatureMismatch);
+                }
+                for (pointer, pointee) in lowered.parameters().iter().zip(pointees) {
+                    let key = self.identities.canonical_key::<_, ExactTypeKey>(*pointer)?;
+                    if *key != ExactTypeKey::RawPointer(pointee) {
+                        return Err(MirCallableBridgeError::SignatureMismatch);
+                    }
+                }
+                Ok(())
+            }
+            (
                 GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor },
                 MirCallableLoweringRoleV1::ClassInitializer { owner },
             ) => {
@@ -112,7 +143,8 @@ impl MirCallableBridgeAuthority<'_> {
                 Ok(())
             }
             (
-                GeneratedCallableKey::Initialization { .. }
+                GeneratedCallableKey::StaticNoGcCallbackStorageBridge { .. }
+                | GeneratedCallableKey::Initialization { .. }
                 | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                 | GeneratedCallableKey::DerivedEquality { .. }
                 | GeneratedCallableKey::DispatchAdjust { .. }

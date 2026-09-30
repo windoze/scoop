@@ -349,13 +349,22 @@ fn render_static_callback(
         CBridgeTypeSurface::for_signature_parts(module, &callback.params, &callback.return_type)?;
     let renderer = CTypeRenderer::new(surface.function_types());
     let mut out = unit_prelude(module, plan, &surface)?;
-    let bridge = &module.functions[callback.bridge.declaration().into_u32() as usize];
+    let bridge_symbol = match callback.bridge {
+        scoop_lir::StaticCallbackTarget::Local(bridge) => module.functions
+            [bridge.declaration().into_u32() as usize]
+            .symbol()
+            .to_string(),
+        scoop_lir::StaticCallbackTarget::External(bridge) => module.meta.external_callables[bridge]
+            .expected_symbol()
+            .symbol()
+            .to_string(),
+    };
     let bridge_object_symbol = module
         .meta
         .target_profile
         .contract()
         .native_symbol_normalization()
-        .compiler_generated_object_symbol(bridge.symbol());
+        .compiler_generated_object_symbol(&bridge_symbol);
     let has_result = !callback.return_type.is_void();
     let mut storage_parameters = Vec::new();
     if has_result {

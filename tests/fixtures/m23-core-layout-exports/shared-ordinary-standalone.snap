@@ -6,9 +6,10 @@ local-only descriptor IntRangeIterator
 local-only descriptor LongRangeIterator
 local-only descriptor UIntRangeIterator
 local-only descriptor ULongRangeIterator
-layouts=226 descriptors=113 dispatch=137 callables=34 shapes=29
+layouts=226 descriptors=113 dispatch=137 callables=35 shapes=29
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
+callable callback bridge for sharedOrdinaryCount: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable ctor.SourceLocation.$c5: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)"] result=Indirect(40)
 callable init.ArithmeticException.$c14: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.ClassCastException.$c13: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid

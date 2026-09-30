@@ -29,10 +29,13 @@ pub(super) fn validate_generated_callable_metadata(
 
     let mut expected = HashSet::new();
     for (_, bridge) in module.callback_bridges.iter() {
+        let Some((_, bridge_function)) = bridge.local_definition() else {
+            continue;
+        };
         expect(
             module,
             &mut expected,
-            bridge.bridge_function,
+            bridge_function,
             bridge.identity().callable_record(),
             bridge.identity().signature_record().subject(),
         )?;

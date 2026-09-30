@@ -1,0 +1,18 @@
+package consumer.nativeAddresses
+
+import dependency.nativeAddresses.sink
+
+@Extern(name = "m23_call_sink")
+private fun nativeSink(callback: FunPtr<(Ptr<Long>) -> Unit>): Long
+
+public fun callSink(callback: FunPtr<(Ptr<Long>) -> Unit>): Long {
+    @Unsafe { return nativeSink(callback) }
+}
+
+public fun <T> exercise(value: T): Long {
+    @Unsafe {
+        val callback: FunPtr<(Ptr<Long>) -> Unit> = ::sink
+        return callSink(callback)
+    }
+}
+public fun result(): Long = exercise<Int>(0)

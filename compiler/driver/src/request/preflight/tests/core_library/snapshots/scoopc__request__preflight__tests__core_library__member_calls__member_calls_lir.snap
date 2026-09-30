@@ -210,6 +210,15 @@ Module
     call managed-direct-target2 sp<managed-call:2> live=[] t7 = sig=direct2 (i32) -> i32 external-fn0(local14)
     store t7 -> local15
     ret
+  fun @scoop$1$cb$579c64e1feb2f05a1249cf782542ea164544037931a81112749f9e0203aa2a97(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i32
+  block entry
+    t0 = raw_load param1 align 4 : i32
+    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn10(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 4
+    t2 = aggregate () : {}
+    ret
   fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]

@@ -1,0 +1,3 @@
+span=93..99
+expression=::sink
+taking the address of an unsafe callback requires an unsafe context

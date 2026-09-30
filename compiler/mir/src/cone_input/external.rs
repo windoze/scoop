@@ -45,5 +45,31 @@ pub(crate) fn validate_external_callables(
             gc_effect: value.gc_effect(),
         });
     }
+    for (id, bridge) in module.callback_bridges.iter() {
+        let crate::StaticCallbackTarget::External {
+            source,
+            bridge_function,
+        } = bridge.target
+        else {
+            continue;
+        };
+        let source = selected
+            .resolve_callable(module.meta.external_callables[source].reference())
+            .expect("external references were resolved above");
+        let storage = selected
+            .resolve_callable(module.meta.external_callables[bridge_function].reference())
+            .expect("external references were resolved above");
+        let scoop_identity::GeneratedCallableKey::StaticNoGcCallbackStorageBridge {
+            signature, ..
+        } = bridge.identity().callable_record().key()
+        else {
+            unreachable!("static bridge key")
+        };
+        if source.signature() != signature
+            || storage.signature() != bridge.identity().signature_record().signature()
+        {
+            return Err(Error::ExternalCallbackSignatureMismatch { bridge: id });
+        }
+    }
     Ok(roots)
 }

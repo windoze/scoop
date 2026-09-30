@@ -1,0 +1,10 @@
+import consumer.nativeAddresses.exposed
+import consumer.nativeAddresses.exercise
+import consumer.nativeAddresses.callScalar
+
+private class Later(public val number: Long)
+public fun check(): Long {
+    val value = Later(exercise<Long>(0))
+    val callback: FunPtr<(Long) -> Long> = ::exposed
+    return if (exercise<Later>(value) == 42) { callScalar(callback, value.number) } else { 1 }
+}

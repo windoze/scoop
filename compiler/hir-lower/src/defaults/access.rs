@@ -139,7 +139,7 @@ impl ReferenceCollector<'_> {
                 self.method_callee_domain(hir::MethodCallee::DerivedEquality(application))
             }
             hir::ExportDefaultCallableTarget::FunctionAddress(function) => {
-                self.lowerer.function_access_domain(function)
+                self.selected_callable_domain(function)
             }
             hir::ExportDefaultCallableTarget::CallableReference(reference) => {
                 match &self.lowerer.callable_references[reference].target {

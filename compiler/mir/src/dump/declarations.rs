@@ -109,11 +109,24 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for (id, callback) in module.callback_bridges.iter() {
+        let (source, bridge) = match callback.target {
+            StaticCallbackTarget::Local {
+                source,
+                bridge_function,
+            } => (function_ref(source), function_ref(bridge_function)),
+            StaticCallbackTarget::External {
+                source,
+                bridge_function,
+            } => (
+                format!("external{}", source.into_raw().into_u32()),
+                format!("external{}", bridge_function.into_raw().into_u32()),
+            ),
+        };
         out.push_str(&format!(
             "  callback cb{} {} -> {} function_type{} id={}\n",
             id.into_raw().into_u32(),
-            function_ref(callback.source),
-            function_ref(callback.bridge_function),
+            source,
+            bridge,
             callback.signature.into_raw().into_u32(),
             callback.identity().callable_record().id(),
         ));

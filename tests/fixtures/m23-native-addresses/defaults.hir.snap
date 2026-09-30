@@ -1,0 +1,69 @@
+Module
+  fun nativeScalar(arg1: FunPtr<(Long) -> Long>, arg2: Long): Long <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_call_scalar>
+  fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+    val local2
+      Local callback : FunPtr<(Long) -> Long>
+    val local3
+      Local value : Long
+    val local4
+      Local $argument.0 : FunPtr<(Long) -> Long>
+    val local5
+      Local $argument.1 : Long
+    return
+      Call nativeScalar : Long
+        Local $parameter.callback : FunPtr<(Long) -> Long>
+        Local $parameter.value : Long
+  fun exercise<T>(value: T0): Long
+    val local1
+      Local value : T0
+    val local2
+      Local $dependency.argument.0 : T0
+    val local3
+      FunctionAddress external #0 : FunPtr<(Long) -> Long>
+    val local4
+      Call selected<T0> : FunPtr<(Long) -> Long>
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.callback : FunPtr<(Long) -> Long>
+    val local5
+      IntegerLiteral 20 : Long
+    val local6
+      Local $argument.0 : FunPtr<(Long) -> Long>
+    val local7
+      Local $argument.1 : Long
+    val local14
+      Call callScalar : Long
+        Local $parameter.callback : FunPtr<(Long) -> Long>
+        Local $parameter.value : Long
+    val local8
+      Local value : T0
+    val local9
+      Local $dependency.argument.0 : T0
+    val local10
+      Call privateAddress<T0> : FunPtr<(Long) -> Long>
+        Local $dependency.parameter.value : T0
+    val local11
+      IntegerLiteral 20 : Long
+    val local12
+      Local $argument.0 : FunPtr<(Long) -> Long>
+    val local13
+      Local $argument.1 : Long
+    val local15
+      Call callScalar : Long
+        Local $parameter.callback : FunPtr<(Long) -> Long>
+        Local $parameter.value : Long
+    val local16
+      Local $dependency.argument.0 : Long
+    return
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+  fun result(): Long
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $argument.0 : Int
+    return
+      Call exercise<Int> : Long
+        Local $parameter.value : Int
+  output library
+  instance exercise<Int>

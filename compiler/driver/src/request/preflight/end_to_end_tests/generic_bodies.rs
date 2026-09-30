@@ -28,6 +28,7 @@ mod local_calls;
 mod machine;
 mod members;
 mod method_calls;
+mod native_addresses;
 mod native_calls;
 mod nominal_conditions;
 mod nominals;

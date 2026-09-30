@@ -211,9 +211,9 @@ impl Concretizer<'_> {
             export::ExprKind::AlignOf(align) => {
                 concrete::ExprKind::AlignOf(self.lower_type(*align, substitution))
             }
-            export::ExprKind::FunctionAddress(function) => {
-                concrete::ExprKind::FunctionAddress(self.request_function(*function, Vec::new()))
-            }
+            export::ExprKind::FunctionAddress(function) => concrete::ExprKind::FunctionAddress(
+                self.lower_callable_target(*function, substitution),
+            ),
             export::ExprKind::ForeignCallbackRegister {
                 registration,
                 closure,

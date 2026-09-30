@@ -259,7 +259,7 @@ fn install_generated_callables(module: &mut Module) {
     };
     for (_, bridge) in module.callback_bridges.iter() {
         register(
-            bridge.bridge_function,
+            bridge.local_definition().unwrap().1,
             bridge.identity().callable_record(),
             bridge.identity().signature_record().subject(),
         );

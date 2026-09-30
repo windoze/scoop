@@ -169,6 +169,14 @@ Module
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
+  fun @scoop$1$cb$6659265a63fd98828404ef26a33116e211fa2ef3daf3327fe67b6ef9ff06d05b(ptr<raw>) -> void <no-gc>
+    local %0 $value: i64
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn2()
+    store t0 -> local0
+    raw_store param0 local0 align 8
+    t1 = aggregate () : {}
+    ret
   td td0 g(r=00000006;i=57d6eec75d8d04b7c8fc68fedd34ba26518a7539aa6e08f67f20fe435b9df5f8) @scoop$1$td$b395f3f8e4179e106ee73622ed6ac0d0a083d5fc7046321dfe0fc47fae914e2c type-id=16412379156052130037 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
   td td1 n(c=dev.example%3Aenums-combined%3A0.1.0;p=consumer.enums;o=-;k=E;x=Wrapper) @scoop$1$td$85d2c3419ef60fcb1bf314b4eba3d15a800dab74f94daba61b42c13e96dc8ff7 type-id=3413231996273976064 shape=BoxedValue minimum-size=48 align=8 parent=none vtable=[] itables=[]
   td td2 n(c=dev.example%3Aenums-combined%3A0.1.0;p=consumer.enums;o=-;k=S;x=Carrier) @scoop$1$td$b5e6f0ec6433fc10fc73768fa5ebb07be7eb82938ef4e47362e43ca7dbd0ed22 type-id=10288694414679583356 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]

@@ -48,7 +48,6 @@ impl Concretizer<'_> {
 
         self.lower_extern_functions();
         self.lower_globals();
-
         for (id, declaration) in self.source.structs.iter() {
             if declaration.type_params.is_empty()
                 && self.automatic_nominal(&self.source.nominal_identities[id])
@@ -102,6 +101,23 @@ impl Concretizer<'_> {
                 self.request_function(id, Vec::new());
             }
         }
+        self.drain_pending_callables();
+
+        let native_callback_signatures = self
+            .source
+            .native_callback_signatures
+            .iter()
+            .map(|callback| {
+                let function = self.request_function(callback.function, Vec::new());
+                let signature = self.lower_function_type(callback.signature, &[]);
+                self.prepare_callback_storage_types(signature);
+                self.intern_type(concrete::TypeKind::FunPtr(signature), true);
+                concrete::NativeCallbackSignature {
+                    function,
+                    signature,
+                }
+            })
+            .collect();
         self.drain_pending_callables();
 
         let core_protocols = match self.core {
@@ -190,6 +206,7 @@ impl Concretizer<'_> {
             generated_callable_identities: identities.generated_callable_identities,
             callback_applications: identities.callback_applications,
             function_types: self.function_types,
+            native_callback_signatures,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,

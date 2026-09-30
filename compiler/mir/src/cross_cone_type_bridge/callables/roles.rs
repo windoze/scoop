@@ -4,6 +4,7 @@ use scoop_identity::PersistentIdResolver;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MirCallableLoweringRoleV1 {
     Ordinary,
+    StaticCallbackStorage,
     ClassInitializer {
         owner: PersistentExactTypeId,
     },
@@ -36,6 +37,7 @@ pub enum MirCallableLoweringRoleV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DecodedMirCallableLoweringRoleV1 {
     Ordinary,
+    StaticCallbackStorage,
     ClassInitializer {
         owner: DecodedPersistentId<PersistentExactTypeId>,
     },
@@ -72,6 +74,7 @@ impl DecodedMirCallableLoweringRoleV1 {
     ) -> Result<MirCallableLoweringRoleV1, MirCallableBridgeError> {
         Ok(match self {
             Self::Ordinary => MirCallableLoweringRoleV1::Ordinary,
+            Self::StaticCallbackStorage => MirCallableLoweringRoleV1::StaticCallbackStorage,
             Self::ClassInitializer { owner } => MirCallableLoweringRoleV1::ClassInitializer {
                 owner: graph.resolve(owner)?,
             },
@@ -111,6 +114,7 @@ macro_rules! encode_role {
             fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
                 let (kind, value): (u64, Option<&dyn WireEncode>) = match self {
                     Self::Ordinary => (1, None),
+                    Self::StaticCallbackStorage => (12, None),
                     Self::ClassInitializer { owner } => (2, Some(owner)),
                     Self::ValueConstructor { owner } => (3, Some(owner)),
                     Self::Accessor => (4, None),
@@ -138,9 +142,14 @@ impl WireDecode for DecodedMirCallableLoweringRoleV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         let kind = decoder.field(0, Decoder::unsigned)?;
-        fields(decoder, count, if matches!(kind, 1 | 4) { 1 } else { 2 })?;
+        fields(
+            decoder,
+            count,
+            if matches!(kind, 1 | 4 | 12) { 1 } else { 2 },
+        )?;
         Ok(match kind {
             1 => Self::Ordinary,
+            12 => Self::StaticCallbackStorage,
             2 => Self::ClassInitializer {
                 owner: decoder.field(1, DecodedPersistentId::decode)?,
             },

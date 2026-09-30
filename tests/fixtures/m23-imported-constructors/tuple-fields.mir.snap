@@ -1,8 +1,10 @@
 Module
+  callback cb0 @fn3 -> @fn5 function_type0 id=4c73943f279856176812825b699d884a82217991dbfd387a608b6c04fd702823
   struct Token ()
   struct TupleBox (elements: (Token, (Long, Long, Long), Token))
   struct Wide (first: Long, second: Long, third: Long, marker: Token)
   struct TupleMarker (elements: (Token, Token))
+  generated_callable gc0 function=@fn5 id=4c73943f279856176812825b699d884a82217991dbfd387a608b6c04fd702823
   fun token @fn0() -> Token <no-gc>
     bb0 entry
       call $call.1: Token = external0 direct
@@ -155,4 +157,14 @@ Module
       return
         Type Long
         Local $call.1
+  fun callback bridge for defaults @fn5($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn3 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
   output library

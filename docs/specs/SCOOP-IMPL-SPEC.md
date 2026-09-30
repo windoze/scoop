@@ -1208,7 +1208,11 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 
 ### 2.13 M23-7：跨 Cone 模板实例化与 ODR 定义
 
-本节消费 [M23-6a 设计](../milestone23/stage6a/DESIGN.md) 与 2.2 节的共同 HIR 合同，并与 [M23-7 设计](../milestone23/stage7/DESIGN.md) 规定其后的机器定义、ODR 与委托运行闭环；6a 待实现，Stage 7 保留已有实现进度。语言行为沿用语言规范 3.2、8.5、9.1.1、9.2、12.5，runtime 沿用运行时规范 2.2、2.7、2.8。共同类型、查询、正文、参数推断和具体化由 6a 收敛，本节不再安排导入专用语义；ODR 仍比较实际重复 member，同组独立成员允许并集。
+本节消费已验收的 [M23-6a 设计](../milestone23/stage6a/DESIGN.md) 与 2.2 节的共同 HIR 合同，并与 [M23-7 设计](../milestone23/stage7/DESIGN.md) 规定其后的机器定义、ODR 与委托运行闭环。语言行为沿用语言规范 3.2、8.5、9.1.1、9.2、12.5，runtime 沿用运行时规范 2.2、2.7、2.8。共同类型、查询、正文、参数推断和具体化由 6a 收敛，本节不再安排导入专用语义；ODR 仍比较实际重复 member，同组独立成员允许并集。
+
+符合语言规范 13.10 的参数自由、ordinary、NoGC 顶层源码函数，其 C 地址可以首次在依赖消费方请求。定义 Cone 为共有 callable 表中签名逐项 C-safe 的这类函数发布实际 storage bridge，私有模板支持与公开函数共用同一选择；不合格的普通函数仍可正常发布，只是不产生该桥。storage bridge 使用既有 `StaticNoGcCallbackStorageBridge` 身份，完整保存原源码签名和实际指针参数／Unit 结果 ABI，并由定义方发射一次。源码及默认值／泛型正文的 FunctionAddress 保存同一个已选 callable target；消费方引用提供方的实际桥并按既有 generated-C unit 生成本次 trampoline，不复制原函数或外来 Strong 桥。名字、可见性、精确签名、NoGC 和 unsafe 规则在共同前端完成，原函数及桥的声明、ABI 与物理引用由共有 MIR/LIR 及对象读取边界检查；不增加地址资格表或 runtime 协议。
+
+参数自由 NoGC callback storage bridge 在共有 MIR callable 表中使用 lowering role tag 12（单字段 map，仅 field 0）。语义签名保留源函数的精确参数和结果；物理签名为可选的非 Unit 结果指针、各参数指针，返回 Unit，两者均为 NoGC。generated callable key 继续使用源函数 materialization 与语义签名，foundation callable signature 保存实际 storage ABI。MIR type bridge 升至 `/5`，旧产物与缓存重建；既有 typed identity、mangler、runtime ABI 不变。
 
 SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出支持闭包，并独立收集实际物化需求；二者通过 6a 的共同查询连接，不用导出可见集合替代机器根。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application、实际导出的泛型成员的 receiver、参数和结果类型，以及普通依赖调用的静态 receiver 出发，沿其表示依赖收集属于当前 Cone 的源码名义声明，补入同一支持集合，并沿已有声明、字段、成员与模板引用闭合；普通函数正文中用于泛型 payload、共有成员 ABI 或依赖成员接收者关系的私有类型因而具有完整的共有声明与继承依赖。实际接收者与其他物化类型在同一次表达式遍历中收集，不从未执行模板或类型 arena 猜测调用需求。只有支持根增加时才扩展源码投影及对应的 shape support plan，已完成的不可变结果供 HIR 类型语义、MIR/LIR 布局及共有 section 复用。新增支持保留原 typed identity 和声明可见性，不产生 public binding，也不把所有本地私有物理声明、未调用模板、未求值默认值或整个类型 arena 当成共有机器根。该数据投影不新增产物字段或来源资格。
 

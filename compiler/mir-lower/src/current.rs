@@ -19,6 +19,18 @@ pub fn lower_current_cone(
         lower_dependency_callables(output, &selected_callables, &mut callables)?;
     lower_initialization_callables(hir, &selected_callables, &mut callables)?;
     lower_runtime_constructors(hir, &selected_callables, &mut callables)?;
+    for selected in selected_callables.callables() {
+        if selected.lowering_role() == mir::MirCallableLoweringRoleV1::StaticCallbackStorage {
+            let reference = selected_callables
+                .callable_for(selected.provider(), selected.implementation())
+                .expect("selected callback storage retains its reference");
+            callables.alloc(
+                selected_callables
+                    .callable_use(reference, mir::GcEffect::NoGc)
+                    .expect("selected callback storage has a complete NoGC signature"),
+            );
+        }
+    }
     let objects = selected_callables
         .objects()
         .iter()

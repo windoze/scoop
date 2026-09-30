@@ -88,6 +88,9 @@ pub struct Module {
     /// Canonical function signatures in one-to-one correspondence with their
     /// `FunctionType::canonical_type` entries in `types`.
     pub function_types: Arena<FunctionType>,
+    /// C callback signatures for emitted ordinary source functions. The
+    /// defining Cone emits their storage ABI even before the first address use.
+    pub native_callback_signatures: Vec<NativeCallbackSignature>,
     /// Source callable-value entities. Their identities are intentionally
     /// separate from the generated invoke functions they own.
     pub lambdas: Arena<Lambda>,

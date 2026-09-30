@@ -58,5 +58,14 @@ pub(crate) fn referenced_external_callables(module: &Module) -> HashSet<External
             }
         }
     }
+    for (_, bridge) in module.callback_bridges.iter() {
+        if let crate::StaticCallbackTarget::External {
+            source,
+            bridge_function,
+        } = bridge.target
+        {
+            referenced.extend([source, bridge_function]);
+        }
+    }
     referenced
 }

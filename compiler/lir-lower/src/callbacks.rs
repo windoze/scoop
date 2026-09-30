@@ -5,19 +5,60 @@ pub(super) fn lower_callback_bridges(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    external_callables: &HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
     callback_signatures: &HashMap<
         mir::FunctionTypeId,
         scoop_identity::CanonicalCAbiSignatureFingerprint,
     >,
-) -> Arena<lir::CallbackBridge> {
+) -> (
+    Arena<lir::CallbackBridge>,
+    HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
+) {
+    let mut requested = std::collections::HashSet::new();
+    for (_, function) in module.functions.iter() {
+        for (_, block) in function.body.blocks.iter() {
+            mir::visit_block_exprs(block, &mut |expression| {
+                if let mir::ExprKind::FunctionAddress { callback } = expression.kind {
+                    requested.insert(callback);
+                }
+            });
+        }
+    }
     let mut callbacks = Arena::new();
-    for (_, callback) in module.callback_bridges.iter() {
+    let mut mapping = HashMap::new();
+    for (id, callback) in module.callback_bridges.iter() {
+        if !requested.contains(&id) {
+            continue;
+        }
         let signature = &module.function_types[callback.signature];
-        let lir::LocalFunctionRef::NoGc(bridge) = local_functions[&callback.bridge_function] else {
-            unreachable!("validated static callback bridges are NoGC")
+        let (source_name, bridge) = match callback.target {
+            mir::StaticCallbackTarget::Local {
+                source,
+                bridge_function,
+            } => {
+                let lir::LocalFunctionRef::NoGc(bridge) = local_functions[&bridge_function] else {
+                    unreachable!("validated static callback bridges are NoGC")
+                };
+                (
+                    module.functions[source].name.clone(),
+                    lir::StaticCallbackTarget::Local(bridge),
+                )
+            }
+            mir::StaticCallbackTarget::External {
+                source,
+                bridge_function,
+            } => (
+                format!(
+                    "{:?}",
+                    module.meta.external_callables[source]
+                        .reference()
+                        .implementation()
+                ),
+                lir::StaticCallbackTarget::External(external_callables[&bridge_function]),
+            ),
         };
-        callbacks.alloc(lir::CallbackBridge {
-            source_name: module.functions[callback.source].name.clone(),
+        let lowered = callbacks.alloc(lir::CallbackBridge {
+            source_name,
             bridge,
             trampoline: lir::StaticCallbackTrampolineIdentity::new(
                 module.cone,
@@ -32,8 +73,9 @@ pub(super) fn lower_callback_bridges(
                 .collect(),
             return_type: c_return_type(module, structs, enums, &signature.return_type),
         });
+        mapping.insert(id, lowered);
     }
-    callbacks
+    (callbacks, mapping)
 }
 
 pub(super) fn lower_foreign_callback_bridges(

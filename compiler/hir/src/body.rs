@@ -305,7 +305,7 @@ pub enum ExprKind {
     SizeOf(TypeId),
     AlignOf(TypeId),
     /// Native C callback address selected contextually from `::name`.
-    FunctionAddress(FunctionId),
+    FunctionAddress(CallableTarget),
     ForeignCallbackRegister {
         registration: ForeignCallbackRegistrationId,
         closure: Box<Expr>,

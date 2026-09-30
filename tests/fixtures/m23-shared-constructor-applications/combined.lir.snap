@@ -366,6 +366,15 @@ Module
   block entry
     t0 = aggregate (param0, param1) : struct1
     ret t0
+  fun @scoop$1$cb$19766a6a0f799ece1b2b6d5d826158f5474b2c66eb0e2ca3549077213ee28779(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i32
+  block entry
+    t0 = raw_load param1 align 4 : i32
+    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn0(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 4
+    t2 = aggregate () : {}
+    ret
   td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.constructors;o=-;k=C;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$618efc4d66b0f22ea71a013518c8c1ceef91dd70923a3a56bd0f30fb41d3a01a type-id=10875191220622815530 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
   td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.constructors;o=-;k=C;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$98bcca9442de5930ea820b16b74be9843bfa7745ae1df4ece859919d059a70d1 type-id=14336727462468721753 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
   td td2 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.constructors;o=-;k=C;x=CurrentChild);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$d91e22a1ae1185283bc49fcff9f929b4aa75cf53b00d026e2d8765afa77f3133 type-id=14810357660637088826 shape=FixedObject minimum-size=32 align=8 parent=td1 vtable=[] itables=[]

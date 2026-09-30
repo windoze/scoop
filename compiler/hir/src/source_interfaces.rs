@@ -430,7 +430,7 @@ pub enum ExportDefaultCallableTarget {
     Lambda(LambdaId),
     AnonymousFunction(AnonymousFunctionId),
     CallableReference(CallableReferenceId),
-    FunctionAddress(FunctionId),
+    FunctionAddress(CallableTarget),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

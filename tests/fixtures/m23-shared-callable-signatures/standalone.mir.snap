@@ -1,8 +1,10 @@
 Module
+  callback cb0 @fn0 -> @fn13 function_type0 id=b685b96b2111e865ae6ab5bf57e2e50cf09433503c97ca885d5a51e8eaf0648e
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=0
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn10 captures=0
   generated_exact_type get0 location=closure0 nominal_id=15cf6bf0371547c0f28b6c8c313191692ef63af5a1323bade87f81f2141808ea exact_id=54d1df986877378085af56fb8557f2e19764e4302c629e61504883aac68c225e
   generated_exact_type get1 location=closure1 nominal_id=dd7c573b7b0ae918a7148a4afbca0f9d773937bbac7a34afef15663377ab4ec4 exact_id=7bea6730b2c79d44b28bf3ff959b8ab21d598b937dc259aff9a4cde99d3ad1f1
+  generated_callable gc0 function=@fn13 id=b685b96b2111e865ae6ab5bf57e2e50cf09433503c97ca885d5a51e8eaf0648e
   fun nativeNumber @fn0(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.argument.0: Int
@@ -205,6 +207,20 @@ Module
       return
         Type Int
         Local value
+  fun callback bridge for nativeNumber @fn13($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn0 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
   instance mi0 function=@fn2 <- scalar
   instance mi1 function=@fn3 <- identity
   instance mi2 function=@fn4 <- localIdentity

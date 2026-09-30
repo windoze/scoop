@@ -38,6 +38,19 @@ impl Lowerer {
                 })?;
         }
         let kind = match expression.kind() {
+            Kind::FunctionAddress(declaration) => {
+                let target = hir::DefaultCallableRefV1::try_new(
+                    *declaration,
+                    scoop_identity::OptionalSignatureType::Absent,
+                    Vec::new(),
+                )
+                .expect("a native function address has no receiver or type arguments");
+                hir::ExprKind::FunctionAddress(self.materialize_imported_callable_target(
+                    &target,
+                    MemberCallKind::Ordinary,
+                    context,
+                )?)
+            }
             Kind::GenericDelegateStorageRead(reference) => {
                 hir::ExprKind::GenericDelegateStorageRead(
                     self.materialize_imported_delegate_reference(reference, context)?,
@@ -461,7 +474,6 @@ impl Lowerer {
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
-            | Kind::FunctionAddress(_)
             | Kind::ForeignCallbackRegister { .. }
             | Kind::ForeignCallbackOperation { .. }
             | Kind::DirectSuperMethodCall { .. } => {

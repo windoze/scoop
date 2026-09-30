@@ -367,6 +367,87 @@ Module
     call managed-direct-target3 sp<managed-call:3> live=[] t6 = sig=direct5 () -> i1 local-fn13()
     store t6 -> local14
     ret
+  fun @scoop$1$cb$ba01cb495303204fdf9cc383358ef0d820ddd6389aff32454dd5331ce13c8d19(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 1 : i8
+    call no-gc-direct-target0 t1 = sig=direct0 (i8) -> i1 local-fn0(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$ea05014d908c59045a816f34e07588c5eff16b82c31d9ace0d27d39725bcb499(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 2 : i16
+    call no-gc-direct-target0 t1 = sig=direct0 (i16) -> i1 local-fn1(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$a1cb5fb11667884b4675c8b1441bd2b3255e0562a41772366e7d4be7952558c5(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 4 : i32
+    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i1 local-fn2(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$362c35bb44587befc3e42331b69f53784be7888e7910abddce9aa6256a7dca8c(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 8 : i64
+    call no-gc-direct-target0 t1 = sig=direct0 (i64) -> i1 local-fn3(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$8fa940fb064ca1d2a3192700e2e3e521582ff910d2679df53a0d78433ab90443(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 1 : i8
+    call no-gc-direct-target0 t1 = sig=direct0 (i8) -> i1 local-fn4(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$5a4cf2700ca547e9590699c5535302282ef71e8f26776e0c63e026b2b9587bf1(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 2 : i16
+    call no-gc-direct-target0 t1 = sig=direct0 (i16) -> i1 local-fn5(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$a2a61c28b8b0859d728ce1936027c43f2af568964a8460d5ddcef0b459d115e1(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 4 : i32
+    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i1 local-fn6(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$b7a535af34fcd8cde095b90f54dc10b6772928271248506c876ea7cba4a09853(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 8 : i64
+    call no-gc-direct-target0 t1 = sig=direct0 (i64) -> i1 local-fn7(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$cbd45d666a1334329a587eb32d5d584085ddb950af20a5f74b78ae74ef52bb6c(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i1
+  block entry
+    t0 = raw_load param1 align 1 : i8
+    call no-gc-direct-target0 t1 = sig=direct0 (i8) -> i1 local-fn22(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 1
+    t2 = aggregate () : {}
+    ret
   fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]

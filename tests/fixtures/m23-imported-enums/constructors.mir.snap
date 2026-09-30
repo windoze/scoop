@@ -1,4 +1,5 @@
 Module
+  callback cb0 @fn5 -> @fn6 function_type0 id=0a95e8023f6e84c2f3a9651550b477b2a41051e07e626ee06ef1d9e81c4c424e
   struct Token ()
   enum Choice
     Empty()
@@ -13,6 +14,7 @@ Module
     Position(_0: Long, _1: Token, _2: Long)
     Named(left: Long, marker: Token, right: Long)
     Defaults(left: Long, marker: Token, right: Long)
+  generated_callable gc0 function=@fn6 id=0a95e8023f6e84c2f3a9651550b477b2a41051e07e626ee06ef1d9e81c4c424e
   fun relay @fn0(value: Choice) -> Choice <no-gc>
     bb0 entry
       return
@@ -796,4 +798,14 @@ Module
       return
         Type Long
         IntegerLiteral Long value=83 bits=0x0000000000000053
+  fun callback bridge for test @fn6($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn5 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
   output library

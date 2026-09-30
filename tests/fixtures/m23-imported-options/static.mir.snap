@@ -2,6 +2,7 @@ Module
   global0 stored: Option<Int> managed initial=encoded(Option<Int>::v1)
   global1 referenced: Option<Cell> managed initial=encoded(Option<Cell>::v1)
   global2 qualified: Option<Int> managed initial=encoded(Option<Int>::v1)
+  callback cb0 @fn0 -> @fn10 function_type0 id=a573589fe699d5ccf7dda5c6c1439934589de58d3cd1ef9db19a3889bd928a88
   enum Option<Int>
     Some(_0: Int)
     None()
@@ -17,6 +18,7 @@ Module
   class Cell vtable=0 itables=0
   generated_exact_type get0 location=enum3 nominal_id=2ab62cfa7f07601eec47cbf21d6a09c14a79a68d8f4b87e979ee647acef840f8 exact_id=620e7e307ee1285f5674f972a9a185b99d1c1d5fe49870dc142a0ff7bbcc3af5
   generated_exact_type get1 location=enum2 nominal_id=76793eda555f02b31c04e6c0abf7ea5e121961cc4f1068473e21540be9460b7c exact_id=895a23ac8d6893a29d4ed9d024132c465fe5dbb3f81d61d24afe80435af35525
+  generated_callable gc0 function=@fn10 id=a573589fe699d5ccf7dda5c6c1439934589de58d3cd1ef9db19a3889bd928a88
   fun leaf @fn0() -> Int <no-gc>
     bb0 entry
       val $dependency.argument.0: Int
@@ -478,6 +480,16 @@ Module
         Local this
         Type Int
         Local number
+      return
+  fun callback bridge for leaf @fn10($result: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn0 direct
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
       return
   coroutine_step cs0 CoroutineStep<Cell> result=Cell
   coroutine_slot cl0 CoroutineSlot<Cell> value=Cell

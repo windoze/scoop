@@ -1,0 +1,43 @@
+Module
+  extern ef0 nativeSink @m23_call_sink(ptr<code>) -> i64 <c exact=(code-ptr<(data-ptr<Long,direct>)->void,direct>)->Long bridge=@scoop$1$br$b13af7bd020e8d22b04acd794c2f3b60fcc1451e395bdd9d08c4e0ed4c7e1b8c gc-leaf nounwind>
+  callback cb0 Function(PersistentFunctionId([82, 4, 115, 222, 25, 158, 195, 82, 63, 103, 62, 72, 61, 155, 134, 76, 121, 173, 145, 174, 129, 201, 112, 224, 239, 125, 203, 115, 43, 40, 231, 34])) @scoop$1$cb$637474c15dff6d6587ae7486d87c8ed28280e351d003eae74729a76a34ea996c -> @scoop$1$br$fe5fa73cd7358826844e2e44619cb204aa2c907ab0881f98f81cc3bbea39baed c=(data-ptr<Long,direct>)->void
+  fun @scoop$1$cb$bf306b2478d46cb72ad63104aeeb57c2bc591bfea58901a9fef99a50eb2990f8(ptr<code>) -> i64
+    local %0 $argument.0: ptr<code>
+    local %1 $parameter.callback: ptr<code>
+    local %2 $call.1: i64
+    local %3 $sc.1: ptr<code>
+    local %4 $sc.2: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local3
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local3))
+    store local4 -> local2
+    ret local2
+  fun @scoop$1$cb$6684ce30c98507e072f6597c86becba938a8c5c00a2dd53f95d8a329863290a3() -> i64
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i64 local-fn2(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$3c1a0aba4654d4bb5a73e87235cd22f1f63058a6499fc29634fbaae71c2661f8(i32) -> i64
+    local %0 callback: ptr<code>
+    local %1 $argument.0: ptr<code>
+    local %2 $parameter.callback: ptr<code>
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = function_address @scoop$1$br$fe5fa73cd7358826844e2e44619cb204aa2c907ab0881f98f81cc3bbea39baed : ptr
+    store t0 -> local0
+    store local0 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>) -> i64 local-fn0(local2)
+    store t1 -> local3
+    ret local3
+  output library

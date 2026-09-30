@@ -194,6 +194,7 @@ impl Concretizer<'_> {
             }
             export::Type::FunPtr(id) => {
                 let id = self.lower_function_type(id, substitution);
+                self.prepare_callback_storage_types(id);
                 self.intern_type(concrete::TypeKind::FunPtr(id), true)
             }
             export::Type::Enum(application) => {
@@ -204,6 +205,19 @@ impl Concretizer<'_> {
                 .get(index.into_raw() as usize)
                 .copied()
                 .expect("every local-concrete type parameter has a substitution"),
+        }
+    }
+
+    pub(super) fn prepare_callback_storage_types(&mut self, signature: concrete::FunctionTypeId) {
+        let signature = self.function_types[signature].clone();
+        for ty in signature
+            .parameter_types
+            .into_iter()
+            .chain([signature.return_type])
+        {
+            if !matches!(self.types[ty].kind, concrete::TypeKind::Unit) {
+                self.intern_type(concrete::TypeKind::Ptr(ty), true);
+            }
         }
     }
 

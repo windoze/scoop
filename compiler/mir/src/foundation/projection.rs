@@ -225,6 +225,9 @@ fn odr_records(
         )?;
     }
     for (_, bridge) in module.callback_bridges.iter() {
+        let Some((_, _)) = bridge.local_definition() else {
+            continue;
+        };
         insert_optional_identity(
             &mut members,
             bridge.identity().odr_member_record(),

@@ -305,6 +305,15 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
+  fun @scoop$1$cb$b63a10e2402f4994101329c7516587bb0faefaafa201b0fdd8d91aa78c93b1e5(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: i32
+  block entry
+    t0 = raw_load param1 align 4 : i32
+    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn0(t0)
+    store t1 -> local0
+    raw_store param0 local0 align 4
+    t2 = aggregate () : {}
+    ret
   td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.signatures;o=-;k=I;x=Source);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$2b8b666d026e9360775585aee9421fe4c40d803b8d7774e4a6660e24e17fd765 type-id=13429604444751276950 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
   td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.signatures;o=-;k=C;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6111141895c74c4ca35bd58435e372c89fd554cddd9efc26c3ca02b375214a72 type-id=3818799457781466846 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn5]]
   td td2 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.signatures;o=-;k=C;x=Local);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$30270e7338f2e56e5546b013f4b446ba232acfe0dde6bd984f1ffcd511c37c58 type-id=1611794753101764669 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn8]]

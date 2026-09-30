@@ -276,3 +276,51 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::CaughtException => {}
     }
 }
+
+/// Visit every expression in a block, including call arguments and the terminator.
+pub fn visit_block_exprs(block: &BasicBlock, visitor: &mut impl FnMut(&Expr)) {
+    for statement in &block.statements {
+        match &statement.kind {
+            StatementKind::Expr(expr) => visit_expr(expr, visitor),
+            StatementKind::Call(effect) => {
+                let call = match effect {
+                    CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
+                };
+                for argument in &call.args {
+                    visit_expr(argument, visitor);
+                }
+            }
+            StatementKind::ValDecl { init, .. } => visit_expr(init, visitor),
+            StatementKind::Assign { value, .. } | StatementKind::GlobalAssign { value, .. } => {
+                visit_expr(value, visitor)
+            }
+            StatementKind::ArraySet {
+                array,
+                index,
+                value,
+                ..
+            } => {
+                visit_expr(array, visitor);
+                visit_expr(index, visitor);
+                visit_expr(value, visitor);
+            }
+            StatementKind::FieldSet { object, value, .. }
+            | StatementKind::AtomicFieldStore { object, value, .. } => {
+                visit_expr(object, visitor);
+                visit_expr(value, visitor);
+            }
+            StatementKind::Eh(_) => {}
+        }
+    }
+    match &block.terminator {
+        Terminator::Branch { cond, .. } => visit_expr(cond, visitor),
+        Terminator::Return { value: Some(value) } => visit_expr(value, visitor),
+        Terminator::Throw { exception, .. } => visit_expr(exception, visitor),
+        Terminator::Goto(_)
+        | Terminator::Return { value: None }
+        | Terminator::Rethrow { .. }
+        | Terminator::Resume
+        | Terminator::Trap { .. }
+        | Terminator::Unreachable => {}
+    }
+}

@@ -8,8 +8,15 @@ impl Lowerer {
         current_cone: scoop_identity::ConeIdentity,
         warnings: Vec<Diagnostic>,
         core_protocols: hir::CoreProtocols,
-        completion: LoweringCompletion,
     ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
+        let native_callback_signatures = self.prepare_native_callback_signatures(current_cone);
+        let completion = LoweringCompletion {
+            dependencies: self
+                .dependencies
+                .take()
+                .expect("every HIR entry installs its dependency selection plan"),
+            binding_witness_uses: std::mem::take(&mut self.retained_binding_witness_uses),
+        };
         let core_types = match &core_protocols {
             hir::CoreProtocols::Defined(protocols) => {
                 hir::HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)
@@ -348,6 +355,7 @@ impl Lowerer {
             types: self.types,
             imported_intrinsic_types: self.imported_intrinsic_types,
             function_types: self.function_types,
+            native_callback_signatures,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,

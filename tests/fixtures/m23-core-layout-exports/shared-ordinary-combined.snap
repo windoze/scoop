@@ -6,12 +6,13 @@ local-only descriptor IntRangeIterator
 local-only descriptor LongRangeIterator
 local-only descriptor UIntRangeIterator
 local-only descriptor ULongRangeIterator
-layouts=276 descriptors=138 dispatch=163 callables=42 shapes=36
+layouts=276 descriptors=138 dispatch=163 callables=43 shapes=36
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedOrdinarySource.read: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Indirect(16)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
+callable callback bridge for sharedOrdinaryCount: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable ctor.SharedOrdinaryDeferredValue.$c7: OrdinaryNoGc receiver=false args=["Direct(8)"] result=Indirect(8)
 callable ctor.SharedOrdinaryEmpty.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SharedOrdinaryWide.$c6: OrdinaryNoGc receiver=false args=["Direct(8)", "Zst(0)", "Direct(8)"] result=Indirect(16)

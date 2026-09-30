@@ -1,5 +1,7 @@
 Module
+  callback cb0 @fn6 -> @fn21 function_type0 id=a273b1e0578a353185e244d33b9bcbc67355edfc35087a75de2941d3a1cd5935
   struct LocalValue (number: Int)
+  generated_callable gc0 function=@fn21 id=a273b1e0578a353185e244d33b9bcbc67355edfc35087a75de2941d3a1cd5935
   fun explicitAndInferred @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Int
@@ -312,6 +314,16 @@ Module
         StructInit LocalValue
           Type Int
           Local number
+  fun callback bridge for nativeCall @fn21($result: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn6 direct
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
   instance mi0 function=@fn9 <- identity
   instance mi1 function=@fn10 <- identity
   instance mi2 function=@fn11 <- relay

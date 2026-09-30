@@ -283,4 +283,12 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
+  fun @scoop$1$cb$26b27ebb7fd66b8c8991c808c8953db5c0747027645d19c8c7f8a5c2361228f0(ptr<raw>) -> void <no-gc>
+    local %0 $value: i64
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn5()
+    store t0 -> local0
+    raw_store param0 local0 align 8
+    t1 = aggregate () : {}
+    ret
   output library
